@@ -1,3 +1,11 @@
+"""Module for the ``Project`` class and its associated functions.
+
+The ``Project`` class supervises data organization and provides a high-level
+API for common functionality, such as tile extraction from whole
+slide images, model training and evaluation, feature calculation, and
+heatmap generation.
+"""
+
 import copy
 import csv
 import itertools
@@ -7,8 +15,6 @@ import json
 import multiprocessing
 import numpy as np
 import os
-import sys
-import shutil
 import pickle
 import pandas as pd
 import tarfile
@@ -27,24 +33,30 @@ from . import errors, project_utils
 from .util import log, path_to_name, path_to_ext
 from .dataset import Dataset
 from .model import ModelParams
-from .project_utils import (auto_dataset, auto_dataset_allow_none,
-                            get_validation_settings, get_first_nested_directory,
-                            get_matching_directory, BreastER, ThyroidBRS,
-                            LungAdenoSquam)
+from .project_utils import (  # noqa: F401
+    auto_dataset, auto_dataset_allow_none, get_validation_settings,
+    get_first_nested_directory, get_matching_directory, BreastER, ThyroidBRS,
+    LungAdenoSquam
+)
 
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
     from slideflow.slide import SlideReport
     from slideflow import simclr, mil
     from ConfigSpace import ConfigurationSpace, Configuration
-    from smac.facade.smac_bb_facade import SMAC4BB
+    from smac.facade.smac_bb_facade import SMAC4BB  # noqa: F401
 
 
 class Project:
     """Assists with project organization and execution of common tasks."""
 
-    def __init__(self, root: str, use_neptune: bool = False, **kwargs) -> None:
-        """The initializer loads or creates a project at a given directory.
+    def __init__(
+        self, root: str,
+        use_neptune: bool = False,
+        create: bool = False,
+        **kwargs
+    ) -> None:
+        """Load or create a project at a given directory.
 
         If a project does not exist at the given root directory, one can be
         created if a project configuration was provided via keyword arguments.
@@ -88,12 +100,18 @@ class Project:
             raise errors.ProjectError(f"Project already exists at {root}")
         elif sf.util.is_project(root):
             self._load(root)
-        else:
+        elif create:
             log.info(f"Creating project at {root}...")
             self._settings = project_utils._project_config(**kwargs)
             if not exists(root):
                 os.makedirs(root)
             self.save()
+        else:
+            raise errors.ProjectError(
+                f"Project not found at {root}. Create a project using "
+                "slideflow.Project(..., create=True), or with "
+                "slideflow.create_project(...)"
+            )
 
         # Create directories, if not already made
         if not exists(self.models_dir):
@@ -110,20 +128,22 @@ class Project:
 
     @classmethod
     def from_prompt(cls, root: str, **kwargs: Any) -> "Project":
-        """Initializes project by creating project folder, prompting user for
-        project settings, and saving to "settings.json" in project directory.
+        """Initialize a project using an interactive prompt.
+
+        Creates a project folder and then prompts the user for
+        project settings, saving to "settings.json" in project directory.
 
         Args:
             root (str): Path to project directory.
-        """
 
+        """
         if not sf.util.is_project(root):
             log.info(f'Setting up new project at "{root}"')
             project_utils.interactive_project_setup(root)
         obj = cls(root, **kwargs)
         return obj
 
-    def __repr__(self):
+    def __repr__(self):   # noqa D105
         if self.use_neptune:
             tail = ", use_neptune={!r}".format(self.use_neptune)
         else:
@@ -132,6 +152,7 @@ class Project:
 
     @property
     def verbosity(self) -> int:
+        """Current logging verbosity level."""
         return sf.getLoggingLevel()
 
     @property
@@ -245,9 +266,7 @@ class Project:
         self._settings['sources'] = v
 
     def _load(self, path: str) -> None:
-        """Loads a saved and pre-configured project from the specified path."""
-
-        # Enable logging
+        """Load a saved and pre-configured project from the specified path."""
         if sf.util.is_project(path):
             self._settings = sf.util.load_json(join(path, 'settings.json'))
         else:
@@ -272,7 +291,7 @@ class Project:
             self.models_dir = _initial
 
     def _read_relative_path(self, path: str) -> str:
-        """Converts relative path within project directory to global path."""
+        """Convert relative path within project directory to global path."""
         return sf.util.relative_path(path, self.root)
 
     def _setup_labels(
@@ -284,8 +303,7 @@ class Project:
         splits: str,
         eval_k_fold: Optional[int] = None
     ) -> Tuple[Dataset, Dict, Union[Dict, List]]:
-        '''Prepares dataset and labels.'''
-
+        """Prepare dataset and labels."""
         # Assign labels into int
         conf_labels = config['outcome_labels']
         if hp.model_type() == 'categorical':
@@ -352,7 +370,7 @@ class Project:
         load_method: str = 'full',
         custom_objects: Optional[Dict[str, Any]] = None,
     ) -> Tuple["Trainer", Dataset]:
-        """Prepares a :class:`slideflow.model.Trainer` for eval or prediction.
+        """Prepare a :class:`slideflow.model.Trainer` for eval or prediction.
 
         Args:
             model (str): Path to model to evaluate.
@@ -376,10 +394,10 @@ class Project:
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a Tensorflow model. If 'full', loads the model with
-                ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
-                and then load weights from the given model with
+                when loading a Tensorflow model. If 'full', loads the model
+                with ``tf.keras.models.load_model()``. If 'weights', will read
+                the ``params.json``configuration file, build the model
+                architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
@@ -392,8 +410,8 @@ class Project:
                 :class:`slideflow.model.Trainer`: Trainer.
 
                 :class:`slideflow.Dataset`: Evaluation dataset.
-        """
 
+        """
         if eval_k_fold is not None and outcomes is None:
             raise ValueError('`eval_k_fold` invalid when predicting.')
 
@@ -556,7 +574,7 @@ class Project:
         process_isolate: bool = False,
         **kwargs
     ) -> None:
-        '''Trains a model(s) using the specified hyperparameters.
+        """Train a model(s) using the specified hyperparameters.
 
         Keyword Args:
             hp_name (str): Name of hyperparameter combination being run.
@@ -580,8 +598,8 @@ class Project:
             results_dict (dict): Multiprocessing-friendly dict for sending
                 results from isolated training processes
             training_kwargs (dict): Keyword arguments for Trainer.train().
-        '''
 
+        """
         # --- Prepare dataset ---------------------------------------------
         # Filter out slides that are blank in the outcome label,
         # or blank in any of the input_header categories
@@ -703,7 +721,7 @@ class Project:
         if (not val_settings.source
             and (val_settings.strategy is None
                  or val_settings.strategy == 'none')):
-            log.info(f'No validation performed.')
+            log.info('No validation performed.')
         else:
             for mi in model_iterations:
                 if mi not in results_dict or 'epochs' not in results_dict[mi]:
@@ -723,7 +741,7 @@ class Project:
         val_settings: SimpleNamespace,
         s_args: SimpleNamespace,
     ) -> None:
-        '''Trains a model for a given training/validation split.
+        """Train a model for a given training/validation split.
 
         Args:
             dataset (:class:`slideflow.Dataset`): Dataset to split into
@@ -731,8 +749,8 @@ class Project:
             hp (:class:`slideflow.ModelParams`): Model parameters.
             val_settings (:class:`types.SimpleNamspace`): Validation settings.
             s_args (:class:`types.SimpleNamspace`): Training settings.
-        '''
 
+        """
         # Log current model name and k-fold iteration, if applicable
         k_msg = ''
         if s_args.k is not None:
@@ -742,9 +760,11 @@ class Project:
         log.info(f'Training model [bold]{s_args.model_name}[/]{k_msg}...')
         log.info(f'Hyperparameters: {hp}')
         if val_settings.dataset:
-            log.info(f'Val settings: <Dataset manually provided>')
+            log.info('Val settings: <Dataset manually provided>')
         else:
-            log.info(f'Val settings: {json.dumps(vars(val_settings), indent=2)}')
+            log.info(
+                f'Val settings: {json.dumps(vars(val_settings), indent=2)}'
+            )
 
         # --- Set up validation data ------------------------------------------
         from_wsi = ('from_wsi' in s_args.training_kwargs
@@ -814,7 +834,9 @@ class Project:
             )
             train_dts = train_dts.clip(s_args.max_tiles)
         elif hp.training_balance not in ('none', None) or s_args.max_tiles:
-            log.warning("Balancing / clipping is disabled when `from_wsi=True`")
+            log.warning(
+                "Balancing / clipping is disabled when `from_wsi=True`"
+            )
 
         if val_dts and not from_wsi:
             val_dts = val_dts.balance(
@@ -827,11 +849,15 @@ class Project:
         if from_wsi:
             num_train = len(train_dts.slide_paths())
             num_val = 0 if not val_dts else len(val_dts.slide_paths())
-            log.info(f'Using {num_train} training slides, {num_val} validation')
+            log.info(
+                f'Using {num_train} training slides, {num_val} validation'
+            )
         else:
             num_train = len(train_dts.tfrecords())
             num_val = 0 if not val_dts else len(val_dts.tfrecords())
-            log.info(f'Using {num_train} training TFRecords, {num_val} validation')
+            log.info(
+                f'Using {num_train} training TFRecords, {num_val} validation'
+            )
 
         # --- Prepare additional slide-level input ----------------------------
         if s_args.input_header:
@@ -904,11 +930,11 @@ class Project:
         }
         if s_args.process_isolate:
             process = s_args.ctx.Process(target=project_utils._train_worker,
-                                        args=((train_dts, val_dts),
-                                            model_kwargs,
-                                            s_args.training_kwargs,
-                                            s_args.results_dict,
-                                            self.verbosity))
+                                         args=((train_dts, val_dts),
+                                               model_kwargs,
+                                               s_args.training_kwargs,
+                                               s_args.results_dict,
+                                               self.verbosity))
             process.start()
             log.debug(f'Spawning training process (PID: {process.pid})')
             process.join()
@@ -931,7 +957,7 @@ class Project:
         tfrecords: Optional[str] = None,
         path: Optional[str] = None
     ) -> None:
-        """Adds a dataset source to the dataset configuration file.
+        r"""Add a dataset source to the dataset configuration file.
 
         Args:
             name (str): Dataset source name.
@@ -1002,14 +1028,15 @@ class Project:
 
         Keyword args:
             batch_size (int): Batch size for cell segmentation. Defaults to 8.
-            cp_thresh (float): Cell probability threshold. All pixels with value
-                above threshold kept for masks, decrease to find more and larger
-                masks. Defaults to 0.
-            diam_mean (int, optional): Cell diameter to detect, in pixels (without
-                image resizing). If None, uses Cellpose defaults (17 for the
-                'nuclei' model, 30 for all others).
-            downscale (float): Factor by which to downscale generated masks after
-                calculation. Defaults to None (keep masks at original size).
+            cp_thresh (float): Cell probability threshold. All pixels with
+                value above threshold kept for masks, decrease to find more and
+                larger masks. Defaults to 0.
+            diam_mean (int, optional): Cell diameter to detect, in pixels
+                (without image resizing). If None, uses Cellpose defaults
+                (17 for the 'nuclei' model, 30 for all others).
+            downscale (float): Factor by which to downscale generated masks
+                after calculation. Defaults to None (keep masks at original
+                size).
             flow_threshold (float): Flow error threshold (all cells with errors
                 below threshold are kept). Defaults to 0.4.
             gpus (int, list(int)): GPUs to use for cell segmentation.
@@ -1017,9 +1044,9 @@ class Project:
             interp (bool): Interpolate during 2D dynamics. Defaults to True.
             qc (str): Slide-level quality control method to use before
                 performing cell segmentation. Defaults to "Otsu".
-            model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use
-                for cell segmentation. May be any valid cellpose model. Defaults
-                to 'cyto2'.
+            model (str, :class:`cellpose.models.Cellpose`): Cellpose model to
+                use for cell segmentation. May be any valid cellpose model.
+                Defaults to 'cyto2'.
             mpp (float): Microns-per-pixel at which cells should be segmented.
                 Defaults to 0.5.
             num_workers (int, optional): Number of workers.
@@ -1032,7 +1059,8 @@ class Project:
                 configuration file.
             tile (bool): Tiles image to decrease GPU/CPU memory usage.
                 Defaults to True.
-            verbose (bool): Verbose log output at the INFO level. Defaults to True.
+            verbose (bool): Verbose log output at the INFO level.
+                Defaults to True.
             window_size (int): Window size at which to segment cells across
                 a whole-slide image. Defaults to 256.
 
@@ -1057,13 +1085,13 @@ class Project:
         self,
         filename: Optional[str] = None
     ) -> None:
-        """Creates an empty annotations file.
+        """Create an empty annotations file.
 
         Args:
             filename (str): Annotations file destination. If not provided,
                 will use project default.
-        """
 
+        """
         if filename is None:
             filename = self.annotations
         if exists(filename):
@@ -1097,7 +1125,7 @@ class Project:
         label: Optional[str] = None,
         **kwargs: Any
     ) -> None:
-        """Prepares a grid-search hyperparameter sweep, saving to a config file.
+        """Prepare a grid-search hyperparameter sweep, saving to a config file.
 
         To initiate a grid-search sweep using the created JSON file, pass
         this file to the ``params`` argument of ``Project.train()``:
@@ -1112,6 +1140,7 @@ class Project:
                 Defaults to None.
             **kwargs: Parameters to include in the sweep. Parameters may either
                 be fixed or provided as lists.
+
         """
         non_epoch_kwargs = {k: v for k, v in kwargs.items() if k != 'epochs'}
         pdict = copy.deepcopy(non_epoch_kwargs)
@@ -1153,7 +1182,7 @@ class Project:
         custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> Dict:
-        """Evaluates a saved model on a given set of tfrecords.
+        """Evaluate a saved model on a given set of tfrecords.
 
         Args:
             model (str): Path to model to evaluate.
@@ -1188,10 +1217,10 @@ class Project:
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a Tensorflow model. If 'full', loads the model with
-                ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
-                and then load weights from the given model with
+                when loading a Tensorflow model. If 'full', loads the model
+                with ``tf.keras.models.load_model()``. If 'weights', will read
+                the ``params.json``configuration file, build the model
+                architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
@@ -1206,6 +1235,7 @@ class Project:
 
         Returns:
             Dict: Dictionary of keras training results, nested by epoch.
+
         """
         log.info(f'Evaluating model at [green]{model}')
         trainer, eval_dts = self._prepare_trainer(
@@ -1262,8 +1292,8 @@ class Project:
 
         Returns:
             None
-        """
 
+        """
         import slideflow.clam as clam
         from slideflow.clam import export_attention
         from slideflow.clam import Generic_MIL_Dataset
@@ -1309,8 +1339,10 @@ class Project:
         for _a in _default_args.__dict__:
             if not hasattr(args, _a):
                 _default = getattr(_default_args, _a)
-                log.info(f"Argument {_a} not found in CLAM model configuration "
-                         f"file; using default value of {_default}.")
+                log.info(
+                    f"Argument {_a} not found in CLAM model configuration "
+                    f"file; using default value of {_default}."
+                )
                 setattr(args, _a, _default)
 
         dataset = self.dataset(
@@ -1441,9 +1473,9 @@ class Project:
         filter_blank: Optional[Union[str, List[str]]] = None,
         **kwargs: Any
     ) -> Dict[str, "SlideReport"]:
-        """Extracts tiles from slides.
+        """Extract tiles from slides.
 
-        Preferred use is calling :meth:`slideflow.Dataset.extract_tiles` directly.
+        Preferred use is calling :meth:`slideflow.Dataset.extract_tiles`.
 
         Args:
             tile_px (int): Size of tiles to extract, in pixels.
@@ -1536,6 +1568,7 @@ class Project:
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
             (:class:`slideflow.slide.report.SlideReport`)
+
         """
         dataset = self.dataset(
             tile_px,
@@ -1730,8 +1763,8 @@ class Project:
             save_projection (bool, optional): Save weight projection for each
                 generated image as an `.npz` file in the out directory.
                 Defaults to False.
-            resize (bool, optional): Crop/resize images to a target micron/pixel
-                size. Defaults to False.
+            resize (bool, optional): Crop/resize images to a target
+                micron/pixel size. Defaults to False.
             gan_um (int, optional): Size of GAN images in microns. Used for
                 cropping/resizing images to a target size. Defaults to None.
             gan_px (int, optional): Size of GAN images in pixels. Used for
@@ -1764,8 +1797,7 @@ class Project:
         outcomes: Optional[List[str]] = None,
         **kwargs: Any
     ) -> sf.DatasetFeatures:
-        """Calculate layer activations and return a
-        :class:`slideflow.DatasetFeatures` object.
+        """Calculate layer activations.
 
         See :ref:`Layer activations <dataset_features>` for more information.
 
@@ -1800,11 +1832,14 @@ class Project:
 
         Returns:
             :class:`slideflow.DatasetFeatures`
+
         """
         if dataset is None:
-            raise ValueError('Argument "dataset" is required when "model" is '
-                             'an imagenet-pretrained model, or otherwise not a '
-                             'saved Slideflow model.')
+            raise ValueError(
+                'Argument "dataset" is required when "model" is '
+                'an imagenet-pretrained model, or otherwise not a '
+                'saved Slideflow model.'
+            )
 
         # Prepare dataset and annotations
         dataset = dataset.clip(max_tiles)
@@ -1868,8 +1903,8 @@ class Project:
 
         Returns:
             Path to directory containing exported .pt files
-        """
 
+        """
         # Check if the model exists and has a valid parameters file
         if exists(model):
             config = sf.util.get_model_config(model)
@@ -1888,11 +1923,15 @@ class Project:
                     _end = f"_kfold{config['k_fold_i']}"
                 else:
                     _end = ''
-                outdir = join(self.root, 'pt_files', config['model_name'] + _end)
+                outdir = join(
+                    self.root, 'pt_files', config['model_name'] + _end
+                )
         elif dataset is None:
-            raise ValueError('Argument "dataset" is required when "model" is '
-                             'an imagenet-pretrained model, or otherwise not a '
-                             'saved Slideflow model.')
+            raise ValueError(
+                'Argument "dataset" is required when "model" is '
+                'an imagenet-pretrained model, or otherwise not a '
+                'saved Slideflow model.'
+            )
 
         # Ensure min_tiles is applied to the dataset.
         dataset = dataset.filter(min_tiles=min_tiles)
@@ -1901,7 +1940,9 @@ class Project:
         # (for using an Imagenet pretrained model)
         if sf.model.is_extractor(model):
             log.info(f"Building feature extractor {model}.")
-            model = sf.model.build_feature_extractor(model, tile_px=dataset.tile_px)
+            model = sf.model.build_feature_extractor(
+                model, tile_px=dataset.tile_px
+            )
 
             # Set the pt_files directory if not provided
             if outdir.lower() == 'auto':
@@ -1968,7 +2009,7 @@ class Project:
         verbose: bool = True,
         **kwargs: Any
     ) -> None:
-        """Creates predictive heatmap overlays on a set of slides.
+        """Create predictive heatmap overlays on a set of slides.
 
         By default, heatmaps are saved in the ``heatmaps/`` folder
         in the project root directory.
@@ -2035,8 +2076,8 @@ class Project:
             vcenter (float): Center value for color display on heatmap.
                 Defaults to 0.5.
             vmax (float): Maximum value to display on heatmap. Defaults to 1.
-        """
 
+        """
         # Prepare arguments for subprocess
         args = SimpleNamespace(**locals())
         del args.self
@@ -2157,8 +2198,8 @@ class Project:
 
         Returns:
             :class:`slideflow.Mosaic`: Mosaic object.
-        """
 
+        """
         # Set up paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
@@ -2335,8 +2376,8 @@ class Project:
 
         Returns:
             slideflow.Mosaic
-        """
 
+        """
         # Setup paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
@@ -2422,8 +2463,10 @@ class Project:
         tile_dict: Dict[int, float],
         outdir: Optional[str] = None
     ) -> None:
-        """Creates a tfrecord-based WSI heatmap using a dictionary of tile
-        values for heatmap display, saving to project root directory.
+        """Create a tfrecord-based WSI heatmap.
+
+        Uses a dictionary of tile values for heatmap display, saving to project
+        root directory.
 
         Args:
             tfrecord (str): Path to tfrecord
@@ -2436,6 +2479,7 @@ class Project:
 
         Returns:
             None
+
         """
         dataset = self.dataset(tile_px=tile_px, tile_um=tile_um)
         if outdir is None:
@@ -2450,7 +2494,7 @@ class Project:
         verification: Optional[str] = 'both',
         **kwargs: Any
     ) -> Dataset:
-        """Returns :class:`slideflow.Dataset` object using project settings.
+        """Return a :class:`slideflow.Dataset` object using project settings.
 
         Args:
             tile_px (int): Tile size in pixels
@@ -2472,8 +2516,8 @@ class Project:
                 If 'slides', verify all annotations are mapped to slides.
                 If 'tfrecords', check that TFRecords exist and update manifest.
                 Defaults to 'both'.
-        """
 
+        """
         if 'config' not in kwargs:
             kwargs['config'] = self.dataset_config
         if 'sources' not in kwargs:
@@ -2559,10 +2603,10 @@ class Project:
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a Tensorflow model. If 'full', loads the model with
-                ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
-                and then load weights from the given model with
+                when loading a Tensorflow model. If 'full', loads the model
+                with ``tf.keras.models.load_model()``. If 'weights', will read
+                the ``params.json``configuration file, build the model
+                architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
@@ -2570,10 +2614,10 @@ class Project:
                 (strings) to custom classes or functions. Defaults to None.
 
         Returns:
-            Dictionary of predictions dataframes, with the keys 'tile', 'slide',
-            and 'patient'.
-        """
+            Dictionary of predictions dataframes, with the keys 'tile',
+            'slide', and 'patient'.
 
+        """
         # Perform evaluation
         log.info('Predicting model results')
         trainer, eval_dts = self._prepare_trainer(
@@ -2604,7 +2648,7 @@ class Project:
         epoch: Optional[int] = None,
         **kwargs
     ) -> None:
-        """Evaluates an ensemble of models on a given set of tfrecords.
+        """Evaluate an ensemble of models on a given set of tfrecords.
 
         Args:
             model (str): Path to ensemble model to evaluate.
@@ -2616,7 +2660,9 @@ class Project:
             epoch (int, optional): The epoch number to be considered
                 to run the prediction. By default it sets to the first epoch
                 present in the selected k-fold folder.
-            **kwargs (Any): All keyword arguments accepted by :meth:`slideflow.Project.predict`
+            **kwargs (Any): All keyword arguments accepted by
+                :meth:`slideflow.Project.predict()`
+
         """
         if not exists(model):
             raise OSError(f"Path {model} not found")
@@ -2638,7 +2684,9 @@ class Project:
             else:
                 _k_path = get_first_nested_directory(member_path)
             if epoch:
-                prediction_path = get_matching_directory(_k_path, f'epoch{epoch}')
+                prediction_path = get_matching_directory(
+                    _k_path, f'epoch{epoch}'
+                )
             else:
                 prediction_path = get_first_nested_directory(_k_path)
 
@@ -2652,21 +2700,26 @@ class Project:
                 # If this is the first ensemble member, copy the slide manifest
                 # and params.json file into the ensemble prediction folder.
                 if member_id == 0:
-                    _, from_path = sf.util.get_valid_model_dir(self.eval_dir)
+                    _, path = sf.util.get_valid_model_dir(self.eval_dir)
                     shutil.copyfile(
-                        join(self.eval_dir, from_path[0], "slide_manifest.csv"),
+                        join(self.eval_dir, path[0], "slide_manifest.csv"),
                         join(main_eval_dir, "slide_manifest.csv")
                     )
-                    params_data = sf.util.load_json(join(self.eval_dir, from_path[0], "params.json"))
-                    params_data['ensemble_epochs'] = params_data['hp']['epochs']
-                    del params_data['hp']
-                    sf.util.write_json(params_data, join(main_eval_dir, "ensemble_params.json"))
+                    params = sf.util.load_json(
+                        join(self.eval_dir, path[0], "params.json")
+                    )
+                    params['ensemble_epochs'] = params['hp']['epochs']
+                    del params['hp']
+                    sf.util.write_json(
+                        params,
+                        join(main_eval_dir, "ensemble_params.json")
+                    )
 
                 # Create (or add to) the ensemble dataframe.
                 for level in ('slide', 'tile'):
                     project_utils.add_to_ensemble_dataframe(
                         ensemble_path=main_eval_dir,
-                        kfold_path=join(self.eval_dir, from_path[0]),
+                        kfold_path=join(self.eval_dir, path[0]),
                         level=level,
                         member_id=member_id
                     )
@@ -2746,8 +2799,8 @@ class Project:
                 If 1, will not perform grayspace filtering.
             grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
                 Pixels in HSV format with saturation below this are grayspace.
-        """
 
+        """
         log.info('Generating WSI prediction / activation maps...')
         if not exists(outdir):
             os.makedirs(outdir)
@@ -2792,7 +2845,7 @@ class Project:
                     log.error(e)
                 else:
                     n_est = slide.estimated_num_tiles
-                    log.debug(f"Estimated tiles for slide {slide.name}: {n_est}")
+                    log.debug(f"Estimated tiles for {slide.name}: {n_est}")
                     total_tiles += n_est
                 finally:
                     del slide
@@ -2829,7 +2882,7 @@ class Project:
                     continue
 
     def save(self) -> None:
-        """Saves current project configuration as ``settings.json``."""
+        """Save current project configuration as ``settings.json``."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
 
     def _get_smac_runner(
@@ -2839,7 +2892,7 @@ class Project:
         metric: Union[str, Callable],
         train_kwargs: Any
     ) -> Callable:
-        """Builds a SMAC3 optimization runner.
+        """Build a SMAC3 optimization runner.
 
         Args:
             outcomes (str, List[str]): Outcome label annotation header(s).
@@ -2853,20 +2906,21 @@ class Project:
                 Project.train() function call.
 
         Raises:
-            errors.SMACError: If training does not return the designated metric.
+            errors.SMACError: If training does not return the given metric.
 
         Returns:
             Callable: tae_runner for SMAC optimization.
+
         """
 
         def smac_runner(config):
             """SMAC tae_runner function."""
-
             # Load hyperparameters from SMAC configuration, handling "None".
             c = dict(config)
             if 'normalizer' in c and c['normalizer'].lower() == 'none':
                 c['normalizer'] = None
-            if 'normalizer_source' in c and c['normalizer_source'].lower() == 'none':
+            if ('normalizer_source' in c
+               and c['normalizer_source'].lower() == 'none'):
                 c['normalizer_source'] = None
 
             # Train model.
@@ -2924,7 +2978,8 @@ class Project:
     ) -> Tuple["Configuration", pd.DataFrame]:
         """Train a model using SMAC3 Bayesian hyperparameter optimization.
 
-        See :ref:`Bayesian optimization <bayesian_optimization>` for more information.
+        See :ref:`Bayesian optimization <bayesian_optimization>`
+        for more information.
 
         .. note::
 
@@ -2937,8 +2992,8 @@ class Project:
             params (ModelParams): Model parameters for training.
             smac_configspace (ConfigurationSpace): ConfigurationSpace to
                 determine the SMAC optimization.
-            smac_limit (int): Max number of models to train during optimization.
-                Defaults to 10.
+            smac_limit (int): Max number of models to train during
+                optimization. Defaults to 10.
             smac_metric (str, optional): Metric to monitor for optimization.
                 May either be a callable function or a str. If a callable
                 function, must accept the epoch results dict and return a
@@ -2959,9 +3014,9 @@ class Project:
                 by SMAC4BB.optimize().
 
                 pd.DataFrame: History of hyperparameters resulting metrics.
-        """
 
-        from smac.facade.smac_bb_facade import SMAC4BB
+        """
+        from smac.facade.smac_bb_facade import SMAC4BB  # noqa: F811
         from smac.scenario.scenario import Scenario
 
         # Perform SMAC search in a single model folder.
@@ -2971,8 +3026,8 @@ class Project:
 
         # Create SMAC scenario.
         scenario = Scenario(
-            {'run_obj': 'quality', # Optimize quality (alternatively: runtime)
-             'runcount-limit': smac_limit,  # Max number of function evaluations
+            {'run_obj': 'quality',  # Optimize quality (alternatively: runtime)
+             'runcount-limit': smac_limit,  # Max # of function evaluations
              'cs': smac_configspace},
             {'output_dir': self.models_dir})
         train_kwargs['save_checkpoints'] = save_checkpoints
@@ -3034,7 +3089,10 @@ class Project:
         process_isolate: bool = False,
         **training_kwargs: Any
     ) -> Dict:
-        """Train model(s) using a given set of parameters, outcomes, and inputs.
+        """Train model(s).
+
+        Models are trained using a given set of parameters, outcomes,
+        and (optionally) slide-level inputs.
 
         See :ref:`Training <training>` for more information.
 
@@ -3087,10 +3145,10 @@ class Project:
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a Tensorflow model. If 'full', loads the model with
-                ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json`` configuration file, build the model architecture,
-                and then load weights from the given model with
+                when loading a Tensorflow model. If 'full', loads the model
+                with ``tf.keras.models.load_model()``. If 'weights', will read
+                the ``params.json`` configuration file, build the model
+                architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
@@ -3268,9 +3326,10 @@ class Project:
         n_ensembles: Optional[int] = None,
         **kwargs
     ) -> List[Dict]:
-        """Train an ensemble of model(s) using a given set of parameters,
-        outcomes, and inputs by calling the train function ``n_ensembles``
-        of times.
+        """Train an ensemble of model(s).
+
+        Trains models using a given set of parameters and outcomes by calling
+        the train function ``n_ensembles`` of times.
 
         Args:
             outcomes (str or list(str)): Outcome label annotation header(s).
@@ -3288,13 +3347,16 @@ class Project:
         Returns:
             List of dictionaries of length ``n_ensembles``, containing training
             results for each member of the ensemble.
+
         """
         # Prepare output directory for saving ensemble members
         if isinstance(outcomes, list):
             ensemble_name = f"{'-'.join(outcomes)}-ensemble"
         else:
             ensemble_name = f"{outcomes}-ensemble"
-        ensemble_path = sf.util.get_new_model_dir(self.models_dir, ensemble_name)
+        ensemble_path = sf.util.get_new_model_dir(
+            self.models_dir, ensemble_name
+        )
         ensemble_results = []
 
         # Process model params arguments
@@ -3302,8 +3364,8 @@ class Project:
             hyper_deep = False
             if n_ensembles is None:
                 raise TypeError(
-                    "Keyword argument 'n_ensembles' is required if 'params' is "
-                    "not a list of ModelParams."
+                    "Keyword argument 'n_ensembles' is required if 'params' is"
+                    " not a list of ModelParams."
                 )
         elif isinstance(params, list):
             hyper_deep = True
@@ -3337,12 +3399,13 @@ class Project:
             for hp in hp_list:
                 if hp.epochs != hp_list[0].epochs:
                     raise errors.ModelParamsNotFoundError(
-                        "All the hyperparameters much have the same epoch value")
+                        "All hyperparameters must have the same epoch value"
+                    )
 
         # Parse validation settings
         val_kwargs = {k[4:]: v for k, v in kwargs.items() if k[:4] == 'val_'}
         val_settings = get_validation_settings(**val_kwargs)
-        print(f"Validation settings: {json.dumps(vars(val_settings), indent=2)}")
+        print(f"Val settings: {json.dumps(vars(val_settings), indent=2)}")
 
         if not hyper_deep:
             print(f"\nHyperparameters: {params}")
@@ -3375,16 +3438,22 @@ class Project:
                     join(member_path, member_models[0], "slide_manifest.csv"),
                     join(ensemble_path, "slide_manifest.csv"))
 
-                params_data = sf.util.load_json(join(member_path, member_models[0], "params.json"))
+                params_data = sf.util.load_json(
+                    join(member_path, member_models[0], "params.json")
+                )
                 params_data['ensemble_epochs'] = params_data['hp']['epochs']
                 del params_data['hp']
                 params_data['hyper_deep_ensemble'] = hyper_deep
-                sf.util.write_json(params_data, join(ensemble_path, "ensemble_params.json"))
+                sf.util.write_json(
+                    params_data, join(ensemble_path, "ensemble_params.json")
+                )
 
             except OSError:
-                log.error("Unable to find ensemble slide manifest and params.json.")
+                log.error(
+                    "Unable to find ensemble slide manifest and params.json"
+                )
         else:
-            log.error("Unable to find ensemble slide manifest and params.json.")
+            log.error("Unable to find ensemble slide manifest and params.json")
 
         # Merge predictions from each ensemble.
         if "save_predictions" in kwargs:
@@ -3403,8 +3472,9 @@ class Project:
         outcomes: Optional[Union[str, List[str]]] = None,
         **kwargs
     ) -> None:
-        """Train SimCLR model, with models saved in ``simclr`` folder in the
-        project root directory.
+        """Train SimCLR model.
+
+        Models are saved in ``simclr`` folder in the project root directory.
 
         See :ref:`simclr_ssl` for more information.
 
@@ -3431,7 +3501,9 @@ class Project:
             exp_label = 'simclr'
         if not exists(join(self.root, 'simclr')):
             os.makedirs(join(self.root, 'simclr'))
-        outdir = sf.util.create_new_model_dir(join(self.root, 'simclr'), exp_label)
+        outdir = sf.util.create_new_model_dir(
+            join(self.root, 'simclr'), exp_label
+        )
 
         # get base SimCLR args/settings if not provided
         if not simclr_args:
@@ -3448,7 +3520,9 @@ class Project:
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
     def train_clam(self, *args, splits: str = 'splits.json', **kwargs):
-        """Deprecated function. Train a CLAM model from layer activations
+        """Deprecated function.
+
+        Train a CLAM model from layer activations
         exported with :meth:`slideflow.Project.generate_features_for_clam`.
 
         Preferred API is :meth:`slideflow.Project.train_mil()`.
@@ -3493,6 +3567,7 @@ class Project:
 
         Returns:
             None
+
         """
         from slideflow.mil import legacy_train_clam
         warnings.warn("Project.train_clam() is deprecated. Please use "
@@ -3516,11 +3591,12 @@ class Project:
         exp_label: Optional[str] = None,
         **kwargs
     ):
-        """Train a multi-instance learning model.
+        r"""Train a multi-instance learning model.
 
         Args:
-            config (:class:`slideflow.mil.TrainerConfig): Training configuration,
-                as obtained by :func:`slideflow.mil.mil_config()`.
+            config (:class:`slideflow.mil.TrainerConfig): Training
+                configuration, as obtained by
+                :func:`slideflow.mil.mil_config()`.
             train_dataset (:class:`slideflow.Dataset`): Training dataset.
             val_dataset (:class:`slideflow.Dataset`): Validation dataset.
             outcomes (str): Outcome column (annotation header) from which to
@@ -3534,6 +3610,7 @@ class Project:
             exp_label (str): Experiment label, used for naming the subdirectory
                 in the ``{project root}/mil`` folder, where training history
                 and the model will be saved.
+
         """
         from .mil import train_mil
 
@@ -3549,6 +3626,7 @@ class Project:
 
 # -----------------------------------------------------------------------------
 
+
 def load(root: str, **kwargs) -> "Project":
     """Load a project at the given root directory.
 
@@ -3560,6 +3638,7 @@ def load(root: str, **kwargs) -> "Project":
 
     """
     return Project(root, **kwargs)
+
 
 def create(
     root: str,
@@ -3629,7 +3708,7 @@ def create(
             Commons (GDC) automatically, using slide names stored in the
             annotations file.
         md5 (bool): Perform MD5 hash verification for all slides using
-            the GDC (TCGA) MD5 manifest, which will be automatically downloaded.
+            the GDC (TCGA) MD5 manifest, which will be downloaded.
         name (str): Set the project name. This has higher priority than any
             supplied configuration, which will be ignored.
         slides (str): Set the destination folder for slides. This has higher
@@ -3651,9 +3730,11 @@ def create(
     Returns:
         slideflow.Project
     """
-    cfg_names = ('annotations', 'name', 'slides', 'tiles', 'tfrecords', 'roi_dest')
-    proj_kwargs = {k:v for k,v in kwargs.items() if k not in cfg_names}
-    kwargs = {k:v for k,v in kwargs.items() if k in cfg_names}
+    cfg_names = (
+        'annotations', 'name', 'slides', 'tiles', 'tfrecords', 'roi_dest'
+    )
+    proj_kwargs = {k: v for k, v in kwargs.items() if k not in cfg_names}
+    kwargs = {k: v for k, v in kwargs.items() if k in cfg_names}
 
     # Initial verification
     if sf.util.is_project(root):
@@ -3698,7 +3779,9 @@ def create(
         r = requests.get(cfg.annotations)
         open(proj_kwargs['annotations'], 'wb').write(r.content)
         if cfg.annotations_md5 != sf.util.md5(proj_kwargs['annotations']):
-            raise errors.ChecksumError("Remote annotations URL failed MD5 checksum.")
+            raise errors.ChecksumError(
+                "Remote annotations URL failed MD5 checksum."
+            )
     elif 'annotations' in cfg:
         shutil.copy(cfg.annotations, root)
 
@@ -3719,8 +3802,10 @@ def create(
         if 'rois' in cfg and not exists(cfg.roi_dest):
             os.makedirs(cfg.roi_dest)
         if 'rois' in cfg and exists(cfg.rois) and os.path.isdir(cfg.rois):
-            # Search the folder for CSV files and copy to the project ROI directory.
-            to_copy = [r for r in os.listdir(cfg.rois) if path_to_ext(r) == 'csv']
+            # Search the folder for CSV files
+            # and copy to the project ROI directory.
+            to_copy = [r for r in os.listdir(cfg.rois)
+                       if path_to_ext(r) == 'csv']
             log.info("Copying {} ROIs from {} to {}.".format(
                 len(to_copy),
                 cfg.rois,
@@ -3761,8 +3846,13 @@ def create(
                 log.info(f"Slide {slide} failed MD5 verification")
                 failed_md5 += [slide]
         if not failed_md5:
-            log.info(f"All {len(slides_with_md5)} slides passed MD5 verification.")
+            log.info(
+                f"All {len(slides_with_md5)} slides passed MD5 verification."
+            )
         else:
-            log.warn(f"Warning: {len(failed_md5)} slides failed MD5 verification:")
+            log.warn(
+                f"Warning: {len(failed_md5)} slides failed MD5 verification:"
+                f"{', '.join(failed_md5)}"
+            )
 
     return P

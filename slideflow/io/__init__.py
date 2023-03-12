@@ -3,10 +3,11 @@
 import copy
 import os
 import struct
+import numpy as np
 from multiprocessing.dummy import Pool as DPool
 from os.path import exists, isdir, isfile, join
 from random import shuffle
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union, List
 
 import slideflow as sf
 from slideflow import errors
@@ -81,7 +82,7 @@ def update_manifest_at_dir(
             os.remove(tfr)
             return None
         if not total:
-            log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
+            log.error(f"Empty TFRecord at {tfr}; removing")
             os.remove(tfr)
             return None
         rel_tfr_manifest[rel_tfr]['total'] = total
@@ -155,8 +156,8 @@ def get_tfrecord_by_location(
         location = tuple(location)
     if (not isinstance(location, tuple)
        or len(location) != 2
-       or not isinstance(location[0], int)
-       or not isinstance(location[1], int)):
+       or not isinstance(location[0], (int, np.integer))
+       or not isinstance(location[1], (int, np.integer))):
         raise IndexError(f"index must be a tuple of two ints. Got: {location}")
 
     dataset = TFRecordDataset(tfrecord)
@@ -355,12 +356,32 @@ def read_tfrecord_length(tfrecord: str) -> int:
     return num_records
 
 
-def get_locations_from_tfrecord(filename: str) -> Dict[int, Tuple[int, int]]:
+def get_locations_from_tfrecord(
+    filename: str,
+    as_dict: bool = True
+) -> Union[
+    Dict[int, Tuple[int, int]],
+    List[Tuple[int, int]],
+]:
     '''Returns dictionary mapping indices to tile locations (X, Y)'''
-    dataset = TFRecordDataset(filename)
-    loc_dict = {}
-    parser = get_tfrecord_parser(filename, ('loc_x', 'loc_y'), to_numpy=True)
-    for i, record in enumerate(dataset):
-        loc_x, loc_y = parser(record)  # type: ignore
-        loc_dict.update({i: (loc_x, loc_y)})
-    return loc_dict
+    out_dict = {}
+    out_list = []
+    for i in range(sf.util.get_tfrecord_length(filename)):
+        record = sf.util.get_record_by_index(filename, i)
+        loc_x = record['loc_x']
+        loc_y = record['loc_y']
+        if as_dict:
+            out_dict.update({i: (loc_x, loc_y)})
+        else:
+            out_list.append((loc_x, loc_y))
+    return out_dict if as_dict else out_list
+
+
+def tfrecord_has_locations(
+    filename: str,
+    check_x: int = True,
+    check_y: bool = False
+) -> bool:
+    """Check if a given TFRecord has location information stored."""
+    record = sf.util.get_record_by_index(filename, 0)
+    return (((not check_x) or 'loc_x' in record ) and ((not check_y) or 'loc_y' in record ))

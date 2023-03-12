@@ -1,8 +1,8 @@
 import imgui
 
-from . import renderer
-from .utils import EasyDict
-from .gui_utils import imgui_utils
+from .._renderer import CapturedException
+from ..gui import imgui_utils
+from ..utils import EasyDict
 
 import slideflow as sf
 
@@ -76,7 +76,7 @@ class ProjectWidget:
             self.cur_project = None
             self.user_project = project
             self.viz.create_toast(f"Unable to load project at {project}", icon="error")
-            viz.result = EasyDict(error=renderer.CapturedException())
+            viz.result = EasyDict(error=CapturedException())
             if not ignore_errors:
                 raise
 

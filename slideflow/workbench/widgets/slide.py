@@ -1,14 +1,12 @@
 import os
-import re
 import cv2
 import imgui
 import numpy as np
 import threading
 
-from PIL import Image
-from . import renderer
-from .utils import EasyDict
-from .gui_utils import imgui_utils
+from .._renderer import CapturedException
+from ..utils import EasyDict
+from ..gui import imgui_utils
 
 import slideflow as sf
 
@@ -193,14 +191,14 @@ class SlideWidget:
             # Generate WSI thumbnail.
             hw_ratio = (viz.wsi.dimensions[0] / viz.wsi.dimensions[1])
             max_width = int(min(800 - viz.spacing*2, (800 - viz.spacing*2) / hw_ratio))
-            viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width))
+            viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width, low_res=True))
             viz.clear_message(f'Loading {name}...')
 
         except Exception:
             self.cur_slide = None
             self.user_slide = slide
             viz.clear_message(f'Loading {name}...')
-            viz.result = EasyDict(error=renderer.CapturedException())
+            viz.result = EasyDict(error=CapturedException())
             viz.create_toast(f"Error loading slide {slide}", icon="error")
             if not ignore_errors:
                 raise
@@ -455,6 +453,7 @@ class SlideWidget:
                 _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
                 viz._normalize_wsi = self.normalize_wsi
                 if self.normalize_wsi and viz.viewer:
+                    viz._normalizer.set_context(viz.wsi)
                     viz.viewer.set_normalizer(viz._normalizer)
                 elif viz.viewer:
                     viz.viewer.clear_normalizer()
@@ -468,7 +467,7 @@ class SlideWidget:
                     if method == 'model':
                         self.viz._normalizer = sf.util.get_model_normalizer(self.viz._model_path)
                     else:
-                        self.viz._normalizer = sf.norm.autoselect(method, source='v2')
+                        self.viz._normalizer = sf.norm.autoselect(method, source='v3')
                     viz._refresh_view = True
 
                 # Grayspace & whitespace filtering --------------------------------

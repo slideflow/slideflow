@@ -34,19 +34,23 @@ def main(
     # Load widgets
     widgets = Workbench.get_default_widgets()
     if stylegan:
-        from slideflow.workbench import stylegan_widgets
-        from slideflow.workbench.seed_map_widget import SeedMapWidget
+        from . import stylegan_widgets
+        from .widgets.seed_map import SeedMapWidget
         from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
         widgets += stylegan_widgets(advanced=advanced)
         widgets += [SeedMapWidget]
 
     if picam:
-        from slideflow.workbench.picam_widget import PicamWidget
+        from .widgets.picam import PicamWidget
         widgets += [PicamWidget]
 
     if cellpose:
-        from slideflow.workbench.segment_widget import SegmentWidget
+        from .widgets.segment import SegmentWidget
         widgets += [SegmentWidget]
+
+    # Experimental ROI annotation widget
+    from .widgets.annotation import AnnotationWidget
+    widgets += [AnnotationWidget]
 
     viz = Workbench(low_memory=low_memory, widgets=widgets)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]

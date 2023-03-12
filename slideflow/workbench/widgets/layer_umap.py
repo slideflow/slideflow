@@ -4,7 +4,7 @@ import pandas as pd
 import imgui
 from os.path import join, exists
 
-from .gui_utils import imgui_utils
+from ..gui import imgui_utils
 
 #----------------------------------------------------------------------------
 

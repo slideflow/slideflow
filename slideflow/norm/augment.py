@@ -12,7 +12,7 @@ import slideflow.norm.utils as ut
 class AugmentNormalizer:
 
     def __init__(self):
-        """H&E stain augmentation.
+        """HSV colorspace augmentation.
 
         Augments an image in the HSV colorspace.
         """
@@ -27,10 +27,10 @@ class AugmentNormalizer:
     def fit(self, target: np.ndarray) -> None:
         return
 
-    def fit_preset(self, target: np.ndarray) -> None:
+    def fit_preset(self, preset: str) -> None:
         pass
 
-    def transform(self, I: np.ndarray) -> np.ndarray:
+    def transform(self, I: np.ndarray, *, augment = None) -> np.ndarray:
         """Performs HSV colorspace augmentation.
 
         Args:
@@ -39,7 +39,6 @@ class AugmentNormalizer:
         Returns:
             np.ndarray: Augmented image.
         """
-
         hsv = cv.cvtColor(I, cv.COLOR_RGB2HSV)
         hsv[:, :, 2] = cv.equalizeHist(hsv[:, :, 2])
         hsv[:, :, 1] = cv.equalizeHist(hsv[:, :, 1])
@@ -61,4 +60,3 @@ class AugmentNormalizer:
         hsv = np.array(hsv, dtype=np.uint8)
         img = cv.cvtColor(hsv, cv.COLOR_HSV2RGB)
         return img
-

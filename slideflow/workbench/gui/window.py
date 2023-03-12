@@ -4,19 +4,19 @@ import time
 import contextlib
 import imgui
 import imgui.integrations.glfw
-from imgui.integrations import compute_fb_scale
-from imgui.integrations.opengl import FixedPipelineRenderer
 
-from . import glfw_window
+
 from . import imgui_utils
 from . import text_utils
 from . import gl_utils
+from ._glfw import GlfwWindow, GlfwRenderer
+from .toast import Toast
 
 #----------------------------------------------------------------------------
 
 _SPINNER_ARRAY = ['.  ', '.. ', '...', ' ..', '  .', '   ']
 
-class ImguiWindow(glfw_window.GlfwWindow):
+class ImguiWindow(GlfwWindow):
     def __init__(
         self,
         *,
@@ -31,7 +31,6 @@ class ImguiWindow(glfw_window.GlfwWindow):
         font_sizes = {int(size) for size in font_sizes}
         super().__init__(title=title, **glfw_kwargs)
 
-        # Init fields.
         self._imgui_context  = None
         self._imgui_renderer = None
         self._imgui_fonts    = None
@@ -45,9 +44,9 @@ class ImguiWindow(glfw_window.GlfwWindow):
         if os.path.isfile('imgui.ini'):
             os.remove('imgui.ini')
 
-        # Init ImGui.
+        # Initialize imgui.
         self._imgui_context = imgui.create_context()
-        self._imgui_renderer = _GlfwRenderer(self._glfw_window)
+        self._imgui_renderer = GlfwRenderer(self._glfw_window)
         self._attach_glfw_callbacks()
         imgui.get_io().ini_saving_rate = 0 # Disable creating imgui.ini at runtime.
         imgui.get_io().mouse_drag_threshold = 0 # Improve behavior with imgui_utils.drag_custom().
@@ -56,10 +55,10 @@ class ImguiWindow(glfw_window.GlfwWindow):
         self._imgui_renderer.refresh_font_texture()
         imgui.get_io().font_global_scale = 1 / self._font_scaling
 
-        # Init icons.
+        # Load icons.
         self._icon_textures = {
             name: gl_utils.Texture(image=icon)
-            for name, icon in text_utils.icons().items()
+            for name, icon in imgui_utils.icons().items()
         }
 
     @property
@@ -212,208 +211,3 @@ class ImguiWindow(glfw_window.GlfwWindow):
             pass
         else:
             self.set_font_size(available_sizes[cur_idx - 1])
-
-#----------------------------------------------------------------------------
-
-class Toast:
-
-    msg_duration = 4
-    fade_duration = 0.25
-
-    def __init__(self, message, title, icon, sticky=False, spinner=False):
-        if icon and title is None:
-            title = icon.capitalize()
-        self._alpha = 0
-        self._height = None
-        self._default_message_height = 75
-        self._create_time = time.time()
-        self._start_fade_time = None
-        self.spinner = spinner
-        self.message = message
-        self.title = title
-        self.icon = icon
-        self.sticky = sticky
-
-    def __str__(self):
-        return "<Toast message={!r}, title={!r}, icon={!r}, alpha={!r}, sticky={!r}, spinner={!r}".format(
-            self.message,
-            self.title,
-            self.icon,
-            self.alpha,
-            self.sticky,
-            self.spinner
-        )
-
-    @property
-    def alpha(self):
-        elapsed = time.time() - self._create_time
-
-        # Fading in
-        if elapsed < self.fade_duration:
-            return (elapsed / self.fade_duration)
-
-        # Waiting
-        elif self.sticky or (elapsed < (self.fade_duration + self.msg_duration)):
-            return 1
-
-        # Fading out
-        elif elapsed < (self.fade_duration * 2 + self.msg_duration):
-            if self._start_fade_time is None:
-                self._start_fade_time = time.time()
-            return 1 - ((time.time() - self._start_fade_time) / self.fade_duration)
-
-        # Removed
-        else:
-            return 0
-
-    @property
-    def expired(self):
-        return not self.sticky and (time.time() - self._create_time) > (self.msg_duration + self.fade_duration * 2)
-
-    @property
-    def height(self):
-        if self._height:
-            return self._height
-        else:
-            line_height = imgui.get_text_line_height_with_spacing()
-            if self.title and self.message is None:
-                return line_height
-            elif self.title and self.message:
-                return line_height * 1.5 + self._default_message_height
-            else:
-                return self._default_message_height
-
-    @property
-    def width(self):
-        return 400
-
-    def done(self):
-        self.sticky = False
-        self.msg_duration = 0
-
-#----------------------------------------------------------------------------
-# Wrapper class for GlfwRenderer to fix a mouse wheel bug on Linux,
-# and support OpenGL 2.0
-
-class _GlfwRenderer(FixedPipelineRenderer):
-    def __init__(self, window, attach_callbacks=True):
-        super().__init__()
-        self.window = window
-
-        if attach_callbacks:
-            glfw.set_key_callback(self.window, self.keyboard_callback)
-            glfw.set_cursor_pos_callback(self.window, self.mouse_callback)
-            glfw.set_window_size_callback(self.window, self.resize_callback)
-            glfw.set_char_callback(self.window, self.char_callback)
-            glfw.set_scroll_callback(self.window, self.scroll_callback)
-
-        self.io.display_size = glfw.get_framebuffer_size(self.window)
-        self.io.get_clipboard_text_fn = self._get_clipboard_text
-        self.io.set_clipboard_text_fn = self._set_clipboard_text
-
-        self._map_keys()
-        self._gui_time = None
-        self.mouse_wheel_multiplier = 1
-
-    def _get_clipboard_text(self):
-        return glfw.get_clipboard_string(self.window)
-
-    def _set_clipboard_text(self, text):
-        glfw.set_clipboard_string(self.window, text)
-
-    def _map_keys(self):
-        key_map = self.io.key_map
-
-        key_map[imgui.KEY_TAB] = glfw.KEY_TAB
-        key_map[imgui.KEY_LEFT_ARROW] = glfw.KEY_LEFT
-        key_map[imgui.KEY_RIGHT_ARROW] = glfw.KEY_RIGHT
-        key_map[imgui.KEY_UP_ARROW] = glfw.KEY_UP
-        key_map[imgui.KEY_DOWN_ARROW] = glfw.KEY_DOWN
-        key_map[imgui.KEY_PAGE_UP] = glfw.KEY_PAGE_UP
-        key_map[imgui.KEY_PAGE_DOWN] = glfw.KEY_PAGE_DOWN
-        key_map[imgui.KEY_HOME] = glfw.KEY_HOME
-        key_map[imgui.KEY_END] = glfw.KEY_END
-        key_map[imgui.KEY_DELETE] = glfw.KEY_DELETE
-        key_map[imgui.KEY_BACKSPACE] = glfw.KEY_BACKSPACE
-        key_map[imgui.KEY_ENTER] = glfw.KEY_ENTER
-        key_map[imgui.KEY_ESCAPE] = glfw.KEY_ESCAPE
-        key_map[imgui.KEY_A] = glfw.KEY_A
-        key_map[imgui.KEY_C] = glfw.KEY_C
-        key_map[imgui.KEY_V] = glfw.KEY_V
-        key_map[imgui.KEY_X] = glfw.KEY_X
-        key_map[imgui.KEY_Y] = glfw.KEY_Y
-        key_map[imgui.KEY_Z] = glfw.KEY_Z
-
-    def keyboard_callback(self, window, key, scancode, action, mods):
-        # perf: local for faster access
-        io = self.io
-
-        if action == glfw.PRESS:
-            io.keys_down[key] = True
-        elif action == glfw.RELEASE:
-            io.keys_down[key] = False
-
-        io.key_ctrl = (
-            io.keys_down[glfw.KEY_LEFT_CONTROL] or
-            io.keys_down[glfw.KEY_RIGHT_CONTROL]
-        )
-
-        io.key_alt = (
-            io.keys_down[glfw.KEY_LEFT_ALT] or
-            io.keys_down[glfw.KEY_RIGHT_ALT]
-        )
-
-        io.key_shift = (
-            io.keys_down[glfw.KEY_LEFT_SHIFT] or
-            io.keys_down[glfw.KEY_RIGHT_SHIFT]
-        )
-
-        io.key_super = (
-            io.keys_down[glfw.KEY_LEFT_SUPER] or
-            io.keys_down[glfw.KEY_RIGHT_SUPER]
-        )
-
-    def char_callback(self, window, char):
-        io = imgui.get_io()
-
-        if 0 < char < 0x10000:
-            io.add_input_character(char)
-
-    def resize_callback(self, window, width, height):
-        self.io.display_size = width, height
-
-    def mouse_callback(self, *args, **kwargs):
-        pass
-
-    def scroll_callback(self, window, x_offset, y_offset):
-        self.io.mouse_wheel_horizontal = x_offset
-        self.io.mouse_wheel = y_offset
-        self.io.mouse_wheel += y_offset * self.mouse_wheel_multiplier
-
-    def process_inputs(self):
-        io = imgui.get_io()
-
-        window_size = glfw.get_window_size(self.window)
-        fb_size = glfw.get_framebuffer_size(self.window)
-
-        io.display_size = window_size
-        io.display_fb_scale = compute_fb_scale(window_size, fb_size)
-        io.delta_time = 1.0/60
-
-        if glfw.get_window_attrib(self.window, glfw.FOCUSED):
-            io.mouse_pos = glfw.get_cursor_pos(self.window)
-        else:
-            io.mouse_pos = -1, -1
-
-        io.mouse_down[0] = glfw.get_mouse_button(self.window, 0)
-        io.mouse_down[1] = glfw.get_mouse_button(self.window, 1)
-        io.mouse_down[2] = glfw.get_mouse_button(self.window, 2)
-
-        current_time = glfw.get_time()
-
-        if self._gui_time:
-            self.io.delta_time = current_time - self._gui_time
-        else:
-            self.io.delta_time = 1. / 60.
-
-        self._gui_time = current_time

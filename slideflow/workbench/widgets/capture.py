@@ -3,8 +3,8 @@ import re
 import numpy as np
 import imgui
 import PIL.Image
-from .gui_utils import imgui_utils
-from . import renderer
+from ..gui import imgui_utils
+from .._renderer import CapturedException
 
 #----------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ class CaptureWidget:
             self.viz.create_toast(f"Saved captured image to {dest}", icon='success')
         except:
             self.viz.create_toast(f"An error occurred attempting to save captured image.", icon='error')
-            viz.result.error = renderer.CapturedException()
+            viz.result.error = CapturedException()
 
     def save_tile(self):
         self.dump_tile = True

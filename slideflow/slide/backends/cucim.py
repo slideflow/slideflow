@@ -35,7 +35,7 @@ def cucim2jpg(img: "CuImage") -> str:
     if img.shape[-1] == 4:
         img = img[:, :, 0:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return cv2.imencode(".jpg", img)[1].tobytes()
+    return cv2.imencode(".jpg", img)[1].tobytes()   # Default quality = 95%
 
 
 def cucim2png(img: "CuImage") -> str:
@@ -115,15 +115,6 @@ def tile_worker(
             (args.tile_px, args.tile_px),
             interpolation=cv2.INTER_NEAREST)
 
-    # Normalizer
-    if not args.normalizer:
-        normalizer = None
-    else:
-        normalizer = sf.norm.autoselect(
-            method=args.normalizer,
-            source=args.normalizer_source
-        )
-
     # Read the target downsample region now, if we were
     # filtering at a different level
     region = slide.read_region(
@@ -155,9 +146,9 @@ def tile_worker(
         region[tile_mask == 0] = (0, 0, 0)
 
     # Apply normalization
-    if normalizer:
+    if args.normalizer:
         try:
-            region = normalizer.rgb_to_rgb(region)
+            region = args.normalizer.rgb_to_rgb(region)
         except Exception:
             # The image could not be normalized,
             # which happens when a tile is primarily one solid color
@@ -165,6 +156,7 @@ def tile_worker(
 
     if args.img_format != 'numpy':
         image = cv2.cvtColor(region, cv2.COLOR_RGB2BGR)
+        # Default image quality for JPEG is 95%
         image = cv2.imencode("."+args.img_format, image)[1].tobytes()
     else:
         image = region

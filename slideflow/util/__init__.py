@@ -31,6 +31,7 @@ import slideflow as sf
 from slideflow import errors
 from . import example_pb2, log_utils
 from .colors import *  # noqa F403,F401 - Here for compatibility
+from .tfrecord2idx import get_record_by_index, get_tfrecord_length
 from .smac_utils import (broad_search_space, shallow_search_space,
                          create_search_space)
 
@@ -50,7 +51,7 @@ except Exception:
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
                      'tiff', 'svslide', 'bif', 'jpg', 'jpeg']
-EMPTY_ANNOTATIONS = ['', ' ']
+EMPTY = ['', ' ', None, np.nan]
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:
     import pyomo.environ as pyo

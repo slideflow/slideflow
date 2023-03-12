@@ -3,7 +3,7 @@ import numpy as np
 import imgui
 import threading
 from array import array
-from .gui_utils import imgui_utils
+from ..gui import imgui_utils
 
 import slideflow as sf
 

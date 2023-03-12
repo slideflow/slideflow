@@ -284,6 +284,10 @@ def eval_from_model(
             img = img.to(device, non_blocking=True)
             with torch.cuda.amp.autocast():
                 with torch.no_grad():
+                    # GPU normalization
+                    if torch_args is not None and torch_args.normalizer:
+                        img = torch_args.normalizer.preprocess(img)
+
                     # Slide-level features
                     if torch_args is not None and torch_args.num_slide_features:
                         slide_inp = torch.tensor([

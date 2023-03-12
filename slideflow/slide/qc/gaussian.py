@@ -4,13 +4,13 @@ import numpy as np
 import slideflow as sf
 import skimage
 from slideflow import errors
-from typing import Union
+from typing import Union, Optional
 
 class Gaussian:
 
     def __init__(
         self,
-        mpp: float = 4,
+        mpp: Optional[float] = None,
         sigma: int = 3,
         threshold: float = 0.02
     ) -> None:
@@ -37,7 +37,10 @@ class Gaussian:
 
         Args:
             mpp (float): Microns-per-pixel at which to perform filtering.
-                Defaults to 4.
+                Defaults to 4 times the tile extraction MPP (e.g. for a
+                tile_px/tile_um combination at 10X effective magnification,
+                where tile_px=tile_um, the default blur_mpp would be 4, or
+                effective magnification 2.5x).
             sigma (int): Sigma (radius) for Gaussian filter. Defaults to 3.
             threshold (float): Gaussian threshold. Defaults to 0.02.
         """
@@ -62,7 +65,12 @@ class Gaussian:
         Returns:
             np.ndarray: RGB thumbnail of the whole-slide image.
         """
-        thumb = wsi.thumb(mpp=self.mpp)
+        if self.mpp is None:
+            _mpp = (wsi.tile_um/wsi.tile_px)*4
+            sf.log.info(f"Performing Gaussian blur filter at mpp={_mpp:.3f}")
+        else:
+            _mpp = self.mpp
+        thumb = wsi.thumb(mpp=_mpp)
         if thumb is None:
             raise errors.QCError(
                 f"Thumbnail error for slide {wsi.shortname}, QC failed"
@@ -75,12 +83,15 @@ class Gaussian:
     def __call__(
         self,
         wsi: Union["sf.WSI", np.ndarray],
+        mask: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Perform Gaussian filtering on the given slide or image.
 
         Args:
             slide (sf.WSI, np.ndarray): Either a Slideflow WSI or a numpy array,
                 with shape (h, w, c) and type np.uint8.
+            mask (np.ndarray): Restrict Otsu's threshold to the area of the
+                image indicated by this boolean mask. Defaults to None.
 
         Returns:
             np.ndarray: QC boolean mask, where True = filtered out.
@@ -93,20 +104,23 @@ class Gaussian:
         gray = skimage.color.rgb2gray(thumb)
         img_laplace = np.abs(skimage.filters.laplace(gray))
         gaussian = skimage.filters.gaussian(img_laplace, sigma=self.sigma)
-        mask = gaussian <= self.threshold
+        blur_mask = gaussian <= self.threshold
 
         # Assign blur burden value
-        existing_qc_mask = wsi.qc_mask
-        if isinstance(wsi, sf.WSI) and existing_qc_mask is not None:
-            mask = skimage.transform.resize(mask, existing_qc_mask.shape)
-            mask = mask.astype(bool)
+        existing_qc_mask = mask
+        if mask is None and isinstance(wsi, sf.WSI):
+            existing_qc_mask = wsi.qc_mask
+        if existing_qc_mask is not None:
+            blur_mask = skimage.transform.resize(blur_mask, existing_qc_mask.shape)
+            blur_mask = blur_mask.astype(bool)
             blur = np.count_nonzero(
                 np.logical_and(
-                    mask,
-                    np.logical_xor(mask, existing_qc_mask)
+                    blur_mask,
+                    np.logical_xor(blur_mask, existing_qc_mask)
                 )
             )
-            wsi.blur_burden = blur / (mask.shape[0] * mask.shape[1])
-            sf.log.debug(f"Blur burden: {wsi.blur_burden}")
+            if isinstance(wsi, sf.WSI):
+                wsi.blur_burden = blur / (blur_mask.shape[0] * blur_mask.shape[1])
+                sf.log.debug(f"Blur burden: {wsi.blur_burden}")
 
-        return mask
+        return blur_mask

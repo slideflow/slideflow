@@ -3,9 +3,8 @@ import numpy as np
 import pandas as pd
 import imgui
 from os.path import join, exists, dirname
-from slideflow.stats.stats_utils import normalize_layout
 
-from .gui_utils import imgui_utils
+from ..gui import imgui_utils
 
 #----------------------------------------------------------------------------
 

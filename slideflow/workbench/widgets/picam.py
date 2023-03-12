@@ -3,8 +3,8 @@ from picamera2 import Picamera2
 from picamera2.previews import NullPreview
 from typing import Tuple
 
-from .gui_utils import gl_utils, imgui_utils
-from .gui_utils.viewer import Viewer
+from ..gui import gl_utils, imgui_utils
+from ..gui.viewer import Viewer
 
 #----------------------------------------------------------------------------
 

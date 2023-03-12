@@ -8,7 +8,7 @@ from functools import partial
 from threading import Thread
 from slideflow.slide.utils import draw_roi
 from slideflow.cellseg import segment_slide, Segmentation
-from .gui_utils import imgui_utils
+from ..gui import imgui_utils
 
 
 class SegmentWidget:

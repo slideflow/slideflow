@@ -86,7 +86,8 @@ class SlideReport:
         if self._thumb is None and self.slide is not None:
             self._thumb = self.slide.thumb(
                 coords=self.thumb_coords,
-                rois=(self.slide.roi_method != 'ignore')
+                rois=(self.slide.roi_method != 'ignore'),
+                low_res=True
             )
             self._thumb = Image.fromarray(np.array(self._thumb)[:, :, 0:3])
         return self._thumb

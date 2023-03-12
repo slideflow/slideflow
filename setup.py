@@ -67,6 +67,7 @@ setuptools.setup(
         'fpdf',
         'lifelines',
         'scikit-image',
+        'scikit-misc',
         'tqdm',
         'click',
         'protobuf<=3.20.2',
