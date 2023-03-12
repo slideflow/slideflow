@@ -548,10 +548,15 @@ class Workbench(ImguiWindow):
                     if imgui.menu_item('Tile Preview', 'Ctrl+Shift+T', selected=self._show_tile_preview)[0]:
                         self._show_tile_preview = not self._show_tile_preview
                     imgui.separator()
-                    if imgui.menu_item('Magnification Scale', selected=(has_wsi and self.viewer.show_scale), enabled=has_wsi)[0]:
+                    if imgui.menu_item('Scale', selected=(has_wsi and self.viewer.show_scale), enabled=has_wsi)[0]:
                         self.viewer.show_scale = not self.viewer.show_scale
-                    imgui.separator()
-                    imgui.menu_item('Camera View', enabled=False)
+
+                    # Widgets with "View" menu.
+                    for w in self.widgets:
+                        if hasattr(w, 'show_menu_options'):
+                            imgui.separator()
+                            w.show_menu_options()
+
                     imgui.end_menu()
                 # -------------------------------------------------------------
 

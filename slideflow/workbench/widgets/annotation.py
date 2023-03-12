@@ -16,17 +16,40 @@ class AnnotationWidget:
         self.capturing      = False
         self.annotations    = []
         self._late_render   = []
+        self._visible       = False
 
     @property
-    def visible(self):
-        return self.viz.wsi is not None
+    def visible(self) -> bool:
+        """Whether this widget is visible."""
+        return self.viz.wsi is not None and self._visible
+
+    @visible.setter
+    def visible(self, val: bool):
+        """Whether this widget is visible."""
+        self._visible = val
+
+    def show_menu_options(self):
+        """Menu options to be shown in View -> Show"""
+        _changed, _ = imgui.menu_item(
+            'ROI Capture',
+            selected=self._visible,
+            enabled=bool(self.viz.wsi is not None)
+        )
+        if _changed:
+            self.visible = not self.visible
 
     def late_render(self):
         for _ in range(len(self._late_render)):
             annotation, name, kwargs = self._late_render.pop()
             gl_utils.draw_roi(annotation, **kwargs)
             if isinstance(name, str):
-                tex = text_utils.get_texture(name, size=self.viz.gl_font_size, max_width=self.viz.viewer.width, max_height=self.viz.viewer.height, outline=2)
+                tex = text_utils.get_texture(
+                    name,
+                    size=self.viz.gl_font_size,
+                    max_width=self.viz.viewer.width,
+                    max_height=self.viz.viewer.height,
+                    outline=2
+                )
                 text_pos = (annotation.mean(axis=0))
                 tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 

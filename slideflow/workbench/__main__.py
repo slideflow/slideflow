@@ -48,6 +48,10 @@ def main(
         from .widgets.segment import SegmentWidget
         widgets += [SegmentWidget]
 
+    # Experimental ROI annotation widget
+    from .widgets.annotation import AnnotationWidget
+    widgets += [AnnotationWidget]
+
     viz = Workbench(low_memory=low_memory, widgets=widgets)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
 
