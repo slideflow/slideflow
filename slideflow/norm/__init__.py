@@ -1,5 +1,4 @@
-"""This module provides H&E stain normalization and augmentation tools,
-with separate Numpy/OpenCV, PyTorch, and Tensorflow implementations.
+"""H&E stain normalization and augmentation tools.
 
 Overview
 --------
@@ -69,8 +68,8 @@ class StainNormalizer:
 
         The stain normalizer supports numpy images, PNG or JPG strings,
         Tensorflow tensors, and PyTorch tensors. The default ``.transform()``
-        method will attempt to preserve the original image type while minimizing
-        conversions to and from Tensors.
+        method will attempt to preserve the original image type while
+        minimizing conversions to and from Tensors.
 
         Alternatively, you can manually specify the image conversion type
         by using the appropriate function. For example, to convert a Tensor
@@ -157,8 +156,9 @@ class StainNormalizer:
         *,
         augment: bool = False
     ) -> "torch.Tensor":
-        """Normalize a torch uint8 image (CWH), via intermediate
-        conversion to WHC.
+        """Normalize a torch uint8 image (CWH).
+
+        Normalization ocurs via intermediate conversion to WHC.
 
         Args:
             inp (torch.Tensor): Image, uint8. Images are normalized in

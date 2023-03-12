@@ -51,7 +51,7 @@ except Exception:
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
                      'tiff', 'svslide', 'bif', 'jpg', 'jpeg']
-EMPTY_ANNOTATIONS = ['', ' ']
+EMPTY = ['', ' ', None, np.nan]
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:
     import pyomo.environ as pyo
