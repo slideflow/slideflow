@@ -160,8 +160,10 @@ class MacenkoNormalizer:
         Args:
             matrix_stdev (np.ndarray, tf.Tensor): Standard deviation
                 of the stain matrix target. Must have the shape (3, 2).
+                Defaults to None (will not augment stain matrix).
             concentrations_stdev (np.ndarray, tf.Tensor): Standard deviation
                 of the target concentrations. Must have the shape (2,).
+                Defaults to None (will not augment target concentrations).
         """
         if matrix_stdev is None and concentrations_stdev is None:
             raise ValueError(

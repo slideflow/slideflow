@@ -29,6 +29,10 @@ def _matrix_and_concentrations(
             with respect to orthogonal eigenvectors. Defaults to 1.
         beta (float): Luminosity threshold. Pixels with luminance above
             this threshold will be ignored. Defaults to 0.15.
+        mask (bool): Mask white pixels (255) during calculation.
+            Defaults to False.
+        standardize (bool): Perform brightness standardization.
+            Defaults to True.
 
     Returns:
         A tuple containing
@@ -110,6 +114,10 @@ def matrix_and_concentrations(
             with respect to orthogonal eigenvectors. Defaults to 1.
         beta (float): Luminosity threshold. Pixels with luminance above
             this threshold will be ignored. Defaults to 0.15.
+        mask (bool): Mask white pixels (255) during calculation.
+            Defaults to False.
+        standardize (bool): Perform brightness standardization.
+            Defaults to True.
 
     Returns:
         A tuple containing
@@ -145,6 +153,14 @@ def augmented_transform(
         img (tf.Tensor): Image to transform.
         stain_matrix_target (tf.Tensor): Target stain matrix.
         target_concentrations (tf.Tensor): Target concentrations.
+        matrix_stdev (np.ndarray, tf.Tensor): Standard deviation
+            of the stain matrix target. Must have the shape (3, 2).
+            Defaults to None (will not augment stain matrix).
+        concentrations_stdev (np.ndarray, tf.Tensor): Standard deviation
+            of the target concentrations. Must have the shape (2,).
+            Defaults to None (will not augment target concentrations).
+
+    Keyword args:
         Io (int, optional). Light transmission. Defaults to 255.
         alpha (float): Percentile of angular coordinates to be selected
             with respect to orthogonal eigenvectors. Defaults to 1.
@@ -181,11 +197,18 @@ def transform(
         img (tf.Tensor): Image to transform.
         stain_matrix_target (tf.Tensor): Target stain matrix.
         target_concentrations (tf.Tensor): Target concentrations.
+
+    Keyword args:
         Io (int, optional). Light transmission. Defaults to 255.
         alpha (float): Percentile of angular coordinates to be selected
             with respect to orthogonal eigenvectors. Defaults to 1.
         beta (float): Luminosity threshold. Pixels with luminance above
             this threshold will be ignored. Defaults to 0.15.
+        standardize (bool): Perform brightness standardization.
+            Defaults to True.
+        ctx_maxC (tf.Tensor, optional): Max concentration from context
+            (e.g. whole-slide image). If None, calculates max concentration
+            from the target image. Defaults to None.
 
     Returns:
         tf.Tensor: Transformed image.
@@ -236,6 +259,8 @@ def fit(
             with respect to orthogonal eigenvectors. Defaults to 1.
         beta (float): Luminosity threshold. Pixels with luminance above
             this threshold will be ignored. Defaults to 0.15.
+        standardize (bool): Perform brightness standardization.
+            Defaults to True.
 
     Returns:
         A tuple containing
@@ -368,7 +393,7 @@ class MacenkoNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping 'stain_matrix_target'
-            and 'target_concentrations' to their respective fit values.
+                and 'target_concentrations' to their respective fit values.
         """
         return {
             'stain_matrix_target': None if self.stain_matrix_target is None else self.stain_matrix_target.numpy(),  # type: ignore
@@ -405,8 +430,10 @@ class MacenkoNormalizer:
         Args:
             matrix_stdev (np.ndarray, tf.Tensor): Standard deviation
                 of the stain matrix target. Must have the shape (3, 2).
+                Defaults to None (will not augment stain matrix).
             concentrations_stdev (np.ndarray, tf.Tensor): Standard deviation
                 of the target concentrations. Must have the shape (2,).
+                Defaults to None (will not augment target concentrations).
         """
         if matrix_stdev is None and concentrations_stdev is None:
             raise ValueError(
@@ -422,6 +449,10 @@ class MacenkoNormalizer:
 
         Args:
             img (tf.Tensor): Image, RGB uint8 with dimensions W, H, C.
+
+        Keyword args:
+            augment (bool): Perform random stain augmentation.
+                Defaults to False.
 
         Returns:
             tf.Tensor: Normalized image.

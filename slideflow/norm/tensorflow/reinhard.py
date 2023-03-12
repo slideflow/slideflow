@@ -360,9 +360,11 @@ class ReinhardFastNormalizer:
 
         Args:
             means_stdev (np.ndarray, tf.Tensor): Standard devaiation
-                of target_means. Must have the shape (3, 1).
+                of target_means. Must have the shape (3,).
+                Defaults to None (will not augment target means).
             stds_stdev (np.ndarray, tf.Tensor): Standard deviation
-                of target_stds. Must have the shape (3, 1).
+                of target_stds. Must have the shape (3,).
+                Defaults to None (will not augment target stds).
         """
         if means_stdev is None and stds_stdev is None:
             raise ValueError(

@@ -302,7 +302,30 @@ class StainNormalizer:
         self.n.set_fit(**{k:v for k, v in kwargs.items() if v is not None})
 
     def set_augment(self, preset: Optional[str] = None, **kwargs) -> None:
-        """Set the normalizer augmentation space."""
+        """Set the normalizer augmentation space.
+
+        Args:
+            preset (str, optional): Augmentation preset. Defaults to None.
+
+        Keyword args:
+            matrix_stdev (np.ndarray): Standard deviation
+                of the stain matrix target. Must have the shape (3, 2).
+                Used for Macenko normalizers.
+                Defaults to None (will not augment stain matrix).
+            concentrations_stdev (np.ndarray): Standard deviation
+                of the target concentrations. Must have the shape (2,).
+                Used for Macenko normalizers.
+                Defaults to None (will not augment target concentrations).
+            means_stdev (np.ndarray): Standard deviation
+                of the target means. Must have the shape (3,).
+                Used for Reinhard normalizers.
+                Defaults to None (will not augment target means).
+            stds_stdev (np.ndarray): Standard deviation
+                of the target stds. Must have the shape (3,).
+                Used for Reinhard normalizers.
+                Defaults to None (will not augment target stds).
+
+        """
         if preset is not None:
             return self.n.augment_preset(preset)
         if kwargs:
