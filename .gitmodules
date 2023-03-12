@@ -8,6 +8,3 @@
 [submodule "slideflow/simclr/simclr"]
 	path = slideflow/simclr/simclr
 	url = https://github.com/jamesdolezal/simclr.git
-[submodule "slideflow/biscuit"]
-	path = slideflow/biscuit
-	url = https://github.com/jamesdolezal/biscuit.git
