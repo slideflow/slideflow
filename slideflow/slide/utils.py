@@ -3,6 +3,7 @@
 import io
 import numpy as np
 import shapely.geometry as sg
+import xml.etree.ElementTree as ET
 
 from PIL import Image, ImageDraw
 from types import SimpleNamespace
@@ -115,3 +116,38 @@ def roi_coords_from_image(
             [max_x, min_y]
         ])]
     return coords, boxes, yolo_anns
+
+    def xml_to_csv(path):
+        """Creates a QuPath format csv ROI file from 
+            an ImageScope format xml ROI file.
+        
+        Args:
+            path (str): ImageScope xml ROI file path
+        
+        Returns:
+            new_csv_file (str): path to the newly created
+            csv ROI file
+        """
+        tree = ET.parse(path)
+        root = tree.getroot()
+        new_csv_file = path[:-4] + 'csv'
+        with open(new_csv_file, 'w', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(['ROI_name', 'X_base', 'Y_base'])
+            required_attributes = ['.//Region', './/Vertex']
+            for a in required_attributes:
+                rois = root.findall(a)
+                if len(rois) == 0:
+                    message = '''No ROIs found. Check that the XML file attributes
+                    are named correctly named in ImageScope format with Region
+                    and Vertex tags.'''
+                    log.error(message)
+                    return
+            for region in root.finall('.//Region'):
+                roi_name = 'ROI_' + str(region.get('Id'))
+                for vertex in region.findall('.//Vertex'):
+                    x_base = vertex.get('X')
+                    y_base = vertex.get('Y')
+                    csvwriter.writerow([roi_name, x_base, y_base])
+        return new_csv_file
+    

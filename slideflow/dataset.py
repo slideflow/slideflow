@@ -93,7 +93,6 @@ import types
 import tempfile
 import warnings
 import signal
-import xml.etree.ElementTree as ET
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
@@ -2340,31 +2339,6 @@ class Dataset:
                 tfr+'.transformed',
                 resize=tile_px
             )
-
-    def xml_to_csv(path):
-        """ Creates a QuPath format csv ROI file from 
-            an ImageScope format xml ROI file.
-        
-        Args:
-            path (str): ImageScope xml ROI file path
-        
-        Returns:
-            new_csv_file (str): path to the newly created
-            csv ROI file
-        """
-        tree = ET.parse(path)
-        root = tree.getroot()
-        new_csv_file = path[:-4] + 'csv'
-        with open(new_csv_file, 'w', newline='') as csvfile:
-            csvwriter = csv.writer(csvfile)
-            csvwriter.writerow(['ROI_name', 'X_base', 'Y_base'])
-            for region in root.finall('.//Region'):
-                roi_name = 'ROI_' + str(region.get('Id'))
-                for vertex in region.finall('.//Vertex'):
-                    x_base = vertex.get('X')
-                    y_base = vertex.get('Y')
-                    csvwriter.writerow([roi_name, x_base, y_base])
-        return new_csv_file
 
     def rois(self) -> List[str]:
         """Return a list of all ROIs."""
