@@ -119,10 +119,10 @@ class SlideViewer(Viewer):
         wsi_ratio = self.wsi_window_size[0] / self.wsi_window_size[1]
         if wsi_ratio < (max_w / max_h):
             # Image is taller than wide
-            max_w = int(self.wsi_window_size[0] / (self.wsi_window_size[1] / max_h))
+            max_w = int(np.round(self.wsi_window_size[0] / (self.wsi_window_size[1] / max_h)))
         else:
             # Image is wider than tall
-            max_h = int(self.wsi_window_size[1] / (self.wsi_window_size[0] / max_w))
+            max_h = int(np.round(self.wsi_window_size[1] / (self.wsi_window_size[0] / max_w)))
         self.origin = tuple(origin)
 
         # Calculate region to extract from image

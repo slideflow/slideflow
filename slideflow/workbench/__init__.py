@@ -717,7 +717,6 @@ class Workbench(ImguiWindow):
             if hasattr(widget, 'keyboard_callback'):
                 widget.keyboard_callback(key, action)
 
-
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
 
@@ -766,7 +765,9 @@ class Workbench(ImguiWindow):
             return
         if path is None:
             path = self.wsi.path
-        if stride is None:
+        if stride is None and self.wsi is None:
+            stride = 1
+        elif stride is None:
             stride = self.wsi.stride_div
         if self.P and use_rois:
             rois = self.P.dataset().rois()

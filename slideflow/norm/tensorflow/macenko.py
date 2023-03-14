@@ -168,6 +168,7 @@ def augmented_transform(
 
     Returns:
         tf.Tensor: Transformed image.
+
     """
     if matrix_stdev is None and concentrations_stdev is None:
         raise ValueError("Must supply either matrix_stdev and/or concentrations_stdev")
