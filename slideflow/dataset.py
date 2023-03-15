@@ -270,6 +270,20 @@ def _create_index(tfrecord, force=False):
     if not tfrecord2idx.find_index(tfrecord) or force:
         tfrecord2idx.create_index(tfrecord, index_name)
 
+def convert_xml_rois(self):
+    """ Convert ImageScope XML ROI files to QuPath format CSV ROI files."""
+    num_xmls_converted = 0
+    for source in self.sources:
+        if self._roi_set(source):
+            xml_rois_list += glob(join(self.sources[source]['roi'], "*.xml"))
+            if len(xml_rois_list) == 0:
+                raise errors.DatasetError('No XML files found. Check dataset configuration.')
+            for xml in xml_rois_list:
+                skip_file = utils.xml_to_csv(xml)
+                if skip_file is False:
+                    num_xmls_converted += 1
+    return print(f'{num_xmls_converted} XML ROI files converted to CSV ROI files')
+
 # -----------------------------------------------------------------------------
 
 
@@ -451,6 +465,7 @@ class Dataset:
         tfrecords: Optional[str] = None,
         tiles: Optional[str] = None,
         roi: Optional[str] = None,
+        convert_xml: Optional[bool] = None,
         slides: Optional[str] = None,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[List[str], str]] = None,
@@ -541,6 +556,9 @@ class Dataset:
                 tfrecords=tfrecords, tiles=tiles, roi=roi, slides=slides
             ))
             sources = ['dataset']
+
+        if self.convert_xml_rois is True:
+            convert_xml_rois(self)
 
         if isinstance(config, str):
             self._config = config
@@ -2350,20 +2368,6 @@ class Dataset:
                 log.warning(f"roi path not set for source {source}")
         slides = self.slides()
         return [r for r in list(set(rois_list)) if path_to_name(r) in slides]
-
-    def convert_xml_rois(self):
-        """ Convert ImageScope XML ROI files to QuPath format CSV ROI files."""
-        num_xmls_converted = 0
-        for source in self.sources:
-            if self._roi_set(source):
-                xml_rois_list += glob(join(self.sources[source]['roi'], "*.xml"))
-                if len(xml_rois_list) == 0:
-                    raise errors.DatasetError('No XML files found. Check dataset configuration.')
-                for xml in xml_rois_list:
-                    skip_file = utils.xml_to_csv(xml)
-                    if skip_file is False:
-                        num_xmls_converted += 1
-        return print(f'{num_xmls_converted} XML ROI files converted to CSV ROI files')
 
     def slide_manifest(
         self,

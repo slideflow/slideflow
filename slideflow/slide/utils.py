@@ -119,13 +119,16 @@ def roi_coords_from_image(
     return coords, boxes, yolo_anns
 
 def xml_to_csv(path):
-    """Creates a QuPath format csv ROI file from an ImageScope format xml ROI file.
+    """Creates a QuPath format CSV ROI file from an ImageScope format XML ROI file.
 
     Args:
-        path (str): ImageScope xml ROI file path
+        path (str): ImageScope XML ROI file path
 
     Returns:
-        bool: True indicates that 
+        bool: True indicates that the XML file was converted to a CSV. 
+        False indicates that the XML file was not converted to a CSV
+        due to improper formatting. XML files must be in ImageScope ROI
+        export XML format. 
     """
     tree = ET.parse(path)
     root = tree.getroot()
