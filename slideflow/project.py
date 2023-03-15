@@ -678,7 +678,7 @@ class Project:
                     kf for kf in range(1, k_fold+1) if kf in val_settings.k
                 ]
         else:
-            k_fold = 0
+            k_fold = None
             valid_k = [None]  # type: ignore
 
         # Create model labels
