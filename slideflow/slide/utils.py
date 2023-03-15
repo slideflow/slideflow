@@ -7,6 +7,7 @@ import shapely.geometry as sg
 import xml.etree.ElementTree as ET
 
 from PIL import Image, ImageDraw
+from slideflow import errors
 from types import SimpleNamespace
 from typing import Union, List, Tuple
 
@@ -118,50 +119,51 @@ def roi_coords_from_image(
         ])]
     return coords, boxes, yolo_anns
 
-def xml_to_csv(path):
-    """Creates a QuPath format CSV ROI file from an ImageScope format XML ROI file.
+
+def xml_to_csv(path: str) -> str:
+    """Create a QuPath format CSV ROI file from an ImageScope-format XML.
+
+    ImageScope-formatted XMLs are expected to have "Region" and "Vertex"
+    attributes. The "Region" attribute should have an "ID" sub-attribute.
 
     Args:
         path (str): ImageScope XML ROI file path
 
     Returns:
-        bool: True indicates that the XML file was converted to a CSV. 
-        False indicates that the XML file was not converted to a CSV
-        due to improper formatting. XML files must be in ImageScope ROI
-        export XML format. 
+        str: Path to new CSV file.
+
+    Raises:
+        slideflow.errors.ROIError: If the XML could not be converted.
     """
     tree = ET.parse(path)
     root = tree.getroot()
     new_csv_file = path[:-4] + 'csv'
     required_attributes = ['.//Region', './/Vertex']
     if not all(root.findall(a) for a in required_attributes):
-        message = '''No ROIs found. Skipping file. Check that the XML file attributes
-        are named correctly named in ImageScope format with Region
-        and Vertex tags.'''
-        print(message)
-        return True
+        raise errors.ROIError(
+            f"No ROIs found in the XML file {path}. Check that the XML "
+            "file attributes are named correctly named in ImageScope "
+            "format with 'Region' and 'Vertex' tags."
+        )
     with open(new_csv_file, 'w', newline='') as csvfile:
         csvwriter = csv.writer(csvfile)
         csvwriter.writerow(['ROI_name', 'X_base', 'Y_base'])
         for region in root.findall('.//Region'):
             id_tag = region.get('Id')
             if not id_tag:
-                message = '''No ID attribute found for Region. 
-                Skipping file.
-                Check xml file and ensure it adheres to ImageScope format.
-                '''
-                print(message)
-                return True
+                raise errors.ROIError(
+                    "No ID attribute found for Region. Check xml file and "
+                    "ensure it adheres to ImageScope format."
+                )
             roi_name = 'ROI_' + str(id_tag)
             vertices = region.findall('.//Vertex')
             if not vertices:
-                message = '''No Vertex found in ROI. 
-                Skipping file.
-                Check xml file and ensure it adheres to ImageScope format.
-                '''
-                print(message)
-                return True
-            csvwriter.writerows([[roi_name, vertex.get('X'), vertex.get('Y')] for vertex in vertices])
-    return False
-
-    
+                raise errors.ROIError(
+                    "No Vertex found in ROI. Check xml file and ensure it "
+                    "adheres to ImageScope format."
+                )
+            csvwriter.writerows([
+                [roi_name, vertex.get('X'), vertex.get('Y')]
+                for vertex in vertices
+            ])
+    return new_csv_file
