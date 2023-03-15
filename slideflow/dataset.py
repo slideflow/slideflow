@@ -114,7 +114,7 @@ from tqdm import tqdm
 import slideflow as sf
 from slideflow import errors
 from slideflow.model import ModelParams
-from slideflow.slide import WSI, ExtractionReport, SlideReport
+from slideflow.slide import WSI, ExtractionReport, SlideReport, utils
 from slideflow.util import (log, Labels, _shortname, path_to_name,
                             tfrecord2idx, TileExtractionProgress)
 
@@ -2346,14 +2346,24 @@ class Dataset:
         for source in self.sources:
             if self._roi_set(source):
                 rois_list += glob(join(self.sources[source]['roi'], "*.csv"))
-                xml_rois_list += glob(join(self.sources[source]['roi'], "*.xml"))
-                if len(xml_rois_list) > 0:
-                    for xml in xml_rois_list:
-                        rois_list += xml_to_csv(xml)
             else:
                 log.warning(f"roi path not set for source {source}")
         slides = self.slides()
         return [r for r in list(set(rois_list)) if path_to_name(r) in slides]
+
+    def convert_xml_rois(self):
+        """ Convert ImageScope XML ROI files to QuPath format CSV ROI files."""
+        num_xmls_converted = 0
+        for source in self.sources:
+            if self._roi_set(source):
+                xml_rois_list += glob(join(self.sources[source]['roi'], "*.xml"))
+                if len(xml_rois_list) == 0:
+                    raise errors.DatasetError('No XML files found. Check dataset configuration.')
+                for xml in xml_rois_list:
+                    skip_file = utils.xml_to_csv(xml)
+                    if skip_file is False:
+                        num_xmls_converted += 1
+        return print(f'{num_xmls_converted} XML ROI files converted to CSV ROI files')
 
     def slide_manifest(
         self,

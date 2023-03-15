@@ -1,5 +1,6 @@
 """Utility functions and constants for slide reading."""
 
+import csv
 import io
 import numpy as np
 import shapely.geometry as sg
@@ -117,37 +118,47 @@ def roi_coords_from_image(
         ])]
     return coords, boxes, yolo_anns
 
-    def xml_to_csv(path):
-        """Creates a QuPath format csv ROI file from 
-            an ImageScope format xml ROI file.
-        
-        Args:
-            path (str): ImageScope xml ROI file path
-        
-        Returns:
-            new_csv_file (str): path to the newly created
-            csv ROI file
-        """
-        tree = ET.parse(path)
-        root = tree.getroot()
-        new_csv_file = path[:-4] + 'csv'
-        with open(new_csv_file, 'w', newline='') as csvfile:
-            csvwriter = csv.writer(csvfile)
-            csvwriter.writerow(['ROI_name', 'X_base', 'Y_base'])
-            required_attributes = ['.//Region', './/Vertex']
-            for a in required_attributes:
-                rois = root.findall(a)
-                if len(rois) == 0:
-                    message = '''No ROIs found. Check that the XML file attributes
-                    are named correctly named in ImageScope format with Region
-                    and Vertex tags.'''
-                    log.error(message)
-                    return
-            for region in root.finall('.//Region'):
-                roi_name = 'ROI_' + str(region.get('Id'))
-                for vertex in region.findall('.//Vertex'):
-                    x_base = vertex.get('X')
-                    y_base = vertex.get('Y')
-                    csvwriter.writerow([roi_name, x_base, y_base])
-        return new_csv_file
+def xml_to_csv(path):
+    """Creates a QuPath format csv ROI file from an ImageScope format xml ROI file.
+
+    Args:
+        path (str): ImageScope xml ROI file path
+
+    Returns:
+        bool: True indicates that 
+    """
+    tree = ET.parse(path)
+    root = tree.getroot()
+    new_csv_file = path[:-4] + 'csv'
+    required_attributes = ['.//Region', './/Vertex']
+    if not all(root.findall(a) for a in required_attributes):
+        message = '''No ROIs found. Skipping file. Check that the XML file attributes
+        are named correctly named in ImageScope format with Region
+        and Vertex tags.'''
+        print(message)
+        return True
+    with open(new_csv_file, 'w', newline='') as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerow(['ROI_name', 'X_base', 'Y_base'])
+        for region in root.findall('.//Region'):
+            id_tag = region.get('Id')
+            if not id_tag:
+                message = '''No ID attribute found for Region. 
+                Skipping file.
+                Check xml file and ensure it adheres to ImageScope format.
+                '''
+                print(message)
+                return True
+            roi_name = 'ROI_' + str(id_tag)
+            vertices = region.findall('.//Vertex')
+            if not vertices:
+                message = '''No Vertex found in ROI. 
+                Skipping file.
+                Check xml file and ensure it adheres to ImageScope format.
+                '''
+                print(message)
+                return True
+            csvwriter.writerows([[roi_name, vertex.get('X'), vertex.get('Y')] for vertex in vertices])
+    return False
+
     
