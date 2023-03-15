@@ -557,7 +557,7 @@ class Dataset:
             ))
             sources = ['dataset']
 
-        if self.convert_xml_rois is True:
+        if self.convert_xml is True:
             convert_xml_rois(self)
 
         if isinstance(config, str):
