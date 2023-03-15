@@ -272,7 +272,6 @@ def _create_index(tfrecord, force=False):
 
 # -----------------------------------------------------------------------------
 
-
 def split_patients_preserved_site(
     patients_dict: Dict[str, Dict],
     n: int,
@@ -1276,6 +1275,25 @@ class Dataset:
                 for tfr in manifest
             }
         return ret
+
+    def convert_xml_rois(self):
+        """Convert ImageScope XML ROI files to QuPath format CSV ROI files."""
+        n_converted = 0
+        for source in self.sources:
+            if self._roi_set(source):
+                xml_list += glob(join(self.sources[source]['roi'], "*.xml"))
+                if len(xml_list) == 0:
+                    raise errors.DatasetError(
+                        'No XML files found. Check dataset configuration.'
+                    )
+                for xml in xml_list:
+                    try:
+                        sf.slide.utils.xml_to_csv(xml)
+                    except errors.ROIError as e:
+                        log.warning(f"Failed to convert XML roi {xml}: {e}")
+                    else:
+                        n_converted += 1
+        log.info(f'Converted {n_converted} XML ROIs -> CSV')
 
     def extract_cells(
         self,
