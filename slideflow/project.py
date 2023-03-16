@@ -3482,6 +3482,7 @@ class Project:
         *,
         exp_label: Optional[str] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
+        dataset_kwargs: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> None:
         """Train SimCLR model.
@@ -3528,6 +3529,7 @@ class Project:
             train_dts=train_dataset,
             val_dts=val_dataset,
             labels=outcomes,
+            dataset_kwargs=dataset_kwargs
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
