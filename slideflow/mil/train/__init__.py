@@ -4,7 +4,7 @@ import os
 import numpy as np
 import slideflow as sf
 from os.path import join, exists
-from typing import Union, List, TYPE_CHECKING
+from typing import Union, List, Optional, TYPE_CHECKING
 from slideflow import Dataset, log
 from slideflow.util import path_to_name
 from .._params import TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 def train_mil(
     config: TrainerConfig,
     train_dataset: Dataset,
-    val_dataset: Dataset,
+    val_dataset: Optional[Dataset],
     outcomes: Union[str, List[str]],
     bags: Union[str, List[str]],
     *,
@@ -51,6 +51,11 @@ def train_mil(
         train_fn = train_clam
     else:
         raise ValueError(f"Unrecognized training configuration of type {type(config)}")
+    if val_dataset is None:
+        sf.log.info(
+            "Training without validation; metrics will be calculated on training data."
+        )
+        val_dataset = train_dataset
     return train_fn(
         config,
         train_dataset,
@@ -218,7 +223,7 @@ def build_fastai_learner(
     labels.update(val_labels)
     unique_categories = np.unique(unique_train + unique_val)
 
-    # Prepare bags
+    # Prepare bags and targets
     if isinstance(bags, str):
         train_bags = train_dataset.pt_files(bags)
         val_bags = val_dataset.pt_files(bags)
