@@ -2890,6 +2890,7 @@ class Project:
         outcomes: Union[str, List[str]],
         params: sf.ModelParams,
         metric: Union[str, Callable],
+        n_replicates: int,
         train_kwargs: Any
     ) -> Callable:
         """Build a SMAC3 optimization runner.
@@ -2923,43 +2924,48 @@ class Project:
                and c['normalizer_source'].lower() == 'none'):
                 c['normalizer_source'] = None
 
-            # Train model.
-            pretty = json.dumps(c, indent=2)
-            log.info(f"Training model with config={pretty}")
-            params.load_dict(c)
-            _prior_logging_level = sf.getLoggingLevel()
-            sf.setLoggingLevel(40)
-            results = self.train(
-                outcomes=outcomes,
-                params=params,
-                **train_kwargs
-            )
-            sf.setLoggingLevel(_prior_logging_level)
+            all_results = []
+            for _ in range(n_replicates):
+                # Train model(s).
+                pretty = json.dumps(c, indent=2)
+                log.info(f"Training model with config={pretty}")
+                params.load_dict(c)
+                _prior_logging_level = sf.getLoggingLevel()
+                sf.setLoggingLevel(40)
+                results = self.train(
+                    outcomes=outcomes,
+                    params=params,
+                    **train_kwargs
+                )
+                sf.setLoggingLevel(_prior_logging_level)
 
-            # Interpret results.
-            model_name = list(results.keys())[0]
-            last_epoch = sorted(list(results[model_name]['epochs'].keys()))[-1]
-            if len(results[model_name]['epochs']) > 1:
-                log.warning(f"Ambiguous epoch for SMAC. Using '{last_epoch}'.")
-            epoch_results = results[model_name]['epochs'][last_epoch]
+                # Interpret results.
+                model_name = list(results.keys())[0]
+                last_epoch = sorted(list(results[model_name]['epochs'].keys()))[-1]
+                if len(results[model_name]['epochs']) > 1:
+                    log.warning(f"Ambiguous epoch for SMAC. Using '{last_epoch}'.")
+                epoch_results = results[model_name]['epochs'][last_epoch]
 
-            # Determine metric for optimization.
-            if callable(metric):
-                result = metric(epoch_results)
-            elif metric not in epoch_results:
-                raise errors.SMACError(f"Metric '{metric}' not returned from "
-                                       "training, unable to optimize.")
-            else:
-                if outcomes not in epoch_results[metric]:
-                    raise errors.SMACError(
-                        f"Unable to interpret metric {metric} (epoch results: "
-                        f"{epoch_results})")
-                result = 1 - mean(epoch_results[metric][outcomes])
+                # Determine metric for optimization.
+                if callable(metric):
+                    result = metric(epoch_results)
+                elif metric not in epoch_results:
+                    raise errors.SMACError(f"Metric '{metric}' not returned from "
+                                        "training, unable to optimize.")
+                else:
+                    if outcomes not in epoch_results[metric]:
+                        raise errors.SMACError(
+                            f"Unable to interpret metric {metric} (epoch results: "
+                            f"{epoch_results})")
+                    result = 1 - mean(epoch_results[metric][outcomes])
+                all_results.append(result)
+
+            # Average results across iterations
             log.info("[green]Result ({})[/]: {:.4f}".format(
                 'custom' if callable(metric) else f'1-{metric}',
                 result
             ))
-            return result
+            return mean(all_results)
 
         return smac_runner
 
@@ -2971,6 +2977,7 @@ class Project:
         exp_label: str = "SMAC",
         smac_limit: int = 10,
         smac_metric: str = 'tile_auc',
+        smac_replicates: int = 1,
         save_checkpoints: bool = False,
         save_model: bool = False,
         save_predictions: Union[bool, str] = False,
@@ -3040,6 +3047,7 @@ class Project:
                 params=params,
                 metric=smac_metric,
                 train_kwargs=train_kwargs,
+                n_replicates=smac_replicates,
             )
         )
 
@@ -3047,6 +3055,10 @@ class Project:
         log.info("Performing Bayesian hyperparameter optimization with SMAC")
         log.info(
             "=== SMAC config ==========================================\n"
+            "[bold]Options:[/]\n"
+            f"Metric: {smac_metric}\n"
+            f"Limit: {smac_limit}\n"
+            f"Model replicates: {smac_replicates}\n"
             "[bold]Base parameters:[/]\n"
             f"{params}\n\n"
             "[bold]Configuration space:[/]\n"
