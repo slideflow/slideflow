@@ -1950,6 +1950,11 @@ class Dataset:
                 Defaults to False.
 
         """
+        if splits is None:
+            temp_dir = tempfile.TemporaryDirectory()
+            splits = join(temp_dir.name, '_splits.json')
+        else:
+            temp_file = None
         crossval_splits = []
         for k_fold_iter in range(k):
             split_kw = dict(
@@ -1963,6 +1968,8 @@ class Dataset:
                 read_only=read_only
             )
             crossval_splits.append(self.split(**split_kw))
+        if temp_dir is not None:
+            temp_dir.cleanup()
         return tuple(crossval_splits)
 
     def labels(
