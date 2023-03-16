@@ -763,7 +763,9 @@ class Workbench(imgui_window.ImguiWindow):
             return
         if path is None:
             path = self.wsi.path
-        if stride is None:
+        if stride is None and self.wsi is None:
+            stride = 1
+        elif stride is None:
             stride = self.wsi.stride_div
         if self.P and use_rois:
             rois = self.P.dataset().rois()
