@@ -310,8 +310,22 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
 class StyleGAN2Interleaver(InterleaveIterator):
     """Iterator to enable compatibility with StyleGAN2."""
 
-    def __init__(self, resolution=None, xflip=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        resolution=None,
+        xflip=None,
+        normalizer=None,
+        normalizer_source=None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        if normalizer:
+            self.normalizer = sf.norm.autoselect(
+                normalizer,
+                source=normalizer_source,
+                device='cpu',
+                backend='torch'
+            )
 
     def get_label(self, idx: Any) -> Any:
         """Returns a random label. Used for compatibility with StyleGAN2."""

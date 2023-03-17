@@ -1631,6 +1631,8 @@ class Project:
         mirror: bool = True,
         metrics: Optional[Union[str, List[str]]] = None,
         dry_run: bool = False,
+        normalizer: Optional[str] = None,
+        normalizer_source: Optional[str] = None,
         **kwargs
     ) -> None:
         """Train a GAN network.
@@ -1693,8 +1695,8 @@ class Project:
                 training. Options include 'fid50k', 'is50k', 'ppl_zfull',
                 'ppl_wfull', 'ppl_zend', 'ppl2_wend', 'ls', and 'pr50k3'.
                 Defaults to None.
-            model (str): Architecture to train. Only currently valid model
-                architecture is "stylegan2". Defaults to "stylegan2".
+            model (str): Architecture to train. Valid model architectures
+                include "stylegan2" and "stylegan3". Defaults to "stylegan3".
             nhwc (bool): Use NWHC memory format with FP16. Defaults to False.
             nobench (bool): Disable cuDNN benchmarking. Defaults to False.
             outcomes (str, list(str), optional): Class conditioning outcome
@@ -1731,7 +1733,7 @@ class Project:
 
         # Write GAN configuration
         config_loc = join(gan_dir, 'slideflow_config.json')
-        sf.util.write_json(dict(
+        config = dict(
             project_path=self.root,
             tile_px=dataset.tile_px,
             tile_um=dataset.tile_um,
@@ -1739,7 +1741,13 @@ class Project:
             outcome_label_headers=outcomes,
             filters=dataset._filters,
             filter_blank=dataset._filter_blank,
-        ), config_loc)
+        )
+        if normalizer:
+            config['normalizer_kwargs'] = dict(
+                normalizer=normalizer,
+                normalizer_source=normalizer_source
+            )
+        sf.util.write_json(config, config_loc)
 
         # Train the GAN
         network.train.train(
