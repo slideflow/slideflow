@@ -28,20 +28,28 @@ def cucim2numpy(img: "CuImage") -> np.ndarray:
     return ((img_as_float(np.asarray(img))) * 255).astype(np.uint8)
 
 
-def cucim2jpg(img: "CuImage") -> str:
-    img = cucim2numpy(img)
+def numpy2jpg(img: np.ndarray) -> str:
     if img.shape[-1] == 4:
         img = img[:, :, 0:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     return cv2.imencode(".jpg", img)[1].tobytes()
 
 
-def cucim2png(img: "CuImage") -> str:
-    img = cucim2numpy(img)
+def numpy2png(img: np.ndarray) -> str:
     if img.shape[-1] == 4:
         img = img[:, :, 0:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     return cv2.imencode(".png", img)[1].tobytes()
+
+
+def cucim2jpg(img: "CuImage") -> str:
+    img = cucim2numpy(img)
+    return numpy2jpg(img)
+
+
+def cucim2png(img: "CuImage") -> str:
+    img = cucim2numpy(img)
+    return numpy2png(img)
 
 
 def tile_worker(
@@ -310,23 +318,20 @@ class _cuCIMReader:
         if resize_factor:
             target_size = (int(extract_size[0] * resize_factor),
                            int(extract_size[1] * resize_factor))
-            if __cv2_resize__:
+            if not __cv2_resize__:
                 region = resize(np.asarray(region), target_size)
         # Final conversions
         if flatten and region.shape[-1] == 4:
             region = region[:, :, 0:3]
-        if convert and convert.lower() in ('jpg', 'jpeg'):
-            region = cucim2jpg(region)
-        elif convert and convert.lower() == 'png':
-            region = cucim2png(region)
-        elif convert == 'numpy':
+        if convert and convert.lower() in ('jpg', 'jpeg', 'png', 'numpy'):
             region = cucim2numpy(region)
-        else:
-            region = region
         if resize_factor and __cv2_resize__:
-            return cv2.resize(region, target_size)
-        else:
-            return region
+            region = cv2.resize(region, target_size)
+        if convert and convert.lower() in ('jpg', 'jpeg'):
+            return numpy2jpg(region)
+        elif convert and convert.lower() == 'png':
+            return numpy2png(region)
+        return region
 
     def read_from_pyramid(
         self,
@@ -371,18 +376,16 @@ class _cuCIMReader:
         # Final conversions
         if flatten and region.shape[-1] == 4:
             region = region[:, :, 0:3]
-        if convert and convert.lower() in ('jpg', 'jpeg'):
-            region = cucim2jpg(region)
-        elif convert and convert.lower() == 'png':
-            region = cucim2png(region)
-        elif convert == 'numpy':
+
+        if convert and convert.lower() in ('jpg', 'jpeg', 'png', 'numpy'):
             region = cucim2numpy(region)
-        else:
-            region = region
         if __cv2_resize__:
-            return cv2.resize(region, target_size)
-        else:
-            return region
+            region = cv2.resize(region, target_size)
+        if convert and convert.lower() in ('jpg', 'jpeg'):
+            return numpy2jpg(region)
+        elif convert and convert.lower() == 'png':
+            return numpy2png(region)
+        return region
 
     def thumbnail(
         self,
