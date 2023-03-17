@@ -530,10 +530,15 @@ class DatasetFeatures:
             is_torch = model.is_torch()
             is_tf = model.is_tensorflow()
             combined_model = model
+            if kwargs:
+                raise ValueError(
+                    f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
+                )
         elif self.uq and include_uncertainty:
             combined_model = sf.model.UncertaintyInterface(
                 model,
-                layers=layers
+                layers=layers,
+                **kwargs
             )
         elif is_simclr:
             from slideflow import simclr
@@ -541,6 +546,14 @@ class DatasetFeatures:
             combined_model = simclr.load(model)
             combined_model.num_features = simclr_args.proj_out_dim
             combined_model.num_classes = simclr_args.num_classes
+            if 'normalizer' in kwargs:
+                self.normalizer = kwargs['normalizer']
+                del kwargs['normalizer']
+                log.info(f"Normalizing with {self.normalizer.method}")
+            if kwargs:
+                raise ValueError(
+                    f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
+                )
         elif isinstance(model, str) and is_tf:
             combined_model = sf.model.Features(model, **feat_kw)
         elif is_tf:
