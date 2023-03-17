@@ -116,6 +116,9 @@ def train_clam(
     if not exists(results_dir):
         os.makedirs(results_dir)
 
+    # Export configuration to JSON.
+    sf.util.write_json(config.json_dump(), join(outdir, 'mil_params.json'))
+
     # Set up labels.
     labels, unique_train = train_dataset.labels(outcomes, format='name', use_float=False)
     val_labels, unique_val = val_dataset.labels(outcomes, format='name', use_float=False)
@@ -216,6 +219,7 @@ def build_fastai_learner(
     if not exists(outdir):
         os.makedirs(outdir)
     outdir = sf.util.create_new_model_dir(outdir, exp_label)
+    sf.util.write_json(config.json_dump(), join(outdir, 'mil_params.json'))
 
     # Prepare labels and slides
     labels, unique_train = train_dataset.labels(outcomes, format='name')

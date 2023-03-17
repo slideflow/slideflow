@@ -1418,6 +1418,48 @@ class Project:
                     outdir=heatmaps_dir
                 )
 
+    def evaluate_mil(
+        self,
+        model: str,
+        outcomes: Union[str, List[str]],
+        dataset: Dataset,
+        bags: Union[str, List[str]],
+        config: Optional["mil.TrainerConfig"] = None,
+        **kwargs
+    ):
+        r"""Train a multi-instance learning model.
+
+        Args:
+            config (:class:`slideflow.mil.TrainerConfig): Training
+                configuration, as obtained by
+                :func:`slideflow.mil.mil_config()`.
+            train_dataset (:class:`slideflow.Dataset`): Training dataset.
+            val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+            outcomes (str): Outcome column (annotation header) from which to
+                derive category labels.
+            bags (str): Either a path to directory with \*.pt files, or a list
+                of paths to individual \*.pt files. Each file should contain
+                exported feature vectors, with each file containing all tile
+                features for one patient.
+
+        Keyword args:
+            exp_label (str): Experiment label, used for naming the subdirectory
+                in the ``{project root}/mil`` folder, where training history
+                and the model will be saved.
+
+        """
+        from .mil import eval_mil
+
+        return eval_mil(
+            model,
+            dataset=dataset,
+            outcomes=outcomes,
+            bags=bags,
+            config=config,
+            outdir=join(self.root, 'mil_eval'),
+            **kwargs
+        )
+
     def extract_cells(
         self,
         tile_px: int,
