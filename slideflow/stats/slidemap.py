@@ -680,7 +680,7 @@ class SlideMap:
             index (int, optional): Uncertainty index. Defaults to 0.
         """
         if 'label' in self.data.columns:
-            self.data.drop(columns='label')
+            self.data.drop(columns='label', inplace=True)
         if self.ftrs is None:
             raise errors.SlideMapError("DatasetFeatures not provided.")
         if not self.ftrs.uq or self.ftrs.uncertainty == {}:  # type: ignore
@@ -698,7 +698,7 @@ class SlideMap:
             index (int): Logit index.
         """
         if 'label' in self.data.columns:
-            self.data.drop(columns='label')
+            self.data.drop(columns='label', inplace=True)
         self.data['label'] = np.stack(self.data['predictions'].values)[:, index]
 
     def label_by_slide(self, slide_labels: Optional[Dict] = None) -> None:
@@ -709,7 +709,7 @@ class SlideMap:
             slide_labels (dict, optional): Dict mapping slide names to labels.
         """
         if 'label' in self.data.columns:
-            self.data.drop(columns='label')
+            self.data.drop(columns='label', inplace=True)
         if slide_labels:
             self.data['label'] = self.data.slide.map(slide_labels)
         else:
@@ -724,7 +724,7 @@ class SlideMap:
                 read metadata through this dictionary.
         """
         if 'label' in self.data.columns:
-            self.data.drop(columns='label')
+            self.data.drop(columns='label', inplace=True)
         self.data['label'] = self.data[meta].values
         if translate:
             self.data['label'] = self.data['label'].map(translate)
@@ -794,7 +794,12 @@ class SlideMap:
                     dict(hue=labels.astype('category'))
                 )
                 unique = list(labels.unique())
-                unique.sort()
+                try:
+                    unique.sort()
+                except TypeError:
+                    log.error(
+                        "Unable to sort categories; are some values NaN?"
+                    )
                 if len(unique) >= 12:
                     sns_pal = sns.color_palette("Paired", len(unique))
                 else:
