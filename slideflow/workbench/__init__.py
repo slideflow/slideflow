@@ -498,6 +498,12 @@ class Workbench(ImguiWindow):
                     self.ask_load_model()
                 if imgui.menu_item('Load Heatmap...', 'Ctrl+H', enabled=self._model_path is not None)[1]:
                     self.ask_load_heatmap()
+
+                # Widgets with "Open" menu options.
+                for w in self.widgets:
+                    if hasattr(w, 'open_menu_options'):
+                        w.open_menu_options()
+
                 imgui.separator()
                 if imgui.begin_menu('Export...', True):
                     if imgui.menu_item('Main view')[1]:
@@ -1177,8 +1183,8 @@ class Workbench(ImguiWindow):
     def get_default_widgets() -> List[Any]:
         """Returns a list of the default non-mandatory widgets."""
 
-        from .widgets import LayerUMAPWidget
-        return [LayerUMAPWidget]
+        from .widgets import MosaicWidget
+        return [MosaicWidget]
 
     def get_renderer(self, name: str) -> Any:
         """Check for the given additional renderer in the rendering pipeline."""

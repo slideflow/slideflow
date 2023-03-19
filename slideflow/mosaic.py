@@ -689,6 +689,5 @@ class Mosaic:
 
         bench = Workbench(widgets=[MosaicWidget])
         mosaic = bench.get_widget('MosaicWidget')
-        tfr = self.tfrecords if self.slide_map.tfrecords is None else None
-        mosaic.load(self.slide_map, tfrecords=tfr, slides=slides)
+        mosaic.load(self.slide_map, tfrecords=self.tfrecords, slides=slides)
         bench.run()

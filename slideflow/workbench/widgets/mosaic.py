@@ -12,6 +12,7 @@ from os.path import join, exists
 from slideflow import log
 from PIL import Image
 from io import BytesIO
+from tkinter.filedialog import askdirectory
 
 from ..gui import imgui_utils, gl_utils, text_utils
 from ..gui.viewer import OpenGLMosaic, MosaicViewer
@@ -76,6 +77,11 @@ class MosaicWidget:
         if imgui.menu_item('Toggle Mosaic UMAP', enabled=(self.coords is not None))[1]:
             self.show = not self.show
 
+    def open_menu_options(self):
+        if imgui.menu_item('Load Mosaic...')[1]:
+            mosaic_path = askdirectory(title="Load mosaic (directory)...")
+            self.load(mosaic_path)
+
     def keyboard_callback(self, key, action):
         """Add keyboard callbacks to allow zooming."""
         if not self.viz._control_down and (key == glfw.KEY_EQUAL and action == glfw.PRESS):
@@ -124,7 +130,7 @@ class MosaicWidget:
 
     def load_umap_from_path(self, path, subsample=5000):
         """Load a saved UMAP."""
-        if path is not None and exists(join(path, 'encoder')):
+        if path is not None and exists(join(path, 'slidemap.parquet')):
             df = pd.read_parquet(join(path, 'slidemap.parquet'))
             self.coords = np.stack((df.x.values, df.y.values), axis=1)
             if subsample and self.coords.shape[0] > subsample:

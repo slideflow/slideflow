@@ -61,7 +61,7 @@ class MosaicViewer(Viewer):
 
     def get_slide_path(self, slide: str) -> Optional[str]:
         if self.viz.P is not None:
-            return self.viz.P.dataset(filters={'slide': slide}).slide_paths()[0]
+            return self.viz.P.dataset().find_slide(slide=slide)
         elif slide in self.slides:
             return self.slides[slide]
         else:
