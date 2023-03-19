@@ -81,7 +81,7 @@ def update_manifest_at_dir(
             os.remove(tfr)
             return None
         if not total:
-            log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
+            log.error(f"Empty TFRecord at {tfr}; removing")
             os.remove(tfr)
             return None
         rel_tfr_manifest[rel_tfr]['total'] = total
