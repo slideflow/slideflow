@@ -11,6 +11,7 @@ import requests
 import tarfile
 import hashlib
 import pandas as pd
+from contextlib import contextmanager
 from rich import progress
 from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
