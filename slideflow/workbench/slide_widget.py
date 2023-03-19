@@ -196,7 +196,7 @@ class SlideWidget:
             viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width))
             viz.clear_message(f'Loading {name}...')
 
-        except Exception:
+        except Exception as e:
             self.cur_slide = None
             self.user_slide = slide
             viz.clear_message(f'Loading {name}...')
