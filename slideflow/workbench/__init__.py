@@ -7,7 +7,7 @@ import pyperclip
 import imgui
 import glfw
 import OpenGL.GL as gl
-from typing import List, Any, Optional, Dict, Tuple
+from typing import List, Any, Optional, Dict, Tuple, Union
 from os.path import join
 from PIL import Image
 from tkinter import Tk
@@ -16,6 +16,7 @@ from tkinter.filedialog import askopenfilename, askdirectory
 import slideflow as sf
 import slideflow.grad
 from slideflow import log
+
 from .gui import imgui_utils
 from .gui import gl_utils
 from .gui import text_utils
@@ -1169,6 +1170,7 @@ class Workbench(ImguiWindow):
             self.close_model(True)
         if self._should_close_slide:
             self.close_slide(True)
+
         self.end_frame()
 
     @staticmethod
@@ -1212,19 +1214,25 @@ class Workbench(ImguiWindow):
         """Reset tile zoom level."""
         self.tile_zoom = 1
 
-    def load_heatmap(self, path: str) -> None:
+    def load_heatmap(self, path: Union[str, "sf.Heatmap"]) -> None:
         """Load a saved heatmap (*.npz).
 
         Args:
             path (str): Path to exported heatmap in *.npz format, as generated
                 by Heatmap.save() or Heatmap.save_npz().
         """
+        if self._model_config is None:
+            self.create_toast(
+                "Unable to load heatmap; model must also be loaded.",
+                icon="error"
+            )
+            return
         try:
             self.heatmap_widget.load(path)
             self.create_toast(f"Loaded heatmap at {path}", icon="success")
 
         except Exception as e:
-            log.debug("Exception raised loading heatmap: {}".format(e))
+            log.warn("Exception raised loading heatmap: {}".format(e))
             self.create_toast(f"Error loading heatmap at {path}", icon="error")
 
     def load_model(self, model: str, ignore_errors: bool = False) -> None:
@@ -1297,7 +1305,7 @@ class Workbench(ImguiWindow):
                 log.debug("Exception raised: no model loaded.")
                 self.result = EasyDict(message='No model loaded')
             else:
-                log.debug("Exception raised (ignore_errors={}): {}".format(ignore_errors, e))
+                log.warn("Exception raised (ignore_errors={}): {}".format(ignore_errors, e))
                 self.create_toast(f"Error loading model at {model}", icon="error")
                 self.result = EasyDict(error=renderer.CapturedException())
             if not ignore_errors:

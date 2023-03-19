@@ -194,11 +194,12 @@ class SlideWidget:
             viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width, low_res=True))
             viz.clear_message(f'Loading {name}...')
 
-        except Exception:
+        except Exception as e:
             self.cur_slide = None
             self.user_slide = slide
             viz.clear_message(f'Loading {name}...')
             viz.result = EasyDict(error=CapturedException())
+            sf.log.warn(f"Error loading slide {slide}: {e}")
             viz.create_toast(f"Error loading slide {slide}", icon="error")
             if not ignore_errors:
                 raise

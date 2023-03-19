@@ -2,6 +2,7 @@ import os
 import numpy as np
 import imgui
 import threading
+from typing import Union
 from array import array
 from ..gui import imgui_utils
 
@@ -95,12 +96,19 @@ class HeatmapWidget:
             whitespace_threshold=sw.ws_threshold,
         )
 
-    def load(self, path):
+    def load(self, obj: Union[str, "sf.Heatmap"]):
         """Load a heatmap from a saved *.npz file."""
-
-        if self.viz.heatmap is None:
-            self._create_heatmap()
-        self.viz.heatmap.load(path)
+        if isinstance(obj, str) and self.viz._model_config:
+            if self.viz.heatmap is None:
+                self._create_heatmap()
+            self.viz.heatmap.load(obj)
+        elif isinstance(obj, str):
+            self.viz.create_toast(
+                "Unable to load heatmap; model must also be loaded.",
+                icon="fail"
+            )
+        else:
+            self.viz.heatmap = obj
         self.predictions = self.viz.heatmap.predictions
         self.uncertainty = self.viz.heatmap.uncertainty
         self.render_heatmap()
@@ -301,7 +309,7 @@ class HeatmapWidget:
                     if imgui_utils.button('+##heatmap_predictions', width=narrow_w):
                         self.heatmap_predictions += 1
                     self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
-                    if heatmap_predictions_max > 0:
+                    if heatmap_predictions_max > 0 and viz._model_config:
                         imgui.same_line()
                         imgui.text(viz._model_config['outcome_labels'][str(self.heatmap_predictions)])
 
