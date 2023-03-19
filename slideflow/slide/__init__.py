@@ -1259,7 +1259,16 @@ class WSI(_BaseLoader):
         return unsized
 
     def export_rois(self, dest: Optional[str] = None) -> str:
+        """Export loaded ROIs to a given destination, in CSV format.
 
+        Args:
+            dest (str): Path to destination folder. If not provided, will
+                export ROIs in the current folder. Defaults to None.
+
+        Returns:
+            None
+
+        """
         labels, x, y = [], [], []
         for roi in self.rois:
             c = np.array(roi.coordinates)
@@ -2102,6 +2111,15 @@ class WSI(_BaseLoader):
                     break
 
         return tile_generator()
+
+    def view(self):
+        """Open the slide in Workbench for interactive display."""
+        from slideflow.workbench.widgets import MosaicWidget
+        from slideflow.workbench import Workbench
+
+        bench = Workbench()
+        bench.load_slide(self.path)
+        bench.run()
 
 
 class TMA(_BaseLoader):
