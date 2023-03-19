@@ -16,20 +16,19 @@ from io import BytesIO
 from ..gui import imgui_utils, gl_utils, text_utils
 from ..gui.viewer import OpenGLMosaic, MosaicViewer
 from ..gui.annotator import AnnotationCapture
-from ..utils import EasyDict
 
 
 #----------------------------------------------------------------------------
 
 class MosaicWidget:
-    def __init__(self, viz, width=500, s=3, debug=False):
+    def __init__(self, viz, width=500, s=2, debug=False):
         self.viz            = viz
         self.show           = True
         self.content_height = 0
         self.coords         = None
         self.visible        = False
         self.width          = width
-        self.show           = s
+        self.s              = s
         self.dpi            = 300
         self.debug          = debug
         self.slidemap       = None
@@ -37,7 +36,6 @@ class MosaicWidget:
         self.pool           = None
         self.annotator      = AnnotationCapture(named=True)
         self.annotations    = []
-        self._umap_path     = None
         self._plot_images   = None
         self._plot_transforms = None
         self._bottom_left   = None
@@ -45,8 +43,8 @@ class MosaicWidget:
         self._umap_width    = None
         self._late_render_annotations = []
 
-
     def _plot_coords(self):
+        """Convert coordinates to a rendered figure / texture with matplotlib."""
         # Create figure
         x, y = self.coords[:, 0], self.coords[:, 1]
         fig = plt.figure(figsize=(self.width/self.dpi, self.width/self.dpi), dpi=self.dpi)
@@ -74,49 +72,81 @@ class MosaicWidget:
     def mosaic_kwargs(self):
         return dict(num_tiles_x=self.num_tiles_x, tile_select='first')
 
-    def close(self):
-        self.pool.join()
-        self.pool.close()
-        self.pool = None
+    def view_menu_options(self):
+        if imgui.menu_item('Toggle Mosaic UMAP', enabled=(self.coords is not None))[1]:
+            self.show = not self.show
 
     def keyboard_callback(self, key, action):
+        """Add keyboard callbacks to allow zooming."""
         if not self.viz._control_down and (key == glfw.KEY_EQUAL and action == glfw.PRESS):
             self.increase_mosaic_resolution()
         if not self.viz._control_down and (key == glfw.KEY_MINUS and action == glfw.PRESS):
             self.decrease_mosaic_resolution()
 
+    def close(self):
+        """Close the multiprocessing pool."""
+        self.pool.join()
+        self.pool.close()
+        self.pool = None
+
     def increase_mosaic_resolution(self):
+        """Increase the grid resolution."""
         self.num_tiles_x = int(self.num_tiles_x * 1.5)
         self.mosaic.generate_grid(**self.mosaic_kwargs)
         self.mosaic.plot(pool=self.pool)
 
     def decrease_mosaic_resolution(self):
+        """Decrease the grid resolution."""
         self.num_tiles_x = int(self.num_tiles_x / 1.5)
         self.mosaic.generate_grid(**self.mosaic_kwargs)
         self.mosaic.plot(pool=self.pool)
 
-    # Todo: need preprocessing function for SimCLR
-    def load_umap(self, path, model, layers='postconv', subsample=500):
-        if path != self._umap_path:
-            self._umap_path = path
-            if path is not None and exists(join(path, 'encoder')):
-                df = pd.read_parquet(join(path, 'slidemap.parquet'))
-                self.coords = np.stack((df.x.values, df.y.values), axis=1)
-                if subsample and self.coords.shape[0] > subsample:
-                    idx = np.random.choice(self.coords.shape[0], subsample)
-                    self.coords = self.coords[idx]
-                features_model, input_tensor = self.load_model(model, layers=layers)
-                #self.viz._umap_encoders = self.load_umap_encoder(path, features_model, input_tensor)
-                #self.viz._async_renderer._umap_encoders = self.viz._umap_encoders
-                self._plot_coords()
-                self.slidemap = sf.SlideMap.load(join(self._umap_path, 'slidemap.parquet'))
-                log.info(f"Loaded UMAP; displaying {self.coords.shape[0]} points.")
-            else:
-                raise ValueError(f"Could not find UMAP as path {path}")
+    def load(self, obj, tfrecords=None, slides=None, **kwargs):
+        """Load a UMAP from a file or SlideMap object."""
+        if isinstance(obj, str):
+            self.load_umap_from_path(obj, **kwargs)
+        elif isinstance(obj, sf.SlideMap):
+            self.load_umap_from_slidemap(obj, **kwargs)
+        else:
+            raise ValueError(f"Unrecognized argument: {obj}")
+        self.generate(tfrecords=tfrecords, slides=slides)
 
-    def generate_mosaic(self, tfrecords, slides=None):
+    def load_umap_from_slidemap(self, slidemap, subsample=5000):
+        """Load a UMAP from a SlideMap object."""
+        df = slidemap.data
+        self.slidemap = slidemap
+        self.coords = np.stack((df.x.values, df.y.values), axis=1)
+        if subsample and self.coords.shape[0] > subsample:
+            idx = np.random.choice(self.coords.shape[0], subsample)
+            self.coords = self.coords[idx]
+        self._plot_coords()
+        log.info(f"Loaded UMAP; displaying {self.coords.shape[0]} points.")
+
+    def load_umap_from_path(self, path, subsample=5000):
+        """Load a saved UMAP."""
+        if path is not None and exists(join(path, 'encoder')):
+            df = pd.read_parquet(join(path, 'slidemap.parquet'))
+            self.coords = np.stack((df.x.values, df.y.values), axis=1)
+            if subsample and self.coords.shape[0] > subsample:
+                idx = np.random.choice(self.coords.shape[0], subsample)
+                self.coords = self.coords[idx]
+            self._plot_coords()
+            self.slidemap = sf.SlideMap.load(path)
+            log.info(f"Loaded UMAP; displaying {self.coords.shape[0]} points.")
+        else:
+            raise ValueError(f"Could not find UMAP as path {path}")
+
+    def generate(self, tfrecords=None, slides=None):
+        """Build the mosaic."""
         if self.slidemap is None:
             raise ValueError("Cannot generate mosaic; no SlideMap loaded.")
+        if self.slidemap.tfrecords is None and tfrecords is None:
+            raise ValueError(
+                "TFRecords not found and not provided. Please provide paths "
+                "to TFRecords with generate_mosaic(tfrecords=...)"
+            )
+        if tfrecords is None:
+            tfrecords = self.slidemap.tfrecords
         if self.pool is None:
             ctx = mp.get_context('fork')
             self.pool = ctx.Pool(
@@ -128,50 +158,8 @@ class MosaicWidget:
         self.mosaic.plot()
         self.viz.set_viewer(MosaicViewer(self.mosaic, slides=slides, **self.viz._viewer_kwargs()))
 
-    def load_model(self, path, layers='postconv', **kwargs):
-        is_simclr = sf.util.is_simclr_model_path(path)
-        if is_simclr:
-            import tensorflow as tf
-            from slideflow import simclr
-            model = simclr.load(path)
-            simclr_args = simclr.load_model_args(path)
-            input_shape = (simclr_args.image_size, simclr_args.image_size, 3)
-            inp = tf.keras.layers.InputLayer(input_shape=input_shape, name='input')
-            input_tensor = inp.input
-            model.outputs = model(inp.output, training=False)
-        else:
-            model = sf.model.Features(model, layers=layers, include_logits=True, **kwargs).model
-            input_tensor = None
-        return model, input_tensor
-
-    def load_umap_encoder(self, path, feature_model, input_tensor=None):
-        """Assumes `feature_model` has two outputs: (features, logits)"""
-        import tensorflow as tf
-
-        encoder = tf.keras.models.load_model(join(path, 'encoder'))
-        encoder._name = f'umap_encoder'
-        outputs = [encoder(feature_model.outputs[0])]
-
-        # Add the logits output
-        outputs += [feature_model.outputs[-1]]
-
-        # Build the encoder model for all layers
-        encoder_model = tf.keras.models.Model(
-            inputs=input_tensor if input_tensor is not None else feature_model.input,
-            outputs=outputs
-        )
-        return EasyDict(
-            encoder=encoder_model,
-            layers=['mosaic_umap'],
-            range={'mosaic_umap': np.load(join(path, 'range_clip.npz'))['range']},
-            clip={'mosaic_umap': np.load(join(path, 'range_clip.npz'))['clip']}
-        )
-
-    def view_menu_options(self):
-        if imgui.menu_item('Toggle Mosaic UMAP', enabled=(self.coords is not None))[1]:
-            self.show = not self.show
-
     def late_render(self):
+        """Render UMAP plot annotations late, to ensure they are on top."""
         for _ in range(len(self._late_render_annotations)):
             annotation, name, kwargs = self._late_render_annotations.pop()
             gl_utils.draw_roi(annotation, **kwargs)
@@ -181,12 +169,13 @@ class MosaicWidget:
                 tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 
     def render_annotation(self, annotation, origin, name=None, color=1, alpha=1, linewidth=3):
+        """Convert annotations to textures."""
         kwargs = dict(color=color, linewidth=linewidth, alpha=alpha)
         self._late_render_annotations.append((np.array(annotation) + origin, name, kwargs))
 
     def render(self):
+        """Render the figure."""
         viz = self.viz
-        viz.args.use_umap_encoders = self.coords is not None
 
         # --- Draw plot with OpenGL ---------------------------------------
 
@@ -204,7 +193,6 @@ class MosaicWidget:
             right_x = self._top_right[0]
             bottom_y = self.width - self._bottom_left[1]
             top_y = self.width - self._top_right[1]
-            self.debug=True
             if self.debug:
                 draw_list.add_circle_filled(
                     tx + left_x,
@@ -266,6 +254,3 @@ class MosaicWidget:
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         return
-
-#----------------------------------------------------------------------------
-

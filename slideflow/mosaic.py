@@ -7,6 +7,7 @@ import time
 import warnings
 from functools import partial
 from multiprocessing.dummy import Pool as DPool
+from os.path import join
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import cv2
@@ -309,17 +310,6 @@ class Mosaic:
         log.error(f'Unable to find TFRecord path for slide [green]{slide}')
         return None
 
-    '''def _add_patch(self, loc, size, **kwargs):
-        """Add an empty patch to the mosaic grid.
-
-        Args:
-            loc (tuple(int, int)): Location (x, y).
-            size (int): Height/width of patch.
-        """
-        from matplotlib import patches
-        patch = patches.Rectangle(loc, size, size, **kwargs)
-        self.ax.add_patch(patch)'''
-
     def _initialize_figure(self, figsize, background):
         import matplotlib.pyplot as plt
         fig = plt.figure(figsize=figsize)
@@ -449,7 +439,7 @@ class Mosaic:
         self.tile_size = (max_x - min_x) / self.num_tiles_x
         self.num_tiles_y = int((max_y - min_y) / self.tile_size)
 
-        log.info("Building grid")
+        log.info("Building grid...")
         self.grid_idx = np.reshape(np.dstack(np.indices((self.num_tiles_x, self.num_tiles_y))), (self.num_tiles_x * self.num_tiles_y, 2))
         _grid_offset = np.array([(self.tile_size/2) + min_x, (self.tile_size/2) + min_y])
         self.grid_coords = (self.grid_idx * self.tile_size) + _grid_offset
@@ -509,6 +499,21 @@ class Mosaic:
         if sf.getLoggingLevel() <= 20:
             sys.stdout.write('\r\033[K')
         log.debug(f'Tile image selection complete ({end - start:.1f} sec)')
+
+    def export(self, path: str) -> None:
+        """Export SlideMap and configuration for later loading.
+
+        Args:
+            path (str): Directory in which to save configuration.
+
+        """
+        if self.slide_map is None:
+            raise ValueError(
+                "Mosaic.export() requires a Mosaic built from a SlideMap."
+            )
+        self.slide_map.save(path)
+        sf.util.write_json(self.tfrecords, join(path, 'tfrecords.json'))
+        log.info(f"Mosaic configuration exported to {path}")
 
     def plot(
         self,
@@ -669,3 +674,21 @@ class Mosaic:
                 for idx in self.mapped_tiles:
                         writer.writerow([idx])
         log.info(f'Mosaic report saved to [green]{filename}')
+
+    def view(self, slides: List[str] = None) -> None:
+        """Open Mosaic in Workbench.
+
+        Args:
+            slides (list(str), optional): Path to whole-slide images. Used for
+                displaying image tile context when hovering over a mosaic grid.
+                Defaults to None.
+
+        """
+        from slideflow.workbench.widgets import MosaicWidget
+        from slideflow.workbench import Workbench
+
+        bench = Workbench(widgets=[MosaicWidget])
+        mosaic = bench.get_widget('MosaicWidget')
+        tfr = self.tfrecords if self.slide_map.tfrecords is None else None
+        mosaic.load(self.slide_map, tfrecords=tfr, slides=slides)
+        bench.run()

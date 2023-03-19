@@ -47,7 +47,10 @@ class MosaicViewer(Viewer):
         self.preview_texture = None
         self.zoomed = False
         self.size = 0
-        self.slides = {sf.util.path_to_name(s): s for s in slides}
+        if slides is not None:
+            self.slides = {sf.util.path_to_name(s): s for s in slides}
+        else:
+            self.slides = {}
         self._hovering_index = None
         self._hovering_time = None
         self._wsi_preview = None

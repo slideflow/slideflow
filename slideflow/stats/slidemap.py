@@ -118,11 +118,13 @@ class SlideMap:
                          "the path is a valid directory with either 'parametric_umap' "
                          "subdirectory or a valid 'umap.pkl'.")
             # Load range/clip
-            if exists((join(path, 'range_clip.npz'))):
+            if exists(join(path, 'range_clip.npz')):
                 obj.load_range_clip(join(path, 'range_clip.npz'))
             else:
                 log.warn("Could not find range_clip.npz; results from "
                          "umap_transform() will not be normalized.")
+            if exists(join(path, 'tfrecords.json')):
+                obj.tfrecords = sf.util.load_json(join(path, 'tfrecords.json'))
         elif path.endswith('.parquet'):
             obj.load_coordinates(path)
         else:

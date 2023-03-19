@@ -1182,6 +1182,13 @@ class Workbench(ImguiWindow):
         """Check for the given additional renderer in the rendering pipeline."""
         return self._addl_renderers[name]
 
+    def get_widget(self, name: str) -> Any:
+        """Returns a given widget by class name."""
+        for w in self.widgets:
+            if w.__class__.__name__ == name:
+                return w
+        raise ValueError(f"Unable to find widget with class name {name}")
+
     def has_live_viewer(self) -> bool:
         """Check if the current viewer is a live viewer (e.g. camera feed)."""
         return (self.viewer is not None and self.viewer.live)
