@@ -38,7 +38,6 @@ class Viewer:
         self._last_alpha        = None    # type: Optional[Union[Callable, float, int]]
         self.origin             = (0, 0)  # WSI origin for the current view.
         self.view               = None    # Numpy image of current view.
-        self.view_zoom          = None    # Zoom level for the current view.
         self.h_zoom             = None
         self.overlay_pos        = None
         self.width              = width

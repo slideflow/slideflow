@@ -97,7 +97,12 @@ class HeatmapWidget:
 
     def load(self, path):
         """Load a heatmap from a saved *.npz file."""
-
+        if isinstance(path, str) and not self.viz._model_config:
+            self.viz.create_toast(
+                "Unable to load heatmap; model must also be loaded.",
+                icon="fail"
+            )
+            return
         if self.viz.heatmap is None:
             self._create_heatmap()
         self.viz.heatmap.load(path)
@@ -301,7 +306,7 @@ class HeatmapWidget:
                     if imgui_utils.button('+##heatmap_predictions', width=narrow_w):
                         self.heatmap_predictions += 1
                     self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
-                    if heatmap_predictions_max > 0:
+                    if heatmap_predictions_max > 0 and viz._model_config:
                         imgui.same_line()
                         imgui.text(viz._model_config['outcome_labels'][str(self.heatmap_predictions)])
 

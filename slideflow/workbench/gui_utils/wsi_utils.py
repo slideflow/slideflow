@@ -491,6 +491,20 @@ class SlideViewer(Viewer):
         self.height = height
         self.x_offset = x_offset
         self.y_offset = y_offset
+
+        # Update current zoom (affected by window resizing)
+        #self.view_zoom = self.wsi_window_size[0] / self.width
+        wsi_width = self.wsi_window_size[0]  # self.dimensions[0]
+        wsi_height = self.wsi_window_size[1]  # self.dimensions[1]
+        wsi_ratio = wsi_width / wsi_height
+        max_w, max_h = self.width, self.height
+        if wsi_ratio < self.width / self.height:
+            max_w = int(wsi_ratio * max_h)
+        else:
+            max_h = int(max_w / wsi_ratio)
+        self.view_zoom = max(wsi_width / max_w,
+                             wsi_height / max_h)
+
         if should_refresh:
             # Keep the current WSI view stable if the offset changes
             # (e.g. showing/hiding the control pane)

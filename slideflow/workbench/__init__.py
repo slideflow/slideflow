@@ -1202,12 +1202,18 @@ class Workbench(imgui_window.ImguiWindow):
             path (str): Path to exported heatmap in *.npz format, as generated
                 by Heatmap.save() or Heatmap.save_npz().
         """
+        if self._model_config is None:
+            self.create_toast(
+                "Unable to load heatmap; model must also be loaded.",
+                icon="error"
+            )
+            return
         try:
             self.heatmap_widget.load(path)
             self.create_toast(f"Loaded heatmap at {path}", icon="success")
 
         except Exception as e:
-            log.debug("Exception raised loading heatmap: {}".format(e))
+            log.warn("Exception raised loading heatmap: {}".format(e))
             self.create_toast(f"Error loading heatmap at {path}", icon="error")
 
     def load_model(self, model: str, ignore_errors: bool = False) -> None:
@@ -1280,7 +1286,7 @@ class Workbench(imgui_window.ImguiWindow):
                 log.debug("Exception raised: no model loaded.")
                 self.result = EasyDict(message='No model loaded')
             else:
-                log.debug("Exception raised (ignore_errors={}): {}".format(ignore_errors, e))
+                log.warn("Exception raised (ignore_errors={}): {}".format(ignore_errors, e))
                 self.create_toast(f"Error loading model at {model}", icon="error")
                 self.result = EasyDict(error=renderer.CapturedException())
             if not ignore_errors:

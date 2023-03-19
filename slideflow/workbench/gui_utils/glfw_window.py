@@ -33,6 +33,7 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
 
         # Adjust window.
         self.set_vsync(False)
+        self.update_window_size()
         self.set_window_size(window_width, window_height)
         if not self._deferred_show:
             glfw.show_window(self._glfw_window)
@@ -60,33 +61,8 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         return self.content_height + self.title_bar_height
 
     @property
-    def content_width(self):
-        width, _height = glfw.get_window_size(self._glfw_window)
-        return width
-
-    @property
-    def content_height(self):
-        _width, height = glfw.get_window_size(self._glfw_window)
-        return height
-
-    @property
-    def content_frame_width(self):
-        width, _height = glfw.get_framebuffer_size(self._glfw_window)
-        return width
-
-    @property
-    def content_frame_height(self):
-        _width, height = glfw.get_framebuffer_size(self._glfw_window)
-        return height
-
-    @property
     def pixel_ratio(self):
         return self.content_frame_width / self.content_width
-
-    @property
-    def title_bar_height(self):
-        _left, top, _right, _bottom = glfw.get_window_frame_size(self._glfw_window)
-        return top
 
     @property
     def monitor_width(self):
@@ -101,6 +77,14 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
     @property
     def frame_delta(self):
         return self._frame_delta
+
+    def update_window_size(self):
+        ws = glfw.get_window_size(self._glfw_window)
+        fs = glfw.get_framebuffer_size(self._glfw_window)
+        _l, top, _r, _bottom = glfw.get_window_frame_size(self._glfw_window)
+        self.title_bar_height = top
+        self.content_width, self.content_height = ws[0], ws[1]
+        self.content_frame_width, self.content_frame_height = fs[0], fs[1]
 
     def set_fullscreen(self):
         monitor = glfw.get_primary_monitor()
@@ -192,6 +176,9 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         # End previous frame.
         if self._drawing_frame:
             self.end_frame()
+
+        # Update window size measurements
+        self.update_window_size()
 
         # Apply FPS limit.
         if self._frame_start_time is not None and self._fps_limit is not None:
