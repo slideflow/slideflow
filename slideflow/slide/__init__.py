@@ -847,7 +847,6 @@ class _BaseLoader:
                 self.slide.path,
                 data=report_data,
                 thumb_coords=locations,
-                slide=self,
             )
             return slide_report
         else:

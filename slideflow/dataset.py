@@ -1591,7 +1591,7 @@ class Dataset:
                     'generator_kwargs': kwargs,
                     'qc_kwargs': qc_kwargs,
                     'wsi_kwargs': wsi_kwargs,
-                    'render_thumb': buffer
+                    'render_thumb': (buffer is not None)
                 }
                 pb.start()
                 with sf.util.cleanup_progress(pb):
