@@ -1427,7 +1427,13 @@ class Project:
         config: Optional["mil.TrainerConfig"] = None,
         **kwargs
     ):
-        r"""Train a multi-instance learning model.
+        r"""Evaluate a multi-instance learning model.
+
+        Saves results for the evaluation in the ``mil_eval`` project folder,
+        including predictions (parquet format), attention (Numpy format for
+        each slide), and attention heatmaps (if ``attention_heatmaps=True``).
+
+        Logs classifier metrics (AUROC and AP) to the console.
 
         Args:
             config (:class:`slideflow.mil.TrainerConfig): Training
@@ -1446,6 +1452,8 @@ class Project:
             exp_label (str): Experiment label, used for naming the subdirectory
                 in the ``{project root}/mil`` folder, where training history
                 and the model will be saved.
+            attention_heatmaps (bool): Calculate and save attention heatmaps.
+                Defaults to False.
 
         """
         from .mil import eval_mil
@@ -3674,6 +3682,8 @@ class Project:
             exp_label (str): Experiment label, used for naming the subdirectory
                 in the ``{project root}/mil`` folder, where training history
                 and the model will be saved.
+            attention_heatmaps (bool): Calculate and save attention heatmaps
+                on the validation dataset. Defaults to False.
 
         """
         from .mil import train_mil
@@ -3686,6 +3696,7 @@ class Project:
             bags,
             outdir=join(self.root, 'mil'),
             exp_label=exp_label,
+            **kwargs
         )
 
 # -----------------------------------------------------------------------------

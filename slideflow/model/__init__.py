@@ -962,6 +962,7 @@ class DatasetFeatures:
                 self.activations[slide].astype(np.float32)
             )
             torch.save(slide_activations, join(outdir, f'{slide}.pt'))
+            np.savez(join(outdir, f'{slide}.index'), self.locations[slide])
         args = {
             'model': self.model if isinstance(self.model, str) else '<NA>',
             'num_features': self.num_features
