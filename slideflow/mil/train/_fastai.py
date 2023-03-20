@@ -6,7 +6,7 @@ from typing import List, Optional, Union
 from torch import nn
 from sklearn.preprocessing import OneHotEncoder
 from fastai.vision.all import (
-    DataLoader, DataLoaders, Learner, RocAuc, SaveModelCallback, CSVLogger
+    DataLoader, DataLoaders, Learner, RocAuc, SaveModelCallback, CSVLogger, FetchPredsCallback
 )
 
 from slideflow import log

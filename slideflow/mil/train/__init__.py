@@ -2,12 +2,17 @@
 
 import os
 import numpy as np
+import pandas as pd
 import slideflow as sf
 from os.path import join, exists
 from typing import Union, List, Optional, TYPE_CHECKING
 from slideflow import Dataset, log
 from slideflow.util import path_to_name
-from .._params import TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
+
+from ..eval import predict_from_model
+from .._params import (
+    TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI, ModelConfigCLAM
+)
 
 if TYPE_CHECKING:
     from fastai.learner import Learner
@@ -22,6 +27,7 @@ def train_mil(
     bags: Union[str, List[str]],
     *,
     outdir: str = 'mil',
+    exp_label: Optional[str] = None,
     **kwargs
 ):
     """Train a multi-instance learning model.
@@ -56,6 +62,20 @@ def train_mil(
             "Training without validation; metrics will be calculated on training data."
         )
         val_dataset = train_dataset
+
+    # Set up experiment label
+    if exp_label is None:
+        try:
+            exp_label = config.model_config.model
+        except Exception:
+            exp_label = 'no_label'
+
+    # Set up output model directory
+    if not exists(outdir):
+        os.makedirs(outdir)
+    outdir = sf.util.create_new_model_dir(outdir, exp_label)
+    sf.util.write_json(config.json_dump(), join(outdir, 'mil_params.json'))
+
     return train_fn(
         config,
         train_dataset,
@@ -76,7 +96,6 @@ def train_clam(
     bags: Union[str, List[str]],
     *,
     outdir: str = 'mil',
-    exp_label: str = "CLAM",
 ) -> None:
     """Train a CLAM model from layer activations exported with
     :meth:`slideflow.project.generate_features_for_clam`.
@@ -108,16 +127,10 @@ def train_clam(
     import slideflow.clam as clam
     from slideflow.clam import CLAM_Dataset
 
-    # Set up output directory in project root
-    if not exists(outdir):
-        os.makedirs(outdir)
-    outdir = sf.util.create_new_model_dir(outdir, exp_label)
+    # Set up results directory
     results_dir = join(outdir, 'results')
     if not exists(results_dir):
         os.makedirs(results_dir)
-
-    # Export configuration to JSON.
-    sf.util.write_json(config.json_dump(), join(outdir, 'mil_params.json'))
 
     # Set up labels.
     labels, unique_train = train_dataset.labels(outcomes, format='name', use_float=False)
@@ -173,9 +186,22 @@ def train_clam(
 
     # Run CLAM
     datasets = (train_mil_dataset, val_mil_dataset, val_mil_dataset)
-    results, test_auc, val_auc, test_acc, val_acc = clam.train(
+    model, results, test_auc, val_auc, test_acc, val_acc = clam.train(
         datasets, 0, clam_args
     )
+
+    # Generate validation predictions
+    df = predict_from_model(
+        model,
+        config,
+        dataset=val_dataset,
+        outcomes=outcomes,
+        bags=bags
+    )
+    pred_out = join(outdir, 'results', 'predictions.parquet')
+    df.to_parquet(pred_out)
+    log.info(f"Predictions saved to [green]{pred_out}[/]")
+
     return results
 
 # -----------------------------------------------------------------------------
@@ -188,7 +214,6 @@ def build_fastai_learner(
     bags: Union[str, List[str]],
     *,
     outdir: str = 'mil',
-    exp_label: str = 'fastai',
 ) -> "Learner":
     """Build a FastAI Learner for training an aMIL model.
 
@@ -214,12 +239,6 @@ def build_fastai_learner(
         fastai.learner.Learner
     """
     from . import _fastai
-
-    # Set up output directory in project root
-    if not exists(outdir):
-        os.makedirs(outdir)
-    outdir = sf.util.create_new_model_dir(outdir, exp_label)
-    sf.util.write_json(config.json_dump(), join(outdir, 'mil_params.json'))
 
     # Prepare labels and slides
     labels, unique_train = train_dataset.labels(outcomes, format='name')
@@ -265,7 +284,6 @@ def train_fastai(
     bags: Union[str, List[str]],
     *,
     outdir: str = 'mil',
-    exp_label: str = 'fastai',
 ) -> None:
     """Train an aMIL model using FastAI.
 
@@ -299,6 +317,21 @@ def train_fastai(
         outcomes,
         bags=bags,
         outdir=outdir,
-        exp_label=exp_label
     )
-    return _fastai.train(learner, config)
+
+    # Train
+    _fastai.train(learner, config)
+
+    # Generate validation predictions
+    df = predict_from_model(
+        learner.model,
+        config,
+        dataset=val_dataset,
+        outcomes=outcomes,
+        bags=bags
+    )
+    pred_out = join(outdir, 'predictions.parquet')
+    df.to_parquet(pred_out)
+    log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    return learner
