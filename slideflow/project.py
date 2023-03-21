@@ -3561,6 +3561,8 @@ class Project:
             outcomes (str, optional): Annotation column which specifies the
                 outcome, for optionally training a supervised head.
                 Defaults to None.
+            dataset_kwargs: All other keyword arguments for 
+                :meth:`slideflow.Dataset.tensorflow`
             **kwargs: All other keyword arguments for
                 :meth:`slideflow.simclr.run_simclr()`
 
