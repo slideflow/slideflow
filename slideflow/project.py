@@ -3401,6 +3401,7 @@ class Project:
         *,
         exp_label: Optional[str] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
+        dataset_kwargs: Dict = None,
         **kwargs
     ) -> None:
         """Train SimCLR model, with models saved in ``simclr`` folder in the
@@ -3420,9 +3421,10 @@ class Project:
             outcomes (str, optional): Annotation column which specifies the
                 outcome, for optionally training a supervised head.
                 Defaults to None.
+            dataset_args: All other keyword arguments for 
+                :meth:`slideflow.Dataset.tensorflow`
             **kwargs: All other keyword arguments for
                 :meth:`slideflow.simclr.run_simclr()`
-
         """
         from slideflow import simclr
 
@@ -3440,10 +3442,13 @@ class Project:
 
         # Create dataset builder, which SimCLR will use to create
         # the input pipeline for training
+        if dataset_kwargs is None:
+            dataset_kwargs = {} 
         builder = simclr.DatasetBuilder(
             train_dts=train_dataset,
             val_dts=val_dataset,
             labels=outcomes,
+            dataset_kwargs=dataset_kwargs
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
