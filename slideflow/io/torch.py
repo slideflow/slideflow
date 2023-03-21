@@ -310,8 +310,22 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
 class StyleGAN2Interleaver(InterleaveIterator):
     """Iterator to enable compatibility with StyleGAN2."""
 
-    def __init__(self, resolution=None, xflip=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        resolution=None,
+        xflip=None,
+        normalizer=None,
+        normalizer_source=None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        if normalizer:
+            self.normalizer = sf.norm.autoselect(
+                normalizer,
+                source=normalizer_source,
+                device='cpu',
+                backend='torch'
+            )
 
     def get_label(self, idx: Any) -> Any:
         """Returns a random label. Used for compatibility with StyleGAN2."""
@@ -450,6 +464,15 @@ def multi_slide_loader(
                            **kwargs)
                for slide in slides]
     return RandomSampler(loaders, splits_list, shard=None)
+
+
+def is_cwh(img: torch.Tensor) -> torch.Tensor:
+    return (len(img.shape) == 3 and img.shape[0] == 3
+            or (len(img.shape) == 4 and img.shape[1] == 3))
+
+
+def is_whc(img: torch.Tensor) -> torch.Tensor:
+    return img.shape[-1] == 3
 
 
 def cwh_to_whc(img: torch.Tensor) -> torch.Tensor:
@@ -646,7 +669,10 @@ def _decode_image(
         image = cwh_to_whc(image)
         # image = image.cpu()
     if normalizer:
-        image = normalizer.torch_to_torch(image)
+        image = normalizer.torch_to_torch(
+            image,
+            augment=(isinstance(augment, str) and 'n' in augment)
+        )
     if standardize:
         # Note: not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)

@@ -3,7 +3,6 @@ import warnings
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import numpy as np
-from scipy import stats
 from sklearn import metrics
 from slideflow import errors
 from slideflow.util import log

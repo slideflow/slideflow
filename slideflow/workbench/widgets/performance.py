@@ -2,7 +2,7 @@ import array
 import numpy as np
 import imgui
 
-from .gui_utils import imgui_utils
+from ..gui import imgui_utils
 
 #----------------------------------------------------------------------------
 
@@ -17,6 +17,11 @@ class PerformanceWidget:
         self.use_vsync      = True
         self.ignore_jpg     = viz._use_model_img_fmt
         self.low_memory     = viz.low_memory
+
+        viz.set_fps_limit(self.fps_limit)
+        viz.set_vsync(self.use_vsync)
+        viz.low_memory = self.low_memory
+        viz._use_model_img_fmt = not self.ignore_jpg
 
     def timing_text(self, times):
         viz = self.viz
@@ -52,7 +57,8 @@ class PerformanceWidget:
             with imgui_utils.item_width(viz.font_size * 6):
                 _changed, self.fps_limit = imgui.input_int('FPS limit', self.fps_limit, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
                 self.fps_limit = min(max(self.fps_limit, 5), 1000)
-
+                if _changed:
+                    viz.set_fps_limit(self.fps_limit)
 
             # Render
             imgui.text('Render')
@@ -62,7 +68,8 @@ class PerformanceWidget:
             self.timing_text(self.render_times)
             imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
             _clicked, self.low_memory = imgui.checkbox('Low memory mode', self.low_memory)
-
+            if _clicked:
+                viz.low_memory = self.low_memory
 
             # Normalizer times
             imgui.text('Normalize')
@@ -72,6 +79,8 @@ class PerformanceWidget:
             self.timing_text(self.norm_times)
             imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
             _clicked, self.use_vsync = imgui.checkbox('Vertical sync', self.use_vsync)
+            if _clicked:
+                viz.set_vsync(self.use_vsync)
 
             # Inference times
             imgui.text('Predict')
@@ -81,10 +90,7 @@ class PerformanceWidget:
             self.timing_text(self.predict_times)
             imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
             _clicked, self.ignore_jpg = imgui.checkbox('Ignore compression', self.ignore_jpg)
-
-        viz.set_fps_limit(self.fps_limit)
-        viz.set_vsync(self.use_vsync)
-        viz.low_memory = self.low_memory
-        viz._use_model_img_fmt = not self.ignore_jpg
+            if _clicked:
+                viz._use_model_img_fmt = not self.ignore_jpg
 
 #----------------------------------------------------------------------------

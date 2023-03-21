@@ -3,9 +3,9 @@
 import imgui
 import numpy as np
 from typing import Tuple, Optional, TYPE_CHECKING
-from . import gl_utils, text_utils
-from .viewer import Viewer
-from ..utils import EasyDict
+from ._viewer import Viewer
+from .. import gl_utils, text_utils
+from ...utils import EasyDict
 
 import slideflow as sf
 
@@ -47,7 +47,7 @@ class SlideViewer(Viewer):
 
         # Calculate scales
         self._um_steps = (1000, 500, 400, 250, 200, 100, 50, 30, 20, 10, 5, 3, 2, 1)
-        max_scale_w = 120
+        max_scale_w = (120 * self.viz.pixel_ratio)
         self._mpp_cutoffs = np.array([um / max_scale_w for um in self._um_steps])
 
     @property
@@ -119,10 +119,10 @@ class SlideViewer(Viewer):
         wsi_ratio = self.wsi_window_size[0] / self.wsi_window_size[1]
         if wsi_ratio < (max_w / max_h):
             # Image is taller than wide
-            max_w = int(self.wsi_window_size[0] / (self.wsi_window_size[1] / max_h))
+            max_w = int(np.round(self.wsi_window_size[0] / (self.wsi_window_size[1] / max_h)))
         else:
             # Image is wider than tall
-            max_h = int(self.wsi_window_size[1] / (self.wsi_window_size[0] / max_w))
+            max_h = int(np.round(self.wsi_window_size[1] / (self.wsi_window_size[0] / max_w)))
         self.origin = tuple(origin)
 
         # Calculate region to extract from image
@@ -136,25 +136,26 @@ class SlideViewer(Viewer):
 
     def _draw_scale(self, max_w: int, max_h: int):
 
-        origin_x = self.x_offset + 30
-        origin_y = self.y_offset + max_h - 50 - (self.viz.font_size + self.viz.spacing)
+        r = max(self.viz.pixel_ratio, 1)
+        origin_x = self.x_offset + (30 * r)
+        origin_y = self.y_offset + max_h - (50 * r) - (self.viz.font_size + self.viz.spacing)
         scale_w = self.scale_um / self.mpp
 
         main_pos = np.array([origin_x, origin_y])
         left_pos = np.array([origin_x, origin_y])
         right_pos = np.array([origin_x+scale_w, origin_y])
-        text_pos = np.array([origin_x+(scale_w/2), origin_y+20])
+        text_pos = np.array([origin_x+(scale_w/2), origin_y+int(20*r)])
         main_verts = np.array([[0, 0], [scale_w, 0]])
-        edge_verts = np.array([[0, 0], [0, -5]])
+        edge_verts = np.array([[0, 0], [0, int(-5*r)]])
 
-        gl_utils.draw_shadowed_line(main_verts, pos=main_pos, linewidth=3, color=0)
-        gl_utils.draw_shadowed_line(main_verts, pos=main_pos, linewidth=1, color=1)
-        gl_utils.draw_shadowed_line(edge_verts, pos=left_pos, linewidth=3, color=0)
-        gl_utils.draw_shadowed_line(edge_verts, pos=left_pos, linewidth=1, color=1)
-        gl_utils.draw_shadowed_line(edge_verts, pos=right_pos, linewidth=3, color=0)
-        gl_utils.draw_shadowed_line(edge_verts, pos=right_pos, linewidth=1, color=1)
+        gl_utils.draw_shadowed_line(main_verts, pos=main_pos, linewidth=int(3*r), color=0)
+        gl_utils.draw_shadowed_line(main_verts, pos=main_pos, linewidth=int(1*r), color=1)
+        gl_utils.draw_shadowed_line(edge_verts, pos=left_pos, linewidth=int(3*r), color=0)
+        gl_utils.draw_shadowed_line(edge_verts, pos=left_pos, linewidth=int(1*r), color=1)
+        gl_utils.draw_shadowed_line(edge_verts, pos=right_pos, linewidth=int(3*r), color=0)
+        gl_utils.draw_shadowed_line(edge_verts, pos=right_pos, linewidth=int(1*r), color=1)
 
-        tex = text_utils.get_texture(f"{self.scale_um:.0f} µm", size=18, max_width=max_w, max_height=max_h, outline=2)
+        tex = text_utils.get_texture(f"{self.scale_um:.0f} µm", size=int(18*r), max_width=max_w, max_height=max_h, outline=2)
         tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 
     def _fast_refresh_cucim(self, new_view, p, view_params):
@@ -465,7 +466,10 @@ class SlideViewer(Viewer):
             self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
         self._max_w, self._max_h = max_w, max_h
         h = self.viz.font_size + self.viz.spacing
-        imgui.set_next_window_position(self.x_offset, self.height + self.y_offset - h)
+        r = self.viz.pixel_ratio
+        x_pos = int(self.x_offset / r)
+        y_pos = int((self.height + self.y_offset - (h * r)) / r)
+        imgui.set_next_window_position(x_pos, y_pos)
         imgui.set_next_window_size(self.width, h)
         imgui.begin('Status bar', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_SCROLLBAR))
         imgui.text('x={:<8} y={:<8} mpp={:.3f}'.format(int(self.viz.mouse_x), int(self.viz.mouse_y), self.mpp))
@@ -491,6 +495,20 @@ class SlideViewer(Viewer):
         self.height = height
         self.x_offset = x_offset
         self.y_offset = y_offset
+
+        # Update current zoom (affected by window resizing)
+        #self.view_zoom = self.wsi_window_size[0] / self.width
+        wsi_width = self.wsi_window_size[0]  # self.dimensions[0]
+        wsi_height = self.wsi_window_size[1]  # self.dimensions[1]
+        wsi_ratio = wsi_width / wsi_height
+        max_w, max_h = self.width, self.height
+        if wsi_ratio < self.width / self.height:
+            max_w = int(wsi_ratio * max_h)
+        else:
+            max_h = int(max_w / wsi_ratio)
+        self.view_zoom = max(wsi_width / max_w,
+                             wsi_height / max_h)
+
         if should_refresh:
             # Keep the current WSI view stable if the offset changes
             # (e.g. showing/hiding the control pane)

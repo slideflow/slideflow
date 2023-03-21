@@ -49,6 +49,20 @@ class TrainerConfig(DictConfig):
     def loss_fn(self):
         return self.model_config.loss_fn
 
+    def to_dict(self):
+        d = super().to_dict()
+        if self.model_config is None:
+            return d
+        else:
+            d.update(self.model_config.to_dict())
+            del d['model_config']
+            return d
+
+    def json_dump(self):
+        return dict(
+            trainer=('fastai' if isinstance(self, TrainerConfigFastAI) else 'clam'),
+            params=self.to_dict()
+        )
 
 # -----------------------------------------------------------------------------
 
@@ -115,7 +129,6 @@ class TrainerConfigCLAM(TrainerConfig):
         all_kw['model_type'] = all_kw['model']
         all_kw['drop_out'] = all_kw['dropout']
         del all_kw['model']
-        del all_kw['model_config']
         del all_kw['dropout']
         return CLAM_Args(**all_kw)
 

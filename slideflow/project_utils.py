@@ -54,7 +54,7 @@ def _filters_to_dataset(obj, method, model, *args, **kwargs):
     if model is not None:
         try:
             config = sf.util.get_model_config(model)
-        except errors.ModelParamsNotFoundError:
+        except (errors.ModelParamsNotFoundError, TypeError):
             if 'dataset' in kwargs:
                 config = None
             else:

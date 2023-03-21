@@ -149,6 +149,7 @@ class Heatmap:
                 layers=None,
                 include_preds=True,
                 **int_kw)
+        self.model_path = model
         self.num_threads = num_threads
         self.num_processes = num_processes
         self.batch_size = batch_size
@@ -760,6 +761,15 @@ class Heatmap:
         plt.close()
         log.info(f'Saved heatmaps for [green]{self.slide.name}')
 
+    def view(self):
+        """Load the Heatmap into Workbench for interactive view."""
+        from slideflow.workbench import Workbench
+
+        bench = Workbench()
+        bench.load_slide(self.slide.path)
+        bench.load_model(self.model_path)
+        bench.load_heatmap(self)
+        bench.run()
 
 class ModelHeatmap(Heatmap):
 
@@ -906,9 +916,13 @@ class ModelHeatmap(Heatmap):
         self.num_uncertainty = self.interface.num_uncertainty
         self.predictions = None
         self.uncertainty = None
+        self.model_path = None
 
         if generate:
             self.generate(**generator_kwargs)
         elif generator_kwargs:
             log.warn("Heatmap generate=False, ignoring generator_kwargs ("
                      f"{generator_kwargs})")
+
+    def view(self):
+        raise NotImplementedError

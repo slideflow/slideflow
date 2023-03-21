@@ -85,6 +85,7 @@ def _load_model_and_saliency(model_path, device=None):
     log.debug("Loading model at {}...".format(model_path))
     _umap_encoders = None
     if sf.util.torch_available and sf.util.path_to_ext(model_path) == 'zip':
+        import slideflow.model.torch
         _model = sf.model.torch.load(model_path)
         _model.eval()
         if device is not None:
@@ -94,6 +95,7 @@ def _load_model_and_saliency(model_path, device=None):
         interpreter = tf.lite.Interpreter(model_path)
         _model = interpreter.get_signature_runner()
     elif sf.util.tf_available:
+        import slideflow.model.tensorflow
         _model = sf.model.tensorflow.load(model_path, method='weights')
         _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
         if exists(join(model_path, 'umap_encoders')):

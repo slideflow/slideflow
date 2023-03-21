@@ -4,10 +4,15 @@ import os
 import numpy as np
 import slideflow as sf
 from os.path import join, exists
-from typing import Union, List, TYPE_CHECKING
+from typing import Union, List, Optional, TYPE_CHECKING
 from slideflow import Dataset, log
 from slideflow.util import path_to_name
-from .._params import TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
+from os.path import join
+
+from ..eval import predict_from_model, generate_attention_heatmaps
+from .._params import (
+    TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
+)
 
 if TYPE_CHECKING:
     from fastai.learner import Learner
@@ -17,11 +22,12 @@ if TYPE_CHECKING:
 def train_mil(
     config: TrainerConfig,
     train_dataset: Dataset,
-    val_dataset: Dataset,
+    val_dataset: Optional[Dataset],
     outcomes: Union[str, List[str]],
     bags: Union[str, List[str]],
     *,
     outdir: str = 'mil',
+    exp_label: Optional[str] = None,
     **kwargs
 ):
     """Train a multi-instance learning model.
@@ -42,6 +48,8 @@ def train_mil(
         exp_label (str): Experiment label, used for naming the subdirectory
             in the ``{project root}/mil`` folder, where training history
             and the model will be saved.
+        attention_heatmaps (bool): Generate attention heatmaps for slides.
+            Defaults to False.
     """
     log.info("Training FastAI MIL model with config:")
     log.info(f"{config}")
@@ -51,6 +59,25 @@ def train_mil(
         train_fn = train_clam
     else:
         raise ValueError(f"Unrecognized training configuration of type {type(config)}")
+    if val_dataset is None:
+        sf.log.info(
+            "Training without validation; metrics will be calculated on training data."
+        )
+        val_dataset = train_dataset
+
+    # Set up experiment label
+    if exp_label is None:
+        try:
+            exp_label = config.model_config.model
+        except Exception:
+            exp_label = 'no_label'
+
+    # Set up output model directory
+    if not exists(outdir):
+        os.makedirs(outdir)
+    outdir = sf.util.create_new_model_dir(outdir, exp_label)
+    sf.util.write_json(config.json_dump(), join(outdir, 'mil_params.json'))
+
     return train_fn(
         config,
         train_dataset,
@@ -71,7 +98,7 @@ def train_clam(
     bags: Union[str, List[str]],
     *,
     outdir: str = 'mil',
-    exp_label: str = "CLAM",
+    attention_heatmaps: bool = False
 ) -> None:
     """Train a CLAM model from layer activations exported with
     :meth:`slideflow.project.generate_features_for_clam`.
@@ -95,6 +122,8 @@ def train_clam(
             and the model will be saved.
         clam_args (optional): Namespace with clam arguments, as provided
             by :func:`slideflow.clam.get_args`.
+        attention_heatmaps (bool): Generate attention heatmaps for slides.
+            Defaults to False.
 
     Returns:
         None
@@ -103,10 +132,7 @@ def train_clam(
     import slideflow.clam as clam
     from slideflow.clam import CLAM_Dataset
 
-    # Set up output directory in project root
-    if not exists(outdir):
-        os.makedirs(outdir)
-    outdir = sf.util.create_new_model_dir(outdir, exp_label)
+    # Set up results directory
     results_dir = join(outdir, 'results')
     if not exists(results_dir):
         os.makedirs(results_dir)
@@ -165,10 +191,35 @@ def train_clam(
 
     # Run CLAM
     datasets = (train_mil_dataset, val_mil_dataset, val_mil_dataset)
-    results, test_auc, val_auc, test_acc, val_acc = clam.train(
+    model, results, test_auc, val_auc, test_acc, val_acc = clam.train(
         datasets, 0, clam_args
     )
-    return results
+
+    # Generate validation predictions
+    df, attention = predict_from_model(
+        model,
+        config,
+        dataset=val_dataset,
+        outcomes=outcomes,
+        bags=bags,
+        attention=True
+    )
+    pred_out = join(outdir, 'results', 'predictions.parquet')
+    df.to_parquet(pred_out)
+    log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    # Attention heatmaps
+    if isinstance(bags, str):
+        val_bags = val_dataset.pt_files(bags)
+    else:
+        val_bags = np.array(bags)
+    if attention_heatmaps:
+        generate_attention_heatmaps(
+            outdir=join(outdir, 'heatmaps'),
+            dataset=val_dataset,
+            bags=val_bags,
+            attention=attention
+        )
 
 # -----------------------------------------------------------------------------
 
@@ -177,10 +228,9 @@ def build_fastai_learner(
     train_dataset: Dataset,
     val_dataset: Dataset,
     outcomes: Union[str, List[str]],
-    bags: Union[str, List[str]],
+    bags: Union[str, np.ndarray, List[str]],
     *,
     outdir: str = 'mil',
-    exp_label: str = 'fastai',
 ) -> "Learner":
     """Build a FastAI Learner for training an aMIL model.
 
@@ -207,18 +257,13 @@ def build_fastai_learner(
     """
     from . import _fastai
 
-    # Set up output directory in project root
-    if not exists(outdir):
-        os.makedirs(outdir)
-    outdir = sf.util.create_new_model_dir(outdir, exp_label)
-
     # Prepare labels and slides
     labels, unique_train = train_dataset.labels(outcomes, format='name')
     val_labels, unique_val = val_dataset.labels(outcomes, format='name')
     labels.update(val_labels)
     unique_categories = np.unique(unique_train + unique_val)
 
-    # Prepare bags
+    # Prepare bags and targets
     if isinstance(bags, str):
         train_bags = train_dataset.pt_files(bags)
         val_bags = val_dataset.pt_files(bags)
@@ -256,7 +301,7 @@ def train_fastai(
     bags: Union[str, List[str]],
     *,
     outdir: str = 'mil',
-    exp_label: str = 'fastai',
+    attention_heatmaps: bool = False,
 ) -> None:
     """Train an aMIL model using FastAI.
 
@@ -277,12 +322,23 @@ def train_fastai(
             and the model will be saved.
         lr_max (float): Maximum learning rate.
         epochs (int): Maximum epochs.
+        attention_heatmaps (bool): Generate attention heatmaps for slides.
+            Defaults to False.
 
     Returns:
         fastai.learner.Learner
     """
     from . import _fastai
 
+    # Prepare bags.
+    if isinstance(bags, str):
+        train_bags = train_dataset.pt_files(bags)
+        val_bags = val_dataset.pt_files(bags)
+        bags = np.concatenate((train_bags, val_bags))
+    else:
+        bags = np.array(bags)
+
+    # Build learner.
     learner = build_fastai_learner(
         config,
         train_dataset,
@@ -290,6 +346,31 @@ def train_fastai(
         outcomes,
         bags=bags,
         outdir=outdir,
-        exp_label=exp_label
     )
-    return _fastai.train(learner, config)
+
+    # Train.
+    _fastai.train(learner, config)
+
+    # Generate validation predictions.
+    df, attention = predict_from_model(
+        learner.model,
+        config,
+        dataset=val_dataset,
+        outcomes=outcomes,
+        bags=bags,
+        attention=True
+    )
+    pred_out = join(outdir, 'predictions.parquet')
+    df.to_parquet(pred_out)
+    log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    # Attention heatmaps.
+    if attention_heatmaps:
+        generate_attention_heatmaps(
+            outdir=join(outdir, 'heatmaps'),
+            dataset=val_dataset,
+            bags=bags,
+            attention=attention
+        )
+
+    return learner

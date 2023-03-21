@@ -30,20 +30,28 @@ def cucim2numpy(img: "CuImage") -> np.ndarray:
     return ((img_as_float(np.asarray(img))) * 255).astype(np.uint8)
 
 
-def cucim2jpg(img: "CuImage") -> str:
-    img = cucim2numpy(img)
+def numpy2jpg(img: np.ndarray) -> str:
     if img.shape[-1] == 4:
         img = img[:, :, 0:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return cv2.imencode(".jpg", img)[1].tobytes()
+    return cv2.imencode(".jpg", img)[1].tobytes()   # Default quality = 95%
 
 
-def cucim2png(img: "CuImage") -> str:
-    img = cucim2numpy(img)
+def numpy2png(img: np.ndarray) -> str:
     if img.shape[-1] == 4:
         img = img[:, :, 0:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     return cv2.imencode(".png", img)[1].tobytes()
+
+
+def cucim2jpg(img: "CuImage") -> str:
+    img = cucim2numpy(img)
+    return numpy2jpg(img)
+
+
+def cucim2png(img: "CuImage") -> str:
+    img = cucim2numpy(img)
+    return numpy2png(img)
 
 
 def tile_worker(
@@ -115,15 +123,6 @@ def tile_worker(
             (args.tile_px, args.tile_px),
             interpolation=cv2.INTER_NEAREST)
 
-    # Normalizer
-    if not args.normalizer:
-        normalizer = None
-    else:
-        normalizer = sf.norm.autoselect(
-            method=args.normalizer,
-            source=args.normalizer_source
-        )
-
     # Read the target downsample region now, if we were
     # filtering at a different level
     region = slide.read_region(
@@ -155,9 +154,9 @@ def tile_worker(
         region[tile_mask == 0] = (0, 0, 0)
 
     # Apply normalization
-    if normalizer:
+    if args.normalizer:
         try:
-            region = normalizer.rgb_to_rgb(region)
+            region = args.normalizer.rgb_to_rgb(region)
         except Exception:
             # The image could not be normalized,
             # which happens when a tile is primarily one solid color
@@ -165,6 +164,7 @@ def tile_worker(
 
     if args.img_format != 'numpy':
         image = cv2.cvtColor(region, cv2.COLOR_RGB2BGR)
+        # Default image quality for JPEG is 95%
         image = cv2.imencode("."+args.img_format, image)[1].tobytes()
     else:
         image = region
@@ -316,23 +316,20 @@ class _cuCIMReader:
         if resize_factor:
             target_size = (int(extract_size[0] * resize_factor),
                            int(extract_size[1] * resize_factor))
-            if __cv2_resize__:
+            if not __cv2_resize__:
                 region = resize(np.asarray(region), target_size)
         # Final conversions
         if flatten and region.shape[-1] == 4:
             region = region[:, :, 0:3]
-        if convert and convert.lower() in ('jpg', 'jpeg'):
-            region = cucim2jpg(region)
-        elif convert and convert.lower() == 'png':
-            region = cucim2png(region)
-        elif convert == 'numpy':
+        if convert and convert.lower() in ('jpg', 'jpeg', 'png', 'numpy'):
             region = cucim2numpy(region)
-        else:
-            region = region
         if resize_factor and __cv2_resize__:
-            return cv2.resize(region, target_size)
-        else:
-            return region
+            region = cv2.resize(region, target_size)
+        if convert and convert.lower() in ('jpg', 'jpeg'):
+            return numpy2jpg(region)
+        elif convert and convert.lower() == 'png':
+            return numpy2png(region)
+        return region
 
     def read_from_pyramid(
         self,
@@ -377,18 +374,16 @@ class _cuCIMReader:
         # Final conversions
         if flatten and region.shape[-1] == 4:
             region = region[:, :, 0:3]
-        if convert and convert.lower() in ('jpg', 'jpeg'):
-            region = cucim2jpg(region)
-        elif convert and convert.lower() == 'png':
-            region = cucim2png(region)
-        elif convert == 'numpy':
+
+        if convert and convert.lower() in ('jpg', 'jpeg', 'png', 'numpy'):
             region = cucim2numpy(region)
-        else:
-            region = region
         if __cv2_resize__:
-            return cv2.resize(region, target_size)
-        else:
-            return region
+            region = cv2.resize(region, target_size)
+        if convert and convert.lower() in ('jpg', 'jpeg'):
+            return numpy2jpg(region)
+        elif convert and convert.lower() == 'png':
+            return numpy2png(region)
+        return region
 
     def thumbnail(
         self,

@@ -31,6 +31,7 @@ import slideflow as sf
 from slideflow import errors
 from . import example_pb2, log_utils
 from .colors import *  # noqa F403,F401 - Here for compatibility
+from .tfrecord2idx import get_record_by_index, get_tfrecord_length
 from .smac_utils import (broad_search_space, shallow_search_space,
                          create_search_space)
 
@@ -50,7 +51,7 @@ except Exception:
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
                      'tiff', 'svslide', 'bif', 'jpg', 'jpeg']
-EMPTY_ANNOTATIONS = ['', ' ']
+EMPTY = ['', ' ', None, np.nan]
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:
     import pyomo.environ as pyo
@@ -893,79 +894,40 @@ def update_results_log(
         os.remove(f"{results_log_path}.temp")
 
 
-def tfrecord_heatmap(
-    tfrecord: str,
+def location_heatmap(
+    locations: np.ndarray,
+    values: np.ndarray,
     slide: str,
     tile_px: int,
     tile_um: Union[int, str],
-    tile_dict: Dict[int, float],
     outdir: str,
     interpolation: Optional[str] = 'bicubic'
 ) -> Dict[str, Dict[str, float]]:
-    """Creates a tfrecord-based WSI heatmap using a dictionary of tile values
-    for heatmap display.
 
-    Args:
-        tfrecord (str): Path to tfrecord.
-        slide (str): Path to whole-slide image.
-        tile_dict (dict): Dictionary mapping tfrecord indices to a
-            tile-level value for display in heatmap format.
-        tile_px (int): Tile width in pixels.
-        tile_um (int or str): Tile width in microns (int) or magnification
-            (str, e.g. "20x").
-        outdir (str): Path to directory in which to save images.
-
-    Returns:
-        Dictionary mapping slide names to dict of statistics
-        (mean, median, above_0, and above_1)
-    """
     import matplotlib.pyplot as plt
     import matplotlib.colors as mcol
 
-    slide_name = sf.util.path_to_name(tfrecord)
-    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
-    if tile_dict.keys() != loc_dict.keys():
-        td_len = len(list(tile_dict.keys()))
-        loc_len = len(list(loc_dict.keys()))
-        raise errors.TFRecordsError(
-            f'tile_dict length ({td_len}) != TFRecord length ({loc_len}).'
-        )
-
-    log.info(f'Generating TFRecord heatmap for [green]{tfrecord}[/]...')
-    wsi = sf.slide.WSI(slide, tile_px, tile_um)
+    slide_name = sf.util.path_to_name(slide)
+    log.info(f'Generating heatmap for [green]{slide}[/]...')
+    wsi = sf.slide.WSI(slide, tile_px, tile_um, verbose=False)
 
     stats = {}
 
     # Loaded CSV coordinates:
-    x = [int(loc_dict[loc][0]) for loc in loc_dict]
-    y = [int(loc_dict[loc][1]) for loc in loc_dict]
-    vals = [tile_dict[loc] for loc in loc_dict]
+    x = locations[:, 0]
+    y = locations[:, 1]
 
     stats.update({
         slide_name: {
-            'mean': mean(vals),
-            'median': median(vals),
-            'above_0': len([v for v in vals if v > 0]),
-            'above_1': len([v for v in vals if v > 1]),
+            'mean': np.mean(values),
+            'median': np.median(values)
         }
     })
-
-    log.debug('Loaded tile values')
-    log.debug(f'Min: {min(vals)}\t Max:{max(vals)}')
 
     roi_scaling = False
     scale = wsi.roi_scale if roi_scaling else 1
     scaled_x = [(xi * scale) - wsi.full_extract_px/2 for xi in x]
     scaled_y = [(yi * scale) - wsi.full_extract_px/2 for yi in y]
-
-    log.debug('Loaded CSV coordinates:')
-    log.debug(f'Min x: {min(x)}\t Max x: {max(x)}')
-    log.debug(f'Min y: {min(y)}\t Max y: {max(y)}')
-    log.debug('Scaled CSV coordinates:')
-    log.debug(f'Min x: {min(scaled_x)}\t Max x: {max(scaled_x)}')
-    log.debug(f'Min y: {min(scaled_y)}\t Max y: {max(scaled_y)}')
-    log.debug('Slide properties:')
-    log.debug(f'Size (x): {wsi.dimensions[0]}\t Size (y): {wsi.dimensions[1]}')
 
     # Slide coordinate information
     max_coord_x = max([c[0] for c in wsi.coord])
@@ -997,7 +959,7 @@ def tfrecord_heatmap(
     indexed_x = [round(xi / x_grid_scale) for xi in scaled_x]
     indexed_y = [round(yi / y_grid_scale) for yi in scaled_y]
 
-    for xi, yi, v in zip(indexed_x, indexed_y, vals):
+    for xi, yi, v in zip(indexed_x, indexed_y, values):
         grid[yi][xi] = v
 
     fig = plt.figure(figsize=(18, 16))
@@ -1013,8 +975,6 @@ def tfrecord_heatmap(
     )
     log.debug('Generating thumbnail...')
     thumb = wsi.thumb(mpp=5)
-    log.debug('Saving thumbnail....')
-    thumb.save(join(outdir, f'{slide_name}' + '.png'))
     log.debug('Generating figure...')
     implot = ax.imshow(thumb, zorder=0)
     extent = implot.get_extent()
@@ -1027,9 +987,9 @@ def tfrecord_heatmap(
     log.debug(grid_extent)
 
     divnorm = mcol.TwoSlopeNorm(
-        vmin=min(-0.01, min(vals)),
+        vmin=min(-0.01, min(values)),
         vcenter=0,
-        vmax=max(0.01, max(vals))
+        vmax=max(0.01, max(values))
     )
     ax.imshow(
         grid,
@@ -1040,13 +1000,57 @@ def tfrecord_heatmap(
         cmap='coolwarm',
         norm=divnorm
     )
-    log.info('Saving figure...')
+    log.debug('Saving figure...')
     plt.savefig(join(outdir, f'{slide_name}_attn.png'), bbox_inches='tight')
-    log.debug('Cleaning up...')
-    plt.clf()
+    plt.close(fig)
     del wsi
     del thumb
     return stats
+
+
+def tfrecord_heatmap(
+    tfrecord: str,
+    slide: str,
+    tile_px: int,
+    tile_um: Union[int, str],
+    tile_dict: Dict[int, float],
+    outdir: str,
+    **kwargs
+) -> Dict[str, Dict[str, float]]:
+    """Creates a tfrecord-based WSI heatmap using a dictionary of tile values
+    for heatmap display.
+
+    Args:
+        tfrecord (str): Path to tfrecord.
+        slide (str): Path to whole-slide image.
+        tile_dict (dict): Dictionary mapping tfrecord indices to a
+            tile-level value for display in heatmap format.
+        tile_px (int): Tile width in pixels.
+        tile_um (int or str): Tile width in microns (int) or magnification
+            (str, e.g. "20x").
+        outdir (str): Path to directory in which to save images.
+
+    Returns:
+        Dictionary mapping slide names to dict of statistics
+        (mean, median)
+    """
+    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
+    if tile_dict.keys() != loc_dict.keys():
+        td_len = len(list(tile_dict.keys()))
+        loc_len = len(list(loc_dict.keys()))
+        raise errors.TFRecordsError(
+            f'tile_dict length ({td_len}) != TFRecord length ({loc_len}).'
+        )
+
+    return location_heatmap(
+        locations=np.array([loc_dict[loc] for loc in loc_dict]),
+        values=np.array([tile_dict[loc] for loc in loc_dict]),
+        slide=slide,
+        tile_px=tile_px,
+        tile_um=tile_um,
+        outdir=outdir,
+        **kwargs
+    )
 
 
 def get_valid_model_dir(root: str) -> List:

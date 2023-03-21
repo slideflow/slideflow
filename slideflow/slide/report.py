@@ -41,7 +41,6 @@ class SlideReport:
         images: List[bytes],
         path: str,
         *,
-        slide: Optional["sf.WSI"] = None,
         thumb: Optional[Image.Image] = None,
         thumb_coords: Optional[np.ndarray] = None,
         data: Dict[str, Any] = None,
@@ -64,9 +63,9 @@ class SlideReport:
 
 
         """
-        self.slide = slide
         self.data = data
         self.path = path
+        self.has_rois = 'num_rois' in data and data['num_rois'] > 0
         self.timestamp = str(datetime.now())
 
         # Thumbnail
@@ -83,10 +82,12 @@ class SlideReport:
 
     @property
     def thumb(self):
-        if self._thumb is None and self.slide is not None:
-            self._thumb = self.slide.thumb(
+        if self._thumb is None:
+            wsi = sf.WSI(self.path, 500, 500, verbose=False)
+            self._thumb = wsi.thumb(
                 coords=self.thumb_coords,
-                rois=(self.slide.roi_method != 'ignore')
+                rois=self.has_rois,
+                low_res=True
             )
             self._thumb = Image.fromarray(np.array(self._thumb)[:, :, 0:3])
         return self._thumb

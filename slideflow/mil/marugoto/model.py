@@ -38,6 +38,10 @@ class Marugoto_MIL(nn.Module):
 
         return scores
 
+    def calculate_attention(self, bags, lens):
+        embeddings = self.encoder(bags)
+        return self._masked_attention_scores(embeddings, lens)
+
     def _masked_attention_scores(self, embeddings, lens):
         """Calculates attention scores for all bags.
         Returns:

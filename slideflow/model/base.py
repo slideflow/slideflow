@@ -340,6 +340,14 @@ class _ModelParams:
             assert isinstance(self.l2_dense, (int, float))
             assert 0 <= self.l2_dense <= 1
 
+        # Augmentation checks.
+        if isinstance(self.augment, str) and not all(s in 'xyrjbn' for s in self.augment):
+            raise errors.ModelParamsError(
+                "Unrecognized augmentation(s): {}".format(
+                    ','.join([s for s in self.augment if s not in 'xyrjbn'])
+                )
+            )
+
         # Specific considerations.
         if isinstance(self.tile_um, str):
             sf.util.assert_is_mag(self.tile_um)

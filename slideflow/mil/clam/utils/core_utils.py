@@ -219,7 +219,7 @@ def train(datasets, cur, args):
         writer.add_scalar('final/test_auc', test_auc, 0)
         writer.close()
 
-    return results_dict, test_auc, val_auc, 1-test_error, 1-val_error
+    return model, results_dict, test_auc, val_auc, 1-test_error, 1-val_error
 
 
 def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writer = None, loss_fn = None):

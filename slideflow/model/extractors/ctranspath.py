@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import math
 import torch.utils.checkpoint as checkpoint
+import slideflow as sf
 from typing import Optional
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
@@ -24,6 +25,7 @@ from timm.models.swin_transformer import window_partition, window_reverse
 from timm.models.vision_transformer import checkpoint_filter_fn
 
 from ..base import BaseFeatureExtractor
+from ._slide import features_from_slide_torch
 
 # -----------------------------------------------------------------------------
 
@@ -577,6 +579,7 @@ class CTransPathFeatures(BaseFeatureExtractor):
     def __init__(self, device='cuda', center_crop=False):
         super().__init__(backend='torch')
 
+        self.device = device
         self.model = _build_ctranspath_model()
         self.model.head = torch.nn.Identity().to(device)
 
@@ -603,9 +606,16 @@ class CTransPathFeatures(BaseFeatureExtractor):
         self.preprocess_kwargs = dict(standardize=False)
         # ---------------------------------------------------------------------
 
-    def __call__(self, batch_images):
-        assert batch_images.dtype == torch.uint8
-        batch_images = self.transform(batch_images)
-        return self.model(batch_images)
-
+    def __call__(self, obj, **kwargs):
+        """Generate features for a batch of images or a WSI."""
+        if isinstance(obj, sf.WSI):
+            return features_from_slide_torch(
+                self,
+                obj,
+                device=self.device,
+                **kwargs
+            )
+        assert obj.dtype == torch.uint8
+        obj = self.transform(obj)
+        return self.model(obj)
 
