@@ -82,7 +82,7 @@ class SaliencyMap:
         if self.model_backend == 'tensorflow':
             import tensorflow as tf
             flattened = sf.model.tensorflow_utils.flatten(self.model)
-            conv_layer = flattened.get_layer('block14_sepconv2_act')
+            conv_layer = flattened.get_layer(layer)
             self.feature_model = tf.keras.models.Model([flattened.inputs], [conv_layer.output, flattened.output])
         else:
             import torch
@@ -376,12 +376,20 @@ class SaliencyMap:
         Returns:
             np.ndarray: Saliency map.
         """
-        return self.xrai_grads.GetMask(
+        mask = self.xrai_grads.GetMask(
             img,
             self._grad_fn,
             batch_size=batch_size,
             **kwargs
         )
+        if isinstance(img, list):
+            # Normalize together
+            v_maxes, v_mins = zip(*[max_min(img3d) for img3d in mask])
+            vmax = max(v_maxes)
+            vmin = min(v_mins)
+            return [normalize_xrai(img3d, vmax=vmax, vmin=vmin) for img3d in mask]
+        else:
+            return normalize_xrai(mask)
 
     def xrai_fast(
         self,
@@ -398,13 +406,21 @@ class SaliencyMap:
         Returns:
             np.ndarray: Saliency map.
         """
-        return self.xrai_grads.GetMask(
+        mask = self.xrai_grads.GetMask(
             img,
             self._grad_fn,
             batch_size=batch_size,
             extra_parameters=self.fast_xrai_params,
             **kwargs
         )
+        if isinstance(img, list):
+            # Normalize together
+            v_maxes, v_mins = zip(*[max_min(img3d) for img3d in mask])
+            vmax = max(v_maxes)
+            vmin = min(v_mins)
+            return [normalize_xrai(img3d, vmax=vmax, vmin=vmin) for img3d in mask]
+        else:
+            return normalize_xrai(mask)
 
 
 def grayscale(image_3d, vmax=None, vmin=None, percentile=99):
@@ -416,6 +432,12 @@ def grayscale(image_3d, vmax=None, vmin=None, percentile=99):
         vmax, vmin = max_min(image_3d, percentile=percentile)
     image_2d = np.sum(np.abs(image_3d), axis=2)
     return np.clip((image_2d - vmin) / (vmax - vmin), 0, 1)
+
+
+def normalize_xrai(mask, percentile=99):
+    vmax = np.percentile(mask, percentile)
+    vmin = np.min(mask)
+    return np.clip((mask - vmin) / (vmax - vmin), 0, 1)
 
 
 def max_min(image_3d, percentile=99):
