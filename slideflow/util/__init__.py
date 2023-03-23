@@ -901,7 +901,9 @@ def location_heatmap(
     tile_px: int,
     tile_um: Union[int, str],
     outdir: str,
-    interpolation: Optional[str] = 'bicubic'
+    interpolation: Optional[str] = 'bicubic',
+    cmap: str = 'coolwarm',
+    norm: str = 'two_slope',
 ) -> Dict[str, Dict[str, float]]:
 
     import matplotlib.pyplot as plt
@@ -986,19 +988,20 @@ def location_heatmap(
     log.debug('\nGrid extent:')
     log.debug(grid_extent)
 
-    divnorm = mcol.TwoSlopeNorm(
-        vmin=min(-0.01, min(values)),
-        vcenter=0,
-        vmax=max(0.01, max(values))
-    )
+    if norm == 'two_slope':
+        norm = mcol.TwoSlopeNorm(
+            vmin=min(-0.01, min(values)),
+            vcenter=0,
+            vmax=max(0.01, max(values))
+        )
     ax.imshow(
         grid,
         zorder=10,
         alpha=0.6,
         extent=grid_extent,
         interpolation=interpolation,
-        cmap='coolwarm',
-        norm=divnorm
+        cmap=cmap,
+        norm=norm
     )
     log.debug('Saving figure...')
     plt.savefig(join(outdir, f'{slide_name}_attn.png'), bbox_inches='tight')

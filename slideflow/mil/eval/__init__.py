@@ -23,6 +23,7 @@ def eval_mil(
     *,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
+    **heatmap_kwargs
 ) -> pd.DataFrame:
     """Evaluate a multi-instance learning model.
 
@@ -149,7 +150,8 @@ def eval_mil(
             outdir=join(model_dir, 'heatmaps'),
             dataset=dataset,
             bags=bags,
-            attention=y_att
+            attention=y_att,
+            **heatmap_kwargs
         )
 
     return df
@@ -217,7 +219,8 @@ def generate_attention_heatmaps(
     outdir: str,
     dataset: "sf.Dataset",
     bags: Union[List[str], np.ndarray],
-    attention: Union[np.ndarray, List[np.ndarray]]
+    attention: Union[np.ndarray, List[np.ndarray]],
+    **kwargs
 ) -> None:
     """Generate and save attention heatmaps.
 
@@ -257,7 +260,8 @@ def generate_attention_heatmaps(
                 slide=slide_path,
                 tile_px=dataset.tile_px,
                 tile_um=dataset.tile_um,
-                outdir=outdir
+                outdir=outdir,
+                **kwargs
             )
     log.info(f"Attention heatmaps saved to [green]{outdir}[/]")
 
