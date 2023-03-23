@@ -3860,7 +3860,10 @@ def create(
                 "Remote annotations URL failed MD5 checksum."
             )
     elif 'annotations' in cfg:
-        shutil.copy(cfg.annotations, root)
+        try:
+            shutil.copy(cfg.annotations, root)
+        except shutil.SameFileError:
+            pass
 
     # Set up the dataset source.
     if 'sources' not in proj_kwargs or proj_kwargs['sources'] is not None:
