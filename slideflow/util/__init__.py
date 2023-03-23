@@ -957,12 +957,16 @@ def location_heatmap(
     log.debug('Coordinate grid scale:')
     log.debug(f'x: {x_grid_scale}\t y: {y_grid_scale}')
 
-    grid = np.zeros((num_y, num_x))
+    grid = np.ones((num_y, num_x))
+    grid *= -99
     indexed_x = [round(xi / x_grid_scale) for xi in scaled_x]
     indexed_y = [round(yi / y_grid_scale) for yi in scaled_y]
 
     for xi, yi, v in zip(indexed_x, indexed_y, values):
         grid[yi][xi] = v
+
+    # Mask out background
+    masked_grid = np.ma.masked_where(grid == -99, grid)
 
     fig = plt.figure(figsize=(18, 16))
     ax = fig.add_subplot(111)
@@ -995,7 +999,7 @@ def location_heatmap(
             vmax=max(0.01, max(values))
         )
     ax.imshow(
-        grid,
+        masked_grid,
         zorder=10,
         alpha=0.6,
         extent=grid_extent,
