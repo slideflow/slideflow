@@ -93,6 +93,9 @@ class GlfwWindow:
 
     def update_window_size(self):
         ws = glfw.get_window_size(self._glfw_window)
+        if not ws[0]:
+            # Do not update if the window size is 0.
+            return
         fs = glfw.get_framebuffer_size(self._glfw_window)
         _l, top, _r, _bottom = glfw.get_window_frame_size(self._glfw_window)
         self.title_bar_height = top
@@ -119,10 +122,12 @@ class GlfwWindow:
         glfw.set_window_title(self._glfw_window, title)
 
     def set_window_size(self, width, height):
-        width = min(width, self.monitor_width)
-        height = min(height, self.monitor_height)
+        mw, mh = self.monitor_width, self.monitor_height
+        if mw and mh:
+            width = min(width, mw)
+            height = min(height, mh)
         glfw.set_window_size(self._glfw_window, width, max(height - self.title_bar_height, 0))
-        if width == self.monitor_width and height == self.monitor_height:
+        if width == mw and height == mh:
             self.maximize()
 
     def set_content_size(self, width, height):
