@@ -3561,7 +3561,7 @@ class Project:
             outcomes (str, optional): Annotation column which specifies the
                 outcome, for optionally training a supervised head.
                 Defaults to None.
-            dataset_kwargs: All other keyword arguments for 
+            dataset_kwargs: All other keyword arguments for
                 :meth:`slideflow.Dataset.tensorflow`
             **kwargs: All other keyword arguments for
                 :meth:`slideflow.simclr.run_simclr()`
@@ -3849,7 +3849,7 @@ def create(
     log.info(f"Setting up project at {root}")
     if 'annotations' in cfg:
         proj_kwargs['annotations'] = join(root, basename(cfg.annotations))
-    P = sf.Project(root, **proj_kwargs)
+    P = sf.Project(root, **proj_kwargs, create=True)
     # Download annotations, if a URL.
     if 'annotations' in cfg and cfg.annotations.startswith('http'):
         log.info(f"Downloading {cfg.annotations}")
