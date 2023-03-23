@@ -902,7 +902,7 @@ def location_heatmap(
     tile_um: Union[int, str],
     outdir: str,
     interpolation: Optional[str] = 'bicubic',
-    cmap: str = 'coolwarm',
+    cmap: str = 'inferno',
     norm: str = 'two_slope',
 ) -> Dict[str, Dict[str, float]]:
 
