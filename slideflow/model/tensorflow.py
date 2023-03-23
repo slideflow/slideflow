@@ -74,9 +74,11 @@ class ModelParams(_base._ModelParams):
         'inception_resnet_v2': kapps.InceptionResNetV2,
         'mobilenet': kapps.MobileNet,
         'mobilenet_v2': kapps.MobileNetV2,
+        'densenet_121': kapps.DenseNet121,
+        'densenet_169': kapps.DenseNet169,
+        'densenet_201': kapps.DenseNet201,
         # 'ResNeXt50': kapps.ResNeXt50,
         # 'ResNeXt101': kapps.ResNeXt101,
-        # 'DenseNet': kapps.DenseNet,
         # 'NASNet': kapps.NASNet
     }
     OptDict = {
