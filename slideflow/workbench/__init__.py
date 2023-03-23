@@ -1313,7 +1313,7 @@ class Workbench(ImguiWindow):
             else:
                 log.warn("Exception raised (ignore_errors={}): {}".format(ignore_errors, e))
                 self.create_toast(f"Error loading model at {model}", icon="error")
-                self.result = EasyDict(error=renderer.CapturedException())
+                self.result = EasyDict(error=CapturedException())
             if not ignore_errors:
                 raise
         log.debug("Model loading complete (path={})".format(self._model_path))
