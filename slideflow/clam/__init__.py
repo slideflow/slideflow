@@ -11,7 +11,6 @@ from ..mil.clam import (
     CLAM_Args,
     create_attention,
     datasets,
-    models,
     utils
 )
 from ..mil.clam.create_attention import export_attention

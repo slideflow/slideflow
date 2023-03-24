@@ -5,8 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Union, List
 
-from ..utils import initialize_weights
+from ._utils import initialize_weights
 
+# -----------------------------------------------------------------------------
 
 class MIL_fc(nn.Module):
 

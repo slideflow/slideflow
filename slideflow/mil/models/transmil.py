@@ -17,6 +17,32 @@ class TransMIL(nn.Module):
         self.norm = nn.LayerNorm(512)
         self._fc2 = nn.Linear(512, self.n_classes)
 
+    def calculate_attention(self, h):
+        h = self._fc1(h) #[B, n, 1024] -> [B, n, 512]
+
+        #---->pad
+        H = h.shape[1]
+        _H, _W = int(np.ceil(np.sqrt(H))), int(np.ceil(np.sqrt(H)))
+        add_length = _H * _W - H
+        h = torch.cat([h, h[:,:add_length,:]], dim = 1) #[B, N, 512]
+
+        #---->cls_token
+        B = h.shape[0]
+        cls_tokens = self.cls_token.expand(B, -1, -1)
+        h = torch.cat((cls_tokens, h), dim=1)
+
+        #---->Translayer x1
+        h = self.layer1(h) #[B, N, 512]
+
+        #---->PPEG
+        h = self.pos_layer(h, _H, _W) #[B, N, 512]
+
+        #---->Translayer x2
+        return self.layer2.calculate_attention(h) #[B, N, 512]
+
+    def relocate(self):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.to(device)
 
     def forward(self, h):
         h = self._fc1(h) #[B, n, 1024] -> [B, n, 512]
@@ -29,7 +55,7 @@ class TransMIL(nn.Module):
 
         #---->cls_token
         B = h.shape[0]
-        cls_tokens = self.cls_token.expand(B, -1, -1).cuda()
+        cls_tokens = self.cls_token.expand(B, -1, -1)
         h = torch.cat((cls_tokens, h), dim=1)
 
         #---->Translayer x1
@@ -55,7 +81,14 @@ class TransLayer(nn.Module):
     def __init__(self, norm_layer=nn.LayerNorm, dim=512):
         super().__init__()
 
-        from nystrom_attention import NystromAttention
+        try:
+            from nystrom_attention import NystromAttention
+        except ImportError:
+            raise ImportError(
+                "The package 'nystom_attention' has not been installed, but "
+                "is required for TransMIL. Install with 'pip install "
+                "nystrom_attention'"
+            )
 
         self.norm = norm_layer(dim)
         self.attn = NystromAttention(
@@ -68,8 +101,11 @@ class TransLayer(nn.Module):
             dropout=0.1
         )
 
+    def calculate_attention(self, x):
+        return self.attn(self.norm(x))
+
     def forward(self, x):
-        x = x + self.attn(self.norm(x))
+        x = x + self.calculate_attention(x)
         return x
 
 

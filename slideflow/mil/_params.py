@@ -2,11 +2,11 @@
 
 from torch import nn
 from typing import Optional, Union, Callable
-from slideflow.mil.marugoto.model import Marugoto_MIL
+from slideflow.mil.models import Attention_MIL
 
 
 def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
-    if (model == 'marugoto' or not isinstance(model, str)) and trainer == 'clam':
+    if model not in ModelConfigCLAM.valid_models and trainer == 'clam':
         raise ValueError(f"Model {model} incompatible with trainer {trainer}")
     if trainer == 'fastai':
         return TrainerConfigFastAI(model=model, **kwargs)
@@ -68,7 +68,7 @@ class TrainerConfig(DictConfig):
 class TrainerConfigFastAI(TrainerConfig):
     def __init__(
         self,
-        model: Union[str, Callable] = 'marugoto',
+        model: Union[str, Callable] = 'attention_mil',
         lr: Optional[float] = None,
         lr_max: Optional[float] = None,
         wd: float = 1e-5,
@@ -154,8 +154,7 @@ class ModelConfigCLAM(DictConfig):
 
     @property
     def model_fn(self):
-        from .clam.models.model_clam import CLAM_MB, CLAM_SB
-        from .clam.models.model_mil import MIL_fc_mc, MIL_fc
+        from .models import CLAM_MB, CLAM_SB, MIL_fc_mc, MIL_fc
         model_dict = {
             'clam_sb': CLAM_SB,
             'clam_mb': CLAM_MB,
@@ -175,15 +174,15 @@ class ModelConfigCLAM(DictConfig):
 
 class ModelConfigFastAI(DictConfig):
 
-    valid_models = ['marugoto', 'transmil']
+    valid_models = ['attention_mil', 'transmil']
 
     def __init__(
         self,
-        model: Union[str, Callable] = 'marugoto',
+        model: Union[str, Callable] = 'attention_mil',
         use_lens: Optional[bool] = None
     ) -> None:
         self.model = model
-        if use_lens is None and (model == 'marugoto' or model is Marugoto_MIL):
+        if use_lens is None and (model == 'attention_mil' or model is Attention_MIL):
             self.use_lens = True
         elif use_lens is None:
             self.use_lens = False
@@ -192,14 +191,14 @@ class ModelConfigFastAI(DictConfig):
 
     @property
     def model_fn(self):
-        if self.model == 'marugoto':
-            from .marugoto.model import Marugoto_MIL
-            return Marugoto_MIL
-        elif self.model == 'transmil':
-            from .transmil.model import TransMIL
-            return TransMIL
-        elif not isinstance(self.model, str):
+        if not isinstance(self.model, str):
             return self.model
+        elif self.model.lower() == 'attention_mil':
+            from .models import Attention_MIL
+            return Attention_MIL
+        elif self.model.lower() == 'transmil':
+            from .models import TransMIL
+            return TransMIL
         else:
             raise ValueError(f"Unrecognized model {self.model}")
 

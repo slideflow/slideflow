@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 
 from slideflow import log
-from .models.model_clam import CLAM_MB, CLAM_SB
+from slideflow.mil.models import CLAM_MB, CLAM_SB
 from .utils import *
 from .utils.eval_utils import initiate_model as initiate_model
 
@@ -35,7 +35,7 @@ def infer_single_slide(model, features, label, reverse_label_dict, k=1, silent=F
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     features = features.to(device)
     with torch.no_grad():
-        if isinstance(model, (CLAM_SB,)):
+        if isinstance(model, (CLAM_SB, CLAM_MB)):
             logits, A, _ = model(features, return_attention=True)
             Y_hat = torch.topk(logits, 1, dim=1)[1].item()
             Y_prob = F.softmax(logits, dim=1)

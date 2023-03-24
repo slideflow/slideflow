@@ -2,8 +2,14 @@ import torch
 from torch import nn
 from typing import Optional
 
+# -----------------------------------------------------------------------------
 
-class Marugoto_MIL(nn.Module):
+class Attention_MIL(nn.Module):
+    """Attention-based multiple instance learning model.
+
+    Implementation from: https://github.com/KatherLab/marugoto
+
+    """
     def __init__(
         self,
         n_feats: int,
@@ -72,6 +78,7 @@ class Marugoto_MIL(nn.Module):
     def plot(*args, **kwargs):
         pass
 
+# -----------------------------------------------------------------------------
 
 def Attention(n_in: int, n_latent: Optional[int] = None) -> nn.Module:
     """A network calculating an embedding's importance weight."""

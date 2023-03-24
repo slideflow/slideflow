@@ -3173,7 +3173,8 @@ class Dataset:
         self,
         tfrecord: Union[str, List[str]],
         tile_dict: Dict[int, float],
-        outdir: str
+        outdir: str,
+        **kwargs
     ) -> None:
         """Create a tfrecord-based WSI heatmap.
 
@@ -3205,6 +3206,7 @@ class Dataset:
                 tile_um=self.tile_um,
                 tile_dict=tile_dict,
                 outdir=outdir,
+                **kwargs
             )
 
     def tfrecords(self, source: Optional[str] = None) -> List[str]:

@@ -1,3 +1,5 @@
+"""Dataset utility functions for MIL."""
+
 from dataclasses import dataclass
 from collections.abc import Sequence
 from typing import Any, Iterable, Optional, Tuple, Callable, Union, Protocol

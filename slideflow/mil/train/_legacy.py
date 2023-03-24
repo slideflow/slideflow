@@ -5,7 +5,7 @@ import csv
 import slideflow as sf
 from os.path import join, exists
 from typing import Union, List, Optional, Dict, TYPE_CHECKING
-from slideflow import Dataset, log
+from slideflow import Dataset, log, errors
 from slideflow.util import path_to_name
 
 if TYPE_CHECKING:
@@ -196,8 +196,13 @@ def legacy_train_clam(
                 except FileNotFoundError:
                     print(f'Attention scores for slide {slide} not found')
                     continue
-                dataset.tfrecord_heatmap(
-                    att_tfr,
-                    tile_dict=attention_dict,
-                    outdir=heatmaps_dir
-                )
+                try:
+                    dataset.tfrecord_heatmap(
+                        att_tfr,
+                        tile_dict=attention_dict,
+                        outdir=heatmaps_dir,
+                        cmap='coolwarm'
+                    )
+                except errors.SlideNotFoundError:
+                    log.warning(f"Unable to find slide {slide}; skipping heatmap")
+

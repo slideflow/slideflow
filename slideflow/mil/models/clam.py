@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Union, List, Optional, Callable
-from ..utils import initialize_weights
+from ._utils import initialize_weights
 
 # -----------------------------------------------------------------------------
 

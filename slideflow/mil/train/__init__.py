@@ -213,7 +213,7 @@ def train_clam(
         val_bags = val_dataset.pt_files(bags)
     else:
         val_bags = np.array(bags)
-    if attention_heatmaps:
+    if attention and attention_heatmaps:
         generate_attention_heatmaps(
             outdir=join(outdir, 'heatmaps'),
             dataset=val_dataset,
@@ -334,9 +334,10 @@ def train_fastai(
     if isinstance(bags, str):
         train_bags = train_dataset.pt_files(bags)
         val_bags = val_dataset.pt_files(bags)
-        bags = np.concatenate((train_bags, val_bags))
+        all_bags = np.concatenate((train_bags, val_bags))
     else:
-        bags = np.array(bags)
+        val_bags = np.array([b for b in bags if sf.util.path_to_name(b) in val_dataset.slides()])
+        all_bags = np.array(bags)
 
     # Build learner.
     learner = build_fastai_learner(
@@ -344,7 +345,7 @@ def train_fastai(
         train_dataset,
         val_dataset,
         outcomes,
-        bags=bags,
+        bags=all_bags,
         outdir=outdir,
     )
 
@@ -357,7 +358,7 @@ def train_fastai(
         config,
         dataset=val_dataset,
         outcomes=outcomes,
-        bags=bags,
+        bags=val_bags,
         attention=True
     )
     pred_out = join(outdir, 'predictions.parquet')
@@ -365,11 +366,11 @@ def train_fastai(
     log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Attention heatmaps.
-    if attention_heatmaps:
+    if attention and attention_heatmaps:
         generate_attention_heatmaps(
             outdir=join(outdir, 'heatmaps'),
             dataset=val_dataset,
-            bags=bags,
+            bags=val_bags,
             attention=attention
         )
 

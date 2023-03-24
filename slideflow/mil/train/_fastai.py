@@ -10,7 +10,7 @@ from fastai.vision.all import (
 )
 
 from slideflow import log
-from .. import marugoto
+from slideflow.mil.data import build_clam_dataset, build_dataset
 from .._params import TrainerConfigFastAI, ModelConfigCLAM
 
 # -----------------------------------------------------------------------------
@@ -73,7 +73,7 @@ def build_learner(config, *args, **kwargs):
     if isinstance(config.model_config, ModelConfigCLAM):
         return _build_clam_learner(config, *args, **kwargs)
     else:
-        return _build_marugoto_learner(config, *args, **kwargs)
+        return _build_fastai_learner(config, *args, **kwargs)
 
 
 def _build_clam_learner(
@@ -108,11 +108,11 @@ def _build_clam_learner(
     if isinstance(device, str):
         device = torch.device('cuda')
 
-    # Prepare data for Marugoto MIL
+    # Prepare data.
     encoder = OneHotEncoder(sparse=False).fit(unique_categories.reshape(-1, 1))
 
     # Build dataloaders.
-    train_dataset = marugoto.data.build_clam_dataset(
+    train_dataset = build_clam_dataset(
         bags[train_idx],
         targets[train_idx],
         encoder=encoder,
@@ -126,7 +126,7 @@ def _build_clam_learner(
         drop_last=False,
         device=device
     )
-    val_dataset = marugoto.data.build_clam_dataset(
+    val_dataset = build_clam_dataset(
         bags[val_idx],
         targets[val_idx],
         encoder=encoder,
@@ -155,7 +155,7 @@ def _build_clam_learner(
     return Learner(dls, model, loss_func=loss_func, metrics=[loss_utils.RocAuc()], path=outdir)
 
 
-def _build_marugoto_learner(
+def _build_fastai_learner(
     config: TrainerConfigFastAI,
     bags: List[str],
     targets: npt.NDArray,
@@ -165,7 +165,7 @@ def _build_marugoto_learner(
     outdir: Optional[str] = None,
     device: Union[str, torch.device] = 'cuda',
 ) -> Learner:
-    """Build a FastAI learner for a Marugoto MIL model.
+    """Build a FastAI learner for an MIL model.
 
     Args:
         config (``TrainerConfigFastAI``): Trainer and model configuration.
@@ -185,11 +185,11 @@ def _build_marugoto_learner(
     if isinstance(device, str):
         device = torch.device('cuda')
 
-    # Prepare data for Marugoto MIL
+    # Prepare data.
     encoder = OneHotEncoder(sparse=False).fit(unique_categories.reshape(-1, 1))
 
     # Build dataloaders.
-    train_dataset = marugoto.data.build_dataset(
+    train_dataset = build_dataset(
         bags[train_idx],
         targets[train_idx],
         encoder=encoder,
@@ -204,7 +204,7 @@ def _build_marugoto_learner(
         drop_last=True,
         device=device
     )
-    val_dataset = marugoto.data.build_dataset(
+    val_dataset = build_dataset(
         bags[val_idx],
         targets[val_idx],
         encoder=encoder,
@@ -224,6 +224,8 @@ def _build_marugoto_learner(
     log.info(f"Training model {config.model_fn.__name__}, loss={config.loss_fn.__name__}")
     batch = train_dl.one_batch()
     model = config.model_fn(batch[0].shape[-1], batch[-1].shape[-1]).to(device)
+    if hasattr(model, 'relocate'):
+        model.relocate()
 
     # Loss should weigh inversely to class occurences.
     counts = pd.value_counts(targets[train_idx])

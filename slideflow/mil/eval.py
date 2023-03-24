@@ -1,14 +1,16 @@
+"""Tools for evaluation MIL models."""
+
 import os
 import pandas as pd
 import slideflow as sf
 import numpy as np
 from rich.progress import Progress
 from os.path import join, exists, isdir, dirname
-from typing import Union, List, Optional, Callable, Tuple
+from typing import Union, List, Optional, Callable, Tuple, Any
 from slideflow import Dataset, log, errors
 from slideflow.util import path_to_name
 from slideflow.stats.metrics import ClassifierMetrics
-from .._params import (
+from ._params import (
     TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
 
@@ -72,11 +74,11 @@ def eval_mil(
     labels, unique = dataset.labels(outcomes, format='id')
 
     # Prepare bags and targets
+    slides = list(labels.keys())
     if isinstance(bags, str):
         bags = dataset.pt_files(bags)
     else:
-        bags = np.array(bags)
-    slides = [path_to_name(f) for f in bags]
+        bags = np.array([b for b in bags if path_to_name(b) in slides])
     y_true = np.array([labels[s] for s in slides])
 
     # Detect feature size from bags
@@ -87,13 +89,10 @@ def eval_mil(
     if isinstance(config, TrainerConfigCLAM):
         config_size = config.model_fn.sizes[config.model_config.model_size]
         model = config.model_fn(size=[n_features] + config_size[1:])
-        transformer = False
     elif isinstance(config.model_config, ModelConfigCLAM):
         model = config.model_fn(size=[n_features, 256, 128])
-        transformer = False
     else:
         model = config.model_fn(n_features, n_out)
-        transformer = True
     if isdir(weights):
         if exists(join(weights, 'models', 'best_valid.pth')):
             weights = join(weights, 'models', 'best_valid.pth')
@@ -107,8 +106,8 @@ def eval_mil(
     model.load_state_dict(torch.load(weights))
 
     # Prepare device.
-    device = torch.device('cuda')
-    model.relocate()  # type: ignore
+    if hasattr(model, 'relocate'):
+        model.relocate()  # type: ignore
     model.eval()
 
     # Inference.
@@ -116,7 +115,9 @@ def eval_mil(
        or isinstance(config.model_config, ModelConfigCLAM)):
         y_pred, y_att = _predict_clam(model, bags, attention=True)
     else:
-        y_pred, y_att = _predict_transformer(model, bags, attention=True)
+        y_pred, y_att = _predict_mil(
+            model, bags, attention=True, use_lens=config.model_config.use_lens
+        )
 
     # Generate metrics
     for idx in range(y_pred.shape[-1]):
@@ -137,15 +138,16 @@ def eval_mil(
     log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Export attention
-    att_path = join(model_dir, 'attention')
-    if not exists(att_path):
-        os.makedirs(att_path)
-    for slide, att in zip(slides, y_att):
-        np.savez(join(att_path, f'{slide}_att.npz'), att)
-    log.info(f"Attention scores exported to [green]{att_path}[/]")
+    if y_att:
+        att_path = join(model_dir, 'attention')
+        if not exists(att_path):
+            os.makedirs(att_path)
+        for slide, att in zip(slides, y_att):
+            np.savez(join(att_path, f'{slide}_att.npz'), att)
+        log.info(f"Attention scores exported to [green]{att_path}[/]")
 
     # Attention heatmaps
-    if attention_heatmaps:
+    if y_att and attention_heatmaps:
         generate_attention_heatmaps(
             outdir=join(model_dir, 'heatmaps'),
             dataset=dataset,
@@ -189,11 +191,11 @@ def predict_from_model(
     labels, unique = dataset.labels(outcomes, format='id')
 
     # Prepare bags and targets.
+    slides = list(labels.keys())
     if isinstance(bags, str):
         bags = dataset.pt_files(bags)
     else:
-        bags = np.array(bags)
-    slides = [path_to_name(f) for f in bags]
+        bags = np.array([b for b in bags if path_to_name(b) in slides])
     y_true = np.array([labels[s] for s in slides])
 
     # Inference.
@@ -201,7 +203,9 @@ def predict_from_model(
        or isinstance(config.model_config, ModelConfigCLAM)):
         y_pred, y_att = _predict_clam(model, bags, attention=attention)
     else:
-        y_pred, y_att = _predict_transformer(model, bags, attention=attention)
+        y_pred, y_att = _predict_mil(
+            model, bags, attention=attention, use_lens=config.model_config.use_lens
+        )
 
     # Create dataframe.
     df_dict = dict(slide=slides, y_true=y_true)
@@ -270,17 +274,41 @@ def generate_attention_heatmaps(
 def _predict_clam(
     model: Callable,
     bags: Union[np.ndarray, List[str]],
-    attention: bool = False
+    attention: bool = False,
+    device: Optional[Any] = None
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
+
     import torch
-    device = torch.device('cuda')
+    from slideflow.mil.models import CLAM_MB, CLAM_SB
+
+    if isinstance(model, (CLAM_MB, CLAM_SB)):
+        clam_kw = dict(return_attention=True)
+    else:
+        clam_kw = {}
+        attention = False
+
+    # Auto-detect device.
+    if device is None:
+        if next(model.parameters()).is_cuda:
+            log.debug("Auto device detection: using CUDA")
+            device = torch.device('cuda')
+        else:
+            log.debug("Auto device detection: using CPU")
+            device = torch.device('cpu')
+    elif isinstance(device, str):
+        log.debug(f"Using {device}")
+        device = torch.device(device)
+
     y_pred = []
     y_att  = []
     log.info("Generating predictions...")
     for bag in bags:
         loaded = torch.load(bag).to(device)
         with torch.no_grad():
-            logits, att, _ = model(loaded, return_attention=True)
+            if clam_kw:
+                logits, att, _ = model(loaded, **clam_kw)
+            else:
+                logits, att = model(loaded, **clam_kw)
             if attention:
                 y_att.append(np.squeeze(att.cpu().numpy()))
             y_pred.append(torch.nn.functional.softmax(logits, dim=1).cpu().numpy())
@@ -288,25 +316,65 @@ def _predict_clam(
     return yp, y_att
 
 
-def _predict_transformer(
+def _predict_mil(
     model: Callable,
     bags: Union[np.ndarray, List[str]],
-    attention: bool = False
+    attention: bool = False,
+    attention_pooling: str = 'avg',
+    use_lens: bool = False,
+    device: Optional[Any] = None
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
+
     import torch
-    device = torch.device('cuda')
+
+    # Auto-detect device.
+    if device is None:
+        if next(model.parameters()).is_cuda:
+            log.debug("Auto device detection: using CUDA")
+            device = torch.device('cuda')
+        else:
+            log.debug("Auto device detection: using CPU")
+            device = torch.device('cpu')
+    elif isinstance(device, str):
+        log.debug(f"Using {device}")
+        device = torch.device(device)
+
     y_pred = []
     y_att  = []
     log.info("Generating predictions...")
+    if attention and not hasattr(model, 'calculate_attention'):
+        log.warning(
+            "Model '{}' does not have a method 'calculate_attention'. "
+            "Unable to calculate or display attention heatmaps.".format(
+                model.__class__.__name__
+            )
+        )
+        attention = False
     for bag in bags:
         loaded = torch.load(bag).to(device)
+        loaded = torch.unsqueeze(loaded, dim=0)
         with torch.no_grad():
-            lens = torch.from_numpy(np.array([loaded.shape[0]])).to(device)
-            loaded = torch.unsqueeze(loaded, dim=0)
-            model_out = model(loaded, lens)
+            if use_lens:
+                lens = torch.from_numpy(np.array([loaded.shape[0]])).to(device)
+                model_args = (loaded, lens)
+            else:
+                model_args = (loaded,)
+            model_out = model(*model_args)
             if attention:
-                att = model.calculate_attention(loaded, lens).cpu().numpy()
-                y_att.append(np.squeeze(att))
+                att = torch.squeeze(model.calculate_attention(*model_args))
+                if len(att.shape) == 2:
+                    # Attention needs to be pooled
+                    if attention_pooling == 'avg':
+                        att = torch.mean(att, dim=-1)
+                    elif attention_pooling == 'max':
+                        att = torch.amax(att, dim=-1)
+                    else:
+                        raise ValueError(
+                            "Unrecognized attention pooling strategy '{}'".format(
+                                attention_pooling
+                            )
+                        )
+                y_att.append(att.cpu().numpy())
             y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att

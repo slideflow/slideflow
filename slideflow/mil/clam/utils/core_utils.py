@@ -11,9 +11,8 @@ from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.preprocessing import label_binarize
 
 from slideflow import log
+from slideflow.mil.models import CLAM_MB, CLAM_SB, MIL_fc, MIL_fc_mc
 from ..datasets.dataset_generic import save_splits
-from ..models.model_clam import CLAM_MB, CLAM_SB
-from ..models.model_mil import MIL_fc, MIL_fc_mc
 from ..utils import *
 
 
