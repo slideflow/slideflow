@@ -8,7 +8,6 @@ import json
 import logging
 import os
 import shutil
-import signal
 import numpy as np
 import multiprocessing as mp
 import tensorflow as tf
@@ -1710,8 +1709,7 @@ class Trainer:
         if from_wsi:
             pool = mp.Pool(
                 8 if os.cpu_count is None else os.cpu_count(),
-                initializer=signal.signal,
-                initargs=(signal.SIGINT, signal.SIG_IGN)
+                initializer=sf.util.set_ignore_sigint
             )
         else:
             pool = None

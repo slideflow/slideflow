@@ -190,6 +190,12 @@ class TileExtractionProgress(Progress):
             yield self.make_tasks_table([task])
 
 
+def set_ignore_sigint():
+    """Ignore keyboard interrupts."""
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
 # --- Slideflow header --------------------------------------------------------
 
 def about(console=None) -> None:

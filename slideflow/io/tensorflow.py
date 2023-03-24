@@ -1,6 +1,5 @@
 import os
 import shutil
-import signal
 import numpy as np
 import multiprocessing as mp
 import tensorflow as tf
@@ -508,8 +507,7 @@ def interleave(
             if pool is None and sf.slide_backend() == 'cucim':
                 pool = mp.Pool(
                     8 if os.cpu_count is None else os.cpu_count(),
-                    initializer=signal.signal,
-                    initargs=(signal.SIGINT, signal.SIG_IGN)
+                    initializer=sf.util.set_ignore_sigint
                 )
             elif pool is None:
                 pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())

@@ -4,7 +4,6 @@ import inspect
 import json
 import os
 import types
-import signal
 import numpy as np
 import pretrainedmodels
 import multiprocessing as mp
@@ -1467,8 +1466,7 @@ class Trainer:
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
                 os.cpu_count() if os.cpu_count() else 8,
-                initializer=signal.signal,
-                initargs=(signal.SIGINT, signal.SIG_IGN)
+                initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
             pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
@@ -1567,8 +1565,7 @@ class Trainer:
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
                 os.cpu_count() if os.cpu_count() else 8,
-                initializer=signal.signal,
-                initargs=(signal.SIGINT, signal.SIG_IGN)
+                initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
             pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
@@ -1723,8 +1720,7 @@ class Trainer:
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
                 os.cpu_count() if os.cpu_count() else 8,
-                initializer=signal.signal,
-                initargs=(signal.SIGINT, signal.SIG_IGN)
+                initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
             pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
@@ -2318,7 +2314,11 @@ def load(path: str) -> torch.nn.Module:
         num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes']),
         pretrain=None
     )
-    model.load_state_dict(torch.load(path))
+    if not torch.cuda.is_available():
+        kw = dict(map_location=torch.device('cpu'))
+    else:
+        kw = dict()
+    model.load_state_dict(torch.load(path, **kw))
     return model
 
 

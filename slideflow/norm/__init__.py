@@ -170,11 +170,11 @@ class StainNormalizer:
 
         """
         import torch
-        from slideflow.io.torch import cwh_to_whc, whc_to_cwh
+        from slideflow.io.torch import cwh_to_whc, whc_to_cwh, is_cwh
 
         if len(inp.shape) == 4:
             return torch.stack([self._torch_transform(img) for img in inp])
-        elif inp.shape[0] == 3:
+        elif is_cwh(inp):
             # Convert from CWH -> WHC (normalize) -> CWH
             return whc_to_cwh(
                 torch.from_numpy(

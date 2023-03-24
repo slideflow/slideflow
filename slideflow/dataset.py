@@ -92,7 +92,6 @@ import time
 import types
 import tempfile
 import warnings
-import signal
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
@@ -915,8 +914,7 @@ class Dataset:
         """
         pool = mp.Pool(
             os.cpu_count(),
-            initializer=signal.signal,
-            initargs=(signal.SIGINT, signal.SIG_IGN)
+            initializer=sf.util.set_ignore_sigint
         )
         index_fn = partial(_create_index, force=force)
         for _ in track(pool.imap_unordered(index_fn, self.tfrecords()),
@@ -1553,8 +1551,7 @@ class Dataset:
                 if num_threads != 1:
                     pool = kwargs['pool'] = ctx.Pool(
                         num_threads,
-                        initializer=signal.signal,
-                        initargs=(signal.SIGINT, signal.SIG_IGN)
+                        initializer=sf.util.set_ignore_sigint
                     )
                 else:
                     pool = None
@@ -2425,8 +2422,7 @@ class Dataset:
         pb.start()
         pool = mp.Pool(
             16 if os.cpu_count is None else os.cpu_count(),
-            initializer=signal.signal,
-            initargs=(signal.SIGINT, signal.SIG_IGN)
+            initializer=sf.util.set_ignore_sigint
         )
         wsi_list = []
         to_remove = []

@@ -84,6 +84,9 @@ def _load_umap_encoders(path, model) -> EasyDict:
 def _load_model_and_saliency(model_path, device=None):
     log.debug("Loading model at {}...".format(model_path))
     _umap_encoders = None
+    _saliency = None
+
+    # Load a PyTorch model
     if sf.util.torch_available and sf.util.path_to_ext(model_path) == 'zip':
         import slideflow.model.torch
         _model = sf.model.torch.load(model_path)
@@ -91,9 +94,13 @@ def _load_model_and_saliency(model_path, device=None):
         if device is not None:
             _model = _model.to(device)
         _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
+    
+    # Load a TFLite model
     elif sf.util.tf_available and sf.util.path_to_ext(model_path) == 'tflite':
         interpreter = tf.lite.Interpreter(model_path)
         _model = interpreter.get_signature_runner()
+
+    # Load a Tensorflow model
     elif sf.util.tf_available:
         import slideflow.model.tensorflow
         _model = sf.model.tensorflow.load(model_path, method='weights')

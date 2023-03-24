@@ -58,10 +58,12 @@ class HeatmapWidget:
     def _create_heatmap(self):
         viz = self.viz
         self.reset()
-        if viz.low_memory or sf.slide_backend() == 'cucim':
+        if sf.slide_backend() == 'cucim':
             mp_kw = dict(num_threads=os.cpu_count())
         else:
             mp_kw = dict(num_processes=os.cpu_count())
+        if viz.low_memory:
+            mp_kw = dict(num_threads=1, batch_size=4)
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
             viz.model,
@@ -94,6 +96,7 @@ class HeatmapWidget:
             grayspace_threshold=sw.gs_threshold,
             whitespace_fraction=sw.ws_fraction,
             whitespace_threshold=sw.ws_threshold,
+            lazy_iter=self.viz.low_memory
         )
 
     def load(self, obj: Union[str, "sf.Heatmap"]):

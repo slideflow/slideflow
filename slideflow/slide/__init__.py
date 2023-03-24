@@ -11,7 +11,6 @@ import os
 import random
 import time
 import warnings
-import signal
 import cv2
 import numpy as np
 import pandas as pd
@@ -44,6 +43,7 @@ from .backends import tile_worker, wsi_reader
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
 
+# -----------------------------------------------------------------------
 
 def _update_kw_with_defaults(kwargs) -> Dict:
     """Updates a set of keyword arguments with default extraction values.
@@ -1621,8 +1621,7 @@ class WSI(_BaseLoader):
                     ctx = mp.get_context('spawn')
                     pool = ctx.Pool(
                         processes=num_processes,
-                        initializer=signal.signal,
-                        initargs=(signal.SIGINT, signal.SIG_IGN)
+                        initializer=sf.util.set_ignore_sigint,
                     )
                     should_close = True
                 else:

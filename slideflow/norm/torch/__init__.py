@@ -199,6 +199,38 @@ class TorchStainNormalizer(StainNormalizer):
         """
         self.n.set_fit(**{k:v for k, v in kwargs.items() if v is not None})
 
+
+    def _torch_transform(
+        self,
+        inp: "torch.Tensor",
+        *,
+        augment: bool = False
+    ) -> "torch.Tensor":
+        """Normalize a torch uint8 image (CWH or WHC).
+
+        Normalization ocurs via intermediate conversion to WHC.
+
+        Args:
+            inp (torch.Tensor): Image, uint8. Images are normalized in
+                W x H x C space. Images provided as C x W x H will be
+                auto-converted and permuted back after normalization.
+
+        Returns:
+            torch.Tensor:   Image, uint8.
+
+        """
+        from slideflow.io.torch import cwh_to_whc, whc_to_cwh, is_cwh
+        if is_cwh(inp):
+            # Convert from CWH -> WHC (normalize) -> CWH
+            return whc_to_cwh(
+                self.n.transform(
+                    cwh_to_whc(inp),
+                    augment=augment
+                )
+            )
+        else:
+            return self.n.transform(inp, augment=augment)
+
     def torch_to_torch(
         self,
         image: Union[Dict, torch.Tensor],
@@ -229,10 +261,10 @@ class TorchStainNormalizer(StainNormalizer):
                 k: v for k, v in image.items()
                 if k != 'tile_image'
             }
-            to_return['tile_image'] = self.n.transform(image['tile_image'], augment=augment)
+            to_return['tile_image'] = self._torch_transform(image['tile_image'], augment=augment)
             return detuple(to_return, args)
         else:
-            return detuple(self.n.transform(image, augment=augment), args)
+            return detuple(self._torch_transform(image, augment=augment), args)
 
     def rgb_to_rgb(self, image: np.ndarray, *, augment: bool = False) -> np.ndarray:
         """Normalize a numpy array (uint8), returning a numpy array (uint8).

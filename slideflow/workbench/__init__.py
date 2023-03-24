@@ -927,7 +927,7 @@ class Workbench(ImguiWindow):
             self.load_project(path, ignore_errors=ignore_errors)
         elif sf.util.is_slide(path):
             self.load_slide(path, ignore_errors=ignore_errors)
-        elif sf.util.is_model(path):
+        elif sf.util.is_model(path) or path.endswith('tflite'):
             self.load_model(path, ignore_errors=ignore_errors)
         elif path.endswith('npz'):
             self.load_heatmap(path)
@@ -1420,7 +1420,7 @@ class AsyncRenderer:
 
         if sf.util.torch_available:
             import torch
-            self.device = torch.device('cuda')
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         else:
             self.device = None
 
@@ -1519,7 +1519,7 @@ class AsyncRenderer:
     def _process_fn(args_queue, result_queue, model_path, live_updates):
         if sf.util.torch_available:
             import torch
-            device = torch.device('cuda')
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         else:
             device = None
         renderer_obj = Renderer(device=device)

@@ -5,7 +5,6 @@ import pandas as pd
 import imgui
 import slideflow as sf
 import multiprocessing as mp
-import signal
 import matplotlib.pyplot as plt
 import matplotlib.image as mpl_image
 from os.path import join, exists
@@ -157,8 +156,7 @@ class MosaicWidget:
             ctx = mp.get_context('fork')
             self.pool = ctx.Pool(
                 os.cpu_count(),
-                initializer=signal.signal,
-                initargs=(signal.SIGINT, signal.SIG_IGN)
+                initializer=sf.util.set_ignore_sigint
             )
         self.mosaic = OpenGLMosaic(self.slidemap, tfrecords=tfrecords, **self.mosaic_kwargs)
         self.mosaic.plot()

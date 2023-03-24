@@ -80,7 +80,7 @@ class SlideWidget:
         if self.viz.wsi is not None:
             self.viz.set_message(self._rendering_message)
             if self.viz.low_memory or sf.slide_backend() == 'cucim':
-                mp_kw = dict(num_threads=os.cpu_count())
+                mp_kw = dict(num_threads=os.cpu_count(), lazy_iter=True)
             else:
                 mp_kw = dict(num_processes=os.cpu_count())
             generator = self.viz.wsi.build_generator(
