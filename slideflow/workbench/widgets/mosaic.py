@@ -36,6 +36,7 @@ class MosaicWidget:
         self.pool           = None
         self.annotator      = AnnotationCapture(named=True)
         self.annotations    = []
+        self.mosaic         = None
         self._plot_images   = None
         self._plot_transforms = None
         self._bottom_left   = None
@@ -96,15 +97,17 @@ class MosaicWidget:
 
     def increase_mosaic_resolution(self):
         """Increase the grid resolution."""
-        self.num_tiles_x = int(self.num_tiles_x * 1.5)
-        self.mosaic.generate_grid(**self.mosaic_kwargs)
-        self.mosaic.plot(pool=self.pool)
+        if self.mosaic is not None:
+            self.num_tiles_x = int(self.num_tiles_x * 1.5)
+            self.mosaic.generate_grid(**self.mosaic_kwargs)
+            self.mosaic.plot(pool=self.pool)
 
     def decrease_mosaic_resolution(self):
         """Decrease the grid resolution."""
-        self.num_tiles_x = int(self.num_tiles_x / 1.5)
-        self.mosaic.generate_grid(**self.mosaic_kwargs)
-        self.mosaic.plot(pool=self.pool)
+        if self.mosaic is not None:
+            self.num_tiles_x = int(self.num_tiles_x / 1.5)
+            self.mosaic.generate_grid(**self.mosaic_kwargs)
+            self.mosaic.plot(pool=self.pool)
 
     def load(self, obj, tfrecords=None, slides=None, **kwargs):
         """Load a UMAP from a file or SlideMap object."""
