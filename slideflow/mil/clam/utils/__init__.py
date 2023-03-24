@@ -1,3 +1,5 @@
+"""Modification of https://github.com/mahmoodlab/CLAM"""
+
 import collections
 import math
 from itertools import islice

@@ -1,4 +1,4 @@
-from __future__ import division, print_function
+"""Modification of https://github.com/mahmoodlab/CLAM"""
 
 import os
 import h5py

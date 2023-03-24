@@ -1,4 +1,4 @@
-from __future__ import print_function
+"""Modification of https://github.com/mahmoodlab/CLAM"""
 
 import argparse
 import csv

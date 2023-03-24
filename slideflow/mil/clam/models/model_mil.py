@@ -1,3 +1,5 @@
+"""Modification of https://github.com/mahmoodlab/CLAM"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

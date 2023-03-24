@@ -1,3 +1,5 @@
+"""Modification of https://github.com/mahmoodlab/CLAM"""
+
 import numpy as np
 import torch
 import torch.nn as nn

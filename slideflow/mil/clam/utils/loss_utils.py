@@ -1,4 +1,7 @@
-"""Utility functions for calculating loss from CLAM module output."""
+"""Utility functions for calculating loss from CLAM module output.
+
+Modification of https://github.com/mahmoodlab/CLAM
+"""
 
 import torch
 import torch.nn.functional as F

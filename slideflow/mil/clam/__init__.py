@@ -1,3 +1,5 @@
+"""This submodule is a modification of https://github.com/mahmoodlab/CLAM"""
+
 import os
 import numpy as np
 import pandas as pd

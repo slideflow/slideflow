@@ -1,5 +1,6 @@
-import pickle
+"""Modification of https://github.com/mahmoodlab/CLAM"""
 
+import pickle
 import h5py
 
 
@@ -7,6 +8,7 @@ def save_pkl(filename, save_object):
 	writer = open(filename,'wb')
 	pickle.dump(save_object, writer)
 	writer.close()
+
 
 def load_pkl(filename):
 	loader = open(filename,'rb')
@@ -23,7 +25,13 @@ def save_hdf5(output_path, asset_dict, attr_dict= None, mode='a'):
             data_type = val.dtype
             chunk_shape = (1, ) + data_shape[1:]
             maxshape = (None, ) + data_shape[1:]
-            dset = file.create_dataset(key, shape=data_shape, maxshape=maxshape, chunks=chunk_shape, dtype=data_type)
+            dset = file.create_dataset(
+                key,
+                shape=data_shape,
+                maxshape=maxshape,
+                chunks=chunk_shape,
+                dtype=data_type
+            )
             dset[:] = val
             if attr_dict is not None:
                 if key in attr_dict.keys():

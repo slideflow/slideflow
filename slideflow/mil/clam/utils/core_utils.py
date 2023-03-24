@@ -1,3 +1,5 @@
+"""Modification of https://github.com/mahmoodlab/CLAM"""
+
 import os
 
 import numpy as np
