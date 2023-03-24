@@ -31,7 +31,7 @@ class MIL_fc(nn.Module):
             fc.append(nn.Dropout(0.25))
 
         fc.append(nn.Linear(self.size[1], n_classes))
-        self.classifier= nn.Sequential(*fc)
+        self.classifier = nn.Sequential(*fc)
         initialize_weights(self)
         self.top_k=top_k
 

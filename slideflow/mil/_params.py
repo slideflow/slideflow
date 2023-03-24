@@ -1,11 +1,12 @@
 """Model and trainer configuration classes for MIL models."""
 
 from torch import nn
-from typing import Optional
+from typing import Optional, Union, Callable
+from slideflow.mil.marugoto.model import Marugoto_MIL
 
 
-def mil_config(model: str, trainer: str = 'fastai', **kwargs):
-    if model == 'marugoto' and trainer == 'clam':
+def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
+    if (model == 'marugoto' or not isinstance(model, str)) and trainer == 'clam':
         raise ValueError(f"Model {model} incompatible with trainer {trainer}")
     if trainer == 'fastai':
         return TrainerConfigFastAI(model=model, **kwargs)
@@ -36,8 +37,6 @@ class TrainerConfig(DictConfig):
         for p, val in self.to_dict().items():
             if p != 'model_config':
                 out += '\n  {}={!r}'.format(p, val)
-        for p, val in self.model_config.to_dict().items():
-            out += '\n  {}={!r}'.format(p, val)
         out += '\n)'
         return out
 
@@ -69,7 +68,7 @@ class TrainerConfig(DictConfig):
 class TrainerConfigFastAI(TrainerConfig):
     def __init__(
         self,
-        model: str = 'marugoto',
+        model: Union[str, Callable] = 'marugoto',
         lr: Optional[float] = None,
         lr_max: Optional[float] = None,
         wd: float = 1e-5,
@@ -86,10 +85,10 @@ class TrainerConfigFastAI(TrainerConfig):
         self.fit_one_cycle = fit_one_cycle
         self.epochs = epochs
         self.batch_size = batch_size
-        if model in ModelConfigMarugoto.valid_models:
-            self.model_config = ModelConfigMarugoto(model=model, **kwargs)
-        else:
+        if model in ModelConfigCLAM.valid_models:
             self.model_config = ModelConfigCLAM(model=model, **kwargs)
+        else:
+            self.model_config = ModelConfigFastAI(model=model, **kwargs)
 
 
 class TrainerConfigCLAM(TrainerConfig):
@@ -174,12 +173,22 @@ class ModelConfigCLAM(DictConfig):
             return loss_utils.CrossEntropyLoss
 
 
-class ModelConfigMarugoto(DictConfig):
+class ModelConfigFastAI(DictConfig):
 
     valid_models = ['marugoto', 'transmil']
 
-    def __init__(self, model: str = 'marugoto'):
+    def __init__(
+        self,
+        model: Union[str, Callable] = 'marugoto',
+        use_lens: Optional[bool] = None
+    ) -> None:
         self.model = model
+        if use_lens is None and (model == 'marugoto' or model is Marugoto_MIL):
+            self.use_lens = True
+        elif use_lens is None:
+            self.use_lens = False
+        else:
+            self.use_lens = use_lens
 
     @property
     def model_fn(self):
@@ -189,9 +198,17 @@ class ModelConfigMarugoto(DictConfig):
         elif self.model == 'transmil':
             from .transmil.model import TransMIL
             return TransMIL
+        elif not isinstance(self.model, str):
+            return self.model
         else:
             raise ValueError(f"Unrecognized model {self.model}")
 
     @property
     def loss_fn(self):
         return nn.CrossEntropyLoss
+
+    def to_dict(self):
+        d = super().to_dict()
+        if not isinstance(d['model'], str):
+            d['model'] = d['model'].__name__
+        return d

@@ -112,10 +112,34 @@ def _build_clam_learner(
     encoder = OneHotEncoder(sparse=False).fit(unique_categories.reshape(-1, 1))
 
     # Build dataloaders.
-    train_dataset = marugoto.data.build_clam_dataset(bags[train_idx], targets[train_idx], encoder=encoder, bag_size=config.bag_size)
-    train_dl = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=1, drop_last=False, device=device)
-    val_dataset = marugoto.data.build_clam_dataset(bags[val_idx], targets[val_idx], encoder=encoder, bag_size=None)
-    val_dl = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=8, persistent_workers=True, device=device)
+    train_dataset = marugoto.data.build_clam_dataset(
+        bags[train_idx],
+        targets[train_idx],
+        encoder=encoder,
+        bag_size=config.bag_size
+    )
+    train_dl = DataLoader(
+        train_dataset,
+        batch_size=1,
+        shuffle=True,
+        num_workers=1,
+        drop_last=False,
+        device=device
+    )
+    val_dataset = marugoto.data.build_clam_dataset(
+        bags[val_idx],
+        targets[val_idx],
+        encoder=encoder,
+        bag_size=None
+    )
+    val_dl = DataLoader(
+        val_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=8,
+        persistent_workers=True,
+        device=device
+    )
 
     # Prepare model.
     log.info(f"Training model {config.model_fn.__name__}, loss={config.loss_fn.__name__}")
@@ -165,10 +189,36 @@ def _build_marugoto_learner(
     encoder = OneHotEncoder(sparse=False).fit(unique_categories.reshape(-1, 1))
 
     # Build dataloaders.
-    train_dataset = marugoto.data.build_dataset(bags[train_idx], targets[train_idx], encoder=encoder, bag_size=config.bag_size)
-    train_dl = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, num_workers=1, drop_last=True, device=device)
-    val_dataset = marugoto.data.build_dataset(bags[val_idx], targets[val_idx], encoder=encoder, bag_size=None)
-    val_dl = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=8, persistent_workers=True, device=device)
+    train_dataset = marugoto.data.build_dataset(
+        bags[train_idx],
+        targets[train_idx],
+        encoder=encoder,
+        bag_size=config.bag_size,
+        use_lens=config.model_config.use_lens
+    )
+    train_dl = DataLoader(
+        train_dataset,
+        batch_size=config.batch_size,
+        shuffle=True,
+        num_workers=1,
+        drop_last=True,
+        device=device
+    )
+    val_dataset = marugoto.data.build_dataset(
+        bags[val_idx],
+        targets[val_idx],
+        encoder=encoder,
+        bag_size=None,
+        use_lens=config.model_config.use_lens
+    )
+    val_dl = DataLoader(
+        val_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=8,
+        persistent_workers=True,
+        device=device
+    )
 
     # Prepare model.
     log.info(f"Training model {config.model_fn.__name__}, loss={config.loss_fn.__name__}")

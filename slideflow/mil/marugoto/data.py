@@ -10,12 +10,15 @@ from torch.utils.data import Dataset
 
 # -----------------------------------------------------------------------------
 
-def build_dataset(bags, targets, encoder, bag_size):
+def build_dataset(bags, targets, encoder, bag_size, use_lens=False):
     assert len(bags) == len(targets)
 
     def _zip(bag, targets):
         features, lengths = bag
-        return (features, lengths, targets.squeeze())
+        if use_lens:
+            return (features, lengths, targets.squeeze())
+        else:
+            return (features, targets.squeeze())
 
     return MapDataset(
         _zip,
