@@ -678,6 +678,8 @@ class Mosaic:
     def view(self, slides: List[str] = None) -> None:
         """Open Mosaic in Workbench.
 
+        See :ref:`workbench` for more information.
+
         Args:
             slides (list(str), optional): Path to whole-slide images. Used for
                 displaying image tile context when hovering over a mosaic grid.

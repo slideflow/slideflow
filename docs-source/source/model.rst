@@ -67,6 +67,8 @@ Features
 Other functions
 ***************
 .. autofunction:: build_trainer
+.. autofunction:: build_feature_extractor
+.. autofunction:: list_extractors
 .. autofunction:: is_tensorflow_model
 .. autofunction:: is_tensorflow_tensor
 .. autofunction:: is_torch_model

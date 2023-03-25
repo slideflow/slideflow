@@ -2111,7 +2111,11 @@ class WSI(_BaseLoader):
         return tile_generator()
 
     def view(self):
-        """Open the slide in Workbench for interactive display."""
+        """Open the slide in Workbench for interactive display.
+
+        See :ref:`workbench` for more information.
+
+        """
         from slideflow.workbench.widgets import MosaicWidget
         from slideflow.workbench import Workbench
 

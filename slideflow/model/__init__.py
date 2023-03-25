@@ -944,7 +944,7 @@ class DatasetFeatures:
     ) -> None:
         """Export activations in torch format to .pt files in the directory.
 
-        Used for training CLAM models.
+        Used for training MIL models.
 
         Args:
             outdir (str): Path to directory in which to save .pt files.

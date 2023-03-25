@@ -21,7 +21,7 @@ def build_feature_extractor(name, **kwargs):
     Args:
         name (str): Name of the feature extractor to build. Available
             feature extractors are listed with
-            `slideflow.model.list_extractors()`.
+            :func:`slideflow.model.list_extractors()`.
 
     Keyword arguments:
         tile_px (int): Tile size (input image size), in pixels.
@@ -37,7 +37,7 @@ def build_feature_extractor(name, **kwargs):
         Create an extractor that calculates post-convolutional layer activations
         from an imagenet-pretrained Resnet50 model.
 
-            ..code-block:: python
+            .. code-block:: python
 
                 from slideflow.model import build_feature_extractor
 
@@ -48,7 +48,7 @@ def build_feature_extractor(name, **kwargs):
         Create an extractor that calculates 'conv4_block4_2_relu' activations
         from an imagenet-pretrained Resnet50 model.
 
-            ..code-block:: python
+            .. code-block:: python
 
                 from slideflow.model import build_feature_extractor
 
@@ -59,7 +59,7 @@ def build_feature_extractor(name, **kwargs):
 
         Create a pretrained "CTransPath" extractor.
 
-            ..code-block:: python
+            .. code-block:: python
 
                 from slideflow.model import build_feature_extractor
 
@@ -67,7 +67,7 @@ def build_feature_extractor(name, **kwargs):
 
         Use an extractor to calculate layer activations for an entire dataset.
 
-            ..code-block:: python
+            .. code-block:: python
 
                 import slideflow as sf
 
@@ -76,10 +76,15 @@ def build_feature_extractor(name, **kwargs):
                 dataset = P.dataset(...)
 
                 # Create a feature extractor
-                resnet = sf.model.build_feature_extractor('resnet50_imagenet')
+                resnet = sf.model.build_feature_extractor(
+                    'resnet50_imagenet'
+                )
 
                 # Calculate features for the entire dataset
-                features = sf.DatasetFeatures(resnet, dataset=dataset)
+                features = sf.DatasetFeatures(
+                    resnet,
+                    dataset=dataset
+                )
 
     """
     if is_tensorflow_extractor(name) and is_torch_extractor(name):

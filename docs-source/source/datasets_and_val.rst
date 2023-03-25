@@ -231,6 +231,16 @@ The default validation strategy is three-fold cross-validation (``strategy='k-fo
         splits='splits.json'      # Where to save/load crossfold splits
     )
 
+You can also use :meth:`Dataset.kfold_split` to iterate through cross-fold splits:
+
+.. code-block:: python
+
+    # Split a dataset into training and validation
+    # using 5-fold cross-validation
+    for train, test in dataset.kfold_split(k=5, labels='subtype'):
+        ...
+
+
 .. _validation_strategies:
 
 Validation strategies

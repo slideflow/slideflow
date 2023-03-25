@@ -2210,7 +2210,7 @@ class Dataset:
         Example
             Create histograms of tiles-per-slide, stratified by site.
 
-                ..code-block:: python
+                .. code-block:: python
 
                     import matplotlib.pyplot as plt
 

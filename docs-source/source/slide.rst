@@ -48,6 +48,7 @@ Methods
 .. autofunction:: slideflow.WSI.tensorflow
 .. autofunction:: slideflow.WSI.torch
 .. autofunction:: slideflow.WSI.thumb
+.. autofunction:: slideflow.WSI.view
 
 
 slideflow.TMA

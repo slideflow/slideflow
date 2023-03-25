@@ -28,7 +28,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    evaluation
    posthoc
    uq
-   clam
+   mil
    ssl
    stylegan
    custom_loops

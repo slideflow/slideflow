@@ -19,6 +19,15 @@ Workbench is run through the ``slideflow.workbench`` module. A path to a whole-s
 
 Use the ``--help`` flag to see a list of available arguments.
 
+You can also launch workbench by using the ``.view()`` function of :class:`slideflow.WSI`, :class:`slideflow.Heatmap`, and :class:`slideflow.Mosaic` functions.
+
+.. code-block:: python
+
+    import slideflow
+
+    wsi = sf.WSI('/path/to/slide.svs', tile_px=299, tile_um=302)
+    wsi.view()
+
 Layout & design
 ***************
 
@@ -106,6 +115,28 @@ Once a model is loaded, the heatmap widget can be used to generate and display w
 The heatmap widget also shows a histogram of tile-level predictions (after filtering), as well as the final slide-level prediction, which is an average of these tile-level predictions.
 
 By default, heatmaps are calculated with multiprocessing pools. This may come at the cost of heavy memory utilization. To decrease memory utilization at the cost of slower heatmap calculation, switch to low memory mode using the performance widget (described below), or by using the launch flag ``--low_memory``.
+
+Mosaic maps
+***********
+
+Mosaic maps can also be interactively viewed in Workbench. You can use the :meth:`slideflow.Mosaic.view` function to launch Workbench and load the mosaic.
+
+.. code-block:: python
+
+    import slideflow as sf
+
+    mosaic = sf.Mosaic(...)
+    mosaic.view()
+
+Alternatively, a mosaic map can be saved to disk with :meth:`slideflow.Mosaic.export`, and then loaded into Workbench with File -> Load Mosaic.
+
+.. image:: workbench_mosaic_small.png
+
+|
+
+Once loaded,the mosaic map can be navigated using the same controls as WSI navigation - click and drag to pan, and use the mouse wheel to zoom. The UMAP used to generate the mosaic map will be shown in a window in the bottom-right corner, with a red box indicating the section of the UMAP currently in view. Hovering over an image tile will reveal a popup containing a larger corresponding section from the associated whole-slide image. This popup also contains the name of the slide and tile location coordinates.
+
+You can increase the grid size for the mosaic map by pressing Ctrl+=, or decrease the mosaic grid size with Ctrl+-.
 
 Cell segmentation
 *****************

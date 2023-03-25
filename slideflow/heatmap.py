@@ -762,7 +762,11 @@ class Heatmap:
         log.info(f'Saved heatmaps for [green]{self.slide.name}')
 
     def view(self):
-        """Load the Heatmap into Workbench for interactive view."""
+        """Load the Heatmap into Workbench for interactive view.
+
+        See :ref:`workbench` for more information.
+
+        """
         from slideflow.workbench import Workbench
 
         bench = Workbench()
