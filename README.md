@@ -113,11 +113,11 @@ P = sf.create_project(
 
 After the slides have been downloaded and verified, you can skip to [Extract tiles from slides](#extract-tiles-from-slides).
 
-Alternatively, to create a new custom project, create an instance of the `slideflow.Project` class, supplying the location of patient-level annotations (CSV), slides, and a destination for TFRecords to be saved:
+Alternatively, to create a new custom project, supply the location of patient-level annotations (CSV), slides, and a destination for TFRecords to be saved:
 
 ```python
 import slideflow as sf
-P = sf.Project(
+P = sf.create_project(
   '/project/path',
   annotations="/patient/annotations.csv",
   slides="/slides/directory",
