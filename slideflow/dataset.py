@@ -1812,33 +1812,6 @@ class Dataset:
         else:
             return matching[0]
 
-    def get_tfrecord_by_location(
-        self,
-        slide: str,
-        loc: Tuple[int, int],
-        decode: bool = True
-    ) -> Any:
-        """Read a record from a TFRecord, indexed by location.
-
-        Finds the associated TFRecord for a slide, and returns the record
-        inside which corresponds to a given tile location.
-
-        Args:
-            slide (str): Name of slide. Will search for the slide's associated
-                TFRecord.
-            loc ((int, int)): ``(x, y)`` tile location. Searches the TFRecord
-                for the tile that corresponds to this location.
-            decode (bool): Decode the associated record, returning numpy
-                arrays. Defaults to True.
-
-        """
-        tfr = self.find_tfrecord(slide=slide)
-        if tfr is None:
-            raise errors.TFRecordsError(
-                f"Could not find associated TFRecord for slide '{slide}'"
-            )
-        return sf.io.get_tfrecord_by_location(tfr, loc, decode=decode)
-
     def get_tfrecord_locations(self, slide: str) -> List[Tuple[int, int]]:
         """Return a list of locations stored in an associated TFRecord.
 
@@ -2286,6 +2259,38 @@ class Dataset:
             join(path, f) for f in os.listdir(path)
             if f.endswith('.pt') and path_to_name(f) in self.slides()
         ])
+
+    def read_tfrecord_by_location(
+        self,
+        slide: str,
+        loc: Tuple[int, int],
+        decode: bool = True
+    ) -> Any:
+        """Read a record from a TFRecord, indexed by location.
+
+        Finds the associated TFRecord for a slide, and returns the record
+        inside which corresponds to a given tile location.
+
+        Args:
+            slide (str): Name of slide. Will search for the slide's associated
+                TFRecord.
+            loc ((int, int)): ``(x, y)`` tile location. Searches the TFRecord
+                for the tile that corresponds to this location.
+            decode (bool): Decode the associated record, returning Tensors.
+                Defaults to True.
+
+        Returns:
+            Unprocessed raw TFRecord bytes if ``decode=False``, otherwise a
+            tuple containing ``(slide, image)``, where ``image`` is a
+            uint8 Tensor.
+
+        """
+        tfr = self.find_tfrecord(slide=slide)
+        if tfr is None:
+            raise errors.TFRecordsError(
+                f"Could not find associated TFRecord for slide '{slide}'"
+            )
+        return sf.io.read_tfrecord_by_location(tfr, loc, decode=decode)
 
     def remove_filter(self, **kwargs: Any) -> "Dataset":
         """Remove a specific filter from the active filters.

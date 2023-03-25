@@ -2292,10 +2292,10 @@ class UncertaintyInterface(Features):
 
 
 def load(path: str) -> torch.nn.Module:
-    """Load PyTorch model from location.
+    """Load a model trained with Slideflow.
 
     Args:
-        path (str): Path to saved PyTorch model.
+        path (str): Path to saved model. Must be a model trained in Slideflow.
 
     Returns:
         torch.nn.Module: Loaded model.

@@ -1,6 +1,6 @@
 .. _clam_mil:
 
-Multi-Instance Learning (MIL)
+Multiple-Instance Learning (MIL)
 =============================
 
 In addition to standard tile-based neural networks, slideflow supports training multiple-instance learning (MIL) models. Several architectures are available, including `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), and `transformer MIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``). Custom architectures can also be trained.
@@ -13,31 +13,44 @@ The first step in MIL training is generating features from image tiles extracted
 ImageNet Features
 -----------------
 
-To calculate features from an ImageNet-pretrained network, set the first argument of :class:`slideflow.DatasetFeatures` equal to the name of an architecture available in Slideflow. You can optionally specify the layer from which to generate features with the ``layers`` argument; if not provided, it will default to calculating features from post-convolutional layer activations.
+To calculate features from an ImageNet-pretrained network, first build an imagenet feature extractor with :func:`slideflow.model.build_feature_extractor`. The first argument should be the name of an architecture followed by ``_imagnet``, and the expected tile size should be passed to the keyword argument ``tile_px``. You can optionally specify the layer from which to generate features with the ``layers`` argument; if not provided, it will default to calculating features from post-convolutional layer activations. For example, to build a ResNet50 feature extractor for images at 299 x 299 pixels:
 
 .. code-block:: python
 
-    import slideflow as sf
+    from slideflow.model import build_feature_extractor
 
+    resnet50 = build_feature_extractor(
+        'resnet50_imagenet',
+        tile_px=299
+    )
+
+Next, pass this feature extractor to the first argument of :class:`slideflow.DatasetFeatures`.  The second argument should be a :class:`slideflow.Dataset`.
+
+.. code-block:: python
+
+    ...
+
+    # Load a project and dataset.
     P = sf.Project(...)
     dataset = P.dataset(tile_px=299, tile_um=302)
-    features = sf.DatasetFeatures(
-        'resnet50',
-        dataset=dataset,
-        layers='postconv'
-    )
+
+    # Calculate features for this dataset.
+    features = sf.DatasetFeatures(resnet50, dataset)
 
 Features from Finetuned Model
 -----------------------------
 
-You can also calculate features from any model trained in Slideflow. Set the first argument of :class:`slideflow.DatasetFeatures` equal to the path of the trained model, optionally specifying the layer name with ``layers``.
+You can also calculate features from any model trained in Slideflow. Set the first argument of :class:`slideflow.DatasetFeatures` equal to the path of the trained model, optionally specifying the layer name with ``layers`` to choose the layer at which features will be calculated (defaults to post-convolutional layer).
 
 .. code-block:: python
 
     import slideflow as sf
 
+    # Load a project and dataset.
     P = sf.Project(...)
     dataset = P.dataset(tile_px=299, tile_um=302)
+
+    # Calculate features from trained model.
     features = sf.DatasetFeatures(
         '/path/to/model',
         dataset=dataset
@@ -51,7 +64,9 @@ Slideflow includes several pathology-specific pretrained feature extractors. Use
 
 .. code-block:: python
 
-    ctranspath = sf.model.build_feature_extractor('ctranspath', tile_px=299)
+    from slideflow.model import build_feature_extractor
+
+    ctranspath = build_feature_extractor('ctranspath', tile_px=299)
     features = sf.DatasetFeatures(ctranspath, ...)
 
 Self-Supervised Learning
@@ -91,9 +106,9 @@ By default, training is executed using `FastAI <https://docs.fast.ai/>`_ with `1
 .. code-block:: python
 
     import slideflow as sf
-    import slideflow.mil
+    from slideflow.mil import mil_config
 
-    config = sf.mil.mil_config('attention_mil', lr_max=1e-3)
+    config = mil_config('attention_mil', lr_max=1e-3)
 
 
 Legacy Trainer (CLAM)
@@ -103,7 +118,7 @@ In addition to the FastAI trainer, CLAM models can be trained using the `origina
 
 .. code-block:: python
 
-    config = sf.mil.mil_config(..., trainer='clam')
+    config = mil_config(..., trainer='clam')
 
 
 Training an MIL Model
@@ -147,13 +162,14 @@ To evaluate a saved MIL model on an external dataset, first extract features fro
 .. code-block:: python
 
     import slideflow as sf
+    from slideflow.model import build_feature_extractor
 
     # Prepare a project and dataset
     P = sf.Project(...)
     dataset = P.dataset(tile_px=299, tile_um=302)
 
     # Generate features using CTransPath
-    ctranspath = sf.model.build_feature_extractor('ctranspath', tile_px=299)
+    ctranspath = build_feature_extractor('ctranspath', tile_px=299)
     features = sf.DatasetFeatures(ctranspath, dataset=dataset)
     features.to_torch('/path/to/bag_directory')
 

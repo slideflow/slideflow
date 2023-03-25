@@ -31,6 +31,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    mil
    ssl
    stylegan
+   saliency
    custom_loops
    workbench_tools
    troubleshooting

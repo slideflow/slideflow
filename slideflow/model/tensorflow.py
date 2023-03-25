@@ -2538,10 +2538,10 @@ def load(
     path: str,
     method: str = 'full',
     custom_objects: Optional[Dict[str, Any]] = None,):
-    """Load Tensorflow model from location.
+    """Load a model trained with Slideflow.
 
     Args:
-        path (str): Path to saved Tensorflow model.
+        path (str): Path to saved model. Must be a model trained in Slideflow.
         method (str): Method to use when loading the model; either 'full' or
             'weights'. If 'full', will load the saved model with
             ``tf.keras.models.load_model()``. If 'weights', will read the

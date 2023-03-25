@@ -144,13 +144,26 @@ def get_tfrecord_by_index(
     return False, False
 
 
-def get_tfrecord_by_location(
+def read_tfrecord_by_location(
     tfrecord: str,
     location: Tuple[int, int],
     decode: bool = True
 ) -> Any:
     '''Reads and returns an individual record from a tfrecord by index,
     including slide name and processed image data.
+
+    Args:
+        tfrecord (str): Path to TFRecord file.
+        location (tuple(int, int)): ``(x, y)`` tile location.
+            Searches the TFRecord for the tile that corresponds to this
+            location.
+        decode (bool): Decode the associated record, returning Tensors.
+            Defaults to True.
+
+    Returns:
+        Unprocessed raw TFRecord bytes if ``decode=False``, otherwise a
+        tuple containing ``(slide, image)``, where ``image`` is a
+        uint8 Tensor.
     '''
     if isinstance(location, list):
         location = tuple(location)
