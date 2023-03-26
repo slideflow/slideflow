@@ -7,13 +7,15 @@ import cv2
 import numpy as np
 
 from types import SimpleNamespace
-from typing import Optional, Dict, Any, Tuple, List
+from typing import Optional, Dict, Any, Tuple, List, TYPE_CHECKING
 from slideflow.util import log
-from cucim import CuImage
 from skimage.transform import resize
 from skimage.util import img_as_float
 from skimage.color import rgb2hsv
 from slideflow.slide.utils import *
+
+if TYPE_CHECKING:
+    from cucim import CuImage
 
 
 __cv2_resize__ = True
@@ -194,6 +196,9 @@ class _cuCIMReader:
     ):
         '''Wrapper for cuCIM reader to preserve cross-compatible functionality.'''
         global __cuimage__, __cuimage_path__
+
+        from cucim import CuImage
+
         self.path = path
         self.cache_kw = cache_kw if cache_kw else {}
         self.loaded_downsample_levels = {}  # type: Dict[int, "CuImage"]

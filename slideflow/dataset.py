@@ -112,7 +112,6 @@ from tqdm import tqdm
 
 import slideflow as sf
 from slideflow import errors
-from slideflow.model import ModelParams
 from slideflow.slide import WSI, ExtractionReport, SlideReport
 from slideflow.util import (log, Labels, _shortname, path_to_name,
                             tfrecord2idx, TileExtractionProgress)
@@ -120,6 +119,7 @@ from slideflow.util import (log, Labels, _shortname, path_to_name,
 if TYPE_CHECKING:
     import tensorflow as tf
     import cellpose
+    from slideflow.model import ModelParams
     from torch.utils.data import DataLoader
     from slideflow.norm import StainNormalizer
 
@@ -696,12 +696,13 @@ class Dataset:
         config = self.sources[source]
         return 'slides' in config and config['slides']
 
-    def _assert_size_matches_hp(self, hp: Union[Dict, ModelParams]) -> None:
+    def _assert_size_matches_hp(self, hp: Union[Dict, "ModelParams"]) -> None:
         """Check if dataset tile size (px/um) matches the given parameters."""
+
         if isinstance(hp, dict):
             hp_px = hp['tile_px']
             hp_um = hp['tile_um']
-        elif isinstance(hp, ModelParams):
+        elif isinstance(hp, sf.ModelParams):
             hp_px = hp.tile_px
             hp_um = hp.tile_um
         else:

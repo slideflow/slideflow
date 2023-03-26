@@ -1,11 +1,10 @@
 """Utility functions and sample configuration spaces
 for Bayesian hyperparameter searching with SMAC."""
 
-import ConfigSpace.hyperparameters as cs_hp
-from typing import Optional, List, Union, Tuple
-from ConfigSpace import (
-    ConfigurationSpace, NotEqualsCondition, LessThanCondition
-)
+from typing import Optional, List, Union, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ConfigSpace import ConfigurationSpace
 
 def broad_search_space(
     *,
@@ -21,7 +20,7 @@ def broad_search_space(
     hidden_layers: Optional[List[int]] = [0, 1, 2, 3],                  # Int (ordinal)
     hidden_layer_width: Optional[List[int]] = [64, 128, 256, 512],      # Int (ordinal)
     **kwargs
-) -> ConfigurationSpace:
+) -> "ConfigurationSpace":
     """Build a configuration space for a broad hyperparameter search.
 
     This is the same as create_search_space(), but with the following default
@@ -112,7 +111,7 @@ def shallow_search_space(
     learning_rate: Optional[Tuple[float, float]] = (0.00005, 0.0005),   # Float (log range)
     hidden_layers: Optional[List[int]] = [0, 1, 2],                     # Int (ordinal)
     **kwargs
-) -> ConfigurationSpace:
+) -> "ConfigurationSpace":
     """Build a configuration space for a shallow hyperparameter search.
 
     This is the same as create_search_space(), but with the following default
@@ -209,7 +208,7 @@ def create_search_space(
     pooling: Optional[List[str]] = None,                          # Categorical
     trainable_layers: Optional[Tuple[int, int]] = None,           # Int (range)
     early_stop: bool = False,                                     # Boolean
-) -> ConfigurationSpace:
+) -> "ConfigurationSpace":
     """Build a configuration space for a Bayesian hyperparameter search.
 
     Keyword args:
@@ -261,6 +260,11 @@ def create_search_space(
         ConfigSpace.ConfigurationSpace
 
     """
+    # Delayed imports due to long import time
+    import ConfigSpace.hyperparameters as cs_hp
+    from ConfigSpace import (
+        ConfigurationSpace, NotEqualsCondition, LessThanCondition
+    )
 
     cs = ConfigurationSpace()
 

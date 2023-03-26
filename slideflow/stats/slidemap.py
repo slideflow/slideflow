@@ -7,7 +7,6 @@ import pandas as pd
 import slideflow as sf
 import warnings
 from os.path import join, exists, isdir
-from mpl_toolkits.mplot3d import Axes3D
 from pandas.core.frame import DataFrame
 from sklearn.cluster import KMeans
 from slideflow import errors
@@ -859,6 +858,7 @@ class SlideMap:
                 will prepare a new figure.
         """
         import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
 
         if fig is None:
             fig = plt.figure()
