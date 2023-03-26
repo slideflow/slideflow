@@ -406,6 +406,7 @@ def interleave(
     rois: Optional[List[str]] = None,
     roi_method: str = 'auto',
     pool: Optional["mp.pool.Pool"] = None,
+    tfrecord_parser: Optional[Callable] = None,
     **decode_kwargs: Any
 ) -> Iterable:
 
@@ -537,7 +538,7 @@ def interleave(
                 otsu_list += [wsi]
                 pb.advance(otsu_task)
             est_num_tiles = sum([wsi.estimated_num_tiles for wsi in otsu_list])
-        else:
+        elif tfrecord_parser is None:
             base_parser = None  # type: ignore
             for i in range(len(paths)):
                 if base_parser is not None:
@@ -549,6 +550,8 @@ def interleave(
                     features_to_return,
                     img_size=img_size,
                     **decode_kwargs)
+        else:
+            base_parser = tfrecord_parser
 
         for t, tfr in enumerate(paths):
             if from_wsi:

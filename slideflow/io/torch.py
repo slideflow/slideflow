@@ -797,6 +797,7 @@ def interleave(
     roi_method: str = 'auto',
     pool: Optional[Any] = None,
     transform: Optional[Any] = None,
+    tfrecord_parser: Optional[Callable] = None,
 ):
 
     """Returns a generator that interleaves records from a collection of
@@ -937,12 +938,15 @@ def interleave(
     else:
         # ---- Get the base TFRecord parser, based on the first tfrecord ------
         _, img_type = detect_tfrecord_format(paths[0])
-        base_parser = get_tfrecord_parser(
-            paths[0],
-            features_to_return,
-            decode_images=False,
-            to_numpy=False
-        )
+        if tfrecord_parser is not None:
+            base_parser = tfrecord_parser
+        else:
+            base_parser = get_tfrecord_parser(
+                paths[0],
+                features_to_return,
+                decode_images=False,
+                to_numpy=False
+            )
         # ---- Set up TFRecord indexes for sharding ---------------------------
         # Index files not created in this interleave function, as there may be
         # multiple instances of this function running across processes,
