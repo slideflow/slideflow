@@ -5,10 +5,13 @@ import scipy.stats
 # https://github.com/Netflix/vmaf/
 def compute_midrank(x):
     """Computes midranks.
+
     Args:
        x - a 1D numpy array
+
     Returns:
        array of midranks
+
     """
     J = np.argsort(x)
     Z = x[J]
@@ -29,14 +32,16 @@ def compute_midrank(x):
 
 
 def fastDeLong(predictions_sorted_transposed, label_1_count):
-    """
-    The fast version of DeLong's method for computing the covariance of
+    """The fast version of DeLong's method for computing the covariance of
     unadjusted AUC.
+
     Args:
        predictions_sorted_transposed: a 2D numpy.array[n_classifiers, n_examples]
           sorted such as the examples with label "1" are first
+
     Returns:
        (AUC value, DeLong covariance)
+
     Reference:
      @article{sun2014fast,
        title={Fast Implementation of DeLong's Algorithm for
@@ -49,6 +54,7 @@ def fastDeLong(predictions_sorted_transposed, label_1_count):
        year={2014},
        publisher={IEEE}
      }
+
     """
     # Short variables are named as they are in the paper
     m = label_1_count
@@ -75,9 +81,11 @@ def fastDeLong(predictions_sorted_transposed, label_1_count):
 
 def calc_pvalue(aucs, sigma):
     """Computes log(10) of p-values.
+
     Args:
        aucs: 1D array of AUCs
        sigma: AUC DeLong covariances
+
     Returns:
        log10(pvalue)
     """
@@ -94,8 +102,8 @@ def compute_ground_truth_statistics(ground_truth):
 
 
 def delong_roc_variance(ground_truth, predictions):
-    """
-    Computes ROC AUC variance for a single set of predictions
+    """Computes ROC AUC variance for a single set of predictions
+
     Args:
        ground_truth: np.array of 0 and 1
        predictions: np.array of floats of the probability of being class 1
@@ -108,8 +116,8 @@ def delong_roc_variance(ground_truth, predictions):
 
 
 def delong_roc_test(ground_truth, predictions_one, predictions_two):
-    """
-    Computes log(p-value) for hypothesis that two ROC AUCs are different
+    """Computes log(p-value) for hypothesis that two ROC AUCs are different
+
     Args:
        ground_truth: np.array of 0 and 1
        predictions_one: predictions of the first model,

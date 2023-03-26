@@ -22,10 +22,8 @@ if sf.backend() == 'tensorflow':
     from slideflow.io.tensorflow import read_and_return_record  # noqa F401
     from slideflow.io.tensorflow import serialized_record
 
-    import tensorflow as tf
     from tensorflow.data import TFRecordDataset
     from tensorflow.io import TFRecordWriter
-    dataloss_errors = [tf.errors.DataLossError, errors.TFRecordsError]
 
 elif sf.backend() == 'torch':
     from slideflow.io.torch import \
@@ -33,7 +31,6 @@ elif sf.backend() == 'torch':
     from slideflow.io.torch import read_and_return_record, serialized_record
     from slideflow.tfrecord import TFRecordWriter
     from slideflow.tfrecord.torch.dataset import TFRecordDataset
-    dataloss_errors = [errors.TFRecordsError]
 
 else:
     raise errors.UnrecognizedBackendError
@@ -45,10 +42,17 @@ def update_manifest_at_dir(
     directory: str,
     force_update: bool = False
 ) -> Optional[Union[str, Dict]]:
-    '''Log number of tiles in each TFRecord file present in the given
+    """Log number of tiles in each TFRecord file present in the given
     directory and all subdirectories, saving manifest to file within
     the parent directory.
-    '''
+    """
+
+    if sf.backend() == 'tensorflow':
+        import tensorflow as tf
+        dataloss_errors = [tf.errors.DataLossError, errors.TFRecordsError]
+    else:
+        dataloss_errors = [errors.TFRecordsError]
+
     manifest_path = join(directory, "manifest.json")
     if not exists(manifest_path):
         manifest = {}

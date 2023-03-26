@@ -60,6 +60,19 @@ Whole-slide images can be loaded directly with File -> Open Slide. Alternatively
 
 A thumbnail of the loaded slide is shown on the left side of the slide widget. The right side of the widget shows a preview of slide properties, including dimensions, highest scanned magnification, slide scanner vendor, and how many annotated regions-of-interest (ROIs) are loaded for the slide. ROIs are loaded automatically if a Project is loaded, but can be disabled by unchecking "Use ROIs".
 
+ROI Annotations
+---------------
+
+Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow project has been loaded (File -> Open Project), then all available ROIs for the loaded slide will be shown. You can use Workbench to add or remove additional ROIs with the annotation tool.
+
+.. image:: roi_annotation.jpg
+
+|
+
+Once a slide has been opened, show the ROI annotation tool with View -> Show -> ROI Capture. Clicking "Add" will enable you to draw new ROIs with a lasso tool; right click and drag to create a new ROI. "Edit" allows you to select any existing ROIs, which can then be removed by pressing the Delete key. Once finished, ROIs can be exported in CSV format with "Save". You can manually load an existing ROI file with "Load."
+
+At present, ROIs can only be added with lasso selection. More advanced functionality will be added in an future release. Slideflow can also import ROIs generated from external applications such as QuPath and ImageScope (see :ref:`regions_of_interest` for more information).
+
 Preview tile filter
 -------------------
 

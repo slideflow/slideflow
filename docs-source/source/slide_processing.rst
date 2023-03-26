@@ -43,6 +43,8 @@ Cell segmentation
 
 An alternative to extracting tiles in a grid across whole-slide images is extracting tiles at detected cell centroids. This is discussed separately in :ref:`cellseg`.
 
+.. _regions_of_interest:
+
 Regions of Interest
 *******************
 

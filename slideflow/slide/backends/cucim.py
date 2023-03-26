@@ -5,7 +5,6 @@ Requires: cuCIM (...)
 
 import cv2
 import numpy as np
-import slideflow as sf
 
 from types import SimpleNamespace
 from typing import Optional, Dict, Any, Tuple, List

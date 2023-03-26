@@ -2,6 +2,8 @@ import pandas as pd
 import imgui
 import numpy as np
 
+from shapely.geometry import Point
+from shapely.geometry import Polygon
 from tkinter.filedialog import askopenfilename
 from ..gui import imgui_utils, text_utils, gl_utils
 from ..gui.annotator import AnnotationCapture
@@ -14,7 +16,9 @@ class AnnotationWidget:
         self.content_height = 0
         self.annotator      = AnnotationCapture(named=False)
         self.capturing      = False
+        self.editing        = False
         self.annotations    = []
+        self._mouse_down    = False
         self._late_render   = []
         self._visible       = False
 
@@ -57,21 +61,78 @@ class AnnotationWidget:
         kwargs = dict(color=color, linewidth=linewidth, alpha=alpha)
         self._late_render.append((np.array(annotation) + origin, name, kwargs))
 
+    def keyboard_callback(self, key, action):
+        import glfw
+        if (key == glfw.KEY_DELETE and action == glfw.PRESS):
+            if self.editing and hasattr(self.viz.viewer, 'selected_rois'):
+                for idx in self.viz.viewer.selected_rois:
+                    self.viz.wsi.remove_roi(idx)
+                self.viz.viewer.deselect_roi()
+                self.viz.viewer.refresh_view()
+
+
+    def check_for_selected_roi(self):
+        mouse_down = imgui.is_mouse_down(0)
+
+        # Mouse is newly up
+        if not mouse_down:
+            self._mouse_down = False
+            return
+        # Mouse is already down
+        elif self._mouse_down:
+            return
+        # Mouse is newly down
+        else:
+            self._mouse_down = True
+            mouse_point = Point(imgui.get_mouse_pos())
+            for roi_idx, roi_array in self.viz.viewer.rois:
+                try:
+                    roi_poly = Polygon(roi_array)
+                except ValueError:
+                    continue
+                if roi_poly.contains(mouse_point):
+                    return roi_idx
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
         if show and self.visible:
             imgui.begin('ROIs', flags=imgui.WINDOW_NO_RESIZE)
-            button_txt = 'Capture' if not self.capturing else 'Capturing...'
-            if imgui_utils.button(button_txt, width=viz.button_w, enabled=True):
+
+            # Add button.
+            add_txt = 'Add' if not self.capturing else 'Capturing...'
+            if imgui_utils.button(add_txt, width=viz.button_w, enabled=True):
                 self.capturing = not self.capturing
+                self.editing = False
+                if self.capturing:
+                    viz.create_toast(f'Capturing new ROIs. Right click and drag to create a new ROI.', icon='info')
+
+            # Edit button.
+            edit_txt = 'Edit' if not self.editing else 'Editing...'
+            if imgui_utils.button(edit_txt, width=viz.button_w, enabled=True):
+                self.editing = not self.editing
+                if self.editing:
+                    viz.create_toast(f'Editing ROIs. Click to select an ROI, and press <Del> to remove.', icon='info')
+                else:
+                    viz.viewer.deselect_roi()
+
+                self.capturing = False
+
+            # Save button.
             if imgui_utils.button('Save', width=viz.button_w, enabled=True):
                 dest = viz.wsi.export_rois()
                 viz.create_toast(f'ROIs saved to {dest}', icon='success')
+                self.editing = False
+                self.capturing = False
+
+            # Load button.
             if imgui_utils.button('Load', width=viz.button_w, enabled=True):
                 path = askopenfilename(title="Load ROIs...", filetypes=[("CSV", "*.csv",)])
                 viz.wsi.load_csv_roi(path)
                 viz.viewer.refresh_view()
+                self.editing = False
+                self.capturing = False
+
             imgui.end()
 
             if self.capturing:
@@ -94,4 +155,16 @@ class AnnotationWidget:
                     viz.wsi.load_roi_array(wsi_coords)
                     viz.viewer.refresh_view()
 
+            # Edit ROIs
+            if self.editing:
+                selected_roi = self.check_for_selected_roi()
+                if imgui.is_mouse_down(1):
+                    viz.viewer.deselect_roi()
+                elif selected_roi is not None:
+                    viz.viewer.deselect_roi()
+                    viz.viewer.select_roi(selected_roi)
+
+        else:
+            self.capturing = False
+            self.editing = False
 #----------------------------------------------------------------------------

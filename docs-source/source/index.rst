@@ -47,6 +47,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    dataset_features
    slidemap
    mosaic
+   biscuit
    slideflow_cellseg
    io
    io_tensorflow

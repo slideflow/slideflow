@@ -1756,7 +1756,12 @@ class WSI(_BaseLoader):
             return thumb
 
     def load_roi_array(self, array: np.ndarray):
-        self.rois.append(ROI(f'ROI{len(self.rois)}', array))
+        existing = [
+            int(r.name[4:]) for r in self.rois
+            if r.name.startswith('ROI_') and r.name[4:].isnumeric()
+        ]
+        roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
+        self.rois.append(ROI(f'ROI_{roi_id}', array))
         self.process_rois()
 
     def load_csv_roi(self, path: str) -> int:
@@ -1949,6 +1954,10 @@ class WSI(_BaseLoader):
             self._build_coord()
 
         return len(self.rois)
+
+    def remove_roi(self, idx):
+        del self.rois[idx]
+        self.process_rois()
 
     def tensorflow(
         self,

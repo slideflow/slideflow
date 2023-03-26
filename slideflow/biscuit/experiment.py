@@ -1027,14 +1027,22 @@ class Experiment:
 
     def train(self, hp, label, filters=None, save_predictions='csv',
               validate_on_batch=32, validation_steps=32, **kwargs):
-        """Trains a model.
+        r"""Train outer cross-validation models.
 
         Args:
-            hp (slideflow.ModelParams): Hyperparameters object.
+            hp (:class:`slideflow.ModelParams`): Hyperparameters object.
             label (str): Experimental label.
             filters (dict): Patient-level annotations filter.
             save_predictions (bool, optional): Save validation predictions to
                 model folder. Defaults to 'csv'.
+
+        Keyword args:
+            validate_on_batch (int): Frequency of validation checks during
+                training, in steps. Defaults to 32.
+            validation_steps (int): Number of validation steps to perform
+                during each mid-training evaluation check. Defaults to 32.
+            **kwargs: All remaining keyword arguments are passed to
+                :meth:`slideflow.Project.train`.
 
         Returns:
             None
@@ -1051,12 +1059,18 @@ class Experiment:
         )
 
     def train_nested_cv(self, hp, label, outer_k=3, inner_k=5, **kwargs):
-        """Trains a model with nested cross-validation (outer_k=3, inner_k=5),
+        r"""Train models using nested cross-validation (outer_k=3, inner_k=5),
         skipping already-generated models.
 
         Args:
             hp (slideflow.ModelParams): Hyperparameters object.
             label (str): Experimental label.
+
+        Keyword args:
+            outer_k (int): Number of outer cross-folds. Defaults to 3.
+            inner_k (int): Number of inner cross-folds. Defaults to 5.
+            **kwargs: All remaining keyword arguments are passed to
+                :meth:`slideflow.Project.train`.
 
         Returns:
             None

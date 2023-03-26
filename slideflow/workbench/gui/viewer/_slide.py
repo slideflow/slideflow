@@ -25,6 +25,7 @@ class SlideViewer(Viewer):
 
         # WSI parameters.
         self.rois           = []
+        self.selected_rois  = []
         self.wsi            = wsi
         self._tile_px       = wsi.tile_px
         self._tile_um       = wsi.tile_um
@@ -362,7 +363,7 @@ class SlideViewer(Viewer):
     def _refresh_rois(self) -> None:
         """Refresh the ROIs for the given location and zoom."""
         self.rois = []
-        for roi in self.wsi.rois:
+        for roi_idx, roi in enumerate(self.wsi.rois):
             c = np.copy(roi.coordinates)
             c[:, 0] = c[:, 0] - int(self.origin[0])
             c[:, 0] = c[:, 0] / self.view_zoom
@@ -370,13 +371,17 @@ class SlideViewer(Viewer):
             c[:, 1] = c[:, 1] - int(self.origin[1])
             c[:, 1] = c[:, 1] / self.view_zoom
             c[:, 1] = c[:, 1] + self.view_offset[1] + self.y_offset
-            self.rois += [c]
+            out_of_view_max = np.any(np.amax(c, axis=0) < 0)
+            out_of_view_min = np.any(np.amin(c, axis=0) > np.array([self.width+self.x_offset, self.height+self.y_offset]))
+            if not (out_of_view_min or out_of_view_max):
+                self.rois += [(roi_idx, c)]
 
     def _render_rois(self) -> None:
         """Render the ROIs with OpenGL."""
-        for roi in self.rois:
+        for roi_idx, roi in self.rois:
+            c = [1, 0, 0] if roi_idx in self.selected_rois else 0
             gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
-            gl_utils.draw_roi(roi, color=0, alpha=1, linewidth=3)
+            gl_utils.draw_roi(roi, color=c, alpha=1, linewidth=3)
 
     def grid_in_view(self, wsi=None):
         """Returns coordinates of WSI grid currently in view."""
@@ -474,6 +479,18 @@ class SlideViewer(Viewer):
         imgui.begin('Status bar', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_SCROLLBAR))
         imgui.text('x={:<8} y={:<8} mpp={:.3f}'.format(int(self.viz.mouse_x), int(self.viz.mouse_y), self.mpp))
         imgui.end()
+
+    def select_roi(self, idx: int) -> None:
+        if idx not in self.selected_rois:
+            self.selected_rois.append(idx)
+
+    def deselect_roi(self, idx: Optional[int] = None):
+        if idx is None:
+            self.selected_rois = []
+        elif idx in self.selected_rois:
+            del self.selected_rois[self.selected_rois.index(idx)]
+        else:
+            raise IndexError(f"ROI {idx} is not selected.")
 
     def set_tile_px(self, tile_px: int):
         if tile_px != self.tile_px:
