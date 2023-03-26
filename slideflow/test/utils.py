@@ -319,9 +319,9 @@ class TestConfig:
         if sf.util.is_project(path) and overwrite:
             shutil.rmtree(path)
         if sf.util.is_project(path):
-            self.project = sf.Project(path)
+            self.project = sf.Project(path, create=True)
         else:
-            self.project = sf.Project(path, **self.project_settings)
+            self.project = sf.Project(path, **self.project_settings, create=True)
         self.project.save()
         self.configure_sources()
         self.configure_annotations()
