@@ -301,12 +301,12 @@ class Studio(ImguiWindow):
             if imgui.begin_popup('about_popup'):
 
                 if self._about_tex_obj is None:
-                    about_img = imgui_utils.about_image()
+                    about_img = imgui_utils.about_image().resize((96, 96))
                     self._about_tex_obj = gl_utils.Texture(image=about_img)
                 imgui.text('')
                 imgui.text('')
-                imgui.same_line(imgui.get_content_region_max()[0]/2 - 32 + self.spacing)
-                imgui.image(self._about_tex_obj.gl_id, 64, 64)
+                imgui.same_line(imgui.get_content_region_max()[0]/2 - 48 + self.spacing)
+                imgui.image(self._about_tex_obj.gl_id, 96, 96)
 
                 imgui.text('')
                 with self.bold_font():

@@ -37,7 +37,7 @@ class MosaicViewer(Viewer):
     live    = False
 
     def __init__(self, mosaic, width, height, slides=None, **kwargs):
-        """Workbench Viewer for displaying and interacting with a mosaic map."""
+        """Studio Viewer for displaying and interacting with a mosaic map."""
         super().__init__(width, height, **kwargs)
         self.mosaic = mosaic
         self.mosaic_x_offset = 0
