@@ -1,6 +1,43 @@
+import threading
 import click
 from os.path import dirname, realpath
-from . import Workbench
+
+__loaded__ = False
+
+#----------------------------------------------------------------------------
+
+def show_splash():
+    """Show a splash screen while the GUI loads."""
+    global __loaded__
+
+    from tkinter import Tk, Canvas
+    from PIL import ImageTk
+
+    root     = Tk()
+    img_file = "studio_logo_small_rect.png"
+    image    = ImageTk.PhotoImage(file=img_file)
+    w,h      = image.width(), image.height()
+
+    root.withdraw()
+    screen_width  = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    x = (screen_width  / 2) - (w / 2)
+    y = (screen_height / 2) - (h / 2)
+
+    root.overrideredirect(True)
+    root.geometry(f'{w}x{h}+{int(x)}+{int(y)}')
+    canvas = Canvas(root, highlightthickness=0)
+    canvas.create_image(0, 0, image=image, anchor='nw')
+    canvas.pack( expand=1, fill='both')
+
+    # Render loop
+    root.deiconify()
+    while True:
+        if __loaded__:
+            root.destroy()
+            break
+        root.update_idletasks()
+        root.update()
 
 #----------------------------------------------------------------------------
 
@@ -28,31 +65,38 @@ def main(
 
     Optional PATH argument can be used specify which slide to initially load.
     """
+    global __loaded__
+
+    # Start the splash screen
+    threading.Thread(target=show_splash).start()
+
+    from slideflow.studio import Studio
+
     if low_memory is None:
         low_memory = False
 
     # Load widgets
-    widgets = Workbench.get_default_widgets()
+    widgets = Studio.get_default_widgets()
     if stylegan:
-        from . import stylegan_widgets
-        from .widgets.seed_map import SeedMapWidget
+        from slideflow.studio import stylegan_widgets
+        from slideflow.studio.seed_map_widget import SeedMapWidget
         from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
         widgets += stylegan_widgets(advanced=advanced)
         widgets += [SeedMapWidget]
 
     if picam:
-        from .widgets.picam import PicamWidget
+        from slideflow.studio.widgets.picam import PicamWidget
         widgets += [PicamWidget]
 
     if cellpose:
-        from .widgets.segment import SegmentWidget
+        from slideflow.studio.widgets.segment import SegmentWidget
         widgets += [SegmentWidget]
 
     # Experimental ROI annotation widget
-    from .widgets.annotation import AnnotationWidget
+    from slideflow.studio.widgets.annotation import AnnotationWidget
     widgets += [AnnotationWidget]
 
-    viz = Workbench(low_memory=low_memory, widgets=widgets)
+    viz = Studio(low_memory=low_memory, widgets=widgets)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
 
     # --- StyleGAN3 -----------------------------------------------------------
@@ -72,6 +116,9 @@ def main(
     # Load slide(s).
     if slide:
         viz.load_slide(slide)
+
+    # Close the splash screen.
+    __loaded__ = True
 
     # Run.
     viz.run()

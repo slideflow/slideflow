@@ -676,9 +676,9 @@ class Mosaic:
         log.info(f'Mosaic report saved to [green]{filename}')
 
     def view(self, slides: List[str] = None) -> None:
-        """Open Mosaic in Workbench.
+        """Open Mosaic in Slideflow Studio.
 
-        See :ref:`workbench` for more information.
+        See :ref:`studio` for more information.
 
         Args:
             slides (list(str), optional): Path to whole-slide images. Used for
@@ -686,10 +686,10 @@ class Mosaic:
                 Defaults to None.
 
         """
-        from slideflow.workbench.widgets import MosaicWidget
-        from slideflow.workbench import Workbench
+        from slideflow.studio.widgets import MosaicWidget
+        from slideflow.studio import Studio
 
-        bench = Workbench(widgets=[MosaicWidget])
-        mosaic = bench.get_widget('MosaicWidget')
+        studio = Studio(widgets=[MosaicWidget])
+        mosaic = studio.get_widget('MosaicWidget')
         mosaic.load(self.slide_map, tfrecords=self.tfrecords, slides=slides)
-        bench.run()
+        studio.run()

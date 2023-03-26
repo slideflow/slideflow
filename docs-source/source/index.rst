@@ -33,7 +33,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    stylegan
    saliency
    custom_loops
-   workbench_tools
+   slideflow_studio
    troubleshooting
 
 .. toctree::
@@ -63,7 +63,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    slide_qc
    stats
    util
-   workbench
+   studio_module
 
 .. toctree::
    :maxdepth: 1

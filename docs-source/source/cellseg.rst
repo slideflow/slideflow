@@ -18,16 +18,16 @@ Approach
 
 The general approach for cell detection and segmentation in Slideflow is illustrated above, and will be discussed in the following sections. In short, the general approach is to tune the cell segmentation parameters on a single slide, use these parameters to detect cells in all of your slides, then extract cell images at these locations.
 
-Workbench Preview
+Slideflow Studio
 *****************
 
-Cellpose models have several configurable parameters which will affect the quality of your segmentation masks, namely the **pretrained model** and **cell diameter**. The best way to determine the optimal parameters to use for your dataset is through interactive visualization using :ref:`Workbench <workbench>`.
+Cellpose models have several configurable parameters which will affect the quality of your segmentation masks, namely the **pretrained model** and **cell diameter**. The best way to determine the optimal parameters to use for your dataset is through interactive visualization using :ref:`Slideflow Studio <studio>`.
 
-Start Workbench with Cellpose enabled by using the ``--cellpose`` flag:
+Start Studio with Cellpose enabled by using the ``--cellpose`` flag:
 
 .. code-block:: bash
 
-    python -m slideflow.workbench --cellpose
+    python -m slideflow.studio --cellpose
 
 Control panel
 -------------
@@ -112,7 +112,7 @@ Exporting results
 -----------------
 
 Once segmentation is complete, masks can be saved to disk for later use with **Export**.
-Masks are saved in \*.zip format, and can be loaded in Workbench with drag-and-drop.
+Masks are saved in \*.zip format, and can be loaded in Studio with drag-and-drop.
 
 Segmenting cells
 ****************
@@ -170,7 +170,7 @@ Relevant arguments for this function include:
 Depending on the size of the slide, this may take between 5-25 minutes per slide.
 
 Masks will be saved in the project subfolder ``masks/`` . As described above,
-these masks can be loaded in Workbench for interactive visualization via drag-and-drop.
+these masks can be loaded in Studio for interactive visualization via drag-and-drop.
 They can also be used for downstream analysis and cell extraction, as described in the next
 section.
 
@@ -196,7 +196,7 @@ There are some caveats to the cell segmentation process, including:
 
 - **Memory usage**: Cell segmentation requires at minimum 32 GB of RAM. Larger slides (particularly cytology) may require up to 64 GB of RAM.
 - **Stitching artifacts**: At present, due to the algorithm by which whole-slide cell segmentations are stitched together, you may see some cells that are not detected, missing in a grid-like pattern. Work is ongoing to reduce these stitching artifacts.
-- **Cell diameter**: The quality of cell segmentation results is highly dependent on an appropriately chosen cell diameter. Use Workbench to find the best cell diameter for your application.
+- **Cell diameter**: The quality of cell segmentation results is highly dependent on an appropriately chosen cell diameter. Use Slideflow Studio to find the best cell diameter for your application.
 
 Extracting cells from slides
 ****************************
@@ -263,14 +263,14 @@ Complete example
 An example of a complete cell segmentation pipeline is shown below, from parameter tuning
 to final tile extraction from detected cells.
 
-1. Workbench
-------------
+1. Slideflow Studio
+-------------------
 
-Determine optimal cell segmenation parameters using Workbench, as described above:
+Determine optimal cell segmenation parameters using Studio, as described above:
 
 .. code-block:: bash
 
-    python -m slideflow.workbench --cellpose
+    python -m slideflow.studio --cellpose
 
 2. Cell segmentation
 --------------------

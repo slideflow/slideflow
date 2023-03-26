@@ -1,4 +1,4 @@
-"""Utilities for Slideflow Workbench."""
+"""Utilities for Slideflow Studio."""
 
 from typing import Any
 
@@ -94,7 +94,7 @@ def _load_model_and_saliency(model_path, device=None):
         if device is not None:
             _model = _model.to(device)
         _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
-    
+
     # Load a TFLite model
     elif sf.util.tf_available and sf.util.path_to_ext(model_path) == 'tflite':
         interpreter = tf.lite.Interpreter(model_path)

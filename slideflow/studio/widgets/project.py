@@ -39,7 +39,7 @@ class ProjectWidget:
 
             if imgui.begin_popup('disclaimer_popup'):
 
-                imgui.text('Welcome to Workbench!')
+                imgui.text('Welcome to Slideflow Studio')
                 imgui.separator()
                 imgui.text('This is an early preview under active development.\n'
                         'Please be aware there may be bugs or other issues. ')

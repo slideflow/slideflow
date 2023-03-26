@@ -53,20 +53,20 @@ def stylegan_widgets(advanced: bool = True) -> List[Any]:
 
 #----------------------------------------------------------------------------
 
-class Workbench(ImguiWindow):
+class Studio(ImguiWindow):
 
     def __init__(
         self,
         low_memory: bool = False,
         widgets: Optional[List[Any]] = None
     ) -> None:
-        """Create the main Workbench window.
+        """Create the main Studio window.
 
-        Workbench is started by running the workbench module.
+        Slideflow Studio is started by running the studio module.
 
         .. code-block:: bash
 
-            python -m slideflow.workbench
+            python -m slideflow.studio
 
         Args:
             low_memory (bool): Enable low memory mode, which uses thread pools
@@ -78,7 +78,7 @@ class Workbench(ImguiWindow):
         # Initialize TK window in background (for file dialogs)
         Tk().withdraw()
 
-        super().__init__(title=f'Slideflow Workbench')
+        super().__init__(title=f'Slideflow Studio')
 
         # Internals.
         self._dx                = 0
@@ -269,7 +269,7 @@ class Workbench(ImguiWindow):
         self.mouse_y = None
         self.clear_result()
         self._async_renderer._live_updates = False
-        self.set_title("Slideflow Workbench")
+        self.set_title("Slideflow Studio")
 
     def _draw_about_dialog(self) -> None:
         """Draw the About dialog."""
@@ -310,7 +310,7 @@ class Workbench(ImguiWindow):
 
                 imgui.text('')
                 with self.bold_font():
-                    self.center_text('Slideflow Workbench')
+                    self.center_text('Slideflow Studio')
                 imgui.text('')
 
                 for line in about_text.split('\n'):
@@ -592,7 +592,7 @@ class Workbench(ImguiWindow):
             # --- Help --------------------------------------------------------
             if imgui.begin_menu('Help', True):
                 if imgui.menu_item('Get Started')[1]:
-                    webbrowser.open('https://slideflow.dev/workbench_tools.html')
+                    webbrowser.open('https://slideflow.dev/slideflow_studio')
                 if imgui.menu_item('Documentation')[1]:
                     webbrowser.open('https://slideflow.dev')
 
@@ -1249,7 +1249,7 @@ class Workbench(ImguiWindow):
             ignore_errors (bool): Do not fail if an error is encountered.
                 Defaults to False.
         """
-        log.debug("Loading model from workbench")
+        log.debug("Loading model from Studio")
         self.close_model(True)
         log.debug("Model closed")
         self.clear_result()

@@ -762,18 +762,18 @@ class Heatmap:
         log.info(f'Saved heatmaps for [green]{self.slide.name}')
 
     def view(self):
-        """Load the Heatmap into Workbench for interactive view.
+        """Load the Heatmap into Slideflow Studio for interactive view.
 
-        See :ref:`workbench` for more information.
+        See :ref:`studio` for more information.
 
         """
-        from slideflow.workbench import Workbench
+        from slideflow.studio import Studio
 
-        bench = Workbench()
-        bench.load_slide(self.slide.path)
-        bench.load_model(self.model_path)
-        bench.load_heatmap(self)
-        bench.run()
+        studio = Studio()
+        studio.load_slide(self.slide.path)
+        studio.load_model(self.model_path)
+        studio.load_heatmap(self)
+        studio.run()
 
 class ModelHeatmap(Heatmap):
 

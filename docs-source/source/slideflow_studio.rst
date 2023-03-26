@@ -1,7 +1,7 @@
-.. _workbench:
+.. _studio:
 
-Workbench: Live Visualization
-==============================
+Slideflow Studio: Live Visualization
+====================================
 
 .. video:: workbench_preview.webm
     :width: 100%
@@ -9,17 +9,17 @@ Workbench: Live Visualization
 
 |
 
-New in Slideflow 1.3, Workbench provides powerful tools for interactive visualization of model predictions for whole-slide images and GAN-generated images. It's also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you'll get a smooth experience that can even run on a Raspberry Pi.
+Slideflow Studio provides powerful tools for interactive visualization of model predictions for whole-slide images and GAN-generated images. It's also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you'll get a smooth experience that can even run on a Raspberry Pi.
 
-Workbench is run through the ``slideflow.workbench`` module. A path to a whole-slide image can optionally be provided as the first argument.
+Studio is run through the ``slideflow.studio`` module. A path to a whole-slide image can optionally be provided as the first argument.
 
 .. code-block:: bash
 
-    python -m slideflow.workbench
+    python -m slideflow.studio
 
 Use the ``--help`` flag to see a list of available arguments.
 
-You can also launch workbench by using the ``.view()`` function of :class:`slideflow.WSI`, :class:`slideflow.Heatmap`, and :class:`slideflow.Mosaic` functions.
+You can also launch Studio by using the ``.view()`` function of :class:`slideflow.WSI`, :class:`slideflow.Heatmap`, and :class:`slideflow.Mosaic` functions.
 
 .. code-block:: python
 
@@ -35,7 +35,7 @@ Layout & design
 
 |
 
-The Workbench window has three primary areas: the main viewer, a tile preview, and the control panel. Fullscreen mode can be toggled with View -> Fullscreen or by pressing Ctrl+F.
+The Studio window has three primary areas: the main viewer, a tile preview, and the control panel. Fullscreen mode can be toggled with View -> Fullscreen or by pressing Ctrl+F.
 
 Main viewer
 -----------
@@ -63,7 +63,7 @@ A thumbnail of the loaded slide is shown on the left side of the slide widget. T
 ROI Annotations
 ---------------
 
-Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow project has been loaded (File -> Open Project), then all available ROIs for the loaded slide will be shown. You can use Workbench to add or remove additional ROIs with the annotation tool.
+Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow project has been loaded (File -> Open Project), then all available ROIs for the loaded slide will be shown. You can use Studio to add or remove additional ROIs with the annotation tool.
 
 .. image:: roi_annotation.jpg
 
@@ -132,7 +132,7 @@ By default, heatmaps are calculated with multiprocessing pools. This may come at
 Mosaic maps
 ***********
 
-Mosaic maps can also be interactively viewed in Workbench. You can use the :meth:`slideflow.Mosaic.view` function to launch Workbench and load the mosaic.
+Mosaic maps can also be interactively viewed in Studio. You can use the :meth:`slideflow.Mosaic.view` function to launch Studio and load the mosaic.
 
 .. code-block:: python
 
@@ -141,7 +141,7 @@ Mosaic maps can also be interactively viewed in Workbench. You can use the :meth
     mosaic = sf.Mosaic(...)
     mosaic.view()
 
-Alternatively, a mosaic map can be saved to disk with :meth:`slideflow.Mosaic.export`, and then loaded into Workbench with File -> Load Mosaic.
+Alternatively, a mosaic map can be saved to disk with :meth:`slideflow.Mosaic.export`, and then loaded into Studio with File -> Load Mosaic.
 
 .. image:: workbench_mosaic_small.png
 
@@ -154,7 +154,7 @@ You can increase the grid size for the mosaic map by pressing Ctrl+=, or decreas
 Cell segmentation
 *****************
 
-Workbench also supports interactive cell segmentation with Cellpose, which is enabled using the ``--cellpose`` flag. Please see :ref:`cellseg` for more information.
+Studio also supports interactive cell segmentation with Cellpose, which is enabled using the ``--cellpose`` flag. Please see :ref:`cellseg` for more information.
 
 StyleGAN
 ********
@@ -167,7 +167,7 @@ StyleGAN
 
 Trained StyleGAN2 or StyleGAN3 networks can be visualized by enabling GAN mode, using the launch option ``--stylegan``. Once enabled, GAN .pkl files can be loaded with File -> Load GAN. Generated images are shown in the tile preview window. Model predictions on GAN images operate similarly to predictions on whole-slide images. Predictions on GAN images are generated in real-time, and you can watch the predictions change in the model widget.
 
-By default, Workbench will generate predictions on the full GAN image (after resizing to match the model's ``tile_px`` value). If a ``training_options.json`` file is found in the same directory as the GAN .pkl, the tile size used to train the GAN will be read from this file (slideflow_kwargs/tile_px and ../tile_um). If the GAN was trained on images with a different ``tile_um`` value, the GAN image will be cropped to match the model's ``tile_um`` before resizing. The cropped/resized (and stain normalized) image will be shown to the right of the raw GAN image in the tile preview window.
+By default, Studio will generate predictions on the full GAN image (after resizing to match the model's ``tile_px`` value). If a ``training_options.json`` file is found in the same directory as the GAN .pkl, the tile size used to train the GAN will be read from this file (slideflow_kwargs/tile_px and ../tile_um). If the GAN was trained on images with a different ``tile_um`` value, the GAN image will be cropped to match the model's ``tile_um`` before resizing. The cropped/resized (and stain normalized) image will be shown to the right of the raw GAN image in the tile preview window.
 
 The StyleGAN widget can be used to travel the GAN latent space, as implemented in the official `NVIDIA StyleGAN3 repository <https://github.com/NVlabs/stylegan3>`_. Set a specific seed in the input field next to "Latent", or click and drag the "Drag" button. If the model was trained with class conditioning, manually set the class with the "Class" field (the default value of -1 selects a random class).
 
@@ -186,4 +186,4 @@ Performance monitoring
 
 |
 
-Workbench's performance can be monitored with the performance widget, accessed via View -> Show -> Performance, or by pressing Ctrl+Shift+P. This widget displays frametimes for GUI display, image rendering, normalization, and model prediction. This widget can also be used to set a FPS limit (defaults to 60) and vertical sync (enabled by default). Low memory mode can be enabled here; when enabled, heatmaps are calculated with threadpools rather than multiprocessing pools, which decreases memory utilization at the cost of slower heatmap generation.
+Performance can be monitored with the performance widget, accessed via View -> Show -> Performance, or by pressing Ctrl+Shift+P. This widget displays frametimes for GUI display, image rendering, normalization, and model prediction. This widget can also be used to set a FPS limit (defaults to 60) and vertical sync (enabled by default). Low memory mode can be enabled here; when enabled, heatmaps are calculated with threadpools rather than multiprocessing pools, which decreases memory utilization at the cost of slower heatmap generation.

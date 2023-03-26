@@ -3,7 +3,7 @@
 Saliency Maps
 =============
 
-Slideflow provides an API for calculating gradient-based pixel attribution (saliency maps), as implemented by `PAIR <https://github.com/PAIR-code/saliency>`_. Saliency maps can be calculated manually (as described below), or interactively in :ref:`Workbench <workbench>`.
+Slideflow provides an API for calculating gradient-based pixel attribution (saliency maps), as implemented by `PAIR <https://github.com/PAIR-code/saliency>`_. Saliency maps can be calculated manually (as described below), or interactively in :ref:`Slideflow Studio <studio>`.
 
 :class:`slideflow.grad.SaliencyMap` provides an interface for preparing a saliency map generator from a loaded model (Tensorflow or PyTorch) and calculating maps from preprocessed images. Supported methods include:
 

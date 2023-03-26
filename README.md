@@ -11,8 +11,8 @@ A variety of fast, optimized whole-slide image processing tools are included, in
 
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
-![workbench preview](https://github.com/jamesdolezal/slideflow/raw/master/docs-source/source/workbench_preview.png)
-*Slideflow Workbench: a visualization tool for interacting with models and whole-slide images.*
+![studio preview](https://github.com/jamesdolezal/slideflow/raw/master/docs-source/source/studio_preview.png)
+*Slideflow Studio: a visualization tool for interacting with models and whole-slide images.*
 
 Slideflow has been used by:
 

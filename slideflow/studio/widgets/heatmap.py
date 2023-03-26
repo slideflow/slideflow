@@ -179,7 +179,7 @@ class HeatmapWidget:
                                     int(self.alpha * 255),
                                     dtype=np.uint8)
             overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
-            self.viz.set_overlay(overlay, method=sf.workbench.OVERLAY_GRID)
+            self.viz.set_overlay(overlay, method=sf.studio.OVERLAY_GRID)
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):

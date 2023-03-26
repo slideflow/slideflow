@@ -2120,17 +2120,16 @@ class WSI(_BaseLoader):
         return tile_generator()
 
     def view(self):
-        """Open the slide in Workbench for interactive display.
+        """Open the slide in Slideflow Studio for interactive display.
 
-        See :ref:`workbench` for more information.
+        See :ref:`studio` for more information.
 
         """
-        from slideflow.workbench.widgets import MosaicWidget
-        from slideflow.workbench import Workbench
+        from slideflow.studio import Studio
 
-        bench = Workbench()
-        bench.load_slide(self.path)
-        bench.run()
+        studio = Studio()
+        studio.load_slide(self.path)
+        studio.run()
 
 
 class TMA(_BaseLoader):

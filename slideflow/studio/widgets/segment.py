@@ -149,7 +149,7 @@ class SegmentWidget:
         self._thread.start()
 
     def refresh_segmentation_view(self):
-        """Refresh the Workbench view of the active segmentation."""
+        """Refresh the Studio view of the active segmentation."""
         if self.segmentation is None:
             return
         if self.show_mask:

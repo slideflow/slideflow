@@ -165,4 +165,4 @@ Read more about :ref:`model evaluation <evaluation>`.
 Post-hoc analysis
 *****************
 
-Slideflow includes a number of analytical tools for working with trained models. Read more about :ref:`heatmaps <evaluation>`, :ref:`model explainability <stylegan>`, :ref:`analysis of layer activations <activations>`, and real-time inference in an interactive :ref:`whole-slide image reader <workbench>`.
+Slideflow includes a number of analytical tools for working with trained models. Read more about :ref:`heatmaps <evaluation>`, :ref:`model explainability <stylegan>`, :ref:`analysis of layer activations <activations>`, and real-time inference in an interactive :ref:`whole-slide image reader <studio>`.
