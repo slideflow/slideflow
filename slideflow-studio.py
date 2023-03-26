@@ -118,14 +118,16 @@ def import_with_splash():
     glfw.window_hint(glfw.DECORATED, False)
     height = img.shape[0]
     width = img.shape[1]
-    wscale, hscale = glfw.get_monitor_content_scale(glfw.get_primary_monitor())
-    window = glfw.create_window(int(width/wscale), int(height/hscale), "Opengl GLFW Window", None, None)
-
+    
     # Center on screen
     _, _, mw, mh = glfw.get_monitor_workarea(glfw.get_primary_monitor())
     if not mw:
         vmode = glfw.get_video_mode(glfw.get_primary_monitor())
-        mw, mh = vmode.size    
+        mw, mh = vmode.size
+        wscale, hscale = glfw.get_monitor_content_scale(glfw.get_primary_monitor())
+    else:
+        wscale, hscale = 1, 1
+    window = glfw.create_window(int(width/wscale), int(height/hscale), "Opengl GLFW Window", None, None) 
     glfw.set_window_pos(window, (mw - int(width/wscale)) // 2, (mh - int(height/hscale)) // 2)
 
     _tex_bg = None

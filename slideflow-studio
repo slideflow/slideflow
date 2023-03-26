@@ -14,8 +14,6 @@ from contextlib import contextmanager
 from functools import lru_cache
 from os.path import join, dirname
 
-
-__loaded__ = False
 __version__ = "1.6.0"
 
 # -----------------------------------------------------------------------------
@@ -44,11 +42,9 @@ def main(
 
     Optional PATH argument can be used specify which slide to initially load.
     """
-    global __loaded__
 
     # Start the splash screen
-    thread = threading.Thread(target=show_splash)
-    thread.start()
+    import_with_splash()
 
     from slideflow.studio import Studio
 
@@ -76,11 +72,7 @@ def main(
     from slideflow.studio.widgets.annotation import AnnotationWidget
     widgets += [AnnotationWidget]
 
-    # Close the splash screen.
-    __loaded__ = True
-    thread.join()
-
-    viz = Studio(low_memory=low_memory, widgets=widgets)
+    viz = Studio(low_memory=low_memory, widgets=widgets, skip_tk_init=True)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
 
     # --- StyleGAN3 -----------------------------------------------------------
@@ -107,7 +99,10 @@ def main(
 
 #----------------------------------------------------------------------------
 
-def show_splash():
+def import_with_splash():
+
+    from tkinter import Tk
+    Tk().withdraw()
 
     # Load image
     sf_root = pkgutil.get_loader('slideflow').get_filename()
@@ -119,14 +114,21 @@ def show_splash():
     # Start GLFW window
     if not glfw.init():
         return
+        
     glfw.window_hint(glfw.DECORATED, False)
     height = img.shape[0]
     width = img.shape[1]
-    window = glfw.create_window(width, height, "Opengl GLFW Window", None, None)
-
+    
     # Center on screen
     _, _, mw, mh = glfw.get_monitor_workarea(glfw.get_primary_monitor())
-    glfw.set_window_pos(window, (mw - width) // 2, (mh - height) // 2)
+    if not mw:
+        vmode = glfw.get_video_mode(glfw.get_primary_monitor())
+        mw, mh = vmode.size
+        wscale, hscale = glfw.get_monitor_content_scale(glfw.get_primary_monitor())
+    else:
+        wscale, hscale = 1, 1
+    window = glfw.create_window(int(width/wscale), int(height/hscale), "Opengl GLFW Window", None, None) 
+    glfw.set_window_pos(window, (mw - int(width/wscale)) // 2, (mh - int(height/hscale)) // 2)
 
     _tex_bg = None
     _tex_icon = None
@@ -136,14 +138,10 @@ def show_splash():
     if not window:
         glfw.terminate()
         return
+        
     glfw.make_context_current(window)
 
     while not glfw.window_should_close(window):
-
-        if __loaded__:
-            glfw.destroy_window(window)
-            glfw.default_window_hints()
-            return
 
         glfw.poll_events()
 
@@ -177,6 +175,13 @@ def show_splash():
             _first_frame = False
 
         glfw.swap_buffers(window)
+
+        if not _first_frame:
+            import slideflow.studio
+            glfw.destroy_window(window)
+            glfw.default_window_hints()
+            break
+
     glfw.terminate()
 
 # -----------------------------------------------------------------------------
