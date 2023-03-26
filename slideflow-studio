@@ -1,6 +1,9 @@
+#!/usr/bin/env python
+
+import pkgutil
 import threading
 import click
-from os.path import dirname, realpath
+from os.path import dirname, realpath, join
 
 __loaded__ = False
 
@@ -13,9 +16,11 @@ def show_splash():
     from tkinter import Tk, Canvas
     from PIL import ImageTk
 
+    sf_root = pkgutil.get_loader('slideflow').get_filename()
+    splash_path = join(dirname(sf_root), 'studio', 'gui', 'splash.png')
+
     root     = Tk()
-    img_file = "studio_logo_small_rect.png"
-    image    = ImageTk.PhotoImage(file=img_file)
+    image    = ImageTk.PhotoImage(file=splash_path)
     w,h      = image.width(), image.height()
 
     root.withdraw()
