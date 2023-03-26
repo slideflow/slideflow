@@ -11,13 +11,19 @@ Slideflow Studio: Live Visualization
 
 Slideflow Studio provides powerful tools for interactive visualization of model predictions for whole-slide images and GAN-generated images. It's also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you'll get a smooth experience that can even run on a Raspberry Pi.
 
-Studio is run through the ``slideflow.studio`` module. A path to a whole-slide image can optionally be provided as the first argument.
+If you have installed slideflow via PIP, you can run Studio from a terminal with:
 
 .. code-block:: bash
 
-    python -m slideflow.studio
+    slideflow-studio
 
-Use the ``--help`` flag to see a list of available arguments.
+If you are running from source, you can start Studio using the following script in the GitHub repository:
+
+.. code-block:: bash
+
+    python slideflow-studio.py
+
+A path to a whole-slide image can optionally be provided as the first argument. Use the ``--help`` flag to see a list of available arguments.
 
 You can also launch Studio by using the ``.view()`` function of :class:`slideflow.WSI`, :class:`slideflow.Heatmap`, and :class:`slideflow.Mosaic` functions.
 

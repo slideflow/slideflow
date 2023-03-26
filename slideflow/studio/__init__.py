@@ -889,7 +889,7 @@ class Studio(ImguiWindow):
         self._async_renderer.add_to_render_pipeline(renderer)
 
     def ask_load_heatmap(self):
-        """Prompt user for location of exported heatmap (*.npz) and load."""
+        """Prompt user for location of exported heatmap (\*.npz) and load."""
         npz_path = askopenfilename(title="Load heatmap...", filetypes=[("*.npz", "*.npz")])
         if npz_path:
             self.load_heatmap(npz_path)
@@ -1223,10 +1223,10 @@ class Studio(ImguiWindow):
         self.tile_zoom = 1
 
     def load_heatmap(self, path: Union[str, "sf.Heatmap"]) -> None:
-        """Load a saved heatmap (*.npz).
+        """Load a saved heatmap (\*.npz).
 
         Args:
-            path (str): Path to exported heatmap in *.npz format, as generated
+            path (str): Path to exported heatmap in \*.npz format, as generated
                 by Heatmap.save() or Heatmap.save_npz().
         """
         if self._model_config is None:
@@ -1530,8 +1530,6 @@ class AsyncRenderer:
             renderer_obj._model = _model
             renderer_obj._saliency = _saliency
             renderer_obj._umap_encoders = _umap_encoders
-        cur_args = None
-        cur_stamp = None
         while True:
             while args_queue.qsize() > 0:
                 args, stamp = args_queue.get()
@@ -1542,12 +1540,9 @@ class AsyncRenderer:
                     renderer_obj._umap_encoders = _umap_encoders
                 if 'quit' in args:
                     return
-            # if ((args != cur_args or stamp != cur_stamp)
             if (live_updates and not result_queue.qsize()):
                 result = renderer_obj.render(**args)
                 if 'error' in result:
                     result.error = CapturedException(result.error)
 
                 result_queue.put([result, stamp])
-                cur_args = args
-                cur_stamp = stamp

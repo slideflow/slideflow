@@ -36,24 +36,24 @@ def fastDeLong(predictions_sorted_transposed, label_1_count):
     unadjusted AUC.
 
     Args:
-       predictions_sorted_transposed: a 2D numpy.array[n_classifiers, n_examples]
-          sorted such as the examples with label "1" are first
+        predictions_sorted_transposed: a 2D numpy.array[n_classifiers, n_examples]
+            sorted such as the examples with label "1" are first
 
     Returns:
-       (AUC value, DeLong covariance)
+        (AUC value, DeLong covariance)
 
     Reference:
-     @article{sun2014fast,
-       title={Fast Implementation of DeLong's Algorithm for
-              Comparing the Areas Under Correlated Receiver Operating Characteristic Curves},
-       author={Xu Sun and Weichao Xu},
-       journal={IEEE Signal Processing Letters},
-       volume={21},
-       number={11},
-       pages={1389--1393},
-       year={2014},
-       publisher={IEEE}
-     }
+        @article{sun2014fast,
+        title={Fast Implementation of DeLong's Algorithm for
+                Comparing the Areas Under Correlated Receiver Operating Characteristic Curves},
+        author={Xu Sun and Weichao Xu},
+        journal={IEEE Signal Processing Letters},
+        volume={21},
+        number={11},
+        pages={1389--1393},
+        year={2014},
+        publisher={IEEE}
+        }
 
     """
     # Short variables are named as they are in the paper

@@ -1,7 +1,7 @@
 .. _clam_mil:
 
 Multiple-Instance Learning (MIL)
-=============================
+================================
 
 In addition to standard tile-based neural networks, slideflow supports training multiple-instance learning (MIL) models. Several architectures are available, including `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), and `transformer MIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``). Custom architectures can also be trained.
 

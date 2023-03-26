@@ -7,6 +7,3 @@ This module contains the Slideflow Studio visualization tool. See :ref:`studio` 
 
 .. automodule:: slideflow.studio
    :members:
-
-.. autoclass:: Studio
-    :inherited-members:

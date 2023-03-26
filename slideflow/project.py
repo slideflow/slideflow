@@ -396,7 +396,7 @@ class Project:
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model
                 with ``tf.keras.models.load_model()``. If 'weights', will read
-                the ``params.json``configuration file, build the model
+                the ``params.json`` configuration file, build the model
                 architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
@@ -1219,7 +1219,7 @@ class Project:
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model
                 with ``tf.keras.models.load_model()``. If 'weights', will read
-                the ``params.json``configuration file, build the model
+                the ``params.json`` configuration file, build the model
                 architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
@@ -2663,7 +2663,7 @@ class Project:
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model
                 with ``tf.keras.models.load_model()``. If 'weights', will read
-                the ``params.json``configuration file, build the model
+                the ``params.json`` configuration file, build the model
                 architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
@@ -3412,7 +3412,8 @@ class Project:
         Keyword Args:
             n_ensembles (int, optional): Total models needed in the ensemble.
                 Defaults to 5.
-            All keyword arguments accepted by :meth:`slideflow.Project.train`
+            **kwargs: All keyword arguments accepted by
+                :meth:`slideflow.Project.train`
 
         Returns:
             List of dictionaries of length ``n_ensembles``, containing training

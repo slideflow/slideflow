@@ -33,11 +33,14 @@ def fastDeLong(predictions_sorted_transposed, label_1_count):
     """
     The fast version of DeLong's method for computing the covariance of
     unadjusted AUC.
+
     Args:
-       predictions_sorted_transposed: a 2D numpy.array[n_classifiers, n_examples]
-          sorted such as the examples with label "1" are first
+        predictions_sorted_transposed: a 2D numpy.array[n_classifiers, n_examples]
+            sorted such as the examples with label "1" are first
+
     Returns:
-       (AUC value, DeLong covariance)
+        (AUC value, DeLong covariance)
+
     Reference:
      @article{sun2014fast,
        title={Fast Implementation of DeLong's Algorithm for
@@ -50,6 +53,7 @@ def fastDeLong(predictions_sorted_transposed, label_1_count):
        year={2014},
        publisher={IEEE}
      }
+
     """
     # Short variables are named as they are in the paper
     m = label_1_count
