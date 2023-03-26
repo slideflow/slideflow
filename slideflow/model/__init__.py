@@ -554,7 +554,7 @@ class DatasetFeatures:
                 raise ValueError(
                     f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
                 )
-        elif isinstance(model, str) and is_tf:
+        elif isinstance(model, str) and (is_tf or is_torch):
             combined_model = sf.model.Features(model, **feat_kw)
         elif is_tf:
             combined_model = sf.model.Features.from_model(model, **feat_kw)
@@ -592,19 +592,22 @@ class DatasetFeatures:
             'incl_slidenames': True,
             'incl_loc': True,
         }
+
+        if is_extractor:
+            dataset_kwargs.update(model.preprocess_kwargs)
+
         # Use GPU stain normalization for PyTorch normalizers, if supported
         if (isinstance(self.normalizer, sf.norm.StainNormalizer)
            and self.normalizer.__class__.__name__ == 'TorchStainNormalizer'
            and self.normalizer.device != 'cpu'):
             log.info("Using GPU for stain normalization")
             torch_gpu_norm = True
+            torch_norm_standardize = ('standardize' not in dataset_kwargs or dataset_kwargs['standardize'])
             dataset_kwargs['standardize'] = False
         else:
             torch_gpu_norm = False
+            torch_norm_standardize = False
             dataset_kwargs['normalizer'] = self.normalizer
-
-        if is_extractor:
-            dataset_kwargs.update(model.preprocess_kwargs)
 
         # Get backend-specific dataset
         if is_simclr:
@@ -719,11 +722,10 @@ class DatasetFeatures:
                     with torch.no_grad():
                         batch_img = batch_img.to('cuda')
                         if torch_gpu_norm:
-                            if 'standardize' not in dataset_kwargs:
-                                pp = dict()
-                            else:
-                                pp = dict(standardize=dataset_kwargs['standardize'])
-                            batch_img = self.normalizer.preprocess(batch_img, **pp)
+                            batch_img = self.normalizer.preprocess(
+                                batch_img,
+                                standardize=torch_norm_standardize
+                            )
                         model_output = combined_model(batch_img, **call_kw)
                 else:
                     model_output = combined_model(batch_img, **call_kw)

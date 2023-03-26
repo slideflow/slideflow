@@ -2161,6 +2161,7 @@ class Features(BaseFeatureExtractor):
 
     def _predict(self, inp: Tensor, no_grad: bool = True) -> List[Tensor]:
         """Return activations for a single batch of images."""
+        assert torch.is_floating_point(inp), "Input tensor must be float"
         _mp = self.mixed_precision
         with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
             with torch.no_grad() if no_grad else no_scope():
