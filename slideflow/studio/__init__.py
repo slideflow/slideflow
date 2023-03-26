@@ -58,7 +58,8 @@ class Studio(ImguiWindow):
     def __init__(
         self,
         low_memory: bool = False,
-        widgets: Optional[List[Any]] = None
+        widgets: Optional[List[Any]] = None,
+        skip_tk_init: bool = False
     ) -> None:
         """Create the main Studio window.
 
@@ -76,7 +77,8 @@ class Studio(ImguiWindow):
         """
 
         # Initialize TK window in background (for file dialogs)
-        Tk().withdraw()
+        if not skip_tk_init:
+            Tk().withdraw()
 
         super().__init__(title=f'Slideflow Studio')
 
