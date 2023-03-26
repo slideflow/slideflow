@@ -15,6 +15,7 @@ from slideflow.util import log, ImgBatchSpeedColumn
 from rich.progress import Progress, TimeElapsedColumn, SpinnerColumn
 from functools import reduce
 
+# -----------------------------------------------------------------------------
 
 def cycle(iterable: Iterable) -> Generator:
     while True:
@@ -437,3 +438,14 @@ def predict_from_model(
         **kwargs
     )
     return df
+
+# -----------------------------------------------------------------------------
+
+def xception(*args, **kwargs):
+    import pretrainedmodels
+    return pretrainedmodels.xception(*args, **kwargs)
+
+
+def nasnetalarge(*args, **kwargs):
+    import pretrainedmodels
+    return pretrainedmodels.nasnetalarge(*args, **kwargs)

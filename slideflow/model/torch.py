@@ -5,7 +5,6 @@ import json
 import os
 import types
 import numpy as np
-import pretrainedmodels
 import multiprocessing as mp
 import torch
 import torchvision
@@ -222,8 +221,8 @@ class ModelParams(_base._ModelParams):
         'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
         'wide_resnet50_2': torchvision.models.wide_resnet50_2,
         'mnasnet': torchvision.models.mnasnet1_0,
-        'xception': pretrainedmodels.xception,
-        'nasnet_large': pretrainedmodels.nasnetalarge
+        'xception': torch_utils.xception,
+        'nasnet_large': torch_utils.nasnetalarge
     }
 
     def __init__(self, loss: str = 'CrossEntropy', **kwargs) -> None:
