@@ -8,7 +8,7 @@ import imgui
 import glfw
 import OpenGL.GL as gl
 from typing import List, Any, Optional, Dict, Tuple, Union
-from os.path import join
+from os.path import join, dirname, abspath
 from PIL import Image
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
@@ -120,6 +120,7 @@ class Studio(ImguiWindow):
         self._should_close_slide = False
         self._should_close_model = False
         self._pane_w_div        = 37
+        self._bg_logo           = None
         self.low_memory         = low_memory
 
         # Interface.
@@ -415,6 +416,13 @@ class Studio(ImguiWindow):
 
         if not self.has_controls_to_render:
             self.result.message = 'Load a slide with File -> "Open Slide..."'
+
+    def _draw_empty_background(self):
+        if self._bg_logo is None:
+            bg_path = join(dirname(abspath(__file__)), 'gui', 'logo_dark_outline.png')
+            img = np.array(Image.open(bg_path))
+            self._bg_logo = gl_utils.Texture(image=img, bilinear=True)
+        self._bg_logo.draw(pos=(self.content_frame_width//2, self.content_frame_height//2), zoom=0.75, align=0.5, rint=True, anchor='center')
 
     def _draw_main_view(self, inp: EasyDict, window_changed: bool) -> None:
         """Update the main window view.
@@ -1068,6 +1076,8 @@ class Studio(ImguiWindow):
         if self.viewer:
             self.viewer.update(**self._viewer_kwargs())
             self._draw_main_view(user_input, window_changed)
+        else:
+            self._draw_empty_background()
 
         # --- Render arguments ------------------------------------------------
         self.args.x = self.x

@@ -227,7 +227,7 @@ class GlfwWindow:
         gl.glBlendFunc(gl.GL_ONE, gl.GL_ONE_MINUS_SRC_ALPHA) # Pre-multiplied alpha.
 
         # Clear.
-        gl.glClearColor(0, 0, 0, 1)
+        gl.glClearColor(.11, .11, .11, 1)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
     def end_frame(self):
