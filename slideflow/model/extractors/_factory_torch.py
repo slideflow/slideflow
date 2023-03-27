@@ -23,6 +23,11 @@ def ctranspath(tile_px, **kwargs):
     return CTransPathFeatures(center_crop=(tile_px != 224), **kwargs)
 
 @register_torch
+def retccl(tile_px, **kwargs):
+    from .retccl import RetCCLFeatures
+    return RetCCLFeatures(center_crop=(tile_px != 256), **kwargs)
+
+@register_torch
 def resnet18_imagenet(tile_px, **kwargs):
     return _TorchImagenetLayerExtractor('resnet18', tile_px, **kwargs)
 
