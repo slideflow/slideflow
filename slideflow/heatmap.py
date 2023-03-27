@@ -770,7 +770,7 @@ class Heatmap:
         from slideflow.studio import Studio
 
         studio = Studio()
-        studio.load_slide(self.slide.path)
+        studio.load_slide(self.slide.path, stride=self.stride_div)
         studio.load_model(self.model_path)
         studio.load_heatmap(self)
         studio.run()

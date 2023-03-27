@@ -1340,15 +1340,17 @@ class Studio(ImguiWindow):
         """
         self.project_widget.load(project, ignore_errors=ignore_errors)
 
-    def load_slide(self, slide: str, ignore_errors: bool = False) -> None:
+    def load_slide(self, slide: str, **kwargs) -> None:
         """Load the given slide.
 
         Args:
             slide (str): Path to whole-slide image.
+            stride (int, optional): Stride for tiles. 1 is non-overlapping
+                tiles, 2 is tiles with 50% overlap, etc. Defaults to 1.
             ignore_errors (bool): Do not fail if an error is encountered.
                 Defaults to False.
         """
-        self.slide_widget.load(slide, ignore_errors=ignore_errors)
+        self.slide_widget.load(slide, **kwargs)
 
     def print_error(self, error: str) -> None:
         """Print the given error message."""

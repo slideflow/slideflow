@@ -157,7 +157,7 @@ class SlideWidget:
 
     # --- Public interface ----------------------------------------------------
 
-    def load(self, slide, ignore_errors=False):
+    def load(self, slide, stride=None, ignore_errors=False):
         """Load a slide."""
 
         viz = self.viz
@@ -184,6 +184,8 @@ class SlideWidget:
             viz.set_message(f'Loading {name}...')
             sf.log.debug(f"Loading slide {slide}...")
             viz.defer_rendering()
+            if stride is not None:
+                self.stride = stride
             viz._reload_wsi(slide, stride=self.stride, use_rois=self._use_rois)
             viz.heatmap_widget.reset()
             self.num_total_rois = len(viz.wsi.rois)
