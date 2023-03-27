@@ -724,9 +724,9 @@ def get_model_normalizer(
        and version.parse(config['slideflow_version']) <= version.parse("1.2.2")
        and config['hp']['normalizer'] in ('vahadane', 'macenko')):
         log.warn("Detected model trained with Macenko or Vahadane "
-                    "normalization with Slideflow version <= 1.2.2. Macenko "
-                    "and Vahadane algorithms were optimized in 1.2.3 and may "
-                    "now yield slightly different results. ")
+                 "normalization with Slideflow version <= 1.2.2. Macenko "
+                 "and Vahadane algorithms were optimized in 1.2.3 and may "
+                 "now yield slightly different results. ")
 
     normalizer = sf.norm.autoselect(
         config['hp']['normalizer'],

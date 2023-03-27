@@ -44,6 +44,7 @@ class Heatmap:
         generate: bool = True,
         generator_kwargs: Optional[Dict[str, Any]] = None,
         device: Optional["torch.device"] = None,
+        load_method: Optional[str] = None,
         **wsi_kwargs
     ) -> None:
         """Initialize a heatmap from a path to a slide or a :class:``slideflow.WSI``.
@@ -140,6 +141,8 @@ class Heatmap:
             int_kw = {'device': device}
         else:
             int_kw = {}
+        if load_method is not None:
+            int_kw.update(dict(load_method=load_method))
 
         if self.uq:
             self.interface = sf.model.UncertaintyInterface(model, **int_kw)  # type: ignore
@@ -791,6 +794,7 @@ class ModelHeatmap(Heatmap):
         generate: bool = True,
         normalizer: Optional[sf.norm.StainNormalizer] = None,
         uq: bool = False,
+        load_method: Optional[str] = None,
         generator_kwargs: Optional[Dict[str, Any]] = None,
         **wsi_kwargs
     ):
@@ -903,6 +907,8 @@ class ModelHeatmap(Heatmap):
             interface_kw = dict(include_preds=True, tile_px=self.tile_px)
         else:
             raise ValueError(f"Unable to interpret model {model}")
+        if load_method is not None:
+            interface_kw.update(dict(load_method=load_method))
 
         if isinstance(model, str):
             self.interface = interface_class(
