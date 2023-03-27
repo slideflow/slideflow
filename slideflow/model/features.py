@@ -1309,6 +1309,7 @@ class _FeatureGenerator:
 
         # Generator is a SimCLR model.
         if self.is_simclr():
+            log.debug("Setting up Tensorflow/SimCLR dataset iterator")
             from slideflow import simclr
             builder = simclr.DatasetBuilder(
                 val_dts=self.dataset,
@@ -1326,6 +1327,10 @@ class _FeatureGenerator:
 
         # Generator is a Tensorflow model.
         elif self.is_tf():
+            log.debug(
+                "Setting up Tensorflow dataset iterator (num_parallel_reads="
+                f"None, deterministic={not self.tfrecords_have_loc})"
+            )
             return self.dataset.tensorflow(
                 None,
                 num_parallel_reads=None,
@@ -1335,9 +1340,14 @@ class _FeatureGenerator:
 
         # Generator is a PyTorch model.
         elif self.is_torch():
+            n_workers = (4 if self.tfrecords_have_loc else 1)
+            log.debug(
+                "Setting up PyTorch dataset iterator (num_workers="
+                f"{n_workers}, chunk_size=8)"
+            )
             return self.dataset.torch(
                 None,
-                num_workers=(4 if self.tfrecords_have_loc else 1),
+                num_workers=n_workers,
                 chunk_size=8,
                 **self.dts_kw  # type: ignore
             )
