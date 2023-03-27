@@ -37,6 +37,8 @@ Next, pass this feature extractor to the first argument of :class:`slideflow.Dat
     # Calculate features for this dataset.
     features = sf.DatasetFeatures(resnet50, dataset)
 
+You can view all available feature extractors with :func:`slideflow.model.list_extractors`.
+
 Features from Finetuned Model
 -----------------------------
 
@@ -60,7 +62,7 @@ You can also calculate features from any model trained in Slideflow. Set the fir
 Pretrained Feature Extractor
 ----------------------------
 
-Slideflow includes several pathology-specific pretrained feature extractors. Use :func:`slideflow.model.build_feature_extractor` to build a feature extractor by name, and then pass this extractor to the first argument of :class:`slideflow.DatasetFeatures`:
+Slideflow includes several pathology-specific pretrained feature extractors. Use :func:`slideflow.model.build_feature_extractor` to build a feature extractor by name, and then pass this extractor to the first argument of :class:`slideflow.DatasetFeatures`. You can view all available feature extractors with :func:`slideflow.model.list_extractors`.
 
 .. code-block:: python
 
