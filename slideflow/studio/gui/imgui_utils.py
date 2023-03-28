@@ -21,7 +21,7 @@ def icons():
 
 #----------------------------------------------------------------------------
 
-def set_default_style(color_scheme='dark', spacing=9, indent=23, scrollbar=27):
+def set_default_style(spacing=9, indent=23, scrollbar=27):
     s = imgui.get_style()
     s.window_padding        = [spacing, spacing]
     s.item_spacing          = [spacing, spacing]
@@ -40,11 +40,6 @@ def set_default_style(color_scheme='dark', spacing=9, indent=23, scrollbar=27):
     s.frame_rounding        = 3
     s.scrollbar_rounding    = 3
     s.grab_rounding         = 3
-
-    getattr(imgui, f'style_colors_{color_scheme}')(s)
-    c0 = s.colors[imgui.COLOR_MENUBAR_BACKGROUND]
-    c1 = s.colors[imgui.COLOR_FRAME_BACKGROUND]
-    s.colors[imgui.COLOR_POPUP_BACKGROUND] = [x * 0.7 + y * 0.3 for x, y in zip(c0, c1)][:3] + [1]
 
 #----------------------------------------------------------------------------
 
