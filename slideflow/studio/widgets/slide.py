@@ -456,7 +456,6 @@ class SlideWidget:
                 _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
                 viz._normalize_wsi = self.normalize_wsi
                 if self.normalize_wsi and viz.viewer:
-                    viz._normalizer.set_context(viz.wsi)
                     viz.viewer.set_normalizer(viz._normalizer)
                 elif viz.viewer:
                     viz.viewer.clear_normalizer()
