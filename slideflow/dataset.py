@@ -2254,12 +2254,16 @@ class Dataset:
                     result[slide] = patient
         return result
 
-    def pt_files(self, path):
+    def pt_files(self, path, warn_missing=True):
         """Return list of *.pt files with slide names in this dataset."""
-        return np.array([
+        slides = self.slides()
+        bags = np.array([
             join(path, f) for f in os.listdir(path)
-            if f.endswith('.pt') and path_to_name(f) in self.slides()
+            if f.endswith('.pt') and path_to_name(f) in slides
         ])
+        if (len(bags) != len(slides)) and warn_missing:
+            log.warning(f"Bags missing for {len(slides) - len(bags)} slides.")
+        return bags
 
     def read_tfrecord_by_location(
         self,
