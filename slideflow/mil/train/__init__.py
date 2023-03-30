@@ -213,7 +213,9 @@ def train_clam(
         val_bags = val_dataset.pt_files(bags)
     else:
         val_bags = np.array(bags)
+
     if attention and attention_heatmaps:
+        assert len(val_bags) == len(attention)
         generate_attention_heatmaps(
             outdir=join(outdir, 'heatmaps'),
             dataset=val_dataset,

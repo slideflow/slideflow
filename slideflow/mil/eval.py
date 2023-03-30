@@ -79,6 +79,11 @@ def eval_mil(
         bags = dataset.pt_files(bags)
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
+
+    # Handle the case where some bags are missing.
+    if len(bags) != len(slides):
+        slides = [path_to_name(b) for b in bags]
+    
     y_true = np.array([labels[s] for s in slides])
 
     # Detect feature size from bags
@@ -196,6 +201,11 @@ def predict_from_model(
         bags = dataset.pt_files(bags)
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
+
+    # Handle the case where some bags are missing.
+    if len(bags) != len(slides):
+        slides = [path_to_name(b) for b in bags]
+
     y_true = np.array([labels[s] for s in slides])
 
     # Inference.
