@@ -63,6 +63,11 @@ The ``roi_method`` argument to the ``extract_tiles()`` functions allow you to co
 - ``'outside'``: Extract from outside ROIs, and skip any slides missing ROIs.
 - ``'ignore'``: Ignore all ROIs, extracting from whole-slide images.
 
+By default, ROIs are used to filter tiles based on the center point of the tile. Alternatively, you can filter tiles based on the proportion of the tile inside an ROI by using the argument ``roi_filter_method``. If ``roi_filter_method`` is set to a float (0-1), this value will be interpreted as a proportion threshold. If the proportion of a tile inside an ROI is greater than this number, the tile is included. For example, if ``roi_filter_method=0.7``, a tile that is 80% inside of an ROI will be included, but a tile that is 60% inside of an ROI will be excluded.
+
+.. image:: roi_filter.jpg
+
+|
 
 Masking & Filtering
 *******************
