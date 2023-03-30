@@ -1342,6 +1342,7 @@ class Dataset:
         stride_div: int = 1,
         enable_downsample: bool = True,
         roi_method: str = 'auto',
+        roi_filter_method: Union[str, float] = 'center',
         skip_extracted: bool = True,
         tma: bool = False,
         randomize_origin: bool = False,
@@ -1361,7 +1362,7 @@ class Dataset:
         the tfrecord and tile directories configured by
         :class:`slideflow.Dataset`.
 
-        Args:
+        Keyword Args:
             save_tiles (bool): Save images of extracted tiles to
                 project tile directory. Defaults to False.
             save_tfrecords (bool): Save compressed image data from
@@ -1386,6 +1387,16 @@ class Dataset:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
+            roi_filter_method (str or float): Method of filtering tiles with
+                ROIs. Either 'center' or float (0-1). If 'center', tiles are
+                filtered with ROIs based on the center of the tile. If float,
+                tiles are filtered based on the proportion of the tile inside
+                the ROI, and ``roi_filter_method`` is interpreted as a
+                threshold. If the proportion of a tile inside the ROI is
+                greater than this number, the tile is included. For example,
+                if ``roi_filter_method=0.7``, a tile that is 80% inside of an
+                ROI will be included, and a tile that is 50% inside of an ROI
+                will be excluded. Defaults to 'center'.
             skip_extracted (bool): Skip slides that have already
                 been extracted. Defaults to True.
             tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),
@@ -1404,8 +1415,6 @@ class Dataset:
                 Increases tile extraction time. Defaults to None.
             report (bool): Save a PDF report of tile extraction.
                 Defaults to True.
-
-        Keyword Args:
             normalizer (str, optional): Normalization strategy.
                 Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image.
@@ -1577,6 +1586,7 @@ class Dataset:
                     'enable_downsample': enable_downsample,
                     'roi_dir': roi_dir,
                     'roi_method': roi_method,
+                    'roi_filter_method': roi_filter_method,
                     'randomize_origin': randomize_origin,
                     'pb': pb
                 }
@@ -2894,7 +2904,11 @@ class Dataset:
             assert sorted(val_dts.slide_paths()) == sorted(val_tfr)
         return training_dts, val_dts
 
-    def split_tfrecords_by_roi(self, destination: str) -> None:
+    def split_tfrecords_by_roi(
+        self,
+        destination: str,
+        roi_filter_method: Union[str, float] = 'center'
+    ) -> None:
         """Split dataset tfrecords into separate tfrecords according to ROI.
 
         Will generate two sets of tfrecords, with identical names: one with
@@ -2903,6 +2917,16 @@ class Dataset:
 
         Args:
             destination (str): Destination path.
+            roi_filter_method (str or float): Method of filtering tiles with
+                ROIs. Either 'center' or float (0-1). If 'center', tiles are
+                filtered with ROIs based on the center of the tile. If float,
+                tiles are filtered based on the proportion of the tile inside
+                the ROI, and ``roi_filter_method`` is interpreted as a
+                threshold. If the proportion of a tile inside the ROI is
+                greater than this number, the tile is included. For example,
+                if ``roi_filter_method=0.7``, a tile that is 80% inside of an
+                ROI will be included, and a tile that is 50% inside of an ROI
+                will be excluded. Defaults to 'center'.
 
         Returns:
             None
@@ -2927,7 +2951,8 @@ class Dataset:
                     self.tile_px,
                     self.tile_um,
                     rois=rois,
-                    roi_method='inside'
+                    roi_method='inside',
+                    roi_filter_method=roi_filter_method
                 )
             except errors.SlideLoadError as e:
                 log.error(e)

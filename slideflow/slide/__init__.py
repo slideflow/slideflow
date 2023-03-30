@@ -523,12 +523,12 @@ class _BaseLoader:
 
         downsample = self.dimensions[0] / mask.shape[1]
         qc_ratio = 1 / downsample
-        qc_width = int(self.full_extract_px * qc_ratio)
+        qc_width = int(np.round(self.full_extract_px * qc_ratio))
         for i, (x, y, xi, yi) in enumerate(self.coord):  # type: ignore
-            qc_x = int(x * qc_ratio)
-            qc_y = int(y * qc_ratio)
+            qc_x = int(np.round(x * qc_ratio))
+            qc_y = int(np.round(y * qc_ratio))
             submask = mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
-            if np.mean(submask) >= filter_threshold:
+            if np.mean(submask) > filter_threshold:
                 self.grid[xi, yi] = 0
 
         self.qc_masks.append(mask)
@@ -910,6 +910,7 @@ class WSI(_BaseLoader):
         roi_dir: Optional[str] = None,
         rois: Optional[List[str]] = None,
         roi_method: str = 'auto',
+        roi_filter_method: Union[str, float] = 'center',
         randomize_origin: bool = False,
         pb: Optional[Progress] = None,
         verbose: bool = True,
@@ -942,6 +943,16 @@ class WSI(_BaseLoader):
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
+            roi_filter_method (str or float): Method of filtering tiles with
+                ROIs. Either 'center' or float (0-1). If 'center', tiles are
+                filtered with ROIs based on the center of the tile. If float,
+                tiles are filtered based on the proportion of the tile inside
+                the ROI, and ``roi_filter_method`` is interpreted as a
+                threshold. If the proportion of a tile inside the ROI is
+                greater than this number, the tile is included. For example,
+                if ``roi_filter_method=0.7``, a tile that is 80% inside of an
+                ROI will be included, and a tile that is 50% inside of an ROI
+                will be excluded. Defaults to 'center'.
             randomize_origin (bool, optional): Offset the starting grid by a
                 random amount. Defaults to False.
             pb (:class:`Progress`, optional): Multiprocessing
@@ -970,21 +981,34 @@ class WSI(_BaseLoader):
         self.annPolys = []  # type: List
         self.roi_scale = 10  # type: float
         self.roi_method = roi_method
+        self.roi_filter_method = roi_filter_method
         self.randomize_origin = randomize_origin
         self.verbose = verbose
         self.segmentation = None
         self.grid = None
+
+        if (not isinstance(roi_filter_method, (int, float))
+           and roi_filter_method != 'center'):
+            raise ValueError(
+                "Unrecognized value for argument 'roi_filter_method': {} ."
+                "Expected either float or 'center'.".format(roi_filter_method)
+            )
+        if (isinstance(roi_filter_method, (int, float))
+           and (roi_filter_method < 0 or roi_filter_method > 1)):
+            raise ValueError(
+                "If 'roi_filter_method' is a float, it must be between 0-1."
+            )
 
         if rois is not None and not isinstance(rois, (list, tuple)):
             rois = [rois]
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
-            self.load_csv_roi(join(roi_dir, self.name + ".csv"))
+            self.load_csv_roi(join(roi_dir, self.name + ".csv"), process=False)
 
         # Else try loading ROI from same folder as slide
         elif exists(self.name + ".csv"):
-            self.load_csv_roi(path_to_name(path) + ".csv")
+            self.load_csv_roi(path_to_name(path) + ".csv", process=False)
         elif rois and self.name in [path_to_name(r) for r in rois]:
             matching_rois = []
             for rp in rois:
@@ -996,7 +1020,7 @@ class WSI(_BaseLoader):
                 log.warning(
                     f"Multiple ROIs found for {self.name}; using {mr}"
                 )
-            self.load_csv_roi(mr)
+            self.load_csv_roi(mr, process=False)
 
         # Handle missing ROIs
         if (not len(self.rois)
@@ -1025,7 +1049,7 @@ class WSI(_BaseLoader):
             self.roi_method = 'inside'
 
         # Build coordinate grid
-        self._build_coord()
+        self.process_rois()
 
         mpp_roi_msg = f'{self.mpp} um/px | {len(self.rois)} ROI(s)'
         size_msg = f'Size: {self.dimensions[0]} x {self.dimensions[1]}'
@@ -1112,6 +1136,8 @@ class WSI(_BaseLoader):
     def _build_coord(self) -> None:
         '''Set up coordinate grid.'''
 
+        log.debug("Setting up coordinate grid.")
+
         # Calculate window sizes, strides, and coordinates for windows
         self.extracted_x_size = self.dimensions[0] - self.full_extract_px
         self.extracted_y_size = self.dimensions[1] - self.full_extract_px
@@ -1140,6 +1166,7 @@ class WSI(_BaseLoader):
         self.grid = np.ones((len(x_range), len(y_range)), dtype=bool)
 
         # ROI filtering
+        roi_by_center = (self.roi_filter_method == 'center')
         if self.has_rois():
 
             # Full extraction size and stride
@@ -1159,20 +1186,26 @@ class WSI(_BaseLoader):
             x_offset = - (full_extract/2 - stride/2)
             y_offset = - (full_extract/2 - stride/2)
 
-            # Translate and scale the ROI polygons
+            # Translate ROI polygons
             translated = [
                 sa.translate(poly, x_offset/self.roi_scale, y_offset/self.roi_scale)
                 for poly in self.annPolys
             ]
+
+            # Set scale to 50 times greater than grid size
+            # if filtering by float
+            o = 1 if roi_by_center else 50
+
+            # Scale ROI polygons
             scaled = [
-                sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
+                sa.scale(poly, xfact=xfact * o, yfact=yfact * o, origin=(0, 0))
                 for poly in translated
             ]
 
             # Rasterize polygons to the size of the tile extraction grid
             self.roi_mask = rasterio.features.rasterize(
                 scaled,
-                out_shape=(self.grid.shape[1], self.grid.shape[0]),
+                out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
                 all_touched=False).astype(bool)
         else:
             self.roi_mask = None
@@ -1184,13 +1217,22 @@ class WSI(_BaseLoader):
                 self.coord.append([x, y, xi, yi])
 
                 # ROI filtering
-                if self.has_rois():
+                if self.has_rois() and roi_by_center:
                     point_in_roi = self.roi_mask[yi, xi]
                     # If the extraction method is 'inside',
                     # skip the tile if it's not in an ROI
                     if (((self.roi_method == 'inside') and not point_in_roi)
                        or ((self.roi_method == 'outside') and point_in_roi)):
                         self.grid[xi, yi] = 0
+
+        # If roi_filter_method is a float, then perform tile selection
+        # based on what proportion of the tile is in an ROI,
+        # rather than choosing a tile by centroid (roi_filter_method='center')
+        if self.has_rois() and not roi_by_center:
+            self.apply_qc_mask(
+                ~self.roi_mask,
+                filter_threshold=(1-self.roi_filter_method)
+            )
 
         self.coord = np.array(self.coord)
         self.estimated_num_tiles = int(self.grid.sum())
@@ -1755,16 +1797,17 @@ class WSI(_BaseLoader):
         else:
             return thumb
 
-    def load_roi_array(self, array: np.ndarray):
+    def load_roi_array(self, array: np.ndarray, process: bool = True):
         existing = [
             int(r.name[4:]) for r in self.rois
             if r.name.startswith('ROI_') and r.name[4:].isnumeric()
         ]
         roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
         self.rois.append(ROI(f'ROI_{roi_id}', array))
-        self.process_rois()
+        if process:
+            self.process_rois()
 
-    def load_csv_roi(self, path: str) -> int:
+    def load_csv_roi(self, path: str, process: bool = True) -> int:
         '''Loads CSV ROI from a given path.'''
 
         # Clear any previously loaded ROIs.
@@ -1798,9 +1841,16 @@ class WSI(_BaseLoader):
 
             for roi_object in roi_dict.values():
                 self.rois.append(roi_object)
-        return self.process_rois()
+        if process:
+            self.process_rois()
+        return len(self.rois)
 
-    def load_json_roi(self, path: str, scale: int = 10) -> int:
+    def load_json_roi(
+        self,
+        path: str,
+        scale: int = 10,
+        process: bool = True
+    ) -> int:
         '''Loads ROI from a JSON file.'''
 
         with open(path, "r") as json_file:
@@ -1809,7 +1859,9 @@ class WSI(_BaseLoader):
             area_reduced = np.multiply(shape['points'], scale)
             self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
-        return self.process_rois()
+        if process:
+            self.process_rois()
+        return len(self.rois)
 
     def masked_thumb(self, background: str = 'white', **kwargs) -> np.ndarray:
         """Return a masked thumbnail of a slide, using QC and/or ROI masks.
@@ -1948,16 +2000,15 @@ class WSI(_BaseLoader):
                       * (self.dimensions[1]/self.roi_scale))
         self.roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
-        # If a grid already exists, then regenerate the grid
-        # to reflect the newly-loaded ROIs.
-        if self.grid is not None:
-            self._build_coord()
+        # Regenerate the grid to reflect the newly-loaded ROIs.
+        self._build_coord()
 
         return len(self.rois)
 
-    def remove_roi(self, idx):
+    def remove_roi(self, idx: int, process: bool = True) -> None:
         del self.rois[idx]
-        self.process_rois()
+        if process:
+            self.process_rois()
 
     def tensorflow(
         self,
