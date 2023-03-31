@@ -114,11 +114,11 @@ def import_with_splash():
     # Start GLFW window
     if not glfw.init():
         return
-        
+
     glfw.window_hint(glfw.DECORATED, False)
     height = img.shape[0]
     width = img.shape[1]
-    
+
     # Center on screen
     _, _, mw, mh = glfw.get_monitor_workarea(glfw.get_primary_monitor())
     if not mw:
@@ -127,7 +127,7 @@ def import_with_splash():
         wscale, hscale = glfw.get_monitor_content_scale(glfw.get_primary_monitor())
     else:
         wscale, hscale = 1, 1
-    window = glfw.create_window(int(width/wscale), int(height/hscale), "Opengl GLFW Window", None, None) 
+    window = glfw.create_window(int(width/wscale), int(height/hscale), "Slideflow Studio", None, None)
     glfw.set_window_pos(window, (mw - int(width/wscale)) // 2, (mh - int(height/hscale)) // 2)
 
     _tex_bg = None
@@ -138,7 +138,7 @@ def import_with_splash():
     if not window:
         glfw.terminate()
         return
-        
+
     glfw.make_context_current(window)
 
     while not glfw.window_should_close(window):
