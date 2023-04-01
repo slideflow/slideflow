@@ -1505,6 +1505,7 @@ class Sidebar:
         self._load_button_textures()
         imgui.set_next_window_position(0, viz.menu_bar_height)
         imgui.set_next_window_size(self.buttonbar_width, viz.content_height - viz.menu_bar_height - viz.status_bar_height)
+        button_size = int(round(64/max(self.viz.pixel_ratio, 1)))
         cx, cy = imgui.get_mouse_pos()
         cy -= viz.menu_bar_height
         imgui.begin(
@@ -1519,7 +1520,7 @@ class Sidebar:
                 tex = self._button_tex[b_name].gl_id
             else:
                 tex = self._button_tex[f'{b_name}_highlighted'].gl_id
-            if imgui.image_button(tex, 64, 64):
+            if imgui.image_button(tex, button_size, button_size):
                 if b_name == self.selected or self.selected is None or not self.expanded:
                     self.expanded = not self.expanded
                 self.selected = b_name
