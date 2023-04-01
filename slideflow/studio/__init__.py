@@ -632,11 +632,11 @@ class Studio(ImguiWindow):
             imgui.set_next_window_size(width, height)
 
             if self._tile_preview_is_new:
-                imgui.set_next_window_position(self.content_width - width - self.spacing, self.spacing + self.offset_y_pixels)
+                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing - self.status_bar_height)
                 self._tile_preview_is_new = False
 
             if self._tile_preview_image_is_new and (has_raw_image or has_norm_image):
-                imgui.set_next_window_position(self.content_width - width - self.spacing, self.spacing + self.offset_y_pixels)
+                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing - self.status_bar_height)
                 self._tile_preview_image_is_new = False
 
             _, self._show_tile_preview = imgui.begin("##tile view", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_SCROLLBAR))
@@ -1265,6 +1265,9 @@ class Studio(ImguiWindow):
             if hasattr(self, 'heatmap_widget'):
                 log.debug("Resetting heatmap")
                 self.heatmap_widget.reset()
+            if not self.sidebar.expanded:
+                self.sidebar.selected = 'model'
+                self.sidebar.expanded = True
 
             # Update viewer
             self._show_tile_preview = True
@@ -1388,9 +1391,9 @@ class Sidebar:
 
     @property
     def full_width(self):
-        return self.content_width + 70
+        return self.content_width + 72
 
-    def full_button(self, text):
+    def full_button(self, text, **kwargs):
         t = self.theme
         imgui.push_style_color(imgui.COLOR_BUTTON, *t.bright_button)
         imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, *t.bright_button_hovered)
@@ -1400,17 +1403,28 @@ class Sidebar:
         result = imgui_utils.button(
             text,
             width=self.viz.sidebar.content_width - (self.viz.spacing * 2),
-            height=self.viz.font_size * 1.7
+            height=self.viz.font_size * 1.7,
+            **kwargs
         )
         imgui.pop_style_color(5)
         return result
 
     def header(self, text):
-        imgui_utils.header(
+        with imgui_utils.header(
             text.upper(),
             hpad=self.viz.font_size,
             vpad=(int(self.viz.font_size*0.4), int(self.viz.font_size*0.75))
-        )
+        ):
+            pass
+
+    @contextmanager
+    def header_with_buttons(self, text):
+        with imgui_utils.header(
+            text.upper(),
+            hpad=self.viz.font_size,
+            vpad=(int(self.viz.font_size*0.4), int(self.viz.font_size*0.75))
+        ):
+            yield
 
     @contextmanager
     def dim_text(self):
@@ -1436,9 +1450,11 @@ class Sidebar:
         imgui.push_style_color(imgui.COLOR_BUTTON, *t.button)
         imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, *t.button_hovered)
         imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, *t.button_active)
+        imgui.push_style_color(imgui.COLOR_PLOT_HISTOGRAM, *t.accent)
+        imgui.push_style_color(imgui.COLOR_PLOT_HISTOGRAM_HOVERED, *t.accent_hovered)
 
     def _end_sidebar_style(self) -> None:
-        imgui.pop_style_color(7)
+        imgui.pop_style_color(9)
 
     def _set_sidebar_button_style(self) -> None:
         imgui.push_style_color(imgui.COLOR_WINDOW_BACKGROUND, *self.theme.sidebar_background)
@@ -1460,11 +1476,11 @@ class Sidebar:
         for bname in ('project', 'gear', 'heatmap', 'model', 'mosaic', 'segment', 'slide', 'circle_lightning'):
             self._button_tex[bname] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}.png')), bilinear=False, mipmap=False)
             self._button_tex[f'{bname}_highlighted'] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}_highlighted.png')), bilinear=False, mipmap=False)
-        for sm_bname in ('ellipsis',):
-            self._button_tex[f"small_{sm_bname}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{sm_bname}.png')), bilinear=False, mipmap=False)
-            self._button_tex[f"small_{sm_bname}_highlighted"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{sm_bname}_highlighted.png')), bilinear=False, mipmap=False)
-        for colored in ('vips', 'cucim', 'lowmem'):
-            self._button_tex[f"small_{colored}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{colored}.png')), bilinear=False, mipmap=False)
+        #for sm_bname in ('ellipsis', 'cloud_download', 'disabled', 'folder', 'gear'):
+        #    self._button_tex[f"small_{sm_bname}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{sm_bname}.png')), bilinear=False, mipmap=False)
+        #    self._button_tex[f"small_{sm_bname}_highlighted"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{sm_bname}_highlighted.png')), bilinear=False, mipmap=False)
+        for name in ('vips', 'cucim', 'lowmem', 'ellipsis', 'cloud_download', 'disabled', 'folder', 'gear'):
+            self._button_tex[f"small_{name}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{name}.png')), bilinear=False, mipmap=False)
 
     def small_button(self, image_name):
         viz = self.viz
@@ -1516,7 +1532,7 @@ class Sidebar:
         if self.expanded:
             drawing_control_pane = True
 
-            viz.pane_w = self.content_width + 70
+            viz.pane_w = self.full_width
             imgui.set_next_window_position(70, viz.menu_bar_height)
             imgui.set_next_window_size(self.content_width, viz.content_height - viz.menu_bar_height - viz.status_bar_height)
             imgui.begin(

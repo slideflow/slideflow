@@ -43,7 +43,7 @@ class HeatmapWidget:
         self.uncertainty            = None
         self.content_height         = 0
         self._generating            = False
-        self._button_pressed        = False
+        self._triggered             = False
         self._old_predictions       = 0
         self._old_uncertainty       = 0
         self._predictions_gain      = 1.0
@@ -53,7 +53,7 @@ class HeatmapWidget:
         self._heatmap_thread        = None
         self._heatmap_toast         = None
         self._colormaps             = plt.colormaps()
-        self._rendering_message     = "Calculating heatmap..."
+        self._rendering_message     = "Calculating whole-slide prediction..."
 
     def _create_heatmap(self):
         viz = self.viz
@@ -83,12 +83,12 @@ class HeatmapWidget:
                 if not ignore_errors:
                     raise
 
-    def generate_heatmap(self):
+    def _generate(self):
         """Create and generate a heatmap asynchronously."""
 
         sw = self.viz.slide_widget
         self._create_heatmap()
-        self._button_pressed = True
+        self._triggered = True
         self._generating = True
         self._heatmap_grid, self._heatmap_thread = self.viz.heatmap.generate(
             asynchronous=True,
@@ -130,7 +130,7 @@ class HeatmapWidget:
 
         if self._heatmap_thread is not None and not self._heatmap_thread.is_alive():
             self._generating = False
-            self._button_pressed = False
+            self._triggered = False
             self._heatmap_thread = None
             self.viz.clear_message(self._rendering_message)
             if self._heatmap_toast is not None:
@@ -180,6 +180,18 @@ class HeatmapWidget:
                                     dtype=np.uint8)
             overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
             self.viz.set_overlay(overlay, method=sf.studio.OVERLAY_GRID)
+
+    def generate(self):
+        self.viz.set_message(self._rendering_message)
+        self._heatmap_toast = self.viz.create_toast(
+            title="Calculating heatmap",
+            icon='info',
+            sticky=True,
+            spinner=True
+        )
+        _thread = threading.Thread(target=self._generate)
+        _thread.start()
+        self.show = True
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -243,18 +255,9 @@ class HeatmapWidget:
                         self.viz.slide_widget.show_tile_filter   = False
 
                 imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
-                _button_text = ('Generate' if not self._button_pressed else "Working...")
-                if imgui_utils.button(_button_text, width=viz.button_w, enabled=(not self._button_pressed)):
-                    self.viz.set_message(self._rendering_message)
-                    self._heatmap_toast = self.viz.create_toast(
-                        title="Calculating heatmap",
-                        icon='info',
-                        sticky=True,
-                        spinner=True
-                    )
-                    _thread = threading.Thread(target=self.generate_heatmap)
-                    _thread.start()
-                    self.show = True
+                _button_text = ('Generate' if not self._triggered else "Working...")
+                if imgui_utils.button(_button_text, width=viz.button_w, enabled=(not self._triggered)):
+                    self.generate()
 
                 with imgui_utils.grayed_out(viz.heatmap is None):
 
