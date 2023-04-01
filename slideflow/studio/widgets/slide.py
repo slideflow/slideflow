@@ -3,10 +3,16 @@ import cv2
 import imgui
 import numpy as np
 import threading
+import contextlib
+import glfw
+from shapely.geometry import Point
+from shapely.geometry import Polygon
+from tkinter.filedialog import askopenfilename
 
 from .._renderer import CapturedException
 from ..utils import EasyDict
-from ..gui import imgui_utils
+from ..gui import imgui_utils, text_utils, gl_utils
+from ..gui.annotator import AnnotationCapture
 
 import slideflow as sf
 
@@ -38,6 +44,15 @@ class SlideWidget:
         self._use_rois              = True
         self._rendering_message     = "Calculating tile filter..."
         self._show_filter_controls  = False
+
+        # ROI Annotation params
+        self.annotator              = AnnotationCapture(named=False)
+        self.capturing              = False
+        self.editing                = False
+        self.annotations            = []
+        self._mouse_down            = False
+        self._late_render           = []
+
         self._all_normalizer_methods = [
             'reinhard',
             'reinhard_fast',
@@ -150,6 +165,105 @@ class SlideWidget:
                         self._filter_grid[y][x] = False
             if self.show_tile_filter:
                 self.render_overlay(self._filter_grid, correct_wsi_dim=True)
+
+    # --- ROI annotation functions --------------------------------------------
+
+    def late_render(self):
+        for _ in range(len(self._late_render)):
+            annotation, name, kwargs = self._late_render.pop()
+            gl_utils.draw_roi(annotation, **kwargs)
+            if isinstance(name, str):
+                tex = text_utils.get_texture(
+                    name,
+                    size=self.viz.gl_font_size,
+                    max_width=self.viz.viewer.width,
+                    max_height=self.viz.viewer.height,
+                    outline=2
+                )
+                text_pos = (annotation.mean(axis=0))
+                tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
+
+    def render_annotation(self, annotation, origin, name=None, color=1, alpha=1, linewidth=3):
+        kwargs = dict(color=color, linewidth=linewidth, alpha=alpha)
+        self._late_render.append((np.array(annotation) + origin, name, kwargs))
+
+    def keyboard_callback(self, key, action):
+        if (key == glfw.KEY_DELETE and action == glfw.PRESS):
+            if self.editing and hasattr(self.viz.viewer, 'selected_rois'):
+                for idx in self.viz.viewer.selected_rois:
+                    self.viz.wsi.remove_roi(idx)
+                self.viz.viewer.deselect_roi()
+                self.viz.viewer.refresh_view()
+
+
+    def check_for_selected_roi(self):
+        mouse_down = imgui.is_mouse_down(0)
+
+        # Mouse is newly up
+        if not mouse_down:
+            self._mouse_down = False
+            return
+        # Mouse is already down
+        elif self._mouse_down:
+            return
+        # Mouse is newly down
+        else:
+            self._mouse_down = True
+            mouse_point = Point(imgui.get_mouse_pos())
+            for roi_idx, roi_array in self.viz.viewer.rois:
+                try:
+                    roi_poly = Polygon(roi_array)
+                except ValueError:
+                    continue
+                if roi_poly.contains(mouse_point):
+                    return roi_idx
+
+    def _process_roi_capture(self):
+        viz = self.viz
+        if self.capturing:
+            new_annotation, annotation_name = self.annotator.capture(
+                x_range=(viz.viewer.x_offset, viz.viewer.x_offset + viz.viewer.width),
+                y_range=(viz.viewer.y_offset, viz.viewer.y_offset + viz.viewer.height),
+            )
+
+            # Render in-progress annotations
+            if new_annotation is not None:
+                self.render_annotation(new_annotation, origin=(viz.viewer.x_offset, viz.viewer.y_offset))
+            if annotation_name:
+                wsi_coords = []
+                for c in new_annotation:
+                    _x, _y = viz.viewer.display_coords_to_wsi_coords(c[0], c[1], offset=False)
+                    int_coords = (int(_x), int(_y))
+                    if int_coords not in wsi_coords:
+                        wsi_coords.append(int_coords)
+                wsi_coords = np.array(wsi_coords)
+                viz.wsi.load_roi_array(wsi_coords)
+                viz.viewer.refresh_view()
+
+        # Edit ROIs
+        if self.editing:
+            selected_roi = self.check_for_selected_roi()
+            if imgui.is_mouse_down(1):
+                viz.viewer.deselect_roi()
+            elif selected_roi is not None:
+                viz.viewer.deselect_roi()
+                viz.viewer.select_roi(selected_roi)
+
+    def _set_roi_button_style(self):
+        imgui.push_style_color(imgui.COLOR_BUTTON, 0, 0, 0, 0)
+        imgui.push_style_var(imgui.STYLE_ITEM_SPACING, [0, 0])
+
+    def _end_roi_button_style(self):
+        imgui.pop_style_color(1)
+        imgui.pop_style_var(1)
+
+    @contextlib.contextmanager
+    def highlighted(self, boolean):
+        if boolean:
+            imgui.push_style_color(imgui.COLOR_BUTTON, *self.viz.theme.button_active)
+        yield
+        if boolean:
+            imgui.pop_style_color(1)
 
     # --- Public interface ----------------------------------------------------
 
@@ -359,10 +473,10 @@ class SlideWidget:
             imgui.same_line()
             with imgui_utils.item_width(slider_w):
                 _gst_changed, _gs_thresh = imgui.slider_float('##gs_threshold',
-                                                            self.gs_threshold,
-                                                            min_value=0,
-                                                            max_value=1,
-                                                            format='Thresh %.2f')
+                                                              self.gs_threshold,
+                                                              min_value=0,
+                                                              max_value=1,
+                                                              format='Thresh %.2f')
 
             imgui.text_colored('Whitespace', *viz.theme.dim)
             imgui.same_line(viz.font_size * 5)
@@ -375,10 +489,10 @@ class SlideWidget:
             imgui.same_line()
             with imgui_utils.item_width(slider_w):
                 _wst_changed, _ws_thresh = imgui.slider_float('##ws_threshold',
-                                                            self.ws_threshold,
-                                                            min_value=0,
-                                                            max_value=255,
-                                                            format='Thresh %.0f')
+                                                              self.ws_threshold,
+                                                              min_value=0,
+                                                              max_value=255,
+                                                              format='Thresh %.0f')
 
             if not self._thread_is_running:
                 if _gsf_changed or _wsf_changed:
@@ -474,6 +588,8 @@ class SlideWidget:
             imgui_utils.padded_text('No slide has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
             if viz.sidebar.full_button("Load a Slide"):
                 viz.ask_load_slide()
+            self.capturing = False
+            self.editing = False
 
         elif show:
             if viz.sidebar.collapsing_header('Info', default=True):
@@ -482,5 +598,51 @@ class SlideWidget:
                 imgui.text_colored('ROIs', *viz.theme.dim)
                 imgui.same_line(viz.font_size * 8)
                 imgui.text(str(self.num_total_rois))
+                self._set_roi_button_style()
+
+                # Add button.
+                with self.highlighted(self.capturing):
+                    if viz.sidebar.large_image_button('circle_plus', size=viz.font_size*3):
+                        self.capturing = not self.capturing
+                        self.editing = False
+                        if self.capturing:
+                            viz.create_toast(f'Capturing new ROIs. Right click and drag to create a new ROI.', icon='info')
+                imgui.same_line()
+
+                # Edit button.
+                with self.highlighted(self.editing):
+                    if viz.sidebar.large_image_button('pencil', size=viz.font_size*3):
+                        self.editing = not self.editing
+                        if self.editing:
+                            viz.create_toast(f'Editing ROIs. Click to select an ROI, and press <Del> to remove.', icon='info')
+                        else:
+                            viz.viewer.deselect_roi()
+                        self.capturing = False
+                imgui.same_line()
+
+                # Save button.
+                if viz.sidebar.large_image_button('floppy', size=viz.font_size*3):
+                    dest = viz.wsi.export_rois()
+                    viz.create_toast(f'ROIs saved to {dest}', icon='success')
+                    self.editing = False
+                    self.capturing = False
+                imgui.same_line()
+
+                # Load button.
+                if viz.sidebar.large_image_button('folder', size=viz.font_size*3):
+                    path = askopenfilename(title="Load ROIs...", filetypes=[("CSV", "*.csv",)])
+                    if path:
+                        viz.wsi.load_csv_roi(path)
+                        viz.viewer.refresh_view()
+                    self.editing = False
+                    self.capturing = False
+                self._end_roi_button_style()
+
+                cx, cy = imgui.get_cursor_position()
+                imgui.set_cursor_position([cx, cy+10])
             if viz.sidebar.collapsing_header('Slide Processing', default=False):
                 self.draw_slide_processing()
+            self._process_roi_capture()
+        else:
+            self.capturing = False
+            self.editing = False

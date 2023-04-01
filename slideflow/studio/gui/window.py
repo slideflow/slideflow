@@ -188,6 +188,7 @@ class ImguiWindow(GlfwWindow):
         imgui.render()
         imgui.end_frame()
         self._imgui_renderer.render(imgui.get_draw_data())
+        self.slide_widget.late_render()
         for widget in self.widgets:
             if hasattr(widget, 'late_render'):
                 widget.late_render()

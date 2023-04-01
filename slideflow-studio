@@ -68,10 +68,6 @@ def main(
         from slideflow.studio.widgets.segment import SegmentWidget
         widgets += [SegmentWidget]
 
-    # Experimental ROI annotation widget
-    from slideflow.studio.widgets.annotation import AnnotationWidget
-    widgets += [AnnotationWidget]
-
     viz = Studio(low_memory=low_memory, widgets=widgets, skip_tk_init=True)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
 

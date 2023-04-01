@@ -1,25 +1,18 @@
-import os
-import re
 import imgui
 import numpy as np
 from array import array
 
 from ..gui import imgui_utils
-from ..utils import EasyDict
+from ..gui.annotator import AnnotationCapture
 
 import slideflow.grad as grad
 
-#----------------------------------------------------------------------------
-
-def _locate_results(pattern):
-    return pattern
-
-#----------------------------------------------------------------------------
 
 class ModelWidget:
     def __init__(self, viz, show_saliency=True):
         self.viz                = viz
         self.show_saliency      = show_saliency
+        self.annotator          = AnnotationCapture(named=False)
         self.search_dirs        = []
         self.cur_model          = None
         self.user_model         = ''
@@ -33,8 +26,10 @@ class ModelWidget:
         self.saliency_overlay   = False
         self.saliency_idx       = 0
         self.content_height     = 0
+        self._clicking          = False
         self._show_params       = False
         self._show_popup        = False
+
         self._saliency_methods_all = {
             'Vanilla': grad.VANILLA,
             'Vanilla (Smoothed)': grad.VANILLA_SMOOTH,
@@ -237,7 +232,7 @@ class ModelWidget:
         viz.args.saliency_method = self.saliency_idx
         viz.args.saliency_overlay = self.saliency_overlay
 
-    def draw_popup(self):
+    def draw_config_popup(self):
         viz = self.viz
         has_model = viz._model_config is not None
 
@@ -250,25 +245,27 @@ class ModelWidget:
             )
             if imgui.menu_item('Load model')[0]:
                 viz.ask_load_model()
-                self._show_popup = False
             if imgui.menu_item('Download model')[0]:
                 print("Huggingface?")
-                self._show_popup = False
             imgui.separator()
             if imgui.menu_item('Enable model', enabled=has_model, selected=self.use_model)[0]:
                 self.use_model = not self.use_model
                 viz._use_model = self.use_model
-                self._show_popup = False
             if imgui.menu_item('Enable UQ', enabled=has_model, selected=self.use_uncertainty)[0]:
                 self.use_uncertainty = not self.use_uncertainty
                 viz._use_uncertainty = self.use_uncertainty
-                self._show_popup = False
             imgui.separator()
             if imgui.menu_item('Show parameters', enabled=has_model)[0]:
                 self._show_params = not self._show_params
-                self._show_popup = False
-            imgui.end()
 
+            # Hide menu if we click elsewhere
+            if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
+                self._clicking = True
+            if self._clicking and imgui.is_mouse_released(0):
+                self._clicking = False
+                self._show_popup = False
+
+            imgui.end()
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -281,8 +278,9 @@ class ModelWidget:
                 cx, cy = imgui.get_cursor_pos()
                 imgui.set_cursor_position((cx, cy-int(viz.font_size*0.25)))
                 if viz.sidebar.small_button('gear'):
+                    self._clicking = False
                     self._show_popup = not self._show_popup
-                self.draw_popup()
+                self.draw_config_popup()
 
         if show and not config:
             imgui_utils.padded_text('No model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
@@ -301,3 +299,4 @@ class ModelWidget:
 
         if self._show_params and self.viz._model_config:
             self.draw_params_popup()
+

@@ -686,6 +686,7 @@ class Studio(ImguiWindow):
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_BACKSLASH:
             self.reset_tile_zoom()
 
+        self.slide_widget.keyboard_callback(key, action)
         for widget in self.widgets:
             if hasattr(widget, 'keyboard_callback'):
                 widget.keyboard_callback(key, action)
@@ -1377,7 +1378,7 @@ class Sidebar:
         self.expanded           = False
         self.selected           = None
         self._button_tex        = dict()
-        self._pane_w_div        = 14
+        self._pane_w_div        = 15
         self._buttonbar_width   = 72
         self._navbutton_width   = 70
 
@@ -1473,14 +1474,11 @@ class Sidebar:
         if self._button_tex:
             return
         button_dir = join(dirname(abspath(__file__)), 'gui', 'buttons')
-        for bname in ('project', 'gear', 'heatmap', 'model', 'mosaic', 'segment', 'slide', 'circle_lightning'):
-            self._button_tex[bname] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}.png')), bilinear=False, mipmap=False)
-            self._button_tex[f'{bname}_highlighted'] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}_highlighted.png')), bilinear=False, mipmap=False)
-        #for sm_bname in ('ellipsis', 'cloud_download', 'disabled', 'folder', 'gear'):
-        #    self._button_tex[f"small_{sm_bname}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{sm_bname}.png')), bilinear=False, mipmap=False)
-        #    self._button_tex[f"small_{sm_bname}_highlighted"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{sm_bname}_highlighted.png')), bilinear=False, mipmap=False)
+        for bname in ('project', 'gear', 'heatmap', 'model', 'mosaic', 'segment', 'slide', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy'):
+            self._button_tex[bname] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}.png')), bilinear=True, mipmap=True)
+            self._button_tex[f'{bname}_highlighted'] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}_highlighted.png')), bilinear=True, mipmap=True)
         for name in ('vips', 'cucim', 'lowmem', 'ellipsis', 'cloud_download', 'disabled', 'folder', 'gear'):
-            self._button_tex[f"small_{name}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{name}.png')), bilinear=False, mipmap=False)
+            self._button_tex[f"small_{name}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{name}.png')), bilinear=True, mipmap=True)
 
     def small_button(self, image_name):
         viz = self.viz
@@ -1491,6 +1489,10 @@ class Sidebar:
         result = imgui.image_button(tex, viz.font_size, viz.font_size)
         imgui.pop_style_color(3)
         return result
+
+    def large_image_button(self, image_name, size=64):
+        tex = self._button_tex[f'{image_name}'].gl_id
+        return imgui.image_button(tex, size, size)
 
     def draw_buttons(self) -> None:
         viz = self.viz
