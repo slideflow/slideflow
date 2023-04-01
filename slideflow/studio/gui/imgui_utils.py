@@ -43,6 +43,35 @@ def set_default_style(spacing=9, indent=23, scrollbar=27):
 
 #----------------------------------------------------------------------------
 
+def header(text, color=0.4, hpad=20, vpad=15):
+    if isinstance(vpad, (float, int)):
+        vpad = [vpad, vpad]
+    if isinstance(hpad, (float, int)):
+        hpad = [hpad, hpad]
+    line_height =  imgui.core.get_text_line_height()
+    if isinstance(color, (float, int)):
+        color = [color, color, color, 1]
+    imgui.push_style_color(imgui.COLOR_TEXT, *color)
+    cx, cy = imgui.get_cursor_position()
+    imgui.set_cursor_position([cx+hpad[0], cy+vpad[0]])
+    imgui.text(text)
+    imgui.pop_style_color(1)
+    imgui.set_cursor_position([cx+hpad[1], cy + line_height + vpad[0] + vpad[1]])
+    imgui.separator()
+
+def padded_text(text, hpad=0, vpad=0):
+    if isinstance(vpad, (float, int)):
+        vpad = [vpad, vpad]
+    if isinstance(hpad, (float, int)):
+        hpad = [hpad, hpad]
+    line_height =  imgui.core.get_text_line_height()
+    cx, cy = imgui.get_cursor_position()
+    imgui.set_cursor_position([cx+hpad[0], cy+vpad[0]])
+    imgui.text(text)
+    imgui.set_cursor_position([cx+hpad[1], cy + line_height + vpad[0] + vpad[1]])
+
+#----------------------------------------------------------------------------
+
 @contextlib.contextmanager
 def grayed_out(cond=True):
     if cond:
@@ -80,6 +109,10 @@ def item_width(width=None):
     else:
         yield
 
+def right_aligned_text(text, spacing=0):
+    imgui.same_line(imgui.get_content_region_max()[0] - (imgui.calc_text_size(text)[0] + spacing))
+    imgui.text(text)
+
 #----------------------------------------------------------------------------
 
 def scoped_by_object_id(method):
@@ -92,9 +125,9 @@ def scoped_by_object_id(method):
 
 #----------------------------------------------------------------------------
 
-def button(label, width=0, enabled=True):
+def button(label, width=0, height=0, enabled=True):
     with grayed_out(not enabled):
-        clicked = imgui.button(label, width=width)
+        clicked = imgui.button(label, width=width, height=height)
     clicked = clicked and enabled
     return clicked
 

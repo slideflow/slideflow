@@ -69,7 +69,6 @@ class ProjectWidget:
             self.P = sf.Project(project)
             self.slide_paths = sorted(self.P.dataset().slide_paths())
             viz.model_widget.search_dirs = [self.P.models_dir]
-            viz.slide_widget.project_slides = self.slide_paths
             self.viz.create_toast(f"Loaded project at {project}", icon="success")
 
         except Exception:
