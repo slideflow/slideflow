@@ -8,7 +8,7 @@ import imgui
 
 #----------------------------------------------------------------------------
 
-def about_image():
+def logo_image():
     return Image.open(join(dirname(abspath(__file__)), 'icons', 'logo.png'))
 
 

@@ -219,31 +219,29 @@ class HeatmapWidget:
         imgui.pop_style_color(5)
         imgui.pop_style_var(1)
 
-    def draw_display_options(self):
+    def draw_outcome_selection(self, radio: bool = True) -> bool:
         viz = self.viz
-        _cmap_changed = False
-        _alpha_changed = False
-        _gain_changed = False
-        _uq_predictions_switched = False
+        changed = False
 
-        # Predictions.
-        heatmap_predictions_max = 0 if self.predictions is None else self.predictions.shape[2]-1
+        heatmap_predictions_max = 0 if self.predictions is None else self.predictions.shape[2]
         self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
         narrow_w = imgui.get_text_line_height_with_spacing()
         with imgui_utils.grayed_out(heatmap_predictions_max == 0):
-            if imgui.radio_button('##predictions_radio', self.use_predictions):
+            if radio and imgui.radio_button('##predictions_radio', self.use_predictions):
                 if viz.has_uq():
-                    _uq_predictions_switched = True
+                    changed = True
                     self.use_predictions = True
+            if radio:
+                imgui.same_line()
 
-            imgui.same_line()
             with imgui_utils.item_width(-1 - narrow_w * 2 - viz.spacing*2):
-                _changed, self.heatmap_predictions = imgui.drag_int('##heatmap_predictions',
-                                                                self.heatmap_predictions,
-                                                                change_speed=0.05,
-                                                                min_value=0,
-                                                                max_value=heatmap_predictions_max,
-                                                                format=f'predictions %d/{heatmap_predictions_max}')
+                _, hpred = imgui.drag_int('##heatmap_predictions',
+                                          self.heatmap_predictions+1,
+                                          change_speed=0.05,
+                                          min_value=0,
+                                          max_value=heatmap_predictions_max,
+                                          format=f'Predictions %d/{heatmap_predictions_max}')
+                self.heatmap_predictions = hpred - 1
             imgui.same_line()
             if imgui_utils.button('-##heatmap_predictions', width=narrow_w):
                 self.heatmap_predictions -= 1
@@ -259,24 +257,26 @@ class HeatmapWidget:
         if viz.heatmap is None or self.uncertainty is None:
             heatmap_uncertainty_max = 0
         else:
-            heatmap_uncertainty_max = self.uncertainty.shape[2] - 1
+            heatmap_uncertainty_max = self.uncertainty.shape[2]
 
         self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
         narrow_w = imgui.get_text_line_height_with_spacing()
         with imgui_utils.grayed_out(viz.heatmap is None or not viz.has_uq()):
-            if imgui.radio_button('##uncertainty_radio', not self.use_predictions):
+            if radio and imgui.radio_button('##uncertainty_radio', not self.use_predictions):
                 if viz.has_uq():
-                    _uq_predictions_switched = True
+                    changed = True
                     self.use_predictions = False
 
-            imgui.same_line()
+            if radio:
+                imgui.same_line()
             with imgui_utils.item_width(-1 - narrow_w * 2 - viz.spacing*2):
-                _changed, self.heatmap_uncertainty = imgui.drag_int('##heatmap_uncertainty',
-                                                                    self.heatmap_uncertainty,
-                                                                    change_speed=0.05,
-                                                                    min_value=0,
-                                                                    max_value=heatmap_uncertainty_max,
-                                                                    format=f'UQ %d/{heatmap_uncertainty_max}')
+                _, huq = imgui.drag_int('##heatmap_uncertainty',
+                                        self.heatmap_uncertainty+1,
+                                        change_speed=0.05,
+                                        min_value=0,
+                                        max_value=heatmap_uncertainty_max,
+                                        format=f'Uncertainty %d/{heatmap_uncertainty_max}')
+                self.heatmap_uncertainty = huq - 1
             imgui.same_line()
             if imgui_utils.button('-##heatmap_uncertainty', width=narrow_w):
                 self.heatmap_uncertainty -= 1
@@ -285,6 +285,17 @@ class HeatmapWidget:
                 self.heatmap_uncertainty += 1
             self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
 
+        return changed
+
+    def draw_display_options(self):
+        viz = self.viz
+        _cmap_changed = False
+        _alpha_changed = False
+        _gain_changed = False
+        _uq_predictions_switched = False
+
+        # Predictions and UQ.
+        _uq_predictions_switched = self.draw_outcome_selection()
         imgui.text('')
 
         # Display options (colormap, opacity, etc).

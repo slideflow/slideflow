@@ -96,6 +96,9 @@ class GlfwWindow:
     def frame_delta(self):
         return self._frame_delta
 
+    def set_window_icon(self, image):
+        glfw.set_window_icon(self._glfw_window, 1, image)
+
     def update_window_size(self):
         ws = glfw.get_window_size(self._glfw_window)
         if not ws[0]:

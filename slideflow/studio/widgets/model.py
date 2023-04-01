@@ -213,6 +213,9 @@ class ModelWidget:
             elif not viz.has_uq():
                 imgui.text("Model not trained with uncertainty.")
 
+            if viz.heatmap:
+                viz.heatmap_widget.draw_outcome_selection(radio=False)
+
             imgui.text('')
 
     def draw_saliency(self):

@@ -186,6 +186,7 @@ class Studio(ImguiWindow):
             self.widgets += [widget(self)]
 
         # Initialize window.
+        self.set_window_icon(imgui_utils.logo_image())
         self.set_position(0, 0)
         self._set_default_font_size()
         self.skip_frame() # Layout may change after first frame.
@@ -308,7 +309,7 @@ class Studio(ImguiWindow):
             if imgui.begin_popup('about_popup'):
 
                 if self._about_tex_obj is None:
-                    about_img = imgui_utils.about_image().resize((96, 96))
+                    about_img = imgui_utils.logo_image().resize((96, 96))
                     self._about_tex_obj = gl_utils.Texture(image=about_img)
                 imgui.text('')
                 imgui.text('')
