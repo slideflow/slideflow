@@ -158,7 +158,7 @@ class Studio(ImguiWindow):
         self.args               = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
         self.result             = EasyDict(predictions=None, uncertainty=None)
         self.message            = None
-        self.pane_w             = 0
+        self.pane_w             = 70
         self.label_w            = 0
         self.button_w           = 0
         self.x                  = None
@@ -617,8 +617,10 @@ class Studio(ImguiWindow):
         """
 
         if self._show_tile_preview:
-            has_raw_image = self._tex_obj is not None# and self.tile_px
+            has_raw_image = self._tex_obj is not None
             has_norm_image = self.model_widget.use_model and self._normalizer is not None and self._norm_tex_obj is not None and self.tile_px
+            if not has_raw_image:
+                return
 
             if not (has_raw_image or has_norm_image):
                 width = self.font_size * 8
@@ -645,12 +647,7 @@ class Studio(ImguiWindow):
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
             dim_color[-1] *= 0.5
             imgui.begin_child('##pred_image', border=False)
-            if has_raw_image:
-                imgui.image(self._tex_obj.gl_id, raw_img_w, raw_img_w)
-            elif self._model_path is not None:
-                imgui.text_colored('Right click to preview', *dim_color)
-            else:
-                imgui.text_colored('No model loaded', *dim_color)
+            imgui.image(self._tex_obj.gl_id, raw_img_w, raw_img_w)
             imgui.same_line()
             if has_norm_image:
                 imgui.image(self._norm_tex_obj.gl_id, norm_img_w, norm_img_w)
@@ -998,7 +995,7 @@ class Studio(ImguiWindow):
         self.args = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
         self.button_w = self.font_size * 5
         self.label_w = round(self.font_size * 4.5)
-        self.menu_bar_height = self.font_size + self.spacing
+        self.menu_bar_height = self.font_size + self.spacing/2
 
         max_w = self.content_frame_width - self.offset_x_pixels
         max_h = self.content_frame_height - self.offset_y_pixels
@@ -1012,8 +1009,8 @@ class Studio(ImguiWindow):
             self.autoload(paths[0], ignore_errors=True)
 
         self._clear_textures()
-        self._draw_menu_bar()
         self._draw_control_pane()
+        self._draw_menu_bar()
         self._draw_performance_pane()
         self._draw_about_dialog()
 
@@ -1502,7 +1499,7 @@ class Sidebar:
         imgui.begin(
             'Sidebar',
             closable=False,
-            flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+            flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS)
         )
         padded_w = 70
         for b_id, b_name in enumerate(('project', 'slide', 'model', 'heatmap', 'segment', 'mosaic', 'circle_lightning', 'gear')):
@@ -1538,7 +1535,7 @@ class Sidebar:
             imgui.begin(
                 'Control Pane',
                 closable=False,
-                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS)
             )
         else:
             viz.pane_w = 70

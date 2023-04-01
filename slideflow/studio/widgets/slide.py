@@ -482,5 +482,5 @@ class SlideWidget:
                 imgui.text_colored('ROIs', *viz.theme.dim)
                 imgui.same_line(viz.font_size * 8)
                 imgui.text(str(self.num_total_rois))
-            if viz.sidebar.collapsing_header('Slide Processing', default=True):
+            if viz.sidebar.collapsing_header('Slide Processing', default=False):
                 self.draw_slide_processing()

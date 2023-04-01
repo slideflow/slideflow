@@ -159,13 +159,60 @@ class ModelWidget:
                 with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.spacing):
                     imgui.core.plot_histogram('##pred', array('f', viz._predictions), scale_min=0, scale_max=1)
             elif viz._use_model:
-                imgui.text("Right click to predict.")
+                imgui_utils.padded_text('Right click for a focal prediction.', vpad=[int(viz.font_size/2), int(viz.font_size)])
             else:
-                imgui.text("Model not in use.")
+                imgui_utils.padded_text('Model not in use.', vpad=[int(viz.font_size/2), int(viz.font_size)])
 
             # Slide prediction ================================================
-            if viz.sidebar.full_button("Predict Slide", enabled=(not viz.heatmap_widget._triggered)):
+            txt = "Predict Slide" if (not viz.heatmap_widget._triggered) else "Predicting Slide..."
+            if viz.sidebar.full_button(txt, enabled=(not viz.heatmap_widget._triggered and viz.wsi)):
                 viz.heatmap_widget.generate()
+
+            hw = viz.heatmap_widget
+            _histogram_size = imgui.get_content_region_max()[0] - viz.spacing, viz.font_size * 4
+            if viz.heatmap and hw.predictions is not None:
+                flattened = hw.predictions[:, :, hw.heatmap_predictions].flatten()
+                flattened = flattened[flattened >= 0]
+                _hist, _bin_edges = np.histogram(flattened, range=(0, 1))
+                if flattened.shape[0] > 0:
+                    overlay_text = f"Predictions (avg: {np.mean(flattened):.2f})"
+                    _hist_arr = array('f', _hist/np.sum(_hist))
+                    scale_max = np.max(_hist/np.sum(_hist))
+                else:
+                    overlay_text = "Predictions (avg: - )"
+                    _hist_arr = array('f', [0])
+                    scale_max = 1
+                imgui.separator()
+                imgui.core.plot_histogram('##heatmap_pred',
+                                            _hist_arr,
+                                            scale_min=0,
+                                            overlay_text=overlay_text,
+                                            scale_max=scale_max,
+                                            graph_size=_histogram_size)
+
+            if viz.heatmap and hw.uncertainty is not None:
+                flattened = hw.uncertainty[:, :, hw.heatmap_uncertainty].flatten()
+                flattened = flattened[flattened >= 0]
+                _hist, _bin_edges = np.histogram(flattened)
+                if flattened.shape[0] > 0:
+                    overlay_text = f"Uncertainty (avg: {np.mean(flattened):.2f})"
+                    _hist_arr = array('f', _hist/np.sum(_hist))
+                    scale_max = np.max(_hist/np.sum(_hist))
+                else:
+                    overlay_text = "Uncertainty (avg: - )"
+                    _hist_arr = array('f', [0])
+                    scale_max = 1
+                imgui.separator()
+                imgui.core.plot_histogram('##heatmap_pred',
+                                            _hist_arr,
+                                            scale_min=0,
+                                            overlay_text=overlay_text,
+                                            scale_max=scale_max,
+                                            graph_size=_histogram_size)
+                imgui.separator()
+            elif not viz.has_uq():
+                imgui.text("Model not trained with uncertainty.")
+
             imgui.text('')
 
     def draw_saliency(self):
