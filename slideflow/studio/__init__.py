@@ -158,7 +158,7 @@ class Studio(ImguiWindow):
         self.args               = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
         self.result             = EasyDict(predictions=None, uncertainty=None)
         self.message            = None
-        self.pane_w             = 70
+        self.pane_w             = 0
         self.label_w            = 0
         self.button_w           = 0
         self.x                  = None
@@ -1389,7 +1389,7 @@ class Sidebar:
 
     @property
     def full_width(self):
-        return self.content_width + 72
+        return self.content_width + self.buttonbar_width
 
     def full_button(self, text, **kwargs):
         t = self.theme
@@ -1414,6 +1414,16 @@ class Sidebar:
             vpad=(int(self.viz.font_size*0.4), int(self.viz.font_size*0.75))
         ):
             pass
+
+    @property
+    def buttonbar_width(self):
+        r = max(self.viz.pixel_ratio, 1)
+        return int(round(72/r))
+
+    @property
+    def navbutton_width(self):
+        r = max(self.viz.pixel_ratio, 1)
+        return int(round(70/r))
 
     @contextmanager
     def header_with_buttons(self, text):
@@ -1494,7 +1504,7 @@ class Sidebar:
         viz = self.viz
         self._load_button_textures()
         imgui.set_next_window_position(0, viz.menu_bar_height)
-        imgui.set_next_window_size(72, viz.content_height - viz.menu_bar_height - viz.status_bar_height)
+        imgui.set_next_window_size(self.buttonbar_width, viz.content_height - viz.menu_bar_height - viz.status_bar_height)
         cx, cy = imgui.get_mouse_pos()
         cy -= viz.menu_bar_height
         imgui.begin(
@@ -1502,11 +1512,10 @@ class Sidebar:
             closable=False,
             flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS)
         )
-        padded_w = 70
         for b_id, b_name in enumerate(('project', 'slide', 'model', 'heatmap', 'segment', 'mosaic', 'circle_lightning', 'gear')):
-            start_px = b_id * padded_w
-            end_px = start_px + padded_w
-            if ((cx < 0 or cx > padded_w) or (cy < start_px or cy > end_px)) and self.selected != b_name:
+            start_px = b_id * self.navbutton_width
+            end_px = start_px + self.navbutton_width
+            if ((cx < 0 or cx > self.navbutton_width) or (cy < start_px or cy > end_px)) and self.selected != b_name:
                 tex = self._button_tex[b_name].gl_id
             else:
                 tex = self._button_tex[f'{b_name}_highlighted'].gl_id
@@ -1516,7 +1525,7 @@ class Sidebar:
                 self.selected = b_name
             if self.selected == b_name:
                 draw_list = imgui.get_window_draw_list()
-                draw_list.add_line(2, viz.menu_bar_height+start_px, 2, viz.menu_bar_height+start_px+padded_w, imgui.get_color_u32_rgba(1,1,1,1), 2)
+                draw_list.add_line(2, viz.menu_bar_height-2+start_px, 2, viz.menu_bar_height-2+start_px+self.navbutton_width, imgui.get_color_u32_rgba(1,1,1,1), 2)
         imgui.end()
 
     def draw(self):
@@ -1531,7 +1540,7 @@ class Sidebar:
             drawing_control_pane = True
 
             viz.pane_w = self.full_width
-            imgui.set_next_window_position(70, viz.menu_bar_height)
+            imgui.set_next_window_position(self.navbutton_width, viz.menu_bar_height)
             imgui.set_next_window_size(self.content_width, viz.content_height - viz.menu_bar_height - viz.status_bar_height)
             imgui.begin(
                 'Control Pane',
@@ -1539,7 +1548,7 @@ class Sidebar:
                 flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS)
             )
         else:
-            viz.pane_w = 70
+            viz.pane_w = self.navbutton_width
             drawing_control_pane = False
 
         # --- Core widgets (always rendered, not always shown) ----------------
