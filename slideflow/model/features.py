@@ -1265,12 +1265,12 @@ class _FeatureGenerator:
         # Generator is a loaded torch.nn.Module
         elif self.is_torch():
             return sf.model.Features.from_model(
-                self.model,
+                self.model.to('cuda'),
                 tile_px=self.tile_px,
                 layers=self.layers,
                 include_preds=self.include_preds,
                 **kwargs
-            ).to('cuda')
+            )
 
         # Unrecognized feature generator
         else:
