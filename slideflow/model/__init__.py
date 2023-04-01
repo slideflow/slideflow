@@ -444,10 +444,10 @@ class DatasetFeatures:
             combined_model = sf.model.Features.from_model(model, **feat_kw)
         elif is_torch:
             combined_model = sf.model.Features.from_model(
-                model,
+                model.to('cuda'),
                 tile_px=self.tile_px,
                 **feat_kw
-            ).to('cuda')
+            )
         else:
             raise ValueError(f'Unrecognized model {model}')
 
