@@ -25,7 +25,6 @@ class ModelWidget:
         self.enable_saliency    = False
         self.saliency_overlay   = False
         self.saliency_idx       = 0
-        self.content_height     = 0
         self._clicking          = False
         self._show_params       = False
         self._show_popup        = False
@@ -156,7 +155,6 @@ class ModelWidget:
             # Tile prediction =================================================
             if viz._use_model and viz._predictions is not None and isinstance(viz._predictions, list):
                 for p, _pred_array in enumerate(viz._predictions):
-                    self.content_height += (imgui.get_text_line_height_with_spacing() + viz.spacing)
                     imgui.text_colored(f'Pred {p}', *viz.theme.dim)
                     if 'outcomes' in config:
                         outcomes = config['outcomes'][p]
@@ -170,10 +168,12 @@ class ModelWidget:
                     imgui.text(pred_str)
                     imgui.core.plot_histogram('##pred', array('f', _pred_array), scale_min=0, scale_max=1)
             elif viz._use_model and viz._predictions is not None:
-                self.content_height += (imgui.get_text_line_height_with_spacing() + viz.spacing)
                 imgui.text_colored('Tile prediction', *viz.theme.dim)
-                ol = config['outcome_labels']
-                pred_str = ol[str(np.argmax(viz._predictions))]
+                if config['model_type'] == 'categorical':
+                    ol = config['outcome_labels']
+                    pred_str = ol[str(np.argmax(viz._predictions))]
+                else:
+                    pred_str = f'{viz._predictions[0]:.3f}'
                 if viz._use_uncertainty and viz._uncertainty is not None:
                     pred_str += " (UQ: {:.4f})".format(viz._uncertainty)
                 imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
@@ -186,15 +186,25 @@ class ModelWidget:
                 imgui_utils.padded_text('Model not in use.', vpad=[int(viz.font_size/2), int(viz.font_size)])
 
             # Slide prediction ================================================
-            txt = "Predict Slide" if (not viz.heatmap_widget._triggered) else "Predicting Slide..."
-            if viz.sidebar.full_button(txt, enabled=(not viz.heatmap_widget._triggered and viz.wsi)):
-                viz.heatmap_widget.generate()
-
             hw = viz.heatmap_widget
             _histogram_size = imgui.get_content_region_max()[0] - viz.spacing, viz.font_size * 4
             if viz.heatmap and hw.predictions is not None:
                 flattened = hw.predictions[:, :, hw.heatmap_predictions].flatten()
                 flattened = flattened[flattened >= 0]
+
+                # Show as text
+                imgui.text_colored('Slide prediction', *viz.theme.dim)
+                if viz.heatmap_widget._triggered:
+                    pred_str = '-'
+                elif config['model_type'] == 'categorical':
+                    ol = config['outcome_labels']
+                    pred_str = ol[str(np.argmax(np.mean(flattened, axis=-1)))]
+                else:
+                    pred_str = f'{np.mean(flattened):.3f}'
+                imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
+                imgui.text(pred_str)
+
+                # Show histogram
                 _hist, _bin_edges = np.histogram(flattened, range=(0, 1))
                 if flattened.shape[0] > 0:
                     overlay_text = f"Predictions (avg: {np.mean(flattened):.2f})"
@@ -237,6 +247,10 @@ class ModelWidget:
 
             if viz.heatmap:
                 viz.heatmap_widget.draw_outcome_selection(radio=False)
+
+            txt = "Predict Slide" if (not viz.heatmap_widget._triggered) else "Predicting Slide..."
+            if viz.sidebar.full_button(txt, enabled=(not viz.heatmap_widget._triggered and viz.wsi)):
+                viz.heatmap_widget.generate()
 
             imgui_utils.vertical_break()
 
