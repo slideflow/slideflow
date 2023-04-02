@@ -166,8 +166,13 @@ class SlideViewer(Viewer):
         width = viz.font_size * 20
         height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing
 
-        imgui.set_next_window_position(viz.content_frame_width - width - viz.spacing*2, viz.menu_bar_height + viz.spacing*2)
-        imgui.set_next_window_size(width, height)
+        if viz.wsi_thumb is not None:
+            hw_ratio = (viz.wsi_thumb.shape[0] / viz.wsi_thumb.shape[1])
+            max_width = min(width - viz.spacing*2, (height - viz.spacing*2) / hw_ratio)
+            max_height = max_width * hw_ratio
+
+        imgui.set_next_window_position(viz.content_frame_width - max_width - viz.spacing*3, viz.menu_bar_height + viz.spacing)
+        imgui.set_next_window_size(max_width + viz.spacing*2, max_height + viz.spacing*2)
 
         imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
         imgui.push_style_color(imgui.COLOR_HEADER, 0, 0, 0, 0)
@@ -179,19 +184,14 @@ class SlideViewer(Viewer):
         )
 
         if viz.wsi_thumb is not None:
-            hw_ratio = (viz.wsi_thumb.shape[0] / viz.wsi_thumb.shape[1])
-            max_width = min(width - viz.spacing*2, (height - viz.spacing*2) / hw_ratio)
-            max_height = max_width * hw_ratio
-
             if viz._wsi_tex_obj is not None:
-                imgui.same_line(int((width - max_width)/2))
                 imgui.image(viz._wsi_tex_obj.gl_id, max_width, max_height)
 
                 # Show location overlay
                 if viz.viewer.wsi_window_size:
                     # Convert from wsi coords to thumbnail coords
                     t_x, t_y = imgui.get_window_position()
-                    t_x = t_x + int((width - max_width)/2)
+                    t_x = t_x + viz.spacing
                     t_w_ratio = max_width / viz.wsi.dimensions[0]
                     t_h_ratio = max_height / viz.wsi.dimensions[1]
                     t_x += viz.viewer.origin[0] * t_w_ratio
