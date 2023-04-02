@@ -214,7 +214,7 @@ class ModelWidget:
             if viz.heatmap:
                 viz.heatmap_widget.draw_outcome_selection(radio=False)
 
-            imgui.text('')
+            imgui_utils.vertical_break()
 
     def draw_saliency(self):
         viz = self.viz

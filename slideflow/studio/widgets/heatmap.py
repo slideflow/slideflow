@@ -295,8 +295,9 @@ class HeatmapWidget:
         _uq_predictions_switched = False
 
         # Predictions and UQ.
+        imgui_utils.vertical_break()
         _uq_predictions_switched = self.draw_outcome_selection()
-        imgui.text('')
+        imgui_utils.vertical_break()
 
         # Display options (colormap, opacity, etc).
         if viz.sidebar.collapsing_header('Display', default=False):

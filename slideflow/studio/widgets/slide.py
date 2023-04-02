@@ -452,6 +452,8 @@ class SlideWidget:
                 else:
                     imgui.text(col)
 
+        imgui_utils.vertical_break()
+
     def draw_filtering_popup(self):
         viz = self.viz
         cx, cy = imgui.get_cursor_pos()
