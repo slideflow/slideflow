@@ -266,8 +266,9 @@ class Renderer:
             if use_jpeg:
                 img = _decode_jpeg(img, self.model_type)
                 if self.model_type == 'torch':
-                    res.image = sf.io.torch.cwh_to_whc(img).numpy()
-                res.image = img.numpy()
+                    res.image = sf.io.torch.cwh_to_whc(img).cpu().numpy()
+                else:
+                    res.image = img.numpy()
                 img = sf.io.convert_dtype(img, dtype)
             else:
                 res.image = img
@@ -293,7 +294,7 @@ class Renderer:
                 proc_img = normalizer.transform(proc_img)
                 if not isinstance(proc_img, np.ndarray):
                     if self.model_type == 'torch':
-                        res.normalized = sf.io.torch.cwh_to_whc(proc_img).numpy().astype(np.uint8)
+                        res.normalized = sf.io.torch.cwh_to_whc(proc_img).cpu().numpy().astype(np.uint8)
                     else:
                         res.normalized = proc_img.numpy().astype(np.uint8)
                 else:

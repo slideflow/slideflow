@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from functools import lru_cache
 from os.path import join, dirname
 
-__version__ = "1.6.0"
+__version__ = "2.0.0"
 
 # -----------------------------------------------------------------------------
 
@@ -161,7 +161,7 @@ def import_with_splash():
         if _tex_icon is None:
             _tex_icon = Texture(image=icon, bilinear=True)
         if _version_text is None:
-            _version_text = text_texture(__version__, size=28)
+            _version_text = text_texture(__version__, size=22)
         _tex_bg.draw(pos=0, zoom=1, align=0.5, rint=True, anchor='topleft')
         _tex_icon.draw(pos=(width//2, int(height * 0.3)), zoom=0.25, align=0.5, rint=True, anchor='center')
         _version_text.draw(pos=(width//2, int(height * 0.7)), zoom=1, align=0.5, rint=True, anchor='center')
