@@ -66,24 +66,22 @@ class CaptureWidget:
     def __call__(self, show=True):
         viz = self.viz
         if show:
-            with imgui_utils.grayed_out(self.disabled_time != 0):
-                imgui.text('Capture')
-                imgui.same_line(viz.label_w)
-                _changed, self.path = imgui_utils.input_text('##path', self.path, 1024,
-                    flags=(imgui.INPUT_TEXT_AUTO_SELECT_ALL | imgui.INPUT_TEXT_ENTER_RETURNS_TRUE),
-                    width=(-1 - viz.button_w * 3 - viz.spacing * 3),
-                    help_text='PATH')
-                if imgui.is_item_hovered() and not imgui.is_item_active() and self.path != '':
-                    imgui.set_tooltip(self.path)
-                imgui.same_line()
-                if imgui_utils.button('Save view', width=viz.button_w, enabled=(self.disabled_time == 0 and viz.viewer)):
-                    self.save_view()
-                imgui.same_line()
-                if imgui_utils.button('Save tile', width=viz.button_w, enabled=(self.disabled_time == 0 and 'image' in viz.result)):
-                    self.save_tile()
-                imgui.same_line()
-                if imgui_utils.button('Save GUI', width=-1, enabled=(self.disabled_time == 0)):
-                    self.save_gui()
+            if viz.sidebar.collapsing_header('Capture', default=True):
+                with imgui_utils.grayed_out(self.disabled_time != 0):
+                    _changed, self.path = imgui_utils.input_text('##path', self.path, 1024,
+                        flags=(imgui.INPUT_TEXT_AUTO_SELECT_ALL | imgui.INPUT_TEXT_ENTER_RETURNS_TRUE),
+                        width=-1,
+                        help_text='PATH')
+                    if imgui.is_item_hovered() and not imgui.is_item_active() and self.path != '':
+                        imgui.set_tooltip(self.path)
+                    if imgui_utils.button('Save view', width=viz.button_w, enabled=(self.disabled_time == 0 and viz.viewer)):
+                        self.save_view()
+                    imgui.same_line()
+                    if imgui_utils.button('Save tile', width=viz.button_w, enabled=(self.disabled_time == 0 and 'image' in viz.result)):
+                        self.save_tile()
+                    imgui.same_line()
+                    if imgui_utils.button('Save GUI', width=-1, enabled=(self.disabled_time == 0)):
+                        self.save_gui()
 
         self.disabled_time = max(self.disabled_time - viz.frame_delta, 0)
         if self.defer_frames > 0:

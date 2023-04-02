@@ -26,7 +26,7 @@ from .gui.window import ImguiWindow
 from .gui.viewer import SlideViewer
 from .widgets import (
     ProjectWidget, SlideWidget, ModelWidget, HeatmapWidget, PerformanceWidget,
-    CaptureWidget
+    CaptureWidget, SettingsWidget
 )
 from .utils import EasyDict, _load_model_and_saliency
 from ._renderer import Renderer, CapturedException
@@ -177,6 +177,7 @@ class Studio(ImguiWindow):
         self.heatmap_widget     = HeatmapWidget(self)
         self.performance_widget = PerformanceWidget(self)
         self.capture_widget     = CaptureWidget(self)
+        self.settings_widget    = SettingsWidget(self)
 
         # User-defined widgets.
         self.widgets = []
@@ -598,17 +599,6 @@ class Studio(ImguiWindow):
         imgui.pop_style_color(1)
         imgui.pop_style_var(1)
 
-    def _draw_performance_pane(self):
-        """Draw the performance and capture window."""
-
-        if self._show_performance:
-            _, self._show_performance = imgui.begin('Performance & Capture', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE))
-            self.performance_widget(True)
-            self.capture_widget(True)
-            imgui.end()
-        else:
-            self.capture_widget(False)
-
     def _draw_tile_view(self):
         """Draw the tile view window, displaying the currently rendered tile(s).
 
@@ -1009,7 +999,6 @@ class Studio(ImguiWindow):
         self._clear_textures()
         self._draw_control_pane()
         self._draw_menu_bar()
-        self._draw_performance_pane()
         self._draw_about_dialog()
 
         user_input = self._handle_user_input()
@@ -1570,7 +1559,6 @@ class Sidebar:
             drawing_control_pane = False
 
         # --- Core widgets (always rendered, not always shown) ----------------
-        header_height = viz.font_size + (viz.spacing * 2)
 
         # Slide widget
         viz.slide_widget(self.expanded and self.selected == 'slide')
@@ -1583,6 +1571,13 @@ class Sidebar:
 
         # Heatmap / prediction widget
         viz.heatmap_widget(self.expanded and self.selected == 'heatmap')
+
+        # Performance / capture widget
+        viz.performance_widget(self.expanded and self.selected == 'circle_lightning')
+        viz.capture_widget(self.expanded and self.selected == 'circle_lightning')
+
+        # Settings widget
+        viz.settings_widget(self.expanded and self.selected == 'gear')
 
         # ---------------------------------------------------------------------
 
