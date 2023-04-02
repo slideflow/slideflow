@@ -12,9 +12,11 @@ from ..gui import imgui_utils
 
 
 class SegmentWidget:
+
+    tag = 'segment'
+
     def __init__(self, viz):
         self.viz                    = viz
-        self.header                 = "Cellpose"
         self.alpha                  = 1
         self.downscale              = 1
         self.show_advanced          = False

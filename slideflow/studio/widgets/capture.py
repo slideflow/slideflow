@@ -11,7 +11,7 @@ from .._renderer import CapturedException
 class CaptureWidget:
     def __init__(self, viz):
         self.viz            = viz
-        self.path           = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '_screenshots'))
+        self.path           = os.path.join(os.getcwd(), '_screenshots')
         self.dump_tile      = False
         self.dump_gui       = False
         self.dump_view      = False

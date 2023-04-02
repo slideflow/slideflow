@@ -182,12 +182,18 @@ class Studio(ImguiWindow):
         self.widgets = []
         if widgets is None:
             widgets = self.get_default_widgets()
-        for widget in widgets:
-            self.widgets += [widget(self)]
+        self.add_widgets(widgets)
 
         # Initialize window.
         self.set_window_icon(imgui_utils.logo_image())
         self.set_position(0, 0)
+        minheight = ((len(self.sidebar.navbuttons)+2) * self.sidebar.navbutton_width) + self.status_bar_height + self.menu_bar_height
+        glfw.set_window_size_limits(
+            self._glfw_window,
+            minwidth=self.sidebar.content_width+100,
+            minheight=minheight,
+            maxwidth=-1,
+            maxheight=-1)
         self._set_default_font_size()
         self.skip_frame() # Layout may change after first frame.
         self.load_slide('')
@@ -354,7 +360,7 @@ class Studio(ImguiWindow):
         """
 
         max_w = self.content_frame_width - self.offset_x_pixels
-        max_h = self.content_frame_height - self.offset_y_pixels
+        max_h = self.content_frame_height - self.offset_y_pixels - self.status_bar_height
 
         # Update the viewer in response to user input.
         if self.viewer and self.viewer.movable:
@@ -821,27 +827,17 @@ class Studio(ImguiWindow):
             viz=self
         )
 
-    def _widgets_by_header(self) -> List[Tuple[str, List[Any]]]:
-        """Return all unique widget headers and their corresponding widgets.
-
-        Returns:
-            List of tuple (header, List of widgets) for all unique headers.
-        """
-        def _get_header(w):
-            return '' if not hasattr(w, 'header') else w.header
-
-        headers = []
-        for widget in self.widgets:
-            _widget_header = _get_header(widget)
-            if _widget_header not in headers:
-                headers.append(_widget_header)
-
-        return [
-            (header, [w for w in self.widgets if _get_header(w) == header])
-            for header in headers
-        ]
-
     # --- Public methods ------------------------------------------------------
+
+    def reset_background(self):
+        self._background_color = self.theme.main_background
+
+    def add_widgets(self, widgets):
+        if not isinstance(widgets, list):
+            widgets = [widgets]
+        for widget in widgets:
+            self.widgets += [widget(self)]
+        self.sidebar.add_widgets(widgets)
 
     def add_to_render_pipeline(
         self,
@@ -1366,6 +1362,8 @@ class Studio(ImguiWindow):
     def set_viewer(self, viewer: Any) -> None:
         """Set the main viewer."""
         log.debug("Setting viewer to {}".format(viewer))
+        if self.viewer is not None:
+            self.viewer.close()
         self.viewer = viewer
         self._async_renderer._live_updates = viewer.live
         self._async_renderer.set_async(viewer.live)
@@ -1377,10 +1375,14 @@ class Sidebar:
         self.viz                = viz
         self.expanded           = False
         self.selected           = None
+        self.buttonbar_width    = 72
+        self.navbutton_width    = 70
         self._button_tex        = dict()
         self._pane_w_div        = 15
-        self._buttonbar_width   = 72
-        self._navbutton_width   = 70
+        self.navbuttons         = ['project', 'slide', 'model', 'heatmap']
+
+        self.add_widgets(viz.widgets)
+        self._load_button_textures()
 
     @property
     def theme(self):
@@ -1392,7 +1394,17 @@ class Sidebar:
 
     @property
     def full_width(self):
-        return self.content_width + self._buttonbar_width
+        return self.content_width + self.buttonbar_width
+
+    def add_widgets(self, widgets):
+        if not isinstance(widgets, list):
+            widgets = [widgets]
+        if not widgets:
+            return
+        for widget in widgets:
+            self.navbuttons.append(widget.tag)
+            self._button_tex[widget.tag] = gl_utils.Texture(image=Image.open(widget.icon), bilinear=True, mipmap=True)
+            self._button_tex[f'{widget.tag}_highlighted'] = gl_utils.Texture(image=Image.open(widget.icon_highlighted), bilinear=True, mipmap=True)
 
     def full_button(self, text, **kwargs):
         t = self.theme
@@ -1471,13 +1483,15 @@ class Sidebar:
         imgui.pop_style_var(2)
 
     def _load_button_textures(self) -> None:
-        if self._button_tex:
-            return
         button_dir = join(dirname(abspath(__file__)), 'gui', 'buttons')
-        for bname in ('project', 'gear', 'heatmap', 'model', 'mosaic', 'segment', 'slide', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy'):
+        for bname in self.navbuttons + ['gear', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy']:
+            if bname in self._button_tex:
+                continue
             self._button_tex[bname] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}.png')), bilinear=True, mipmap=True)
             self._button_tex[f'{bname}_highlighted'] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}_highlighted.png')), bilinear=True, mipmap=True)
         for name in ('vips', 'cucim', 'lowmem', 'ellipsis', 'cloud_download', 'disabled', 'folder', 'gear'):
+            if f"small_{name}" in self._button_tex:
+                continue
             self._button_tex[f"small_{name}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{name}.png')), bilinear=True, mipmap=True)
 
     def small_button(self, image_name):
@@ -1494,32 +1508,42 @@ class Sidebar:
         tex = self._button_tex[f'{image_name}'].gl_id
         return imgui.image_button(tex, size, size)
 
-    def draw_buttons(self) -> None:
+    def draw_navbar_button(self, name, start_px):
         viz = self.viz
-        self._load_button_textures()
-        imgui.set_next_window_position(0, viz.menu_bar_height)
-        imgui.set_next_window_size(self._buttonbar_width, viz.content_height - viz.menu_bar_height - viz.status_bar_height)
         cx, cy = imgui.get_mouse_pos()
         cy -= viz.menu_bar_height
+        end_px = start_px + self.navbutton_width
+        if ((cx < 0 or cx > self.navbutton_width) or (cy < start_px or cy > end_px)) and self.selected != name:
+            tex = self._button_tex[name].gl_id
+        else:
+            tex = self._button_tex[f'{name}_highlighted'].gl_id
+        imgui.set_cursor_position((0, start_px))
+        if imgui.image_button(tex, 64, 64):
+            if name == self.selected or self.selected is None or not self.expanded:
+                self.expanded = not self.expanded
+            self.selected = name
+        if self.selected == name:
+            draw_list = imgui.get_window_draw_list()
+            draw_list.add_line(2, viz.menu_bar_height+start_px, 2, viz.menu_bar_height+start_px+self.navbutton_width, imgui.get_color_u32_rgba(1,1,1,1), 2)
+
+    def draw_buttons(self) -> None:
+        viz = self.viz
+
+        imgui.set_next_window_position(0, viz.menu_bar_height)
+        buttonbar_height = viz.content_height - viz.menu_bar_height - viz.status_bar_height
+        imgui.set_next_window_size(self.buttonbar_width, buttonbar_height)
         imgui.begin(
             'Sidebar',
             closable=False,
             flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS)
         )
-        for b_id, b_name in enumerate(('project', 'slide', 'model', 'heatmap', 'segment', 'mosaic', 'circle_lightning', 'gear')):
-            start_px = b_id * self._navbutton_width
-            end_px = start_px + self._navbutton_width
-            if ((cx < 0 or cx > self._navbutton_width) or (cy < start_px or cy > end_px)) and self.selected != b_name:
-                tex = self._button_tex[b_name].gl_id
-            else:
-                tex = self._button_tex[f'{b_name}_highlighted'].gl_id
-            if imgui.image_button(tex, 64, 64):
-                if b_name == self.selected or self.selected is None or not self.expanded:
-                    self.expanded = not self.expanded
-                self.selected = b_name
-            if self.selected == b_name:
-                draw_list = imgui.get_window_draw_list()
-                draw_list.add_line(2, viz.menu_bar_height+start_px, 2, viz.menu_bar_height+start_px+self._navbutton_width, imgui.get_color_u32_rgba(1,1,1,1), 2)
+        for b_id, b_name in enumerate(self.navbuttons):
+            start_px = b_id * self.navbutton_width
+            self.draw_navbar_button(b_name, start_px)
+
+        self.draw_navbar_button('circle_lightning', buttonbar_height + viz.menu_bar_height - self.navbutton_width*2 - viz.status_bar_height)
+        self.draw_navbar_button('gear', buttonbar_height + viz.menu_bar_height - self.navbutton_width - viz.status_bar_height)
+
         imgui.end()
 
     def draw(self):
@@ -1534,7 +1558,7 @@ class Sidebar:
             drawing_control_pane = True
 
             viz.pane_w = self.full_width
-            imgui.set_next_window_position(self._navbutton_width, viz.menu_bar_height)
+            imgui.set_next_window_position(self.navbutton_width, viz.menu_bar_height)
             imgui.set_next_window_size(self.content_width, viz.content_height - viz.menu_bar_height - viz.status_bar_height)
             imgui.begin(
                 'Control Pane',
@@ -1542,7 +1566,7 @@ class Sidebar:
                 flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS)
             )
         else:
-            viz.pane_w = self._navbutton_width
+            viz.pane_w = self.navbutton_width
             drawing_control_pane = False
 
         # --- Core widgets (always rendered, not always shown) ----------------
@@ -1563,13 +1587,8 @@ class Sidebar:
         # ---------------------------------------------------------------------
 
         # User-defined widgets
-        for header, widgets in viz._widgets_by_header():
-            if header:
-                expanded, _visible = imgui_utils.collapsing_header(header, default=True)
-            else:
-                expanded = True
-            for widget in widgets:
-                widget(expanded)
+        for widget in viz.widgets:
+            widget(self.expanded and self.selected == widget.tag)
 
         # Render control panel contents, if the control pane is shown.
         if drawing_control_pane:

@@ -77,6 +77,21 @@ def padded_text(text, hpad=0, vpad=0):
 
 #----------------------------------------------------------------------------
 
+def ellipsis_clip(text, length):
+    if len(text) > length:
+        return text[:length-3] + '...'
+    else:
+        return text
+
+@contextlib.contextmanager
+def clipped_with_tooltip(text, length):
+    clipped = ellipsis_clip(text, length)
+    yield
+    if clipped != text and imgui.is_item_hovered():
+        imgui.set_tooltip(text)
+
+#----------------------------------------------------------------------------
+
 @contextlib.contextmanager
 def grayed_out(cond=True):
     if cond:
@@ -113,6 +128,9 @@ def item_width(width=None):
         imgui.pop_item_width()
     else:
         yield
+
+def right_align(text, spacing=0):
+    imgui.same_line(imgui.get_content_region_max()[0] - (imgui.calc_text_size(text)[0] + spacing))
 
 def right_aligned_text(text, spacing=0):
     imgui.same_line(imgui.get_content_region_max()[0] - (imgui.calc_text_size(text)[0] + spacing))

@@ -439,7 +439,10 @@ class SlideWidget:
             ['Scanner',             vals[2]],
             ['Est. tiles',          vals[3]],
         ]
-        height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing
+        imgui.text_colored('Filename', *viz.theme.dim)
+        imgui.same_line(viz.font_size * 8)
+        with imgui_utils.clipped_with_tooltip(viz.wsi.name, 17):
+            imgui.text(imgui_utils.ellipsis_clip(viz.wsi.name, 17))
         for y, cols in enumerate(rows):
             for x, col in enumerate(cols):
                 if x != 0:

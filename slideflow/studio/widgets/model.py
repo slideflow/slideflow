@@ -90,7 +90,10 @@ class ModelWidget:
             ['Backend',      vals[4]],
             ['Version',      vals[5]],
         ]
-        height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing * 2
+        imgui.text_colored('Model name', *viz.theme.dim)
+        imgui.same_line(viz.font_size * 6)
+        with imgui_utils.clipped_with_tooltip(config['model_name'], 22):
+            imgui.text(imgui_utils.ellipsis_clip(config['model_name'], 22))
         for y, cols in enumerate(rows):
             for x, col in enumerate(cols):
                 if x != 0:
