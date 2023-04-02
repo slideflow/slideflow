@@ -64,6 +64,12 @@ def header(text, color=0.4, hpad=20, vpad=15):
 
 #----------------------------------------------------------------------------
 
+def vertical_break():
+    cx, cy = imgui.get_cursor_position()
+    imgui.set_cursor_position([cx, cy+10])
+
+#----------------------------------------------------------------------------
+
 def padded_text(text, hpad=0, vpad=0):
     if isinstance(vpad, (float, int)):
         vpad = [vpad, vpad]

@@ -641,8 +641,7 @@ class SlideWidget:
                     self.capturing = False
                 self._end_roi_button_style()
 
-                cx, cy = imgui.get_cursor_position()
-                imgui.set_cursor_position([cx, cy+10])
+                imgui_utils.vertical_break()
             if viz.sidebar.collapsing_header('Slide Processing', default=False):
                 self.draw_slide_processing()
             self._process_roi_capture()
