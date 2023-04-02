@@ -29,6 +29,7 @@ class ModelWidget:
         self._clicking          = False
         self._show_params       = False
         self._show_popup        = False
+        self._show_download     = False
 
         self._saliency_methods_all = {
             'Vanilla': grad.VANILLA,
@@ -54,6 +55,29 @@ class ModelWidget:
         if self.user_model in self.recent_models:
             self.recent_models.remove(self.user_model)
         self.recent_models.insert(0, self.user_model)
+
+    def download_popup(self):
+        viz = self.viz
+        if self._show_download:
+            imgui.open_popup('download_popup')
+            width = 200
+            height = 315
+            imgui.set_next_window_position(viz.content_width/2 - width/2, viz.content_height/2 - height/2)
+
+            if imgui.begin_popup('download_popup'):
+                with viz.bold_font():
+                    viz.center_text('Coming Soon')
+                imgui.separator()
+                imgui.text(
+                    "Automatic model downloads are coming soon.\n"
+                    "In the meantime, you can find our public models\n"
+                    "on HuggingFace: huggingface.co/jamesdolezal")
+                imgui_utils.vertical_break()
+                imgui.text('')
+                imgui.same_line((imgui.get_content_region_max()[0])/2 - (self.viz.button_w/2) + self.viz.spacing)
+                if imgui.button('Close', width=viz.button_w):
+                    self._show_download = False
+                imgui.end_popup()
 
     def load(self, model, ignore_errors=False):
         self.viz.load_model(model, ignore_errors=ignore_errors)
@@ -250,6 +274,8 @@ class ModelWidget:
                 viz.ask_load_model()
             if imgui.menu_item('Download model')[0]:
                 print("Huggingface?")
+            if imgui.menu_item('Close model')[0]:
+                viz.close_model(True)
             imgui.separator()
             if imgui.menu_item('Enable model', enabled=has_model, selected=self.use_model)[0]:
                 self.use_model = not self.use_model
@@ -290,7 +316,7 @@ class ModelWidget:
             if viz.sidebar.full_button("Load a Model"):
                 viz.ask_load_model()
             if viz.sidebar.full_button("Download a Model"):
-                print("Huggingface?")
+                self._show_download = True
 
         elif show:
             if viz.sidebar.collapsing_header('Info', default=True):
@@ -302,4 +328,5 @@ class ModelWidget:
 
         if self._show_params and self.viz._model_config:
             self.draw_params_popup()
+        self.download_popup()
 

@@ -1473,7 +1473,7 @@ class Sidebar:
 
     def _load_button_textures(self) -> None:
         button_dir = join(dirname(abspath(__file__)), 'gui', 'buttons')
-        for bname in self.navbuttons + ['gear', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy']:
+        for bname in self.navbuttons + ['gear', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy', 'model_loaded']:
             if bname in self._button_tex:
                 continue
             self._button_tex[bname] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}.png')), bilinear=True, mipmap=True)
@@ -1499,13 +1499,19 @@ class Sidebar:
 
     def draw_navbar_button(self, name, start_px):
         viz = self.viz
+
+        if name == 'model' and viz._model_config is not None:
+            tex_name = 'model_loaded'
+        else:
+            tex_name = name
+
         cx, cy = imgui.get_mouse_pos()
         cy -= viz.menu_bar_height
         end_px = start_px + self.navbutton_width
         if ((cx < 0 or cx > self.navbutton_width) or (cy < start_px or cy > end_px)) and self.selected != name:
-            tex = self._button_tex[name].gl_id
+            tex = self._button_tex[tex_name].gl_id
         else:
-            tex = self._button_tex[f'{name}_highlighted'].gl_id
+            tex = self._button_tex[f'{tex_name}_highlighted'].gl_id
         imgui.set_cursor_position((0, start_px))
         if imgui.image_button(tex, 64, 64):
             if name == self.selected or self.selected is None or not self.expanded:

@@ -382,7 +382,7 @@ class HeatmapWidget:
             if viz.sidebar.full_button("Load a Model"):
                 viz.ask_load_model()
             if viz.sidebar.full_button("Download a Model"):
-                print("Huggingface?")
+                viz.model_widget._show_download = True
 
         elif show:
             self.draw_heatmap_thumb()
