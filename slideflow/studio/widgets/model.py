@@ -81,6 +81,27 @@ class ModelWidget:
     def load(self, model, ignore_errors=False):
         self.viz.load_model(model, ignore_errors=ignore_errors)
 
+    def _draw_tile_pred_result(self, outcome, labels, pred_array, uq_array=None):
+        viz = self.viz
+        config = viz._model_config
+
+        # Outcome name label
+        imgui.text_colored(outcome, *viz.theme.dim)
+
+        # Prediction string
+        if config['model_type'] == 'categorical':
+            pred_str = labels[str(np.argmax(pred_array))]
+        else:
+            pred_str = f'{pred_array[0]:.3f}'
+        if viz._use_uncertainty and uq_array is not None:
+            pred_str += " (UQ: {:.4f})".format(uq_array)
+        imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
+        imgui.text(pred_str)
+
+        # Histogram
+        with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.spacing):
+            imgui.core.plot_histogram('##pred', array('f', pred_array), scale_min=0, scale_max=1)
+
     def draw_info(self):
         viz = self.viz
         config = viz._model_config
@@ -147,45 +168,43 @@ class ModelWidget:
                     imgui.text(col)
         imgui.end()
 
-    def draw_predictions(self):
+    def draw_tile_predictions(self):
         viz = self.viz
         config = viz._model_config
         if config is not None:
 
-            # Tile prediction =================================================
+            # Multiple outcomes
             if viz._use_model and viz._predictions is not None and isinstance(viz._predictions, list):
                 for p, _pred_array in enumerate(viz._predictions):
-                    imgui.text_colored(f'Pred {p}', *viz.theme.dim)
-                    if 'outcomes' in config:
-                        outcomes = config['outcomes'][p]
-                    elif 'outcome_label_headers' in config:
-                        outcomes = config['outcome_label_headers'][p]
-                    ol = config['outcome_labels'][outcomes]
-                    pred_str = ol[str(np.argmax(_pred_array))]
-                    imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
-                    if viz._use_uncertainty and viz._uncertainty is not None:
-                        pred_str += " (UQ: {:.4f})".format(viz._uncertainty[p])
-                    imgui.text(pred_str)
-                    imgui.core.plot_histogram('##pred', array('f', _pred_array), scale_min=0, scale_max=1)
+                    self._draw_tile_pred_result(
+                        outcome=config['outcomes'][p],
+                        labels=config['outcome_labels'][config['outcomes'][p]],
+                        pred_array=_pred_array,
+                        uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty[p]
+                    )
+
+            # Single outcome
             elif viz._use_model and viz._predictions is not None:
-                imgui.text_colored('Tile prediction', *viz.theme.dim)
-                if config['model_type'] == 'categorical':
-                    ol = config['outcome_labels']
-                    pred_str = ol[str(np.argmax(viz._predictions))]
-                else:
-                    pred_str = f'{viz._predictions[0]:.3f}'
-                if viz._use_uncertainty and viz._uncertainty is not None:
-                    pred_str += " (UQ: {:.4f})".format(viz._uncertainty)
-                imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
-                imgui.text(pred_str)
-                with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.spacing):
-                    imgui.core.plot_histogram('##pred', array('f', viz._predictions), scale_min=0, scale_max=1)
+                self._draw_tile_pred_result(
+                    outcome=config['outcomes'][0],
+                    labels=config['outcome_labels'],
+                    pred_array=viz._predictions,
+                    uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty
+                )
+
+            # Model not in use
             elif viz._use_model:
                 imgui_utils.padded_text('Right click for a focal prediction.', vpad=[int(viz.font_size/2), int(viz.font_size)])
             else:
                 imgui_utils.padded_text('Model not in use.', vpad=[int(viz.font_size/2), int(viz.font_size)])
 
-            # Slide prediction ================================================
+            imgui_utils.vertical_break()
+
+    def draw_slide_predictions(self):
+        viz = self.viz
+        config = viz._model_config
+        if config is not None:
+
             hw = viz.heatmap_widget
             _histogram_size = imgui.get_content_region_max()[0] - viz.spacing, viz.font_size * 4
             if viz.heatmap and hw.predictions is not None:
@@ -193,21 +212,22 @@ class ModelWidget:
                 flattened = flattened[flattened >= 0]
 
                 # Show as text
-                imgui.text_colored('Slide prediction', *viz.theme.dim)
+                imgui.text_colored(config['outcomes'][0], *viz.theme.dim)
                 if viz.heatmap_widget._triggered:
                     pred_str = '-'
                 elif config['model_type'] == 'categorical':
                     ol = config['outcome_labels']
-                    pred_str = ol[str(np.argmax(np.mean(flattened, axis=-1)))]
+                    preds = np.nanmean(hw.predictions, axis=(0,1))
+                    pred_str = ol[str(np.argmax(preds))]
                 else:
-                    pred_str = f'{np.mean(flattened):.3f}'
+                    pred_str = f'{np.nanmean(flattened):.3f}'
                 imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
                 imgui.text(pred_str)
 
                 # Show histogram
                 _hist, _bin_edges = np.histogram(flattened, range=(0, 1))
                 if flattened.shape[0] > 0:
-                    overlay_text = f"Predictions (avg: {np.mean(flattened):.2f})"
+                    overlay_text = f"Predictions (avg: {np.nanmean(flattened):.2f})"
                     _hist_arr = array('f', _hist/np.sum(_hist))
                     scale_max = np.max(_hist/np.sum(_hist))
                 else:
@@ -227,7 +247,7 @@ class ModelWidget:
                 flattened = flattened[flattened >= 0]
                 _hist, _bin_edges = np.histogram(flattened)
                 if flattened.shape[0] > 0:
-                    overlay_text = f"Uncertainty (avg: {np.mean(flattened):.2f})"
+                    overlay_text = f"Uncertainty (avg: {np.nanmean(flattened):.2f})"
                     _hist_arr = array('f', _hist/np.sum(_hist))
                     scale_max = np.max(_hist/np.sum(_hist))
                 else:
@@ -242,8 +262,6 @@ class ModelWidget:
                                             scale_max=scale_max,
                                             graph_size=_histogram_size)
                 imgui.separator()
-            elif not viz.has_uq():
-                imgui.text("Model not trained with uncertainty.")
 
             if viz.heatmap:
                 viz.heatmap_widget.draw_outcome_selection(radio=False)
@@ -335,8 +353,10 @@ class ModelWidget:
         elif show:
             if viz.sidebar.collapsing_header('Info', default=True):
                 self.draw_info()
-            if viz.sidebar.collapsing_header('Predictions', default=True):
-                self.draw_predictions()
+            if viz.sidebar.collapsing_header('Tile Prediction', default=True):
+                self.draw_tile_predictions()
+            if viz.sidebar.collapsing_header('Slide Prediction', default=True):
+                self.draw_slide_predictions()
             if viz.sidebar.collapsing_header('Saliency', default=False):
                 self.draw_saliency()
 

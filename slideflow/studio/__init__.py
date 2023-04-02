@@ -1478,7 +1478,7 @@ class Sidebar:
                 continue
             self._button_tex[bname] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}.png')), bilinear=True, mipmap=True)
             self._button_tex[f'{bname}_highlighted'] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}_highlighted.png')), bilinear=True, mipmap=True)
-        for name in ('vips', 'cucim', 'lowmem', 'ellipsis', 'cloud_download', 'disabled', 'folder', 'gear'):
+        for name in ('vips', 'cucim', 'lowmem', 'ellipsis', 'gear', 'refresh'):
             if f"small_{name}" in self._button_tex:
                 continue
             self._button_tex[f"small_{name}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{name}.png')), bilinear=True, mipmap=True)

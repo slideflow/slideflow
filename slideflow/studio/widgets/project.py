@@ -160,7 +160,15 @@ class ProjectWidget:
         viz = self.viz
 
         if show:
-            viz.sidebar.header("Project")
+            if self.P is None:
+                viz.sidebar.header("Project")
+            if self.P is not None:
+                with viz.sidebar.header_with_buttons("Project"):
+                    imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size*1.5)
+                    cx, cy = imgui.get_cursor_pos()
+                    imgui.set_cursor_position((cx, cy-int(viz.font_size*0.25)))
+                    if viz.sidebar.small_button('refresh'):
+                        self.load(self.project_path)
 
         if show and self.P is None:
             imgui_utils.padded_text('No project has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
