@@ -288,7 +288,7 @@ class MosaicWidget:
             cx, cy = imgui.get_cursor_pos()
             imgui.set_next_window_position(viz.sidebar.full_width, cy)
             imgui.begin(
-                '##model_popup',
+                '##mosaic_popup',
                 flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
             )
             if imgui.menu_item('Load mosaic')[0]:
