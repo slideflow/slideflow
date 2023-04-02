@@ -21,7 +21,7 @@ from slideflow import log
 from .gui import imgui_utils
 from .gui import gl_utils
 from .gui import text_utils
-from .gui.theme import StudioTheme, monokai_fire
+from .gui.theme import StudioTheme
 from .gui.window import ImguiWindow
 from .gui.viewer import SlideViewer
 from .widgets import (
@@ -84,7 +84,7 @@ class Studio(ImguiWindow):
             Tk().withdraw()
 
         if theme is None:
-            theme = monokai_fire()
+            theme = StudioTheme()
 
         super().__init__(
             title=f'Slideflow Studio',
