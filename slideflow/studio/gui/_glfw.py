@@ -2,6 +2,7 @@ import time
 import glfw
 import imgui
 import imgui.integrations.glfw
+from typing import Tuple, Optional
 from imgui.integrations import compute_fb_scale
 from imgui.integrations.opengl import FixedPipelineRenderer
 import OpenGL.GL as gl
@@ -18,9 +19,12 @@ class GlfwWindow:
         title: str = 'GlfwWindow',
         window_width: int = 1920,
         window_height: int = 1080,
-        deferred_show: bool = True
+        deferred_show: bool = True,
+        background: Optional[Tuple[float, float, float, float]] = None
     ) -> None:
 
+        if background is None:
+            background = (0, 0, 0, 1)
         self._glfw_window           = None
         self._drawing_frame         = False
         self._frame_start_time      = None
@@ -36,6 +40,7 @@ class GlfwWindow:
         self._shift_down            = False
         self._control_down          = False
         self._is_fullscreen         = False
+        self._background_color      = background
 
         # Create window.
         glfw.init()
@@ -90,6 +95,9 @@ class GlfwWindow:
     @property
     def frame_delta(self):
         return self._frame_delta
+
+    def set_window_icon(self, image):
+        glfw.set_window_icon(self._glfw_window, 1, image)
 
     def update_window_size(self):
         ws = glfw.get_window_size(self._glfw_window)
@@ -227,7 +235,7 @@ class GlfwWindow:
         gl.glBlendFunc(gl.GL_ONE, gl.GL_ONE_MINUS_SRC_ALPHA) # Pre-multiplied alpha.
 
         # Clear.
-        gl.glClearColor(.11, .11, .11, 1)
+        gl.glClearColor(*self._background_color)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
     def end_frame(self):

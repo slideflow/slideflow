@@ -6,3 +6,4 @@ from .performance import PerformanceWidget
 from .project import ProjectWidget
 from .slide import SlideWidget
 from .layer_umap import LayerUMAPWidget
+from .settings import SettingsWidget

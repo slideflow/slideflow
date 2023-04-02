@@ -512,7 +512,11 @@ class Mosaic:
                 "Mosaic.export() requires a Mosaic built from a SlideMap."
             )
         self.slide_map.save(path)
-        sf.util.write_json(self.tfrecords, join(path, 'tfrecords.json'))
+        if isinstance(self.tfrecords, list):
+            tfr = self.tfrecords
+        else:
+            tfr = list(self.tfrecords)
+        sf.util.write_json(tfr, join(path, 'tfrecords.json'))
         log.info(f"Mosaic configuration exported to {path}")
 
     def plot(

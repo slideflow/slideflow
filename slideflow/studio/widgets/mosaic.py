@@ -1,5 +1,4 @@
 import os
-import glfw
 import numpy as np
 import pandas as pd
 import imgui
@@ -7,7 +6,7 @@ import slideflow as sf
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 import matplotlib.image as mpl_image
-from os.path import join, exists
+from os.path import join, exists, dirname, abspath
 from slideflow import log
 from PIL import Image
 from io import BytesIO
@@ -21,9 +20,15 @@ from ..gui.annotator import AnnotationCapture
 #----------------------------------------------------------------------------
 
 class MosaicWidget:
+
+    tag = 'mosaic'
+    description = 'Mosaic Map'
+    icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_mosaic.png')
+    icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_mosaic_highlighted.png')
+
     def __init__(self, viz, width=500, s=2, debug=False):
         self.viz            = viz
-        self.show           = True
+        self.show_umap      = True
         self.content_height = 0
         self.coords         = None
         self.visible        = False
@@ -42,6 +47,8 @@ class MosaicWidget:
         self._bottom_left   = None
         self._top_right     = None
         self._umap_width    = None
+        self._clicking      = None
+        self._show_popup    = False
         self._late_render_annotations = []
 
     def _plot_coords(self):
@@ -75,44 +82,41 @@ class MosaicWidget:
 
     def view_menu_options(self):
         if imgui.menu_item('Toggle Mosaic UMAP', enabled=(self.coords is not None))[1]:
-            self.show = not self.show
+            self.show_umap = not self.show_umap
 
     def open_menu_options(self):
         if imgui.menu_item('Load Mosaic...')[1]:
             mosaic_path = askdirectory(title="Load mosaic (directory)...")
-            self.load(mosaic_path)
-
-    def keyboard_callback(self, key, action):
-        """Add keyboard callbacks to allow zooming."""
-        if not self.viz._control_down and (key == glfw.KEY_EQUAL and action == glfw.PRESS):
-            self.increase_mosaic_resolution()
-        if not self.viz._control_down and (key == glfw.KEY_MINUS and action == glfw.PRESS):
-            self.decrease_mosaic_resolution()
+            if mosaic_path:
+                self.load(mosaic_path)
 
     def close(self):
         """Close the multiprocessing pool."""
-        self.pool.join()
-        self.pool.close()
+        del self.mosaic
+        del self.coords
+        self.viz.reset_background()
+        self.annotations = []
+        self.slidemap = None
+        self.mosaic = None
+        self.coords = None
+        if self.pool is not None:
+            self.pool.close()
+            self.pool.join()
         self.pool = None
+        self.viz.viewer = None
 
-    def increase_mosaic_resolution(self):
-        """Increase the grid resolution."""
-        if self.mosaic is not None:
-            self.num_tiles_x = int(self.num_tiles_x * 1.5)
-            self.mosaic.generate_grid(**self.mosaic_kwargs)
-            self.mosaic.plot(pool=self.pool)
-
-    def decrease_mosaic_resolution(self):
-        """Decrease the grid resolution."""
-        if self.mosaic is not None:
-            self.num_tiles_x = int(self.num_tiles_x / 1.5)
-            self.mosaic.generate_grid(**self.mosaic_kwargs)
-            self.mosaic.plot(pool=self.pool)
+    def refresh_mosaic_resolution(self):
+        self.mosaic.generate_grid(**self.mosaic_kwargs)
+        self.mosaic.plot(pool=self.pool)
 
     def load(self, obj, tfrecords=None, slides=None, **kwargs):
         """Load a UMAP from a file or SlideMap object."""
         if isinstance(obj, str):
-            self.load_umap_from_path(obj, **kwargs)
+            try:
+                self.load_umap_from_path(obj, **kwargs)
+            except Exception:
+                self.viz.create_toast("Failed to load mosaic map.", icon='error')
+                return
         elif isinstance(obj, sf.SlideMap):
             self.load_umap_from_slidemap(obj, **kwargs)
         else:
@@ -148,7 +152,7 @@ class MosaicWidget:
         """Build the mosaic."""
         if self.slidemap is None:
             raise ValueError("Cannot generate mosaic; no SlideMap loaded.")
-        if self.slidemap.tfrecords is None and tfrecords is None:
+        if tfrecords is None and self.slidemap.tfrecords is None:
             raise ValueError(
                 "TFRecords not found and not provided. Please provide paths "
                 "to TFRecords with generate_mosaic(tfrecords=...)"
@@ -186,9 +190,9 @@ class MosaicWidget:
 
         # --- Draw plot with OpenGL ---------------------------------------
 
-        if self.show and (self.coords is not None):
+        if self.show_umap and (self.coords is not None):
             imgui.set_next_window_size(self.width, self.width)
-            _, self.show = imgui.begin("##layer_plot", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE))
+            _, self.show_umap = imgui.begin("##layer_plot", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE))
             tx, ty = imgui.get_window_position()
             draw_list = imgui.get_window_draw_list()
             transform_fn = self._plot_transforms
@@ -258,6 +262,78 @@ class MosaicWidget:
             for name, annotation in self.annotations:
                 self.render_annotation(annotation, origin=(tx+left_x, ty+top_y), name=name, color=(0.8, 0.4, 0.4))
 
+    def ask_load_mosaic(self):
+        mosaic_path = askdirectory(title="Load mosaic (directory)...")
+        if mosaic_path:
+            self.load(mosaic_path)
+
+    def draw_info(self):
+        viz = self.viz
+
+        n_tfr = str(len(self.mosaic.tfrecords))
+        n_tiles = str(len(self.coords))
+        imgui.text_colored('TFRecords', *viz.theme.dim)
+        imgui_utils.right_align(n_tfr)
+        imgui.text(n_tfr)
+        imgui.text_colored('Tiles plotted', *viz.theme.dim)
+        imgui_utils.right_align(n_tiles)
+        imgui.text(n_tiles)
+
+
+    def draw_config_popup(self):
+        viz = self.viz
+        has_model = viz._model_config is not None
+
+        if self._show_popup:
+            cx, cy = imgui.get_cursor_pos()
+            imgui.set_next_window_position(viz.sidebar.full_width, cy)
+            imgui.begin(
+                '##mosaic_popup',
+                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+            )
+            if imgui.menu_item('Load mosaic')[0]:
+                self.ask_load_mosaic()
+            if imgui.menu_item('Close mosaic')[0]:
+                self.close()
+            imgui.separator()
+            if imgui.menu_item('Show UMAP', enabled=self.mosaic is not None, selected=self.show_umap)[0]:
+                self.show_umap = not self.show_umap
+
+            # Hide menu if we click elsewhere
+            if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
+                self._clicking = True
+            if self._clicking and imgui.is_mouse_released(0):
+                self._clicking = False
+                self._show_popup = False
+
+            imgui.end()
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
-        return
+        viz = self.viz
+
+        if show:
+            with viz.sidebar.header_with_buttons("Mosaic"):
+                imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size*1.5)
+                cx, cy = imgui.get_cursor_pos()
+                imgui.set_cursor_position((cx, cy-int(viz.font_size*0.25)))
+                if viz.sidebar.small_button('gear'):
+                    self._clicking = False
+                    self._show_popup = not self._show_popup
+                self.draw_config_popup()
+
+        if show and not isinstance(viz.viewer, MosaicViewer):
+            imgui_utils.padded_text('No mosaic has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
+            if viz.sidebar.full_button("Load a Mosaic"):
+                self.ask_load_mosaic()
+
+        elif show:
+            if viz.sidebar.collapsing_header('Info', default=True):
+                self.draw_info()
+            if viz.sidebar.collapsing_header('Config', default=True):
+                grid_changed, grid_size = imgui.input_int("Grid size", self.num_tiles_x, step=25, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
+                if grid_changed and grid_size >= 25:
+                    self.num_tiles_x = grid_size
+                    self.refresh_mosaic_resolution()
+                _, color = imgui.color_edit3("Background", *viz._background_color[:3])
+                viz._background_color = (color[0], color[1], color[2], 1)
