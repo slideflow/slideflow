@@ -131,10 +131,12 @@ class Renderer:
         else:
             return self.to_numpy(preds[0])
 
-    def to_numpy(self, x):
+    def to_numpy(self, x, as_whc=False):
         if self.model_type in ('tensorflow', 'tflite'):
             return x.numpy()
         else:
+            if sf.io.torch.is_cwh(x):
+                x = sf.io.torch.cwh_to_whc(x)
             return x.cpu().detach().numpy()
 
     def add_renderer(self, renderer):
@@ -309,7 +311,7 @@ class Renderer:
 
             # Saliency.
             if use_saliency:
-                mask = self._saliency.get(self.to_numpy(proc_img), method=saliency_method)
+                mask = self._saliency.get(self.to_numpy(proc_img, as_whc=True), method=saliency_method)
                 if saliency_overlay:
                     res.image = sf.grad.plot_utils.overlay(res.image, mask)
                 else:

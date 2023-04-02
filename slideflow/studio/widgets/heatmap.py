@@ -223,7 +223,7 @@ class HeatmapWidget:
         viz = self.viz
         changed = False
 
-        heatmap_predictions_max = 0 if self.predictions is None else self.predictions.shape[2]
+        heatmap_predictions_max = 0 if self.predictions is None else self.predictions.shape[2]-1
         self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
         narrow_w = imgui.get_text_line_height_with_spacing()
         with imgui_utils.grayed_out(heatmap_predictions_max == 0):
@@ -238,9 +238,9 @@ class HeatmapWidget:
                 _, hpred = imgui.drag_int('##heatmap_predictions',
                                           self.heatmap_predictions+1,
                                           change_speed=0.05,
-                                          min_value=0,
-                                          max_value=heatmap_predictions_max,
-                                          format=f'Predictions %d/{heatmap_predictions_max}')
+                                          min_value=1,
+                                          max_value=heatmap_predictions_max+1,
+                                          format=f'Predictions %d/{heatmap_predictions_max+1}')
                 self.heatmap_predictions = hpred - 1
             imgui.same_line()
             if imgui_utils.button('-##heatmap_predictions', width=narrow_w):
@@ -257,7 +257,7 @@ class HeatmapWidget:
         if viz.heatmap is None or self.uncertainty is None:
             heatmap_uncertainty_max = 0
         else:
-            heatmap_uncertainty_max = self.uncertainty.shape[2]
+            heatmap_uncertainty_max = self.uncertainty.shape[2]-1
 
         self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
         narrow_w = imgui.get_text_line_height_with_spacing()
@@ -273,9 +273,9 @@ class HeatmapWidget:
                 _, huq = imgui.drag_int('##heatmap_uncertainty',
                                         self.heatmap_uncertainty+1,
                                         change_speed=0.05,
-                                        min_value=0,
-                                        max_value=heatmap_uncertainty_max,
-                                        format=f'Uncertainty %d/{heatmap_uncertainty_max}')
+                                        min_value=1,
+                                        max_value=heatmap_uncertainty_max+1,
+                                        format=f'Uncertainty %d/{heatmap_uncertainty_max+1}')
                 self.heatmap_uncertainty = huq - 1
             imgui.same_line()
             if imgui_utils.button('-##heatmap_uncertainty', width=narrow_w):

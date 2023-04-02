@@ -273,7 +273,7 @@ class ModelWidget:
             if imgui.menu_item('Load model')[0]:
                 viz.ask_load_model()
             if imgui.menu_item('Download model')[0]:
-                print("Huggingface?")
+                self._show_download = True
             if imgui.menu_item('Close model')[0]:
                 viz.close_model(True)
             imgui.separator()
