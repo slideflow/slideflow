@@ -139,7 +139,7 @@ class MosaicViewer(Viewer):
 
     def render(self, max_w: int, max_h: int) -> None:
         """Render the mosaic map."""
-        max_h = max_h# - self.viz.status_bar_height
+        max_h = max_h - self.viz.status_bar_height
         if self.size < min(max_w, max_h):
             self.zoomed = False
         if not self.zoomed:

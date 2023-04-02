@@ -361,7 +361,7 @@ class Studio(ImguiWindow):
         """
 
         max_w = self.content_frame_width - self.offset_x_pixels
-        max_h = self.content_frame_height - self.offset_y_pixels - self.status_bar_height
+        max_h = self.content_frame_height - self.offset_y_pixels
 
         # Update the viewer in response to user input.
         if self.viewer and self.viewer.movable:
