@@ -286,7 +286,7 @@ class Heatmap:
                     self.slide.grid.shape[0],
                     it.num_features + it.num_classes + it.num_uncertainty),
                 dtype=np.float32)
-            grid *= -1
+            grid *= -99
             heatmap_thread = Thread(target=_generate, args=(grid,))
             heatmap_thread.start()
             return grid, heatmap_thread
@@ -534,7 +534,7 @@ class Heatmap:
             vmax=self.uncertainty.max()
         )
         masked_uncertainty = np.ma.masked_where(
-            self.uncertainty == -1,
+            self.uncertainty == -99,
             self.uncertainty
         )
         ax.imshow(
@@ -618,7 +618,7 @@ class Heatmap:
             vmax=vmax
         )
         masked_arr = np.ma.masked_where(
-            self.predictions[:, :, class_idx] == -1,
+            self.predictions[:, :, class_idx] == -99,
             self.predictions[:, :, class_idx]
         )
         ax.imshow(
@@ -894,9 +894,14 @@ class ModelHeatmap(Heatmap):
         else:
             raise ValueError(f"Unrecognized value {slide} for argument slide")
 
-        if uq:
-            interface_class = sf.model.UncertaintyInterface  # type: ignore
+        if uq and sf.util.model_backend(model) == 'tensorflow':
+            import slideflow.model.tensorflow
+            interface_class = sf.model.tensorflow.UncertaintyInterface  # type: ignore
             interface_kw = {}  # type: Dict[str, Any]
+        elif uq and sf.util.model_backend(model) == 'torch':
+            import slideflow.model.torch
+            interface_class = sf.model.torch.UncertaintyInterface  # type: ignore
+            interface_kw = dict(tile_px=self.tile_px)
         elif sf.util.model_backend(model) == 'tensorflow':
             import slideflow.model.tensorflow
             interface_class = sf.model.tensorflow.Features  # type: ignore

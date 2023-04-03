@@ -99,7 +99,7 @@ class SlideMap:
             path (str): Directory from which to load a previously saved UMAP.
 
         """
-        log.debug(f"Attempting to load SlideMap from {path}")
+        log.debug(f"Loading SlideMap from {path}")
         obj = cls()
         if isdir(path):
             # Load coordinates

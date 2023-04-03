@@ -875,7 +875,7 @@ class Studio(ImguiWindow):
 
     def autoload(self, path, ignore_errors=False):
         """Automatically load a path, detecting if the path is a slide, model, or project."""
-        sf.log.info(f"Attempting to load {path}")
+        sf.log.info(f"Loading [green]{path}[/]")
         if sf.util.is_project(path):
             self.load_project(path, ignore_errors=ignore_errors)
         elif sf.util.is_slide(path):
@@ -1210,6 +1210,7 @@ class Studio(ImguiWindow):
         log.debug("Model result cleared")
         self.skip_frame() # The input field will change on next frame.
         self._async_renderer.get_result() # Flush prior result
+        self._async_renderer.clear_result()
         try:
             self.defer_rendering()
             self.model_widget.user_model = model
@@ -1236,6 +1237,7 @@ class Studio(ImguiWindow):
 
             # Update widgets
             log.debug("Updating widgets")
+            self.model_widget.reset()
             self.model_widget.cur_model = model
             self.model_widget.use_model = True
             self.model_widget.use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']

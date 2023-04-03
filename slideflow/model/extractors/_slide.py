@@ -30,7 +30,7 @@ def features_from_slide_torch(
                     slide.grid.shape[0],
                     total_out),
                 dtype=dtype)
-            features_grid *= -1
+            features_grid *= -99
         else:
             assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
             features_grid = grid
@@ -71,4 +71,5 @@ def features_from_slide_torch(
                 yi = batch_loc[i][1]
                 features_grid[yi][xi] = act
 
-        return features_grid
+        masked_grid = np.ma.masked_where(features_grid == -99, features_grid)
+        return masked_grid

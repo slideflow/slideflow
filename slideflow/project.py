@@ -367,7 +367,7 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
     ) -> Tuple["Trainer", Dataset]:
         """Prepare a :class:`slideflow.model.Trainer` for eval or prediction.
@@ -1178,7 +1178,7 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> Dict:
@@ -2619,7 +2619,7 @@ class Project:
         input_header: Optional[Union[str, List[str]]] = None,
         mixed_precision: bool = True,
         allow_tf32: bool = False,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> Dict[str, pd.DataFrame]:
@@ -3154,7 +3154,7 @@ class Project:
         splits: str = "splits.json",
         mixed_precision: bool = True,
         allow_tf32: bool = False,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         balance_headers: Optional[Union[str, List[str]]] = None,
         process_isolate: bool = False,
         **training_kwargs: Any

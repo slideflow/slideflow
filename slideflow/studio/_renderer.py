@@ -61,7 +61,7 @@ def _reduce_dropout_preds_torch(yp_drop, num_outcomes, stack=True):
             yp_drop = yp_drop[0]
         yp_mean = torch.mean(yp_drop, dim=0)  # type: ignore
         yp_std = torch.std(yp_drop, dim=0)  # type: ignore
-    return yp_mean, yp_std
+    return yp_mean.cpu().numpy(), yp_std.cpu().numpy()
 
 
 def _reduce_dropout_preds_tf(yp_drop, num_outcomes, stack=True):
@@ -169,7 +169,9 @@ class Renderer:
             yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
             reduce_fn = _reduce_dropout_preds_tf
         else:
-            yp = self._model(torch.repeat(img, repeats=uq_n, dim=0), training=False)
+            import torch
+            with torch.no_grad():
+                yp = self._model(img.expand(uq_n, -1, -1, -1))
             reduce_fn = _reduce_dropout_preds_torch
 
         num_outcomes = 1 if not isinstance(yp, list) else len(yp)

@@ -41,7 +41,6 @@ class HeatmapWidget:
         self.cmap_idx               = 0
         self.predictions            = None
         self.uncertainty            = None
-        self.content_height         = 0
         self._generating            = False
         self._triggered             = False
         self._old_predictions       = 0
@@ -163,12 +162,12 @@ class HeatmapWidget:
         self._heatmap_sum           = 0
         self._heatmap_grid          = None
         self._heatmap_thread        = None
-        self._old_predictions            = 0
+        self._old_predictions       = 0
         self._old_uncertainty       = 0
-        self.predictions                 = None
+        self.predictions            = None
         self.uncertainty            = None
         self._generating            = False
-        self.heatmap_predictions         = 0
+        self.heatmap_predictions    = 0
         self.heatmap_uncertainty    = 0
 
     def update_transparency(self):
@@ -192,6 +191,15 @@ class HeatmapWidget:
         _thread = threading.Thread(target=self._generate)
         _thread.start()
         self.show = True
+
+    def _get_all_outcome_names(self):
+        config = self.viz._model_config
+        if config['model_type'] != 'categorical':
+            return config['outcomes']
+        if len(config['outcomes']) > 1:
+            return [config['outcome_labels'][outcome][o] for outcome in config['outcomes'] for o in config['outcome_labels'][outcome]]
+        else:
+            return [config['outcome_labels'][str(oidx)] for oidx in range(len(config['outcome_labels']))]
 
     def draw_heatmap_thumb(self):
         viz = self.viz
@@ -235,12 +243,15 @@ class HeatmapWidget:
                 imgui.same_line()
 
             with imgui_utils.item_width(-1 - narrow_w * 2 - viz.spacing*2):
+
+                # Determine outcome name
+                outcome_names = self._get_all_outcome_names()
                 _, hpred = imgui.drag_int('##heatmap_predictions',
                                           self.heatmap_predictions+1,
                                           change_speed=0.05,
                                           min_value=1,
                                           max_value=heatmap_predictions_max+1,
-                                          format=f'Predictions %d/{heatmap_predictions_max+1}')
+                                          format=f'{outcome_names[self.heatmap_predictions]} (%d/{heatmap_predictions_max+1})')
                 self.heatmap_predictions = hpred - 1
             imgui.same_line()
             if imgui_utils.button('-##heatmap_predictions', width=narrow_w):
@@ -249,9 +260,6 @@ class HeatmapWidget:
             if imgui_utils.button('+##heatmap_predictions', width=narrow_w):
                 self.heatmap_predictions += 1
             self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
-            if heatmap_predictions_max > 0 and viz._model_config:
-                imgui.same_line()
-                imgui.text(viz._model_config['outcome_labels'][str(self.heatmap_predictions)])
 
         # Uncertainty.
         if viz.heatmap is None or self.uncertainty is None:
