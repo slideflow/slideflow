@@ -1,10 +1,13 @@
 """Utility functions for Imgui applications."""
 
+import time
 import os
 from PIL import Image
 from os.path import join, dirname, abspath
 import contextlib
 import imgui
+
+_SPINNER_ARRAY = ['.  ', '.. ', '...', ' ..', '  .', '   ']
 
 #----------------------------------------------------------------------------
 
@@ -43,7 +46,6 @@ def set_default_style(spacing=9, indent=23, scrollbar=27):
 
 #----------------------------------------------------------------------------
 
-
 @contextlib.contextmanager
 def header(text, color=0.4, hpad=20, vpad=15):
     if isinstance(vpad, (float, int)):
@@ -80,6 +82,14 @@ def padded_text(text, hpad=0, vpad=0):
     imgui.set_cursor_position([cx+hpad[0], cy+vpad[0]])
     imgui.text(text)
     imgui.set_cursor_position([cx+hpad[1], cy + line_height + vpad[0] + vpad[1]])
+
+#----------------------------------------------------------------------------
+
+def spinner():
+    imgui.text(spinner_text())
+
+def spinner_text():
+    return _SPINNER_ARRAY[int(time.time()/0.05) % len(_SPINNER_ARRAY)]
 
 #----------------------------------------------------------------------------
 

@@ -1,6 +1,5 @@
 import os
 import glfw
-import time
 import contextlib
 import imgui
 import imgui.integrations.glfw
@@ -13,8 +12,6 @@ from ._glfw import GlfwWindow, GlfwRenderer
 from .toast import Toast
 
 #----------------------------------------------------------------------------
-
-_SPINNER_ARRAY = ['.  ', '.. ', '...', ' ..', '  .', '   ']
 
 class ImguiWindow(GlfwWindow):
     def __init__(
@@ -108,7 +105,7 @@ class ImguiWindow(GlfwWindow):
                 imgui.text(toast.title)
                 if toast.spinner:
                     imgui.same_line()
-                    imgui.text(_SPINNER_ARRAY[int(time.time()/0.05) % len(_SPINNER_ARRAY)])
+                    imgui_utils.spinner()
                 if toast.message:
                     imgui.separator()
             if toast.message:
@@ -116,7 +113,7 @@ class ImguiWindow(GlfwWindow):
                 imgui.text(toast.message)
                 if toast.spinner and not toast.title:
                     imgui.same_line()
-                    imgui.text(_SPINNER_ARRAY[int(time.time()/0.05) % len(_SPINNER_ARRAY)])
+                    imgui_utils.spinner()
                 imgui.pop_text_wrap_pos()
             toast._height = imgui.get_window_height()
             imgui.end()

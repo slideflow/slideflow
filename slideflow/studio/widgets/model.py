@@ -143,7 +143,7 @@ class ModelWidget:
         config = viz._model_config
         imgui.text_colored(outcome, *viz.theme.dim)
         if viz.heatmap_widget._triggered:
-            pred_str = '-'
+            pred_str = imgui_utils.spinner_text()
         elif config['model_type'] == 'categorical':
             preds = masked.mean(axis=(0,1)).filled()
             pred_str = all_labels[str(np.argmax(preds))]
