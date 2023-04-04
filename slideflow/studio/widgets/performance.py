@@ -48,9 +48,9 @@ class PerformanceWidget:
 
         if show:
 
-            viz.sidebar.header("Performance")
+            viz.header("Performance")
 
-            if viz.sidebar.collapsing_header('Timing', default=True):
+            if viz.collapsing_header('Timing', default=True):
                 # GUI times
                 imgui.text_colored('GUI', *viz.theme.dim)
                 imgui.same_line(viz.label_w)

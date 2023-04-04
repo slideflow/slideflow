@@ -3,11 +3,15 @@ import time
 import sys
 import traceback
 import numpy as np
-from .utils import EasyDict
-
-from rich import print
+import multiprocessing
 import slideflow as sf
+import slideflow.grad
 from slideflow.util import model_backend
+from rich import print
+
+from .utils import EasyDict, _load_model_and_saliency
+
+# -----------------------------------------------------------------------------
 
 if sf.util.tf_available:
     import tensorflow as tf
@@ -351,3 +355,161 @@ class Renderer:
             res.inference_time = time.time() - _inference_start
 
 #----------------------------------------------------------------------------
+
+class AsyncRenderer:
+
+    """Renderer to assist with tile-evel model predictions."""
+
+    def __init__(self):
+        self._closed        = False
+        self._is_async      = False
+        self._cur_args      = None
+        self._cur_result    = None
+        self._cur_stamp     = 0
+        self._renderer_obj  = None
+        self._args_queue    = None
+        self._result_queue  = None
+        self._process       = None
+        self._model_path    = None
+        self._model         = None
+        self._saliency      = None
+        self._umap_encoders = None
+        self._live_updates  = False
+        self.tile_px        = None
+        self.extract_px     = None
+        self._addl_render   = []
+
+        if sf.util.torch_available:
+            import torch
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        else:
+            self.device = None
+
+    def close(self):
+        self._closed = True
+        self._renderer_obj = None
+        if self._process is not None:
+            self._process.terminate()
+        self._process = None
+        self._args_queue = None
+        self._result_queue = None
+
+    @property
+    def is_async(self):
+        return self._is_async
+
+    def add_to_render_pipeline(self, renderer):
+        if self.is_async:
+            raise ValueError("Cannot add to rendering pipeline when in "
+                             "asynchronous mode.")
+        self._addl_render += [renderer]
+        if self._renderer_obj is not None:
+            self._renderer_obj.add_renderer(renderer)
+
+    def remove_from_render_pipeline(self, renderer):
+        if self.is_async:
+            raise ValueError("Cannot remove rendering pipeline when in "
+                             "asynchronous mode.")
+        idx = self._addl_render.index(renderer)
+        del self._addl_render[idx]
+        if self._renderer_obj is not None:
+            self._renderer_obj.remove_renderer(renderer)
+
+    def set_async(self, is_async):
+        self._is_async = is_async
+
+    def set_args(self, **args):
+        assert not self._closed
+        if args != self._cur_args or self._live_updates:
+            if self._is_async:
+                self._set_args_async(**args)
+            else:
+                self._set_args_sync(**args)
+            if not self._live_updates:
+                self._cur_args = args
+
+    def _set_args_async(self, **args):
+        if self._process is None:
+            ctx = multiprocessing.get_context('spawn')
+            self._args_queue = ctx.Queue()
+            self._result_queue = ctx.Queue()
+            self._process = ctx.Process(target=self._process_fn,
+                                        args=(self._args_queue, self._result_queue, self._model_path, self._live_updates),
+                                        daemon=True)
+            self._process.start()
+        self._args_queue.put([args, self._cur_stamp])
+
+    def _set_args_sync(self, **args):
+        if self._renderer_obj is None:
+            self._renderer_obj = Renderer(device=self.device)
+            for _renderer in self._addl_render:
+                self._renderer_obj.add_renderer(_renderer)
+            self._renderer_obj._model = self._model
+            self._renderer_obj._saliency = self._saliency
+        self._cur_result = self._renderer_obj.render(**args)
+
+    def get_result(self):
+        assert not self._closed
+        if self._result_queue is not None:
+            while self._result_queue.qsize() > 0:
+                result, stamp = self._result_queue.get()
+                if stamp == self._cur_stamp:
+                    self._cur_result = result
+        return self._cur_result
+
+    def clear_result(self):
+        assert not self._closed
+        self._cur_args = None
+        self._cur_result = None
+        self._cur_stamp += 1
+
+    def load_model(self, model_path):
+        if self._is_async:
+            self._set_args_async(load_model=model_path)
+        elif model_path != self._model_path:
+            self._model_path = model_path
+            if self._renderer_obj is None:
+                self._renderer_obj = Renderer(device=self.device)
+                for _renderer in self._addl_render:
+                    self._renderer_obj.add_renderer(_renderer)
+            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
+            self._renderer_obj._model = self._model
+            self._renderer_obj._saliency = self._saliency
+            if _umap_encoders is not None:
+                self._umap_encoders = _umap_encoders
+            self._renderer_obj._umap_encoders = self._umap_encoders
+
+    def clear_model(self):
+        self._model_path = None
+        self._model = None
+        self._saliency = None
+
+    @staticmethod
+    def _process_fn(args_queue, result_queue, model_path, live_updates):
+        if sf.util.torch_available:
+            import torch
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        else:
+            device = None
+        renderer_obj = Renderer(device=device)
+        if model_path:
+            _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device)
+            renderer_obj._model = _model
+            renderer_obj._saliency = _saliency
+            renderer_obj._umap_encoders = _umap_encoders
+        while True:
+            while args_queue.qsize() > 0:
+                args, stamp = args_queue.get()
+                if 'load_model' in args:
+                    _model, _saliency, _umap_encoders = _load_model_and_saliency(args['load_model'], device=device)
+                    renderer_obj._model = _model
+                    renderer_obj._saliency = _saliency
+                    renderer_obj._umap_encoders = _umap_encoders
+                if 'quit' in args:
+                    return
+            if (live_updates and not result_queue.qsize()):
+                result = renderer_obj.render(**args)
+                if 'error' in result:
+                    result.error = CapturedException(result.error)
+
+                result_queue.put([result, stamp])

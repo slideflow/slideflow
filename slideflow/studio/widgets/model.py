@@ -439,7 +439,7 @@ class ModelWidget:
             cx, cy = imgui.get_cursor_pos()
             imgui.set_next_window_position(viz.sidebar.full_width, cy)
             imgui.begin(
-                '##model_popup',
+                '##model_config_popup',
                 flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
             )
             if imgui.menu_item('Load model')[0]:
@@ -447,7 +447,7 @@ class ModelWidget:
             if imgui.menu_item('Download model')[0]:
                 self._show_download = True
             if imgui.menu_item('Close model')[0]:
-                viz.close_model(True)
+                viz.close_model()
             imgui.separator()
             if imgui.menu_item('Enable model', enabled=has_model, selected=self.use_model)[0]:
                 self.use_model = not self.use_model
@@ -474,7 +474,7 @@ class ModelWidget:
         config = viz._model_config
 
         if show:
-            with viz.sidebar.header_with_buttons("Model"):
+            with viz.header_with_buttons("Model"):
                 imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size*1.5)
                 cx, cy = imgui.get_cursor_pos()
                 imgui.set_cursor_position((cx, cy-int(viz.font_size*0.25)))
@@ -491,13 +491,13 @@ class ModelWidget:
                 self._show_download = True
 
         elif show:
-            if viz.sidebar.collapsing_header('Info', default=True):
+            if viz.collapsing_header('Info', default=True):
                 self.draw_info()
-            if viz.sidebar.collapsing_header('Tile Prediction', default=True):
+            if viz.collapsing_header('Tile Prediction', default=True):
                 self.draw_tile_predictions()
-            if viz.sidebar.collapsing_header('Slide Prediction', default=True):
+            if viz.collapsing_header('Slide Prediction', default=True):
                 self.draw_slide_predictions()
-            if viz.sidebar.collapsing_header('Saliency', default=False):
+            if viz.collapsing_header('Saliency', default=False):
                 self.draw_saliency()
 
         if self._show_params and self.viz._model_config:

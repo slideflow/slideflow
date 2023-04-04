@@ -19,11 +19,12 @@ from tkinter.filedialog import askopenfilename
 from slideflow.gan.stylegan3.stylegan3.viz.renderer import (
     Renderer, CapturedException
 )
+from ._utils import Widget
 from ..gui import imgui_utils
 from ..utils import EasyDict
 
 
-class StyleGANWidget:
+class StyleGANWidget(Widget):
 
     tag = 'stylegan'
     description = 'StyleGAN'
@@ -72,8 +73,14 @@ class StyleGANWidget:
         self.pkl = None
         self.viz.pkl = None
         renderer = self.viz.get_renderer('stylegan')
-        renderer.reset()
+        if renderer:
+            renderer.reset()
+        self.viz._tex_img           = None
+        self.viz._tex_obj           = None
         self.viz.clear_result()
+        self.viz._async_renderer.get_result()
+        self.viz._async_renderer.clear_result()
+        self.viz.skip_frame()
 
     def load(self, pkl, ignore_errors=False) -> bool:
         viz = self.viz
@@ -210,7 +217,7 @@ class StyleGANWidget:
             cx, cy = imgui.get_cursor_pos()
             imgui.set_next_window_position(viz.sidebar.full_width, cy)
             imgui.begin(
-                '##model_popup',
+                '##gan_config_popup',
                 flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
             )
             if imgui.menu_item('Load GAN')[0]:
@@ -322,6 +329,12 @@ class StyleGANWidget:
         with imgui_utils.item_width(viz.font_size * 3), imgui_utils.grayed_out(not self.enable_mix_seed):
             _changed, self.seed = imgui.input_int('Seed', self.seed, step=0)
 
+        imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size - viz.spacing*1.5)
+        if viz.sidebar.small_button('ellipsis'):
+            self._show_layers = not self._show_layers
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Set mixing layers")
+
         # Mixing slider
         with imgui_utils.item_width(-1), imgui_utils.grayed_out(num_ws == 0 or not self.mixing):
             _changed, self.mix_frac = imgui.slider_float('##mix_fraction',
@@ -329,9 +342,6 @@ class StyleGANWidget:
                                                 min_value=0,
                                                 max_value=1,
                                                 format='Mix %.2f')
-
-        if viz.sidebar.full_button(f"Set Layers ({sum(self.enables[:num_enables])}/{num_enables})"):
-            self._show_layers = not self._show_layers
 
         imgui_utils.vertical_break()
 
@@ -366,12 +376,22 @@ class StyleGANWidget:
                 self.enables = [False] * num_enables
         imgui.end()
 
+    def draw_prediction(self):
+        viz = self.viz
+
+        if not viz._model_config:
+            imgui_utils.padded_text('No model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
+            if viz.sidebar.full_button("Load a Model"):
+                viz.ask_load_model()
+        else:
+            viz.model_widget.draw_tile_predictions()
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
 
         if show:
-            with viz.sidebar.header_with_buttons("StyleGAN"):
+            with viz.header_with_buttons("StyleGAN"):
                 imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size*1.5)
                 cx, cy = imgui.get_cursor_pos()
                 imgui.set_cursor_position((cx, cy-int(viz.font_size*0.25)))
@@ -381,14 +401,17 @@ class StyleGANWidget:
                 self.draw_config_popup()
 
         if show and self.pkl:
-            if viz.sidebar.collapsing_header('Info', default=True):
+            if viz.collapsing_header('Info', default=True):
                 self.draw_info()
 
-            if viz.sidebar.collapsing_header('Latent', default=True):
+            if viz.collapsing_header('Latent', default=True):
                 self.draw_latent()
 
-            if viz.sidebar.collapsing_header('Style Mixing', default=False):
+            if viz.collapsing_header('Style Mixing', default=False):
                 self.draw_style_mixing()
+
+            if viz.collapsing_header('Prediction', default=True):
+                self.draw_prediction()
 
             if self._show_layers:
                 self.draw_layers_popup()

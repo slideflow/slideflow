@@ -12,6 +12,7 @@ from PIL import Image
 from io import BytesIO
 from tkinter.filedialog import askdirectory
 
+from ._utils import Widget
 from ..gui import imgui_utils, gl_utils, text_utils
 from ..gui.viewer import OpenGLMosaic, MosaicViewer
 from ..gui.annotator import AnnotationCapture
@@ -19,7 +20,7 @@ from ..gui.annotator import AnnotationCapture
 
 #----------------------------------------------------------------------------
 
-class MosaicWidget:
+class MosaicWidget(Widget):
 
     tag = 'mosaic'
     description = 'Mosaic Map'
@@ -313,7 +314,7 @@ class MosaicWidget:
         viz = self.viz
 
         if show:
-            with viz.sidebar.header_with_buttons("Mosaic"):
+            with viz.header_with_buttons("Mosaic"):
                 imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size*1.5)
                 cx, cy = imgui.get_cursor_pos()
                 imgui.set_cursor_position((cx, cy-int(viz.font_size*0.25)))
@@ -328,9 +329,9 @@ class MosaicWidget:
                 self.ask_load_mosaic()
 
         elif show:
-            if viz.sidebar.collapsing_header('Info', default=True):
+            if viz.collapsing_header('Info', default=True):
                 self.draw_info()
-            if viz.sidebar.collapsing_header('Config', default=True):
+            if viz.collapsing_header('Config', default=True):
                 grid_changed, grid_size = imgui.input_int("Grid size", self.num_tiles_x, step=25, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
                 if grid_changed and grid_size >= 25:
                     self.num_tiles_x = grid_size

@@ -308,7 +308,7 @@ class HeatmapWidget:
         imgui_utils.vertical_break()
 
         # Display options (colormap, opacity, etc).
-        if viz.sidebar.collapsing_header('Display', default=False):
+        if viz.collapsing_header('Display', default=False):
             with imgui_utils.item_width(viz.font_size * 5):
                 _clicked, self.show = imgui.checkbox('##saliency', self.show)
                 if _clicked:
@@ -383,7 +383,7 @@ class HeatmapWidget:
             self.refresh_generating_heatmap()
 
         if show:
-            viz.sidebar.header("Heatmap")
+            viz.header("Heatmap")
 
         if show and not config:
             imgui_utils.padded_text('No model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])

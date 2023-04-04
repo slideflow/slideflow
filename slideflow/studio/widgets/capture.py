@@ -66,7 +66,7 @@ class CaptureWidget:
     def __call__(self, show=True):
         viz = self.viz
         if show:
-            if viz.sidebar.collapsing_header('Capture', default=True):
+            if viz.collapsing_header('Capture', default=True):
                 with imgui_utils.grayed_out(self.disabled_time != 0):
                     _changed, self.path = imgui_utils.input_text('##path', self.path, 1024,
                         flags=(imgui.INPUT_TEXT_AUTO_SELECT_ALL | imgui.INPUT_TEXT_ENTER_RETURNS_TRUE),

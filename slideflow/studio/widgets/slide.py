@@ -312,7 +312,7 @@ class SlideWidget:
         except Exception as e:
             self.cur_slide = None
             self.user_slide = slide
-            viz.clear_message(f'Loading {name}...')
+            viz.clear_message()
             viz.result = EasyDict(error=CapturedException())
             sf.log.warn(f"Error loading slide {slide}: {e}")
             viz.create_toast(f"Error loading slide {slide}", icon="error")
@@ -542,7 +542,7 @@ class SlideWidget:
                 self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
 
         # Tile filtering
-        with viz.sidebar.dim_text():
+        with viz.dim_text():
             _filter_clicked, self.show_tile_filter = imgui.checkbox('Tile filter', self.show_tile_filter)
             if _filter_clicked:
                 self.update_tile_filter()
@@ -553,7 +553,7 @@ class SlideWidget:
             self.draw_filtering_popup()
 
         # Slide filtering
-        with viz.sidebar.dim_text():
+        with viz.dim_text():
             _qc_clicked, self.show_slide_filter = imgui.checkbox('Slide filter', self.show_slide_filter)
         imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
         with imgui_utils.item_width(viz.font_size * 7):
@@ -562,7 +562,7 @@ class SlideWidget:
             self.update_slide_filter(method=self._qc_methods[self.qc_idx])
 
         # Normalizing
-        with viz.sidebar.dim_text():
+        with viz.dim_text():
             _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
         viz._normalize_wsi = self.normalize_wsi
         if self.normalize_wsi and viz.viewer:
@@ -587,7 +587,7 @@ class SlideWidget:
         viz = self.viz
 
         if show:
-            viz.sidebar.header("Slide")
+            viz.header("Slide")
 
         if show and viz.wsi is None:
             imgui_utils.padded_text('No slide has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
@@ -597,9 +597,9 @@ class SlideWidget:
             self.editing = False
 
         elif show:
-            if viz.sidebar.collapsing_header('Info', default=True):
+            if viz.collapsing_header('Info', default=True):
                 self.draw_info()
-            if viz.sidebar.collapsing_header('ROIs', default=True):
+            if viz.collapsing_header('ROIs', default=True):
                 imgui.text_colored('ROIs', *viz.theme.dim)
                 imgui.same_line(viz.font_size * 8)
                 imgui.text(str(self.num_total_rois))
@@ -644,7 +644,7 @@ class SlideWidget:
                 self._end_roi_button_style()
 
                 imgui_utils.vertical_break()
-            if viz.sidebar.collapsing_header('Slide Processing', default=False):
+            if viz.collapsing_header('Slide Processing', default=False):
                 self.draw_slide_processing()
             self._process_roi_capture()
         else:

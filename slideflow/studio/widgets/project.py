@@ -161,9 +161,9 @@ class ProjectWidget:
 
         if show:
             if self.P is None:
-                viz.sidebar.header("Project")
+                viz.header("Project")
             if self.P is not None:
-                with viz.sidebar.header_with_buttons("Project"):
+                with viz.header_with_buttons("Project"):
                     imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size*1.5)
                     cx, cy = imgui.get_cursor_pos()
                     imgui.set_cursor_position((cx, cy-int(viz.font_size*0.25)))
@@ -176,15 +176,15 @@ class ProjectWidget:
                 viz.ask_load_project()
 
         elif show:
-            if viz.sidebar.collapsing_header('Info', default=True):
+            if viz.collapsing_header('Info', default=True):
                 self.draw_info()
 
-            if viz.sidebar.collapsing_header('Slides', default=False):
+            if viz.collapsing_header('Slides', default=False):
                 if not len(self.slide_paths):
                     imgui_utils.padded_text('No slides found.', vpad=[int(viz.font_size/2), int(viz.font_size)])
                 else:
                     self.draw_slide_list()
 
-            if viz.sidebar.collapsing_header('Models', default=False):
+            if viz.collapsing_header('Models', default=False):
                 if not self.recursive_model_scan():
                     imgui_utils.padded_text('No models found.', vpad=[int(viz.font_size/2), int(viz.font_size)])

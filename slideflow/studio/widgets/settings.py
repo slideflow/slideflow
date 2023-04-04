@@ -26,7 +26,7 @@ class SettingsWidget:
 
         if show:
 
-            viz.sidebar.header("Settings")
+            viz.header("Settings")
 
             _clicked, self.low_memory = imgui.checkbox('Low memory mode', self.low_memory)
             if _clicked:

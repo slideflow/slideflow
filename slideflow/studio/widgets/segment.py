@@ -9,10 +9,12 @@ from functools import partial
 from threading import Thread
 from slideflow.slide.utils import draw_roi
 from slideflow.cellseg import segment_slide, Segmentation
+
+from ._utils import Widget
 from ..gui import imgui_utils
 
 
-class SegmentWidget:
+class SegmentWidget(Widget):
 
     tag = 'segment'
     description = 'Cell Segmentation'
@@ -486,16 +488,16 @@ class SegmentWidget:
         viz = self.viz
 
         if show:
-            viz.sidebar.header("Cell Segmentation")
+            viz.header("Cell Segmentation")
 
-            if viz.sidebar.collapsing_header('Model & cell diameter', default=True):
+            if viz.collapsing_header('Model & cell diameter', default=True):
                 self.draw_config()
 
-            if viz.sidebar.collapsing_header('Whole-slide segmentation', default=True):
+            if viz.collapsing_header('Whole-slide segmentation', default=True):
                 self.draw_segment()
 
-            if viz.sidebar.collapsing_header('View controls', default=False):
+            if viz.collapsing_header('View controls', default=False):
                 self.draw_view_controls()
 
-            if viz.sidebar.collapsing_header('Advanced', default=False):
+            if viz.collapsing_header('Advanced', default=False):
                 self.draw_advanced_settings()
