@@ -2095,6 +2095,7 @@ class Features(BaseFeatureExtractor):
         grid: Optional[np.ndarray] = None,
         shuffle: bool = False,
         show_progress: bool = True,
+        callback: Optional[Callable] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -2174,10 +2175,18 @@ class Features(BaseFeatureExtractor):
                     _act_batch.append(m.cpu().detach().numpy())
             _act_batch = np.concatenate(_act_batch, axis=-1)
 
+            grid_idx_updated = []
             for i, act in enumerate(_act_batch):
                 xi = batch_loc[i][0]
                 yi = batch_loc[i][1]
+                if callback:
+                    grid_idx_updated.append([yi, xi])
                 features_grid[yi][xi] = act
+
+            # Trigger a callback signifying that the grid has been updated.
+            # Useful for progress tracking.
+            if callback:
+                callback(grid_idx_updated)
 
         return features_grid
 

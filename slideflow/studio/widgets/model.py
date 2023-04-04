@@ -29,10 +29,15 @@ class ModelWidget:
         self.saliency_overlay   = False
         self.saliency_idx       = 0
         self.pred_idx           = defaultdict(int)
+        self.pred_means         = defaultdict(lambda: None)
+        self.pred_arrays        = defaultdict(lambda: None)
+        self.pred_hist          = defaultdict(lambda: None)
+        self.uq_hist            = defaultdict(lambda: None)
         self._clicking          = False
         self._show_params       = False
         self._show_popup        = False
         self._show_download     = False
+        self._last_preds        = None
 
         self._saliency_methods_all = {
             'Vanilla': grad.VANILLA,
@@ -48,7 +53,11 @@ class ModelWidget:
 
     def reset(self):
         self.saliency_idx = 0
-        self.pred_idx = defaultdict(int)
+        self.pred_idx    = defaultdict(int)
+        self.pred_means  = defaultdict(lambda: None)
+        self.pred_arrays = defaultdict(lambda: None)
+        self.pred_hist   = defaultdict(lambda: None)
+        self.uq_hist     = defaultdict(lambda: None)
 
     def outcome_indices(self, outcome):
         config = self.viz._model_config
@@ -67,19 +76,6 @@ class ModelWidget:
         ]
         outcome_idx = config['outcomes'].index(outcome)
         return sum([l for l in _outcome_lengths[:outcome_idx]])
-
-    def add_recent(self, model, ignore_errors=False):
-        try:
-            if model not in self.recent_models:
-                self.recent_models.append(model)
-        except:
-            if not ignore_errors:
-                raise
-
-    def refresh_recent(self):
-        if self.user_model in self.recent_models:
-            self.recent_models.remove(self.user_model)
-        self.recent_models.insert(0, self.user_model)
 
     def download_popup(self):
         viz = self.viz
@@ -107,21 +103,119 @@ class ModelWidget:
     def load(self, model, ignore_errors=False):
         self.viz.load_model(model, ignore_errors=ignore_errors)
 
+    def is_categorical(self):
+        """Check if model is a categorical model."""
+        return self.viz._model_config['model_type'] == 'categorical'
+
     # -------------------------------------------------------------------------
+
+    @staticmethod
+    def _masked_histogram(arr):
+        # Prediction histogram
+        flattened = arr.flatten()
+        flattened = flattened[flattened != -99]
+        hist, _ = np.histogram(flattened, range=(0, 1))
+        if flattened.shape[0] > 0:
+            hist_arr = array('f', hist/np.sum(hist))
+            hist_scale_max = np.max(hist/np.sum(hist))
+            hist_avg = np.nanmean(flattened)
+        else:
+            hist_arr = array('f', [0])
+            hist_scale_max = 1
+            hist_avg = None
+        return (hist_avg, hist_arr, hist_scale_max)
+
+    def _apply_pred_means(self, outcome, pred_array):
+        masked = np.ma.masked_where(((pred_array == -99) | (pred_array == np.nan)), pred_array)
+        if self.is_categorical():
+            self.pred_means[outcome] = masked.mean(axis=(0,1)).filled()
+        else:
+            self.pred_means[outcome] = masked.mean()
+
+    def _apply_pred_histograms(self, outcome, pred_array, uq_array=None):
+        self.pred_hist[outcome] = self._masked_histogram(pred_array)
+        if uq_array is not None:
+            self.uq_hist[outcome] = self._masked_histogram(uq_array)
+
+    def _update_slide_preds(self):
+        self._update_slide_pred_means()
+        self._update_slide_pred_histograms()
+
+    def _update_slide_pred_means(self):
+        config = self.viz._model_config
+        hw = self.viz.heatmap_widget
+        multiple_outcomes = len(config['outcomes']) > 1
+
+        if hw.predictions is None:
+            return
+
+        if config is not None and self.viz._use_model:
+            # Multiple categorical outcomes
+            if multiple_outcomes and self.is_categorical():
+                for outcome in config['outcomes']:
+                    pred_array = hw.predictions[:, :, self.outcome_indices(outcome)]
+                    self._apply_pred_means(outcome, pred_array)
+
+            # Single categorical or linear outcome
+            elif not multiple_outcomes:
+                outcome = config['outcomes'][0]
+                self._apply_pred_means(outcome, hw.predictions)
+
+            # Multiple linear outcome(s)
+            else:
+                for o_idx, outcome in enumerate(config['outcomes']):
+                    self._apply_pred_means(outcome, hw.predictions[:, :, o_idx])
+
+    def _update_slide_pred_histograms(self):
+        config = self.viz._model_config
+        hw = self.viz.heatmap_widget
+        multiple_outcomes = len(config['outcomes']) > 1
+
+        if hw.predictions is None:
+            return
+
+        if config is not None and self.viz._use_model:
+            # Multiple categorical outcomes
+            if multiple_outcomes and self.is_categorical():
+                for outcome in config['outcomes']:
+                    if self.viz.heatmap:
+                        pred_array = hw.predictions[:, :, self.outcome_index_start(outcome)+self.pred_idx[outcome]]
+                        if hw.uncertainty is not None:
+                            uq_array = hw.uncertainty[:, :, self.outcome_index_start(outcome)+self.pred_idx[outcome]]
+                        else:
+                            uq_array = None
+                        self._apply_pred_histograms(outcome, pred_array, uq_array)
+
+            # Single categorical or linear outcome
+            elif not multiple_outcomes:
+                outcome = config['outcomes'][0]
+                if self.viz.heatmap:
+                    pred_array = hw.predictions[:, :, self.pred_idx[config['outcomes'][0]]]
+                    if hw.uncertainty is not None:
+                        uq_array = hw.uncertainty
+                    else:
+                        uq_array = None
+                    self._apply_pred_histograms(outcome, pred_array, uq_array)
+
+            # Multiple linear outcome(s)
+            else:
+                if self.viz.heatmap:
+                    pred_array = hw.predictions[:, :, self.pred_idx['linear']]
+                    if hw.uncertainty is not None:
+                        uq_array = hw.uncertainty[:, :, self.pred_idx['linear']]
+                    else:
+                        uq_array = None
+                    self._apply_pred_histograms('linear', pred_array, uq_array)
 
     def _draw_tile_pred_result(self, outcome, labels, pred_array, uq_array=None):
         viz = self.viz
         config = viz._model_config
-        is_categorical = config['model_type'] == 'categorical'
-
-        flattened = pred_array.flatten()
-        flattened = flattened[flattened != -99]
 
         # Outcome name label
         imgui.text_colored(outcome, *viz.theme.dim)
 
         # Prediction string
-        if is_categorical:
+        if self.is_categorical():
             pred_str = labels[str(np.argmax(pred_array))]
         else:
             pred_str = f'{pred_array:.3f}'
@@ -131,41 +225,33 @@ class ModelWidget:
         imgui.text(pred_str)
 
         # Histogram
-        if is_categorical:
+        if self.is_categorical():
             with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.spacing):
                 imgui.core.plot_histogram('##pred', array('f', pred_array), scale_min=0, scale_max=1)
 
-    def _draw_prediction_as_text(self, outcome, all_labels, pred_array):
-        if pred_array is None:
-            return
-        masked = np.ma.masked_where(((pred_array == -99) | (pred_array == np.nan)), pred_array)
+    def _draw_prediction_as_text(self, outcome, all_labels):
         viz = self.viz
-        config = viz._model_config
         imgui.text_colored(outcome, *viz.theme.dim)
         if viz.heatmap_widget._triggered:
             pred_str = imgui_utils.spinner_text()
-        elif config['model_type'] == 'categorical':
-            preds = masked.mean(axis=(0,1)).filled()
-            pred_str = all_labels[str(np.argmax(preds))]
+        elif self.is_categorical():
+            pred_str = all_labels[str(np.argmax(self.pred_means[outcome]))]
         else:
-            pred_str = f'{masked.mean():.3f}'
+            pred_str = f'{self.pred_means[outcome]:.3f}'
         imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
         imgui.text(pred_str)
 
-    def _draw_slide_histograms(self, outcome, all_labels, active_label, pred_array, uq_array=None):
+    def _draw_slide_histograms(self, outcome, all_labels, active_label):
         viz = self.viz
-        config = viz._model_config
-        hw = viz.heatmap_widget
         _histogram_size = imgui.get_content_region_max()[0] - viz.spacing, viz.font_size * 4
+        _old_idx = self.pred_idx[outcome]
 
         # Slide prediction histogram and text
-        if viz.heatmap and pred_array is not None:
-            flattened = pred_array.flatten()
-            flattened = flattened[flattened != -99]
+        if viz.heatmap and self.pred_hist[outcome]:
 
             # Outcome selection
             imgui.separator()
-            if uq_array is not None:
+            if self.uq_hist[outcome]:
                 imgui.text("Predictions")
             narrow_w = imgui.get_text_line_height_with_spacing()
             if imgui_utils.button(f'-##pred_idx{outcome}', width=narrow_w) and self.pred_idx[outcome] > 0:
@@ -179,55 +265,50 @@ class ModelWidget:
                     max_value=len(all_labels),
                     format=f'{active_label} (%d/{len(all_labels)})'
                 )
-            self.pred_idx[outcome] = hpred - 1
+            if hpred > 0 and hpred < len(all_labels):
+                self.pred_idx[outcome] = hpred - 1
             imgui.same_line()
             if imgui_utils.button(f'+##pred_idx{outcome}', width=narrow_w) and self.pred_idx[outcome] < (len(all_labels)-1):
                 self.pred_idx[outcome] += 1
 
             # Histogram
-            _hist, _bin_edges = np.histogram(flattened, range=(0, 1))
-            if flattened.shape[0] > 0:
-                overlay_text = f"Average: {np.nanmean(flattened):.2f}"
-                _hist_arr = array('f', _hist/np.sum(_hist))
-                scale_max = np.max(_hist/np.sum(_hist))
+            hist_avg, hist_arr, hist_scale_max = self.pred_hist[outcome]
+            if hist_avg is not None:
+                overlay_text = f"Average: {hist_avg:.2f}"
             else:
                 overlay_text = f"Average: - "
-                _hist_arr = array('f', [0])
-                scale_max = 1
             imgui.core.plot_histogram(
                 f'##pred_histogram{outcome}',
-                _hist_arr,
+                hist_arr,
                 scale_min=0,
                 overlay_text=overlay_text,
-                scale_max=scale_max,
+                scale_max=hist_scale_max,
                 graph_size=_histogram_size
             )
 
         # Slide uncertainty histogram
-        if viz.heatmap and uq_array is not None:
-            flattened = uq_array.flatten()
-            flattened = flattened[flattened != -99]
-
-            _hist, _bin_edges = np.histogram(flattened)
-            if flattened.shape[0] > 0:
-                overlay_text = f"Average: {np.nanmean(flattened):.2f}"
-                _hist_arr = array('f', _hist/np.sum(_hist))
-                scale_max = np.max(_hist/np.sum(_hist))
+        if viz.heatmap and self.uq_hist[outcome]:
+            hist_avg, hist_arr, hist_scale_max = self.uq_hist[outcome]
+            if hist_avg is not None:
+                overlay_text = f"Average: {hist_avg:.2f}"
             else:
                 overlay_text = "Average: - "
-                _hist_arr = array('f', [0])
-                scale_max = 1
             imgui.separator()
             imgui.text("Uncertainty")
             imgui.core.plot_histogram(
                 f'##uq_histogram{outcome}',
-                _hist_arr,
+                hist_arr,
                 scale_min=0,
                 overlay_text=overlay_text,
-                scale_max=scale_max,
+                scale_max=hist_scale_max,
                 graph_size=_histogram_size
             )
             imgui.separator()
+
+        if _old_idx != self.pred_idx[outcome]:
+            self._update_slide_pred_histograms()
+
+    # -------------------------------------------------------------------------
 
     def draw_info(self):
         viz = self.viz
@@ -242,24 +323,14 @@ class ModelWidget:
                 outcomes = outcomes_list[0]
             else:
                 outcomes = ', '.join(outcomes_list)
-            vals = [
-                outcomes,
-                str(config['tile_px']),
-                str(config['tile_um']),
-                "<unknown>" if 'img_format' not in config else config['img_format'],
-                self.backend,
-                str(config['slideflow_version']),
-            ]
-        else:
-            vals = ["-" for _ in range(6)]
+            img_format = "<unknown>" if 'img_format' not in config else config['img_format']
         rows = [
-            #['Property',     'Value'],
-            ['Outcomes',     vals[0]],
-            ['Tile (px)',    vals[1]],
-            ['Tile (um)',    vals[2]],
-            ['Image format', vals[3]],
-            ['Backend',      vals[4]],
-            ['Version',      vals[5]],
+            ['Outcomes',     '-' if config is None else outcomes],
+            ['Tile (px)',    '-' if config is None else str(config['tile_px'])],
+            ['Tile (um)',    '-' if config is None else str(config['tile_um'])],
+            ['Image format', '-' if config is None else img_format],
+            ['Backend',      '-' if config is None else self.backend],
+            ['Version',      '-' if config is None else str(config['slideflow_version'])],
         ]
         imgui.text_colored('Model name', *viz.theme.dim)
         imgui.same_line(viz.font_size * 6)
@@ -269,7 +340,7 @@ class ModelWidget:
             for x, col in enumerate(cols):
                 if x != 0:
                     imgui.same_line(viz.font_size * (6 + (x - 1) * 6))
-                if x == 0: # or y == 0:
+                if x == 0:
                     imgui.text_colored(col, *viz.theme.dim)
                 else:
                     imgui.text(col)
@@ -299,7 +370,6 @@ class ModelWidget:
         viz = self.viz
         config = viz._model_config
         has_preds = viz._use_model and viz._predictions is not None
-        is_categorical = config['model_type'] == 'categorical'
 
         if config is not None:
 
@@ -314,7 +384,7 @@ class ModelWidget:
                     )
 
             # Single categorical outcome
-            elif has_preds and is_categorical:
+            elif has_preds and self.is_categorical():
                 self._draw_tile_pred_result(
                     outcome=config['outcomes'][0],
                     labels=config['outcome_labels'],
@@ -343,64 +413,56 @@ class ModelWidget:
     def draw_slide_predictions(self):
         viz = self.viz
         config = viz._model_config
-        hw = viz.heatmap_widget
-        is_categorical = config['model_type'] == 'categorical'
         multiple_outcomes = len(config['outcomes']) > 1
 
         if config is not None and viz._use_model:
 
             # Multiple categorical outcomes
-            if multiple_outcomes and is_categorical:
+            if multiple_outcomes and self.is_categorical():
                 for outcome in config['outcomes']:
                     # Render predictions as text
-                    self._draw_prediction_as_text(
-                        outcome=outcome,
-                        all_labels=config['outcome_labels'][outcome],
-                        pred_array=None if hw.predictions is None else hw.predictions[:, :, self.outcome_indices(outcome)],
-                    )
-                    # Draw histograms
-                    self._draw_slide_histograms(
-                        outcome=outcome,
-                        all_labels=config['outcome_labels'][outcome],
-                        active_label=config['outcome_labels'][outcome][str(self.pred_idx[outcome])],
-                        pred_array=None if not (viz.heatmap and hw.predictions is not None) else hw.predictions[:, :, self.outcome_index_start(outcome)+self.pred_idx[outcome]],
-                        uq_array=None if not (viz.heatmap and hw.uncertainty is not None) else hw.uncertainty[:, :, self.outcome_index_start(outcome)+self.pred_idx[outcome]]
-                    )
+                    if self.pred_means[outcome] is not None:
+                        self._draw_prediction_as_text(
+                            outcome=outcome,
+                            all_labels=config['outcome_labels'][outcome],
+                        )
+                        # Draw histograms
+                        self._draw_slide_histograms(
+                            outcome=outcome,
+                            all_labels=config['outcome_labels'][outcome],
+                            active_label=config['outcome_labels'][outcome][str(self.pred_idx[outcome])],
+                        )
 
             # Single categorical or linear outcome
-            elif not multiple_outcomes:
+            elif not multiple_outcomes and self.pred_means[config['outcomes'][0]] is not None:
                 outcome = config['outcomes'][0]
                 # Render predictions as text
                 self._draw_prediction_as_text(
                     outcome=config['outcomes'][0],
                     all_labels=config['outcome_labels'],
-                    pred_array=None if hw.predictions is None else hw.predictions,
                 )
                 # Draw histograms
                 self._draw_slide_histograms(
                     outcome=config['outcomes'][0],
                     all_labels=config['outcome_labels'],
                     active_label=config['outcome_labels'][str(self.pred_idx[outcome])],
-                    pred_array=None if not (viz.heatmap and hw.predictions is not None) else hw.predictions[:, :, self.pred_idx[config['outcomes'][0]]],
-                    uq_array=None if not (viz.heatmap and hw.uncertainty is not None) else hw.uncertainty
                 )
             # Multiple linear outcome(s)
             else:
                 for o_idx, outcome in enumerate(config['outcomes']):
-                    # Render predictions as text
-                    self._draw_prediction_as_text(
-                        outcome=outcome,
-                        all_labels=None,
-                        pred_array=None if hw.predictions is None else hw.predictions[:, :, o_idx],
+                    if self.pred_means[outcome] is not None:
+                        # Render predictions as text
+                        self._draw_prediction_as_text(
+                            outcome=outcome,
+                            all_labels=None,
+                        )
+                if self.pred_hist['linear'] is not None:
+                    # Draw histograms
+                    self._draw_slide_histograms(
+                        outcome='linear',
+                        all_labels=config['outcomes'],
+                        active_label=config['outcomes'][self.pred_idx['linear']],
                     )
-                # Draw histograms
-                self._draw_slide_histograms(
-                    outcome='linear',
-                    all_labels=config['outcomes'],
-                    active_label=config['outcomes'][self.pred_idx['linear']],
-                    pred_array=None if not (viz.heatmap and hw.predictions is not None) else hw.predictions[:, :, self.pred_idx['linear']],
-                    uq_array=None if not (viz.heatmap and hw.uncertainty is not None) else hw.uncertainty[:, :, self.pred_idx['linear']]
-                )
 
             imgui_utils.vertical_break()
 

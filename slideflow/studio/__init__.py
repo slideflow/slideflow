@@ -1413,7 +1413,6 @@ class Studio(ImguiWindow):
             self.model_widget.cur_model = model
             self.model_widget.use_model = True
             self.model_widget.use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
-            self.model_widget.refresh_recent()
             if normalizer is not None and hasattr(self, 'slide_widget'):
                 self.slide_widget.show_model_normalizer()
                 self.slide_widget.norm_idx = len(self.slide_widget._normalizer_methods)-1

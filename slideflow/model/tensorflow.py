@@ -14,7 +14,9 @@ import tensorflow as tf
 from packaging import version
 from os.path import dirname, exists, join
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Callable
+)
 from tensorflow.keras import applications as kapps
 
 import slideflow as sf
@@ -2253,6 +2255,7 @@ class Features(BaseFeatureExtractor):
         grid: Optional[np.ndarray] = None,
         shuffle: bool = False,
         show_progress: bool = True,
+        callback: Optional[Callable] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -2379,10 +2382,18 @@ class Features(BaseFeatureExtractor):
             _act_batch = np.concatenate(_act_batch, axis=-1)
 
             _loc_batch = batch_loc.numpy()
+            grid_idx_updated = []
             for i, act in enumerate(_act_batch):
                 xi = _loc_batch[i][0]
                 yi = _loc_batch[i][1]
+                if callback:
+                    grid_idx_updated.append((yi, xi))
                 features_grid[yi][xi] = act
+
+            # Trigger a callback signifying that the grid has been updated.
+            # Useful for progress tracking.
+            if callback:
+                callback(grid_idx_updated)
 
         return features_grid
 

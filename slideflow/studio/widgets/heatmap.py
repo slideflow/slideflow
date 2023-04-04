@@ -47,7 +47,6 @@ class HeatmapWidget:
         self._old_uncertainty       = 0
         self._predictions_gain      = 1.0
         self._uq_gain               = 1.0
-        self._heatmap_sum           = 0
         self._heatmap_grid          = None
         self._heatmap_thread        = None
         self._heatmap_toast         = None
@@ -63,6 +62,8 @@ class HeatmapWidget:
             mp_kw = dict(num_processes=os.cpu_count())
         if viz.low_memory:
             mp_kw = dict(num_threads=1, batch_size=4)
+        if sf.util.model_backend(self.viz.model) == 'torch':
+            mp_kw['apply_softmax'] = self.is_categorical()
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
             viz.model,
@@ -82,6 +83,10 @@ class HeatmapWidget:
                 if not ignore_errors:
                     raise
 
+    def is_categorical(self):
+        """Check if model is a categorical model."""
+        return self.viz.model_widget.is_categorical()
+
     def _generate(self):
         """Create and generate a heatmap asynchronously."""
 
@@ -95,7 +100,8 @@ class HeatmapWidget:
             grayspace_threshold=sw.gs_threshold,
             whitespace_fraction=sw.ws_fraction,
             whitespace_threshold=sw.ws_threshold,
-            lazy_iter=self.viz.low_memory
+            lazy_iter=self.viz.low_memory,
+            callback=self.refresh_heatmap_grid,
         )
 
     def load(self, obj: Union[str, "sf.Heatmap"]):
@@ -115,18 +121,16 @@ class HeatmapWidget:
         self.uncertainty = self.viz.heatmap.uncertainty
         self.render_heatmap()
 
-    def refresh_generating_heatmap(self):
-        """Refresh render of the asynchronously generating heatmap."""
-
+    def refresh_heatmap_grid(self, grid_idx=None):
         if self.viz.heatmap is not None and self._heatmap_grid is not None:
             predictions, uncertainty = process_grid(self.viz.heatmap, self._heatmap_grid)
-            _sum = np.sum(predictions)
-            if _sum != self._heatmap_sum:
-                self.predictions = predictions
-                self.uncertainty = uncertainty
-                self.render_heatmap()
-                self._heatmap_sum = _sum
+            self.predictions = predictions
+            self.uncertainty = uncertainty
+            self.render_heatmap()
+            self.viz.model_widget._update_slide_preds()
 
+    def refresh_generating_heatmap(self):
+        """Refresh render of the asynchronously generating heatmap."""
         if self._heatmap_thread is not None and not self._heatmap_thread.is_alive():
             self._generating = False
             self._triggered = False
@@ -159,7 +163,6 @@ class HeatmapWidget:
         self.viz.rendered_heatmap   = None
         self.viz.overlay            = None
         self.viz.heatmap            = None
-        self._heatmap_sum           = 0
         self._heatmap_grid          = None
         self._heatmap_thread        = None
         self._old_predictions       = 0
@@ -203,7 +206,6 @@ class HeatmapWidget:
 
     def draw_heatmap_thumb(self):
         viz = self.viz
-        #width = viz.font_size * 20
         width = imgui.get_content_region_max()[0] - viz.spacing
         height = imgui.get_text_line_height_with_spacing() * 7 + viz.spacing
         imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
