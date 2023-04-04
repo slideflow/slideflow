@@ -26,7 +26,7 @@ from .gui.window import ImguiWindow
 from .gui.viewer import SlideViewer
 from .widgets import (
     ProjectWidget, SlideWidget, ModelWidget, HeatmapWidget, PerformanceWidget,
-    CaptureWidget, SettingsWidget
+    CaptureWidget, SettingsWidget, ExtensionsWidget
 )
 from .utils import EasyDict, _load_model_and_saliency
 from ._renderer import Renderer, CapturedException
@@ -34,24 +34,6 @@ from ._renderer import Renderer, CapturedException
 OVERLAY_GRID    = 0
 OVERLAY_WSI     = 1
 OVERLAY_VIEW    = 2
-
-#----------------------------------------------------------------------------
-
-def stylegan_widgets(advanced: bool = True) -> List[Any]:
-    from slideflow.gan.stylegan3.stylegan3.viz import (latent_widget,
-                                                       pickle_widget,
-                                                       stylemix_widget,
-                                                       trunc_noise_widget,
-                                                       equivariance_widget)
-    widgets = [
-        pickle_widget.PickleWidget,
-        latent_widget.LatentWidget,
-        stylemix_widget.StyleMixingWidget,
-    ]
-    if advanced:
-        widgets += [trunc_noise_widget.TruncationNoiseWidget,
-                    equivariance_widget.EquivarianceWidget]
-    return widgets
 
 #----------------------------------------------------------------------------
 
@@ -184,6 +166,9 @@ class Studio(ImguiWindow):
         if widgets is None:
             widgets = self.get_default_widgets()
         self.add_widgets(widgets)
+
+        # Extensions widget.
+        self.extensions_widget  = ExtensionsWidget(self)
 
         # Initialize window.
         self.set_window_icon(imgui_utils.logo_image())
@@ -612,7 +597,6 @@ class Studio(ImguiWindow):
         Rendered images are expected to be stored in the OpenGL objects
         ``.tex_obj`` and ``._norm_tex_obj``.
         """
-
         if self._show_tile_preview:
             has_raw_image = self._tex_obj is not None
             has_norm_image = self.model_widget.use_model and self._normalizer is not None and self._norm_tex_obj is not None and self.tile_px
@@ -829,6 +813,18 @@ class Studio(ImguiWindow):
             self.widgets += [widget(self)]
         self.sidebar.add_widgets(widgets)
 
+    def remove_widget(self, widget):
+        widget_obj = None
+        for w_idx, w in enumerate(self.widgets):
+            if isinstance(w, widget):
+                widget_obj = w
+                self.widgets.remove(w)
+                break
+        if widget_obj is None:
+            raise ValueError(f'Could not find widget "{widget}"')
+        widget_obj.close()
+        self.sidebar.remove_widget(widget_obj.tag)
+
     def add_to_render_pipeline(
         self,
         renderer: Any,
@@ -838,6 +834,13 @@ class Studio(ImguiWindow):
         if name is not None:
             self._addl_renderers[name] = renderer
         self._async_renderer.add_to_render_pipeline(renderer)
+
+    def remove_from_render_pipeline(self, name: str):
+        if name not in self._addl_renderers:
+            raise ValueError(f'Could not find renderer "{name}"')
+        renderer = self._addl_renderers[name]
+        self._async_renderer.remove_from_render_pipeline(renderer)
+        del self._addl_renderers[name]
 
     def ask_load_heatmap(self):
         """Prompt user for location of exported heatmap (\*.npz) and load."""
@@ -1397,6 +1400,12 @@ class Sidebar:
             self._button_tex[widget.tag] = gl_utils.Texture(image=Image.open(widget.icon), bilinear=True, mipmap=True)
             self._button_tex[f'{widget.tag}_highlighted'] = gl_utils.Texture(image=Image.open(widget.icon_highlighted), bilinear=True, mipmap=True)
 
+    def remove_widget(self, tag):
+        if tag not in self.navbuttons:
+            raise ValueError(f'No matching widget with tag "{tag}".')
+        idx = self.navbuttons.index(tag)
+        del self.navbuttons[idx]
+
     def full_button(self, text, **kwargs):
         t = self.theme
         imgui.push_style_color(imgui.COLOR_BUTTON, *t.bright_button)
@@ -1475,7 +1484,7 @@ class Sidebar:
 
     def _load_button_textures(self) -> None:
         button_dir = join(dirname(abspath(__file__)), 'gui', 'buttons')
-        for bname in self.navbuttons + ['gear', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy', 'model_loaded']:
+        for bname in self.navbuttons + ['gear', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy', 'model_loaded', 'extensions']:
             if bname in self._button_tex:
                 continue
             self._button_tex[bname] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}.png')), bilinear=True, mipmap=True)
@@ -1538,7 +1547,8 @@ class Sidebar:
             start_px = b_id * self.navbutton_width
             self.draw_navbar_button(b_name, start_px)
 
-        self.draw_navbar_button('circle_lightning', buttonbar_height + viz.menu_bar_height - self.navbutton_width*2 - viz.status_bar_height)
+        self.draw_navbar_button('circle_lightning', buttonbar_height + viz.menu_bar_height - self.navbutton_width*3 - viz.status_bar_height)
+        self.draw_navbar_button('extensions', buttonbar_height + viz.menu_bar_height - self.navbutton_width*2 - viz.status_bar_height)
         self.draw_navbar_button('gear', buttonbar_height + viz.menu_bar_height - self.navbutton_width - viz.status_bar_height)
 
         imgui.end()
@@ -1583,6 +1593,9 @@ class Sidebar:
         # Performance / capture widget
         viz.performance_widget(self.expanded and self.selected == 'circle_lightning')
         viz.capture_widget(self.expanded and self.selected == 'circle_lightning')
+
+        # Extensions widget
+        viz.extensions_widget(self.expanded and self.selected == 'extensions')
 
         # Settings widget
         viz.settings_widget(self.expanded and self.selected == 'gear')
@@ -1648,6 +1661,14 @@ class AsyncRenderer:
         if self._renderer_obj is not None:
             self._renderer_obj.add_renderer(renderer)
 
+    def remove_from_render_pipeline(self, renderer):
+        if self.is_async:
+            raise ValueError("Cannot remove rendering pipeline when in "
+                             "asynchronous mode.")
+        idx = self._addl_render.index(renderer)
+        del self._addl_render[idx]
+        if self._renderer_obj is not None:
+            self._renderer_obj.remove_renderer(renderer)
 
     def set_async(self, is_async):
         self._is_async = is_async

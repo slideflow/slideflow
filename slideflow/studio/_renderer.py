@@ -140,7 +140,13 @@ class Renderer:
             return x.cpu().detach().numpy()
 
     def add_renderer(self, renderer):
+        sf.log.debug(f"Adding renderer: {renderer}")
         self._addl_renderers += [renderer]
+
+    def remove_renderer(self, renderer):
+        sf.log.debug(f"Removing renderer: {renderer}")
+        idx = self._addl_renderers.index(renderer)
+        del self._addl_renderers[idx]
 
     def render(self, **args):
         self._is_timing = True

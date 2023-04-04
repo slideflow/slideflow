@@ -80,6 +80,9 @@ class SegmentWidget:
     def mpp(self):
         return self.diameter_microns / self.diam_mean
 
+    def close(self):
+        pass
+
     def formatted_slide_levels(self):
         if self.viz.wsi:
             return [
