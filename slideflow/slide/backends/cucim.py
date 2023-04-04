@@ -192,7 +192,8 @@ class _cuCIMReader:
         path: str,
         mpp: Optional[float] = None,
         cache_kw: Optional[Dict[str, Any]] = None,
-        num_workers: int = 0
+        num_workers: int = 0,
+        ignore_missing_mpp: bool = True
     ):
         '''Wrapper for cuCIM reader to preserve cross-compatible functionality.'''
         global __cuimage__, __cuimage_path__

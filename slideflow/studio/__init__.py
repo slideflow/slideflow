@@ -701,7 +701,8 @@ class Studio(ImguiWindow):
         self,
         path: Optional[str] = None,
         stride: Optional[int] = None,
-        use_rois: bool = True
+        use_rois: bool = True,
+        **kwargs
     ) -> None:
         """Reload the currently loaded Whole-Slide Image.
 
@@ -726,9 +727,7 @@ class Studio(ImguiWindow):
         else:
             rois = None
         if sf.slide_backend() == 'cucim':
-            reader_kwargs = dict(num_workers=os.cpu_count())
-        else:
-            reader_kwargs = {}
+            kwargs['num_workers'] = os.cpu_count()
         self.wsi = sf.WSI(
             path,
             tile_px=(self.tile_px if self.tile_px else 256),
@@ -743,7 +742,8 @@ class Studio(ImguiWindow):
                 persistent=True
             ),
             verbose=False,
-            **reader_kwargs)
+            mpp=self.slide_widget.manual_mpp,
+            **kwargs)
         self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
         self.set_title(os.path.basename(self.wsi.path))
 
@@ -902,6 +902,20 @@ class Studio(ImguiWindow):
             vpad=(int(self.font_size*0.4), int(self.font_size*0.75))
         ):
             yield
+
+    def center_next_window(self, width, height):
+        """Center the next imgui window.
+
+        Args:
+            width (int): Width of the next window.
+            height (int): Height of the next window.
+
+        """
+
+        imgui.set_next_window_position(
+            (self.content_width - width) / 2,
+            (self.content_height - height - self.status_bar_height) / 2
+        )
 
     # --- Public methods ------------------------------------------------------
 
@@ -1418,7 +1432,11 @@ class Studio(ImguiWindow):
                 self.slide_widget.norm_idx = len(self.slide_widget._normalizer_methods)-1
             if self.wsi:
                 log.debug(f"Loading slide... tile_px={self.tile_px}, tile_um={self.tile_um}")
-                self.slide_widget.load(self.wsi.path, ignore_errors=ignore_errors)
+                self.slide_widget.load(
+                    self.wsi.path,
+                    mpp=self.slide_widget.manual_mpp,
+                    ignore_errors=ignore_errors
+                )
             if hasattr(self, 'heatmap_widget'):
                 log.debug("Resetting heatmap")
                 self.heatmap_widget.reset()
@@ -1732,7 +1750,7 @@ class Sidebar:
         idx = self.navbuttons.index(tag)
         del self.navbuttons[idx]
 
-    def full_button(self, text, **kwargs):
+    def full_button(self, text, width=None, **kwargs):
         """Render a button that spans the full width of the sidebar.
 
         The color of the button is determined through the loaded theme,
@@ -1740,6 +1758,8 @@ class Sidebar:
 
         Args:
             text (str): Text of the button.
+            width (int, optional): Width of the button. If not specified,
+                uses a width that spans the width of the sidebar.
 
         Keyword args:
             enabled (bool): Whether the button is enabled.
@@ -1754,9 +1774,11 @@ class Sidebar:
         imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, *t.bright_button_active)
         imgui.push_style_color(imgui.COLOR_BORDER, 0, 0, 0, 0)
         imgui.push_style_color(imgui.COLOR_TEXT, 0, 0, 0, 1)
+        if width is None:
+            width = self.viz.sidebar.content_width - (self.viz.spacing * 2)
         result = imgui_utils.button(
             text,
-            width=self.viz.sidebar.content_width - (self.viz.spacing * 2),
+            width=width,
             height=self.viz.font_size * 1.7,
             **kwargs
         )

@@ -122,6 +122,11 @@ class SlideNotFoundError(SlideError):
     pass
 
 
+class SlideMissingMPPError(SlideLoadError):
+    pass
+
+
+
 class ROIError(SlideError):
     pass
 

@@ -50,7 +50,7 @@ except Exception:
 # --- Global vars -------------------------------------------------------------
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
-                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg']
+                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png']
 EMPTY = ['', ' ', None, np.nan]
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:

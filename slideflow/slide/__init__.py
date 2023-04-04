@@ -390,6 +390,8 @@ class _BaseLoader:
                 self._mpp_override,
                 **self._reader_kwargs)
             return self.__slide  # type: ignore
+        except errors.SlideMissingMPPError:
+            raise
         except Exception as e:
             raise errors.SlideLoadError(
                 f"Error loading slide {self.shortname}: {e}"
@@ -963,6 +965,11 @@ class WSI(_BaseLoader):
                 Defaults to True.
             mpp (float, optional): Override the microns-per-pixel value for
                 the slide. Defaults to None (auto-detects).
+            ignore_missing_mpp (bool, optional): If a slide does not have
+                microns-per-pixel (MPP) information stored in EXIF data
+                (key 65326), set the MPP to a default value
+                (``sf.slide.DEFAULG_JPG_MPP``). If False and MPP data is
+                missing, raises ``sf.errors.SlideMissingMPPError``.
         """
         super().__init__(
             path=path,

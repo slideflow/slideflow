@@ -44,6 +44,9 @@ class SlideWidget:
         self._use_rois              = True
         self._rendering_message     = "Calculating tile filter..."
         self._show_filter_controls  = False
+        self._show_mpp_popup        = False
+        self._input_mpp             = 1.0
+        self._mpp_reload_kwargs     = dict()
 
         # ROI Annotation params
         self.annotator              = AnnotationCapture(named=False)
@@ -267,7 +270,7 @@ class SlideWidget:
 
     # --- Public interface ----------------------------------------------------
 
-    def load(self, slide, stride=None, ignore_errors=False):
+    def load(self, slide, stride=None, ignore_errors=False, mpp=None, **kwargs):
         """Load a slide."""
 
         viz = self.viz
@@ -290,13 +293,32 @@ class SlideWidget:
             name = slide.replace('\\', '/').split('/')[-1]
             self.cur_slide = slide
             self.user_slide = slide
+            self.manual_mpp = mpp
             self._use_rois = True
             viz.set_message(f'Loading {name}...')
             sf.log.debug(f"Loading slide {slide}...")
             viz.defer_rendering()
             if stride is not None:
                 self.stride = stride
-            viz._reload_wsi(slide, stride=self.stride, use_rois=self._use_rois)
+            try:
+                viz._reload_wsi(
+                    slide,
+                    stride=self.stride,
+                    use_rois=self._use_rois,
+                    ignore_missing_mpp=False,
+                    **kwargs
+                )
+            except sf.errors.SlideMissingMPPError:
+                self.cur_slide = None
+                self.user_slide = slide
+                self._show_mpp_popup = True
+                self._mpp_reload_kwargs = dict(
+                    slide=slide,
+                    stride=stride,
+                    ignore_errors=ignore_errors,
+                    **kwargs
+                )
+                return
             viz.heatmap_widget.reset()
             self.num_total_rois = len(viz.wsi.rois)
 
@@ -413,6 +435,8 @@ class SlideWidget:
                 self.viz.viewer.clear_overlay_object()
             if self.show_slide_filter:
                 self.render_slide_filter()
+
+    # --- Widget --------------------------------------------------------------
 
     def draw_info(self):
         viz = self.viz
@@ -582,6 +606,34 @@ class SlideWidget:
                 self.viz._normalizer = sf.norm.autoselect(method, source='v3')
             viz._refresh_view = True
 
+    def draw_mpp_popup(self):
+        """Prompt the user to specify microns-per-pixel for a slide."""
+        window_size = (self.viz.font_size * 18, self.viz.font_size * 8.25)
+        self.viz.center_next_window(*window_size)
+        imgui.set_next_window_size(*window_size)
+        _, opened = imgui.begin('Microns-per-pixel (MPP) Not Found', closable=True, flags=imgui.WINDOW_NO_RESIZE)
+        if not opened:
+            self._show_mpp_popup = False
+
+        imgui.text("Could not read microns-per-pixel (MPP) value.")
+        imgui.text("Set a MPP to continue loading this slide.")
+        imgui.separator()
+        imgui.text('')
+        imgui.same_line(self.viz.font_size*4)
+        with imgui_utils.item_width(self.viz.font_size*4):
+            _changed, self._input_mpp = imgui.input_float('MPP##input_mpp', self._input_mpp, format='%.3f')
+        imgui.same_line()
+        if self._input_mpp:
+            mag = f'{10/self._input_mpp:.1f}x'
+        else:
+            mag = '-'
+        imgui.text(mag)
+        if self.viz.sidebar.full_button("Use MPP", width=-1):
+            self.load(mpp=self._input_mpp, **self._mpp_reload_kwargs)
+            self._show_mpp_popup = False
+        imgui.end()
+
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
@@ -650,3 +702,6 @@ class SlideWidget:
         else:
             self.capturing = False
             self.editing = False
+
+        if self._show_mpp_popup:
+            self.draw_mpp_popup()
