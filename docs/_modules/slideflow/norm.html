@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.norm &mdash; slideflow 2.0.0 documentation</title>
+  
 
-  <title>slideflow.norm &mdash; slideflow 1.5.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  1.5
+                  2.0
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
@@ -159,11 +159,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../../evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mil.html">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../ssl.html">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../saliency.html">Saliency Maps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../custom_loops.html">Custom Training Loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../workbench_tools.html">Workbench: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slideflow_studio.html">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
@@ -175,6 +176,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../dataset_features.html">slideflow.DatasetFeatures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slidemap.html">slideflow.SlideMap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../biscuit.html">slideflow.biscuit</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../io_tensorflow.html">slideflow.io.tensorflow</a></li>
@@ -190,7 +192,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../util.html">slideflow.util</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../workbench.html">slideflow.workbench</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../studio_module.html">slideflow.studio</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -202,8 +204,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -211,7 +213,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -230,28 +232,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../index.html">Module code</a> &gt;</li>
-
+        
       <li>slideflow.norm</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -263,16 +265,15 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.norm</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;This module provides H&amp;E stain normalization tools, with numpy, PyTorch,</span>
-<span class="sd">and Tensorflow implementations for several stain normalization methods.</span>
+<span></span><span class="sd">&quot;&quot;&quot;H&amp;E stain normalization and augmentation tools.</span>
 
 <span class="sd">Overview</span>
 <span class="sd">--------</span>
@@ -287,13 +288,10 @@
 <span class="sd">implementations are also provided, which offer performance improvements</span>
 <span class="sd">and/or vectorized application. The native normalizers are found in</span>
 <span class="sd">``slideflow.norm.tensorflow`` and ``slideflow.norm.torch``, respectively.</span>
-<span class="sd">Tensorflow-native normalizer methods include Macenko, Reinhard, and</span>
-<span class="sd">Reinhard-fast. Torch-native normalizer methods include Reinhard and</span>
-<span class="sd">Reinhard-fast.</span>
 
 <span class="sd">The Vahadane normalizer has two numpy implementations available: SPAMS</span>
-<span class="sd">(``vahadane_spams``) and sklearn (``vahadane_sklearn``). As of version 1.2.3,</span>
-<span class="sd">the sklearn implementation will be used if unspecified (``method=&#39;vahadane&#39;``).</span>
+<span class="sd">(``vahadane_spams``) and sklearn (``vahadane_sklearn``). By default,</span>
+<span class="sd">the SPAMS implementation will be used if unspecified (``method=&#39;vahadane&#39;``).</span>
 
 <span class="sd">Use :func:`slideflow.norm.autoselect` to get the fastest available normalizer</span>
 <span class="sd">for a given method and active backend (Tensorflow/PyTorch).</span>
@@ -305,22 +303,23 @@
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
 <span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">BytesIO</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">slideflow.dataset</span> <span class="kn">import</span> <span class="n">Dataset</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">detuple</span><span class="p">,</span> <span class="n">log</span>
-<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">detuple</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">cleanup_progress</span>
+<span class="kn">from</span> <span class="nn">slideflow.norm</span> <span class="kn">import</span> <span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="n">macenko</span><span class="p">,</span> <span class="n">reinhard</span><span class="p">,</span> <span class="n">vahadane</span><span class="p">)</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
     <span class="kn">import</span> <span class="nn">torch</span>
-
-<span class="kn">from</span> <span class="nn">slideflow.norm</span> <span class="kn">import</span> <span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="n">macenko</span><span class="p">,</span> <span class="n">reinhard</span><span class="p">,</span> <span class="n">vahadane</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="StainNormalizer"><a class="viewcode-back" href="../../norm.html#slideflow.norm.StainNormalizer">[docs]</a><span class="k">class</span> <span class="nc">StainNormalizer</span><span class="p">:</span>
@@ -328,6 +327,7 @@
     <span class="n">vectorized</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">normalizers</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;macenko&#39;</span><span class="p">:</span>  <span class="n">macenko</span><span class="o">.</span><span class="n">MacenkoNormalizer</span><span class="p">,</span>
+        <span class="s1">&#39;macenko_fast&#39;</span><span class="p">:</span>  <span class="n">macenko</span><span class="o">.</span><span class="n">MacenkoFastNormalizer</span><span class="p">,</span>
         <span class="s1">&#39;reinhard&#39;</span><span class="p">:</span> <span class="n">reinhard</span><span class="o">.</span><span class="n">ReinhardNormalizer</span><span class="p">,</span>
         <span class="s1">&#39;reinhard_fast&#39;</span><span class="p">:</span> <span class="n">reinhard</span><span class="o">.</span><span class="n">ReinhardFastNormalizer</span><span class="p">,</span>
         <span class="s1">&#39;reinhard_mask&#39;</span><span class="p">:</span> <span class="n">reinhard</span><span class="o">.</span><span class="n">ReinhardMaskNormalizer</span><span class="p">,</span>
@@ -343,8 +343,8 @@
 
 <span class="sd">        The stain normalizer supports numpy images, PNG or JPG strings,</span>
 <span class="sd">        Tensorflow tensors, and PyTorch tensors. The default ``.transform()``</span>
-<span class="sd">        method will attempt to preserve the original image type while minimizing</span>
-<span class="sd">        conversions to and from Tensors.</span>
+<span class="sd">        method will attempt to preserve the original image type while</span>
+<span class="sd">        minimizing conversions to and from Tensors.</span>
 
 <span class="sd">        Alternatively, you can manually specify the image conversion type</span>
 <span class="sd">        by using the appropriate function. For example, to convert a Tensor</span>
@@ -421,9 +421,19 @@
         <span class="n">base</span> <span class="o">+=</span> <span class="s2">&quot;)&quot;</span>
         <span class="k">return</span> <span class="n">base</span>
 
-    <span class="k">def</span> <span class="nf">_torch_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inp</span><span class="p">:</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a torch uint8 image (CWH), via intermediate</span>
-<span class="sd">        conversion to WHC.</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">device</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;cpu&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_torch_transform</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">inp</span><span class="p">:</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a torch uint8 image (CWH).</span>
+
+<span class="sd">        Normalization ocurs via intermediate conversion to WHC.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            inp (torch.Tensor): Image, uint8. Images are normalized in</span>
@@ -435,13 +445,20 @@
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">import</span> <span class="nn">torch</span>
-        <span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> <span class="n">cwh_to_whc</span><span class="p">,</span> <span class="n">whc_to_cwh</span>
+        <span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> <span class="n">cwh_to_whc</span><span class="p">,</span> <span class="n">whc_to_cwh</span><span class="p">,</span> <span class="n">is_cwh</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">inp</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_torch_transform</span><span class="p">(</span><span class="n">img</span><span class="p">)</span> <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">inp</span><span class="p">])</span>
-        <span class="k">elif</span> <span class="n">inp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">is_cwh</span><span class="p">(</span><span class="n">inp</span><span class="p">):</span>
             <span class="c1"># Convert from CWH -&gt; WHC (normalize) -&gt; CWH</span>
-            <span class="k">return</span> <span class="n">whc_to_cwh</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">cwh_to_whc</span><span class="p">(</span><span class="n">inp</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())))</span>
+            <span class="k">return</span> <span class="n">whc_to_cwh</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span>
+                        <span class="n">cwh_to_whc</span><span class="p">(</span><span class="n">inp</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span>
+                        <span class="n">augment</span><span class="o">=</span><span class="n">augment</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">inp</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()))</span>
 
@@ -451,7 +468,7 @@
         <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
         <span class="n">num_threads</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;StainNormalizer&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the normalizer to a target image or dataset of images.</span>
 
 <span class="sd">        Args:</span>
@@ -494,33 +511,34 @@
             <span class="n">pb</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">(</span><span class="n">transient</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="n">task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s1">&#39;Fitting normalizer...&#39;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">num_tiles</span><span class="p">)</span>
             <span class="n">pb</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-            <span class="k">for</span> <span class="n">img_batch</span><span class="p">,</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">dts</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">is_torch_tensor</span><span class="p">(</span><span class="n">img_batch</span><span class="p">):</span>
-                    <span class="n">img_batch</span> <span class="o">=</span> <span class="n">img_batch</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># BCWH -&gt; BWHC</span>
+            <span class="k">with</span> <span class="n">cleanup_progress</span><span class="p">(</span><span class="n">pb</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">img_batch</span><span class="p">,</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">dts</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">is_torch_tensor</span><span class="p">(</span><span class="n">img_batch</span><span class="p">):</span>
+                        <span class="n">img_batch</span> <span class="o">=</span> <span class="n">img_batch</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># BCWH -&gt; BWHC</span>
 
-                <span class="n">mapped</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">numpy</span><span class="p">()),</span> <span class="n">img_batch</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">fit_vals</span> <span class="ow">in</span> <span class="n">mapped</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">all_fit_vals</span> <span class="o">==</span> <span class="p">[]:</span>
-                        <span class="n">all_fit_vals</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fit_vals</span><span class="p">))]</span>
-                    <span class="k">for</span> <span class="n">v</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fit_vals</span><span class="p">):</span>
-                        <span class="n">all_fit_vals</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">val</span><span class="p">)]</span>
-                <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
-            <span class="n">pb</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+                    <span class="n">mapped</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">numpy</span><span class="p">()),</span> <span class="n">img_batch</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">fit_vals</span> <span class="ow">in</span> <span class="n">mapped</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">all_fit_vals</span> <span class="o">==</span> <span class="p">[]:</span>
+                            <span class="n">all_fit_vals</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fit_vals</span><span class="p">))]</span>
+                        <span class="k">for</span> <span class="n">v</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fit_vals</span><span class="p">):</span>
+                            <span class="n">all_fit_vals</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">val</span><span class="p">)]</span>
+                    <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">set_fit</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">all_fit_vals</span><span class="p">])</span>
             <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
         <span class="c1"># Fit to numpy image</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">arg1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># Fit to a preset</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">arg1</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="s1">&#39;v2&#39;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">fit_preset</span><span class="p">(</span><span class="n">arg1</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+              <span class="ow">and</span> <span class="n">arg1</span> <span class="ow">in</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">fit_presets</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">preset_tag</span><span class="p">]):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">fit_preset</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># Fit to a path to an image</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">src_img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">arg1</span><span class="p">),</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2RGB</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">src_img</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">src_img</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="k">elif</span> <span class="n">arg1</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">set_fit</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -532,6 +550,7 @@
             <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fit_key</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">fit_val</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="k">for</span> <span class="n">fit_key</span><span class="p">,</span> <span class="n">fit_val</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_fit</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
         <span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span>
 
     <span class="k">def</span> <span class="nf">get_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">as_list</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the current normalizer fit.</span>
@@ -569,14 +588,50 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">set_fit</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">k</span><span class="p">:</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">})</span>
 
+    <span class="k">def</span> <span class="nf">set_augment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">preset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the normalizer augmentation space.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            preset (str, optional): Augmentation preset. Defaults to None.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            matrix_stdev (np.ndarray): Standard deviation</span>
+<span class="sd">                of the stain matrix target. Must have the shape (3, 2).</span>
+<span class="sd">                Used for Macenko normalizers.</span>
+<span class="sd">                Defaults to None (will not augment stain matrix).</span>
+<span class="sd">            concentrations_stdev (np.ndarray): Standard deviation</span>
+<span class="sd">                of the target concentrations. Must have the shape (2,).</span>
+<span class="sd">                Used for Macenko normalizers.</span>
+<span class="sd">                Defaults to None (will not augment target concentrations).</span>
+<span class="sd">            means_stdev (np.ndarray): Standard deviation</span>
+<span class="sd">                of the target means. Must have the shape (3,).</span>
+<span class="sd">                Used for Reinhard normalizers.</span>
+<span class="sd">                Defaults to None (will not augment target means).</span>
+<span class="sd">            stds_stdev (np.ndarray): Standard deviation</span>
+<span class="sd">                of the target stds. Must have the shape (3,).</span>
+<span class="sd">                Used for Reinhard normalizers.</span>
+<span class="sd">                Defaults to None (will not augment target stds).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">preset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">augment_preset</span><span class="p">(</span><span class="n">preset</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">set_augment</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">k</span><span class="p">:</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">})</span>
+
     <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">]</span>
+        <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a target image, attempting to preserve the original type.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            image (np.ndarray, tf.Tensor, or torch.Tensor): Image.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            augment (bool): Transform using stain aumentation.</span>
+<span class="sd">                Defaults to False.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Normalized image of the original type.</span>
@@ -587,32 +642,38 @@
         <span class="k">if</span> <span class="s1">&#39;tensorflow&#39;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">:</span>
             <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_to_tf</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_to_tf</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">&#39;torch&#39;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">:</span>
             <span class="kn">import</span> <span class="nn">torch</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">torch_to_torch</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">torch_to_torch</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized image type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="si">}</span><span class="s2">; expected &quot;</span>
                          <span class="s2">&quot;np.ndarray, tf.Tensor, or torch.Tensor&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">jpeg_to_jpeg</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">jpeg_string</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span>
-        <span class="n">quality</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">quality</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a JPEG image, returning a JPEG image.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            jpeg_string (str, bytes): JPEG image data.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            augment (bool): Transform using stain aumentation.</span>
+<span class="sd">                Defaults to False.</span>
 <span class="sd">            quality (int, optional): Quality level for creating the resulting</span>
 <span class="sd">                normalized JPEG image. Defaults to 100.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            bytes:  Normalized JPEG image.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">cv_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jpeg_to_rgb</span><span class="p">(</span><span class="n">jpeg_string</span><span class="p">)</span>
+        <span class="n">cv_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jpeg_to_rgb</span><span class="p">(</span><span class="n">jpeg_string</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">BytesIO</span><span class="p">()</span> <span class="k">as</span> <span class="n">output</span><span class="p">:</span>
             <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">cv_image</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span>
                 <span class="n">output</span><span class="p">,</span>
@@ -621,11 +682,20 @@
             <span class="p">)</span>
             <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">jpeg_to_rgb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jpeg_string</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">jpeg_to_rgb</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">jpeg_string</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a JPEG image, returning a numpy uint8 array.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            jpeg_string (str, bytes): JPEG image data.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            augment (bool): Transform using stain aumentation.</span>
+<span class="sd">                Defaults to False.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            np.ndarray: Normalized image, uint8, W x H x C.</span>
@@ -635,59 +705,96 @@
             <span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_COLOR</span>
         <span class="p">)</span>
         <span class="n">cv_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">cv_image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2RGB</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">cv_image</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">cv_image</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">png_to_png</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">png_string</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">png_to_png</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">png_string</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a PNG image, returning a PNG image.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            png_string (str, bytes): PNG image data.</span>
 
+<span class="sd">        Keyword args:</span>
+<span class="sd">            augment (bool): Transform using stain aumentation.</span>
+<span class="sd">                Defaults to False.</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            bytes: Normalized PNG image.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">cv_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">png_to_rgb</span><span class="p">(</span><span class="n">png_string</span><span class="p">)</span>
+        <span class="n">cv_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">png_to_rgb</span><span class="p">(</span><span class="n">png_string</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">BytesIO</span><span class="p">()</span> <span class="k">as</span> <span class="n">output</span><span class="p">:</span>
             <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">cv_image</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;PNG&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">png_to_rgb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">png_string</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">png_to_rgb</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">png_string</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a PNG image, returning a numpy uint8 array.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            png_string (str, bytes): PNG image data.</span>
 
+<span class="sd">        Keyword args:</span>
+<span class="sd">            augment (bool): Transform using stain aumentation.</span>
+<span class="sd">                Defaults to False.</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            np.ndarray: Normalized image, uint8, W x H x C.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">jpeg_to_rgb</span><span class="p">(</span><span class="n">png_string</span><span class="p">)</span>  <span class="c1"># It should auto-detect format</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">jpeg_to_rgb</span><span class="p">(</span><span class="n">png_string</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>  <span class="c1"># It should auto-detect format</span>
 
-    <span class="k">def</span> <span class="nf">rgb_to_rgb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">rgb_to_rgb</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a numpy array (uint8), returning a numpy array (uint8).</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            image (np.ndarray): Image (uint8).</span>
 
+<span class="sd">        Keyword args:</span>
+<span class="sd">            augment (bool): Transform using stain aumentation.</span>
+<span class="sd">                Defaults to False.</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            np.ndarray: Normalized image, uint8, W x H x C.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">tf_to_rgb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">tf_to_rgb</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">image</span><span class="p">:</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a tf.Tensor (uint8), returning a numpy array (uint8).</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            image (tf.Tensor): Image (uint8).</span>
 
+<span class="sd">        Keyword args:</span>
+<span class="sd">            augment (bool): Transform using stain aumentation.</span>
+<span class="sd">                Defaults to False.</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            np.ndarray: Normalized image, uint8, W x H x C.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">image</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">image</span><span class="p">),</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">tf_to_tf</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">],</span>
-        <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">],</span> <span class="o">...</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a tf.Tensor (uint8), returning a numpy array (uint8).</span>
 
@@ -697,6 +804,10 @@
 <span class="sd">            args (Any, optional): Any additional arguments, which will be passed</span>
 <span class="sd">                and returned unmodified.</span>
 
+<span class="sd">        Keyword args:</span>
+<span class="sd">            augment (bool): Transform using stain aumentation.</span>
+<span class="sd">                Defaults to False.</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            A tuple containing the normalized tf.Tensor image (uint8,</span>
 <span class="sd">            W x H x C) and any additional arguments provided.</span>
@@ -705,20 +816,25 @@
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
             <span class="n">image</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">py_function</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tf_to_rgb</span><span class="p">,</span>
+                <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_to_rgb</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">),</span>
                 <span class="p">[</span><span class="n">image</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">]],</span>
                 <span class="n">tf</span><span class="o">.</span><span class="n">int32</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_to_tf</span><span class="p">(</span><span class="n">_i</span><span class="p">)</span> <span class="k">for</span> <span class="n">_i</span> <span class="ow">in</span> <span class="n">image</span><span class="p">])</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_to_tf</span><span class="p">(</span><span class="n">_i</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span> <span class="k">for</span> <span class="n">_i</span> <span class="ow">in</span> <span class="n">image</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">py_function</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_to_rgb</span><span class="p">,</span> <span class="p">[</span><span class="n">image</span><span class="p">],</span> <span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">py_function</span><span class="p">(</span>
+                <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_to_rgb</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">),</span>
+                <span class="p">[</span><span class="n">image</span><span class="p">],</span>
+                <span class="n">tf</span><span class="o">.</span><span class="n">int32</span>
+            <span class="p">)</span>
         <span class="k">return</span> <span class="n">detuple</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">torch_to_torch</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">],</span>
-        <span class="o">*</span><span class="n">args</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">],</span> <span class="o">...</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a torch.Tensor (uint8), returning a numpy array (uint8).</span>
 
@@ -727,6 +843,10 @@
 <span class="sd">                or a Dictionary with the image under the key &#39;tile_image&#39;.</span>
 <span class="sd">            args (Any, optional): Any additional arguments, which will be passed</span>
 <span class="sd">                and returned unmodified.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            augment (bool): Transform using stain aumentation.</span>
+<span class="sd">                Defaults to False.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            A tuple containing</span>
@@ -740,15 +860,107 @@
                 <span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">image</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s1">&#39;tile_image&#39;</span>
             <span class="p">}</span>
-            <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_torch_transform</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">])</span>
+            <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_torch_transform</span><span class="p">(</span>
+                <span class="n">image</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">],</span>
+                <span class="n">augment</span><span class="o">=</span><span class="n">augment</span>
+            <span class="p">)</span>
             <span class="k">return</span> <span class="n">detuple</span><span class="p">(</span><span class="n">to_return</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">detuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_torch_transform</span><span class="p">(</span><span class="n">image</span><span class="p">),</span> <span class="n">args</span><span class="p">)</span></div>
+            <span class="k">return</span> <span class="n">detuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_torch_transform</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">),</span> <span class="n">args</span><span class="p">)</span>
+
+    <span class="c1"># --- Context management --------------------------------------------------</span>
+
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span> <span class="nf">context</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">]</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the whole-slide context for the stain normalizer.</span>
+
+<span class="sd">        With contextual normalization, max concentrations are determined</span>
+<span class="sd">        from the context (whole-slide image) rather than the image being</span>
+<span class="sd">        normalized. This may improve stain normalization for sections of</span>
+<span class="sd">        a slide that are predominantly eosin (e.g. necrosis or low cellularity).</span>
+
+<span class="sd">        When calculating max concentrations from the image context,</span>
+<span class="sd">        white pixels (255) will be masked.</span>
+
+<span class="sd">        This function is a context manager used for temporarily setting the</span>
+<span class="sd">        image context. For example:</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            with normalizer.image_context(slide):</span>
+<span class="sd">                normalizer.transform(target)</span>
+
+<span class="sd">        If a slide (``sf.WSI``) is used for context, any existing QC filters</span>
+<span class="sd">        and regions of interest will be used to mask out background as white</span>
+<span class="sd">        pixels, and the masked thumbnail will be used for creating the</span>
+<span class="sd">        normalizer context. If no QC has been applied to the slide and the</span>
+<span class="sd">        slide does not have any Regions of Interest, then both otsu&#39;s</span>
+<span class="sd">        thresholding and Gaussian blur filtering will be applied</span>
+<span class="sd">        to the thumbnail for masking.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            I (np.ndarray, sf.WSI): Context to use for normalization, e.g.</span>
+<span class="sd">                a whole-slide image thumbnail, optionally masked with masked</span>
+<span class="sd">                areas set to (255, 255, 255).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+        <span class="k">yield</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clear_context</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">set_context</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the whole-slide context for the stain normalizer.</span>
+
+<span class="sd">        With contextual normalization, max concentrations are determined</span>
+<span class="sd">        from the context (whole-slide image) rather than the image being</span>
+<span class="sd">        normalized. This may improve stain normalization for sections of</span>
+<span class="sd">        a slide that are predominantly eosin (e.g. necrosis or low cellularity).</span>
+
+<span class="sd">        When calculating max concentrations from the image context,</span>
+<span class="sd">        white pixels (255) will be masked.</span>
+
+<span class="sd">         If a slide (``sf.WSI``) is used for context, any existing QC filters</span>
+<span class="sd">        and regions of interest will be used to mask out background as white</span>
+<span class="sd">        pixels, and the masked thumbnail will be used for creating the</span>
+<span class="sd">        normalizer context. If no QC has been applied to the slide and the</span>
+<span class="sd">        slide does not have any Regions of Interest, then both otsu&#39;s</span>
+<span class="sd">        thresholding and Gaussian blur filtering will be applied</span>
+<span class="sd">        to the thumbnail for masking.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            I (np.ndarray, sf.WSI): Context to use for normalization, e.g.</span>
+<span class="sd">                a whole-slide image thumbnail, optionally masked with masked</span>
+<span class="sd">                areas set to (255, 255, 255).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="s1">&#39;set_context&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">500</span><span class="p">)</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">):</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">masked_thumb</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">context</span>  <span class="c1"># type: ignore</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">clear_context</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove any previously set stain normalizer context.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="s1">&#39;clear_context&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">clear_context</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="autoselect"><a class="viewcode-back" href="../../norm.html#slideflow.norm.autoselect">[docs]</a><span class="k">def</span> <span class="nf">autoselect</span><span class="p">(</span>
     <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">source</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">backend</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StainNormalizer</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Select the best normalizer for a given method, and fit to a given source.</span>
@@ -771,15 +983,14 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        StainNormalizer:    Initialized StainNormalizer.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">backend</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">backend</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
         <span class="kn">import</span> <span class="nn">slideflow.norm.tensorflow</span>
         <span class="n">BackendNormalizer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">tensorflow</span><span class="o">.</span><span class="n">TensorflowStainNormalizer</span>
-    <span class="k">elif</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span> <span class="ow">and</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;macenko&#39;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
         <span class="kn">import</span> <span class="nn">slideflow.norm.torch</span>
         <span class="n">BackendNormalizer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">torch</span><span class="o">.</span><span class="n">TorchStainNormalizer</span>  <span class="c1"># type: ignore</span>
-    <span class="k">elif</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
-        <span class="n">BackendNormalizer</span> <span class="o">=</span> <span class="n">StainNormalizer</span>  <span class="c1"># type: ignore</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">UnrecognizedBackendError</span>
 
@@ -795,16 +1006,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -812,11 +1023,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -826,26 +1037,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
          <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
          <script src="../../_static/doctools.js"></script>
          <script src="../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
@@ -856,7 +1067,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

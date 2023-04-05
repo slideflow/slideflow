@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Slide Processing &mdash; slideflow 1.5.0 documentation</title>
+  <title>Slide Processing &mdash; slideflow 2.0.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  1.5
+                  2.0
                 </div>
               
             
@@ -162,11 +162,12 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mil.html">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ssl.html">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="saliency.html">Saliency Maps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow_studio.html">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
@@ -178,6 +179,7 @@
 <li class="toctree-l1"><a class="reference internal" href="dataset_features.html">slideflow.DatasetFeatures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slidemap.html">slideflow.SlideMap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="biscuit.html">slideflow.biscuit</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
@@ -193,7 +195,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
-<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
+<li class="toctree-l1"><a class="reference internal" href="studio_module.html">slideflow.studio</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -308,9 +310,9 @@
 <p>An alternative to extracting tiles in a grid across whole-slide images is extracting tiles at detected cell centroids. This is discussed separately in <a class="reference internal" href="cellseg.html#cellseg"><span class="std std-ref">Cell Segmentation</span></a>.</p>
 </section>
 <section id="regions-of-interest">
-<h2>Regions of Interest<a class="headerlink" href="#regions-of-interest" title="Permalink to this heading">¶</a></h2>
+<span id="id1"></span><h2>Regions of Interest<a class="headerlink" href="#regions-of-interest" title="Permalink to this heading">¶</a></h2>
 <p>Tile extraction can be optionally restricted based on pathologist-annotated Regions of Interest (ROI), allowing you to enrich your dataset by only using relevant sections of a slide.</p>
-<p>We offer two methods for annotating ROIs - <a class="reference internal" href="workbench_tools.html#workbench"><span class="std std-ref">Workbench</span></a> and <a class="reference external" href="https://qupath.github.io/">QuPath</a>. Please see the Workbench section for instructions on generating ROI annotations using the Slideflow interface.</p>
+<p>We offer two methods for annotating ROIs - <a class="reference internal" href="slideflow_studio.html#studio"><span class="std std-ref">Slideflow Studio</span></a> and <a class="reference external" href="https://qupath.github.io/">QuPath</a>. Please see the Slideflow Studio section for instructions on generating ROI annotations using the Slideflow interface.</p>
 <p>If you are using QuPath, annotate whole-slide images using the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script (QuPath 0.2 or greater) or <code class="docutils literal notranslate"><span class="pre">qupath_roi_legacy.groovy</span></code> (QuPath 0.1.x), scripts <a class="reference external" href="https://github.com/jamesdolezal/slideflow">available on GitHub</a>. Click <strong>Run</strong> -&gt; <strong>Run</strong> if using QuPath 0.2 or greater, or <strong>Run</strong> -&gt; <strong>Run for Project</strong> if using QuPath 0.1.x. ROIs will be exported in CSV format in the QuPath project directory, in the subdirectory “ROI”.</p>
 <p>Once ROI CSV files are generated, ensure they are placed in the folder expected by your <a class="reference internal" href="project_setup.html#project-setup"><span class="std std-ref">Project</span></a> or <a class="reference internal" href="datasets_and_val.html#datasets-and-validation"><span class="std std-ref">Dataset</span></a> based on their respective configurations.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">roi_method</span></code> argument to the <code class="docutils literal notranslate"><span class="pre">extract_tiles()</span></code> functions allow you to control how ROIs are used. Options include:</p>
@@ -320,6 +322,11 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">'outside'</span></code>: Extract from outside ROIs, and skip any slides missing ROIs.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">'ignore'</span></code>: Ignore all ROIs, extracting from whole-slide images.</p></li>
 </ul>
+<p>By default, ROIs filter tiles based on the center point of the tile. Alternatively, you can filter tiles based on the proportion of the tile inside an ROI by using the argument <code class="docutils literal notranslate"><span class="pre">roi_filter_method</span></code>. If <code class="docutils literal notranslate"><span class="pre">roi_filter_method</span></code> is set to a float (0-1), this value will be interpreted as a proportion threshold. If the proportion of a tile inside an ROI is greater than this number, the tile is included. For example, if <code class="docutils literal notranslate"><span class="pre">roi_filter_method=0.7</span></code>, a tile that is 80% inside of an ROI will be included, but a tile that is only 60% inside of an ROI will be excluded.</p>
+<img alt="_images/roi_filter.jpg" src="_images/roi_filter.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 </section>
 <section id="masking-filtering">
 <h2>Masking &amp; Filtering<a class="headerlink" href="#masking-filtering" title="Permalink to this heading">¶</a></h2>
@@ -433,7 +440,7 @@
 </ul>
 <section id="during-tile-extraction">
 <h3>During tile extraction<a class="headerlink" href="#during-tile-extraction" title="Permalink to this heading">¶</a></h3>
-<p>Image tiles can be normalized during tile extraction by using the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> and <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code> arguments. <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> is the name of the algorithm. The normalizer source - either a path to a reference image, or a <code class="docutils literal notranslate"><span class="pre">str</span></code> indicating one of our presets (e.g. <code class="docutils literal notranslate"><span class="pre">'v1'</span></code> or <code class="docutils literal notranslate"><span class="pre">'v2'</span></code>) - can also be set with <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code>.</p>
+<p>Image tiles can be normalized during tile extraction by using the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> and <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code> arguments. <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> is the name of the algorithm. The normalizer source - either a path to a reference image, or a <code class="docutils literal notranslate"><span class="pre">str</span></code> indicating one of our presets (e.g. <code class="docutils literal notranslate"><span class="pre">'v1'</span></code>, <code class="docutils literal notranslate"><span class="pre">'v2'</span></code>, <code class="docutils literal notranslate"><span class="pre">'v3'</span></code>) - can also be set with <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span>
   <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
   <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span>
@@ -456,8 +463,8 @@
 <h3>Performance<a class="headerlink" href="#performance" title="Permalink to this heading">¶</a></h3>
 <p>Slideflow has Tensorflow, PyTorch, and Numpy/OpenCV implementations of stain normalization algorithms. Performance benchmarks for these implementations
 are given below:</p>
-<table class="docutils align-default" id="id2">
-<caption><span class="caption-text"><strong>Performance Benchmarks</strong> (256 x 256 images, Slideflow 1.2.3, benchmarked on 3960X and A100 40GB)</span><a class="headerlink" href="#id2" title="Permalink to this table">¶</a></caption>
+<table class="docutils align-default" id="id3">
+<caption><span class="caption-text"><strong>Performance Benchmarks</strong> (256 x 256 images, Slideflow 1.2.3, benchmarked on 3960X and A100 40GB)</span><a class="headerlink" href="#id3" title="Permalink to this table">¶</a></caption>
 <thead>
 <tr class="row-odd"><th class="head"></th>
 <th class="head"><p>Tensorflow backend</p></th>

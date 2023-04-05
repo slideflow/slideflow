@@ -18,7 +18,7 @@ functions are in :py:mod:`slideflow.io.torch`.
 .. autofunction:: extract_tiles
 .. autofunction:: get_locations_from_tfrecord
 .. autofunction:: get_tfrecord_by_index
-.. autofunction:: get_tfrecord_by_location
+.. autofunction:: read_tfrecord_by_location
 .. autofunction:: get_tfrecord_parser
 .. autofunction:: read_and_return_record
 .. autofunction:: read_tfrecord_length

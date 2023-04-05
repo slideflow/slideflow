@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.slide.qc.gaussian &mdash; slideflow 2.0.0 documentation</title>
+  
 
-  <title>slideflow.slide.qc.gaussian &mdash; slideflow 1.5.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../../genindex.html" />
     <link rel="search" title="Search" href="../../../../search.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  1.5
+                  2.0
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
@@ -159,11 +159,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mil.html">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl.html">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../saliency.html">Saliency Maps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops.html">Custom Training Loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../workbench_tools.html">Workbench: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slideflow_studio.html">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
@@ -175,6 +176,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../dataset_features.html">slideflow.DatasetFeatures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../slidemap.html">slideflow.SlideMap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../biscuit.html">slideflow.biscuit</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../io_tensorflow.html">slideflow.io.tensorflow</a></li>
@@ -190,7 +192,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../util.html">slideflow.util</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../workbench.html">slideflow.workbench</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../studio_module.html">slideflow.studio</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -202,8 +204,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -211,7 +213,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -230,30 +232,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../../../index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../../../index.html">Module code</a> &gt;</li>
-
+        
           <li><a href="../../slide.html">slideflow.slide</a> &gt;</li>
-
+        
       <li>slideflow.slide.qc.gaussian</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -265,13 +267,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.slide.qc.gaussian</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Gaussian filter QC algorithm.&quot;&quot;&quot;</span>
 
@@ -279,13 +281,13 @@
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">import</span> <span class="nn">skimage</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
 
 <div class="viewcode-block" id="Gaussian"><a class="viewcode-back" href="../../../../slide_qc.html#slideflow.slide.qc.Gaussian">[docs]</a><span class="k">class</span> <span class="nc">Gaussian</span><span class="p">:</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">mpp</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="n">mpp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">sigma</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
         <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.02</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -312,7 +314,10 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            mpp (float): Microns-per-pixel at which to perform filtering.</span>
-<span class="sd">                Defaults to 4.</span>
+<span class="sd">                Defaults to 4 times the tile extraction MPP (e.g. for a</span>
+<span class="sd">                tile_px/tile_um combination at 10X effective magnification,</span>
+<span class="sd">                where tile_px=tile_um, the default blur_mpp would be 4, or</span>
+<span class="sd">                effective magnification 2.5x).</span>
 <span class="sd">            sigma (int): Sigma (radius) for Gaussian filter. Defaults to 3.</span>
 <span class="sd">            threshold (float): Gaussian threshold. Defaults to 0.02.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -337,7 +342,12 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            np.ndarray: RGB thumbnail of the whole-slide image.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">thumb</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mpp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_mpp</span> <span class="o">=</span> <span class="p">(</span><span class="n">wsi</span><span class="o">.</span><span class="n">tile_um</span><span class="o">/</span><span class="n">wsi</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span><span class="o">*</span><span class="mi">4</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Performing Gaussian blur filter at mpp=</span><span class="si">{</span><span class="n">_mpp</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_mpp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span>
+        <span class="n">thumb</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="n">_mpp</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">thumb</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">QCError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Thumbnail error for slide </span><span class="si">{</span><span class="n">wsi</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s2">, QC failed&quot;</span>
@@ -350,12 +360,15 @@
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">wsi</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;sf.WSI&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+        <span class="n">mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform Gaussian filtering on the given slide or image.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            slide (sf.WSI, np.ndarray): Either a Slideflow WSI or a numpy array,</span>
 <span class="sd">                with shape (h, w, c) and type np.uint8.</span>
+<span class="sd">            mask (np.ndarray): Restrict Otsu&#39;s threshold to the area of the</span>
+<span class="sd">                image indicated by this boolean mask. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            np.ndarray: QC boolean mask, where True = filtered out.</span>
@@ -368,36 +381,39 @@
         <span class="n">gray</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">color</span><span class="o">.</span><span class="n">rgb2gray</span><span class="p">(</span><span class="n">thumb</span><span class="p">)</span>
         <span class="n">img_laplace</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">skimage</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">laplace</span><span class="p">(</span><span class="n">gray</span><span class="p">))</span>
         <span class="n">gaussian</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">gaussian</span><span class="p">(</span><span class="n">img_laplace</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">)</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="n">gaussian</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span>
+        <span class="n">blur_mask</span> <span class="o">=</span> <span class="n">gaussian</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span>
 
         <span class="c1"># Assign blur burden value</span>
-        <span class="n">existing_qc_mask</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">qc_mask</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">)</span> <span class="ow">and</span> <span class="n">existing_qc_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">mask</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">existing_qc_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-            <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="n">existing_qc_mask</span> <span class="o">=</span> <span class="n">mask</span>
+        <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">):</span>
+            <span class="n">existing_qc_mask</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">qc_mask</span>
+        <span class="k">if</span> <span class="n">existing_qc_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">blur_mask</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">existing_qc_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">blur_mask</span> <span class="o">=</span> <span class="n">blur_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
             <span class="n">blur</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span>
                 <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
-                    <span class="n">mask</span><span class="p">,</span>
-                    <span class="n">np</span><span class="o">.</span><span class="n">logical_xor</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">existing_qc_mask</span><span class="p">)</span>
+                    <span class="n">blur_mask</span><span class="p">,</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">logical_xor</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">existing_qc_mask</span><span class="p">)</span>
                 <span class="p">)</span>
             <span class="p">)</span>
-            <span class="n">wsi</span><span class="o">.</span><span class="n">blur_burden</span> <span class="o">=</span> <span class="n">blur</span> <span class="o">/</span> <span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-            <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Blur burden: </span><span class="si">{</span><span class="n">wsi</span><span class="o">.</span><span class="n">blur_burden</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">):</span>
+                <span class="n">wsi</span><span class="o">.</span><span class="n">blur_burden</span> <span class="o">=</span> <span class="n">blur</span> <span class="o">/</span> <span class="p">(</span><span class="n">blur_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">blur_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Blur burden: </span><span class="si">{</span><span class="n">wsi</span><span class="o">.</span><span class="n">blur_burden</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">mask</span></div>
+        <span class="k">return</span> <span class="n">blur_mask</span></div>
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -405,11 +421,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -419,26 +435,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
          <script src="../../../../_static/doctools.js"></script>
          <script src="../../../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -449,7 +465,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Generative Networks (GANs) &mdash; slideflow 1.5.0 documentation</title>
+  <title>Generative Networks (GANs) &mdash; slideflow 2.0.0 documentation</title>
 
 
 
@@ -32,7 +32,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Custom Training Loops" href="custom_loops.html" />
+    <link rel="next" title="Saliency Maps" href="saliency.html" />
     <link rel="prev" title="Self-Supervised Learning (SSL)" href="ssl.html" />
   <!-- Google Analytics -->
 
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  1.5
+                  2.0
                 </div>
 
 
@@ -162,11 +162,12 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mil.html">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ssl.html">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="saliency.html">Saliency Maps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow_studio.html">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
@@ -178,6 +179,7 @@
 <li class="toctree-l1"><a class="reference internal" href="dataset_features.html">slideflow.DatasetFeatures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slidemap.html">slideflow.SlideMap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="biscuit.html">slideflow.biscuit</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
@@ -193,7 +195,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
-<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
+<li class="toctree-l1"><a class="reference internal" href="studio_module.html">slideflow.studio</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -278,8 +280,8 @@
   <section id="generative-networks-gans">
 <span id="stylegan"></span><h1>Generative Networks (GANs)<a class="headerlink" href="#generative-networks-gans" title="Permalink to this heading">¶</a></h1>
 
-    <video width="100%"  controls autoplay loop>
-    <source src="stylemix.webm" type="video/webm">
+    <video width="100%"  controls autoplay loop muted>
+    <source src="stylegan.webm" type="video/webm">
     Video
     </video>
     <div class="line-block">
@@ -363,7 +365,7 @@ TFRecord format:</p>
 </section>
 <section id="interactive-visualization">
 <h2>Interactive visualization<a class="headerlink" href="#interactive-visualization" title="Permalink to this heading">¶</a></h2>
-<p>Workbench can be used to interactively visualize GAN-generated images (see <a class="reference internal" href="workbench_tools.html#workbench"><span class="std std-ref">Workbench: Live Visualization</span></a>). Images can be directly exported from this interface. This tool also enables you to visualize real-time predictions for GAN generated images when as inputs to a trained classifier.</p>
+<p>Slideflow Studio can be used to interactively visualize GAN-generated images (see <a class="reference internal" href="slideflow_studio.html#studio"><span class="std std-ref">Slideflow Studio: Live Visualization</span></a>). Images can be directly exported from this interface. This tool also enables you to visualize real-time predictions for GAN generated images when as inputs to a trained classifier.</p>
 <p>For more examples of using Slideflow to work with GAN-generated images, see <a class="reference external" href="https://github.com/jamesdolezal/synthetic-histology">our GitHub repository</a> for code accompanying the previously referenced manuscript.</p>
 </section>
 </section>
@@ -376,7 +378,7 @@ TFRecord format:</p>
 
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
 
-        <a href="custom_loops.html" class="btn btn-neutral float-right" title="Custom Training Loops" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="saliency.html" class="btn btn-neutral float-right" title="Saliency Maps" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
 
 
         <a href="ssl.html" class="btn btn-neutral" title="Self-Supervised Learning (SSL)" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>

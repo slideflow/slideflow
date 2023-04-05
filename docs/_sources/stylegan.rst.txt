@@ -5,7 +5,7 @@
 Generative Networks (GANs)
 ==========================
 
-.. video:: stylemix.webm
+.. video:: stylegan.webm
     :width: 100%
     :autoplay:
 
@@ -105,6 +105,6 @@ Finally, images can be resized after generation to match a target tile size:
 Interactive visualization
 -------------------------
 
-Workbench can be used to interactively visualize GAN-generated images (see :ref:`workbench`). Images can be directly exported from this interface. This tool also enables you to visualize real-time predictions for GAN generated images when as inputs to a trained classifier.
+Slideflow Studio can be used to interactively visualize GAN-generated images (see :ref:`studio`). Images can be directly exported from this interface. This tool also enables you to visualize real-time predictions for GAN generated images when as inputs to a trained classifier.
 
 For more examples of using Slideflow to work with GAN-generated images, see `our GitHub repository <https://github.com/jamesdolezal/synthetic-histology>`_ for code accompanying the previously referenced manuscript.

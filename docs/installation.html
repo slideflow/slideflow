@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Installation &mdash; slideflow 1.5.0 documentation</title>
+  <title>Installation &mdash; slideflow 2.0.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  1.5
+                  2.0
                 </div>
               
             
@@ -162,11 +162,12 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mil.html">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ssl.html">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="saliency.html">Saliency Maps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow_studio.html">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
@@ -178,6 +179,7 @@
 <li class="toctree-l1"><a class="reference internal" href="dataset_features.html">slideflow.DatasetFeatures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slidemap.html">slideflow.SlideMap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="biscuit.html">slideflow.biscuit</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
@@ -193,7 +195,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
-<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
+<li class="toctree-l1"><a class="reference internal" href="studio_module.html">slideflow.studio</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -282,6 +284,7 @@
 <li><p>Ubuntu 18.04, 20.04, and 22.04</p></li>
 <li><p>Centos 7, 8, and 8 Stream</p></li>
 </ul>
+<p><a class="reference internal" href="slideflow_studio.html#studio"><span class="std std-ref">Slideflow Studio</span></a>, the whole-slide interface for model deployment, is additionally supported on Windows, MacOS (Intel and Apple), and Raspberry Pi OS.</p>
 <section id="requirements">
 <h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this heading">¶</a></h2>
 <ul class="simple">
@@ -292,7 +295,6 @@
 <h3>Optional<a class="headerlink" href="#optional" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://libvips.github.io/libvips/">Libvips &gt;= 8.9</a> (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files)</p></li>
-<li><p><a class="reference external" href="https://qupath.github.io">QuPath</a> (for pathologist ROIs)</p></li>
 <li><p>Linear solver (for site-preserved cross-validation):</p>
 <ul>
 <li><p><a class="reference external" href="https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio">CPLEX 20.1.0</a> with <a class="reference external" href="https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api">Python API</a></p></li>
@@ -319,13 +321,13 @@ pip<span class="w"> </span>install<span class="w"> </span>slideflow<span class="
 </section>
 <section id="run-a-docker-container">
 <h2>Run a Docker container<a class="headerlink" href="#run-a-docker-container" title="Permalink to this heading">¶</a></h2>
-<p>Alternatively, pre-configured <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">docker images</a> are available with cuCIM, Libvips, and either PyTorch 1.11 or Tensorflow 2.8 pre-installed. Using a preconfigured <a class="reference external" href="https://docs.docker.com/install/">Docker</a> container is the easiest way to get started with compatible dependencies and GPU support.</p>
-<p>To run a Docker container with the Tensorflow 2.8 backend:</p>
+<p>Alternatively, pre-configured <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">docker images</a> are available with cuCIM, Libvips, and either PyTorch 1.11 or Tensorflow 2.9 pre-installed. Using a preconfigured <a class="reference external" href="https://docs.docker.com/install/">Docker</a> container is the easiest way to get started with compatible dependencies and GPU support.</p>
+<p>To run a Docker container with the Tensorflow backend:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>pull<span class="w"> </span>jamesdolezal/slideflow:latest-tf
 docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>jamesdolezal/slideflow:latest-tf
 </pre></div>
 </div>
-<p>To run a Docker container with the PyTorch 1.11 backend:</p>
+<p>To run a Docker container with the PyTorch backend:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>pull<span class="w"> </span>jamesdolezal/slideflow:latest-torch
 docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--shm-size<span class="o">=</span>2g<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>jamesdolezal/slideflow:latest-torch
 </pre></div>

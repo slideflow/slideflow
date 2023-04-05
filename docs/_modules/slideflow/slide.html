@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.slide &mdash; slideflow 2.0.0 documentation</title>
+  
 
-  <title>slideflow.slide &mdash; slideflow 1.5.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  1.5
+                  2.0
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
@@ -159,11 +159,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../../evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mil.html">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../ssl.html">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../saliency.html">Saliency Maps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../custom_loops.html">Custom Training Loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../workbench_tools.html">Workbench: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slideflow_studio.html">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
@@ -175,6 +176,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../dataset_features.html">slideflow.DatasetFeatures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slidemap.html">slideflow.SlideMap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../biscuit.html">slideflow.biscuit</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../io_tensorflow.html">slideflow.io.tensorflow</a></li>
@@ -190,7 +192,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../util.html">slideflow.util</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../workbench.html">slideflow.workbench</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../studio_module.html">slideflow.studio</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -202,8 +204,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -211,7 +213,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -230,28 +232,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../index.html">Module code</a> &gt;</li>
-
+        
       <li>slideflow.slide</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -263,13 +265,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.slide</h1><div class="highlight"><pre>
 <span></span><span class="sd">&#39;&#39;&#39;This module includes tools to convolutionally section whole slide images</span>
 <span class="sd">into tiles. These tessellated tiles can be exported as PNG or JPG as raw</span>
@@ -284,12 +286,6 @@
 <span class="kn">import</span> <span class="nn">random</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
-<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">exists</span><span class="p">,</span> <span class="n">join</span>
-<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span>
-                    <span class="n">TYPE_CHECKING</span><span class="p">)</span>
-
 <span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
@@ -299,23 +295,30 @@
 <span class="kn">import</span> <span class="nn">shapely.validation</span> <span class="k">as</span> <span class="nn">sv</span>
 <span class="kn">import</span> <span class="nn">skimage</span>
 <span class="kn">import</span> <span class="nn">skimage.filters</span>
-<span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="kn">import</span> <span class="nn">slideflow.slide.qc</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">ImageDraw</span>
 <span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
 <span class="kn">from</span> <span class="nn">skimage</span> <span class="kn">import</span> <span class="n">img_as_ubyte</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">exists</span><span class="p">,</span> <span class="n">join</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span>
+                    <span class="n">TYPE_CHECKING</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">import</span> <span class="nn">slideflow.slide.qc</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">SUPPORTED_FORMATS</span>  <span class="c1"># noqa F401</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">path_to_name</span>  <span class="c1"># noqa F401</span>
-
 <span class="kn">from</span> <span class="nn">.report</span> <span class="kn">import</span> <span class="n">ExtractionPDF</span>  <span class="c1"># noqa F401</span>
 <span class="kn">from</span> <span class="nn">.report</span> <span class="kn">import</span> <span class="n">ExtractionReport</span><span class="p">,</span> <span class="n">SlideReport</span>
 <span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">.backends</span> <span class="kn">import</span> <span class="n">tile_worker</span><span class="p">,</span> <span class="n">wsi_reader</span>
 
+
 <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">Image</span><span class="o">.</span><span class="n">DecompressionBombWarning</span><span class="p">)</span>
 <span class="n">Image</span><span class="o">.</span><span class="n">MAX_IMAGE_PIXELS</span> <span class="o">=</span> <span class="mi">100000000000</span>
 
+<span class="c1"># -----------------------------------------------------------------------</span>
 
 <span class="k">def</span> <span class="nf">_update_kw_with_defaults</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Updates a set of keyword arguments with default extraction values.</span>
@@ -447,10 +450,10 @@
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Calculating whole-slide prediction...&quot;</span><span class="p">)</span>
     <span class="n">heatmap</span> <span class="o">=</span> <span class="n">Heatmap</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">generate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stride_div</span><span class="o">=</span><span class="n">stride_div</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="n">preds</span> <span class="o">=</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">predictions</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">predictions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-    <span class="n">preds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">preds</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">preds</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span>
+    <span class="n">preds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">preds</span> <span class="o">==</span> <span class="o">-</span><span class="mi">99</span><span class="p">,</span> <span class="n">preds</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">uncertainty</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">unc</span> <span class="o">=</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-        <span class="n">unc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">unc</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">unc</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span>
+        <span class="n">unc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">unc</span> <span class="o">==</span> <span class="o">-</span><span class="mi">99</span><span class="p">,</span> <span class="n">unc</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">preds</span><span class="p">,</span> <span class="n">unc</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">preds</span></div>
@@ -459,9 +462,12 @@
 <span class="k">class</span> <span class="nc">ROI</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Object container for ROI annotations.&#39;&#39;&#39;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">coordinates</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">coordinates</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List[Tuple[int, int]]</span>
+        <span class="k">if</span> <span class="n">coordinates</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coordinates</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List[Tuple[int, int]]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coordinates</span> <span class="o">=</span> <span class="n">coordinates</span>
 
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;ROI (coords=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coordinates</span><span class="p">)</span><span class="si">}</span><span class="s2">)&gt;&quot;</span>
@@ -594,6 +600,8 @@
             <span class="n">state</span><span class="p">[</span><span class="s1">&#39;__slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="s1">&#39;_BaseLoader__slide&#39;</span> <span class="ow">in</span> <span class="n">state</span><span class="p">:</span>
             <span class="n">state</span><span class="p">[</span><span class="s1">&#39;_BaseLoader__slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s1">&#39;pb&#39;</span> <span class="ow">in</span> <span class="n">state</span><span class="p">:</span>
+            <span class="n">state</span><span class="p">[</span><span class="s1">&#39;pb&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="n">state</span>
 
     <span class="k">def</span> <span class="nf">__setstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
@@ -657,6 +665,8 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_mpp_override</span><span class="p">,</span>
                 <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_reader_kwargs</span><span class="p">)</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span>  <span class="c1"># type: ignore</span>
+        <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideMissingMPPError</span><span class="p">:</span>
+            <span class="k">raise</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Error loading slide </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -702,7 +712,7 @@
         <span class="n">blur_radius</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
         <span class="n">blur_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.02</span><span class="p">,</span>
         <span class="n">filter_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">,</span>
-        <span class="n">blur_mpp</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">4</span>
+        <span class="n">blur_mpp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Applies quality control to a slide, performing filtering based on</span>
 <span class="sd">        a whole-slide image thumbnail.</span>
@@ -725,9 +735,11 @@
 <span class="sd">                background that will trigger a tile to be discarded.</span>
 <span class="sd">                Defaults to 0.6.</span>
 <span class="sd">            blur_mpp (float, optional): Size of WSI thumbnail on which to</span>
-<span class="sd">                perform blur QC, in microns-per-pixel. Defaults to 4</span>
-<span class="sd">                (equivalent magnification = 2.5 X). Only used if method is</span>
-<span class="sd">                &#39;blur&#39; or &#39;both&#39;.</span>
+<span class="sd">                perform blur QC, in microns-per-pixel. Defaults to 4 times the</span>
+<span class="sd">                tile extraction MPP (e.g. for a tile_px/tile_um combination</span>
+<span class="sd">                at 10X effective magnification, where tile_px=tile_um, the</span>
+<span class="sd">                default blur_mpp would be 4, or effective magnification 2.5x).</span>
+<span class="sd">                Only used if method is &#39;blur&#39; or &#39;both&#39;.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Image: Image of applied QC mask.</span>
@@ -739,8 +751,9 @@
         <span class="k">if</span> <span class="s1">&#39;both&#39;</span> <span class="ow">in</span> <span class="n">method</span><span class="p">:</span>
             <span class="n">idx</span> <span class="o">=</span> <span class="n">method</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;both&#39;</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
             <span class="n">method</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;both&#39;</span><span class="p">)</span>       <span class="c1"># type: ignore</span>
-            <span class="n">method</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="s1">&#39;blur&#39;</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
             <span class="n">method</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="s1">&#39;otsu&#39;</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+            <span class="c1"># Blur should be performed before Otsu&#39;s thresholding</span>
+            <span class="n">method</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="s1">&#39;blur&#39;</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
         <span class="k">if</span> <span class="s1">&#39;blur&#39;</span> <span class="ow">in</span> <span class="n">method</span><span class="p">:</span>
             <span class="n">idx</span> <span class="o">=</span> <span class="n">method</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;blur&#39;</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
             <span class="n">method</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;blur&#39;</span><span class="p">)</span>       <span class="c1"># type: ignore</span>
@@ -754,6 +767,7 @@
 
         <span class="n">starttime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
         <span class="n">img</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Applying QC: </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">qc</span> <span class="ow">in</span> <span class="n">method</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">QCError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown QC method </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -786,12 +800,12 @@
 
         <span class="n">downsample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">qc_ratio</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">downsample</span>
-        <span class="n">qc_width</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span> <span class="o">*</span> <span class="n">qc_ratio</span><span class="p">)</span>
+        <span class="n">qc_width</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span> <span class="o">*</span> <span class="n">qc_ratio</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">):</span>  <span class="c1"># type: ignore</span>
-            <span class="n">qc_x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="n">qc_ratio</span><span class="p">)</span>
-            <span class="n">qc_y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">y</span> <span class="o">*</span> <span class="n">qc_ratio</span><span class="p">)</span>
+            <span class="n">qc_x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="n">qc_ratio</span><span class="p">))</span>
+            <span class="n">qc_y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">y</span> <span class="o">*</span> <span class="n">qc_ratio</span><span class="p">))</span>
             <span class="n">submask</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[</span><span class="n">qc_y</span><span class="p">:(</span><span class="n">qc_y</span><span class="o">+</span><span class="n">qc_width</span><span class="p">),</span> <span class="n">qc_x</span><span class="p">:(</span><span class="n">qc_x</span><span class="o">+</span><span class="n">qc_width</span><span class="p">)]</span>
-            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">submask</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">filter_threshold</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">submask</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">filter_threshold</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
@@ -830,7 +844,8 @@
         <span class="n">coords</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">rect_linewidth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
         <span class="n">rect_color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;black&#39;</span><span class="p">,</span>
-        <span class="n">use_associated_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">use_associated_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">low_res</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Returns PIL thumbnail of the slide.</span>
 
@@ -871,8 +886,12 @@
 
         <span class="k">if</span> <span class="n">use_associated_image</span><span class="p">:</span>
             <span class="n">thumb_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">associated</span><span class="o">=</span><span class="s1">&#39;thumbnail&#39;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">low_res</span><span class="p">:</span>
             <span class="n">thumb_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_count</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">width</span>
+            <span class="n">level</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">best_level_for_downsample</span><span class="p">(</span><span class="n">ds</span><span class="p">)</span>
+            <span class="n">thumb_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
 
         <span class="n">np_thumb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">thumbnail</span><span class="p">(</span><span class="o">**</span><span class="n">thumb_kw</span><span class="p">)</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">np_thumb</span><span class="p">)</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">))</span>
@@ -1007,6 +1026,8 @@
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">generator</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tfrecord_dir</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="s2">&quot;.tfrecords&quot;</span><span class="p">))</span>
             <span class="k">return</span> <span class="kc">None</span>
 
         <span class="n">sample_tiles</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List</span>
@@ -1076,41 +1097,37 @@
             <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to mark slide </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> as complete&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Assemble report DataFrame</span>
-        <span class="n">loc_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">locations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
-        <span class="n">grid_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">grid_locations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
-        <span class="n">df_dict</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;loc_x&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc_np</span><span class="p">)</span> <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">loc_np</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">),</span>
-            <span class="s1">&#39;loc_y&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc_np</span><span class="p">)</span> <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">loc_np</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">),</span>
-            <span class="s1">&#39;grid_x&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">grid_np</span><span class="p">)</span> <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">grid_np</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">),</span>
-            <span class="s1">&#39;grid_y&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">grid_np</span><span class="p">)</span> <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">grid_np</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-        <span class="p">}</span>
-        <span class="k">if</span> <span class="n">ws_fractions</span><span class="p">:</span>
-            <span class="n">df_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;ws_fraction&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">ws_fractions</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)})</span>
-        <span class="k">if</span> <span class="n">gs_fractions</span><span class="p">:</span>
-            <span class="n">df_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;gs_fraction&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">gs_fractions</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)})</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">df_dict</span><span class="p">)</span>
-
         <span class="c1"># Generate extraction report</span>
         <span class="k">if</span> <span class="n">report</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Generating slide report&quot;</span><span class="p">)</span>
+            <span class="n">loc_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">locations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="n">grid_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">grid_locations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="n">df_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;loc_x&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc_np</span><span class="p">)</span> <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">loc_np</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">),</span>
+                <span class="s1">&#39;loc_y&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc_np</span><span class="p">)</span> <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">loc_np</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">),</span>
+                <span class="s1">&#39;grid_x&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">grid_np</span><span class="p">)</span> <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">grid_np</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">),</span>
+                <span class="s1">&#39;grid_y&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">grid_np</span><span class="p">)</span> <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">grid_np</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="n">ws_fractions</span><span class="p">:</span>
+                <span class="n">df_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;ws_fraction&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">ws_fractions</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)})</span>
+            <span class="k">if</span> <span class="n">gs_fractions</span><span class="p">:</span>
+                <span class="n">df_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;gs_fraction&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">gs_fractions</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)})</span>
             <span class="n">report_data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
                 <span class="n">blur_burden</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">blur_burden</span><span class="p">,</span>
                 <span class="n">num_tiles</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">),</span>
                 <span class="n">qc_mask</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span><span class="p">,</span>
-                <span class="n">locations</span><span class="o">=</span><span class="n">df</span><span class="p">,</span>
+                <span class="n">locations</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">df_dict</span><span class="p">),</span>
                 <span class="n">num_rois</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;ignore&#39;</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">))</span>
             <span class="p">)</span>
             <span class="n">slide_report</span> <span class="o">=</span> <span class="n">SlideReport</span><span class="p">(</span>
                 <span class="n">sample_tiles</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
                 <span class="n">data</span><span class="o">=</span><span class="n">report_data</span><span class="p">,</span>
-                <span class="n">thumb</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span>
-                    <span class="n">coords</span><span class="o">=</span><span class="n">locations</span><span class="p">,</span>
-                    <span class="n">rois</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">!=</span> <span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
-                <span class="p">)</span>
+                <span class="n">thumb_coords</span><span class="o">=</span><span class="n">locations</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="k">return</span> <span class="n">slide_report</span>
         <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Skipping slide report&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="nf">preview</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rois</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]:</span>
@@ -1149,12 +1166,12 @@
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">generator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span> <span class="n">low_res</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">locations</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">tile_dict</span> <span class="ow">in</span> <span class="n">generator</span><span class="p">():</span>
             <span class="n">locations</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tile_dict</span><span class="p">[</span><span class="s1">&#39;loc&#39;</span><span class="p">]]</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Previewing with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">)</span><span class="si">}</span><span class="s2"> extracted tile locations.&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">coords</span><span class="o">=</span><span class="n">locations</span><span class="p">,</span> <span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">coords</span><span class="o">=</span><span class="n">locations</span><span class="p">,</span> <span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span> <span class="n">low_res</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="WSI"><a class="viewcode-back" href="../../slide.html#slideflow.slide.WSI">[docs]</a><span class="k">class</span> <span class="nc">WSI</span><span class="p">(</span><span class="n">_BaseLoader</span><span class="p">):</span>
@@ -1170,6 +1187,7 @@
         <span class="n">roi_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">rois</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
+        <span class="n">roi_filter_method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;center&#39;</span><span class="p">,</span>
         <span class="n">randomize_origin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Progress</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -1202,6 +1220,16 @@
 <span class="sd">                If &#39;ignore&#39;, will extract tiles across the whole-slide</span>
 <span class="sd">                regardless of whether an ROI is available.</span>
 <span class="sd">                Defaults to &#39;auto&#39;.</span>
+<span class="sd">            roi_filter_method (str or float): Method of filtering tiles with</span>
+<span class="sd">                ROIs. Either &#39;center&#39; or float (0-1). If &#39;center&#39;, tiles are</span>
+<span class="sd">                filtered with ROIs based on the center of the tile. If float,</span>
+<span class="sd">                tiles are filtered based on the proportion of the tile inside</span>
+<span class="sd">                the ROI, and ``roi_filter_method`` is interpreted as a</span>
+<span class="sd">                threshold. If the proportion of a tile inside the ROI is</span>
+<span class="sd">                greater than this number, the tile is included. For example,</span>
+<span class="sd">                if ``roi_filter_method=0.7``, a tile that is 80% inside of an</span>
+<span class="sd">                ROI will be included, and a tile that is 50% inside of an ROI</span>
+<span class="sd">                will be excluded. Defaults to &#39;center&#39;.</span>
 <span class="sd">            randomize_origin (bool, optional): Offset the starting grid by a</span>
 <span class="sd">                random amount. Defaults to False.</span>
 <span class="sd">            pb (:class:`Progress`, optional): Multiprocessing</span>
@@ -1212,6 +1240,11 @@
 <span class="sd">                Defaults to True.</span>
 <span class="sd">            mpp (float, optional): Override the microns-per-pixel value for</span>
 <span class="sd">                the slide. Defaults to None (auto-detects).</span>
+<span class="sd">            ignore_missing_mpp (bool, optional): If a slide does not have</span>
+<span class="sd">                microns-per-pixel (MPP) information stored in EXIF data</span>
+<span class="sd">                (key 65326), set the MPP to a default value</span>
+<span class="sd">                (``sf.slide.DEFAULG_JPG_MPP``). If False and MPP data is</span>
+<span class="sd">                missing, raises ``sf.errors.SlideMissingMPPError``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span>
@@ -1230,20 +1263,34 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># type: float</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">=</span> <span class="n">roi_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">roi_filter_method</span> <span class="o">=</span> <span class="n">roi_filter_method</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">randomize_origin</span> <span class="o">=</span> <span class="n">randomize_origin</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">segmentation</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grid</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">roi_filter_method</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span>
+           <span class="ow">and</span> <span class="n">roi_filter_method</span> <span class="o">!=</span> <span class="s1">&#39;center&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Unrecognized value for argument &#39;roi_filter_method&#39;: </span><span class="si">{}</span><span class="s2"> .&quot;</span>
+                <span class="s2">&quot;Expected either float or &#39;center&#39;.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">roi_filter_method</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">roi_filter_method</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span>
+           <span class="ow">and</span> <span class="p">(</span><span class="n">roi_filter_method</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">roi_filter_method</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;If &#39;roi_filter_method&#39; is a float, it must be between 0-1.&quot;</span>
+            <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">rois</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rois</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
             <span class="n">rois</span> <span class="o">=</span> <span class="p">[</span><span class="n">rois</span><span class="p">]</span>
 
         <span class="c1"># Look in ROI directory if available</span>
         <span class="k">if</span> <span class="n">roi_dir</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">roi_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.csv&quot;</span><span class="p">)):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">load_csv_roi</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">roi_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.csv&quot;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_csv_roi</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">roi_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.csv&quot;</span><span class="p">),</span> <span class="n">process</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="c1"># Else try loading ROI from same folder as slide</span>
         <span class="k">elif</span> <span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.csv&quot;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">load_csv_roi</span><span class="p">(</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.csv&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_csv_roi</span><span class="p">(</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.csv&quot;</span><span class="p">,</span> <span class="n">process</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">rois</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rois</span><span class="p">]:</span>
             <span class="n">matching_rois</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">rp</span> <span class="ow">in</span> <span class="n">rois</span><span class="p">:</span>
@@ -1255,7 +1302,7 @@
                 <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Multiple ROIs found for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">; using </span><span class="si">{</span><span class="n">mr</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">load_csv_roi</span><span class="p">(</span><span class="n">mr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_csv_roi</span><span class="p">(</span><span class="n">mr</span><span class="p">,</span> <span class="n">process</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="c1"># Handle missing ROIs</span>
         <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span>
@@ -1279,13 +1326,12 @@
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">info_msg</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">info_msg</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">=</span> <span class="s1">&#39;ignore&#39;</span>
         <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span> <span class="ow">and</span> <span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Slide </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: extracting tiles from inside ROI.&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">=</span> <span class="s1">&#39;inside&#39;</span>
 
         <span class="c1"># Build coordinate grid</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_build_coord</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">process_rois</span><span class="p">()</span>
 
         <span class="n">mpp_roi_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mpp</span><span class="si">}</span><span class="s1"> um/px | </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span><span class="si">}</span><span class="s1"> ROI(s)&#39;</span>
         <span class="n">size_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Size: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1"> x </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
@@ -1356,7 +1402,6 @@
                 <span class="n">tile_px</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
                 <span class="n">full_stride</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">full_stride</span><span class="p">,</span>
                 <span class="n">normalizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                <span class="n">normalizer_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                 <span class="n">whitespace_fraction</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                 <span class="n">whitespace_threshold</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                 <span class="n">grayspace_fraction</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
@@ -1372,6 +1417,8 @@
 
     <span class="k">def</span> <span class="nf">_build_coord</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Set up coordinate grid.&#39;&#39;&#39;</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting up coordinate grid.&quot;</span><span class="p">)</span>
 
         <span class="c1"># Calculate window sizes, strides, and coordinates for windows</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">extracted_x_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span>
@@ -1401,7 +1448,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">x_range</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_range</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
 
         <span class="c1"># ROI filtering</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">!=</span> <span class="s1">&#39;ignore&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">roi_by_center</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_filter_method</span> <span class="o">==</span> <span class="s1">&#39;center&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_rois</span><span class="p">():</span>
 
             <span class="c1"># Full extraction size and stride</span>
             <span class="n">full_extract</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span>
@@ -1420,20 +1468,26 @@
             <span class="n">x_offset</span> <span class="o">=</span> <span class="o">-</span> <span class="p">(</span><span class="n">full_extract</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">stride</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">y_offset</span> <span class="o">=</span> <span class="o">-</span> <span class="p">(</span><span class="n">full_extract</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">stride</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
 
-            <span class="c1"># Translate and scale the ROI polygons</span>
+            <span class="c1"># Translate ROI polygons</span>
             <span class="n">translated</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">sa</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">poly</span><span class="p">,</span> <span class="n">x_offset</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">,</span> <span class="n">y_offset</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">)</span>
                 <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span>
             <span class="p">]</span>
+
+            <span class="c1"># Set scale to 50 times greater than grid size</span>
+            <span class="c1"># if filtering by float</span>
+            <span class="n">o</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">roi_by_center</span> <span class="k">else</span> <span class="mi">50</span>
+
+            <span class="c1"># Scale ROI polygons</span>
             <span class="n">scaled</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="n">sa</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span><span class="n">poly</span><span class="p">,</span> <span class="n">xfact</span><span class="o">=</span><span class="n">xfact</span><span class="p">,</span> <span class="n">yfact</span><span class="o">=</span><span class="n">yfact</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+                <span class="n">sa</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span><span class="n">poly</span><span class="p">,</span> <span class="n">xfact</span><span class="o">=</span><span class="n">xfact</span> <span class="o">*</span> <span class="n">o</span><span class="p">,</span> <span class="n">yfact</span><span class="o">=</span><span class="n">yfact</span> <span class="o">*</span> <span class="n">o</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
                 <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="n">translated</span>
             <span class="p">]</span>
 
             <span class="c1"># Rasterize polygons to the size of the tile extraction grid</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">roi_mask</span> <span class="o">=</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">rasterize</span><span class="p">(</span>
                 <span class="n">scaled</span><span class="p">,</span>
-                <span class="n">out_shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                <span class="n">out_shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">o</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">o</span><span class="p">),</span>
                 <span class="n">all_touched</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">roi_mask</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1445,13 +1499,22 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">])</span>
 
                 <span class="c1"># ROI filtering</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">!=</span> <span class="s1">&#39;ignore&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_rois</span><span class="p">()</span> <span class="ow">and</span> <span class="n">roi_by_center</span><span class="p">:</span>
                     <span class="n">point_in_roi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_mask</span><span class="p">[</span><span class="n">yi</span><span class="p">,</span> <span class="n">xi</span><span class="p">]</span>
                     <span class="c1"># If the extraction method is &#39;inside&#39;,</span>
                     <span class="c1"># skip the tile if it&#39;s not in an ROI</span>
                     <span class="k">if</span> <span class="p">(((</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;inside&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">point_in_roi</span><span class="p">)</span>
                        <span class="ow">or</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;outside&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">point_in_roi</span><span class="p">)):</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># If roi_filter_method is a float, then perform tile selection</span>
+        <span class="c1"># based on what proportion of the tile is in an ROI,</span>
+        <span class="c1"># rather than choosing a tile by centroid (roi_filter_method=&#39;center&#39;)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_rois</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">roi_by_center</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">apply_qc_mask</span><span class="p">(</span>
+                <span class="o">~</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_mask</span><span class="p">,</span>
+                <span class="n">filter_threshold</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_filter_method</span><span class="p">)</span>
+            <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
@@ -1462,7 +1525,7 @@
 
     <span class="k">def</span> <span class="nf">apply_segmentation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">segmentation</span><span class="p">):</span>
         <span class="c1"># Filter out masks outside of ROIs, if present.</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">!=</span> <span class="s1">&#39;ignore&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_rois</span><span class="p">():</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Applying </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">)</span><span class="si">}</span><span class="s2"> ROIs to segmentation.&quot;</span><span class="p">)</span>
             <span class="n">segmentation</span><span class="o">.</span><span class="n">apply_rois</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">)</span>
 
@@ -1517,6 +1580,35 @@
 
         <span class="c1"># Resize mask from mask coordinates to tile extraction WSI coordinates.</span>
         <span class="k">return</span> <span class="n">unsized</span>
+
+    <span class="k">def</span> <span class="nf">export_rois</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dest</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export loaded ROIs to a given destination, in CSV format.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dest (str): Path to destination folder. If not provided, will</span>
+<span class="sd">                export ROIs in the current folder. Defaults to None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">labels</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">roi</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">:</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">roi</span><span class="o">.</span><span class="n">coordinates</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+            <span class="n">labels</span> <span class="o">+=</span> <span class="p">[</span><span class="n">roi</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">*</span> <span class="n">c</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">x</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="n">c</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+            <span class="n">y</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="n">c</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+            <span class="s1">&#39;roi_name&#39;</span><span class="p">:</span> <span class="n">labels</span><span class="p">,</span>
+            <span class="s1">&#39;x_base&#39;</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span>
+            <span class="s1">&#39;y_base&#39;</span><span class="p">:</span> <span class="n">y</span>
+        <span class="p">})</span>
+        <span class="k">if</span> <span class="n">dest</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dest</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">.csv&#39;</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span><span class="si">}</span><span class="s2"> ROIs exported to </span><span class="si">{</span><span class="n">dest</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dest</span>
 
     <span class="k">def</span> <span class="nf">extract_tiles</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1616,6 +1708,12 @@
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">has_rois</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Checks if the slide has loaded ROIs and they are not being ignored.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">!=</span> <span class="s1">&#39;ignore&#39;</span>
+                <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">build_generator</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
@@ -1626,6 +1724,7 @@
         <span class="n">grayspace_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">normalizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">normalizer_source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">context_normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">num_threads</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">num_processes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">show_progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -1657,10 +1756,14 @@
 <span class="sd">                Pixels in HSV format with saturation below this threshold are</span>
 <span class="sd">                considered grayspace.</span>
 <span class="sd">            normalizer (str, optional): Normalization strategy to use on image</span>
-<span class="sd">            tiles. Defaults to None.</span>
+<span class="sd">                tiles. Defaults to None.</span>
 <span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
 <span class="sd">                If None, will use slideflow.slide.norm_tile.jpg.</span>
 <span class="sd">                Defaults to None.</span>
+<span class="sd">            context_normalize (bool): If normalizing, use context from</span>
+<span class="sd">                the rest of the slide when calculating stain matrix</span>
+<span class="sd">                concentrations. Defaults to False (normalize each image tile</span>
+<span class="sd">                as separate images).</span>
 <span class="sd">            show_progress (bool, optional): Show a progress bar.</span>
 <span class="sd">            img_format (str, optional): Image format. Either &#39;numpy&#39;, &#39;jpg&#39;,</span>
 <span class="sd">                or &#39;png&#39;. Defaults to &#39;numpy&#39;.</span>
@@ -1733,6 +1836,26 @@
             <span class="n">filter_lev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsample_level</span>
             <span class="n">filter_downsample_ratio</span> <span class="o">=</span> <span class="mi">1</span>
 
+        <span class="c1"># Prepare stain normalization</span>
+        <span class="k">if</span> <span class="n">normalizer</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">normalizer</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">StainNormalizer</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cucim&#39;</span><span class="p">:</span>
+                <span class="n">normalizer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">autoselect</span><span class="p">(</span>  <span class="c1"># type: ignore</span>
+                    <span class="n">method</span><span class="o">=</span><span class="n">normalizer</span><span class="p">,</span>
+                    <span class="n">source</span><span class="o">=</span><span class="n">normalizer_source</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Libvips with spawn multiprocessing</span>
+                <span class="c1"># is not compatible with Tensorflow-native stain normalization</span>
+                <span class="c1"># due to GPU memory issues</span>
+                <span class="n">normalizer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">StainNormalizer</span><span class="p">(</span><span class="n">normalizer</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+                <span class="k">if</span> <span class="n">normalizer_source</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">normalizer</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">normalizer_source</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+
+        <span class="k">if</span> <span class="n">normalizer</span> <span class="ow">and</span> <span class="n">context_normalize</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">normalizer</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">StainNormalizer</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Preparing whole-slide context for normalizer&quot;</span><span class="p">)</span>
+            <span class="n">normalizer</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
         <span class="n">w_args</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">(</span><span class="o">**</span><span class="p">{</span>
             <span class="s1">&#39;full_extract_px&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">,</span>
             <span class="s1">&#39;mpp_override&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mpp_override</span><span class="p">,</span>
@@ -1748,7 +1871,6 @@
             <span class="s1">&#39;tile_px&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
             <span class="s1">&#39;full_stride&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_stride</span><span class="p">,</span>
             <span class="s1">&#39;normalizer&#39;</span><span class="p">:</span> <span class="n">normalizer</span><span class="p">,</span>
-            <span class="s1">&#39;normalizer_source&#39;</span><span class="p">:</span> <span class="n">normalizer_source</span><span class="p">,</span>
             <span class="s1">&#39;whitespace_fraction&#39;</span><span class="p">:</span> <span class="n">whitespace_fraction</span><span class="p">,</span>
             <span class="s1">&#39;whitespace_threshold&#39;</span><span class="p">:</span> <span class="n">whitespace_threshold</span><span class="p">,</span>
             <span class="s1">&#39;grayspace_fraction&#39;</span><span class="p">:</span> <span class="n">grayspace_fraction</span><span class="p">,</span>
@@ -1821,7 +1943,10 @@
                 <span class="k">elif</span> <span class="n">num_processes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_processes</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building generator with Pool(</span><span class="si">{</span><span class="n">num_processes</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
                     <span class="n">ctx</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>
-                    <span class="n">pool</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">num_processes</span><span class="p">)</span>
+                    <span class="n">pool</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
+                        <span class="n">processes</span><span class="o">=</span><span class="n">num_processes</span><span class="p">,</span>
+                        <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span><span class="p">,</span>
+                    <span class="p">)</span>
                     <span class="n">should_close</span> <span class="o">=</span> <span class="kc">True</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building generator without multithreading&quot;</span><span class="p">)</span>
@@ -1859,6 +1984,7 @@
                         <span class="n">non_roi_coord</span><span class="p">,</span>
                         <span class="n">chunksize</span><span class="o">=</span><span class="n">csize</span>
                     <span class="p">)</span>
+
             <span class="k">for</span> <span class="n">e</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">i_mapped</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
                     <span class="n">pbar</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
@@ -1875,6 +2001,12 @@
                 <span class="n">pbar</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">should_close</span><span class="p">:</span>
                 <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+            <span class="c1"># Reset stain normalizer context</span>
+            <span class="k">if</span> <span class="n">normalizer</span> <span class="ow">and</span> <span class="n">context_normalize</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">normalizer</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">StainNormalizer</span><span class="p">)</span>
+                <span class="n">normalizer</span><span class="o">.</span><span class="n">clear_context</span><span class="p">()</span>
+
             <span class="n">name_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;[green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s1">[/]&#39;</span>
             <span class="n">num_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{</span><span class="n">n_extracted</span><span class="si">}</span><span class="s1"> tiles of </span><span class="si">{</span><span class="n">num_possible_tiles</span><span class="si">}</span><span class="s1"> possible)&#39;</span>
             <span class="n">log_fn</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="k">else</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span>
@@ -1890,7 +2022,8 @@
         <span class="n">rois</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">linewidth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
         <span class="n">color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;black&#39;</span><span class="p">,</span>
-        <span class="n">use_associated_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">use_associated_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">low_res</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns PIL Image of thumbnail with ROI overlay.</span>
 
@@ -1909,7 +2042,7 @@
 <span class="sd">            PIL image</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">if</span> <span class="n">rois</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">rois</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
             <span class="k">if</span> <span class="p">(</span><span class="n">mpp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">width</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="s2">&quot;Either mpp or width must be given, but not both&quot;</span>
@@ -1928,9 +2061,11 @@
             <span class="n">mpp</span><span class="o">=</span><span class="n">mpp</span><span class="p">,</span>
             <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
             <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span>
-            <span class="n">use_associated_image</span><span class="o">=</span><span class="n">use_associated_image</span><span class="p">)</span>
+            <span class="n">use_associated_image</span><span class="o">=</span><span class="n">use_associated_image</span><span class="p">,</span>
+            <span class="n">low_res</span><span class="o">=</span><span class="n">low_res</span>
+        <span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">rois</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">rois</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
             <span class="n">annPolys</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">sg</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span><span class="n">annotation</span><span class="o">.</span><span class="n">scaled_area</span><span class="p">(</span><span class="n">roi_scale</span><span class="p">))</span>
                 <span class="k">for</span> <span class="n">annotation</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rois</span>
@@ -1944,8 +2079,22 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">thumb</span>
 
-    <span class="k">def</span> <span class="nf">load_csv_roi</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">load_roi_array</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">process</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="n">existing</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="mi">4</span><span class="p">:])</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rois</span>
+            <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;ROI_&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="mi">4</span><span class="p">:]</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span>
+        <span class="p">]</span>
+        <span class="n">roi_id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">existing</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)))</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">existing</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ROI</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;ROI_</span><span class="si">{</span><span class="n">roi_id</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">array</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">process</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">process_rois</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">load_csv_roi</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">process</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Loads CSV ROI from a given path.&#39;&#39;&#39;</span>
+
+        <span class="c1"># Clear any previously loaded ROIs.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rois</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="n">roi_dict</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csvfile</span><span class="p">:</span>
@@ -1974,46 +2123,16 @@
 
             <span class="k">for</span> <span class="n">roi_object</span> <span class="ow">in</span> <span class="n">roi_dict</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">roi_object</span><span class="p">)</span>
-
-        <span class="c1"># Load annotations as shapely.geometry objects.</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">!=</span> <span class="s1">&#39;ignore&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">annotation</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="n">poly</span> <span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">make_valid</span><span class="p">(</span><span class="n">sg</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span><span class="n">annotation</span><span class="o">.</span><span class="n">scaled_area</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">)))</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="o">+=</span> <span class="p">[</span><span class="n">poly</span><span class="p">]</span>
-                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;Unable to use ROI </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> for [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[/].&quot;</span>
-                        <span class="s2">&quot; At least 3 points required to create a shape.&quot;</span>
-                    <span class="p">)</span>
-            <span class="c1"># Handle polygon holes.</span>
-            <span class="n">outers</span><span class="p">,</span> <span class="n">inners</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">outer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">):</span>
-                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">inner</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="n">o</span> <span class="o">==</span> <span class="n">i</span><span class="p">:</span>
-                        <span class="k">continue</span>
-                    <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="ow">in</span> <span class="n">inners</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">o</span> <span class="ow">in</span> <span class="n">inners</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">i</span> <span class="ow">in</span> <span class="n">outers</span><span class="p">):</span>
-                        <span class="k">continue</span>
-                    <span class="k">if</span> <span class="n">outer</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">inner</span><span class="p">):</span>
-                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Rendering ROI polygon </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> as hole in </span><span class="si">{</span><span class="n">o</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">[</span><span class="n">o</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">[</span><span class="n">o</span><span class="p">]</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">inner</span><span class="p">)</span>
-                        <span class="k">if</span> <span class="n">o</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">outers</span><span class="p">:</span>
-                            <span class="n">outers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
-                        <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">inners</span><span class="p">:</span>
-                            <span class="n">inners</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="o">=</span> <span class="p">[</span><span class="n">ann</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">ann</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">)</span>
-                             <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">inners</span><span class="p">]</span>
-            <span class="n">roi_area</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">poly</span><span class="o">.</span><span class="n">area</span> <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">roi_area</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="n">total_area</span> <span class="o">=</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">)</span>
-                      <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">roi_area_fraction</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">roi_area</span> <span class="k">else</span> <span class="p">(</span><span class="n">roi_area</span> <span class="o">/</span> <span class="n">total_area</span><span class="p">)</span>
-
+        <span class="k">if</span> <span class="n">process</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">process_rois</span><span class="p">()</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">load_json_roi</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">load_json_roi</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">scale</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">process</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Loads ROI from a JSON file.&#39;&#39;&#39;</span>
 
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">json_file</span><span class="p">:</span>
@@ -2022,7 +2141,50 @@
             <span class="n">area_reduced</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="s1">&#39;points&#39;</span><span class="p">],</span> <span class="n">scale</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ROI</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Object</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">add_shape</span><span class="p">(</span><span class="n">area_reduced</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">process</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">process_rois</span><span class="p">()</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">masked_thumb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">background</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;white&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a masked thumbnail of a slide, using QC and/or ROI masks.</span>
+<span class="sd">        Masked areas will be white.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">background</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;white&#39;</span><span class="p">,</span> <span class="s1">&#39;black&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Unexpected background option: &#39;</span><span class="si">{</span><span class="n">background</span><span class="si">}</span><span class="s2">&#39;. Expected &quot;</span>
+                <span class="s2">&quot;&#39;black&#39; or &#39;white&#39;.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">qc_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span>
+        <span class="n">roi_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_mask</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">qc_mask</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">roi_mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Apply Otsu&#39;s threshold to background area</span>
+            <span class="c1"># to prevent whitespace from interfering with normalization</span>
+            <span class="kn">from</span> <span class="nn">slideflow.slide.qc</span> <span class="kn">import</span> <span class="n">Otsu</span><span class="p">,</span> <span class="n">Gaussian</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;Applying Otsu&#39;s thresholding &amp; Gaussian blur filter &quot;</span>
+                <span class="s2">&quot;to stain norm context&quot;</span>
+            <span class="p">)</span>
+            <span class="n">_blur_mask</span> <span class="o">=</span> <span class="n">Gaussian</span><span class="p">()(</span><span class="n">image</span><span class="p">)</span>
+            <span class="n">qc_mask</span> <span class="o">=</span> <span class="n">Otsu</span><span class="p">()(</span><span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">_blur_mask</span><span class="p">)</span>
+        <span class="c1"># Mask by ROI and QC, if applied.</span>
+        <span class="c1"># Use white as background for masked areas.</span>
+        <span class="k">if</span> <span class="n">qc_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">qc_img</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">img_as_ubyte</span><span class="p">(</span><span class="n">qc_mask</span><span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">qc_img</span><span class="p">,</span> <span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="n">roi_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">roi_img</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">img_as_ubyte</span><span class="p">(</span><span class="n">roi_mask</span><span class="p">)</span>
+            <span class="n">roi_mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">roi_img</span><span class="p">,</span> <span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="k">if</span> <span class="n">qc_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span> <span class="o">&amp;</span> <span class="n">roi_mask</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">roi_mask</span>
+        <span class="k">if</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;white&#39;</span><span class="p">:</span>
+            <span class="n">white_bg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+            <span class="n">white_mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">bitwise_or</span><span class="p">(</span><span class="n">white_bg</span><span class="p">,</span> <span class="n">white_bg</span><span class="p">,</span> <span class="n">mask</span><span class="o">=~</span><span class="n">mask</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">cv2</span><span class="o">.</span><span class="n">bitwise_or</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">white_mask</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">cv2</span><span class="o">.</span><span class="n">bitwise_or</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -2073,13 +2235,62 @@
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Calculating whole-slide prediction...&quot;</span><span class="p">)</span>
         <span class="n">heatmap</span> <span class="o">=</span> <span class="n">Heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">generate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">preds</span> <span class="o">=</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">predictions</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">predictions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-        <span class="n">preds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">preds</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">preds</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span>
+        <span class="n">preds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">preds</span> <span class="o">==</span> <span class="o">-</span><span class="mi">99</span><span class="p">,</span> <span class="n">preds</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">uncertainty</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">unc</span> <span class="o">=</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-            <span class="n">unc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">unc</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">unc</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span>
+            <span class="n">unc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">unc</span> <span class="o">==</span> <span class="o">-</span><span class="mi">99</span><span class="p">,</span> <span class="n">unc</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">preds</span><span class="p">,</span> <span class="n">unc</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">preds</span>
+
+    <span class="k">def</span> <span class="nf">process_rois</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process loaded ROIs and apply to the slide grid.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Load annotations as shapely.geometry objects.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">!=</span> <span class="s1">&#39;ignore&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">annotation</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">poly</span> <span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">make_valid</span><span class="p">(</span><span class="n">sg</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span><span class="n">annotation</span><span class="o">.</span><span class="n">scaled_area</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">)))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="o">+=</span> <span class="p">[</span><span class="n">poly</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Unable to use ROI </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> for [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[/].&quot;</span>
+                        <span class="s2">&quot; At least 3 points required to create a shape.&quot;</span>
+                    <span class="p">)</span>
+            <span class="c1"># Handle polygon holes.</span>
+            <span class="n">outers</span><span class="p">,</span> <span class="n">inners</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">outer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">inner</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">o</span> <span class="o">==</span> <span class="n">i</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="ow">in</span> <span class="n">inners</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">o</span> <span class="ow">in</span> <span class="n">inners</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">i</span> <span class="ow">in</span> <span class="n">outers</span><span class="p">):</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">outer</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">inner</span><span class="p">):</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Rendering ROI polygon </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> as hole in </span><span class="si">{</span><span class="n">o</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">[</span><span class="n">o</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">[</span><span class="n">o</span><span class="p">]</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">inner</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">o</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">outers</span><span class="p">:</span>
+                            <span class="n">outers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">inners</span><span class="p">:</span>
+                            <span class="n">inners</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="o">=</span> <span class="p">[</span><span class="n">ann</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">ann</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">)</span>
+                             <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">inners</span><span class="p">]</span>
+            <span class="n">roi_area</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">poly</span><span class="o">.</span><span class="n">area</span> <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">roi_area</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">total_area</span> <span class="o">=</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">)</span>
+                      <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">roi_area_fraction</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">roi_area</span> <span class="k">else</span> <span class="p">(</span><span class="n">roi_area</span> <span class="o">/</span> <span class="n">total_area</span><span class="p">)</span>
+
+        <span class="c1"># Regenerate the grid to reflect the newly-loaded ROIs.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_coord</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">remove_roi</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">process</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">process</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">process_rois</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">tensorflow</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -2239,7 +2450,19 @@
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">infinite</span><span class="p">:</span>
                     <span class="k">break</span>
 
-        <span class="k">return</span> <span class="n">tile_generator</span><span class="p">()</span></div>
+        <span class="k">return</span> <span class="n">tile_generator</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">view</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Open the slide in Slideflow Studio for interactive display.</span>
+
+<span class="sd">        See :ref:`studio` for more information.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">slideflow.studio</span> <span class="kn">import</span> <span class="n">Studio</span>
+
+        <span class="n">studio</span> <span class="o">=</span> <span class="n">Studio</span><span class="p">()</span>
+        <span class="n">studio</span><span class="o">.</span><span class="n">load_slide</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stride_div</span><span class="p">)</span>
+        <span class="n">studio</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="TMA"><a class="viewcode-back" href="../../slide.html#slideflow.slide.TMA">[docs]</a><span class="k">class</span> <span class="nc">TMA</span><span class="p">(</span><span class="n">_BaseLoader</span><span class="p">):</span>
@@ -2715,16 +2938,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -2732,11 +2955,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -2746,26 +2969,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
          <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
          <script src="../../_static/doctools.js"></script>
          <script src="../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
@@ -2776,7 +2999,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

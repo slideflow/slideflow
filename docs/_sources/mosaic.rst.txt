@@ -25,9 +25,9 @@ See :ref:`mosaic_map` for an example of how a mosaic map can be used in the cont
 Methods
 -------
 
-.. autofunction:: slideflow.Mosaic.focus
 .. autofunction:: slideflow.Mosaic.generate_grid
 .. autofunction:: slideflow.Mosaic.plot
 .. autofunction:: slideflow.Mosaic.points_at_grid_index
 .. autofunction:: slideflow.Mosaic.save
 .. autofunction:: slideflow.Mosaic.save_report
+.. autofunction:: slideflow.Mosaic.view
