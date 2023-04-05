@@ -596,7 +596,8 @@ def segment_slide(
         )
     else:
         spawn_pool = mp.dummy.Pool(4)
-    tile_process = mp.Process(
+    proc_fn = mp.Process if sf.slide_backend() != 'libvips' else threading.Thread
+    tile_process = proc_fn(
         target=tile_processor,
         args=(slide, tile_q, batch_size, cp.nchan)
     )
