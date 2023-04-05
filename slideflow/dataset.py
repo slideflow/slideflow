@@ -3462,19 +3462,6 @@ class Dataset:
             thumb.save(join(outdir, f'{whole_slide.name}.png'))
         log.info('Thumbnail generation complete.')
 
-    def training_validation_split(
-        self,
-        *args: Any,
-        **kwargs: Any
-    ) -> Tuple["Dataset", "Dataset"]:
-        """Deprecated function."""  # noqa: D401
-        warnings.warn(
-            "Dataset.training_validation_split() is deprecated and will be "
-            "removed in a future version. Please use Dataset.split()",
-            DeprecationWarning
-        )
-        return self.split(*args, **kwargs)
-
     def train_val_split(
         self,
         *args: Any,

@@ -5,7 +5,7 @@
 Generative Networks (GANs)
 ==========================
 
-.. video:: stylemix.webm
+.. video:: stylegan.webm
     :width: 100%
     :autoplay:
 

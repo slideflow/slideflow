@@ -211,7 +211,7 @@ Available stain normalization algorithms include:
 During tile extraction
 ----------------------
 
-Image tiles can be normalized during tile extraction by using the ``normalizer`` and ``normalizer_source`` arguments. ``normalizer`` is the name of the algorithm. The normalizer source - either a path to a reference image, or a ``str`` indicating one of our presets (e.g. ``'v1'`` or ``'v2'``) - can also be set with ``normalizer_source``.
+Image tiles can be normalized during tile extraction by using the ``normalizer`` and ``normalizer_source`` arguments. ``normalizer`` is the name of the algorithm. The normalizer source - either a path to a reference image, or a ``str`` indicating one of our presets (e.g. ``'v1'``, ``'v2'``, ``'v3'``) - can also be set with ``normalizer_source``.
 
 .. code-block:: python
 

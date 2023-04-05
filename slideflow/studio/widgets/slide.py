@@ -664,6 +664,8 @@ class SlideWidget:
                         self.editing = False
                         if self.capturing:
                             viz.create_toast(f'Capturing new ROIs. Right click and drag to create a new ROI.', icon='info')
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Add ROI")
                 imgui.same_line()
 
                 # Edit button.
@@ -675,6 +677,8 @@ class SlideWidget:
                         else:
                             viz.viewer.deselect_roi()
                         self.capturing = False
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Edit ROIs")
                 imgui.same_line()
 
                 # Save button.
@@ -683,6 +687,8 @@ class SlideWidget:
                     viz.create_toast(f'ROIs saved to {dest}', icon='success')
                     self.editing = False
                     self.capturing = False
+                if imgui.is_item_hovered():
+                    imgui.set_tooltip("Save ROIs")
                 imgui.same_line()
 
                 # Load button.
@@ -693,6 +699,8 @@ class SlideWidget:
                         viz.viewer.refresh_view()
                     self.editing = False
                     self.capturing = False
+                if imgui.is_item_hovered():
+                    imgui.set_tooltip("Load ROIs")
                 self._end_roi_button_style()
 
                 imgui_utils.vertical_break()

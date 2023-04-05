@@ -6,6 +6,8 @@ Slideflow has been tested and is supported on the following systems:
 - Ubuntu 18.04, 20.04, and 22.04
 - Centos 7, 8, and 8 Stream
 
+:ref:`Slideflow Studio <studio>`, the whole-slide interface for model deployment, is additionally supported on Windows, MacOS (Intel and Apple), and Raspberry Pi OS.
+
 Requirements
 ************
 
@@ -16,7 +18,6 @@ Optional
 --------
 
 - `Libvips >= 8.9 <https://libvips.github.io/libvips/>`_ (alternative slide reader, adds support for \*.scn, \*.mrxs, \*.ndpi, \*.vms, and \*.vmu files)
-- `QuPath <https://qupath.github.io>`_ (for pathologist ROIs)
 - Linear solver (for site-preserved cross-validation):
 
   - `CPLEX 20.1.0 <https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio>`_ with `Python API <https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api>`_
@@ -43,16 +44,16 @@ The ``cupy`` package name depends on the installed CUDA version; `see here <http
 Run a Docker container
 **********************
 
-Alternatively, pre-configured `docker images <https://hub.docker.com/repository/docker/jamesdolezal/slideflow>`_ are available with cuCIM, Libvips, and either PyTorch 1.11 or Tensorflow 2.8 pre-installed. Using a preconfigured `Docker <https://docs.docker.com/install/>`_ container is the easiest way to get started with compatible dependencies and GPU support.
+Alternatively, pre-configured `docker images <https://hub.docker.com/repository/docker/jamesdolezal/slideflow>`_ are available with cuCIM, Libvips, and either PyTorch 1.11 or Tensorflow 2.9 pre-installed. Using a preconfigured `Docker <https://docs.docker.com/install/>`_ container is the easiest way to get started with compatible dependencies and GPU support.
 
-To run a Docker container with the Tensorflow 2.8 backend:
+To run a Docker container with the Tensorflow backend:
 
 .. code-block:: bash
 
     docker pull jamesdolezal/slideflow:latest-tf
     docker run -it --gpus all jamesdolezal/slideflow:latest-tf
 
-To run a Docker container with the PyTorch 1.11 backend:
+To run a Docker container with the PyTorch backend:
 
 .. code-block:: bash
 

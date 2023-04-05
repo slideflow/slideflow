@@ -370,7 +370,6 @@ class SegmentWidget(Widget):
                     self._thread.start()
 
             # Export
-            imgui.same_line()
             with imgui_utils.item_width(imgui.get_content_region_max()[0]/2 - viz.spacing):
                 with imgui_utils.grayed_out(not has_seg):
                     if viz.sidebar.full_button("Export", enabled=(has_seg)) and has_seg:

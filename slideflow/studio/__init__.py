@@ -627,9 +627,13 @@ class Studio(ImguiWindow):
             dim_color[-1] *= 0.5
             imgui.begin_child('##pred_image', border=False)
             imgui.image(self._tex_obj.gl_id, raw_img_w, raw_img_w)
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Raw image")
             imgui.same_line()
             if has_norm_image:
                 imgui.image(self._norm_tex_obj.gl_id, norm_img_w, norm_img_w)
+                if imgui.is_item_hovered():
+                    imgui.set_tooltip("Stain-normalized image")
             elif self._tex_obj is not None and self.tile_px:
                 imgui.text_colored('Normalizer not used', *dim_color)
             imgui.end_child()
