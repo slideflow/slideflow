@@ -539,15 +539,6 @@ class Project:
             load_method=load_method,
             custom_objects=custom_objects,
         )
-        if isinstance(model, str):
-            trainer.load(model)
-        if checkpoint:
-            n_features = 0 if not feature_sizes else sum(feature_sizes)
-            trainer.model = hp.build_model(
-                labels=labels,
-                num_slide_features=n_features
-            )
-            trainer.model.load_weights(checkpoint)
 
         return trainer, eval_dts
 
@@ -1252,6 +1243,22 @@ class Project:
             load_method=load_method,
             custom_objects=custom_objects,
         )
+
+        # Load the model
+        if isinstance(model, str):
+            trainer.load(model, training=True)
+        if checkpoint:
+            if trainer.feature_sizes:
+                n_features = sum(trainer.feature_sizes)
+            else:
+                n_features = 0
+            trainer.model = trainer.hp.build_model(
+                labels=trainer.labels,
+                num_slide_features=n_features
+            )
+            trainer.model.load_weights(checkpoint)
+
+        # Evaluate
         return trainer.evaluate(eval_dts, **kwargs)
 
     def evaluate_clam(
@@ -2691,6 +2698,22 @@ class Project:
             load_method=load_method,
             custom_objects=custom_objects,
         )
+
+        # Load the model
+        if isinstance(model, str):
+            trainer.load(model, training=False)
+        if checkpoint:
+            if trainer.feature_sizes:
+                n_features = sum(trainer.feature_sizes)
+            else:
+                n_features = 0
+            trainer.model = trainer.hp.build_model(
+                labels=trainer.labels,
+                num_slide_features=n_features
+            )
+            trainer.model.load_weights(checkpoint)
+
+        # Predict
         results = trainer.predict(
             dataset=eval_dts,
             batch_size=batch_size,

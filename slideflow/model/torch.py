@@ -1386,7 +1386,7 @@ class Trainer:
                     self.img_format,
                     dataset.img_format))
 
-    def load(self, model: str) -> None:
+    def load(self, model: str, training=True) -> None:
         """Loads a state dict at the given model location. Requires that the
         Trainer's hyperparameters (Trainer.hp)
         match the hyperparameters of the model to be loaded."""
