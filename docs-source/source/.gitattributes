@@ -3,3 +3,5 @@
 cellseg_workbench_flows.png filter=lfs diff=lfs merge=lfs -text
 cellseg_workbench_outlines.png filter=lfs diff=lfs merge=lfs -text
 cellseg_workbench_masks.png filter=lfs diff=lfs merge=lfs -text
+studio_preview.webm filter=lfs diff=lfs merge=lfs -text
+stylegan.webm filter=lfs diff=lfs merge=lfs -text
