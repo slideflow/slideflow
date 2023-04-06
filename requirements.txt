@@ -20,7 +20,6 @@ torchvision
 pretrainedmodels
 gitpython
 scikit-image
-scikit-misc
 tqdm
 click
 protobuf<=3.20.2
