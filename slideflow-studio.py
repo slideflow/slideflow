@@ -85,8 +85,22 @@ def main(
 
 #----------------------------------------------------------------------------
 
+
+
 def import_with_splash():
 
+    _imported = False
+
+    def _import_sildeflow():
+        nonlocal _imported
+        import slideflow.studio
+        _imported = True
+
+    # Start the import thread
+    _thread = threading.Thread(target=_import_sildeflow)
+    _thread.start()
+
+    # Send Tk to the background (used for future file dialogs)
     from tkinter import Tk
     Tk().withdraw()
 
@@ -156,14 +170,13 @@ def import_with_splash():
         _tex_icon.draw(pos=(width//2, int(height * 0.3)), zoom=0.25, align=0.5, rint=True, anchor='center')
         _version_text.draw(pos=(width//2, int(height * 0.7)), zoom=1, align=0.5, rint=True, anchor='center')
 
-        if _first_frame:
+        if not _first_frame:
             glfw.show_window(window)
             _first_frame = False
 
         glfw.swap_buffers(window)
 
-        if not _first_frame:
-            import slideflow.studio
+        if _imported:
             glfw.destroy_window(window)
             glfw.default_window_hints()
             break
