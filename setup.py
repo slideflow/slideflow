@@ -115,7 +115,7 @@ setuptools.setup(
         'tensorboard',
         'crc32c',
         'h5py',
-        'numpy<1.22',
+        'numpy',
         'tabulate',
 		'rasterio',
         'smac==1.4.0',
