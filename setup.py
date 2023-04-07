@@ -143,7 +143,8 @@ setuptools.setup(
             'torch',
             'torchvision',
             'pretrainedmodels',
-            'cellpose'
+            'cellpose',
+            'fastai'
         ],
         'dev': [
             'sphinx',
@@ -164,6 +165,7 @@ setuptools.setup(
             'sphinxcontrib-video',
             'torch',
             'torchvision',
+            'fastai',
             'pretrainedmodels',
             'tensorflow>=2.7,<2.12',
             'tensorflow_probability<0.20',

@@ -765,11 +765,15 @@ class TestSuite:
             else:
                 try:
                     dataset = self.project.dataset(self.tile_px, 1208)
-                    self.project.train_clam(
-                        'TEST_CLAM',
-                        join(self.project.root, 'clam'),
-                        'category1',
-                        dataset
+                    train_dts, val_dts = dataset.split(val_fraction=0.3)
+                    import slideflow.mil
+                    config = sf.mil.mil_config('clam_sb')
+                    self.project.train_mil(
+                        config,
+                        train_dts,
+                        val_dts,
+                        outcomes='category1',
+                        bags=join(self.project.root, 'clam'),
                     )
                 except Exception as e:
                     log.error(traceback.format_exc())

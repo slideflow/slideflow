@@ -47,3 +47,4 @@ cucim
 versioneer
 cellpose
 zarr
+fastai
