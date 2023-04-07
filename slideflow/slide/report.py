@@ -7,6 +7,7 @@ import os
 import tempfile
 import pandas as pd
 import numpy as np
+import cv2
 from fpdf import FPDF
 from PIL import Image
 from datetime import datetime
@@ -83,13 +84,7 @@ class SlideReport:
     @property
     def thumb(self):
         if self._thumb is None:
-            wsi = sf.WSI(self.path, 500, 500, verbose=False)
-            self._thumb = wsi.thumb(
-                coords=self.thumb_coords,
-                rois=self.has_rois,
-                low_res=True
-            )
-            self._thumb = Image.fromarray(np.array(self._thumb)[:, :, 0:3])
+            self.calc_thumb()
         return self._thumb
 
     @property
@@ -168,9 +163,22 @@ class SlideReport:
         else:
             return None
 
+    def calc_thumb(self) -> None:
+        wsi = sf.WSI(self.path, 500, 500, verbose=False)
+        self._thumb = wsi.thumb(
+            coords=self.thumb_coords,
+            rois=self.has_rois,
+            low_res=True,
+            width=512
+        )
+        self._thumb = Image.fromarray(np.array(self._thumb)[:, :, 0:3])
+
     def _compress(self, img: bytes) -> bytes:
         with io.BytesIO() as output:
-            Image.open(io.BytesIO(img)).save(output, format="JPEG", quality=75)
+            img = Image.open(io.BytesIO(img))
+            if img.height > 256:
+                img = Image.fromarray(cv2.resize(np.array(img), [256, 256]))
+            img.save(output, format="JPEG", quality=75)
             return output.getvalue()
 
     def image_row(self) -> Optional[bytes]:
