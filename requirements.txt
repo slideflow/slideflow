@@ -1,6 +1,6 @@
 numpy<1.22
 gast>=0.3.3
-tensorflow>=2.7,<2.10
+tensorflow>=2.7,<2.12
 scipy
 scikit-learn
 matplotlib>=3.2
@@ -33,7 +33,7 @@ smac==1.4.0
 ConfigSpace
 pyarrow
 ninja
-tensorflow_probability<0.18
+tensorflow_probability<0.20
 rich
 pillow>=6.0.0
 imgui

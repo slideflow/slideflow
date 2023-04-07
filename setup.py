@@ -135,8 +135,8 @@ setuptools.setup(
     ],
     extras_require={
         'tf': [
-            'tensorflow>=2.7,<2.10',
-            'tensorflow_probability<0.18',
+            'tensorflow>=2.7,<2.12',
+            'tensorflow_probability<0.20',
             'tensorflow_datasets'
         ],
         'torch': [
@@ -165,8 +165,8 @@ setuptools.setup(
             'torch',
             'torchvision',
             'pretrainedmodels',
-            'tensorflow>=2.7,<2.10',
-            'tensorflow_probability<0.18',
+            'tensorflow>=2.7,<2.12',
+            'tensorflow_probability<0.20',
             'tensorflow_datasets'
         ]
     },

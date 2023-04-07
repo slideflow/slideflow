@@ -12,7 +12,8 @@ Requirements
 ************
 
 - Python >= 3.7 (<3.10 if using `cuCIM <https://docs.rapids.ai/api/cucim/stable/>`_)
-- `Tensorflow <https://www.tensorflow.org/>`_ 2.5-2.9 *or* `PyTorch <https://pytorch.org/>`_ 1.9-1.12
+- `Tensorflow <https://www.tensorflow.org/>`_ (2.5-2.11) *or* `PyTorch <https://pytorch.org/>`_ (1.9-1.13)
+  - GAN training requires PyTorch <1.13
 
 Optional
 --------
