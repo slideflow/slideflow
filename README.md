@@ -28,7 +28,8 @@ Slideflow has been used by:
 
 ## Requirements
 - Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
-- [Tensorflow](https://www.tensorflow.org/) 2.5-2.9 _or_ [PyTorch](https://pytorch.org/) 1.9-1.12
+- [Tensorflow](https://www.tensorflow.org/) 2.5-2.11 _or_ [PyTorch](https://pytorch.org/) 1.9-2.0
+  - GAN and MIL functions require PyTorch <1.13
 
 ### Optional
 - [Libvips](https://libvips.github.io/libvips/) >= 8.9 (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files).
