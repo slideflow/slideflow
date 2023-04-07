@@ -11,7 +11,7 @@ umap-learn
 seaborn<0.12
 pandas
 pyvips>=2.1.11
-fpdf
+fpdf2
 cplex
 cvxpy>=1.1.15
 lifelines

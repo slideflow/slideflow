@@ -106,7 +106,7 @@ setuptools.setup(
         'seaborn<0.12',
         'pandas',
         'pyvips',
-        'fpdf',
+        'fpdf2',
         'lifelines',
         'scikit-image',
         'scikit-misc',
