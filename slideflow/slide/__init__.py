@@ -842,13 +842,17 @@ class _BaseLoader:
                 num_tiles=len(locations),
                 qc_mask=self.qc_mask,
                 locations=pd.DataFrame(df_dict),
-                num_rois=(0 if self.roi_method == 'ignore' else len(self.rois))
+                num_rois=(0 if self.roi_method == 'ignore' else len(self.rois)),
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
             )
             slide_report = SlideReport(
                 sample_tiles,
                 self.slide.path,
                 data=report_data,
                 thumb_coords=locations,
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
             )
             return slide_report
         else:

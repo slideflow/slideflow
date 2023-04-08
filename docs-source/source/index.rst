@@ -33,7 +33,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    stylegan
    saliency
    custom_loops
-   slideflow_studio
+   studio
    troubleshooting
 
 .. toctree::
@@ -43,10 +43,11 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    slideflow
    project
    dataset
-   heatmap
    dataset_features
-   slidemap
+   heatmap
+   model_params
    mosaic
+   slidemap
    biscuit
    slideflow_cellseg
    io
@@ -54,6 +55,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    io_torch
    gan
    grad
+   mil_module
    model
    model_tensorflow
    model_torch

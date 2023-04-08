@@ -81,17 +81,51 @@ def load_index(tfrecord: str) -> Optional[np.ndarray]:
 
 
 def get_tfrecord_length(tfrecord: str) -> int:
+    """Return the number of records in a TFRecord file.
+
+    Uses an index file if available, otherwise iterates through
+    the file to find the total record length.
+
+    Args:
+        tfrecord (str): Path to TFRecord.
+
+    Returns:
+        int: Number of records.
+
+    """
     index_path = find_index(tfrecord)
     if index_path is None:
-        raise OSError(f"Could not find index path for TFRecord {tfrecord}")
+        return read_tfrecord_length(tfrecord)
     if os.stat(index_path).st_size == 0:
         return 0
     else:
-        idx = load_index(tfrecord)
-        return idx.shape[0]
+        return load_index(tfrecord).shape[0]
 
 
-def get_record_by_index(
+def read_tfrecord_length(tfrecord: str) -> int:
+    """Returns number of records stored in the given tfrecord file."""
+    infile = open(tfrecord, "rb")
+    num_records = 0
+    while True:
+        infile.tell()
+        try:
+            byte_len = infile.read(8)
+            if len(byte_len) == 0:
+                break
+            infile.read(4)
+            proto_len = struct.unpack("q", byte_len)[0]
+            infile.read(proto_len)
+            infile.read(4)
+            num_records += 1
+        except Exception:
+            log.error(f"Failed to parse TFRecord at {tfrecord}")
+            infile.close()
+            return 0
+    infile.close()
+    return num_records
+
+
+def get_tfrecord_by_index(
     tfrecord: str,
     index: int,
     compression_type: Optional[str] = None,

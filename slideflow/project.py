@@ -1431,7 +1431,7 @@ class Project:
         outcomes: Union[str, List[str]],
         dataset: Dataset,
         bags: Union[str, List[str]],
-        config: Optional["mil.TrainerConfig"] = None,
+        config: Optional["mil._TrainerConfig"] = None,
         **kwargs
     ):
         r"""Evaluate a multi-instance learning model.
@@ -1443,8 +1443,8 @@ class Project:
         Logs classifier metrics (AUROC and AP) to the console.
 
         Args:
-            config (:class:`slideflow.mil.TrainerConfig): Training
-                configuration, as obtained by
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+                Training configuration, as obtained by
                 :func:`slideflow.mil.mil_config()`.
             train_dataset (:class:`slideflow.Dataset`): Training dataset.
             val_dataset (:class:`slideflow.Dataset`): Validation dataset.
@@ -1461,6 +1461,15 @@ class Project:
                 and the model will be saved.
             attention_heatmaps (bool): Calculate and save attention heatmaps.
                 Defaults to False.
+            interpolation (str, optional): Interpolation strategy for smoothing
+                attention heatmaps. Defaults to 'bicubic'.
+            cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+                valid matplotlib colormap. Defaults to 'inferno'.
+            norm (str, optional): Normalization strategy for assigning heatmap
+                values to colors. Either 'two_slope', or any other valid value
+                for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+                If 'two_slope', normalizes values less than 0 and greater than 0
+                separately. Defaults to None.
 
         """
         from .mil import eval_mil
@@ -3426,7 +3435,7 @@ class Project:
 
         Args:
             outcomes (str or list(str)): Outcome label annotation header(s).
-            params (:class:`slideflow.model.ModelParams`, list or dict):
+            params (:class:`slideflow.ModelParams`, list or dict):
                 Model parameters for training. May provide one `ModelParams`,
                 a list, or dict mapping model names to params. If multiple
                 params are provided, will train an hyper deep ensemble models
@@ -3465,7 +3474,7 @@ class Project:
             hyper_deep = True
             if not all([isinstance(hp, ModelParams) for hp in params]):
                 raise errors.ModelParamsError(
-                    'If params is a list, items must be sf.model.ModelParams'
+                    'If params is a list, items must be sf.ModelParams'
                 )
             hp_list = params
             n_ensembles = len(hp_list)
@@ -3680,7 +3689,7 @@ class Project:
 
     def train_mil(
         self,
-        config: "mil.TrainerConfig",
+        config: "mil._TrainerConfig",
         train_dataset: Dataset,
         val_dataset: Dataset,
         outcomes: Union[str, List[str]],
@@ -3692,8 +3701,8 @@ class Project:
         r"""Train a multi-instance learning model.
 
         Args:
-            config (:class:`slideflow.mil.TrainerConfig): Training
-                configuration, as obtained by
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+                Training configuration, as obtained by
                 :func:`slideflow.mil.mil_config()`.
             train_dataset (:class:`slideflow.Dataset`): Training dataset.
             val_dataset (:class:`slideflow.Dataset`): Validation dataset.
@@ -3710,6 +3719,15 @@ class Project:
                 and the model will be saved.
             attention_heatmaps (bool): Calculate and save attention heatmaps
                 on the validation dataset. Defaults to False.
+            interpolation (str, optional): Interpolation strategy for smoothing
+                attention heatmaps. Defaults to 'bicubic'.
+            cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+                valid matplotlib colormap. Defaults to 'inferno'.
+            norm (str, optional): Normalization strategy for assigning heatmap
+                values to colors. Either 'two_slope', or any other valid value
+                for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+                If 'two_slope', normalizes values less than 0 and greater than 0
+                separately. Defaults to None.
 
         """
         from .mil import train_mil

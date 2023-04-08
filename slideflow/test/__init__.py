@@ -197,7 +197,7 @@ class TestSuite:
             )
 
         # Create single hyperparameter combination
-        hp = sf.model.ModelParams(
+        hp = sf.ModelParams(
             tile_px=self.tile_px,
             tile_um=1208,
             epochs=1,

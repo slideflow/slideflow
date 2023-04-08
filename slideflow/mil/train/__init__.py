@@ -11,7 +11,7 @@ from os.path import join
 
 from ..eval import predict_from_model, generate_attention_heatmaps
 from .._params import (
-    TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
+    _TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
 )
 
 if TYPE_CHECKING:
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 # -----------------------------------------------------------------------------
 
 def train_mil(
-    config: TrainerConfig,
+    config: _TrainerConfig,
     train_dataset: Dataset,
     val_dataset: Optional[Dataset],
     outcomes: Union[str, List[str]],
@@ -30,10 +30,11 @@ def train_mil(
     exp_label: Optional[str] = None,
     **kwargs
 ):
-    """Train a multi-instance learning model.
+    """Train a multiple-instance learning (MIL) model.
 
     Args:
-        config (``TrainerConfig``): Trainer and model configuration.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Trainer and model configuration.
         train_dataset (:class:`slideflow.Dataset`): Training dataset.
         val_dataset (:class:`slideflow.Dataset`): Validation dataset.
         outcomes (str): Outcome column (annotation header) from which to
@@ -50,6 +51,16 @@ def train_mil(
             and the model will be saved.
         attention_heatmaps (bool): Generate attention heatmaps for slides.
             Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
+
     """
     log.info("Training FastAI MIL model with config:")
     log.info(f"{config}")
@@ -98,7 +109,8 @@ def train_clam(
     bags: Union[str, List[str]],
     *,
     outdir: str = 'mil',
-    attention_heatmaps: bool = False
+    attention_heatmaps: bool = False,
+    **heatmap_kwargs
 ) -> None:
     """Train a CLAM model from layer activations exported with
     :meth:`slideflow.project.generate_features_for_clam`.
@@ -118,12 +130,21 @@ def train_clam(
     Keyword args:
         outdir (str): Directory in which to save model and results.
         exp_label (str): Experiment label, used for naming the subdirectory
-            in the ``{project root}/mil`` folder, where training history
+            in the ``outdir`` folder, where training history
             and the model will be saved.
         clam_args (optional): Namespace with clam arguments, as provided
             by :func:`slideflow.clam.get_args`.
         attention_heatmaps (bool): Generate attention heatmaps for slides.
             Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
 
     Returns:
         None
@@ -220,7 +241,8 @@ def train_clam(
             outdir=join(outdir, 'heatmaps'),
             dataset=val_dataset,
             bags=val_bags,
-            attention=attention
+            attention=attention,
+            **heatmap_kwargs
         )
 
 # -----------------------------------------------------------------------------
@@ -249,9 +271,10 @@ def build_fastai_learner(
     Keyword args:
         outdir (str): Directory in which to save model and results.
         exp_label (str): Experiment label, used for naming the subdirectory
-            in the ``{project root}/mil`` folder, where training history
+            in the ``outdir`` folder, where training history
             and the model will be saved.
-        lr_max (float): Maximum learning rate.
+        lr (float): Learning rate, or maximum learning rate if
+            ``fit_one_cycle=True``.
         epochs (int): Maximum epochs.
 
     Returns:
@@ -304,6 +327,7 @@ def train_fastai(
     *,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
+    **heatmap_kwargs
 ) -> None:
     """Train an aMIL model using FastAI.
 
@@ -322,10 +346,20 @@ def train_fastai(
         exp_label (str): Experiment label, used for naming the subdirectory
             in the ``{project root}/mil`` folder, where training history
             and the model will be saved.
-        lr_max (float): Maximum learning rate.
+        lr (float): Learning rate, or maximum learning rate if
+            ``fit_one_cycle=True``.
         epochs (int): Maximum epochs.
         attention_heatmaps (bool): Generate attention heatmaps for slides.
             Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
 
     Returns:
         fastai.learner.Learner
@@ -373,7 +407,8 @@ def train_fastai(
             outdir=join(outdir, 'heatmaps'),
             dataset=val_dataset,
             bags=val_bags,
-            attention=attention
+            attention=attention,
+            **heatmap_kwargs
         )
 
     return learner

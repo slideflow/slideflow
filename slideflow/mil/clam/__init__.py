@@ -16,7 +16,7 @@ from .utils.file_utils import save_pkl
 class CLAM_Args:
     def __init__(
         self,
-        num_splits=1,
+        num_splits=1,  # Unused; kept for backwards compatibility
         k=3,
         k_start=-1,
         k_end=-1,

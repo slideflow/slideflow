@@ -200,13 +200,16 @@ Image tiles can undergo digital Hematoxylin and Eosin (H&E) stain normalization 
 
 Available stain normalization algorithms include:
 
-- **macenko**: M. Macenko et al., ‘A method for normalizing histology slides for quantitative analysis’, *IEEE International Symposium on Biomedical Imaging: From Nano to Macro*, 2009, pp. 1107–1110.
-- **vahadane**: A. Vahadane et al., ‘Structure-Preserving Color Normalization and Sparse Stain Separation for Histological Images’, *IEEE Transactions on Medical Imaging*, vol. 35, no. 8, pp. 1962–1971, Aug. 2016.
-- **reinhard**: E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between images’, *IEEE Computer Graphics and Applications*, vol. 21, no. 5, pp. 34–41, Sep. 2001.
-- **reinhard_fast**: A modification of the Reinhard algorithm with the brightness standardization step removed for computational efficiency.
-- **reinhard_mask**: Modified Reinhard algorithm, with background/whitespace removed during normalization.
-- **reinhard_fast_mask**: Modified Reinhard-Fast algorithm, with background/whitespace removed during normalization.
+- **macenko**: `Original Macenko paper <https://www.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf>`_.
+- **macenko_fast**: Modified Macenko algorithm with the brightness standardization step removed.
+- **reinhard**: `Original Reinhard paper <https://ieeexplore.ieee.org/document/946629>`_.
+- **reinhard_fast**: Modified Reinhard algorithm with the brightness standardization step removed.
+- **reinhard_mask**: Modified Reinhard algorithm, with background/whitespace removed.
+- **reinhard_fast_mask**: Modified Reinhard-Fast algorithm, with background/whitespace removed.
+- **vahadane**: `Original Vahadane paper <https://ieeexplore.ieee.org/document/7460968>`_.
 - **augment**: HSV colorspace augmentation.
+
+The Macenko and Reinhard stain normalizers are highly efficient, with native Tensorflow, PyTorch, and Numpy/OpenCV implementations, and support GPU acceleration (see :ref:`performance benchmarks <normalizer_performance>`).
 
 During tile extraction
 ----------------------
@@ -221,6 +224,7 @@ Image tiles can be normalized during tile extraction by using the ``normalizer``
       normalizer='reinhard'
     )
 
+:ref:`Contextual stain normalization <contextual_normalization>` is supported when normalizing during tile extraction.
 
 On-the-fly
 ----------
@@ -236,40 +240,7 @@ Real-time normalization can be performed by setting the ``normalizer`` and/or ``
 
 If a model was trained using a normalizer, the normalizer algorithm and fit information will be stored in the model metadata file, ``params.json``, in the saved model folder. Any Slideflow function that uses this model will automatically process images using the same normalization strategy.
 
-Performance
------------
-
-Slideflow has Tensorflow, PyTorch, and Numpy/OpenCV implementations of stain normalization algorithms. Performance benchmarks for these implementations
-are given below:
-
-.. list-table:: **Performance Benchmarks** (256 x 256 images, Slideflow 1.2.3, benchmarked on 3960X and A100 40GB)
-    :header-rows: 1
-
-    * -
-      - Tensorflow backend
-      - PyTorch backend
-    * - macenko
-      - 1,295 img/s (**native**)
-      - 1,265 img/s (**native**)
-    * - reinhard
-      - 1,536 img/s (**native**)
-      - 2,246 img/s (**native**)
-    * - reinhard_fast
-      - 8,599 img/s (**native**)
-      - 2,832 img/s (**native**)
-    * - reinhard_mask
-      - 1,537 img/s (**native**)
-      - 2,246 img/s
-    * - reinhard_fast_mask
-      - 7,885 img/s (**native**)
-      - 2,719 img/s
-    * - vahadane_spams
-      - 0.7 img/s
-      - 2.2 img/s
-    * - vahadane_sklearn
-      - 0.9 img/s
-      - 1.0 img/s
-
+When stain normalizing on-the-fly, stain augmentation becomes available as a training augmentation technique. Read more about :ref:`stain augmentation <stain_augmentation>`.
 
 The normalizer interfaces can also be access directly through :class:`slideflow.norm.StainNormalizer`. See :py:mod:`slideflow.norm` for examples and more information.
 

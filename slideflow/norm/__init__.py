@@ -1,26 +1,4 @@
-"""H&E stain normalization and augmentation tools.
-
-Overview
---------
-
-The main normalizer interface, :class:`slideflow.norm.StainNormalizer`, offers
-efficient numpy implementations for the Macenko, Reinhard, Reinhard-Fast,
-Reinhard (masked), and Vahadane H&E stain normalization algorithms, as well
-as an HSV colorspace stain augmentation method. This normalizer can convert
-images to and from Tensors, numpy arrays, and raw JPEG/PNG images.
-
-In addition to these numpy implementations, PyTorch-native and Tensorflow-native
-implementations are also provided, which offer performance improvements
-and/or vectorized application. The native normalizers are found in
-``slideflow.norm.tensorflow`` and ``slideflow.norm.torch``, respectively.
-
-The Vahadane normalizer has two numpy implementations available: SPAMS
-(``vahadane_spams``) and sklearn (``vahadane_sklearn``). By default,
-the SPAMS implementation will be used if unspecified (``method='vahadane'``).
-
-Use :func:`slideflow.norm.autoselect` to get the fastest available normalizer
-for a given method and active backend (Tensorflow/PyTorch).
-"""
+"""H&E stain normalization and augmentation tools."""
 
 from __future__ import absolute_import
 
@@ -197,8 +175,10 @@ class StainNormalizer:
         """Fit the normalizer to a target image or dataset of images.
 
         Args:
-            arg1: (Dataset, np.ndarray, str): Target to fit. May be a numpy
-                image array (uint8), path to an image, or a Slideflow Dataset.
+            arg1: (Dataset, np.ndarray, str): Target to fit. May be a str,
+                numpy image array (uint8), path to an image, or a Slideflow
+                Dataset. If this is a string, will fit to the corresponding
+                preset fit (either 'v1', 'v2', or 'v3').
                 If a Dataset is provided, will average fit values across
                 all images in the dataset.
             batch_size (int, optional): Batch size during fitting, if fitting
@@ -615,7 +595,7 @@ class StainNormalizer:
 
         .. code-block:: python
 
-            with normalizer.image_context(slide):
+            with normalizer.context(slide):
                 normalizer.transform(target)
 
         If a slide (``sf.WSI``) is used for context, any existing QC filters

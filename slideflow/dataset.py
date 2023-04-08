@@ -2265,7 +2265,14 @@ class Dataset:
         return result
 
     def pt_files(self, path, warn_missing=True):
-        """Return list of *.pt files with slide names in this dataset."""
+        r"""Return list of *.pt files with slide names in this dataset.
+
+        Args:
+            path (str): Directory to search for *.pt files.
+            warn_missing (bool): Raise a warning if any slides in this dataset
+                do not have a *.pt file.
+
+        """
         slides = self.slides()
         bags = np.array([
             join(path, f) for f in os.listdir(path)
@@ -2305,7 +2312,7 @@ class Dataset:
             raise errors.TFRecordsError(
                 f"Could not find associated TFRecord for slide '{slide}'"
             )
-        return sf.io.read_tfrecord_by_location(tfr, loc, decode=decode)
+        return sf.io.get_tfrecord_by_location(tfr, loc, decode=decode)
 
     def remove_filter(self, **kwargs: Any) -> "Dataset":
         """Remove a specific filter from the active filters.
@@ -3189,7 +3196,11 @@ class Dataset:
                 if normalizer:
                     image_raw_data = normalizer.jpeg_to_jpeg(image_raw_data)
                 sample_tiles += [image_raw_data]
-            reports += [SlideReport(sample_tiles, tfr)]
+            reports += [SlideReport(sample_tiles,
+                                    tfr,
+                                    tile_px=self.tile_px,
+                                    tile_um=self.tile_um,
+                                    ignore_thumb_errors=True)]
 
         # Generate and save PDF
         log.info('Generating PDF (this may take some time)...')

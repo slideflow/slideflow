@@ -30,7 +30,7 @@ def plot_uncertainty(df, kind, threshold=None, title=None):
         from skmisc.loess import loess
     except ImportError:
         raise ImportError(
-            "Uncertainty plots with loess estimation require scikit-misc,
+            "Uncertainty plots with loess estimation require scikit-misc, "
             "which is not installed."
         )
 

@@ -225,7 +225,7 @@ class ModelParams(_base._ModelParams):
         'nasnet_large': torch_utils.nasnetalarge
     }
 
-    def __init__(self, loss: str = 'CrossEntropy', **kwargs) -> None:
+    def __init__(self, *, loss: str = 'CrossEntropy', **kwargs) -> None:
         self.OptDict = {
             'Adadelta': torch.optim.Adadelta,
             'Adagrad': torch.optim.Adagrad,
@@ -357,7 +357,9 @@ class ModelParams(_base._ModelParams):
                 call_kw.update(dict(image_size=self.tile_px))
             if (version.parse(torchvision.__version__) >= version.parse("0.13")
                and not self.model.startswith('timm_')):
-                call_kw.update(dict(weights=pretrain))  # type: ignore
+                # New Torchvision API
+                w = 'DEFAULT' if pretrain == 'imagenet' else pretrain
+                call_kw.update(dict(weights=w))  # type: ignore
             else:
                 call_kw.update(dict(pretrained=pretrain))  # type: ignore
             _model = model_fn(**call_kw)
@@ -433,7 +435,7 @@ class Trainer:
         """Sets base configuration, preparing model inputs and outputs.
 
         Args:
-            hp (:class:`slideflow.model.ModelParams`): ModelParams object.
+            hp (:class:`slideflow.ModelParams`): ModelParams object.
             outdir (str): Destination for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).

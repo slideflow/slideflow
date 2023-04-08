@@ -17,7 +17,7 @@ from rich.progress import track
 import slideflow as sf
 from slideflow import errors
 from slideflow.stats import SlideMap, get_centroid_index
-from slideflow.util import log, tfrecord2idx
+from slideflow.util import log
 from slideflow.stats import get_centroid_index
 
 if TYPE_CHECKING:
@@ -33,7 +33,7 @@ def process_tile_image(args, decode_kwargs):
         return None, None, None, None
     if isinstance(image, tuple):
         tfr, tfr_idx = image
-        image = tfrecord2idx.get_record_by_index(tfr, tfr_idx)['image_raw']
+        image = sf.io.get_tfrecord_by_index(tfr, tfr_idx)['image_raw']
     if image is None:
         return point_index, None, None, None
     if sf.model.is_tensorflow_tensor(image):
@@ -295,7 +295,7 @@ class Mosaic:
             if not tfr:
                 log.error(f"TFRecord {tfr} not found in slide_map")
                 return None
-            image = tfrecord2idx.get_record_by_index(tfr, tfr_idx)['image_raw']
+            image = sf.io.get_tfrecord_by_index(tfr, tfr_idx)['image_raw']
         else:
             image = self.images[index]
         return image

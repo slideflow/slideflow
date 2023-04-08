@@ -1083,7 +1083,7 @@ class Trainer:
         """Sets base configuration, preparing model inputs and outputs.
 
         Args:
-            hp (:class:`slideflow.model.ModelParams`): ModelParams object.
+            hp (:class:`slideflow.ModelParams`): ModelParams object.
             outdir (str): Path for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
@@ -2181,7 +2181,7 @@ class Features(BaseFeatureExtractor):
             config = sf.util.get_model_config(path)
             if 'img_format' in config:
                 self.img_format = config['img_format']
-            self.hp = sf.model.ModelParams()
+            self.hp = sf.ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
             if 'norm_fit' in config and config['norm_fit'] is not None:

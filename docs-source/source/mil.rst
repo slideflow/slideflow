@@ -95,7 +95,6 @@ This bag directory will then be used to train the MIL models.
 Training
 ********
 
-
 Model Configuration
 -------------------
 
@@ -103,18 +102,28 @@ To train an MIL model on exported features, first prepare the MIL configuration 
 
 The first argument to this function is the model architecture (which can be a name or a custom ``torch.nn.Module`` model), and the remaining arguments are used to configure the training process (including learning rate and epochs).
 
-By default, training is executed using `FastAI <https://docs.fast.ai/>`_ with `1cycle learning rate scheduling <https://arxiv.org/pdf/1803.09820.pdf%E5%92%8CSylvain>`_.
+By default, training is executed using `FastAI <https://docs.fast.ai/>`_ with `1cycle learning rate scheduling <https://arxiv.org/pdf/1803.09820.pdf%E5%92%8CSylvain>`_. Available models out-of-the-box include `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), and `transformer MIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``).
 
 .. code-block:: python
 
     import slideflow as sf
     from slideflow.mil import mil_config
 
-    config = mil_config('attention_mil', lr_max=1e-3)
+    config = mil_config('attention_mil', lr=1e-3)
+
+Custom MIL models can also be trained with this API. Import a custom MIL model as a PyTorch module, and pass this as the first argument to :func:`slideflow.mil.mil_config`.
+
+.. code-block:: python
+
+    import slideflow as sf
+    from slideflow.mil import mil_config
+    from my_module import CustomMIL
+
+    config = mil_config(CustomMIL, lr=1e-3)
 
 
-Legacy Trainer (CLAM)
----------------------
+Legacy CLAM Trainer
+-------------------
 
 In addition to the FastAI trainer, CLAM models can be trained using the `original <https://github.com/mahmoodlab/CLAM>`_ CLAM training loop. This trainer has been modified, cleaned, and included as a submodule in Slideflow. This legacy trainer can be used for CLAM models by setting ``trainer='clam'`` for an MIL configuration:
 
@@ -153,7 +162,20 @@ Next, prepare a :ref:`training and validation dataset <datasets_and_validation>`
             bags='/path/to/bag_directory'
         )
 
-Model training statistics, including validation performance (AUROC, AP) and predictions on the validation dataset, will be saved in an ``mil`` subfolder within the main project directory. For attention-based MIL models, heatmaps of the attention layers can be saved for each of the validation slides using the argument ``attention_heatmaps=True``.
+Model training statistics, including validation performance (AUROC, AP) and predictions on the validation dataset, will be saved in an ``mil`` subfolder within the main project directory.
+
+
+If you are training an attention-based MIL model (``attention_mil``, ``clam_sb``, ``clam_mb``), heatmaps of attention can be generated for each slide in the validation dataset by using the argument ``attention_heatmaps=True``. You can customize these heatmaps with ``interpolation`` and ``cmap`` arguments to control the heatmap interpolation and colormap, respectively.
+
+.. code-block:: python
+
+    # Generate attention heatmaps,
+    # using the 'magma' colormap and no interpolation.
+    P.train_mil(
+        attention_heatmaps=True,
+        cmap='magma',
+        interpolation=None
+    )
 
 
 Evaluation
@@ -183,6 +205,6 @@ To evaluate a saved MIL model on an external dataset, first extract features fro
         bags='/path/to/bag_directory',
     )
 
-As with training, attention heatmaps can be generated for attention-based MIL models with the argument ``attention_heatmaps=True``.
+As with training, attention heatmaps can be generated for attention-based MIL models with the argument ``attention_heatmaps=True``, and these can be customized using ``cmap`` and ``interpolation`` arguments.
 
 .. image:: att_heatmap.jpg

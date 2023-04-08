@@ -89,11 +89,11 @@ def build_trainer(
     labels: Dict[str, Any],
     **kwargs
 ) -> Trainer:
-    """From the given :class:`slideflow.model.ModelParams` object, returns
+    """From the given :class:`slideflow.ModelParams` object, returns
     the appropriate instance of :class:`slideflow.model.Trainer`.
 
     Args:
-        hp (:class:`slideflow.model.ModelParams`): ModelParams object.
+        hp (:class:`slideflow.ModelParams`): ModelParams object.
         outdir (str): Path for event logs and checkpoints.
         labels (dict): Dict mapping slide names to outcome labels (int or
             float format).

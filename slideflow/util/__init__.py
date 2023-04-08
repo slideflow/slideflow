@@ -31,7 +31,6 @@ import slideflow as sf
 from slideflow import errors
 from . import example_pb2, log_utils
 from .colors import *  # noqa F403,F401 - Here for compatibility
-from .tfrecord2idx import get_record_by_index, get_tfrecord_length
 from .smac_utils import (broad_search_space, shallow_search_space,
                          create_search_space)
 
@@ -907,10 +906,34 @@ def location_heatmap(
     tile_px: int,
     tile_um: Union[int, str],
     outdir: str,
+    *,
     interpolation: Optional[str] = 'bicubic',
     cmap: str = 'inferno',
-    norm: str = 'two_slope',
+    norm: Optional[str] = None,
 ) -> Dict[str, Dict[str, float]]:
+    """Generate a heatmap for a slide.
+
+    Args:
+        locations (np.ndarray): Array of shape ``(n_tiles, 2)`` containing x, y
+            coordinates for all image tiles.
+        values (np.ndarray): Array of shape ``(n_tiles,)`` containing heatmap
+            values for each tile.
+        slide (str): Path to corresponding slide.
+        tile_px (int): Tile pixel size.
+        tile_um (int, str): Tile micron or magnification size.
+        outdir (str): Directory in which to save heatmap.
+
+    Keyword args:
+        interpolation (str, optional): Interpolation strategy for smoothing
+            heatmap. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
+    """
 
     import matplotlib.pyplot as plt
     import matplotlib.colors as mcol

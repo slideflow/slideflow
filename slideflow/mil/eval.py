@@ -11,7 +11,7 @@ from slideflow import Dataset, log, errors
 from slideflow.util import path_to_name
 from slideflow.stats.metrics import ClassifierMetrics
 from ._params import (
-    TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
+    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
 
 # -----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ def eval_mil(
     dataset: Dataset,
     outcomes: Union[str, List[str]],
     bags: Union[str, List[str]],
-    config: Optional[TrainerConfig] = None,
+    config: Optional[_TrainerConfig] = None,
     *,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
@@ -42,15 +42,24 @@ def eval_mil(
         bags (str, list(str)): Path to bags, or list of bag file paths.
             Each bag should contain PyTorch array of features from all tiles in
             a slide, with the shape ``(n_tiles, n_features)``.
-        config (TrainerConfig): Configuration for building model.
-            If ``weights`` is a path to a model directory, will attempt to
-            read ``mil_params.json`` from this location and auto-load
-            saved configuration. Defaults to None.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for building model. If ``weights`` is a path to a
+            model directory, will attempt to read ``mil_params.json`` from this
+            location and load saved configuration. Defaults to None.
 
     Keyword arguments:
         outdir (str): Path at which to save results.
         attention_heatmaps (bool): Generate attention heatmaps for slides.
             Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
 
     """
     import torch
@@ -83,7 +92,7 @@ def eval_mil(
     # Handle the case where some bags are missing.
     if len(bags) != len(slides):
         slides = [path_to_name(b) for b in bags]
-    
+
     y_true = np.array([labels[s] for s in slides])
 
     # Detect feature size from bags
@@ -168,7 +177,7 @@ def eval_mil(
 
 def predict_from_model(
     model: Callable,
-    config: TrainerConfig,
+    config: _TrainerConfig,
     dataset: "sf.Dataset",
     outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]],
@@ -179,7 +188,8 @@ def predict_from_model(
 
     Args:
         model (torch.nn.Module): Model from which to generate predictions.
-        config (TrainerConfig): Configuration for the MIL model.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for the MIL model.
         dataset (sf.Dataset): Dataset from which to generation predictions.
         outcomes (str, list(str)): Outcomes.
         bags (str, list(str)): Path to bags, or list of bag file paths.
@@ -246,6 +256,18 @@ def generate_attention_heatmaps(
             a slide, with the shape ``(n_tiles, n_features)``.
         attention (list(np.ndarray)): Attention scores for each slide.
             Length of ``attention`` should equal the length of ``bags``.
+
+    Keyword args:
+        interpolation (str, optional): Interpolation strategy for smoothing
+            heatmap. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
+
 
     """
     assert len(bags) == len(attention)

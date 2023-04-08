@@ -508,7 +508,7 @@ class Studio(ImguiWindow):
             # --- Help --------------------------------------------------------
             if imgui.begin_menu('Help', True):
                 if imgui.menu_item('Get Started')[1]:
-                    webbrowser.open('https://slideflow.dev/slideflow_studio')
+                    webbrowser.open('https://slideflow.dev/studio')
                 if imgui.menu_item('Documentation')[1]:
                     webbrowser.open('https://slideflow.dev')
 

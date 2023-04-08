@@ -1,5 +1,6 @@
 import numpy as np
 import imgui
+import textwrap
 from PIL import Image
 from os.path import join, dirname, abspath
 
@@ -16,6 +17,7 @@ class ExtensionsWidget:
 
     def __init__(self, viz):
         self.viz                = viz
+        self._show_err_popup    = False
 
         self.stylegan = any([w.tag == 'stylegan' for w in viz.widgets])
         self.mosaic = any([w.tag == 'mosaic' for w in viz.widgets])
@@ -71,6 +73,27 @@ class ExtensionsWidget:
         imgui.end_child()
         return result
 
+    def show_extension_error(self, message):
+        self._show_err_popup = True
+        self._err_msg = message
+
+    def draw_error_popup(self):
+        """Show an error message that an extension failed to load."""
+        wrapped = textwrap.wrap(self._err_msg, width=45)
+        lh = imgui.get_text_line_height_with_spacing()
+        window_size = (self.viz.font_size * 18, lh * len(wrapped) + self.viz.font_size * 4)
+        self.viz.center_next_window(*window_size)
+        imgui.set_next_window_size(*window_size)
+        _, opened = imgui.begin('Error loading extension', closable=True, flags=imgui.WINDOW_NO_RESIZE)
+        if not opened:
+            self._show_err_popup = False
+
+        for line in wrapped:
+            imgui.text(line)
+
+        if self.viz.sidebar.full_button("OK", width=-1):
+            self._show_err_popup = False
+        imgui.end()
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -96,7 +119,11 @@ class ExtensionsWidget:
                 official=True
             )
             if _c1:
-                self.update_stylegan()
+                try:
+                    self.update_stylegan()
+                except Exception as e:
+                    self.show_extension_error(str(e))
+                    self.stylegan = False
             imgui.separator()
 
             _c3, self.segment = self.extension_checkbox(
@@ -106,4 +133,17 @@ class ExtensionsWidget:
                 official=True
             )
             if _c3:
-                self.update_segment()
+                try:
+                    self.update_segment()
+                except ImportError as e:
+                    self.show_extension_error(
+                        'Cellpose is not installed. Cellpose can be installed '
+                        'with "pip install cellpose"'
+                    )
+                    self.segment = False
+                except Exception as e:
+                    self.show_extension_error(str(e))
+                    self.segment = False
+
+        if self._show_err_popup:
+            self.draw_error_popup()

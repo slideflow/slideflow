@@ -1006,11 +1006,7 @@ class DatasetFeatures:
                 if not tfr_dir:
                     log.warning("TFRecord location not found for "
                                 f"slide {g['slide']}")
-                slide, image = sf.io.get_tfrecord_by_index(
-                    tfr_dir,
-                    g['index'],
-                    decode=False
-                )
+                slide, image = sf.io.get_tfrecord_by_index(tfr_dir, g['index'])
                 tile_filename = (f"{i}-tfrecord{g['slide']}-{g['index']}"
                                  + f"-{g['val']:.2f}.jpg")
                 image_string = open(join(outdir, str(f), tile_filename), 'wb')
