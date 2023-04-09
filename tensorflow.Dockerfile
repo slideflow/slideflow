@@ -25,9 +25,9 @@ RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.0/pixman_r
     ./pixman_repair.sh
 
 # Install slideflow & download scripts
-RUN pip3 install slideflow[cucim]==1.5.0 cupy-cuda11x tensorflow_datasets tensorflow_probability==0.17.* && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.0/test.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.0/run_project.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.0/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.0/qupath_roi_legacy.groovy && \
+RUN pip3 install slideflow[cucim]==2.0.0 cupy-cuda11x tensorflow_datasets tensorflow_probability==0.17.* && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.0/test.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.0/run_project.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.0/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.0/qupath_roi_legacy.groovy && \
     pip3 install spams --no-cache --force-reinstall --no-deps
