@@ -15,7 +15,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/jamesdolezal/slideflow",
     packages=setuptools.find_packages(),
-    scripts=['slideflow-studio', 'slideflow-studio.py'],
+    scripts=['scripts/slideflow-studio'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
