@@ -118,7 +118,7 @@ def read_tfrecord_length(tfrecord: str) -> int:
             infile.read(4)
             num_records += 1
         except Exception:
-            log.error(f"Failed to parse TFRecord at {tfrecord}")
+            sf.log.error(f"Failed to parse TFRecord at {tfrecord}")
             infile.close()
             return 0
     infile.close()
