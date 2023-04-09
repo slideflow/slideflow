@@ -1280,7 +1280,7 @@ class Dataset:
         n_converted = 0
         for source in self.sources:
             if self._roi_set(source):
-                xml_list += glob(join(self.sources[source]['roi'], "*.xml"))
+                xml_list = glob(join(self.sources[source]['roi'], "*.xml"))
                 if len(xml_list) == 0:
                     raise errors.DatasetError(
                         'No XML files found. Check dataset configuration.'

@@ -187,7 +187,7 @@ def process_group_predictions(df, pred_thresh, level):
 
     if any(c not in df.columns for c in ('y_true', 'y_pred', 'uncertainty')):
         raise ValueError('Missing columns. Expected y_true, y_pred, uncertainty.'
-                         f'Got: {grouped.columns}')
+                         f'Got: {df.columns}')
 
     # Calculate group-level predictions
     log.debug(f'Calculating {level}-level means from {len(df)} predictions')
