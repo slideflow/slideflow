@@ -43,12 +43,14 @@ Cell segmentation
 
 An alternative to extracting tiles in a grid across whole-slide images is extracting tiles at detected cell centroids. This is discussed separately in :ref:`cellseg`.
 
+.. _regions_of_interest:
+
 Regions of Interest
 *******************
 
 Tile extraction can be optionally restricted based on pathologist-annotated Regions of Interest (ROI), allowing you to enrich your dataset by only using relevant sections of a slide.
 
-We offer two methods for annotating ROIs - :ref:`Workbench <workbench>` and `QuPath <https://qupath.github.io/>`_. Please see the Workbench section for instructions on generating ROI annotations using the Slideflow interface.
+We offer two methods for annotating ROIs - :ref:`Slideflow Studio <studio>` and `QuPath <https://qupath.github.io/>`_. Please see the Slideflow Studio section for instructions on generating ROI annotations using the Slideflow interface.
 
 If you are using QuPath, annotate whole-slide images using the Polygon tool. Then, click **Automate** -> **Show script editor**. In the box that comes up, click **File** -> **Open** and load the ``qupath_roi.groovy`` script (QuPath 0.2 or greater) or ``qupath_roi_legacy.groovy`` (QuPath 0.1.x), scripts `available on GitHub <https://github.com/jamesdolezal/slideflow>`_. Click **Run** -> **Run** if using QuPath 0.2 or greater, or **Run** -> **Run for Project** if using QuPath 0.1.x. ROIs will be exported in CSV format in the QuPath project directory, in the subdirectory "ROI".
 
@@ -61,6 +63,11 @@ The ``roi_method`` argument to the ``extract_tiles()`` functions allow you to co
 - ``'outside'``: Extract from outside ROIs, and skip any slides missing ROIs.
 - ``'ignore'``: Ignore all ROIs, extracting from whole-slide images.
 
+By default, ROIs filter tiles based on the center point of the tile. Alternatively, you can filter tiles based on the proportion of the tile inside an ROI by using the argument ``roi_filter_method``. If ``roi_filter_method`` is set to a float (0-1), this value will be interpreted as a proportion threshold. If the proportion of a tile inside an ROI is greater than this number, the tile is included. For example, if ``roi_filter_method=0.7``, a tile that is 80% inside of an ROI will be included, but a tile that is only 60% inside of an ROI will be excluded.
+
+.. image:: roi_filter.jpg
+
+|
 
 Masking & Filtering
 *******************
@@ -193,18 +200,21 @@ Image tiles can undergo digital Hematoxylin and Eosin (H&E) stain normalization 
 
 Available stain normalization algorithms include:
 
-- **macenko**: M. Macenko et al., ‘A method for normalizing histology slides for quantitative analysis’, *IEEE International Symposium on Biomedical Imaging: From Nano to Macro*, 2009, pp. 1107–1110.
-- **vahadane**: A. Vahadane et al., ‘Structure-Preserving Color Normalization and Sparse Stain Separation for Histological Images’, *IEEE Transactions on Medical Imaging*, vol. 35, no. 8, pp. 1962–1971, Aug. 2016.
-- **reinhard**: E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between images’, *IEEE Computer Graphics and Applications*, vol. 21, no. 5, pp. 34–41, Sep. 2001.
-- **reinhard_fast**: A modification of the Reinhard algorithm with the brightness standardization step removed for computational efficiency.
-- **reinhard_mask**: Modified Reinhard algorithm, with background/whitespace removed during normalization.
-- **reinhard_fast_mask**: Modified Reinhard-Fast algorithm, with background/whitespace removed during normalization.
+- **macenko**: `Original Macenko paper <https://www.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf>`_.
+- **macenko_fast**: Modified Macenko algorithm with the brightness standardization step removed.
+- **reinhard**: `Original Reinhard paper <https://ieeexplore.ieee.org/document/946629>`_.
+- **reinhard_fast**: Modified Reinhard algorithm with the brightness standardization step removed.
+- **reinhard_mask**: Modified Reinhard algorithm, with background/whitespace removed.
+- **reinhard_fast_mask**: Modified Reinhard-Fast algorithm, with background/whitespace removed.
+- **vahadane**: `Original Vahadane paper <https://ieeexplore.ieee.org/document/7460968>`_.
 - **augment**: HSV colorspace augmentation.
+
+The Macenko and Reinhard stain normalizers are highly efficient, with native Tensorflow, PyTorch, and Numpy/OpenCV implementations, and support GPU acceleration (see :ref:`performance benchmarks <normalizer_performance>`).
 
 During tile extraction
 ----------------------
 
-Image tiles can be normalized during tile extraction by using the ``normalizer`` and ``normalizer_source`` arguments. ``normalizer`` is the name of the algorithm. The normalizer source - either a path to a reference image, or a ``str`` indicating one of our presets (e.g. ``'v1'`` or ``'v2'``) - can also be set with ``normalizer_source``.
+Image tiles can be normalized during tile extraction by using the ``normalizer`` and ``normalizer_source`` arguments. ``normalizer`` is the name of the algorithm. The normalizer source - either a path to a reference image, or a ``str`` indicating one of our presets (e.g. ``'v1'``, ``'v2'``, ``'v3'``) - can also be set with ``normalizer_source``.
 
 .. code-block:: python
 
@@ -214,6 +224,7 @@ Image tiles can be normalized during tile extraction by using the ``normalizer``
       normalizer='reinhard'
     )
 
+:ref:`Contextual stain normalization <contextual_normalization>` is supported when normalizing during tile extraction.
 
 On-the-fly
 ----------
@@ -229,40 +240,7 @@ Real-time normalization can be performed by setting the ``normalizer`` and/or ``
 
 If a model was trained using a normalizer, the normalizer algorithm and fit information will be stored in the model metadata file, ``params.json``, in the saved model folder. Any Slideflow function that uses this model will automatically process images using the same normalization strategy.
 
-Performance
------------
-
-Slideflow has Tensorflow, PyTorch, and Numpy/OpenCV implementations of stain normalization algorithms. Performance benchmarks for these implementations
-are given below:
-
-.. list-table:: **Performance Benchmarks** (256 x 256 images, Slideflow 1.2.3, benchmarked on 3960X and A100 40GB)
-    :header-rows: 1
-
-    * -
-      - Tensorflow backend
-      - PyTorch backend
-    * - macenko
-      - 1,295 img/s (**native**)
-      - 1,265 img/s (**native**)
-    * - reinhard
-      - 1,536 img/s (**native**)
-      - 2,246 img/s (**native**)
-    * - reinhard_fast
-      - 8,599 img/s (**native**)
-      - 2,832 img/s (**native**)
-    * - reinhard_mask
-      - 1,537 img/s (**native**)
-      - 2,246 img/s
-    * - reinhard_fast_mask
-      - 7,885 img/s (**native**)
-      - 2,719 img/s
-    * - vahadane_spams
-      - 0.7 img/s
-      - 2.2 img/s
-    * - vahadane_sklearn
-      - 0.9 img/s
-      - 1.0 img/s
-
+When stain normalizing on-the-fly, stain augmentation becomes available as a training augmentation technique. Read more about :ref:`stain augmentation <stain_augmentation>`.
 
 The normalizer interfaces can also be access directly through :class:`slideflow.norm.StainNormalizer`. See :py:mod:`slideflow.norm` for examples and more information.
 

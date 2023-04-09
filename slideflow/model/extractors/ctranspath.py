@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import math
 import torch.utils.checkpoint as checkpoint
+import slideflow as sf
 from typing import Optional
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
@@ -24,6 +25,7 @@ from timm.models.swin_transformer import window_partition, window_reverse
 from timm.models.vision_transformer import checkpoint_filter_fn
 
 from ..base import BaseFeatureExtractor
+from ._slide import features_from_slide_torch
 
 # -----------------------------------------------------------------------------
 
@@ -80,7 +82,7 @@ def _create_swin_transformer(variant, pretrained=False, **kwargs):
         **kwargs)
 
 
-def build_ctranspath():
+def _build_ctranspath_model():
     model_kwargs = dict(
         patch_size=4,
         window_size=7,
@@ -572,11 +574,14 @@ class CTransPathFeatures(BaseFeatureExtractor):
     GitHub: https://github.com/Xiyue-Wang/TransPath
     """
 
+    tag = 'ctranspath'
+
     def __init__(self, device='cuda', center_crop=False):
         super().__init__(backend='torch')
 
-        self.model = build_ctranspath()
-        self.model.head = torch.nn.Identity().to('cuda')
+        self.device = device
+        self.model = _build_ctranspath_model()
+        self.model.head = torch.nn.Identity().to(device)
 
         checkpoint_path = hf_hub_download(
             repo_id='jamesdolezal/CTransPath',
@@ -585,6 +590,7 @@ class CTransPathFeatures(BaseFeatureExtractor):
         td = torch.load(checkpoint_path)
         self.model.load_state_dict(td['model'], strict=True)
         self.model = self.model.to(device)
+        self.model.eval()
 
         # ---------------------------------------------------------------------
         self.num_features = 768
@@ -600,9 +606,16 @@ class CTransPathFeatures(BaseFeatureExtractor):
         self.preprocess_kwargs = dict(standardize=False)
         # ---------------------------------------------------------------------
 
-    def __call__(self, batch_images):
-        assert batch_images.dtype == torch.uint8
-        batch_images = self.transform(batch_images)
-        return self.model(batch_images)
-
+    def __call__(self, obj, **kwargs):
+        """Generate features for a batch of images or a WSI."""
+        if isinstance(obj, sf.WSI):
+            return features_from_slide_torch(
+                self,
+                obj,
+                device=self.device,
+                **kwargs
+            )
+        assert obj.dtype == torch.uint8
+        obj = self.transform(obj)
+        return self.model(obj)
 

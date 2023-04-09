@@ -2,7 +2,6 @@ import multiprocessing as mp
 import os
 import random
 import threading
-import signal
 import numpy as np
 import pandas as pd
 import torchvision
@@ -52,7 +51,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         num_replicas: int = 1,
         augment: Union[str, bool] = False,
         standardize: bool = True,
-        num_tiles: Optional[Dict[str, int]] = None,
+        num_tiles: Optional[int] = None,
         infinite: bool = True,
         prob_weights: Optional[Dict[str, float]] = None,
         normalizer: Optional["StainNormalizer"] = None,
@@ -94,7 +93,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
                 performs all and False performs None. Defaults to True.
             standardize (bool, optional): Standardize images to mean 0 and
                 variance of 1. Defaults to True.
-            num_tiles (dict, optional): Dict mapping tfrecord names to number
+            num_tiles (int, optional): Dict mapping tfrecord names to number
                 of total tiles. Defaults to None.
             infinite (bool, optional): Inifitely loop through dataset.
                 Defaults to True.
@@ -216,6 +215,9 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         return (self.use_labels
                 and any(x != 0 for x in self.label_shape))  # type: ignore
 
+    def __len__(self) -> Optional[int]:
+        return self.num_tiles
+
     def _parser(
         self,
         image: torch.Tensor,
@@ -307,8 +309,22 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
 class StyleGAN2Interleaver(InterleaveIterator):
     """Iterator to enable compatibility with StyleGAN2."""
 
-    def __init__(self, resolution=None, xflip=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        resolution=None,
+        xflip=None,
+        normalizer=None,
+        normalizer_source=None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        if normalizer:
+            self.normalizer = sf.norm.autoselect(
+                normalizer,
+                source=normalizer_source,
+                device='cpu',
+                backend='torch'
+            )
 
     def get_label(self, idx: Any) -> Any:
         """Returns a random label. Used for compatibility with StyleGAN2."""
@@ -447,6 +463,15 @@ def multi_slide_loader(
                            **kwargs)
                for slide in slides]
     return RandomSampler(loaders, splits_list, shard=None)
+
+
+def is_cwh(img: torch.Tensor) -> torch.Tensor:
+    return (len(img.shape) == 3 and img.shape[0] == 3
+            or (len(img.shape) == 4 and img.shape[1] == 3))
+
+
+def is_whc(img: torch.Tensor) -> torch.Tensor:
+    return img.shape[-1] == 3
 
 
 def cwh_to_whc(img: torch.Tensor) -> torch.Tensor:
@@ -643,7 +668,10 @@ def _decode_image(
         image = cwh_to_whc(image)
         # image = image.cpu()
     if normalizer:
-        image = normalizer.torch_to_torch(image)
+        image = normalizer.torch_to_torch(
+            image,
+            augment=(isinstance(augment, str) and 'n' in augment)
+        )
     if standardize:
         # Note: not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)
@@ -769,6 +797,7 @@ def interleave(
     roi_method: str = 'auto',
     pool: Optional[Any] = None,
     transform: Optional[Any] = None,
+    tfrecord_parser: Optional[Callable] = None,
 ):
 
     """Returns a generator that interleaves records from a collection of
@@ -853,8 +882,7 @@ def interleave(
         if pool is None and sf.slide_backend() == 'cucim':
             pool = mp.Pool(
                 8 if os.cpu_count is None else os.cpu_count(),
-                initializer=signal.signal,
-                initargs=(signal.SIGINT, signal.SIG_IGN)
+                initializer=sf.util.set_ignore_sigint
             )
         elif pool is None:
             pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
@@ -910,12 +938,15 @@ def interleave(
     else:
         # ---- Get the base TFRecord parser, based on the first tfrecord ------
         _, img_type = detect_tfrecord_format(paths[0])
-        base_parser = get_tfrecord_parser(
-            paths[0],
-            features_to_return,
-            decode_images=False,
-            to_numpy=False
-        )
+        if tfrecord_parser is not None:
+            base_parser = tfrecord_parser
+        else:
+            base_parser = get_tfrecord_parser(
+                paths[0],
+                features_to_return,
+                decode_images=False,
+                to_numpy=False
+            )
         # ---- Set up TFRecord indexes for sharding ---------------------------
         # Index files not created in this interleave function, as there may be
         # multiple instances of this function running across processes,
@@ -1118,6 +1149,10 @@ def interleave_dataloader(
         pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
         drop_last (bool, optional): Drop the last non-full batch.
             Defaults to False.
+
+    Returns:
+        torch.utils.data.DataLoader
+
     """
     if batch_size is None:
         replica_batch_size = None

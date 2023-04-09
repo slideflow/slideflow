@@ -77,6 +77,9 @@ class TestSlide(unittest.TestCase):
                 'efficientnet_v2s': 384,
                 'efficientnet_v2m': 480,
                 'efficientnet_v2l': 480,
+                'densenet_121': 224,
+                'densenet_169': 224,
+                'densenet_201': 224
             }
             if arch in px_dict:
                 return px_dict[arch]

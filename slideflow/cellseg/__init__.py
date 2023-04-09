@@ -10,7 +10,6 @@ import logging
 import slideflow as sf
 import zarr
 import torch
-import signal
 import shapely.affinity as sa
 from queue import Queue
 from numcodecs import Blosc
@@ -585,14 +584,12 @@ def segment_slide(
     ctx = mp.get_context('spawn')
     fork_pool = mp.Pool(
         batch_size,
-        initializer=signal.signal,
-        initargs=(signal.SIGINT, signal.SIG_IGN)
+        initializer=sf.util.set_ignore_sigint
     )
     if spawn_workers:
         spawn_pool = ctx.Pool(
             4,
-            initializer=signal.signal,
-            initargs=(signal.SIGINT, signal.SIG_IGN)
+            initializer=sf.util.set_ignore_sigint
         )
     else:
         spawn_pool = mp.dummy.Pool(4)

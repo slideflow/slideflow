@@ -92,6 +92,10 @@ class ModelParamsError(Exception):
     pass
 
 
+class InvalidFeatureExtractor(Exception):
+    pass
+
+
 # --- TFRecords errors --------------------------------------------------------
 class TFRecordsError(Exception):
     pass
@@ -116,6 +120,11 @@ class SlideLoadError(SlideError):
 
 class SlideNotFoundError(SlideError):
     pass
+
+
+class SlideMissingMPPError(SlideLoadError):
+    pass
+
 
 
 class ROIError(SlideError):

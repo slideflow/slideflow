@@ -123,6 +123,9 @@ html_sidebars = {
     ]
 }
 
+# Remove the .html from links
+#html_link_suffix = ''
+
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.

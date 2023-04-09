@@ -6,10 +6,10 @@ import os
 import struct
 import sys
 import numpy as np
+import slideflow as sf
 from typing import Optional, Dict
 from os.path import dirname, join, exists
-from slideflow import errors, log
-from slideflow.util import path_to_name, example_pb2, extract_feature_dict
+from slideflow import errors
 
 TYPENAME_MAPPING = {
     "byte": "bytes_list",
@@ -59,7 +59,7 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
 
 
 def find_index(tfrecord: str) -> Optional[str]:
-    name = path_to_name(tfrecord)
+    name = sf.util.path_to_name(tfrecord)
     if exists(join(dirname(tfrecord), name+'.index')):
         return join(dirname(tfrecord), name+'.index')
     elif exists(join(dirname(tfrecord), name+'.index.npz')):
@@ -80,7 +80,52 @@ def load_index(tfrecord: str) -> Optional[np.ndarray]:
         return np.loadtxt(index_path, dtype=np.int64)
 
 
-def get_record_by_index(
+def get_tfrecord_length(tfrecord: str) -> int:
+    """Return the number of records in a TFRecord file.
+
+    Uses an index file if available, otherwise iterates through
+    the file to find the total record length.
+
+    Args:
+        tfrecord (str): Path to TFRecord.
+
+    Returns:
+        int: Number of records.
+
+    """
+    index_path = find_index(tfrecord)
+    if index_path is None:
+        return read_tfrecord_length(tfrecord)
+    if os.stat(index_path).st_size == 0:
+        return 0
+    else:
+        return load_index(tfrecord).shape[0]
+
+
+def read_tfrecord_length(tfrecord: str) -> int:
+    """Returns number of records stored in the given tfrecord file."""
+    infile = open(tfrecord, "rb")
+    num_records = 0
+    while True:
+        infile.tell()
+        try:
+            byte_len = infile.read(8)
+            if len(byte_len) == 0:
+                break
+            infile.read(4)
+            proto_len = struct.unpack("q", byte_len)[0]
+            infile.read(proto_len)
+            infile.read(4)
+            num_records += 1
+        except Exception:
+            sf.log.error(f"Failed to parse TFRecord at {tfrecord}")
+            infile.close()
+            return 0
+    infile.close()
+    return num_records
+
+
+def get_tfrecord_by_index(
     tfrecord: str,
     index: int,
     compression_type: Optional[str] = None,
@@ -180,9 +225,9 @@ def get_record_by_index(
 def process_record(record, description=None):
     if description is None:
         description = FEATURE_DESCRIPTION
-    example = example_pb2.Example()
+    example = sf.util.example_pb2.Example()
     example.ParseFromString(record)
-    return extract_feature_dict(
+    return sf.util.extract_feature_dict(
         example.features,
         description,
         TYPENAME_MAPPING)

@@ -8,14 +8,15 @@ import json
 import logging
 import os
 import shutil
-import signal
 import numpy as np
 import multiprocessing as mp
 import tensorflow as tf
 from packaging import version
 from os.path import dirname, exists, join
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Callable
+)
 from tensorflow.keras import applications as kapps
 
 import slideflow as sf
@@ -74,9 +75,11 @@ class ModelParams(_base._ModelParams):
         'inception_resnet_v2': kapps.InceptionResNetV2,
         'mobilenet': kapps.MobileNet,
         'mobilenet_v2': kapps.MobileNetV2,
+        'densenet_121': kapps.DenseNet121,
+        'densenet_169': kapps.DenseNet169,
+        'densenet_201': kapps.DenseNet201,
         # 'ResNeXt50': kapps.ResNeXt50,
         # 'ResNeXt101': kapps.ResNeXt101,
-        # 'DenseNet': kapps.DenseNet,
         # 'NASNet': kapps.NASNet
     }
     OptDict = {
@@ -268,7 +271,7 @@ class ModelParams(_base._ModelParams):
     def _build_base(
         self,
         pretrain: Optional[str] = 'imagenet',
-        load_method: str = 'full'
+        load_method: str = 'weights'
     ) -> tf.keras.Model:
         """"Builds the base image model, from a Keras model core, with the
         appropriate input tensors and identity layers.
@@ -279,7 +282,7 @@ class ModelParams(_base._ModelParams):
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
+                ``params.json`` configuration file, build the model architecture,
                 and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
@@ -293,7 +296,7 @@ class ModelParams(_base._ModelParams):
         if pretrain:
             log.info(f'Using pretraining from [magenta]{pretrain}')
         if pretrain and pretrain != 'imagenet':
-            pretrained_model = load(pretrain, method=load_method)
+            pretrained_model = load(pretrain, method=load_method, training=True)
             try:
                 # This is the tile_image input
                 pretrained_input = pretrained_model.get_layer(name='tile_image').input
@@ -343,7 +346,7 @@ class ModelParams(_base._ModelParams):
         activation: str = 'softmax',
         pretrain: str = 'imagenet',
         checkpoint: Optional[str] = None,
-        load_method: str = 'full'
+        load_method: str = 'weights'
     ) -> tf.keras.Model:
         """Assembles categorical or linear model, using pretraining (imagenet)
         or the base layers of a supplied model.
@@ -363,7 +366,7 @@ class ModelParams(_base._ModelParams):
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
+                ``params.json`` configuration file, build the model architecture,
                 and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
@@ -448,7 +451,8 @@ class ModelParams(_base._ModelParams):
         num_slide_features: int = 1,
         pretrain: Optional[str] = None,
         checkpoint: Optional[str] = None,
-        load_method: str = 'full'
+        load_method: str = 'weights',
+        training: bool = True
     ) -> tf.keras.Model:
         """Assembles a Cox Proportional Hazards (CPH) model, using pretraining
         (imagenet) or the base layers of a supplied model.
@@ -468,7 +472,7 @@ class ModelParams(_base._ModelParams):
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
+                ``params.json`` configuration file, build the model architecture,
                 and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
@@ -478,8 +482,9 @@ class ModelParams(_base._ModelParams):
         tile_image_model, model_inputs = self._build_base(pretrain, load_method)
 
         # Add slide feature input tensors, if there are more slide features
-        #    than just the event input tensor for CPH models
-        event_input_tensor = tf.keras.Input(shape=(1), name='event_input')
+        # than just the event input tensor for CPH models
+        if training:
+            event_input_tensor = tf.keras.Input(shape=(1), name='event_input')
         if not (num_slide_features == 1):
             slide_feature_input_tensor = tf.keras.Input(
                 shape=(num_slide_features - 1),
@@ -490,17 +495,22 @@ class ModelParams(_base._ModelParams):
             # Add images
             log.info('Generating model with only slide-level input - no images')
             merged_model = slide_feature_input_tensor
-            model_inputs += [slide_feature_input_tensor, event_input_tensor]
+            model_inputs += [slide_feature_input_tensor]
+            if training:
+                model_inputs += [event_input_tensor]
         elif num_slide_features and num_slide_features > 1:
             # Add slide feature input tensors, if there are more slide features
-            #    than just the event input tensor for CPH models
+            # than just the event input tensor for CPH models
             merged_model = tf.keras.layers.Concatenate(name='input_merge')(
                 [slide_feature_input_tensor, tile_image_model.output]
             )
-            model_inputs += [slide_feature_input_tensor, event_input_tensor]
+            model_inputs += [slide_feature_input_tensor]
+            if training:
+                model_inputs += [event_input_tensor]
         else:
             merged_model = tile_image_model.output
-            model_inputs += [event_input_tensor]
+            if training:
+                model_inputs += [event_input_tensor]
 
         # Add hidden layers
         regularizer = self._get_dense_regularizer()
@@ -534,10 +544,11 @@ class ModelParams(_base._ModelParams):
                 dtype='float32',
                 name='output'
             )(final_dense_layer)]
-        outputs[0] = tf.keras.layers.Concatenate(
-            name='output_merge_CPH',
-            dtype='float32'
-        )([outputs[0], event_input_tensor])
+        if training:
+            outputs[0] = tf.keras.layers.Concatenate(
+                name='output_merge_CPH',
+                dtype='float32'
+            )([outputs[0], event_input_tensor])
 
         # Assemble final model
         model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
@@ -577,7 +588,7 @@ class ModelParams(_base._ModelParams):
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
+                ``params.json`` configuration file, build the model architecture,
                 and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
@@ -1065,14 +1076,14 @@ class Trainer:
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
         neptune_workspace: Optional[str] = None,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
     ) -> None:
 
         """Sets base configuration, preparing model inputs and outputs.
 
         Args:
-            hp (:class:`slideflow.model.ModelParams`): ModelParams object.
+            hp (:class:`slideflow.ModelParams`): ModelParams object.
             outdir (str): Path for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
@@ -1094,7 +1105,7 @@ class Trainer:
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
+                ``params.json`` configuration file, build the model architecture,
                 and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
@@ -1357,11 +1368,12 @@ class Trainer:
                     self.img_format,
                     dataset.img_format))
 
-    def load(self, model: str) -> tf.keras.Model:
+    def load(self, model: str, **kwargs) -> tf.keras.Model:
         self.model = load(
             model,
             method=self.load_method,
-            custom_objects=self.custom_objects
+            custom_objects=self.custom_objects,
+            **kwargs
         )
 
     def predict(
@@ -1708,8 +1720,7 @@ class Trainer:
         if from_wsi:
             pool = mp.Pool(
                 8 if os.cpu_count is None else os.cpu_count(),
-                initializer=signal.signal,
-                initargs=(signal.SIGINT, signal.SIG_IGN)
+                initializer=sf.util.set_ignore_sigint
             )
         else:
             pool = None
@@ -1757,7 +1768,7 @@ class Trainer:
         with strategy.scope() if strategy else no_scope():
             # Build model from ModelParams
             if resume_training:
-                self.model = load(resume_training, method='full')
+                self.model = load(resume_training, method='weights', training=True)
             else:
                 model = self.hp.build_model(
                     labels=self.labels,
@@ -2022,7 +2033,7 @@ class CPHTrainer(LinearTrainer):
                     f'{num_in_feature_table}'
                 )
 
-    def load(self, model: str) -> tf.keras.Model:
+    def load(self, model: str, **kwargs) -> tf.keras.Model:
         if self.load_method == 'full':
             custom_objects = {
                 'negative_log_likelihood': tf_utils.negative_log_likelihood,
@@ -2037,7 +2048,7 @@ class CPHTrainer(LinearTrainer):
                 metrics=tf_utils.concordance_index
             )
         else:
-            self.model = load(model, method=self.load_method)
+            self.model = load(model, method=self.load_method, **kwargs)
 
     def _compile_model(self) -> None:
         self.model.compile(optimizer=self.hp.get_opt(),
@@ -2135,7 +2146,7 @@ class Features(BaseFeatureExtractor):
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_preds: bool = False,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         pooling: Optional[Any] = None
     ) -> None:
         """Creates a features interface from a saved slideflow model which
@@ -2154,7 +2165,7 @@ class Features(BaseFeatureExtractor):
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
+                ``params.json`` configuration file, build the model architecture,
                 and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
@@ -2170,7 +2181,7 @@ class Features(BaseFeatureExtractor):
             config = sf.util.get_model_config(path)
             if 'img_format' in config:
                 self.img_format = config['img_format']
-            self.hp = sf.model.ModelParams()
+            self.hp = sf.ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
             if 'norm_fit' in config and config['norm_fit'] is not None:
@@ -2244,6 +2255,7 @@ class Features(BaseFeatureExtractor):
         grid: Optional[np.ndarray] = None,
         shuffle: bool = False,
         show_progress: bool = True,
+        callback: Optional[Callable] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -2268,7 +2280,7 @@ class Features(BaseFeatureExtractor):
                     slide.grid.shape[0],
                     total_out),
                 dtype=dtype)
-            features_grid *= -1
+            features_grid *= -99
         else:
             assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
             features_grid = grid
@@ -2359,12 +2371,29 @@ class Features(BaseFeatureExtractor):
             if not isinstance(model_out, (list, tuple)):
                 model_out = [model_out]
 
-            _act_batch = np.concatenate([m.numpy() for m in model_out], axis=-1)
+            # Flatten the output, relevant when
+            # there are multiple outcomes / classifier heads
+            _act_batch = []
+            for m in model_out:
+                if isinstance(m, list):
+                    _act_batch += [_m.numpy() for _m in m]
+                else:
+                    _act_batch.append(m.numpy())
+            _act_batch = np.concatenate(_act_batch, axis=-1)
+
             _loc_batch = batch_loc.numpy()
+            grid_idx_updated = []
             for i, act in enumerate(_act_batch):
                 xi = _loc_batch[i][0]
                 yi = _loc_batch[i][1]
+                if callback:
+                    grid_idx_updated.append((yi, xi))
                 features_grid[yi][xi] = act
+
+            # Trigger a callback signifying that the grid has been updated.
+            # Useful for progress tracking.
+            if callback:
+                callback(grid_idx_updated)
 
         return features_grid
 
@@ -2446,10 +2475,10 @@ class Features(BaseFeatureExtractor):
         )
         self.num_features = sum([outputs[o].shape[1] for o in outputs])
         self.num_outputs = len(outputs_list)
-        if isinstance(self._model.output, list):
-            log.warning("Multi-categorical outcomes not yet supported "
+        if isinstance(self._model.output, list) and include_preds:
+            log.warning("Multi-categorical outcomes is experimental "
                         "for this interface.")
-            self.num_classes = 0
+            self.num_classes = sum(o.shape[1] for o in self._model.output)
         elif include_preds:
             self.num_classes = self._model.output.shape[1]
         else:
@@ -2465,10 +2494,9 @@ class UncertaintyInterface(Features):
         self,
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = None,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         pooling: Optional[Any] = None
     ) -> None:
-        log.debug('Setting up UncertaintyInterface')
         super().__init__(
             path,
             layers=layers,
@@ -2536,16 +2564,18 @@ class UncertaintyInterface(Features):
 
 def load(
     path: str,
-    method: str = 'full',
-    custom_objects: Optional[Dict[str, Any]] = None,):
-    """Load Tensorflow model from location.
+    method: str = 'weights',
+    custom_objects: Optional[Dict[str, Any]] = None,
+    training: bool = False
+) -> tf.keras.models.Model:
+    """Load a model trained with Slideflow.
 
     Args:
-        path (str): Path to saved Tensorflow model.
+        path (str): Path to saved model. Must be a model trained in Slideflow.
         method (str): Method to use when loading the model; either 'full' or
             'weights'. If 'full', will load the saved model with
             ``tf.keras.models.load_model()``. If 'weights', will read the
-            ``params.json``configuration file, build the model architecture,
+            ``params.json`` configuration file, build the model architecture,
             and then load weights from the given model with
             ``Model.load_weights()``. Loading with 'full' may improve
             compatibility across Slideflow versions. Loading with 'weights'
@@ -2565,17 +2595,22 @@ def load(
     else:
         config = sf.util.get_model_config(path)
         hp = ModelParams.from_dict(config['hp'])
-        if len(config['outcomes']) == 1:
+        if len(config['outcomes']) == 1 or config['model_type'] == 'linear':
             num_classes = len(list(config['outcome_labels'].keys()))
         else:
             num_classes = {
                 outcome: len(list(config['outcome_labels'][outcome].keys()))
                 for outcome in config['outcomes']
             }  # type: ignore
+        if config['model_type'] == 'cph':
+            cph_kw = dict(training=training)
+        else:
+            cph_kw = dict()
         model = hp.build_model(  # type: ignore
             num_classes=num_classes,
             num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes']),
-            pretrain=None
+            pretrain=None,
+            **cph_kw
         )
         model.load_weights(join(path, 'variables/variables'))
         return model

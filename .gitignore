@@ -1,5 +1,4 @@
 docs/build/*
-biscuit
 *.pyc
 *.egg-info
 *.ipynb_checkpoints

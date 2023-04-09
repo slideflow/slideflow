@@ -28,11 +28,12 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    evaluation
    posthoc
    uq
-   clam
+   mil
    ssl
    stylegan
+   saliency
    custom_loops
-   workbench_tools
+   studio
    troubleshooting
 
 .. toctree::
@@ -42,16 +43,19 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    slideflow
    project
    dataset
-   heatmap
    dataset_features
-   slidemap
+   heatmap
+   model_params
    mosaic
+   slidemap
+   biscuit
    slideflow_cellseg
    io
    io_tensorflow
    io_torch
    gan
    grad
+   mil_module
    model
    model_tensorflow
    model_torch
@@ -61,7 +65,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    slide_qc
    stats
    util
-   workbench
+   studio_module
 
 .. toctree::
    :maxdepth: 1

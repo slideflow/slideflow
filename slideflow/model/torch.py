@@ -4,9 +4,7 @@ import inspect
 import json
 import os
 import types
-import signal
 import numpy as np
-import pretrainedmodels
 import multiprocessing as mp
 import torch
 import torchvision
@@ -223,11 +221,11 @@ class ModelParams(_base._ModelParams):
         'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
         'wide_resnet50_2': torchvision.models.wide_resnet50_2,
         'mnasnet': torchvision.models.mnasnet1_0,
-        'xception': pretrainedmodels.xception,
-        'nasnet_large': pretrainedmodels.nasnetalarge
+        'xception': torch_utils.xception,
+        'nasnet_large': torch_utils.nasnetalarge
     }
 
-    def __init__(self, loss: str = 'CrossEntropy', **kwargs) -> None:
+    def __init__(self, *, loss: str = 'CrossEntropy', **kwargs) -> None:
         self.OptDict = {
             'Adadelta': torch.optim.Adadelta,
             'Adagrad': torch.optim.Adagrad,
@@ -330,7 +328,8 @@ class ModelParams(_base._ModelParams):
             num_classes = {'out-0': num_classes}
 
         # Prepare custom model pretraining
-        log.info(f"Using pretraining: [green]{pretrain}")
+        if pretrain:
+            log.info(f"Using pretraining: [green]{pretrain}")
         if (isinstance(pretrain, str)
            and sf.util.path_to_ext(pretrain).lower() == 'zip'):
            _pretrained = pretrain
@@ -358,7 +357,9 @@ class ModelParams(_base._ModelParams):
                 call_kw.update(dict(image_size=self.tile_px))
             if (version.parse(torchvision.__version__) >= version.parse("0.13")
                and not self.model.startswith('timm_')):
-                call_kw.update(dict(weights=pretrain))  # type: ignore
+                # New Torchvision API
+                w = 'DEFAULT' if pretrain == 'imagenet' else pretrain
+                call_kw.update(dict(weights=w))  # type: ignore
             else:
                 call_kw.update(dict(pretrained=pretrain))  # type: ignore
             _model = model_fn(**call_kw)
@@ -428,13 +429,13 @@ class Trainer:
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
         neptune_workspace: Optional[str] = None,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
         Args:
-            hp (:class:`slideflow.model.ModelParams`): ModelParams object.
+            hp (:class:`slideflow.ModelParams`): ModelParams object.
             outdir (str): Destination for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
@@ -717,7 +718,7 @@ class Trainer:
     def _detect_patients(self, *args):
         self.patients = dict()
         for dataset in args:
-            if args is None:
+            if dataset is None:
                 continue
             dataset_patients = dataset.patients()
             if not dataset_patients:
@@ -790,6 +791,7 @@ class Trainer:
             update_loss=update_loss,
             num_slide_features=self.num_slide_features,
             slide_input=self.slide_input,
+            normalizer=(self.normalizer if self._has_gpu_normalizer() else None),
         )
         # Calculate patient/slide/tile metrics (AUC, R-squared, C-index, etc)
         metrics, acc, loss = sf.stats.metrics_from_dataset(
@@ -846,6 +848,10 @@ class Trainer:
               and self.config['norm_fit'] is not None):
             log.debug("Detecting normalizer fit from model config")
             self.normalizer.set_fit(**self.config['norm_fit'])
+
+    def _has_gpu_normalizer(self) -> bool:
+        return (isinstance(self.normalizer, sf.norm.torch.TorchStainNormalizer)
+                and self.normalizer.device != "cpu")
 
     def _labels_to_device(
         self,
@@ -1049,6 +1055,11 @@ class Trainer:
                 _mp = self.mixed_precision
                 _ns = no_scope()
                 with torch.cuda.amp.autocast() if _mp else _ns:  # type: ignore
+
+                    # GPU normalization, if specified.
+                    if self._has_gpu_normalizer():
+                        val_img = self.normalizer.preprocess(val_img)
+
                     if self.num_slide_features:
                         _slide_in = [self.slide_input[s] for s in slides]
                         inp = (val_img, Tensor(_slide_in).to(self.device))
@@ -1193,7 +1204,6 @@ class Trainer:
             num_replicas=1,
             labels=(self.labels if incl_labels else None),
             chunk_size=8,
-            normalizer=self.normalizer,
             pin_memory=True,
             num_workers=4 if not from_wsi else 0,
             onehot=False,
@@ -1202,6 +1212,12 @@ class Trainer:
             from_wsi=from_wsi,
             **kwargs
         )
+        # Use GPU stain normalization for PyTorch normalizers, if supported
+        if self._has_gpu_normalizer():
+            log.info("Using GPU for stain normalization")
+            interleave_args.standardize = False
+        else:
+            interleave_args.normalizer = self.normalizer
 
         if train_dts is not None:
             self.dataloaders = {
@@ -1256,6 +1272,15 @@ class Trainer:
             _mp = self.mixed_precision
             _ns = no_scope()
             with torch.cuda.amp.autocast() if _mp else _ns:  # type: ignore
+
+                # GPU normalization, if specified.
+                if self._has_gpu_normalizer():
+                    images = self.normalizer.preprocess(
+                        images,
+                        augment=(isinstance(self.hp.augment, str)
+                                 and 'n' in self.hp.augment)
+                    )
+
                 # Slide-level features
                 if self.num_slide_features:
                     _slide_in = [self.slide_input[s] for s in slides]
@@ -1363,7 +1388,7 @@ class Trainer:
                     self.img_format,
                     dataset.img_format))
 
-    def load(self, model: str) -> None:
+    def load(self, model: str, training=True) -> None:
         """Loads a state dict at the given model location. Requires that the
         Trainer's hyperparameters (Trainer.hp)
         match the hyperparameters of the model to be loaded."""
@@ -1443,8 +1468,7 @@ class Trainer:
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
                 os.cpu_count() if os.cpu_count() else 8,
-                initializer=signal.signal,
-                initargs=(signal.SIGINT, signal.SIG_IGN)
+                initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
             pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
@@ -1464,7 +1488,8 @@ class Trainer:
         log.info('Generating predictions...')
         torch_args = types.SimpleNamespace(
             num_slide_features=self.num_slide_features,
-            slide_input=self.slide_input
+            slide_input=self.slide_input,
+            normalizer=(self.normalizer if self._has_gpu_normalizer() else None),
         )
         dfs = sf.stats.predict_dataset(
             model=self.model,
@@ -1542,8 +1567,7 @@ class Trainer:
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
                 os.cpu_count() if os.cpu_count() else 8,
-                initializer=signal.signal,
-                initargs=(signal.SIGINT, signal.SIG_IGN)
+                initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
             pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
@@ -1698,8 +1722,7 @@ class Trainer:
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
                 os.cpu_count() if os.cpu_count() else 8,
-                initializer=signal.signal,
-                initargs=(signal.SIGINT, signal.SIG_IGN)
+                initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
             pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
@@ -1864,6 +1887,7 @@ class CPHTrainer(Trainer):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
 
+# -----------------------------------------------------------------------------
 
 class Features(BaseFeatureExtractor):
     """Interface for obtaining predictions and features from intermediate layer
@@ -1910,12 +1934,13 @@ class Features(BaseFeatureExtractor):
         self,
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
+        *,
         include_preds: bool = False,
         mixed_precision: bool = True,
         device: Optional[torch.device] = None,
         apply_softmax: Optional[bool] = None,
         pooling: Optional[Any] = None,
-        load_method: str = 'full',
+        load_method: str = 'weights',
     ):
         """Creates an activations interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -1956,6 +1981,7 @@ class Features(BaseFeatureExtractor):
         # Hook for storing layer activations during model inference
         self.activation = {}  # type: Dict[Any, Tensor]
         self.device = device if device is not None else torch.device('cuda')
+        self._model = None
 
         if path is not None:
             config = sf.util.get_model_config(path)
@@ -1988,6 +2014,7 @@ class Features(BaseFeatureExtractor):
         model: torch.nn.Module,
         tile_px: int,
         layers: Optional[Union[str, List[str]]] = 'postconv',
+        *,
         include_preds: bool = False,
         mixed_precision: bool = True,
         wsi_normalizer: Optional["StainNormalizer"] = None,
@@ -2020,7 +2047,17 @@ class Features(BaseFeatureExtractor):
                 callable PyTorch function.
         """
         device = next(model.parameters()).device
-        obj = cls(None, layers, include_preds, mixed_precision, device)
+        if include_preds is not None:
+            kw = dict(include_preds=include_preds)
+        else:
+            kw = dict()
+        obj = cls(
+            None,
+            layers,
+            mixed_precision=mixed_precision,
+            device=device,
+            **kw
+        )
         if isinstance(model, torch.nn.Module):
             obj._model = model
             obj._model.eval()
@@ -2048,7 +2085,7 @@ class Features(BaseFeatureExtractor):
         if isinstance(inp, sf.slide.WSI):
             return self._predict_slide(inp, **kwargs)
         else:
-            return self._predict(inp)
+            return self._predict(inp, **kwargs)
 
     def _predict_slide(
         self,
@@ -2060,6 +2097,7 @@ class Features(BaseFeatureExtractor):
         grid: Optional[np.ndarray] = None,
         shuffle: bool = False,
         show_progress: bool = True,
+        callback: Optional[Callable] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -2077,14 +2115,14 @@ class Features(BaseFeatureExtractor):
         if img_format == 'png':  # PNG is lossless; this is equivalent but faster
             log.debug("Using numpy image format instead of PNG")
             img_format = 'numpy'
-        total_out = self.num_features + self.num_classes
+        total_out = self.num_features + self.num_classes + self.num_uncertainty
         if grid is None:
             features_grid = np.ones((
                     slide.grid.shape[1],
                     slide.grid.shape[0],
                     total_out),
                 dtype=dtype)
-            features_grid *= -1
+            features_grid *= -99
         else:
             assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
             features_grid = grid
@@ -2128,24 +2166,42 @@ class Features(BaseFeatureExtractor):
 
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
             model_out = sf.util.as_list(self._predict(batch_images))
-            batch_act = np.concatenate([
-                m.cpu().detach().numpy()
-                for m in model_out
-            ])
-            for i, act in enumerate(batch_act):
+
+            # Flatten the output, relevant when
+            # there are multiple outcomes / classifier heads
+            _act_batch = []
+            for m in model_out:
+                if isinstance(m, (list, tuple)):
+                    _act_batch += [_m.cpu().detach().numpy() for _m in m]
+                else:
+                    _act_batch.append(m.cpu().detach().numpy())
+            _act_batch = np.concatenate(_act_batch, axis=-1)
+
+            grid_idx_updated = []
+            for i, act in enumerate(_act_batch):
                 xi = batch_loc[i][0]
                 yi = batch_loc[i][1]
+                if callback:
+                    grid_idx_updated.append([yi, xi])
                 features_grid[yi][xi] = act
+
+            # Trigger a callback signifying that the grid has been updated.
+            # Useful for progress tracking.
+            if callback:
+                callback(grid_idx_updated)
 
         return features_grid
 
-    def _predict(self, inp: Tensor) -> List[Tensor]:
+    def _predict(self, inp: Tensor, no_grad: bool = True) -> List[Tensor]:
         """Return activations for a single batch of images."""
+        assert torch.is_floating_point(inp), "Input tensor must be float"
         _mp = self.mixed_precision
         with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
-            with torch.no_grad():
+            with torch.no_grad() if no_grad else no_scope():
                 logits = self._model(inp.to(self.device))
-                if self.apply_softmax:
+                if isinstance(logits, (tuple, list)) and self.apply_softmax:
+                    logits = [softmax(l, dim=1) for l in logits]
+                elif self.apply_softmax:
                     logits = softmax(logits, dim=1)
 
         layer_activations = []
@@ -2253,7 +2309,17 @@ class Features(BaseFeatureExtractor):
         # Calculate output and layer sizes
         rand_data = torch.rand(1, 3, self.tile_px, self.tile_px)
         output = self._model(rand_data.to(self.device))
-        self.num_classes = output.shape[1] if self.include_preds else 0
+        if isinstance(output, (tuple, list)) and self.include_preds:
+            log.warning("Multi-categorical outcomes is experimental "
+                        "for this interface.")
+            self.num_classes = sum(o.shape[1] for o in output)
+            self.num_outputs = len(output)
+        elif self.include_preds:
+            self.num_classes = output.shape[1]
+            self.num_outputs = 1
+        else:
+            self.num_classes = 0
+            self.num_outputs = 0
         self.num_features = sum([f.shape[1] for f in self.activation.values()])
 
         if self.include_preds:
@@ -2263,25 +2329,115 @@ class Features(BaseFeatureExtractor):
 
 class UncertaintyInterface(Features):
 
-    """Placeholder for uncertainty interface, which is not yet implemented for
-    the PyTorch backend. Implementation is planned for a future update."""
+    def __init__(
+        self,
+        path: Optional[str],
+        layers: Optional[Union[str, List[str]]] = 'postconv',
+        *,
+        mixed_precision: bool = True,
+        device: Optional[torch.device] = None,
+        apply_softmax: Optional[bool] = None,
+        pooling: Optional[Any] = None,
+        load_method: str = 'weights',
+    ) -> None:
+        super().__init__(
+            path,
+            layers=layers,
+            mixed_precision=mixed_precision,
+            device=device,
+            apply_softmax=apply_softmax,
+            pooling=pooling,
+            load_method=load_method,
+            include_preds=True
+        )
+        if self._model is not None:
+            torch_utils.enable_dropout(self._model)
+        # TODO: As the below to-do suggests, this should be updated
+        # for multi-class
+        self.num_uncertainty = 1
+        if self.num_classes > 2:
+            log.warn("UncertaintyInterface not yet implemented for multi-class"
+                     " models")
 
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError
+    @classmethod
+    def from_model(cls, *args, **kwargs):
+        if 'include_preds' in kwargs and not kwargs['include_preds']:
+            raise ValueError("UncertaintyInterface requires include_preds=True")
+        kwargs['include_preds'] = None
+        obj = super().from_model(*args, **kwargs)
+        torch_utils.enable_dropout(obj._model)
+        return obj
 
+    def _predict(self, inp: Tensor, no_grad: bool = True) -> List[Tensor]:
+        """Return activations (mean), predictions (mean), and uncertainty
+        (stdev) for a single batch of images."""
+
+        assert torch.is_floating_point(inp), "Input tensor must be float"
+        _mp = self.mixed_precision
+
+        out_pred_drop = [[] for _ in range(self.num_outputs)]
+        if self.layers:
+            out_act_drop = [[] for _ in range(len(self.layers))]
+        for _ in range(30):
+            with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
+                with torch.no_grad() if no_grad else no_scope():
+                    logits = self._model(inp.to(self.device))
+                    if isinstance(logits, (tuple, list)) and self.apply_softmax:
+                        logits = [softmax(l, dim=1) for l in logits]
+                    elif self.apply_softmax:
+                        logits = softmax(logits, dim=1)
+                    for n in range(self.num_outputs):
+                        out_pred_drop[n] += [
+                            (logits[n] if self.num_outputs > 1 else logits)
+                        ]
+
+            layer_activations = []
+            if self.layers:
+                for la in self.layers:
+                    act = self.activation[la]
+                    if la == 'postconv':
+                        act = self._postconv_processing(act)
+                    layer_activations.append(act)
+                for n in range(len(self.layers)):
+                    out_act_drop[n].append(layer_activations[n]
+                    )
+            self.activation = {}
+
+        for n in range(self.num_outputs):
+            out_pred_drop[n] = torch.stack(out_pred_drop[n], axis=0)
+        predictions = torch.mean(torch.cat(out_pred_drop), dim=0)
+
+        # TODO: Only takes STDEV from first outcome category which works for
+        # outcomes with 2 categories, but a better solution is needed
+        # for num_categories > 2
+        uncertainty = torch.std(torch.cat(out_pred_drop), dim=0)[:, 0]
+        uncertainty = torch.unsqueeze(uncertainty, axis=-1)
+
+        if self.layers:
+            for n in range(self.layers):
+                out_act_drop[n] = torch.stack(out_act_drop[n], axis=0)
+            reduced_activations = [
+                torch.mean(out_act_drop[n], dim=0)
+                for n in range(len(self.layers))
+            ]
+            return reduced_activations + [predictions, uncertainty]
+        else:
+            return predictions, uncertainty
+
+# -----------------------------------------------------------------------------
 
 def load(path: str) -> torch.nn.Module:
-    """Load PyTorch model from location.
+    """Load a model trained with Slideflow.
 
     Args:
-        path (str): Path to saved PyTorch model.
+        path (str): Path to saved model. Must be a model trained in Slideflow.
 
     Returns:
         torch.nn.Module: Loaded model.
     """
     config = sf.util.get_model_config(path)
     hp = ModelParams.from_dict(config['hp'])
-    if len(config['outcomes']) == 1:
+    if len(config['outcomes']) == 1 or config['model_type'] == 'linear':
         num_classes = len(list(config['outcome_labels'].keys()))
     else:
         num_classes = {
@@ -2293,7 +2449,11 @@ def load(path: str) -> torch.nn.Module:
         num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes']),
         pretrain=None
     )
-    model.load_state_dict(torch.load(path))
+    if not torch.cuda.is_available():
+        kw = dict(map_location=torch.device('cpu'))
+    else:
+        kw = dict()
+    model.load_state_dict(torch.load(path, **kw))
     return model
 
 

@@ -1,6 +1,5 @@
 import os
 import shutil
-import signal
 import numpy as np
 import multiprocessing as mp
 import tensorflow as tf
@@ -99,6 +98,7 @@ def preprocess_uint8(
     resize_px: Optional[int] = None,
     resize_method: str = 'lanczos3',
     resize_aa: bool = True,
+    as_dict: bool = True
 ) -> Dict[str, tf.Tensor]:
     """Process batch of tensorflow images, resizing, normalizing,
     and standardizing.
@@ -128,7 +128,10 @@ def preprocess_uint8(
         img = normalizer.tf_to_tf(img)  # type: ignore
     if standardize:
         img = tf.image.per_image_standardization(img)
-    return {'tile_image': img}
+    if as_dict:
+        return {'tile_image': img}
+    else:
+        return img
 
 
 @tf.function
@@ -403,6 +406,7 @@ def interleave(
     rois: Optional[List[str]] = None,
     roi_method: str = 'auto',
     pool: Optional["mp.pool.Pool"] = None,
+    tfrecord_parser: Optional[Callable] = None,
     **decode_kwargs: Any
 ) -> Iterable:
 
@@ -504,8 +508,7 @@ def interleave(
             if pool is None and sf.slide_backend() == 'cucim':
                 pool = mp.Pool(
                     8 if os.cpu_count is None else os.cpu_count(),
-                    initializer=signal.signal,
-                    initargs=(signal.SIGINT, signal.SIG_IGN)
+                    initializer=sf.util.set_ignore_sigint
                 )
             elif pool is None:
                 pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
@@ -535,7 +538,7 @@ def interleave(
                 otsu_list += [wsi]
                 pb.advance(otsu_task)
             est_num_tiles = sum([wsi.estimated_num_tiles for wsi in otsu_list])
-        else:
+        elif tfrecord_parser is None:
             base_parser = None  # type: ignore
             for i in range(len(paths)):
                 if base_parser is not None:
@@ -547,6 +550,8 @@ def interleave(
                     features_to_return,
                     img_size=img_size,
                     **decode_kwargs)
+        else:
+            base_parser = tfrecord_parser
 
         for t, tfr in enumerate(paths):
             if from_wsi:
@@ -598,9 +603,10 @@ def interleave(
             else:
                 log.debug("Using per-image normalization")
             dataset = dataset.map(
-                normalizer.tf_to_tf,
+                partial(normalizer.tf_to_tf, augment=(isinstance(augment, str)
+                                                      and 'n' in augment)),
                 num_parallel_calls=tf.data.AUTOTUNE,
-                deterministic=deterministic
+                deterministic=deterministic,
             )
             if normalizer.vectorized:
                 dataset = dataset.unbatch()

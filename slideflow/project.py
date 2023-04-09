@@ -1,3 +1,11 @@
+"""Module for the ``Project`` class and its associated functions.
+
+The ``Project`` class supervises data organization and provides a high-level
+API for common functionality, such as tile extraction from whole
+slide images, model training and evaluation, feature calculation, and
+heatmap generation.
+"""
+
 import copy
 import csv
 import itertools
@@ -7,7 +15,6 @@ import json
 import multiprocessing
 import numpy as np
 import os
-import shutil
 import pickle
 import pandas as pd
 import tarfile
@@ -26,23 +33,30 @@ from . import errors, project_utils
 from .util import log, path_to_name, path_to_ext
 from .dataset import Dataset
 from .model import ModelParams
-from .project_utils import (auto_dataset, get_validation_settings,
-                            get_first_nested_directory, get_matching_directory,
-                            BreastER, ThyroidBRS, LungAdenoSquam)
+from .project_utils import (  # noqa: F401
+    auto_dataset, auto_dataset_allow_none, get_validation_settings,
+    get_first_nested_directory, get_matching_directory, BreastER, ThyroidBRS,
+    LungAdenoSquam
+)
 
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
     from slideflow.slide import SlideReport
-    from slideflow import simclr
+    from slideflow import simclr, mil
     from ConfigSpace import ConfigurationSpace, Configuration
-    from smac.facade.smac_bb_facade import SMAC4BB
+    from smac.facade.smac_bb_facade import SMAC4BB  # noqa: F401
 
 
 class Project:
     """Assists with project organization and execution of common tasks."""
 
-    def __init__(self, root: str, use_neptune: bool = False, **kwargs) -> None:
-        """The initializer loads or creates a project at a given directory.
+    def __init__(
+        self, root: str,
+        use_neptune: bool = False,
+        create: bool = False,
+        **kwargs
+    ) -> None:
+        """Load or create a project at a given directory.
 
         If a project does not exist at the given root directory, one can be
         created if a project configuration was provided via keyword arguments.
@@ -86,12 +100,18 @@ class Project:
             raise errors.ProjectError(f"Project already exists at {root}")
         elif sf.util.is_project(root):
             self._load(root)
-        else:
+        elif create:
             log.info(f"Creating project at {root}...")
             self._settings = project_utils._project_config(**kwargs)
             if not exists(root):
                 os.makedirs(root)
             self.save()
+        else:
+            raise errors.ProjectError(
+                f"Project not found at {root}. Create a project using "
+                "slideflow.Project(..., create=True), or with "
+                "slideflow.create_project(...)"
+            )
 
         # Create directories, if not already made
         if not exists(self.models_dir):
@@ -108,20 +128,22 @@ class Project:
 
     @classmethod
     def from_prompt(cls, root: str, **kwargs: Any) -> "Project":
-        """Initializes project by creating project folder, prompting user for
-        project settings, and saving to "settings.json" in project directory.
+        """Initialize a project using an interactive prompt.
+
+        Creates a project folder and then prompts the user for
+        project settings, saving to "settings.json" in project directory.
 
         Args:
             root (str): Path to project directory.
-        """
 
+        """
         if not sf.util.is_project(root):
             log.info(f'Setting up new project at "{root}"')
             project_utils.interactive_project_setup(root)
         obj = cls(root, **kwargs)
         return obj
 
-    def __repr__(self):
+    def __repr__(self):   # noqa D105
         if self.use_neptune:
             tail = ", use_neptune={!r}".format(self.use_neptune)
         else:
@@ -130,6 +152,7 @@ class Project:
 
     @property
     def verbosity(self) -> int:
+        """Current logging verbosity level."""
         return sf.getLoggingLevel()
 
     @property
@@ -243,9 +266,7 @@ class Project:
         self._settings['sources'] = v
 
     def _load(self, path: str) -> None:
-        """Loads a saved and pre-configured project from the specified path."""
-
-        # Enable logging
+        """Load a saved and pre-configured project from the specified path."""
         if sf.util.is_project(path):
             self._settings = sf.util.load_json(join(path, 'settings.json'))
         else:
@@ -270,7 +291,7 @@ class Project:
             self.models_dir = _initial
 
     def _read_relative_path(self, path: str) -> str:
-        """Converts relative path within project directory to global path."""
+        """Convert relative path within project directory to global path."""
         return sf.util.relative_path(path, self.root)
 
     def _setup_labels(
@@ -282,8 +303,7 @@ class Project:
         splits: str,
         eval_k_fold: Optional[int] = None
     ) -> Tuple[Dataset, Dict, Union[Dict, List]]:
-        '''Prepares dataset and labels.'''
-
+        """Prepare dataset and labels."""
         # Assign labels into int
         conf_labels = config['outcome_labels']
         if hp.model_type() == 'categorical':
@@ -347,10 +367,10 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
     ) -> Tuple["Trainer", Dataset]:
-        """Prepares a :class:`slideflow.model.Trainer` for eval or prediction.
+        """Prepare a :class:`slideflow.model.Trainer` for eval or prediction.
 
         Args:
             model (str): Path to model to evaluate.
@@ -374,10 +394,10 @@ class Project:
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a Tensorflow model. If 'full', loads the model with
-                ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
-                and then load weights from the given model with
+                when loading a Tensorflow model. If 'full', loads the model
+                with ``tf.keras.models.load_model()``. If 'weights', will read
+                the ``params.json`` configuration file, build the model
+                architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
@@ -390,8 +410,8 @@ class Project:
                 :class:`slideflow.model.Trainer`: Trainer.
 
                 :class:`slideflow.Dataset`: Evaluation dataset.
-        """
 
+        """
         if eval_k_fold is not None and outcomes is None:
             raise ValueError('`eval_k_fold` invalid when predicting.')
 
@@ -519,15 +539,6 @@ class Project:
             load_method=load_method,
             custom_objects=custom_objects,
         )
-        if isinstance(model, str):
-            trainer.load(model)
-        if checkpoint:
-            n_features = 0 if not feature_sizes else sum(feature_sizes)
-            trainer.model = hp.build_model(
-                labels=labels,
-                num_slide_features=n_features
-            )
-            trainer.model.load_weights(checkpoint)
 
         return trainer, eval_dts
 
@@ -554,7 +565,7 @@ class Project:
         process_isolate: bool = False,
         **kwargs
     ) -> None:
-        '''Trains a model(s) using the specified hyperparameters.
+        """Train a model(s) using the specified hyperparameters.
 
         Keyword Args:
             hp_name (str): Name of hyperparameter combination being run.
@@ -578,8 +589,8 @@ class Project:
             results_dict (dict): Multiprocessing-friendly dict for sending
                 results from isolated training processes
             training_kwargs (dict): Keyword arguments for Trainer.train().
-        '''
 
+        """
         # --- Prepare dataset ---------------------------------------------
         # Filter out slides that are blank in the outcome label,
         # or blank in any of the input_header categories
@@ -658,7 +669,7 @@ class Project:
                     kf for kf in range(1, k_fold+1) if kf in val_settings.k
                 ]
         else:
-            k_fold = 0
+            k_fold = None
             valid_k = [None]  # type: ignore
 
         # Create model labels
@@ -701,7 +712,7 @@ class Project:
         if (not val_settings.source
             and (val_settings.strategy is None
                  or val_settings.strategy == 'none')):
-            log.info(f'No validation performed.')
+            log.info('No validation performed.')
         else:
             for mi in model_iterations:
                 if mi not in results_dict or 'epochs' not in results_dict[mi]:
@@ -721,7 +732,7 @@ class Project:
         val_settings: SimpleNamespace,
         s_args: SimpleNamespace,
     ) -> None:
-        '''Trains a model for a given training/validation split.
+        """Train a model for a given training/validation split.
 
         Args:
             dataset (:class:`slideflow.Dataset`): Dataset to split into
@@ -729,8 +740,8 @@ class Project:
             hp (:class:`slideflow.ModelParams`): Model parameters.
             val_settings (:class:`types.SimpleNamspace`): Validation settings.
             s_args (:class:`types.SimpleNamspace`): Training settings.
-        '''
 
+        """
         # Log current model name and k-fold iteration, if applicable
         k_msg = ''
         if s_args.k is not None:
@@ -740,9 +751,11 @@ class Project:
         log.info(f'Training model [bold]{s_args.model_name}[/]{k_msg}...')
         log.info(f'Hyperparameters: {hp}')
         if val_settings.dataset:
-            log.info(f'Val settings: <Dataset manually provided>')
+            log.info('Val settings: <Dataset manually provided>')
         else:
-            log.info(f'Val settings: {json.dumps(vars(val_settings), indent=2)}')
+            log.info(
+                f'Val settings: {json.dumps(vars(val_settings), indent=2)}'
+            )
 
         # --- Set up validation data ------------------------------------------
         from_wsi = ('from_wsi' in s_args.training_kwargs
@@ -808,26 +821,34 @@ class Project:
             train_dts = train_dts.balance(
                 s_args.bal_headers,
                 hp.training_balance,
+                force=(hp.model_type() == 'categorical')
             )
             train_dts = train_dts.clip(s_args.max_tiles)
         elif hp.training_balance not in ('none', None) or s_args.max_tiles:
-            log.warning("Balancing / clipping is disabled when `from_wsi=True`")
+            log.warning(
+                "Balancing / clipping is disabled when `from_wsi=True`"
+            )
 
         if val_dts and not from_wsi:
             val_dts = val_dts.balance(
                 s_args.bal_headers,
                 hp.validation_balance,
+                force=(hp.model_type() == 'categorical')
             )
             val_dts = val_dts.clip(s_args.max_tiles)
 
         if from_wsi:
             num_train = len(train_dts.slide_paths())
             num_val = 0 if not val_dts else len(val_dts.slide_paths())
-            log.info(f'Using {num_train} training slides, {num_val} validation')
+            log.info(
+                f'Using {num_train} training slides, {num_val} validation'
+            )
         else:
             num_train = len(train_dts.tfrecords())
             num_val = 0 if not val_dts else len(val_dts.tfrecords())
-            log.info(f'Using {num_train} training TFRecords, {num_val} validation')
+            log.info(
+                f'Using {num_train} training TFRecords, {num_val} validation'
+            )
 
         # --- Prepare additional slide-level input ----------------------------
         if s_args.input_header:
@@ -900,11 +921,11 @@ class Project:
         }
         if s_args.process_isolate:
             process = s_args.ctx.Process(target=project_utils._train_worker,
-                                        args=((train_dts, val_dts),
-                                            model_kwargs,
-                                            s_args.training_kwargs,
-                                            s_args.results_dict,
-                                            self.verbosity))
+                                         args=((train_dts, val_dts),
+                                               model_kwargs,
+                                               s_args.training_kwargs,
+                                               s_args.results_dict,
+                                               self.verbosity))
             process.start()
             log.debug(f'Spawning training process (PID: {process.pid})')
             process.join()
@@ -927,7 +948,7 @@ class Project:
         tfrecords: Optional[str] = None,
         path: Optional[str] = None
     ) -> None:
-        """Adds a dataset source to the dataset configuration file.
+        r"""Add a dataset source to the dataset configuration file.
 
         Args:
             name (str): Dataset source name.
@@ -998,14 +1019,15 @@ class Project:
 
         Keyword args:
             batch_size (int): Batch size for cell segmentation. Defaults to 8.
-            cp_thresh (float): Cell probability threshold. All pixels with value
-                above threshold kept for masks, decrease to find more and larger
-                masks. Defaults to 0.
-            diam_mean (int, optional): Cell diameter to detect, in pixels (without
-                image resizing). If None, uses Cellpose defaults (17 for the
-                'nuclei' model, 30 for all others).
-            downscale (float): Factor by which to downscale generated masks after
-                calculation. Defaults to None (keep masks at original size).
+            cp_thresh (float): Cell probability threshold. All pixels with
+                value above threshold kept for masks, decrease to find more and
+                larger masks. Defaults to 0.
+            diam_mean (int, optional): Cell diameter to detect, in pixels
+                (without image resizing). If None, uses Cellpose defaults
+                (17 for the 'nuclei' model, 30 for all others).
+            downscale (float): Factor by which to downscale generated masks
+                after calculation. Defaults to None (keep masks at original
+                size).
             flow_threshold (float): Flow error threshold (all cells with errors
                 below threshold are kept). Defaults to 0.4.
             gpus (int, list(int)): GPUs to use for cell segmentation.
@@ -1013,9 +1035,9 @@ class Project:
             interp (bool): Interpolate during 2D dynamics. Defaults to True.
             qc (str): Slide-level quality control method to use before
                 performing cell segmentation. Defaults to "Otsu".
-            model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use
-                for cell segmentation. May be any valid cellpose model. Defaults
-                to 'cyto2'.
+            model (str, :class:`cellpose.models.Cellpose`): Cellpose model to
+                use for cell segmentation. May be any valid cellpose model.
+                Defaults to 'cyto2'.
             mpp (float): Microns-per-pixel at which cells should be segmented.
                 Defaults to 0.5.
             num_workers (int, optional): Number of workers.
@@ -1028,7 +1050,8 @@ class Project:
                 configuration file.
             tile (bool): Tiles image to decrease GPU/CPU memory usage.
                 Defaults to True.
-            verbose (bool): Verbose log output at the INFO level. Defaults to True.
+            verbose (bool): Verbose log output at the INFO level.
+                Defaults to True.
             window_size (int): Window size at which to segment cells across
                 a whole-slide image. Defaults to 256.
 
@@ -1053,13 +1076,13 @@ class Project:
         self,
         filename: Optional[str] = None
     ) -> None:
-        """Creates an empty annotations file.
+        """Create an empty annotations file.
 
         Args:
             filename (str): Annotations file destination. If not provided,
                 will use project default.
-        """
 
+        """
         if filename is None:
             filename = self.annotations
         if exists(filename):
@@ -1093,7 +1116,7 @@ class Project:
         label: Optional[str] = None,
         **kwargs: Any
     ) -> None:
-        """Prepares a grid-search hyperparameter sweep, saving to a config file.
+        """Prepare a grid-search hyperparameter sweep, saving to a config file.
 
         To initiate a grid-search sweep using the created JSON file, pass
         this file to the ``params`` argument of ``Project.train()``:
@@ -1108,6 +1131,7 @@ class Project:
                 Defaults to None.
             **kwargs: Parameters to include in the sweep. Parameters may either
                 be fixed or provided as lists.
+
         """
         non_epoch_kwargs = {k: v for k, v in kwargs.items() if k != 'epochs'}
         pdict = copy.deepcopy(non_epoch_kwargs)
@@ -1145,11 +1169,11 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> Dict:
-        """Evaluates a saved model on a given set of tfrecords.
+        """Evaluate a saved model on a given set of tfrecords.
 
         Args:
             model (str): Path to model to evaluate.
@@ -1184,10 +1208,10 @@ class Project:
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a Tensorflow model. If 'full', loads the model with
-                ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
-                and then load weights from the given model with
+                when loading a Tensorflow model. If 'full', loads the model
+                with ``tf.keras.models.load_model()``. If 'weights', will read
+                the ``params.json`` configuration file, build the model
+                architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
@@ -1202,6 +1226,7 @@ class Project:
 
         Returns:
             Dict: Dictionary of keras training results, nested by epoch.
+
         """
         log.info(f'Evaluating model at [green]{model}')
         trainer, eval_dts = self._prepare_trainer(
@@ -1218,6 +1243,22 @@ class Project:
             load_method=load_method,
             custom_objects=custom_objects,
         )
+
+        # Load the model
+        if isinstance(model, str):
+            trainer.load(model, training=True)
+        if checkpoint:
+            if trainer.feature_sizes:
+                n_features = sum(trainer.feature_sizes)
+            else:
+                n_features = 0
+            trainer.model = trainer.hp.build_model(
+                labels=trainer.labels,
+                num_slide_features=n_features
+            )
+            trainer.model.load_weights(checkpoint)
+
+        # Evaluate
         return trainer.evaluate(eval_dts, **kwargs)
 
     def evaluate_clam(
@@ -1258,11 +1299,11 @@ class Project:
 
         Returns:
             None
-        """
 
+        """
         import slideflow.clam as clam
-        from slideflow.clam.create_attention import export_attention
-        from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
+        from slideflow.clam import export_attention
+        from slideflow.clam import Generic_MIL_Dataset
 
         # Detect source CLAM experiment which we are evaluating.
         # First, assume it lives in this project's clam folder
@@ -1305,8 +1346,10 @@ class Project:
         for _a in _default_args.__dict__:
             if not hasattr(args, _a):
                 _default = getattr(_default_args, _a)
-                log.info(f"Argument {_a} not found in CLAM model configuration "
-                         f"file; using default value of {_default}.")
+                log.info(
+                    f"Argument {_a} not found in CLAM model configuration "
+                    f"file; using default value of {_default}."
+                )
                 setattr(args, _a, _default)
 
         dataset = self.dataset(
@@ -1382,6 +1425,65 @@ class Project:
                     outdir=heatmaps_dir
                 )
 
+    def evaluate_mil(
+        self,
+        model: str,
+        outcomes: Union[str, List[str]],
+        dataset: Dataset,
+        bags: Union[str, List[str]],
+        config: Optional["mil._TrainerConfig"] = None,
+        **kwargs
+    ):
+        r"""Evaluate a multi-instance learning model.
+
+        Saves results for the evaluation in the ``mil_eval`` project folder,
+        including predictions (parquet format), attention (Numpy format for
+        each slide), and attention heatmaps (if ``attention_heatmaps=True``).
+
+        Logs classifier metrics (AUROC and AP) to the console.
+
+        Args:
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+                Training configuration, as obtained by
+                :func:`slideflow.mil.mil_config()`.
+            train_dataset (:class:`slideflow.Dataset`): Training dataset.
+            val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+            outcomes (str): Outcome column (annotation header) from which to
+                derive category labels.
+            bags (str): Either a path to directory with \*.pt files, or a list
+                of paths to individual \*.pt files. Each file should contain
+                exported feature vectors, with each file containing all tile
+                features for one patient.
+
+        Keyword args:
+            exp_label (str): Experiment label, used for naming the subdirectory
+                in the ``{project root}/mil`` folder, where training history
+                and the model will be saved.
+            attention_heatmaps (bool): Calculate and save attention heatmaps.
+                Defaults to False.
+            interpolation (str, optional): Interpolation strategy for smoothing
+                attention heatmaps. Defaults to 'bicubic'.
+            cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+                valid matplotlib colormap. Defaults to 'inferno'.
+            norm (str, optional): Normalization strategy for assigning heatmap
+                values to colors. Either 'two_slope', or any other valid value
+                for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+                If 'two_slope', normalizes values less than 0 and greater than 0
+                separately. Defaults to None.
+
+        """
+        from .mil import eval_mil
+
+        return eval_mil(
+            model,
+            dataset=dataset,
+            outcomes=outcomes,
+            bags=bags,
+            config=config,
+            outdir=join(self.root, 'mil_eval'),
+            **kwargs
+        )
+
     def extract_cells(
         self,
         tile_px: int,
@@ -1437,9 +1539,9 @@ class Project:
         filter_blank: Optional[Union[str, List[str]]] = None,
         **kwargs: Any
     ) -> Dict[str, "SlideReport"]:
-        """Extracts tiles from slides.
+        """Extract tiles from slides.
 
-        Preferred use is calling :meth:`slideflow.Dataset.extract_tiles` directly.
+        Preferred use is calling :meth:`slideflow.Dataset.extract_tiles`.
 
         Args:
             tile_px (int): Size of tiles to extract, in pixels.
@@ -1481,7 +1583,7 @@ class Project:
                 Defaults to None.
             num_workers (int, optional): Extract tiles from this many slides
                 simultaneously. Defaults to 1.
-            q_size (int, optional): Queue size for buffer. Defaults to 4.
+            q_size (int, optional): Queue size for buffer. Defaults to 2.
             qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur
                 detection quality control - discarding tiles with detected
                 out-of-focus regions or artifact - and/or otsu's method.
@@ -1532,6 +1634,7 @@ class Project:
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
             (:class:`slideflow.slide.report.SlideReport`)
+
         """
         dataset = self.dataset(
             tile_px,
@@ -1552,6 +1655,8 @@ class Project:
         mirror: bool = True,
         metrics: Optional[Union[str, List[str]]] = None,
         dry_run: bool = False,
+        normalizer: Optional[str] = None,
+        normalizer_source: Optional[str] = None,
         **kwargs
     ) -> None:
         """Train a GAN network.
@@ -1614,8 +1719,8 @@ class Project:
                 training. Options include 'fid50k', 'is50k', 'ppl_zfull',
                 'ppl_wfull', 'ppl_zend', 'ppl2_wend', 'ls', and 'pr50k3'.
                 Defaults to None.
-            model (str): Architecture to train. Only currently valid model
-                architecture is "stylegan2". Defaults to "stylegan2".
+            model (str): Architecture to train. Valid model architectures
+                include "stylegan2" and "stylegan3". Defaults to "stylegan3".
             nhwc (bool): Use NWHC memory format with FP16. Defaults to False.
             nobench (bool): Disable cuDNN benchmarking. Defaults to False.
             outcomes (str, list(str), optional): Class conditioning outcome
@@ -1652,7 +1757,7 @@ class Project:
 
         # Write GAN configuration
         config_loc = join(gan_dir, 'slideflow_config.json')
-        sf.util.write_json(dict(
+        config = dict(
             project_path=self.root,
             tile_px=dataset.tile_px,
             tile_um=dataset.tile_um,
@@ -1660,7 +1765,13 @@ class Project:
             outcome_label_headers=outcomes,
             filters=dataset._filters,
             filter_blank=dataset._filter_blank,
-        ), config_loc)
+        )
+        if normalizer:
+            config['normalizer_kwargs'] = dict(
+                normalizer=normalizer,
+                normalizer_source=normalizer_source
+            )
+        sf.util.write_json(config, config_loc)
 
         # Train the GAN
         network.train.train(
@@ -1726,8 +1837,8 @@ class Project:
             save_projection (bool, optional): Save weight projection for each
                 generated image as an `.npz` file in the out directory.
                 Defaults to False.
-            resize (bool, optional): Crop/resize images to a target micron/pixel
-                size. Defaults to False.
+            resize (bool, optional): Crop/resize images to a target
+                micron/pixel size. Defaults to False.
             gan_um (int, optional): Size of GAN images in microns. Used for
                 cropping/resizing images to a target size. Defaults to None.
             gan_px (int, optional): Size of GAN images in pixels. Used for
@@ -1747,7 +1858,7 @@ class Project:
             **kwargs
         )
 
-    @auto_dataset
+    @auto_dataset_allow_none
     def generate_features(
         self,
         model: str,
@@ -1758,11 +1869,9 @@ class Project:
         min_tiles: int = 0,
         max_tiles: int = 0,
         outcomes: Optional[List[str]] = None,
-        torch_export: Optional[str] = None,
         **kwargs: Any
     ) -> sf.DatasetFeatures:
-        """Calculate layer activations and return a
-        :class:`slideflow.DatasetFeatures` object.
+        """Calculate layer activations.
 
         See :ref:`Layer activations <dataset_features>` for more information.
 
@@ -1784,8 +1893,6 @@ class Project:
                 per slide. Defaults to 0 (all tiles).
             outcomes (list, optional): Column header(s) in annotations file.
                 Used for category-level comparisons. Defaults to None.
-            torch_export (str, optional): Path. Export activations to
-                torch-compatible file at this location. Defaults to None.
             layers (list(str)): Layers from which to generate activations.
                 Defaults to 'postconv'.
             export (str): Path to CSV file. Save activations in CSV format.
@@ -1799,7 +1906,15 @@ class Project:
 
         Returns:
             :class:`slideflow.DatasetFeatures`
+
         """
+        if dataset is None:
+            raise ValueError(
+                'Argument "dataset" is required when "model" is '
+                'an imagenet-pretrained model, or otherwise not a '
+                'saved Slideflow model.'
+            )
+
         # Prepare dataset and annotations
         dataset = dataset.clip(max_tiles)
         if outcomes is not None:
@@ -1810,18 +1925,22 @@ class Project:
                                 dataset=dataset,
                                 annotations=labels,
                                 **kwargs)
-        if torch_export:
-            df.to_torch(torch_export)
         return df
 
+    @auto_dataset_allow_none
     def generate_features_for_clam(
         self,
         model: str,
         outdir: str = 'auto',
+        *,
         dataset: Optional[Dataset] = None,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        min_tiles: int = 16,
+        max_tiles: int = 0,
         layers: Union[str, List[str]] = 'postconv',
         force_regenerate: bool = False,
-        min_tiles: int = 16
+        batch_size: int = 32
     ) -> str:
         """Generate tile-level features for slides for use with CLAM.
 
@@ -1839,23 +1958,27 @@ class Project:
                 from which to generate activations. If not supplied, calculate
                 activations for all tfrecords compatible with the model,
                 optionally using provided filters and filter_blank.
-            min_tiles (int, optional): Minimum tiles per slide. Skip slides
-                not meeting this threshold. Defaults to 8.
             filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
+                 Defaults to None.
             filter_blank (list, optional): Slides blank in these columns will
                 be excluded. Defaults to None.
-            layers (list, optional): Which model layer(s) generate activations.
+            min_tiles (int, optional): Only include slides with this minimum
+                number of tiles. Defaults to 16.
+            max_tiles (int, optional): Only include maximum of this many tiles
+                per slide. Defaults to 0 (all tiles).
+            layers (list): Which model layer(s) generate activations.
                 Defaults to 'postconv'.
-            max_tiles (int, optional): Maximum tiles to take per slide.
-                Defaults to 0.
-            force_regenerate (bool, optional): Forcibly regenerate activations
+            force_regenerate (bool): Forcibly regenerate activations
                 for all slides even if .pt file exists. Defaults to False.
+            min_tiles (int, optional): Minimum tiles per slide. Skip slides
+                not meeting this threshold. Defaults to 16.
+            batch_size (int): Batch size during feature calculation.
+                Defaults to 32.
 
         Returns:
             Path to directory containing exported .pt files
-        """
 
+        """
         # Check if the model exists and has a valid parameters file
         if exists(model):
             config = sf.util.get_model_config(model)
@@ -1874,50 +1997,36 @@ class Project:
                     _end = f"_kfold{config['k_fold_i']}"
                 else:
                     _end = ''
-                outdir = join(self.root, 'pt_files', config['model_name'] + _end)
+                outdir = join(
+                    self.root, 'pt_files', config['model_name'] + _end
+                )
         elif dataset is None:
             raise ValueError(
-                "Must supply 'dataset' if generating features from an "
-                "Imagenet-pretrained model."
+                'Argument "dataset" is required when "model" is '
+                'an imagenet-pretrained model, or otherwise not a '
+                'saved Slideflow model.'
             )
 
-        # Verify the dataset min tiles is at least 8
-        if dataset.min_tiles < 8:
-            raise ValueError(
-                "Slides must have at >=8 tiles to train CLAM (provided "
-                f"dataset has min_tiles={dataset.min_tiles})"
-            )
+        # Ensure min_tiles is applied to the dataset.
+        dataset = dataset.filter(min_tiles=min_tiles)
 
         # If the model does not exist, check if it is an architecture name
         # (for using an Imagenet pretrained model)
-        if model in sf.ModelParams.ModelDict:
-            log.info(f"Generating features from Imagenet-pretrained {model}.")
-            _hp = sf.ModelParams(
-                tile_px=dataset.tile_px,
-                tile_um=dataset.tile_um,
-                model=model,
-                include_top=False,
-                hidden_layers=0
+        if sf.model.is_extractor(model):
+            log.info(f"Building feature extractor {model}.")
+            model = sf.model.build_feature_extractor(
+                model, tile_px=dataset.tile_px
             )
 
             # Set the pt_files directory if not provided
             if outdir.lower() == 'auto':
-                outdir = join(self.root, 'pt_files', model)
+                outdir = join(self.root, 'pt_files', model.tag)
 
-            # Now, overwrite the model name with the built model
-            model = _hp.build_model(
-                num_classes=1,
-                pretrain='imagenet'
-            )  # type: ignore
-
-            if sf.backend() == 'torch':
-                import torch
-                model = model.to(torch.device('cuda'))  # type: ignore
-                model.eval()  # type: ignore
         elif not exists(model):
             raise ValueError(
                 f"'{model}' is neither a path to a saved model nor the name "
-                "of a valid model architecture.")
+                "of a valid feature extractor (use sf.model.list_extractors() "
+                "for a list of all available feature extractors).")
 
         # Create the pt_files directory
         if not exists(outdir):
@@ -1950,6 +2059,7 @@ class Project:
             dataset=dataset,
             layers=layers,
             include_preds=False,
+            batch_size=batch_size
         )
         df.to_torch(outdir)
         return outdir
@@ -1973,7 +2083,7 @@ class Project:
         verbose: bool = True,
         **kwargs: Any
     ) -> None:
-        """Creates predictive heatmap overlays on a set of slides.
+        """Create predictive heatmap overlays on a set of slides.
 
         By default, heatmaps are saved in the ``heatmaps/`` folder
         in the project root directory.
@@ -2009,8 +2119,9 @@ class Project:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
-            num_threads (int, optional): Number of threads for tile extraction.
-                Defaults to CPU core count.
+            num_threads (int, optional): Number of workers threads for each
+                tile extractor. Defaults to the total number of available
+                CPU threads.
             img_format (str, optional): Image format (png, jpg) to use when
                 extracting tiles from slide. Must match the image format
                 the model was trained on. If 'auto', will use the format
@@ -2039,8 +2150,8 @@ class Project:
             vcenter (float): Center value for color display on heatmap.
                 Defaults to 0.5.
             vmax (float): Maximum value to display on heatmap. Defaults to 1.
-        """
 
+        """
         # Prepare arguments for subprocess
         args = SimpleNamespace(**locals())
         del args.self
@@ -2161,8 +2272,8 @@ class Project:
 
         Returns:
             :class:`slideflow.Mosaic`: Mosaic object.
-        """
 
+        """
         # Set up paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
@@ -2339,8 +2450,8 @@ class Project:
 
         Returns:
             slideflow.Mosaic
-        """
 
+        """
         # Setup paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
@@ -2426,8 +2537,10 @@ class Project:
         tile_dict: Dict[int, float],
         outdir: Optional[str] = None
     ) -> None:
-        """Creates a tfrecord-based WSI heatmap using a dictionary of tile
-        values for heatmap display, saving to project root directory.
+        """Create a tfrecord-based WSI heatmap.
+
+        Uses a dictionary of tile values for heatmap display, saving to project
+        root directory.
 
         Args:
             tfrecord (str): Path to tfrecord
@@ -2440,6 +2553,7 @@ class Project:
 
         Returns:
             None
+
         """
         dataset = self.dataset(tile_px=tile_px, tile_um=tile_um)
         if outdir is None:
@@ -2454,7 +2568,7 @@ class Project:
         verification: Optional[str] = 'both',
         **kwargs: Any
     ) -> Dataset:
-        """Returns :class:`slideflow.Dataset` object using project settings.
+        """Return a :class:`slideflow.Dataset` object using project settings.
 
         Args:
             tile_px (int): Tile size in pixels
@@ -2476,8 +2590,8 @@ class Project:
                 If 'slides', verify all annotations are mapped to slides.
                 If 'tfrecords', check that TFRecords exist and update manifest.
                 Defaults to 'both'.
-        """
 
+        """
         if 'config' not in kwargs:
             kwargs['config'] = self.dataset_config
         if 'sources' not in kwargs:
@@ -2521,7 +2635,7 @@ class Project:
         input_header: Optional[Union[str, List[str]]] = None,
         mixed_precision: bool = True,
         allow_tf32: bool = False,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> Dict[str, pd.DataFrame]:
@@ -2563,10 +2677,10 @@ class Project:
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a Tensorflow model. If 'full', loads the model with
-                ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
-                and then load weights from the given model with
+                when loading a Tensorflow model. If 'full', loads the model
+                with ``tf.keras.models.load_model()``. If 'weights', will read
+                the ``params.json`` configuration file, build the model
+                architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
@@ -2574,10 +2688,10 @@ class Project:
                 (strings) to custom classes or functions. Defaults to None.
 
         Returns:
-            Dictionary of predictions dataframes, with the keys 'tile', 'slide',
-            and 'patient'.
-        """
+            Dictionary of predictions dataframes, with the keys 'tile',
+            'slide', and 'patient'.
 
+        """
         # Perform evaluation
         log.info('Predicting model results')
         trainer, eval_dts = self._prepare_trainer(
@@ -2593,6 +2707,22 @@ class Project:
             load_method=load_method,
             custom_objects=custom_objects,
         )
+
+        # Load the model
+        if isinstance(model, str):
+            trainer.load(model, training=False)
+        if checkpoint:
+            if trainer.feature_sizes:
+                n_features = sum(trainer.feature_sizes)
+            else:
+                n_features = 0
+            trainer.model = trainer.hp.build_model(
+                labels=trainer.labels,
+                num_slide_features=n_features
+            )
+            trainer.model.load_weights(checkpoint)
+
+        # Predict
         results = trainer.predict(
             dataset=eval_dts,
             batch_size=batch_size,
@@ -2608,7 +2738,7 @@ class Project:
         epoch: Optional[int] = None,
         **kwargs
     ) -> None:
-        """Evaluates an ensemble of models on a given set of tfrecords.
+        """Evaluate an ensemble of models on a given set of tfrecords.
 
         Args:
             model (str): Path to ensemble model to evaluate.
@@ -2620,12 +2750,14 @@ class Project:
             epoch (int, optional): The epoch number to be considered
                 to run the prediction. By default it sets to the first epoch
                 present in the selected k-fold folder.
-            **kwargs (Any): All keyword arguments accepted by :meth:`slideflow.Project.predict`
+            **kwargs (Any): All keyword arguments accepted by
+                :meth:`slideflow.Project.predict()`
+
         """
         if not exists(model):
             raise OSError(f"Path {model} not found")
 
-        config = sf.util.get_model_config(model)
+        config = sf.util.get_ensemble_model_config(model)
         outcomes = f"{'-'.join(config['outcomes'])}"
         model_name = f"eval-ensemble-{outcomes}"
         main_eval_dir = sf.util.get_new_model_dir(self.eval_dir, model_name)
@@ -2642,7 +2774,9 @@ class Project:
             else:
                 _k_path = get_first_nested_directory(member_path)
             if epoch:
-                prediction_path = get_matching_directory(_k_path, f'epoch{epoch}')
+                prediction_path = get_matching_directory(
+                    _k_path, f'epoch{epoch}'
+                )
             else:
                 prediction_path = get_first_nested_directory(_k_path)
 
@@ -2656,20 +2790,26 @@ class Project:
                 # If this is the first ensemble member, copy the slide manifest
                 # and params.json file into the ensemble prediction folder.
                 if member_id == 0:
-                    _, from_path = sf.util.get_valid_model_dir(self.eval_dir)
+                    _, path = sf.util.get_valid_model_dir(self.eval_dir)
                     shutil.copyfile(
-                        join(self.eval_dir, from_path[0], "slide_manifest.csv"),
+                        join(self.eval_dir, path[0], "slide_manifest.csv"),
                         join(main_eval_dir, "slide_manifest.csv")
                     )
-                    shutil.copyfile(
-                        join(self.eval_dir, from_path[0], "params.json"),
-                        join(main_eval_dir, "slide_manifest.csv")
+                    params = sf.util.load_json(
+                        join(self.eval_dir, path[0], "params.json")
                     )
+                    params['ensemble_epochs'] = params['hp']['epochs']
+                    del params['hp']
+                    sf.util.write_json(
+                        params,
+                        join(main_eval_dir, "ensemble_params.json")
+                    )
+
                 # Create (or add to) the ensemble dataframe.
                 for level in ('slide', 'tile'):
                     project_utils.add_to_ensemble_dataframe(
                         ensemble_path=main_eval_dir,
-                        kfold_path=join(self.eval_dir, from_path[0]),
+                        kfold_path=join(self.eval_dir, path[0]),
                         level=level,
                         member_id=member_id
                     )
@@ -2749,8 +2889,8 @@ class Project:
                 If 1, will not perform grayspace filtering.
             grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
                 Pixels in HSV format with saturation below this are grayspace.
-        """
 
+        """
         log.info('Generating WSI prediction / activation maps...')
         if not exists(outdir):
             os.makedirs(outdir)
@@ -2795,7 +2935,7 @@ class Project:
                     log.error(e)
                 else:
                     n_est = slide.estimated_num_tiles
-                    log.debug(f"Estimated tiles for slide {slide.name}: {n_est}")
+                    log.debug(f"Estimated tiles for {slide.name}: {n_est}")
                     total_tiles += n_est
                 finally:
                     del slide
@@ -2832,7 +2972,7 @@ class Project:
                     continue
 
     def save(self) -> None:
-        """Saves current project configuration as ``settings.json``."""
+        """Save current project configuration as ``settings.json``."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
 
     def _get_smac_runner(
@@ -2840,9 +2980,10 @@ class Project:
         outcomes: Union[str, List[str]],
         params: sf.ModelParams,
         metric: Union[str, Callable],
+        n_replicates: int,
         train_kwargs: Any
     ) -> Callable:
-        """Builds a SMAC3 optimization runner.
+        """Build a SMAC3 optimization runner.
 
         Args:
             outcomes (str, List[str]): Outcome label annotation header(s).
@@ -2856,59 +2997,65 @@ class Project:
                 Project.train() function call.
 
         Raises:
-            errors.SMACError: If training does not return the designated metric.
+            errors.SMACError: If training does not return the given metric.
 
         Returns:
             Callable: tae_runner for SMAC optimization.
+
         """
 
         def smac_runner(config):
             """SMAC tae_runner function."""
-
             # Load hyperparameters from SMAC configuration, handling "None".
             c = dict(config)
             if 'normalizer' in c and c['normalizer'].lower() == 'none':
                 c['normalizer'] = None
-            if 'normalizer_source' in c and c['normalizer_source'].lower() == 'none':
+            if ('normalizer_source' in c
+               and c['normalizer_source'].lower() == 'none'):
                 c['normalizer_source'] = None
 
-            # Train model.
-            pretty = json.dumps(c, indent=2)
-            log.info(f"Training model with config={pretty}")
-            params.load_dict(c)
-            _prior_logging_level = sf.getLoggingLevel()
-            sf.setLoggingLevel(40)
-            results = self.train(
-                outcomes=outcomes,
-                params=params,
-                **train_kwargs
-            )
-            sf.setLoggingLevel(_prior_logging_level)
+            all_results = []
+            for _ in range(n_replicates):
+                # Train model(s).
+                pretty = json.dumps(c, indent=2)
+                log.info(f"Training model with config={pretty}")
+                params.load_dict(c)
+                _prior_logging_level = sf.getLoggingLevel()
+                sf.setLoggingLevel(40)
+                results = self.train(
+                    outcomes=outcomes,
+                    params=params,
+                    **train_kwargs
+                )
+                sf.setLoggingLevel(_prior_logging_level)
 
-            # Interpret results.
-            model_name = list(results.keys())[0]
-            last_epoch = sorted(list(results[model_name]['epochs'].keys()))[-1]
-            if len(results[model_name]['epochs']) > 1:
-                log.warning(f"Ambiguous epoch for SMAC. Using '{last_epoch}'.")
-            epoch_results = results[model_name]['epochs'][last_epoch]
+                # Interpret results.
+                model_name = list(results.keys())[0]
+                last_epoch = sorted(list(results[model_name]['epochs'].keys()))[-1]
+                if len(results[model_name]['epochs']) > 1:
+                    log.warning(f"Ambiguous epoch for SMAC. Using '{last_epoch}'.")
+                epoch_results = results[model_name]['epochs'][last_epoch]
 
-            # Determine metric for optimization.
-            if callable(metric):
-                result = metric(epoch_results)
-            elif metric not in epoch_results:
-                raise errors.SMACError(f"Metric '{metric}' not returned from "
-                                       "training, unable to optimize.")
-            else:
-                if outcomes not in epoch_results[metric]:
-                    raise errors.SMACError(
-                        f"Unable to interpret metric {metric} (epoch results: "
-                        f"{epoch_results})")
-                result = 1 - mean(epoch_results[metric][outcomes])
+                # Determine metric for optimization.
+                if callable(metric):
+                    result = metric(epoch_results)
+                elif metric not in epoch_results:
+                    raise errors.SMACError(f"Metric '{metric}' not returned from "
+                                        "training, unable to optimize.")
+                else:
+                    if outcomes not in epoch_results[metric]:
+                        raise errors.SMACError(
+                            f"Unable to interpret metric {metric} (epoch results: "
+                            f"{epoch_results})")
+                    result = 1 - mean(epoch_results[metric][outcomes])
+                all_results.append(result)
+
+            # Average results across iterations
             log.info("[green]Result ({})[/]: {:.4f}".format(
                 'custom' if callable(metric) else f'1-{metric}',
                 result
             ))
-            return result
+            return mean(all_results)
 
         return smac_runner
 
@@ -2920,6 +3067,7 @@ class Project:
         exp_label: str = "SMAC",
         smac_limit: int = 10,
         smac_metric: str = 'tile_auc',
+        smac_replicates: int = 1,
         save_checkpoints: bool = False,
         save_model: bool = False,
         save_predictions: Union[bool, str] = False,
@@ -2927,7 +3075,8 @@ class Project:
     ) -> Tuple["Configuration", pd.DataFrame]:
         """Train a model using SMAC3 Bayesian hyperparameter optimization.
 
-        See :ref:`Bayesian optimization <bayesian_optimization>` for more information.
+        See :ref:`Bayesian optimization <bayesian_optimization>`
+        for more information.
 
         .. note::
 
@@ -2940,8 +3089,8 @@ class Project:
             params (ModelParams): Model parameters for training.
             smac_configspace (ConfigurationSpace): ConfigurationSpace to
                 determine the SMAC optimization.
-            smac_limit (int): Max number of models to train during optimization.
-                Defaults to 10.
+            smac_limit (int): Max number of models to train during
+                optimization. Defaults to 10.
             smac_metric (str, optional): Metric to monitor for optimization.
                 May either be a callable function or a str. If a callable
                 function, must accept the epoch results dict and return a
@@ -2962,9 +3111,9 @@ class Project:
                 by SMAC4BB.optimize().
 
                 pd.DataFrame: History of hyperparameters resulting metrics.
-        """
 
-        from smac.facade.smac_bb_facade import SMAC4BB
+        """
+        from smac.facade.smac_bb_facade import SMAC4BB  # noqa: F811
         from smac.scenario.scenario import Scenario
 
         # Perform SMAC search in a single model folder.
@@ -2974,8 +3123,8 @@ class Project:
 
         # Create SMAC scenario.
         scenario = Scenario(
-            {'run_obj': 'quality', # Optimize quality (alternatively: runtime)
-             'runcount-limit': smac_limit,  # Max number of function evaluations
+            {'run_obj': 'quality',  # Optimize quality (alternatively: runtime)
+             'runcount-limit': smac_limit,  # Max # of function evaluations
              'cs': smac_configspace},
             {'output_dir': self.models_dir})
         train_kwargs['save_checkpoints'] = save_checkpoints
@@ -2988,6 +3137,7 @@ class Project:
                 params=params,
                 metric=smac_metric,
                 train_kwargs=train_kwargs,
+                n_replicates=smac_replicates,
             )
         )
 
@@ -2995,6 +3145,10 @@ class Project:
         log.info("Performing Bayesian hyperparameter optimization with SMAC")
         log.info(
             "=== SMAC config ==========================================\n"
+            "[bold]Options:[/]\n"
+            f"Metric: {smac_metric}\n"
+            f"Limit: {smac_limit}\n"
+            f"Model replicates: {smac_replicates}\n"
             "[bold]Base parameters:[/]\n"
             f"{params}\n\n"
             "[bold]Configuration space:[/]\n"
@@ -3032,12 +3186,15 @@ class Project:
         splits: str = "splits.json",
         mixed_precision: bool = True,
         allow_tf32: bool = False,
-        load_method: str = 'full',
+        load_method: str = 'weights',
         balance_headers: Optional[Union[str, List[str]]] = None,
         process_isolate: bool = False,
         **training_kwargs: Any
     ) -> Dict:
-        """Train model(s) using a given set of parameters, outcomes, and inputs.
+        """Train model(s).
+
+        Models are trained using a given set of parameters, outcomes,
+        and (optionally) slide-level inputs.
 
         See :ref:`Training <training>` for more information.
 
@@ -3090,10 +3247,10 @@ class Project:
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a Tensorflow model. If 'full', loads the model with
-                ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json`` configuration file, build the model architecture,
-                and then load weights from the given model with
+                when loading a Tensorflow model. If 'full', loads the model
+                with ``tf.keras.models.load_model()``. If 'weights', will read
+                the ``params.json`` configuration file, build the model
+                architecture, and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
@@ -3188,7 +3345,7 @@ class Project:
                 )
             hp_dict = params
         else:
-            raise ValueError(f"Unable to interprest params value {params}")
+            raise ValueError(f"Unable to interpret params value {params}")
 
         # Get default validation settings from kwargs
         val_kwargs = {
@@ -3265,42 +3422,115 @@ class Project:
     def train_ensemble(
         self,
         outcomes: Union[str, List[str]],
-        n_ensembles: int = 5,
+        params: Union[ModelParams,
+                      List[ModelParams],
+                      Dict[str, ModelParams]],
+        n_ensembles: Optional[int] = None,
         **kwargs
     ) -> List[Dict]:
-        """Train an ensemble of model(s) using a given set of parameters,
-        outcomes, and inputs by calling the train function ``n_ensembles``
-        of times.
+        """Train an ensemble of model(s).
+
+        Trains models using a given set of parameters and outcomes by calling
+        the train function ``n_ensembles`` of times.
 
         Args:
             outcomes (str or list(str)): Outcome label annotation header(s).
-            n_ensembles (int): Total models needed in the ensemble.
-                Defaults to 5.
+            params (:class:`slideflow.ModelParams`, list or dict):
+                Model parameters for training. May provide one `ModelParams`,
+                a list, or dict mapping model names to params. If multiple
+                params are provided, will train an hyper deep ensemble models
+                for them, otherwise a deep ensemble model.
 
         Keyword Args:
-            **kwargs: All keyword arguments accepted by :meth:`slideflow.Project.train`
+            n_ensembles (int, optional): Total models needed in the ensemble.
+                Defaults to 5.
+            **kwargs: All keyword arguments accepted by
+                :meth:`slideflow.Project.train`
 
         Returns:
             List of dictionaries of length ``n_ensembles``, containing training
             results for each member of the ensemble.
-        """
 
+        """
+        # Prepare output directory for saving ensemble members
         if isinstance(outcomes, list):
             ensemble_name = f"{'-'.join(outcomes)}-ensemble"
         else:
             ensemble_name = f"{outcomes}-ensemble"
-        ensemble_path = sf.util.get_new_model_dir(self.models_dir, ensemble_name)
+        ensemble_path = sf.util.get_new_model_dir(
+            self.models_dir, ensemble_name
+        )
         ensemble_results = []
 
+        # Process model params arguments
+        if isinstance(params, ModelParams):
+            hyper_deep = False
+            if n_ensembles is None:
+                raise TypeError(
+                    "Keyword argument 'n_ensembles' is required if 'params' is"
+                    " not a list of ModelParams."
+                )
+        elif isinstance(params, list):
+            hyper_deep = True
+            if not all([isinstance(hp, ModelParams) for hp in params]):
+                raise errors.ModelParamsError(
+                    'If params is a list, items must be sf.ModelParams'
+                )
+            hp_list = params
+            n_ensembles = len(hp_list)
+        elif isinstance(params, dict):
+            hyper_deep = True
+            if not all([isinstance(hp, str) for hp in params.keys()]):
+                raise errors.ModelParamsError(
+                    'If params is a dict, keys must be of type str'
+                )
+            all_hp = params.values()
+            if not all([isinstance(hp, ModelParams) for hp in all_hp]):
+                raise errors.ModelParamsError(
+                    'If params is a dict, values must be sf.ModelParams'
+                )
+            hp_list = [hp for hp in params.values()]
+            n_ensembles = len(hp_list)
+            print("The hyperparameter name to ensemble member mapping is:")
+            for e, n in enumerate(params.keys()):
+                print(f"  - {n} : ensemble_{e+1}")
+        else:
+            raise ValueError(f"Unable to interpret params value {params}")
+
+        # Check for same epoch value
+        if hyper_deep:
+            for hp in hp_list:
+                if hp.epochs != hp_list[0].epochs:
+                    raise errors.ModelParamsNotFoundError(
+                        "All hyperparameters must have the same epoch value"
+                    )
+
+        # Parse validation settings
+        val_kwargs = {k[4:]: v for k, v in kwargs.items() if k[:4] == 'val_'}
+        val_settings = get_validation_settings(**val_kwargs)
+        print(f"Val settings: {json.dumps(vars(val_settings), indent=2)}")
+
+        if not hyper_deep:
+            print(f"\nHyperparameters: {params}")
         for i in range(n_ensembles):
+            print(f"Training Ensemble {i+1} of {n_ensembles}")
             # Create the ensemble member folder, which will hold each
             # k-fold model for the given ensemble member.
-            member_path = sf.util.get_new_model_dir(
-                ensemble_path,
-                f"ensemble_{i+1}")
-            with self._set_models_dir(member_path):
-                result = self.train(outcomes, **kwargs)
-                ensemble_results.append(result)
+            with sf.util.logging_level(30):
+                member_path = sf.util.get_new_model_dir(
+                    ensemble_path,
+                    f"ensemble_{i+1}")
+                if hyper_deep:
+                    print(f"\nHyperparameters: {hp_list[i]}")
+
+                with self._set_models_dir(member_path):
+                    if hyper_deep:
+                        hp = hp_list[i]
+                        result = self.train(outcomes, hp, **kwargs)
+                        ensemble_results.append(result)
+                    else:
+                        result = self.train(outcomes, params, **kwargs)
+                        ensemble_results.append(result)
 
         # Copy the slide manifest and params.json file
         # into the parent ensemble folder.
@@ -3310,13 +3540,23 @@ class Project:
                 shutil.copyfile(
                     join(member_path, member_models[0], "slide_manifest.csv"),
                     join(ensemble_path, "slide_manifest.csv"))
-                shutil.copyfile(
-                    join(member_path, member_models[0], "params.json"),
-                    join(ensemble_path, "params.json"))
+
+                params_data = sf.util.load_json(
+                    join(member_path, member_models[0], "params.json")
+                )
+                params_data['ensemble_epochs'] = params_data['hp']['epochs']
+                del params_data['hp']
+                params_data['hyper_deep_ensemble'] = hyper_deep
+                sf.util.write_json(
+                    params_data, join(ensemble_path, "ensemble_params.json")
+                )
+
             except OSError:
-                log.error("Unable to find ensemble slide manifest and params.json.")
+                log.error(
+                    "Unable to find ensemble slide manifest and params.json"
+                )
         else:
-            log.error("Unable to find ensemble slide manifest and params.json.")
+            log.error("Unable to find ensemble slide manifest and params.json")
 
         # Merge predictions from each ensemble.
         if "save_predictions" in kwargs:
@@ -3333,10 +3573,12 @@ class Project:
         *,
         exp_label: Optional[str] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
+        dataset_kwargs: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> None:
-        """Train SimCLR model, with models saved in ``simclr`` folder in the
-        project root directory.
+        """Train SimCLR model.
+
+        Models are saved in ``simclr`` folder in the project root directory.
 
         See :ref:`simclr_ssl` for more information.
 
@@ -3352,6 +3594,8 @@ class Project:
             outcomes (str, optional): Annotation column which specifies the
                 outcome, for optionally training a supervised head.
                 Defaults to None.
+            dataset_kwargs: All other keyword arguments for
+                :meth:`slideflow.Dataset.tensorflow`
             **kwargs: All other keyword arguments for
                 :meth:`slideflow.simclr.run_simclr()`
 
@@ -3361,9 +3605,11 @@ class Project:
         # Set up SimCLR experiment data directory
         if exp_label is None:
             exp_label = 'simclr'
-        outdir = sf.util.get_new_model_dir(join(self.root, 'simclr'), exp_label)
-        if not exists(outdir):
-            os.makedirs(outdir)
+        if not exists(join(self.root, 'simclr')):
+            os.makedirs(join(self.root, 'simclr'))
+        outdir = sf.util.create_new_model_dir(
+            join(self.root, 'simclr'), exp_label
+        )
 
         # get base SimCLR args/settings if not provided
         if not simclr_args:
@@ -3376,23 +3622,17 @@ class Project:
             train_dts=train_dataset,
             val_dts=val_dataset,
             labels=outcomes,
+            dataset_kwargs=dataset_kwargs
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
-    def train_clam(
-        self,
-        exp_name: str,
-        pt_files: str,
-        outcomes: Union[str, List[str]],
-        dataset: Dataset,
-        train_slides: Union[str, List[str]] = 'auto',
-        val_slides: Union[str, List[str]] = 'auto',
-        splits: str = 'splits.json',
-        clam_args: Optional[SimpleNamespace] = None,
-        attention_heatmaps: bool = True
-    ) -> None:
-        """Train a CLAM model from layer activations exported with
-        :meth:`slideflow.project.generate_features_for_clam`.
+    def train_clam(self, *args, splits: str = 'splits.json', **kwargs):
+        """Deprecated function.
+
+        Train a CLAM model from layer activations
+        exported with :meth:`slideflow.Project.generate_features_for_clam`.
+
+        Preferred API is :meth:`slideflow.Project.train_mil()`.
 
         See :ref:`clam_mil` for more information.
 
@@ -3436,163 +3676,75 @@ class Project:
             None
 
         """
-
-        import slideflow.clam as clam
-        from slideflow.clam.create_attention import export_attention
-        from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
-
-        # Set up CLAM experiment data directory
-        clam_dir = join(self.root, 'clam', exp_name)
-        results_dir = join(clam_dir, 'results')
-        splits_file = join(self.root, splits)
-        if not exists(results_dir):
-            os.makedirs(results_dir)
-
-        # Get base CLAM args/settings if not provided.
-        if not clam_args:
-            clam_args = clam.get_args()
-        assert isinstance(clam_args, SimpleNamespace)
-
-        # Detect number of features automatically from saved pt_files
-        pt_file_paths = [
-            join(pt_files, p) for p in os.listdir(pt_files)
-            if sf.util.path_to_ext(join(pt_files, p)) == 'pt'
-        ]
-        num_features = clam.detect_num_features(pt_file_paths[0])
-
-        # Note: CLAM only supports categorical outcomes
-        labels, unique_labels = dataset.labels(outcomes, use_float=False)
-
-        if train_slides == val_slides == 'auto':
-            k_train_slides = {}  # type: Dict
-            k_val_slides = {}  # type: Dict
-            for k in range(clam_args.k):
-                train_dts, val_dts = dataset.split(
-                    'categorical',
-                    labels,
-                    val_strategy='k-fold',
-                    splits=splits_file,
-                    val_k_fold=clam_args.k,
-                    k_fold_iter=k+1
-                )
-                k_train_slides[k] = [
-                    path_to_name(t) for t in train_dts.tfrecords()
-                ]
-                k_val_slides[k] = [
-                    path_to_name(t) for t in val_dts.tfrecords()
-                ]
-        else:
-            k_train_slides = {0: train_slides}
-            k_val_slides = {0: val_slides}
-
-        # Remove slides without associated .pt files
-        num_skipped = 0
-        for k in k_train_slides:
-            n_supplied = len(k_train_slides[k]) + len(k_val_slides[k])
-            k_train_slides[k] = [
-                s for s in k_train_slides[k] if exists(join(pt_files, s+'.pt'))
-            ]
-            k_val_slides[k] = [
-                s for s in k_val_slides[k] if exists(join(pt_files, s+'.pt'))
-            ]
-            n_train = len(k_train_slides[k])
-            n_val = len(k_val_slides[k])
-            num_skipped += n_supplied - (n_train + n_val)
-        if num_skipped:
-            log.warn(f'Skipping {num_skipped} slides missing .pt files.')
-
-        # Set up training/validation splits (mirror base model)
-        split_dir = join(clam_dir, 'splits')
-        if not exists(split_dir):
-            os.makedirs(split_dir)
-        header = ['', 'train', 'val', 'test']
-        for k in range(clam_args.k):
-            with open(join(split_dir, f'splits_{k}.csv'), 'w') as f:
-                writer = csv.writer(f)
-                writer.writerow(header)
-                # Currently, the below sets the val & test sets to be the same
-                for i in range(max(len(k_train_slides[k]),
-                                   len(k_val_slides[k]))):
-                    row = [i]  # type: List
-                    if i < len(k_train_slides[k]):
-                        row += [k_train_slides[k][i]]
-                    else:
-                        row += ['']
-                    if i < len(k_val_slides[k]):
-                        row += [k_val_slides[k][i], k_val_slides[k][i]]
-                    else:
-                        row += ['', '']
-                    writer.writerow(row)
-
-        # Assign CLAM settings based on this project
-        clam_args.model_size = [num_features, 256, 128]
-        clam_args.results_dir = results_dir
-        clam_args.n_classes = len(unique_labels)
-        clam_args.split_dir = split_dir
-        clam_args.data_root_dir = pt_files
-
-        # Save clam settings
-        sf.util.write_json(vars(clam_args), join(clam_dir, 'experiment.json'))
-
-        # Create CLAM dataset
-        clam_dataset = Generic_MIL_Dataset(
-            annotations=dataset.filtered_annotations,
-            data_dir=pt_files,
-            shuffle=False,
-            seed=clam_args.seed,
-            print_info=True,
-            label_col=outcomes,
-            label_dict=dict(zip(unique_labels, range(len(unique_labels)))),
-            patient_strat=False,
-            ignore=[]
+        from slideflow.mil import legacy_train_clam
+        warnings.warn("Project.train_clam() is deprecated. Please use "
+                      "Project.train_mil()",
+                      DeprecationWarning)
+        return legacy_train_clam(
+            *args,
+            outdir=join(self.root, 'clam'),
+            splits=join(self.root, splits),
+            **kwargs
         )
-        # Run CLAM
-        clam.main(clam_args, clam_dataset)
 
-        # Get attention from trained model on validation set(s)
-        for k in k_val_slides:
-            tfr = dataset.tfrecords()
-            attention_tfrecords = [
-                t for t in tfr if path_to_name(t) in k_val_slides[k]
-            ]
-            attention_dir = join(clam_dir, 'attention', str(k))
-            if not exists(attention_dir):
-                os.makedirs(attention_dir)
-            rev_labels = dict(zip(range(len(unique_labels)), unique_labels))
-            export_attention(
-                vars(clam_args),
-                ckpt_path=join(results_dir, f's_{k}_checkpoint.pt'),
-                outdir=attention_dir,
-                pt_files=pt_files,
-                slides=k_val_slides[k],
-                reverse_labels=rev_labels,
-                labels=labels
-            )
-            if attention_heatmaps:
-                heatmaps_dir = join(clam_dir, 'attention_heatmaps', str(k))
-                if not exists(heatmaps_dir):
-                    os.makedirs(heatmaps_dir)
+    def train_mil(
+        self,
+        config: "mil._TrainerConfig",
+        train_dataset: Dataset,
+        val_dataset: Dataset,
+        outcomes: Union[str, List[str]],
+        bags: Union[str, List[str]],
+        *,
+        exp_label: Optional[str] = None,
+        **kwargs
+    ):
+        r"""Train a multi-instance learning model.
 
-                for att_tfr in attention_tfrecords:
-                    attention_dict = {}
-                    slide = path_to_name(att_tfr)
-                    try:
-                        with open(join(attention_dir, slide+'.csv'), 'r') as f:
-                            reader = csv.reader(f)
-                            for row in reader:
-                                attention_dict.update({
-                                    int(row[0]): float(row[1])
-                                })
-                    except FileNotFoundError:
-                        print(f'Attention scores for slide {slide} not found')
-                        continue
-                    dataset.tfrecord_heatmap(
-                        att_tfr,
-                        tile_dict=attention_dict,
-                        outdir=heatmaps_dir
-                    )
+        Args:
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+                Training configuration, as obtained by
+                :func:`slideflow.mil.mil_config()`.
+            train_dataset (:class:`slideflow.Dataset`): Training dataset.
+            val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+            outcomes (str): Outcome column (annotation header) from which to
+                derive category labels.
+            bags (str): Either a path to directory with \*.pt files, or a list
+                of paths to individual \*.pt files. Each file should contain
+                exported feature vectors, with each file containing all tile
+                features for one patient.
+
+        Keyword args:
+            exp_label (str): Experiment label, used for naming the subdirectory
+                in the ``{project root}/mil`` folder, where training history
+                and the model will be saved.
+            attention_heatmaps (bool): Calculate and save attention heatmaps
+                on the validation dataset. Defaults to False.
+            interpolation (str, optional): Interpolation strategy for smoothing
+                attention heatmaps. Defaults to 'bicubic'.
+            cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+                valid matplotlib colormap. Defaults to 'inferno'.
+            norm (str, optional): Normalization strategy for assigning heatmap
+                values to colors. Either 'two_slope', or any other valid value
+                for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+                If 'two_slope', normalizes values less than 0 and greater than 0
+                separately. Defaults to None.
+
+        """
+        from .mil import train_mil
+
+        return train_mil(
+            config,
+            train_dataset,
+            val_dataset,
+            outcomes,
+            bags,
+            outdir=join(self.root, 'mil'),
+            exp_label=exp_label,
+            **kwargs
+        )
 
 # -----------------------------------------------------------------------------
+
 
 def load(root: str, **kwargs) -> "Project":
     """Load a project at the given root directory.
@@ -3605,6 +3757,7 @@ def load(root: str, **kwargs) -> "Project":
 
     """
     return Project(root, **kwargs)
+
 
 def create(
     root: str,
@@ -3674,7 +3827,7 @@ def create(
             Commons (GDC) automatically, using slide names stored in the
             annotations file.
         md5 (bool): Perform MD5 hash verification for all slides using
-            the GDC (TCGA) MD5 manifest, which will be automatically downloaded.
+            the GDC (TCGA) MD5 manifest, which will be downloaded.
         name (str): Set the project name. This has higher priority than any
             supplied configuration, which will be ignored.
         slides (str): Set the destination folder for slides. This has higher
@@ -3696,9 +3849,11 @@ def create(
     Returns:
         slideflow.Project
     """
-    cfg_names = ('annotations', 'name', 'slides', 'tiles', 'tfrecords', 'roi_dest')
-    proj_kwargs = {k:v for k,v in kwargs.items() if k not in cfg_names}
-    kwargs = {k:v for k,v in kwargs.items() if k in cfg_names}
+    cfg_names = (
+        'annotations', 'name', 'slides', 'tiles', 'tfrecords', 'roi_dest'
+    )
+    proj_kwargs = {k: v for k, v in kwargs.items() if k not in cfg_names}
+    kwargs = {k: v for k, v in kwargs.items() if k in cfg_names}
 
     # Initial verification
     if sf.util.is_project(root):
@@ -3736,16 +3891,21 @@ def create(
     log.info(f"Setting up project at {root}")
     if 'annotations' in cfg:
         proj_kwargs['annotations'] = join(root, basename(cfg.annotations))
-    P = sf.Project(root, **proj_kwargs)
+    P = sf.Project(root, **proj_kwargs, create=True)
     # Download annotations, if a URL.
     if 'annotations' in cfg and cfg.annotations.startswith('http'):
         log.info(f"Downloading {cfg.annotations}")
         r = requests.get(cfg.annotations)
         open(proj_kwargs['annotations'], 'wb').write(r.content)
         if cfg.annotations_md5 != sf.util.md5(proj_kwargs['annotations']):
-            raise errors.ChecksumError("Remote annotations URL failed MD5 checksum.")
+            raise errors.ChecksumError(
+                "Remote annotations URL failed MD5 checksum."
+            )
     elif 'annotations' in cfg:
-        shutil.copy(cfg.annotations, root)
+        try:
+            shutil.copy(cfg.annotations, root)
+        except shutil.SameFileError:
+            pass
 
     # Set up the dataset source.
     if 'sources' not in proj_kwargs or proj_kwargs['sources'] is not None:
@@ -3764,8 +3924,10 @@ def create(
         if 'rois' in cfg and not exists(cfg.roi_dest):
             os.makedirs(cfg.roi_dest)
         if 'rois' in cfg and exists(cfg.rois) and os.path.isdir(cfg.rois):
-            # Search the folder for CSV files and copy to the project ROI directory.
-            to_copy = [r for r in os.listdir(cfg.rois) if path_to_ext(r) == 'csv']
+            # Search the folder for CSV files
+            # and copy to the project ROI directory.
+            to_copy = [r for r in os.listdir(cfg.rois)
+                       if path_to_ext(r) == 'csv']
             log.info("Copying {} ROIs from {} to {}.".format(
                 len(to_copy),
                 cfg.rois,
@@ -3806,8 +3968,13 @@ def create(
                 log.info(f"Slide {slide} failed MD5 verification")
                 failed_md5 += [slide]
         if not failed_md5:
-            log.info(f"All {len(slides_with_md5)} slides passed MD5 verification.")
+            log.info(
+                f"All {len(slides_with_md5)} slides passed MD5 verification."
+            )
         else:
-            log.warn(f"Warning: {len(failed_md5)} slides failed MD5 verification:")
+            log.warn(
+                f"Warning: {len(failed_md5)} slides failed MD5 verification:"
+                f"{', '.join(failed_md5)}"
+            )
 
     return P

@@ -1,0 +1,655 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Slideflow Studio: Live Visualization &mdash; slideflow 2.0.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Troubleshooting" href="troubleshooting.html" />
+    <link rel="prev" title="Custom Training Loops" href="custom_loops.html" />
+  <!-- Google Analytics -->
+
+  <!-- End Google Analytics -->
+
+
+
+  <script src="_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+
+
+
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+
+
+
+
+
+                <div class="version">
+                  2.0
+                </div>
+
+
+
+
+
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+          </div>
+
+
+
+
+
+
+
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets_and_val.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide_processing.html">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cellseg.html">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="posthoc.html">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mil.html">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ssl.html">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="saliency.html">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset_features.html">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_params.html">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="biscuit.html">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow_cellseg.html">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gan.html">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="grad.html">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mil_module.html">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_tensorflow.html">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_torch.html">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simclr.html">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide_qc.html">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="studio_module.html">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
+</ul>
+
+
+
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+
+      <li>
+        <a href="index.html">
+
+            Docs
+
+        </a> &gt;
+      </li>
+
+
+      <li>Slideflow Studio: Live Visualization</li>
+
+
+      <li class="pytorch-breadcrumbs-aside">
+
+
+            <a href="_sources/studio.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+
+
+      </li>
+
+  </ul>
+
+
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+
+
+          <div class="rst-content">
+
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+
+  <section id="slideflow-studio-live-visualization">
+<span id="studio"></span><h1>Slideflow Studio: Live Visualization<a class="headerlink" href="#slideflow-studio-live-visualization" title="Permalink to this heading">¶</a></h1>
+
+    <video width="100%"  controls autoplay loop muted>
+    <source src="studio_preview.webm" type="video/webm">
+    Video
+    </video>
+    <div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Slideflow Studio provides powerful tools for interactive visualization whole-slide images, model predictions, and GAN-generated images. It’s also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you’ll get a smooth experience that can even run on a Raspberry Pi.</p>
+<p>If you have installed slideflow via PIP, you can run Studio from a terminal with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>slideflow-studio
+</pre></div>
+</div>
+<p>If you are running from source, you can start Studio using the following script in the GitHub repository:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>slideflow-studio.py
+</pre></div>
+</div>
+<p>If you encounter any issues with the initialization scripts, you can also start Studio by executing the submodule:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>slideflow.studio
+</pre></div>
+</div>
+<p>A path to a whole-slide image can optionally be provided as the first argument. Use the <code class="docutils literal notranslate"><span class="pre">--help</span></code> flag to see a list of available arguments.</p>
+<p>You can also launch Studio by using the <code class="docutils literal notranslate"><span class="pre">.view()</span></code> function of <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code>, <a class="reference internal" href="heatmap.html#slideflow.Heatmap" title="slideflow.Heatmap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Heatmap</span></code></a>, and <a class="reference internal" href="mosaic.html#slideflow.Mosaic" title="slideflow.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Mosaic</span></code></a> functions.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span>
+
+<span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="s1">&#39;/path/to/slide.svs&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+<span class="n">wsi</span><span class="o">.</span><span class="n">view</span><span class="p">()</span>
+</pre></div>
+</div>
+<section id="layout-design">
+<h2>Layout &amp; design<a class="headerlink" href="#layout-design" title="Permalink to this heading">¶</a></h2>
+<img alt="_images/studio_section_labels.jpg" src="_images/studio_section_labels.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>The Slideflow Studio window has three primary areas: the main view, a tile preview, and the control panel. Fullscreen mode can be toggled with View -&gt; Fullscreen or by pressing Ctrl+F.</p>
+<section id="main-view">
+<h3>Main view<a class="headerlink" href="#main-view" title="Permalink to this heading">¶</a></h3>
+<p>The main view is an interactive display for whole-slide images. Zoom in on a slide using the mouse wheel, and navigate around the slide by clicking and dragging. When a model is loaded, right clicking on the main view sets the prediction location, drawing a red box outlining the location that a tile was extracted and displaying the prediction underneath.</p>
+</section>
+<section id="tile-preview">
+<h3>Tile preview<a class="headerlink" href="#tile-preview" title="Permalink to this heading">¶</a></h3>
+<p>When a model is loaded, right clicking on the main view will establish the location for a focal tile prediction. A tile will be extracted from this location of the whole-slide image at the pixel &amp; micron size appropriate for the loaded model. The tile preview window shows the extracted image tile taken from this location. If the loaded model uses stain normalization, a post-normalization image is also shown on the right. The tile preview window can be hidden by clicking the X in the top right corner, or toggled via the menu item View -&gt; Show -&gt; Tile Preview.</p>
+</section>
+<section id="control-panel">
+<h3>Control panel<a class="headerlink" href="#control-panel" title="Permalink to this heading">¶</a></h3>
+<p>The control panel shows relevant active widgets which contain information and controls for whole-slide images, loaded models, heatmaps, and loaded GANs. <a class="reference internal" href="#extensions"><span class="std std-ref">Enabling an extension</span></a> will add an additional icon and associated functionality.</p>
+</section>
+</section>
+<section id="projects">
+<h2>Projects<a class="headerlink" href="#projects" title="Permalink to this heading">¶</a></h2>
+<p>A Slideflow <a class="reference internal" href="project_setup.html#project-setup"><span class="std std-ref">Project</span></a> can be loaded to make it easier to find and load both slides and models. Load a project with either File -&gt; Open Project, or click and drag a project folder onto the main view. Click the Project icon to view project information and browse both slides and models.</p>
+<img alt="_images/studio_projects.jpg" src="_images/studio_projects.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>All slides associated with the project will be listed under the “Slides” subheader. Clicking a slide name will open the slide. Similarly, all trained models associated with the project are listed under the “Models” subheader and can be loaded by clicking a model name. Both Tensorflow and PyTorch models can be loaded, regardless of the active backend.</p>
+</section>
+<section id="whole-slide-images">
+<span id="studio-wsi"></span><h2>Whole-slide images<a class="headerlink" href="#whole-slide-images" title="Permalink to this heading">¶</a></h2>
+<img alt="_images/studio_slide.jpg" src="_images/studio_slide.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Whole-slide images can be loaded directly with File -&gt; Open Slide. You can also load a slide by dragging and dropping a file onto the main view or by using the Project interface. Use the mouse wheel to zoom, and click-and-drag to move. Slides can be closed with File -&gt; Close Slide.</p>
+<p>The Slide section of the control panel shows slide properties, including dimensions, highest scanned magnification, slide scanner vendor, and how many annotated regions-of-interest (ROIs) are loaded for the slide. ROIs are loaded automatically if a Project is loaded, but can be disabled by unchecking “Use ROIs”.</p>
+<p>A thumbnail of the loaded slide is shown in the upper right corner of the main view, and can be hidden with View -&gt; Show -&gt; Thumbnail. A magnification scale is shown in the bottom-left corner of the main view, and can be hidden with View -&gt; Show -&gt; Scale.</p>
+<section id="roi-annotations">
+<h3>ROI Annotations<a class="headerlink" href="#roi-annotations" title="Permalink to this heading">¶</a></h3>
+<img alt="_images/studio_rois.jpg" src="_images/studio_rois.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow project has been loaded (File -&gt; Open Project), then all available ROIs for the loaded slide will be shown. You can use Studio to add or remove additional ROIs with the annotation tool, under the subheader “ROIs”.</p>
+<p>Click the plus (Add) icon to draw new ROIs with a lasso tool; right click and drag to create a new ROI. The pencil (Edit) icon allows you to select any existing ROIs, which can then be removed by pressing the Delete key. Once finished, ROIs can be exported in CSV format by clicking the floppy disk icon (Save). You can manually load an existing ROI file by clicking the folder icon (Load).</p>
+<p>At present, ROIs can only be added with lasso selection. More advanced functionality will be added in an future release. Slideflow can also import ROIs generated from external applications such as QuPath and ImageScope (see <a class="reference internal" href="slide_processing.html#regions-of-interest"><span class="std std-ref">Regions of Interest</span></a> for more information).</p>
+</section>
+<section id="preview-tile-filter">
+<h3>Preview tile filter<a class="headerlink" href="#preview-tile-filter" title="Permalink to this heading">¶</a></h3>
+<img alt="_images/tile_filter.jpg" src="_images/tile_filter.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>The tile filtering strategy can be previewed by checking “Tile filter”. Click the ellipsis button to change grayspace fraction/threshold and whitespace fraction/threshold, to see how tuning these parameters alters tile-level filtering.</p>
+</section>
+<section id="preview-slide-filter">
+<h3>Preview slide filter<a class="headerlink" href="#preview-slide-filter" title="Permalink to this heading">¶</a></h3>
+<img alt="_images/slide_filter.jpg" src="_images/slide_filter.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Similarly, the slide filtering strategy can be previewed by checking “Slide filter”. Filtering options that can be previewed include blur filtering, Otsu’s thresholding, or both. If “Tile filter” and “Slide filter” are both selected, tiles will be filtered with both.</p>
+</section>
+<section id="preview-slide-normalization">
+<h3>Preview slide normalization<a class="headerlink" href="#preview-slide-normalization" title="Permalink to this heading">¶</a></h3>
+<p>Stain normalization strategies can be quickly previewed by checking “Normalize”, which will apply the associated normalization strategy to the main view. If a model is loaded, the model’s normalizer will be used by default. The normalizer can be changed with the corresponding dropdown menu, allowing you to preview any normalization method. All normalizer methods shown except for the model normalizer will use the “v3” fit (see <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code> for more information).</p>
+</section>
+</section>
+<section id="models-predictions">
+<h2>Models &amp; predictions<a class="headerlink" href="#models-predictions" title="Permalink to this heading">¶</a></h2>
+<p>Slideflow models can be loaded with File -&gt; Open Model, by clicking and dragging a model onto the main view, or by clicking “Load a Model” button of the model widget. Both Tensorflow and PyTorch models are supported. Models can be closed with File -&gt; Close Model.</p>
+<p>A summary of the loaded model is shown on the left side of the model widget, containing information about the model outcomes, tile size, image format (PNG/JPG), backend (Tensorflow/PyTorch), and the version of Slideflow used to train the model. Click the “HP” button to show a list of all hyperparameters used during model training.</p>
+<p>A model will be enabled by default once loaded, but can be disabled by clicking the gear icon in the Model section of the control panel, and then clicking “Close model”. Similarly, to disable uncertainty quantification (UQ) for models trained with UQ, open the same gear menu and deselect “Enable UQ”.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Slideflow Studio currently only supports tile-based models. Multi-instance learning (MIL) model support is under development and expected to be included in a future release.</p>
+</div>
+<section id="tile-predictions">
+<h3>Tile predictions<a class="headerlink" href="#tile-predictions" title="Permalink to this heading">¶</a></h3>
+<img alt="_images/studio_tile_preds.jpg" src="_images/studio_tile_preds.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Once a model is loaded, right-click anywhere on the main view to set the tile extraction location for the tile preview. A tile will be extracted at this location matching the pixel and micron size of the loaded model. The extracted tile will be shown before and after stain normalization (if applicable) in the tile preview window. Right click and drag to slide the preview window. The model prediction at this location will be shown underneath the red box in the main view, and in histogram format in the control panel, along with the class label for categorical models.</p>
+</section>
+<section id="saliency">
+<h3>Saliency<a class="headerlink" href="#saliency" title="Permalink to this heading">¶</a></h3>
+<img alt="_images/studio_saliency.jpg" src="_images/studio_saliency.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Saliency maps for the given model and image tile can be previewed in real-time by selecting the checkbox under the “Saliency” subheader. The saliency map will replace the extracted image tile in the tile preview window. Alternatively, saliency can be viewed as an overlay on top of the extracted image tile by checking the box “Overlay”. The dropdown menu below in this section can be used to change the saliency method.</p>
+</section>
+<section id="slide-predictions">
+<h3>Slide predictions<a class="headerlink" href="#slide-predictions" title="Permalink to this heading">¶</a></h3>
+<img alt="_images/studio_slide_preds.jpg" src="_images/studio_slide_preds.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Click the “Predict Slide” button to generate a prediction for the whole-slide image. By default, this will show predictions across the slide as a heatmap in the main display, and the final prediction for the slide will be shown under the “Slide Prediction” subheader of the control panel. Histograms of predictions for each model outcome, as well as uncertainty (if applicable), will be shown in this same section of the control panel. Click the + and - buttons in this section to cycle through histograms for each outcome category.</p>
+</section>
+</section>
+<section id="heatmaps">
+<h2>Heatmaps<a class="headerlink" href="#heatmaps" title="Permalink to this heading">¶</a></h2>
+<img alt="_images/studio_heatmap.jpg" src="_images/studio_heatmap.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click “Generate” in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the “Display” subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap.</p>
+<p>By default, heatmaps are calculated with multiprocessing pools, which may increase memory utilization. To decrease memory utilization at the cost of slower heatmap calculation, switch to low memory mode in the Settings section (described below), or by using the launch flag <code class="docutils literal notranslate"><span class="pre">--low_memory</span></code>.</p>
+<p>Heatmaps can be saved in PNG format with File -&gt; Export -&gt; Heatmap (PNG). Heatmaps can also be exported in numpy format (NPZ) with File -&gt; Export -&gt; Heatmap (NPZ). The heatmap of predictions will be saved in the exported NPZ file under the key <code class="docutils literal notranslate"><span class="pre">'logit'</span></code>, with the shape <code class="docutils literal notranslate"><span class="pre">(y_dim,</span> <span class="pre">x_dim,</span> <span class="pre">num_classes)</span></code>. If the model was trained with uncertainty, the uncertainty heatmap will be saved under the key <code class="docutils literal notranslate"><span class="pre">'uncertainty'</span></code>.</p>
+</section>
+<section id="performance-capture">
+<h2>Performance &amp; Capture<a class="headerlink" href="#performance-capture" title="Permalink to this heading">¶</a></h2>
+<img alt="_images/studio_performance.jpg" src="_images/studio_performance.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Performance can be monitored in the Performance section of the control panel (lightning icon). This section shows frametimes for GUI display, image rendering, normalization, and model prediction.</p>
+<p>Export contents of the main view to a PNG file with File -&gt; Export -&gt; Main view. Similarly, the extracted image tile shown in the tile preview window can be exported with File -&gt; Export -&gt; Tile view. A screenshot of the entire window interface can be saved with File -&gt; Export -&gt; GUI view.</p>
+</section>
+<section id="settings">
+<h2>Settings<a class="headerlink" href="#settings" title="Permalink to this heading">¶</a></h2>
+<p>Studio can be customized in the Settings section, which provides the ability to set a FPS limit (defaults to 60), enable vertical sync (enabled by default), and customize the theme. This section also includes an option to enter “Low lemory mode”. In low memory mode, heatmaps are calculated with threadpools rather than multiprocessing pools, decreasing memory utilization at the cost of slower heatmap generation.</p>
+</section>
+<section id="extensions">
+<span id="id1"></span><h2>Extensions<a class="headerlink" href="#extensions" title="Permalink to this heading">¶</a></h2>
+<img alt="_images/studio_extensions.jpg" src="_images/studio_extensions.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Slideflow Studio includes an Extensions section for expanding functionality and adding additional features. Extensions may require additional software dependencies or have different licenses. The Extensions section can be accessed by clicking the puzzle icon in bottom-left section of the control panel.</p>
+<p>Three official extensions are included and described below, adding support for cell segmentation with Cellpose, generative adversarial networks (StyleGAN), and mosaic maps. Development is underway to add support for community extensions that can be shared and downloaded. Please reach out to us <a class="reference external" href="https://github.com/jamesdolezal/slideflow">on GitHub</a> if you are interested in building and deploying an extension based on your research.</p>
+<section id="cell-segmentation">
+<h3>Cell segmentation<a class="headerlink" href="#cell-segmentation" title="Permalink to this heading">¶</a></h3>
+<p>The Cell Segmentation extension adds support for interactive cell segmentation with Cellpose. Please see <a class="reference internal" href="cellseg.html#cellseg"><span class="std std-ref">Cell Segmentation</span></a> for more information.</p>
+</section>
+<section id="stylegan">
+<h3>StyleGAN<a class="headerlink" href="#stylegan" title="Permalink to this heading">¶</a></h3>
+
+    <video width="100%"  controls autoplay loop muted>
+    <source src="stylegan.webm" type="video/webm">
+    Video
+    </video>
+    <div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>The StyleGAN extension adds support for visualizing trained StyleGAN2 or StyleGAN3 networks. Once enabled, GAN .pkl files can be loaded with File -&gt; Load GAN, or with drag-and-drop. Generated images are shown in the tile preview window. Model predictions on GAN images operate similarly to predictions on whole-slide images. Predictions on GAN images are generated in real-time, and you can watch the predictions change in the control panel.</p>
+<p>By default, Studio will generate predictions on the full GAN image (after resizing to match the model’s <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> value). If a <code class="docutils literal notranslate"><span class="pre">training_options.json</span></code> file is found in the same directory as the GAN .pkl, the tile size used to train the GAN will be read from this file (slideflow_kwargs/tile_px and ../tile_um). If the GAN was trained on images with a different <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> value, the GAN image will be cropped to match the model’s <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> before resizing. The cropped/resized (and stain normalized) image will be shown to the right of the raw GAN image in the tile preview window.</p>
+<p>The StyleGAN widget can be used to travel the GAN latent space, similar to the implementation in the official <a class="reference external" href="https://github.com/NVlabs/stylegan3">NVIDIA StyleGAN3 repository</a>. Set a specific seed in the input field next to “Seed”, or click and drag the “Drag” button. If the model was trained with class conditioning, manually set the class with the “Class” field (the default value of -1 selects a random class).</p>
+<p>The style mixing section can be used to mix styles between seeds, styles between classes, or both. You can control the degree of mixing with the mixing slider. You can finetune which GAN layers are used during the mixing by clicking the ellipsis button and selection which layers should be traversed during style mixing.</p>
+</section>
+<section id="mosaic-maps">
+<h3>Mosaic maps<a class="headerlink" href="#mosaic-maps" title="Permalink to this heading">¶</a></h3>
+<p>The Mosaic Maps extension, which is enabled by default, adds support for interactively viewing mosaic maps. You can use the <a class="reference internal" href="mosaic.html#slideflow.Mosaic.view" title="slideflow.Mosaic.view"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Mosaic.view()</span></code></a> function to launch Studio and load the mosaic.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="n">mosaic</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Mosaic</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">mosaic</span><span class="o">.</span><span class="n">view</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Alternatively, a mosaic map can be saved to disk with <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Mosaic.export()</span></code>, and then loaded into Studio with File -&gt; Load Mosaic.</p>
+<img alt="_images/studio_mosaic.jpg" src="_images/studio_mosaic.jpg" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Once loaded,the mosaic map can be navigated using the same controls as WSI navigation - click and drag to pan, and use the mouse wheel to zoom. The UMAP used to generate the mosaic map will be shown in a window in the bottom-right corner, with a red box indicating the section of the UMAP currently in view. If a Project is loaded, hovering over an image tile will reveal a popup containing a larger corresponding section from the associated whole-slide image. This popup also contains the name of the slide and tile location coordinates.</p>
+<p>Use the control panel to increase or decrease the mosaic grid size, or to change the background color.</p>
+</section>
+</section>
+</section>
+
+
+             </article>
+
+            </div>
+            <footer>
+
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+        <a href="troubleshooting.html" class="btn btn-neutral float-right" title="Troubleshooting" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+
+
+        <a href="custom_loops.html" class="btn btn-neutral" title="Custom Training Loops" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+
+    </div>
+
+
+
+
+    <hr>
+
+
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2022, James M Dolezal.
+
+    </p>
+  </div>
+
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Slideflow Studio: Live Visualization</a><ul>
+<li><a class="reference internal" href="#layout-design">Layout &amp; design</a><ul>
+<li><a class="reference internal" href="#main-view">Main view</a></li>
+<li><a class="reference internal" href="#tile-preview">Tile preview</a></li>
+<li><a class="reference internal" href="#control-panel">Control panel</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#projects">Projects</a></li>
+<li><a class="reference internal" href="#whole-slide-images">Whole-slide images</a><ul>
+<li><a class="reference internal" href="#roi-annotations">ROI Annotations</a></li>
+<li><a class="reference internal" href="#preview-tile-filter">Preview tile filter</a></li>
+<li><a class="reference internal" href="#preview-slide-filter">Preview slide filter</a></li>
+<li><a class="reference internal" href="#preview-slide-normalization">Preview slide normalization</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#models-predictions">Models &amp; predictions</a><ul>
+<li><a class="reference internal" href="#tile-predictions">Tile predictions</a></li>
+<li><a class="reference internal" href="#saliency">Saliency</a></li>
+<li><a class="reference internal" href="#slide-predictions">Slide predictions</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#heatmaps">Heatmaps</a></li>
+<li><a class="reference internal" href="#performance-capture">Performance &amp; Capture</a></li>
+<li><a class="reference internal" href="#settings">Settings</a></li>
+<li><a class="reference internal" href="#extensions">Extensions</a><ul>
+<li><a class="reference internal" href="#cell-segmentation">Cell segmentation</a></li>
+<li><a class="reference internal" href="#stylegan">StyleGAN</a></li>
+<li><a class="reference internal" href="#mosaic-maps">Mosaic maps</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+
+
+
+
+
+       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+         <script src="_static/doctools.js"></script>
+         <script src="_static/sphinx_highlight.js"></script>
+
+
+
+  <script type="text/javascript" src="_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

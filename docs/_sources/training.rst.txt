@@ -33,7 +33,7 @@ See the :class:`slideflow.ModelParams` API documentation for a list of available
 
 .. note::
 
-    If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams.LinearLossDict``, and all available loss functions are in ``slideflow.model.ModelParams.AllLossDict``.
+    If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.ModelParams.LinearLossDict``, and all available loss functions are in ``slideflow.ModelParams.AllLossDict``.
 
 Training a model
 ****************

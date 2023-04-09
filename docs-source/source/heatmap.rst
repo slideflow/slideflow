@@ -19,3 +19,4 @@ Methods
 .. autofunction:: slideflow.Heatmap.plot_uncertainty
 .. autofunction:: slideflow.Heatmap.save
 .. autofunction:: slideflow.Heatmap.save_npz
+.. autofunction:: slideflow.Heatmap.view

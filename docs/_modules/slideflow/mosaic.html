@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.mosaic &mdash; slideflow 2.0.0 documentation</title>
+  
 
-  <title>slideflow.mosaic &mdash; slideflow 1.5.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  1.5
+                  2.0
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
@@ -159,11 +159,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../../evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mil.html">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../ssl.html">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../saliency.html">Saliency Maps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../custom_loops.html">Custom Training Loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../workbench_tools.html">Workbench: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../studio.html">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
@@ -171,16 +172,19 @@
 <li class="toctree-l1"><a class="reference internal" href="../../slideflow.html">slideflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../dataset.html">slideflow.Dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../heatmap.html">slideflow.Heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../dataset_features.html">slideflow.DatasetFeatures</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../heatmap.html">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model_params.html">slideflow.ModelParams</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../biscuit.html">slideflow.biscuit</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../gan.html">slideflow.gan</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../grad.html">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mil_module.html">slideflow.mil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../model_tensorflow.html">slideflow.model.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../model_torch.html">slideflow.model.torch</a></li>
@@ -190,7 +194,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../util.html">slideflow.util</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../workbench.html">slideflow.workbench</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../studio_module.html">slideflow.studio</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -202,8 +206,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -211,7 +215,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -230,28 +234,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../index.html">Module code</a> &gt;</li>
-
+        
       <li>slideflow.mosaic</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -263,13 +267,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.mosaic</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
@@ -280,6 +284,7 @@
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">multiprocessing.dummy</span> <span class="kn">import</span> <span class="n">Pool</span> <span class="k">as</span> <span class="n">DPool</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span> <span class="nn">cv2</span>
@@ -289,7 +294,7 @@
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">slideflow.stats</span> <span class="kn">import</span> <span class="n">SlideMap</span><span class="p">,</span> <span class="n">get_centroid_index</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">tfrecord2idx</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span>
 <span class="kn">from</span> <span class="nn">slideflow.stats</span> <span class="kn">import</span> <span class="n">get_centroid_index</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
@@ -305,7 +310,7 @@
         <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
         <span class="n">tfr</span><span class="p">,</span> <span class="n">tfr_idx</span> <span class="o">=</span> <span class="n">image</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">get_record_by_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="n">tfr_idx</span><span class="p">)[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_tfrecord_by_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="n">tfr_idx</span><span class="p">)[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">image</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">point_index</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">is_tensorflow_tensor</span><span class="p">(</span><span class="n">image</span><span class="p">):</span>
@@ -458,7 +463,6 @@
 <span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
 <span class="sd">                If None, normalizer will use slideflow.slide.norm_tile.jpg.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            expanded (bool, optional): Deprecated argument.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_point_distances</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List[Dict]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slide_map</span> <span class="o">=</span> <span class="kc">None</span>
@@ -568,7 +572,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">tfr</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;TFRecord </span><span class="si">{</span><span class="n">tfr</span><span class="si">}</span><span class="s2"> not found in slide_map&quot;</span><span class="p">)</span>
                 <span class="k">return</span> <span class="kc">None</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">get_record_by_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="n">tfr_idx</span><span class="p">)[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_tfrecord_by_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="n">tfr_idx</span><span class="p">)[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">image</span>
@@ -581,17 +585,6 @@
                 <span class="k">return</span> <span class="n">tfr</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unable to find TFRecord path for slide [green]</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
-
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;def _add_patch(self, loc, size, **kwargs):</span>
-<span class="sd">        &quot;&quot;&quot;Add an empty patch to the mosaic grid.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            loc (tuple(int, int)): Location (x, y).</span>
-<span class="sd">            size (int): Height/width of patch.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-<span class="sd">        from matplotlib import patches</span>
-<span class="sd">        patch = patches.Rectangle(loc, size, size, **kwargs)</span>
-<span class="sd">        self.ax.add_patch(patch)&#39;&#39;&#39;</span>
 
     <span class="k">def</span> <span class="nf">_initialize_figure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">figsize</span><span class="p">,</span> <span class="n">background</span><span class="p">):</span>
         <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
@@ -647,38 +640,11 @@
     <span class="k">def</span> <span class="nf">selected_points</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">selected</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">focus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tfrecords</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Highlights certain tiles according to a focus list if list provided,</span>
-<span class="sd">        or resets highlighting if no tfrecords provided.</span>
-
-<span class="sd">        Deprecated function.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;Mosaic.focus() is deprecated and will be removed in a future version.&quot;</span><span class="p">,</span>
-            <span class="ne">DeprecationWarning</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="n">tfrecords</span><span class="p">:</span>
-            <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecords</span><span class="p">]</span>
-            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid_idx</span><span class="p">:</span>
-                <span class="n">_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">points_at_grid_index</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">y</span><span class="o">=</span><span class="n">idx</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">_points</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-                    <span class="n">n_in</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">_points</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">slides</span><span class="p">)])</span>
-                    <span class="n">n_not_in</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="o">~</span><span class="n">_points</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">slides</span><span class="p">)])</span>
-                    <span class="n">alpha</span> <span class="o">=</span> <span class="n">n_in</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_in</span> <span class="o">+</span> <span class="n">n_not_in</span><span class="p">)</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">_points</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">alpha</span>
-                    <span class="k">try</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">grid_images</span><span class="p">[(</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">idx</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span><span class="o">.</span><span class="n">set_alpha</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span>
-                    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Unable to set alpha for grid in focus()&quot;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="s1">&#39;alpha&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.</span>
-
     <span class="k">def</span> <span class="nf">generate_grid</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">num_tiles_x</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
         <span class="n">tile_meta</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">tile_select</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;first&#39;</span><span class="p">,</span>
-        <span class="n">expanded</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>    <span class="c1"># Deprecated</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate the mosaic map grid.</span>
 
@@ -701,12 +667,6 @@
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unknown tile selection method </span><span class="si">{</span><span class="n">tile_select</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Tile selection method: </span><span class="si">{</span><span class="n">tile_select</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">expanded</span><span class="p">:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="s2">&quot;The `expanded` option for Mosaics is deprecated as of &quot;</span>
-                <span class="s2">&quot;version 1.5 and will be ignored.&quot;</span><span class="p">,</span>
-                <span class="ne">DeprecationWarning</span>
-            <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_x</span> <span class="o">=</span> <span class="n">num_tiles_x</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">grid_images</span> <span class="o">=</span> <span class="p">{}</span>
 
@@ -722,7 +682,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_x</span> <span class="o">-</span> <span class="n">min_x</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_x</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">max_y</span> <span class="o">-</span> <span class="n">min_y</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">)</span>
 
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Building grid&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Building grid...&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">grid_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dstack</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">indices</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_y</span><span class="p">))),</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_x</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_y</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
         <span class="n">_grid_offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">min_x</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">min_y</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">grid_coords</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid_idx</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">)</span> <span class="o">+</span> <span class="n">_grid_offset</span>
@@ -783,11 +743,28 @@
             <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\r\033</span><span class="s1">[K&#39;</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Tile image selection complete (</span><span class="si">{</span><span class="n">end</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="si">:</span><span class="s1">.1f</span><span class="si">}</span><span class="s1"> sec)&#39;</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">export</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export SlideMap and configuration for later loading.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): Directory in which to save configuration.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide_map</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Mosaic.export() requires a Mosaic built from a SlideMap.&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slide_map</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">tfr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tfr</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">)</span>
+        <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;tfrecords.json&#39;</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mosaic configuration exported to </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">figsize</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">),</span>
-        <span class="n">tile_zoom</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">15</span><span class="p">,</span>
-        <span class="n">relative_size</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">focus</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">focus_slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">background</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;#dfdfdf&#39;</span><span class="p">,</span>
@@ -811,11 +788,6 @@
 <span class="sd">        Args:</span>
 <span class="sd">            figsize (Tuple[int, int], optional): Figure size. Defaults to</span>
 <span class="sd">                (200, 200).</span>
-<span class="sd">            tile_zoom (int, optional): Factor which determines how large</span>
-<span class="sd">                individual tiles appear. Defaults to 15.</span>
-<span class="sd">            relative_size (bool, optional): Physically size grid images in</span>
-<span class="sd">                proportion to the number of tiles within the grid space.</span>
-<span class="sd">                Defaults to False.</span>
 <span class="sd">            focus (list, optional): List of tfrecords (paths) to highlight</span>
 <span class="sd">                on the mosaic. Defaults to None.</span>
 <span class="sd">            focus_slide (str, optional): Highlight tiles from this slide.</span>
@@ -829,33 +801,18 @@
 
         <span class="c1"># Next, prepare mosaic grid by placing tile outlines</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Placing tile outlines...&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">relative_size</span><span class="p">:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="s1">&#39;The &quot;relative_size&quot; option for Mosaic.plot() is &#39;</span>
-                <span class="s1">&#39;deprecated and will be removed in a future version.&#39;</span><span class="p">,</span>
-                <span class="ne">DeprecationWarning</span>
-            <span class="p">)</span>
-            <span class="n">max_grid_density</span> <span class="o">=</span> <span class="mi">1</span>
-            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid_idx</span><span class="p">:</span>
-                <span class="n">_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">points_at_grid_index</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">y</span><span class="o">=</span><span class="n">idx</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">_points</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-                    <span class="n">max_grid_density</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_grid_density</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">_points</span><span class="p">))</span>
 
         <span class="c1"># Reset alpha and display size</span>
         <span class="k">if</span> <span class="n">focus_slide</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="s1">&#39;alpha&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="s1">&#39;display_size&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span>
 
-        <span class="k">if</span> <span class="n">focus_slide</span> <span class="ow">or</span> <span class="n">relative_size</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">focus_slide</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid_idx</span><span class="p">:</span>
                 <span class="n">_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">points_at_grid_index</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">y</span><span class="o">=</span><span class="n">idx</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">_points</span><span class="o">.</span><span class="n">empty</span> <span class="ow">and</span> <span class="n">focus_slide</span><span class="p">:</span>
                     <span class="n">n_matching</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">_points</span><span class="o">.</span><span class="n">slide</span> <span class="o">==</span> <span class="n">focus_slide</span><span class="p">])</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">_points</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">n_matching</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">_points</span><span class="p">)</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">_points</span><span class="o">.</span><span class="n">empty</span> <span class="ow">and</span> <span class="n">relative_size</span><span class="p">:</span>
-                    <span class="n">proportion</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_points</span><span class="p">)</span> <span class="o">/</span> <span class="n">max_grid_density</span>
-                    <span class="n">rect_size</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">proportion</span> <span class="o">*</span> <span class="n">tile_zoom</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">_points</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="s1">&#39;display_size&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rect_size</span>
 
         <span class="c1"># Then, pair grid tiles and points according to their distances</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Placing image tiles...&#39;</span><span class="p">)</span>
@@ -877,7 +834,7 @@
                     <span class="n">image</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
-            <span class="n">to_map</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">idx</span><span class="p">,</span> <span class="n">point</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">point</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">point</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">point</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">image</span><span class="p">))</span>
+            <span class="n">to_map</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">idx</span><span class="p">,</span> <span class="n">point</span><span class="o">.</span><span class="n">grid_x</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">,</span> <span class="n">point</span><span class="o">.</span><span class="n">grid_y</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">,</span> <span class="n">point</span><span class="o">.</span><span class="n">display_size</span><span class="p">,</span> <span class="n">point</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">image</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">pool</span> <span class="o">=</span> <span class="n">DPool</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">())</span>
@@ -907,11 +864,6 @@
 <span class="sd">        Keyword args:</span>
 <span class="sd">            figsize (Tuple[int, int], optional): Figure size. Defaults to</span>
 <span class="sd">                (200, 200).</span>
-<span class="sd">            tile_zoom (int, optional): Factor which determines how large</span>
-<span class="sd">                individual tiles appear. Defaults to 15.</span>
-<span class="sd">            relative_size (bool, optional): Physically size grid images in</span>
-<span class="sd">                proportion to the number of tiles within the grid space.</span>
-<span class="sd">                Defaults to False.</span>
 <span class="sd">            focus (list, optional): List of tfrecords (paths) to highlight on</span>
 <span class="sd">                the mosaic.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -941,20 +893,39 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapped_tiles</span><span class="p">:</span>
                         <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">idx</span><span class="p">])</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Mosaic report saved to [green]</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Mosaic report saved to [green]</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">view</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slides</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Open Mosaic in Slideflow Studio.</span>
+
+<span class="sd">        See :ref:`studio` for more information.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            slides (list(str), optional): Path to whole-slide images. Used for</span>
+<span class="sd">                displaying image tile context when hovering over a mosaic grid.</span>
+<span class="sd">                Defaults to None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">slideflow.studio.widgets</span> <span class="kn">import</span> <span class="n">MosaicWidget</span>
+        <span class="kn">from</span> <span class="nn">slideflow.studio</span> <span class="kn">import</span> <span class="n">Studio</span>
+
+        <span class="n">studio</span> <span class="o">=</span> <span class="n">Studio</span><span class="p">(</span><span class="n">widgets</span><span class="o">=</span><span class="p">[</span><span class="n">MosaicWidget</span><span class="p">])</span>
+        <span class="n">mosaic</span> <span class="o">=</span> <span class="n">studio</span><span class="o">.</span><span class="n">get_widget</span><span class="p">(</span><span class="s1">&#39;MosaicWidget&#39;</span><span class="p">)</span>
+        <span class="n">mosaic</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slide_map</span><span class="p">,</span> <span class="n">tfrecords</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">,</span> <span class="n">slides</span><span class="o">=</span><span class="n">slides</span><span class="p">)</span>
+        <span class="n">studio</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -962,11 +933,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -976,26 +947,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
          <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
          <script src="../../_static/doctools.js"></script>
          <script src="../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
@@ -1006,7 +977,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

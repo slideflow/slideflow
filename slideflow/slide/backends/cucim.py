@@ -5,19 +5,22 @@ Requires: cuCIM (...)
 
 import cv2
 import numpy as np
-import slideflow as sf
 
 from types import SimpleNamespace
-from typing import Optional, Dict, Any, Tuple, List
+from typing import Optional, Dict, Any, Tuple, List, TYPE_CHECKING
 from slideflow.util import log
-from cucim import CuImage
 from skimage.transform import resize
 from skimage.util import img_as_float
 from skimage.color import rgb2hsv
 from slideflow.slide.utils import *
 
+if TYPE_CHECKING:
+    from cucim import CuImage
+
 
 __cv2_resize__ = True
+__cuimage__ = None
+__cuimage_path__ = None
 
 
 def get_cucim_reader(path: str, *args, **kwargs):
@@ -32,7 +35,7 @@ def numpy2jpg(img: np.ndarray) -> str:
     if img.shape[-1] == 4:
         img = img[:, :, 0:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return cv2.imencode(".jpg", img)[1].tobytes()
+    return cv2.imencode(".jpg", img)[1].tobytes()   # Default quality = 95%
 
 
 def numpy2png(img: np.ndarray) -> str:
@@ -121,15 +124,6 @@ def tile_worker(
             (args.tile_px, args.tile_px),
             interpolation=cv2.INTER_NEAREST)
 
-    # Normalizer
-    if not args.normalizer:
-        normalizer = None
-    else:
-        normalizer = sf.norm.autoselect(
-            method=args.normalizer,
-            source=args.normalizer_source
-        )
-
     # Read the target downsample region now, if we were
     # filtering at a different level
     region = slide.read_region(
@@ -161,9 +155,9 @@ def tile_worker(
         region[tile_mask == 0] = (0, 0, 0)
 
     # Apply normalization
-    if normalizer:
+    if args.normalizer:
         try:
-            region = normalizer.rgb_to_rgb(region)
+            region = args.normalizer.rgb_to_rgb(region)
         except Exception:
             # The image could not be normalized,
             # which happens when a tile is primarily one solid color
@@ -171,6 +165,7 @@ def tile_worker(
 
     if args.img_format != 'numpy':
         image = cv2.cvtColor(region, cv2.COLOR_RGB2BGR)
+        # Default image quality for JPEG is 95%
         image = cv2.imencode("."+args.img_format, image)[1].tobytes()
     else:
         image = region
@@ -197,14 +192,22 @@ class _cuCIMReader:
         path: str,
         mpp: Optional[float] = None,
         cache_kw: Optional[Dict[str, Any]] = None,
-        num_workers: int = 0
+        num_workers: int = 0,
+        ignore_missing_mpp: bool = True
     ):
         '''Wrapper for cuCIM reader to preserve cross-compatible functionality.'''
+        global __cuimage__, __cuimage_path__
+
+        from cucim import CuImage
 
         self.path = path
         self.cache_kw = cache_kw if cache_kw else {}
         self.loaded_downsample_levels = {}  # type: Dict[int, "CuImage"]
-        self.reader = CuImage(path)
+        if path == __cuimage_path__:
+            self.reader = __cuimage__
+        else:
+            __cuimage__ = self.reader = CuImage(path)
+            __cuimage_path__ = path
         self.num_workers = num_workers
         self._mpp = None
 

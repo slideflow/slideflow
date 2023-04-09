@@ -1,6 +1,6 @@
-numpy<1.22
+numpy
 gast>=0.3.3
-tensorflow>=2.7,<2.10
+tensorflow>=2.7,<2.12
 scipy
 scikit-learn
 matplotlib>=3.2
@@ -11,7 +11,7 @@ umap-learn
 seaborn<0.12
 pandas
 pyvips>=2.1.11
-fpdf
+fpdf2
 cplex
 cvxpy>=1.1.15
 lifelines
@@ -33,7 +33,7 @@ smac==1.4.0
 ConfigSpace
 pyarrow
 ninja
-tensorflow_probability<0.18
+tensorflow_probability<0.20
 rich
 pillow>=6.0.0
 imgui
@@ -47,3 +47,4 @@ cucim
 versioneer
 cellpose
 zarr
+fastai

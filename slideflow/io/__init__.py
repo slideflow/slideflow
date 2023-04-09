@@ -3,15 +3,17 @@
 import copy
 import os
 import struct
+import numpy as np
 from multiprocessing.dummy import Pool as DPool
 from os.path import exists, isdir, isfile, join
 from random import shuffle
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union, List
 
 import slideflow as sf
 from slideflow import errors
 from slideflow.io.io_utils import detect_tfrecord_format, convert_dtype
 from slideflow.util import log
+from slideflow.util.tfrecord2idx import get_tfrecord_by_index, get_tfrecord_length
 from rich.progress import Progress
 
 # --- Backend-specific imports and configuration ------------------------------
@@ -21,10 +23,8 @@ if sf.backend() == 'tensorflow':
     from slideflow.io.tensorflow import read_and_return_record  # noqa F401
     from slideflow.io.tensorflow import serialized_record
 
-    import tensorflow as tf
     from tensorflow.data import TFRecordDataset
     from tensorflow.io import TFRecordWriter
-    dataloss_errors = [tf.errors.DataLossError, errors.TFRecordsError]
 
 elif sf.backend() == 'torch':
     from slideflow.io.torch import \
@@ -32,7 +32,6 @@ elif sf.backend() == 'torch':
     from slideflow.io.torch import read_and_return_record, serialized_record
     from slideflow.tfrecord import TFRecordWriter
     from slideflow.tfrecord.torch.dataset import TFRecordDataset
-    dataloss_errors = [errors.TFRecordsError]
 
 else:
     raise errors.UnrecognizedBackendError
@@ -44,10 +43,11 @@ def update_manifest_at_dir(
     directory: str,
     force_update: bool = False
 ) -> Optional[Union[str, Dict]]:
-    '''Log number of tiles in each TFRecord file present in the given
+    """Log number of tiles in each TFRecord file present in the given
     directory and all subdirectories, saving manifest to file within
     the parent directory.
-    '''
+
+    """
     manifest_path = join(directory, "manifest.json")
     if not exists(manifest_path):
         manifest = {}
@@ -75,8 +75,8 @@ def update_manifest_at_dir(
             return None
         rel_tfr_manifest = {rel_tfr: {}}
         try:
-            total = read_tfrecord_length(tfr)
-        except dataloss_errors:
+            total = get_tfrecord_length(tfr)
+        except (errors.TFRecordsError, OSError):
             log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
             os.remove(tfr)
             return None
@@ -108,41 +108,6 @@ def update_manifest_at_dir(
     return manifest
 
 
-def get_tfrecord_by_index(
-    tfrecord: str,
-    index: int,
-    decode: bool = True
-) -> Any:
-    '''Reads and returns an individual record from a tfrecord by index,
-    including slide name and processed image data.
-    '''
-    if type(index) != int:
-        try:
-            index = int(index)
-        except ValueError:
-            raise IndexError(f"index must be an integer, not {type(index)} "
-                             f"(provided {index}).")
-
-    dataset = TFRecordDataset(tfrecord)
-    parser = get_tfrecord_parser(
-        tfrecord,
-        ('slide', 'image_raw'),
-        decode_images=decode
-    )
-    total = 0
-    for i, record in enumerate(dataset):
-        total += 1
-        if i == index:
-            return parser(record)  # type: ignore
-        else:
-            continue
-    log.error(
-        f"Unable to find record: index {index} in {sf.util.green(tfrecord)}"
-        f" ({total} total records)"
-    )
-    return False, False
-
-
 def get_tfrecord_by_location(
     tfrecord: str,
     location: Tuple[int, int],
@@ -150,13 +115,26 @@ def get_tfrecord_by_location(
 ) -> Any:
     '''Reads and returns an individual record from a tfrecord by index,
     including slide name and processed image data.
+
+    Args:
+        tfrecord (str): Path to TFRecord file.
+        location (tuple(int, int)): ``(x, y)`` tile location.
+            Searches the TFRecord for the tile that corresponds to this
+            location.
+        decode (bool): Decode the associated record, returning Tensors.
+            Defaults to True.
+
+    Returns:
+        Unprocessed raw TFRecord bytes if ``decode=False``, otherwise a
+        tuple containing ``(slide, image)``, where ``image`` is a
+        uint8 Tensor.
     '''
     if isinstance(location, list):
         location = tuple(location)
     if (not isinstance(location, tuple)
        or len(location) != 2
-       or not isinstance(location[0], int)
-       or not isinstance(location[1], int)):
+       or not isinstance(location[0], (int, np.integer))
+       or not isinstance(location[1], (int, np.integer))):
         raise IndexError(f"index must be a tuple of two ints. Got: {location}")
 
     dataset = TFRecordDataset(tfrecord)
@@ -332,35 +310,32 @@ def extract_tiles(tfrecord: str, destination: str) -> None:
         image_string.close()
 
 
-def read_tfrecord_length(tfrecord: str) -> int:
-    """Returns number of records stored in the given tfrecord file."""
-    infile = open(tfrecord, "rb")
-    num_records = 0
-    while True:
-        infile.tell()
-        try:
-            byte_len = infile.read(8)
-            if len(byte_len) == 0:
-                break
-            infile.read(4)
-            proto_len = struct.unpack("q", byte_len)[0]
-            infile.read(proto_len)
-            infile.read(4)
-            num_records += 1
-        except Exception:
-            log.error(f"Failed to parse TFRecord at {tfrecord}")
-            infile.close()
-            return 0
-    infile.close()
-    return num_records
-
-
-def get_locations_from_tfrecord(filename: str) -> Dict[int, Tuple[int, int]]:
+def get_locations_from_tfrecord(
+    filename: str,
+    as_dict: bool = True
+) -> Union[
+    Dict[int, Tuple[int, int]],
+    List[Tuple[int, int]],
+]:
     '''Returns dictionary mapping indices to tile locations (X, Y)'''
-    dataset = TFRecordDataset(filename)
-    loc_dict = {}
-    parser = get_tfrecord_parser(filename, ('loc_x', 'loc_y'), to_numpy=True)
-    for i, record in enumerate(dataset):
-        loc_x, loc_y = parser(record)  # type: ignore
-        loc_dict.update({i: (loc_x, loc_y)})
-    return loc_dict
+    out_dict = {}
+    out_list = []
+    for i in range(sf.io.get_tfrecord_length(filename)):
+        record = sf.io.get_tfrecord_by_index(filename, i)
+        loc_x = record['loc_x']
+        loc_y = record['loc_y']
+        if as_dict:
+            out_dict.update({i: (loc_x, loc_y)})
+        else:
+            out_list.append((loc_x, loc_y))
+    return out_dict if as_dict else out_list
+
+
+def tfrecord_has_locations(
+    filename: str,
+    check_x: int = True,
+    check_y: bool = False
+) -> bool:
+    """Check if a given TFRecord has location information stored."""
+    record = sf.io.get_tfrecord_by_index(filename, 0)
+    return (((not check_x) or 'loc_x' in record ) and ((not check_y) or 'loc_y' in record ))

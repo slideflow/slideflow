@@ -1,12 +1,13 @@
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union, Any
 
 import torch
 import numpy as np
 import torchvision
+import slideflow as sf
 from rich.progress import Progress
 
 from slideflow.dataset import Dataset
-from slideflow.io.torch import cwh_to_whc, whc_to_cwh
+from slideflow.io.torch import cwh_to_whc, whc_to_cwh, is_cwh
 from slideflow.norm import StainNormalizer
 from slideflow.norm.torch import reinhard, macenko
 from slideflow.util import detuple, log, cleanup_progress
@@ -15,19 +16,19 @@ from slideflow import errors
 
 class TorchStainNormalizer(StainNormalizer):
 
-    # Torch-specific vectorized normalizers disabled
-    # as they are slower than the CV implementation
-
     normalizers = {
         'reinhard': reinhard.ReinhardNormalizer,
         'reinhard_fast': reinhard.ReinhardFastNormalizer,
-        'macenko': macenko.MacenkoNormalizer
-    }  # type: Dict
+        'reinhard_mask': reinhard.ReinhardMaskNormalizer,
+        'reinhard_fast_mask': reinhard.ReinhardFastMaskNormalizer,
+        'macenko': macenko.MacenkoNormalizer,
+        'macenko_fast': macenko.MacenkoFastNormalizer
+    }
 
     def __init__(
         self,
         method: str,
-        device: Optional[torch.device] = None,
+        device: Optional[str] = None,
         **kwargs
     ) -> None:
         """PyTorch-native H&E Stain normalizer.
@@ -69,6 +70,23 @@ class TorchStainNormalizer(StainNormalizer):
         self._device = device
 
     @property
+    def device(self) -> str:
+        """Device (e.g. cpu, gpu) on which normalization should be performed.
+
+        Returns:
+            str: Device that will be used.
+        """
+        if self._device is None:
+            return self.n.preferred_device
+        else:
+            return self._device
+
+    @device.setter
+    def device(self, device: str) -> None:
+        self._device = device
+
+
+    @property
     def vectorized(self) -> bool:  # type: ignore
         """Returns whether the associated normalizer is vectorized.
 
@@ -83,7 +101,7 @@ class TorchStainNormalizer(StainNormalizer):
         batch_size: int = 64,
         num_threads: Union[str, int] = 'auto',
         **kwargs
-    ):
+    ) -> "TorchStainNormalizer":
         """Fit the normalizer to a target image or dataset of images.
 
         Args:
@@ -125,7 +143,8 @@ class TorchStainNormalizer(StainNormalizer):
             self.n.fit(torch.from_numpy(arg1))
 
         # Fit to a preset
-        elif isinstance(arg1, str) and arg1 in ('v1', 'v2'):
+        elif (isinstance(arg1, str)
+              and arg1 in sf.norm.utils.fit_presets[self.n.preset_tag]):
             self.n.fit_preset(arg1)
 
         elif isinstance(arg1, str):
@@ -142,6 +161,7 @@ class TorchStainNormalizer(StainNormalizer):
             ', '.join([f"{fit_key} = {fit_val}"
             for fit_key, fit_val in self.get_fit().items()])
         ))
+        return self
 
     def get_fit(self, as_list: bool = False):
         """Get the current normalizer fit.
@@ -179,10 +199,43 @@ class TorchStainNormalizer(StainNormalizer):
         """
         self.n.set_fit(**{k:v for k, v in kwargs.items() if v is not None})
 
+
+    def _torch_transform(
+        self,
+        inp: "torch.Tensor",
+        *,
+        augment: bool = False
+    ) -> "torch.Tensor":
+        """Normalize a torch uint8 image (CWH or WHC).
+
+        Normalization ocurs via intermediate conversion to WHC.
+
+        Args:
+            inp (torch.Tensor): Image, uint8. Images are normalized in
+                W x H x C space. Images provided as C x W x H will be
+                auto-converted and permuted back after normalization.
+
+        Returns:
+            torch.Tensor:   Image, uint8.
+
+        """
+        from slideflow.io.torch import cwh_to_whc, whc_to_cwh, is_cwh
+        if is_cwh(inp):
+            # Convert from CWH -> WHC (normalize) -> CWH
+            return whc_to_cwh(
+                self.n.transform(
+                    cwh_to_whc(inp),
+                    augment=augment
+                )
+            )
+        else:
+            return self.n.transform(inp, augment=augment)
+
     def torch_to_torch(
         self,
         image: Union[Dict, torch.Tensor],
-        *args
+        *args: Any,
+        augment: bool = False
     ) -> Tuple[Union[Dict, torch.Tensor], ...]:
         """Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
 
@@ -191,6 +244,10 @@ class TorchStainNormalizer(StainNormalizer):
                 or a Dictionary with the image under the key 'tile_image'.
             args (Any, optional): Any additional arguments, which will be passed
                 and returned unmodified.
+
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
 
         Returns:
             A tuple containing
@@ -204,18 +261,50 @@ class TorchStainNormalizer(StainNormalizer):
                 k: v for k, v in image.items()
                 if k != 'tile_image'
             }
-            to_return['tile_image'] = self.n.transform(image['tile_image'])
+            to_return['tile_image'] = self._torch_transform(image['tile_image'], augment=augment)
             return detuple(to_return, args)
         else:
-            return detuple(self.n.transform(image), args)
+            return detuple(self._torch_transform(image, augment=augment), args)
 
-    def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
+    def rgb_to_rgb(self, image: np.ndarray, *, augment: bool = False) -> np.ndarray:
         """Normalize a numpy array (uint8), returning a numpy array (uint8).
 
         Args:
             image (np.ndarray): Image (uint8), W x H x C.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
-        return self.n.transform(torch.from_numpy(image)).numpy()
+        return self.n.transform(torch.from_numpy(image), augment=augment).numpy()
+
+    def preprocess(
+        self,
+        batch: torch.Tensor,
+        *,
+        standardize: bool = True,
+        augment: bool = False
+    ) -> torch.Tensor:
+        """Transform an image tensor (uint8) and preprocess (img / 127.5 - 1).
+
+        Args:
+            standardize (bool): Standardize the image after normalization
+                using ``(img / 127.5) - 1``. Defaults to True.
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
+        Returns:
+            torch.Tensor: Normalized image.
+        """
+        orig_is_cwh = is_cwh(batch)
+        if orig_is_cwh:
+            batch = cwh_to_whc(batch)
+        batch = self.torch_to_torch(batch, augment=augment)  # type: ignore
+        if standardize:
+            batch = batch / 127.5 - 1
+        if orig_is_cwh:
+            batch = whc_to_cwh(batch)
+        return batch

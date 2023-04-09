@@ -10,6 +10,7 @@ import slideflow as sf
 from types import SimpleNamespace
 from PIL import Image, UnidentifiedImageError
 from typing import (Any, Dict, List, Optional, Tuple, Union)
+from slideflow import errors
 from slideflow.util import log, path_to_name, path_to_ext  # noqa F401
 from slideflow.slide.utils import *
 
@@ -18,6 +19,12 @@ try:
 except (ModuleNotFoundError, OSError) as e:
     log.error("Unable to load vips; slide processing will be unavailable. "
               f"Error raised: {e}")
+
+
+__vipsreader__ = None
+__vipsreader_path__ = None
+__vipsreader_args__ = None
+__vipsreader_kwargs__ = None
 
 
 VIPS_FORMAT_TO_DTYPE = {
@@ -35,10 +42,28 @@ VIPS_FORMAT_TO_DTYPE = {
 
 
 def get_libvips_reader(path: str, *args, **kwargs):
-    if path_to_ext(path).lower() in ('jpg', 'jpeg'):
-        return _JPGVIPSReader(path, *args, **kwargs)
+    global __vipsreader__, __vipsreader_path__, __vipsreader_args__, __vipsreader_kwargs__
+
+    # Return from buffer, if present.
+    if (__vipsreader_path__ == path
+       and __vipsreader_args__ == args
+       and __vipsreader_kwargs__ == kwargs):
+        return __vipsreader__
+
+    # Read a JPEG image.
+    if path_to_ext(path).lower() in ('jpg', 'jpeg', 'png'):
+        reader = _JPGVIPSReader(path, *args, **kwargs)
+
+    # Read a slide image.
     else:
-        return _VIPSReader(path, *args, **kwargs)
+        reader = _VIPSReader(path, *args, **kwargs)
+
+    # Buffer args and return.
+    __vipsreader_path__ = path
+    __vipsreader_args__ = args
+    __vipsreader_kwargs__ = kwargs
+    __vipsreader__ = reader
+    return reader
 
 
 def vips2numpy(
@@ -54,7 +79,7 @@ def vips2jpg(
     vi: "vips.Image",
 ) -> np.ndarray:
     '''Converts a VIPS image into a numpy array'''
-    return vi.jpegsave_buffer()
+    return vi.jpegsave_buffer(Q=95)
 
 
 def vips2png(
@@ -166,17 +191,6 @@ def tile_worker(
             (args.tile_px, args.tile_px),
             interpolation=cv2.INTER_NEAREST)
 
-    # Normalizer
-    if not args.normalizer:
-        normalizer = None
-    else:
-        # Libvips with spawn multiprocessing
-        # is not compatible with Tensorflow-native stain normalization
-        # due to GPU memory issues
-        normalizer = sf.norm.StainNormalizer(args.normalizer)  # type: ignore
-        if args.normalizer_source is not None:
-            normalizer.fit(args.normalizer_source)
-
     # Read the target downsample region now, if we were
     # filtering at a different level
     region = slide.read_region(
@@ -199,17 +213,17 @@ def tile_worker(
         if args.img_format == 'png':
             image = region.pngsave_buffer()
         elif args.img_format in ('jpg', 'jpeg'):
-            image = region.jpegsave_buffer()
+            image = region.jpegsave_buffer(Q=95)
         else:
             raise ValueError(f"Unknown image format {args.img_format}")
 
         # Apply normalization
-        if normalizer:
+        if args.normalizer:
             try:
                 if args.img_format == 'png':
-                    image = normalizer.png_to_png(image)
+                    image = args.normalizer.png_to_png(image)
                 elif args.img_format in ('jpg', 'jpeg'):
-                    image = normalizer.jpeg_to_jpeg(image)
+                    image = args.normalizer.jpeg_to_jpeg(image)
                 else:
                     raise ValueError(f"Unknown image format {args.img_format}")
             except Exception as e:
@@ -222,9 +236,9 @@ def tile_worker(
         image = vips2numpy(region).astype(np.uint8)
 
         # Apply normalization
-        if normalizer:
+        if args.normalizer:
             try:
-                image = normalizer.rgb_to_rgb(image)
+                image = args.normalizer.rgb_to_rgb(image)
             except Exception:
                 # The image could not be normalized,
                 # which happens when a tile is primarily one solid color
@@ -251,7 +265,8 @@ class _VIPSReader:
         self,
         path: str,
         mpp: Optional[float] = None,
-        cache_kw: Optional[Dict[str, Any]] = None
+        cache_kw: Optional[Dict[str, Any]] = None,
+        ignore_missing_mpp: bool = False
     ) -> None:
         '''Wrapper for Libvips to preserve cross-compatible functionality.'''
 
@@ -317,9 +332,14 @@ class _VIPSReader:
                             f"Missing Microns-Per-Pixel (MPP) for {name}"
                         )
             except AttributeError:
-                mpp = DEFAULT_JPG_MPP
-                log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
-                self.properties[OPS_MPP_X] = mpp
+                if ignore_missing_mpp:
+                    mpp = DEFAULT_JPG_MPP
+                    log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
+                    self.properties[OPS_MPP_X] = mpp
+                else:
+                    raise errors.SlideMissingMPPError(
+                        f'Could not detect microns-per-pixel for slide: {path}'
+                    )
             except UnidentifiedImageError:
                 log.error(
                     f"PIL error; unable to read slide {path_to_name(path)}."
@@ -532,7 +552,13 @@ class _JPGVIPSReader(_VIPSReader):
 
     has_levels = False
 
-    def __init__(self, path: str, mpp: Optional[float] = None, cache_kw = None) -> None:
+    def __init__(
+        self,
+        path: str,
+        mpp: Optional[float] = None,
+        cache_kw = None,
+        ignore_missing_mpp: bool = True
+    ) -> None:
         self.path = path
         self.full_image = vips.Image.new_from_file(path)
         self.cache_kw = cache_kw if cache_kw else {}
@@ -573,6 +599,11 @@ class _JPGVIPSReader(_VIPSReader):
                     else:
                         raise AttributeError
             except AttributeError:
-                mpp = DEFAULT_JPG_MPP
-                log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
-                self.properties[OPS_MPP_X] = mpp
+                if ignore_missing_mpp:
+                    mpp = DEFAULT_JPG_MPP
+                    log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
+                    self.properties[OPS_MPP_X] = mpp
+                else:
+                    raise errors.SlideMissingMPPError(
+                        f'Could not detect microns-per-pixel for slide: {path}'
+                    )

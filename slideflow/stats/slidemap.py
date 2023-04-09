@@ -7,7 +7,6 @@ import pandas as pd
 import slideflow as sf
 import warnings
 from os.path import join, exists, isdir
-from mpl_toolkits.mplot3d import Axes3D
 from pandas.core.frame import DataFrame
 from sklearn.cluster import KMeans
 from slideflow import errors
@@ -70,9 +69,10 @@ class SlideMap:
             slides (list(str)): List of slide names
         """
         assert isinstance(parametric_umap, bool), "Expected <bool> for argument 'parametric_umap'"
-        self.data = None   # type: DataFrame
-        self.ftrs = None   # type: Optional[DatasetFeatures]
-        self.slides = None # type: List[str]
+        self.data = None    # type: DataFrame
+        self.ftrs = None    # type: Optional[DatasetFeatures]
+        self.slides = None  # type: List[str]
+        self.tfrecords = None  # type: List[str]
         self.parametric_umap = parametric_umap
         self._umap_normalized_range = None
         self.map_meta = {}  # type: Dict[str, Any]
@@ -99,7 +99,7 @@ class SlideMap:
             path (str): Directory from which to load a previously saved UMAP.
 
         """
-        log.debug(f"Attempting to load SlideMap from {path}")
+        log.debug(f"Loading SlideMap from {path}")
         obj = cls()
         if isdir(path):
             # Load coordinates
@@ -109,7 +109,7 @@ class SlideMap:
                 log.warn("Could not find slidemap.parquet; no data loaded.")
             # Load UMAP
             if exists(join(path, 'parametric_model')):
-                obj.parametric_umap=True
+                obj.parametric_umap = True
                 obj.load_umap(path)
             elif exists(join(path, 'umap.pkl')):
                 obj.load_umap(join(path, 'umap.pkl'))
@@ -118,11 +118,13 @@ class SlideMap:
                          "the path is a valid directory with either 'parametric_umap' "
                          "subdirectory or a valid 'umap.pkl'.")
             # Load range/clip
-            if exists((join(path, 'range_clip.npz'))):
+            if exists(join(path, 'range_clip.npz')):
                 obj.load_range_clip(join(path, 'range_clip.npz'))
             else:
                 log.warn("Could not find range_clip.npz; results from "
                          "umap_transform() will not be normalized.")
+            if exists(join(path, 'tfrecords.json')):
+                obj.tfrecords = sf.util.load_json(join(path, 'tfrecords.json'))
         elif path.endswith('.parquet'):
             obj.load_coordinates(path)
         else:
@@ -314,7 +316,6 @@ class SlideMap:
         coordinates = self.umap_transform(node_activations, **umap_kwargs)
 
         # Assemble dataframe
-
         tfrecord_indices = np.concatenate([
             np.arange(self.ftrs.activations[slide].shape[0])
             for slide in self.slides
@@ -501,7 +502,15 @@ class SlideMap:
                 "`tfrecords` argument (list of TFRecord paths) must be supplied "
                 "to `SlideMap.build_mosaic()`"
             )
-        elif self.ftrs is not None:
+        elif ((self.ftrs is not None and not len(self.ftrs.tfrecords))
+               and tfrecords is None):
+            raise ValueError(
+                "The DatasetFeatures object used to create this SlideMap "
+                "did not have paths to TFRecords stored. Please supply a list "
+                "of TFRecord paths to the `tfrecords` argument "
+                "of `SlideMap.build_mosaic()`"
+            )
+        elif self.ftrs is not None and len(self.ftrs.tfrecords):
             return sf.Mosaic(self, tfrecords=self.ftrs.tfrecords, **kwargs)
         else:
             return sf.Mosaic(self, tfrecords=tfrecords, **kwargs)
@@ -531,7 +540,7 @@ class SlideMap:
             for row in self.data.itertuples()
         ]
         log.info(f"Calculating K-means clustering (n={n_clusters})")
-        kmeans = KMeans(n_clusters=n_clusters).fit(activations)
+        kmeans = KMeans(n_clusters=n_clusters, n_init=10).fit(activations)
         self.data['cluster'] = kmeans.labels_
         self.label('cluster')
 
@@ -850,6 +859,7 @@ class SlideMap:
                 will prepare a new figure.
         """
         import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
 
         if fig is None:
             fig = plt.figure()

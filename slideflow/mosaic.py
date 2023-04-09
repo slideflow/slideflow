@@ -7,6 +7,7 @@ import time
 import warnings
 from functools import partial
 from multiprocessing.dummy import Pool as DPool
+from os.path import join
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import cv2
@@ -16,7 +17,7 @@ from rich.progress import track
 import slideflow as sf
 from slideflow import errors
 from slideflow.stats import SlideMap, get_centroid_index
-from slideflow.util import log, tfrecord2idx
+from slideflow.util import log
 from slideflow.stats import get_centroid_index
 
 if TYPE_CHECKING:
@@ -32,7 +33,7 @@ def process_tile_image(args, decode_kwargs):
         return None, None, None, None
     if isinstance(image, tuple):
         tfr, tfr_idx = image
-        image = tfrecord2idx.get_record_by_index(tfr, tfr_idx)['image_raw']
+        image = sf.io.get_tfrecord_by_index(tfr, tfr_idx)['image_raw']
     if image is None:
         return point_index, None, None, None
     if sf.model.is_tensorflow_tensor(image):
@@ -185,7 +186,6 @@ class Mosaic:
             normalizer_source (str, optional): Path to normalizer source image.
                 If None, normalizer will use slideflow.slide.norm_tile.jpg.
                 Defaults to None.
-            expanded (bool, optional): Deprecated argument.
         """
         self.tile_point_distances = []  # type: List[Dict]
         self.slide_map = None
@@ -295,7 +295,7 @@ class Mosaic:
             if not tfr:
                 log.error(f"TFRecord {tfr} not found in slide_map")
                 return None
-            image = tfrecord2idx.get_record_by_index(tfr, tfr_idx)['image_raw']
+            image = sf.io.get_tfrecord_by_index(tfr, tfr_idx)['image_raw']
         else:
             image = self.images[index]
         return image
@@ -308,17 +308,6 @@ class Mosaic:
                 return tfr
         log.error(f'Unable to find TFRecord path for slide [green]{slide}')
         return None
-
-    '''def _add_patch(self, loc, size, **kwargs):
-        """Add an empty patch to the mosaic grid.
-
-        Args:
-            loc (tuple(int, int)): Location (x, y).
-            size (int): Height/width of patch.
-        """
-        from matplotlib import patches
-        patch = patches.Rectangle(loc, size, size, **kwargs)
-        self.ax.add_patch(patch)'''
 
     def _initialize_figure(self, figsize, background):
         import matplotlib.pyplot as plt
@@ -374,38 +363,11 @@ class Mosaic:
     def selected_points(self):
         return self.points.loc[self.points.selected]
 
-    def focus(self, tfrecords: Optional[List[str]]) -> None:
-        """Highlights certain tiles according to a focus list if list provided,
-        or resets highlighting if no tfrecords provided.
-
-        Deprecated function.
-        """
-        warnings.warn(
-            "Mosaic.focus() is deprecated and will be removed in a future version.",
-            DeprecationWarning
-        )
-        if tfrecords:
-            slides = [sf.util.path_to_name(tfr) for tfr in tfrecords]
-            for idx in self.grid_idx:
-                _points = self.points_at_grid_index(x=idx[0], y=idx[1])
-                if not _points.empty:
-                    n_in = len(_points.loc[_points.slide.isin(slides)])
-                    n_not_in = len(_points.loc[~_points.slide.isin(slides)])
-                    alpha = n_in / (n_in + n_not_in)
-                    self.points.loc[_points.index, 'alpha'] = alpha
-                    try:
-                        self.grid_images[(idx[0], idx[1])].set_alpha(alpha)
-                    except KeyError:
-                        log.debug("Unable to set alpha for grid in focus()")
-        else:
-            self.points['alpha'] = 1.
-
     def generate_grid(
         self,
         num_tiles_x: int = 50,
         tile_meta: Optional[Dict] = None,
         tile_select: str = 'first',
-        expanded: bool = False    # Deprecated
     ):
         """Generate the mosaic map grid.
 
@@ -428,12 +390,6 @@ class Mosaic:
             raise TypeError(f'Unknown tile selection method {tile_select}')
         else:
             log.debug(f'Tile selection method: {tile_select}')
-        if expanded:
-            warnings.warn(
-                "The `expanded` option for Mosaics is deprecated as of "
-                "version 1.5 and will be ignored.",
-                DeprecationWarning
-            )
         self.num_tiles_x = num_tiles_x
         self.grid_images = {}
 
@@ -449,7 +405,7 @@ class Mosaic:
         self.tile_size = (max_x - min_x) / self.num_tiles_x
         self.num_tiles_y = int((max_y - min_y) / self.tile_size)
 
-        log.info("Building grid")
+        log.info("Building grid...")
         self.grid_idx = np.reshape(np.dstack(np.indices((self.num_tiles_x, self.num_tiles_y))), (self.num_tiles_x * self.num_tiles_y, 2))
         _grid_offset = np.array([(self.tile_size/2) + min_x, (self.tile_size/2) + min_y])
         self.grid_coords = (self.grid_idx * self.tile_size) + _grid_offset
@@ -510,11 +466,28 @@ class Mosaic:
             sys.stdout.write('\r\033[K')
         log.debug(f'Tile image selection complete ({end - start:.1f} sec)')
 
+    def export(self, path: str) -> None:
+        """Export SlideMap and configuration for later loading.
+
+        Args:
+            path (str): Directory in which to save configuration.
+
+        """
+        if self.slide_map is None:
+            raise ValueError(
+                "Mosaic.export() requires a Mosaic built from a SlideMap."
+            )
+        self.slide_map.save(path)
+        if isinstance(self.tfrecords, list):
+            tfr = self.tfrecords
+        else:
+            tfr = list(self.tfrecords)
+        sf.util.write_json(tfr, join(path, 'tfrecords.json'))
+        log.info(f"Mosaic configuration exported to {path}")
+
     def plot(
         self,
         figsize: Tuple[int, int] = (200, 200),
-        tile_zoom: int = 15,
-        relative_size: bool = False,
         focus: Optional[List[str]] = None,
         focus_slide: Optional[str] = None,
         background: str = '#dfdfdf',
@@ -538,11 +511,6 @@ class Mosaic:
         Args:
             figsize (Tuple[int, int], optional): Figure size. Defaults to
                 (200, 200).
-            tile_zoom (int, optional): Factor which determines how large
-                individual tiles appear. Defaults to 15.
-            relative_size (bool, optional): Physically size grid images in
-                proportion to the number of tiles within the grid space.
-                Defaults to False.
             focus (list, optional): List of tfrecords (paths) to highlight
                 on the mosaic. Defaults to None.
             focus_slide (str, optional): Highlight tiles from this slide.
@@ -556,33 +524,18 @@ class Mosaic:
 
         # Next, prepare mosaic grid by placing tile outlines
         log.info('Placing tile outlines...')
-        if relative_size:
-            warnings.warning(
-                'The "relative_size" option for Mosaic.plot() is '
-                'deprecated and will be removed in a future version.',
-                DeprecationWarning
-            )
-            max_grid_density = 1
-            for idx in self.grid_idx:
-                _points = self.points_at_grid_index(x=idx[0], y=idx[1])
-                if not _points.empty:
-                    max_grid_density = max(max_grid_density, len(_points))
 
         # Reset alpha and display size
         if focus_slide:
             self.points['alpha'] = 1.
         self.points['display_size'] = self.tile_size
 
-        if focus_slide or relative_size:
+        if focus_slide:
             for idx in self.grid_idx:
                 _points = self.points_at_grid_index(x=idx[0], y=idx[1])
                 if not _points.empty and focus_slide:
                     n_matching = len(_points.loc[_points.slide == focus_slide])
                     self.points.loc[_points.index, 'alpha'] = n_matching / len(_points)
-                if not _points.empty and relative_size:
-                    proportion = len(_points) / max_grid_density
-                    rect_size = min(proportion * tile_zoom, 1) * self.tile_size
-                    self.points.loc[_points.index, 'display_size'] = rect_size
 
         # Then, pair grid tiles and points according to their distances
         log.info('Placing image tiles...')
@@ -634,11 +587,6 @@ class Mosaic:
         Keyword args:
             figsize (Tuple[int, int], optional): Figure size. Defaults to
                 (200, 200).
-            tile_zoom (int, optional): Factor which determines how large
-                individual tiles appear. Defaults to 15.
-            relative_size (bool, optional): Physically size grid images in
-                proportion to the number of tiles within the grid space.
-                Defaults to False.
             focus (list, optional): List of tfrecords (paths) to highlight on
                 the mosaic.
         """
@@ -669,3 +617,22 @@ class Mosaic:
                 for idx in self.mapped_tiles:
                         writer.writerow([idx])
         log.info(f'Mosaic report saved to [green]{filename}')
+
+    def view(self, slides: List[str] = None) -> None:
+        """Open Mosaic in Slideflow Studio.
+
+        See :ref:`studio` for more information.
+
+        Args:
+            slides (list(str), optional): Path to whole-slide images. Used for
+                displaying image tile context when hovering over a mosaic grid.
+                Defaults to None.
+
+        """
+        from slideflow.studio.widgets import MosaicWidget
+        from slideflow.studio import Studio
+
+        studio = Studio(widgets=[MosaicWidget])
+        mosaic = studio.get_widget('MosaicWidget')
+        mosaic.load(self.slide_map, tfrecords=self.tfrecords, slides=slides)
+        studio.run()

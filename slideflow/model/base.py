@@ -69,34 +69,34 @@ class _ModelParams:
         backend that the model will be trained in.
 
         Args:
-            tile_px (int, optional): Tile width in pixels. Defaults to 299.
-            tile_um (int or str, optional): Tile width in microns (int) or
+            tile_px (int): Tile width in pixels. Defaults to 299.
+            tile_um (int or str): Tile width in microns (int) or
                 magnification (str, e.g. "20x"). Defaults to 302.
-            epochs (int, optional): Number of epochs to train the full model. Defaults to 3.
-            toplayer_epochs (int, optional): Number of epochs to only train the fully-connected layers. Defaults to 0.
-            model (str, optional): Base model architecture name. Defaults to 'xception'.
-            pooling (str, optional): Post-convolution pooling. 'max', 'avg', or 'none'. Defaults to 'max'.
-            loss (str, optional): Loss function. Defaults to 'sparse_categorical_crossentropy'.
-            learning_rate (float, optional): Learning rate. Defaults to 0.0001.
-            learning_rate_decay (int, optional): Learning rate decay rate. Defaults to 0.
-            learning_rate_decay_steps (int, optional): Learning rate decay steps. Defaults to 100000.
-            batch_size (int, optional): Batch size. Defaults to 16.
-            hidden_layers (int, optional): Number of fully-connected hidden layers after core model. Defaults to 0.
-            hidden_layer_width (int, optional): Width of fully-connected hidden layers. Defaults to 500.
-            optimizer (str, optional): Name of optimizer. Defaults to 'Adam'.
-            early_stop (bool, optional): Use early stopping. Defaults to False.
-            early_stop_patience (int, optional): Patience for early stopping, in epochs. Defaults to 0.
-            early_stop_method (str, optional): Metric to monitor for early stopping. Defaults to 'loss'.
+            epochs (int): Number of epochs to train the full model. Defaults to 3.
+            toplayer_epochs (int): Number of epochs to only train the fully-connected layers. Defaults to 0.
+            model (str): Base model architecture name. Defaults to 'xception'.
+            pooling (str): Post-convolution pooling. 'max', 'avg', or 'none'. Defaults to 'max'.
+            loss (str): Loss function. Defaults to 'sparse_categorical_crossentropy'.
+            learning_rate (float): Learning rate. Defaults to 0.0001.
+            learning_rate_decay (int): Learning rate decay rate. Defaults to 0.
+            learning_rate_decay_steps (int): Learning rate decay steps. Defaults to 100000.
+            batch_size (int): Batch size. Defaults to 16.
+            hidden_layers (int): Number of fully-connected hidden layers after core model. Defaults to 0.
+            hidden_layer_width (int): Width of fully-connected hidden layers. Defaults to 500.
+            optimizer (str): Name of optimizer. Defaults to 'Adam'.
+            early_stop (bool): Use early stopping. Defaults to False.
+            early_stop_patience (int): Patience for early stopping, in epochs. Defaults to 0.
+            early_stop_method (str): Metric to monitor for early stopping. Defaults to 'loss'.
             manual_early_stop_epoch (int, optional): Manually override early stopping to occur at this epoch/batch.
                 Defaults to None.
             manual_early_stop_batch (int, optional): Manually override early stopping to occur at this epoch/batch.
                 Defaults to None.
-            training_balance ([type], optional): Type of batch-level balancing to use during training.
+            training_balance (str, optional): Type of batch-level balancing to use during training.
                 Options include 'tile', 'category', 'patient', 'slide', and None. Defaults to 'category' if a
                 categorical loss is provided, and 'patient' if a linear loss is provided.
-            validation_balance ([type], optional): Type of batch-level balancing to use during validation.
+            validation_balance (str, optional): Type of batch-level balancing to use during validation.
                 Options include 'tile', 'category', 'patient', 'slide', and None. Defaults to 'none'.
-            trainable_layers (int, optional): Number of layers which are traininable. If 0, trains all layers.
+            trainable_layers (int): Number of layers which are traininable. If 0, trains all layers.
                 Defaults to 0.
             l1 (int, optional): L1 regularization weight. Defaults to 0.
             l2 (int, optional): L2 regularization weight. Defaults to 0.
@@ -104,16 +104,37 @@ class _ModelParams:
             l2_dense (int, optional): L2 regularization weight for Dense layers. Defaults to the value of l2.
             dropout (int, optional): Post-convolution dropout rate. Defaults to 0.
             uq (bool, optional): Use uncertainty quantification with dropout. Requires dropout > 0. Defaults to False.
-            augment (str): Image augmentations to perform. String containing characters designating augmentations.
-                'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
-                at random quality levels. Passing either 'xyrj' or True will use all augmentations.
+            augment (str, optional): Image augmentations to perform. Characters in the string designate augmentations.
+                Combine these characters to define the augmentation pipeline. For example, 'xyrj' will perform x-flip,
+                y-flip, rotation, and JPEG compression. True will use all augmentations. Defaults to 'xyrj'.
+
+                .. list-table::
+                    :header-rows: 1
+                    :widths: 10 90
+
+                    * - Character
+                      - Augmentation
+                    * - x
+                      - Random x-flipping
+                    * - y
+                      - Random y-flipping
+                    * - r
+                      - Random cardinal rotation
+                    * - j
+                      - Random JPEG compression (10% chance to JPEG compress with quality between 50-100%)
+                    * - b
+                      - Random Guassian blur (50% chance to blur with sigma between 0.5 - 2.0)
+                    * - s
+                      - Stain augmentation (must be using stain normalization)
+
+
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
                 Internal default tile can be found at slideflow.slide.norm_tile.jpg
-            include_top (bool, optional): Include post-convolution fully-connected layers from the core model. Defaults
+            include_top (bool): Include post-convolution fully-connected layers from the core model. Defaults
                 to True. include_top=False is not currently compatible with the PyTorch backend.
-            drop_images (bool, optional): Drop images, using only other slide-level features as input.
+            drop_images (bool): Drop images, using only other slide-level features as input.
                 Defaults to False.
         """
         if isinstance(tile_um, str):
@@ -422,6 +443,9 @@ class BaseFeatureExtractor:
       and include all preprocessing steps in __call__.
 
     """
+
+    tag = 'generic_extractor'
+
     def __init__(self, backend: str, include_preds: bool = False) -> None:
         """Initialize the base feature extractor.
 

@@ -11,13 +11,13 @@ import requests
 import tarfile
 import hashlib
 import pandas as pd
-from contextlib import contextmanager
 from rich import progress
 from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
 from rich.panel import Panel
 from rich.console import Console
 from rich.progress import Progress, TextColumn, BarColumn
+from contextlib import contextmanager
 from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
@@ -27,7 +27,6 @@ from tqdm import tqdm
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
-import pandas as pd
 import slideflow as sf
 from slideflow import errors
 from . import example_pb2, log_utils
@@ -50,8 +49,8 @@ except Exception:
 # --- Global vars -------------------------------------------------------------
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
-                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg']
-EMPTY_ANNOTATIONS = ['', ' ']
+                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png']
+EMPTY = ['', ' ', None, np.nan]
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:
     import pyomo.environ as pyo
@@ -100,6 +99,16 @@ def setLoggingLevel(level):
 def getLoggingLevel():
     """Return the current logging level."""
     return log.handlers[0].level
+
+
+@contextmanager
+def logging_level(level: int):
+    _initial = getLoggingLevel()
+    setLoggingLevel(level)
+    try:
+        yield
+    finally:
+        setLoggingLevel(_initial)
 
 
 def addLoggingFileHandler(path):
@@ -178,6 +187,12 @@ class TileExtractionProgress(Progress):
                     progress.TimeRemainingColumn(),
                 )
             yield self.make_tasks_table([task])
+
+
+def set_ignore_sigint():
+    """Ignore keyboard interrupts."""
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
 # --- Slideflow header --------------------------------------------------------
@@ -660,12 +675,46 @@ def get_model_config(model_path: str) -> Dict:
     return config
 
 
+def get_ensemble_model_config(model_path: str) -> Dict:
+    """Loads ensemble model configuration JSON file."""
+
+    if exists(join(model_path, 'ensemble_params.json')):
+        config = load_json(join(model_path, 'ensemble_params.json'))
+    elif exists(join(dirname(model_path), 'ensemble_params.json')):
+        if not (sf.util.torch_available
+                and sf.util.path_to_ext(model_path) == 'zip'):
+            log.warning(
+                "Hyperparameters not in model directory; loading from parent"
+                " directory. Please move ensemble_params.json into model folder."
+            )
+        config = load_json(join(dirname(model_path), 'params.json'))
+    else:
+        raise errors.ModelParamsNotFoundError
+    # Compatibility for pre-1.1
+    if 'norm_mean' in config:
+        config['norm_fit'] = {
+            'target_means': config['norm_mean'],
+            'target_stds': config['norm_std'],
+        }
+    if 'outcome_label_headers' in config:
+        log.debug("Replacing outcome_label_headers in params.json -> outcomes")
+        config['outcomes'] = config.pop('outcome_label_headers')
+    return config
+
+
 def get_model_normalizer(
     model_path: str
 ) -> Optional["sf.norm.StainNormalizer"]:
     """Loads and fits normalizer using configuration at a model path."""
 
     config = sf.util.get_model_config(model_path)
+    if is_torch_model_path(model_path):
+        backend = 'torch'
+    elif is_tensorflow_model_path(model_path):
+        backend = 'tensorflow'
+    else:
+        log.warn(f"Unable to determine backend for model at {model_path}")
+        backend = None
 
     if not config['hp']['normalizer']:
         return None
@@ -674,17 +723,40 @@ def get_model_normalizer(
        and version.parse(config['slideflow_version']) <= version.parse("1.2.2")
        and config['hp']['normalizer'] in ('vahadane', 'macenko')):
         log.warn("Detected model trained with Macenko or Vahadane "
-                    "normalization with Slideflow version <= 1.2.2. Macenko "
-                    "and Vahadane algorithms were optimized in 1.2.3 and may "
-                    "now yield slightly different results. ")
+                 "normalization with Slideflow version <= 1.2.2. Macenko "
+                 "and Vahadane algorithms were optimized in 1.2.3 and may "
+                 "now yield slightly different results. ")
 
     normalizer = sf.norm.autoselect(
         config['hp']['normalizer'],
-        config['hp']['normalizer_source']
+        config['hp']['normalizer_source'],
+        backend=backend
     )
     if 'norm_fit' in config and config['norm_fit'] is not None:
         normalizer.set_fit(**config['norm_fit'])
     return normalizer
+
+
+def get_preprocess_fn(model_path: str):
+    """Returns a function which preprocesses a uint8 image for a model.
+
+    Args:
+        model_path (str): Path to a saved Slideflow model.
+
+    Returns:
+        A function which accepts a single image or batch of uint8 images,
+        and returns preprocessed (and stain normalized) float32 images.
+
+    """
+    normalizer = get_model_normalizer(model_path)
+    if is_torch_model_path(model_path):
+        from slideflow.io.torch import preprocess_uint8
+        return partial(preprocess_uint8, normalizer=normalizer)
+    elif is_tensorflow_model_path(model_path):
+        from slideflow.io.tensorflow import preprocess_uint8
+        return partial(preprocess_uint8, normalizer=normalizer, as_dict=False)
+    else:
+        raise ValueError(f"Unrecognized model: {model_path}")
 
 
 def get_slide_paths(slides_dir: str) -> List[str]:
@@ -827,79 +899,66 @@ def update_results_log(
         os.remove(f"{results_log_path}.temp")
 
 
-def tfrecord_heatmap(
-    tfrecord: str,
+def location_heatmap(
+    locations: np.ndarray,
+    values: np.ndarray,
     slide: str,
     tile_px: int,
     tile_um: Union[int, str],
-    tile_dict: Dict[int, float],
     outdir: str,
-    interpolation: Optional[str] = 'bicubic'
+    *,
+    interpolation: Optional[str] = 'bicubic',
+    cmap: str = 'inferno',
+    norm: Optional[str] = None,
 ) -> Dict[str, Dict[str, float]]:
-    """Creates a tfrecord-based WSI heatmap using a dictionary of tile values
-    for heatmap display.
+    """Generate a heatmap for a slide.
 
     Args:
-        tfrecord (str): Path to tfrecord.
-        slide (str): Path to whole-slide image.
-        tile_dict (dict): Dictionary mapping tfrecord indices to a
-            tile-level value for display in heatmap format.
-        tile_px (int): Tile width in pixels.
-        tile_um (int or str): Tile width in microns (int) or magnification
-            (str, e.g. "20x").
-        outdir (str): Path to directory in which to save images.
+        locations (np.ndarray): Array of shape ``(n_tiles, 2)`` containing x, y
+            coordinates for all image tiles.
+        values (np.ndarray): Array of shape ``(n_tiles,)`` containing heatmap
+            values for each tile.
+        slide (str): Path to corresponding slide.
+        tile_px (int): Tile pixel size.
+        tile_um (int, str): Tile micron or magnification size.
+        outdir (str): Directory in which to save heatmap.
 
-    Returns:
-        Dictionary mapping slide names to dict of statistics
-        (mean, median, above_0, and above_1)
+    Keyword args:
+        interpolation (str, optional): Interpolation strategy for smoothing
+            heatmap. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
     """
+
     import matplotlib.pyplot as plt
     import matplotlib.colors as mcol
 
-    slide_name = sf.util.path_to_name(tfrecord)
-    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
-    if tile_dict.keys() != loc_dict.keys():
-        td_len = len(list(tile_dict.keys()))
-        loc_len = len(list(loc_dict.keys()))
-        raise errors.TFRecordsError(
-            f'tile_dict length ({td_len}) != TFRecord length ({loc_len}).'
-        )
-
-    log.info(f'Generating TFRecord heatmap for [green]{tfrecord}[/]...')
-    wsi = sf.slide.WSI(slide, tile_px, tile_um)
+    slide_name = sf.util.path_to_name(slide)
+    log.info(f'Generating heatmap for [green]{slide}[/]...')
+    wsi = sf.slide.WSI(slide, tile_px, tile_um, verbose=False)
 
     stats = {}
 
     # Loaded CSV coordinates:
-    x = [int(loc_dict[loc][0]) for loc in loc_dict]
-    y = [int(loc_dict[loc][1]) for loc in loc_dict]
-    vals = [tile_dict[loc] for loc in loc_dict]
+    x = locations[:, 0]
+    y = locations[:, 1]
 
     stats.update({
         slide_name: {
-            'mean': mean(vals),
-            'median': median(vals),
-            'above_0': len([v for v in vals if v > 0]),
-            'above_1': len([v for v in vals if v > 1]),
+            'mean': np.mean(values),
+            'median': np.median(values)
         }
     })
-
-    log.debug('Loaded tile values')
-    log.debug(f'Min: {min(vals)}\t Max:{max(vals)}')
 
     roi_scaling = False
     scale = wsi.roi_scale if roi_scaling else 1
     scaled_x = [(xi * scale) - wsi.full_extract_px/2 for xi in x]
     scaled_y = [(yi * scale) - wsi.full_extract_px/2 for yi in y]
-
-    log.debug('Loaded CSV coordinates:')
-    log.debug(f'Min x: {min(x)}\t Max x: {max(x)}')
-    log.debug(f'Min y: {min(y)}\t Max y: {max(y)}')
-    log.debug('Scaled CSV coordinates:')
-    log.debug(f'Min x: {min(scaled_x)}\t Max x: {max(scaled_x)}')
-    log.debug(f'Min y: {min(scaled_y)}\t Max y: {max(scaled_y)}')
-    log.debug('Slide properties:')
-    log.debug(f'Size (x): {wsi.dimensions[0]}\t Size (y): {wsi.dimensions[1]}')
 
     # Slide coordinate information
     max_coord_x = max([c[0] for c in wsi.coord])
@@ -927,12 +986,16 @@ def tfrecord_heatmap(
     log.debug('Coordinate grid scale:')
     log.debug(f'x: {x_grid_scale}\t y: {y_grid_scale}')
 
-    grid = np.zeros((num_y, num_x))
+    grid = np.ones((num_y, num_x))
+    grid *= -99
     indexed_x = [round(xi / x_grid_scale) for xi in scaled_x]
     indexed_y = [round(yi / y_grid_scale) for yi in scaled_y]
 
-    for xi, yi, v in zip(indexed_x, indexed_y, vals):
+    for xi, yi, v in zip(indexed_x, indexed_y, values):
         grid[yi][xi] = v
+
+    # Mask out background
+    masked_grid = np.ma.masked_where(grid == -99, grid)
 
     fig = plt.figure(figsize=(18, 16))
     ax = fig.add_subplot(111)
@@ -947,8 +1010,6 @@ def tfrecord_heatmap(
     )
     log.debug('Generating thumbnail...')
     thumb = wsi.thumb(mpp=5)
-    log.debug('Saving thumbnail....')
-    thumb.save(join(outdir, f'{slide_name}' + '.png'))
     log.debug('Generating figure...')
     implot = ax.imshow(thumb, zorder=0)
     extent = implot.get_extent()
@@ -960,27 +1021,72 @@ def tfrecord_heatmap(
     log.debug('\nGrid extent:')
     log.debug(grid_extent)
 
-    divnorm = mcol.TwoSlopeNorm(
-        vmin=min(-0.01, min(vals)),
-        vcenter=0,
-        vmax=max(0.01, max(vals))
-    )
+    if norm == 'two_slope':
+        norm = mcol.TwoSlopeNorm(
+            vmin=min(-0.01, min(values)),
+            vcenter=0,
+            vmax=max(0.01, max(values))
+        )
     ax.imshow(
-        grid,
+        masked_grid,
         zorder=10,
         alpha=0.6,
         extent=grid_extent,
         interpolation=interpolation,
-        cmap='coolwarm',
-        norm=divnorm
+        cmap=cmap,
+        norm=norm
     )
-    log.info('Saving figure...')
+    log.debug('Saving figure...')
     plt.savefig(join(outdir, f'{slide_name}_attn.png'), bbox_inches='tight')
-    log.debug('Cleaning up...')
-    plt.clf()
+    plt.close(fig)
     del wsi
     del thumb
     return stats
+
+
+def tfrecord_heatmap(
+    tfrecord: str,
+    slide: str,
+    tile_px: int,
+    tile_um: Union[int, str],
+    tile_dict: Dict[int, float],
+    outdir: str,
+    **kwargs
+) -> Dict[str, Dict[str, float]]:
+    """Creates a tfrecord-based WSI heatmap using a dictionary of tile values
+    for heatmap display.
+
+    Args:
+        tfrecord (str): Path to tfrecord.
+        slide (str): Path to whole-slide image.
+        tile_dict (dict): Dictionary mapping tfrecord indices to a
+            tile-level value for display in heatmap format.
+        tile_px (int): Tile width in pixels.
+        tile_um (int or str): Tile width in microns (int) or magnification
+            (str, e.g. "20x").
+        outdir (str): Path to directory in which to save images.
+
+    Returns:
+        Dictionary mapping slide names to dict of statistics
+        (mean, median)
+    """
+    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
+    if tile_dict.keys() != loc_dict.keys():
+        td_len = len(list(tile_dict.keys()))
+        loc_len = len(list(loc_dict.keys()))
+        raise errors.TFRecordsError(
+            f'tile_dict length ({td_len}) != TFRecord length ({loc_len}).'
+        )
+
+    return location_heatmap(
+        locations=np.array([loc_dict[loc] for loc in loc_dict]),
+        values=np.array([tile_dict[loc] for loc in loc_dict]),
+        slide=slide,
+        tile_px=tile_px,
+        tile_um=tile_um,
+        outdir=outdir,
+        **kwargs
+    )
 
 
 def get_valid_model_dir(root: str) -> List:
@@ -1014,6 +1120,13 @@ def get_new_model_dir(root: str, model_name: str) -> str:
     assert not os.path.exists(model_dir)
     os.makedirs(model_dir)
     return model_dir
+
+
+def create_new_model_dir(root: str, model_name: str) -> str:
+    path = get_new_model_dir(root, model_name)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
 
 
 def split_list(a: List, n: int) -> List[List]:

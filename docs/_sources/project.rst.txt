@@ -36,6 +36,8 @@ Methods
 
 .. autofunction:: slideflow.Project.evaluate
 
+.. autofunction:: slideflow.Project.evaluate_mil
+
 .. autofunction:: slideflow.Project.evaluate_clam
 
 .. autofunction:: slideflow.Project.extract_cells
@@ -73,6 +75,8 @@ Methods
 .. autofunction:: slideflow.Project.train
 
 .. autofunction:: slideflow.Project.train_ensemble
+
+.. autofunction:: slideflow.Project.train_mil
 
 .. autofunction:: slideflow.Project.train_simclr
 

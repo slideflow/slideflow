@@ -1,6 +1,6 @@
 """Submodule for calculating/displaying pixel attribution (saliency maps)."""
 
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Optional
 
 import slideflow as sf
 import numpy as np
@@ -35,8 +35,11 @@ class SaliencyMap:
         if not callable(model):
             raise ValueError("'model' must be a differentiable model.")
         self.model = model
+        self.feature_model = None
+        self.feature_model_layer = None
         self.class_idx = class_idx
         self.gradients = saliency.GradientSaliency()
+        self.gradcam_grads = saliency.GradCam()
         self.ig = saliency.IntegratedGradients()
         self.guided_ig = saliency.GuidedIG()
         self.blur_ig = saliency.BlurIG()
@@ -67,17 +70,49 @@ class SaliencyMap:
         else:
             return next(self.model.parameters()).device
 
+    def _update_feature_model(self, layer):
+        if self.feature_model_layer == layer:
+            return
+
+        # Cleanup old model
+        del self.feature_model
+        self.feature_model = None
+        self.feature_model_layer = layer
+
+        if self.model_backend == 'tensorflow':
+            import tensorflow as tf
+            flattened = sf.model.tensorflow_utils.flatten(self.model)
+            conv_layer = flattened.get_layer(layer)
+            self.feature_model = tf.keras.models.Model([flattened.inputs], [conv_layer.output, flattened.output])
+        else:
+            import torch
+            from slideflow.model import torch_utils
+            conv_layer = torch_utils.get_module_by_name(self.model, layer)
+            self._torch_conv_layer_outputs = {}
+            def conv_layer_forward(m, i, o):
+                # move the RGB dimension to the last dimension
+                self._torch_conv_layer_outputs[saliency.base.CONVOLUTION_LAYER_VALUES] = torch.movedim(o, 1, 3).detach().numpy()
+            def conv_layer_backward(m, i, o):
+                # move the RGB dimension to the last dimension
+                self._torch_conv_layer_outputs[saliency.base.CONVOLUTION_OUTPUT_GRADIENTS] = torch.movedim(o[0], 1, 3).detach().numpy()
+            conv_layer.register_forward_hook(conv_layer_forward)
+            conv_layer.register_full_backward_hook(conv_layer_backward)
+
     def _grad_fn_torch(
         self,
         image: np.ndarray,
         call_model_args: Any = None,
         expected_keys: Dict = None
     ) -> Any:
-        """Calculate gradient attribution with PyTorch backend."""
-        import torch
+        """Calculate gradient attribution with PyTorch backend.
 
+        Images are expected to be in W, H, C format.
+
+        """
+        import torch
+        from slideflow.io.torch import whc_to_cwh
         image = torch.tensor(image, requires_grad=True).to(torch.float32).to(self.device)  # type: ignore
-        output = self.model(image)
+        output = self.model(whc_to_cwh(image))
         if saliency.base.INPUT_OUTPUT_GRADIENTS in expected_keys:  # type: ignore
             outputs = output[:, self.class_idx]
             grads = torch.autograd.grad(outputs, image, grad_outputs=torch.ones_like(outputs))  # type: ignore
@@ -85,7 +120,11 @@ class SaliencyMap:
             return {saliency.base.INPUT_OUTPUT_GRADIENTS: gradients}
         else:
             # For Grad-CAM
-            raise NotImplementedError
+            one_hot = torch.zeros_like(output)
+            one_hot[:, self.class_idx] = 1
+            self.model.zero_grad()  # type: ignore
+            output.backward(gradient=one_hot, retain_graph=True)
+            return self._torch_conv_layer_outputs
 
     def _grad_fn_tf(
         self,
@@ -106,7 +145,10 @@ class SaliencyMap:
                 return {saliency.base.INPUT_OUTPUT_GRADIENTS: gradients}
             else:
                 # For Grad-CAM
-                raise NotImplementedError
+                conv_layer, output_layer = self.feature_model(image)
+                gradients = np.array(tape.gradient(output_layer, conv_layer))
+                return {saliency.base.CONVOLUTION_LAYER_VALUES: conv_layer,
+                        saliency.base.CONVOLUTION_OUTPUT_GRADIENTS: gradients}
 
     def _grad_fn(
         self,
@@ -146,10 +188,7 @@ class SaliencyMap:
         def _get_mask(_img):
             if baseline:
                 kwargs.update({'x_baseline': np.zeros(_img.shape)})
-
             out = mask_fn(_img, self._grad_fn, **kwargs)
-            if self.model_backend == 'torch':
-                out = np.transpose(out, (1, 2, 0))  # CWH -> WHC
             return out
 
         if isinstance(img, list):
@@ -166,7 +205,7 @@ class SaliencyMap:
         """Calculate all saliency map methods.
 
         Args:
-            img (np.ndarray): Input image
+            img (np.ndarray): Pre-processed input image in W, H, C format.
 
         Returns:
             Dict: Dictionary mapping name of saliency method to saliency map.
@@ -194,7 +233,7 @@ class SaliencyMap:
         """Calculate gradient-based saliency map.
 
         Args:
-            img (np.ndarray): Input image
+            img (np.ndarray): Pre-processed input image in W, H, C format.
             smooth (bool, optional): Smooth gradients. Defaults to False.
 
         Returns:
@@ -203,6 +242,30 @@ class SaliencyMap:
         return self._apply_mask_fn(
             img,
             self.gradients,
+            smooth=smooth,
+            **kwargs
+        )
+
+    def gradcam(
+        self,
+        img: np.ndarray,
+        layer: str,
+        smooth: bool = False,
+        **kwargs
+    ) -> np.ndarray:
+        """Calculate gradient-based saliency map.
+
+        Args:
+            img (np.ndarray): Pre-processed input image in W, H, C format.
+            smooth (bool, optional): Smooth gradients. Defaults to False.
+
+        Returns:
+            np.ndarray: Saliency map.
+        """
+        self._update_feature_model(layer)
+        return self._apply_mask_fn(
+            img,
+            self.gradcam_grads,
             smooth=smooth,
             **kwargs
         )
@@ -218,7 +281,7 @@ class SaliencyMap:
         """Calculate saliency map using integrated gradients.
 
         Args:
-            img (np.ndarray): Input image
+            img (np.ndarray): Pre-processed input image in W, H, C format.
             x_steps (int, optional): Steps for gradient calculation.
                 Defaults to 25.
             max_dist (float, optional): Maximum distance for gradient
@@ -250,7 +313,7 @@ class SaliencyMap:
         """Calculate saliency map using guided integrated gradients.
 
         Args:
-            img (np.ndarray): Input image
+            img (np.ndarray): Pre-processed input image in W, H, C format.
             x_steps (int, optional): Steps for gradient calculation.
                 Defaults to 25.
             max_dist (float, optional): Maximum distance for gradient
@@ -283,7 +346,7 @@ class SaliencyMap:
         """Calculate saliency map using blur integrated gradients.
 
         Args:
-            img (np.ndarray): Input image.
+            img (np.ndarray): Pre-processed input image in W, H, C format.
             batch_size (int, optional): Batch size. Defaults to 20.
             smooth (bool, optional): Smooth gradients. Defaults to False.
 
@@ -307,18 +370,26 @@ class SaliencyMap:
         """Calculate saliency map using XRAI.
 
         Args:
-            img (np.ndarray): Input image.
+            img (np.ndarray): Pre-processed input image in W, H, C format.
             batch_size (int, optional): Batch size. Defaults to 20.
 
         Returns:
             np.ndarray: Saliency map.
         """
-        return self.xrai_grads.GetMask(
+        mask = self.xrai_grads.GetMask(
             img,
             self._grad_fn,
             batch_size=batch_size,
             **kwargs
         )
+        if isinstance(img, list):
+            # Normalize together
+            v_maxes, v_mins = zip(*[max_min(img3d) for img3d in mask])
+            vmax = max(v_maxes)
+            vmin = min(v_mins)
+            return [normalize_xrai(img3d, vmax=vmax, vmin=vmin) for img3d in mask]
+        else:
+            return normalize_xrai(mask)
 
     def xrai_fast(
         self,
@@ -329,19 +400,27 @@ class SaliencyMap:
         """Calculate saliency map using XRAI (fast implementation).
 
         Args:
-            img (np.ndarray): Input image.
+            img (np.ndarray): Pre-processed input image in W, H, C format.
             batch_size (int, optional): Batch size. Defaults to 20.
 
         Returns:
             np.ndarray: Saliency map.
         """
-        return self.xrai_grads.GetMask(
+        mask = self.xrai_grads.GetMask(
             img,
             self._grad_fn,
             batch_size=batch_size,
             extra_parameters=self.fast_xrai_params,
             **kwargs
         )
+        if isinstance(img, list):
+            # Normalize together
+            v_maxes, v_mins = zip(*[max_min(img3d) for img3d in mask])
+            vmax = max(v_maxes)
+            vmin = min(v_mins)
+            return [normalize_xrai(img3d, vmax=vmax, vmin=vmin) for img3d in mask]
+        else:
+            return normalize_xrai(mask)
 
 
 def grayscale(image_3d, vmax=None, vmin=None, percentile=99):
@@ -353,6 +432,12 @@ def grayscale(image_3d, vmax=None, vmin=None, percentile=99):
         vmax, vmin = max_min(image_3d, percentile=percentile)
     image_2d = np.sum(np.abs(image_3d), axis=2)
     return np.clip((image_2d - vmin) / (vmax - vmin), 0, 1)
+
+
+def normalize_xrai(mask, percentile=99):
+    vmax = np.percentile(mask, percentile)
+    vmin = np.min(mask)
+    return np.clip((mask - vmin) / (vmax - vmin), 0, 1)
 
 
 def max_min(image_3d, percentile=99):

@@ -37,7 +37,7 @@ from slideflow.util import colors as col
               required=False, type=bool)
 @click.option('--wsi', 'predict_wsi', help='Test WSI prediction.',
               required=False, type=bool)
-@click.option('--clam', help='Test CLAM.',
+@click.option('--mil', help='Test multiple-instance learning (MIL).',
               required=False, type=bool)
 @click.option('--slide-threads', help='Number of threads during tile extraction.',
               required=False, type=int, default=None)
@@ -67,7 +67,7 @@ def main(slides, out, all_tests, slide_threads, **kwargs):
     To run all tests while omitting some, set `--all` to True and other
     flags to False:
 
-        python3 test.py --slides=/path/to/slides --all=True --clam=False
+        python3 test.py --slides=/path/to/slides --all=True --mil=False
     '''
     if not out:
         out = 'slideflow_test'

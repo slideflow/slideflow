@@ -69,7 +69,7 @@ def detect_tfrecord_format(tfr: str) -> Tuple[Optional[List[str]],
             str: Image file type (png/jpeg)
     '''
     try:
-        record = tfrecord2idx.get_record_by_index(tfr, index=0)
+        record = tfrecord2idx.get_tfrecord_by_index(tfr, index=0)
     except errors.EmptyTFRecordsError:
         log.debug(f"Unable to detect format for {tfr}; file empty.")
         return None, None

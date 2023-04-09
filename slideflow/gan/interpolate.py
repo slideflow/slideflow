@@ -2,7 +2,7 @@
 
 from typing import (Generator, List, Optional, Tuple, Union,
                     TYPE_CHECKING, Any, Iterable)
-
+import warnings
 import numpy as np
 import pandas as pd
 import slideflow as sf
@@ -82,6 +82,7 @@ class StyleGAN2Interpolator:
             gan_px=gan_px,
             target_um=target_um,
         )
+        self._classifier_backend = sf.backend()
 
     def _crop_and_convert_to_uint8(self, img: torch.Tensor) -> Any:
         """Convert a batch of GAN images to a resized/cropped uint8 tensor.
@@ -94,10 +95,10 @@ class StyleGAN2Interpolator:
         """
         import torch
         import slideflow.io.torch
-        if sf.backend() == 'tensorflow':
+        if self._classifier_backend == 'tensorflow':
             import tensorflow as tf
             dtype = tf.uint8
-        elif sf.backend() == 'torch':
+        elif self._classifier_backend == 'torch':
             dtype = torch.uint8
         else:
             raise errors.UnrecognizedBackendError
@@ -125,12 +126,12 @@ class StyleGAN2Interpolator:
             Any: Resized GAN images (uint8 or float32 if standardize=True)
         """
         normalizer = self.normalizer if normalize else None
-        if sf.backend() == 'tensorflow':
+        if self._classifier_backend == 'tensorflow':
             return sf.io.tensorflow.preprocess_uint8(
                 img,
                 normalizer=normalizer,
                 standardize=standardize)['tile_image']
-        elif sf.backend() == 'torch':
+        elif self._classifier_backend == 'torch':
             return sf.io.torch.preprocess_uint8(
                 img,
                 normalizer=normalizer,
@@ -147,10 +148,10 @@ class StyleGAN2Interpolator:
         Returns:
             Any: Standardized float image tensor.
         """
-        if sf.backend() == 'tensorflow':
+        if self._classifier_backend == 'tensorflow':
             import tensorflow as tf
             return sf.io.convert_dtype(img, tf.float32)
-        elif sf.backend() == 'torch':
+        elif self._classifier_backend == 'torch':
             import torch
             return sf.io.convert_dtype(img, torch.float32)
         else:
@@ -167,10 +168,10 @@ class StyleGAN2Interpolator:
             Iterable: Iterable dataset which yields processed (resized and
             normalized) images.
         """
-        if sf.backend() == 'tensorflow':
+        if self._classifier_backend == 'tensorflow':
             import tensorflow as tf
 
-            sig = tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.uint8)
+            sig = tf.TensorSpec(shape=(None, self.target_px, self.target_px, 3), dtype=tf.uint8)
             dts = tf.data.Dataset.from_generator(generator, output_signature=sig)
             return dts.map(
                 partial(
@@ -179,7 +180,7 @@ class StyleGAN2Interpolator:
                 num_parallel_calls=tf.data.AUTOTUNE,
                 deterministic=True
             )
-        elif sf.backend() == 'torch':
+        elif self._classifier_backend == 'torch':
             return map(
                 partial(
                     sf.io.torch.preprocess_uint8,
@@ -207,10 +208,17 @@ class StyleGAN2Interpolator:
         else:
             raise ValueError(f"Unrecognized seed: {seed}")
 
-    def set_feature_model(
+    def set_feature_model(self, *args, **kwargs):
+        warnings.warn(
+            "StyleGAN2Interpolator.set_feature_model() is deprecated. "
+            "Please use .set_classifier() instead.",
+            DeprecationWarning)
+        return self.set_classifier(*args, **kwargs)
+
+    def set_classifier(
         self,
         path: str,
-        layers: Union[str, List[str]] = 'postconv',
+        layers: Optional[Union[str, List[str]]] = None,
         **kwargs
     ) -> None:
         """Configures a classifier model to be used for generating features
@@ -220,14 +228,31 @@ class StyleGAN2Interpolator:
             path (str): Path to trained model.
             layers (Union[str, List[str]], optional): Layers from which to
                 calculate activations for interpolated images.
-                Defaults to 'postconv'.
+                Defaults to None.
         """
-        self.features = sf.model.Features(
-            path,
-            layers=layers,
-            include_preds=True,
-            **kwargs)
-        self.normalizer = self.features.wsi_normalizer  # type: ignore
+        if sf.util.is_tensorflow_model_path(path):
+            from slideflow.model.tensorflow import Features
+            import slideflow.io.tensorflow
+            self.features = Features(
+                path,
+                layers=layers,
+                include_preds=True,
+                **kwargs)
+            self.normalizer = self.features.wsi_normalizer  # type: ignore
+            self._classifier_backend = 'tensorflow'
+        elif sf.util.is_torch_model_path(path):
+            from slideflow.model.torch import Features
+            import slideflow.io.torch
+            self.features = Features(
+                path,
+                layers=layers,
+                include_preds=True,
+                **kwargs)
+            self.normalizer = self.features.wsi_normalizer  # type: ignore
+            self._classifier_backend = 'torch'
+        else:
+            raise ValueError(f"Unrecognized backend for model {path}")
+
 
     def seed_search(
         self,
@@ -248,14 +273,14 @@ class StyleGAN2Interpolator:
 
         Raises:
             Exception: If classifier model has not been been set with
-                .set_feature_model()
+                .set_classifier()
 
         Returns:
             pd.core.frame.DataFrame: Dataframe of results.
         """
 
         if self.features is None:
-            raise Exception("Feature model not set; use .set_feature_model()")
+            raise Exception("Classifier not set; use .set_classifier()")
         if concordance_thresholds is None:
             concordance_thresholds = [0.25, 0.5, 0.75]
 
@@ -290,17 +315,29 @@ class StyleGAN2Interpolator:
             gan_embed1_dts
         )
         for (seed_batch, embed0_batch, embed1_batch) in tqdm(seeds_and_embeddings, total=int(len(seeds) / batch_size)):
-            features0, pred0 = self.features(embed0_batch)
-            features1, pred1 = self.features(embed1_batch)
+            with torch.no_grad():
+                res0 = self.features(embed0_batch)
+                res1 = self.features(embed1_batch)
+            if isinstance(res0, tuple) and len(res0) == 1:
+                features0, pred0 = res0
+                features1, pred1 = res1
+            else:
+                pred0 = res0
+                pred1 = res1
+                features0, features1 = None, None
 
-            if sf.backend() == 'torch':
+            if self._classifier_backend == 'torch':
+                if isinstance(pred0, list):
+                    pred0, pred1 = pred0[0], pred1[0]
                 pred0, pred1 = pred0.cpu(), pred1.cpu()
-                features0, features1 = features0.cpu(), features1.cpu()
+                if features0 is not None:
+                    features0, features1 = features0.cpu(), features1.cpu()
 
             pred0 = pred0[:, outcome_idx].numpy()
             pred1 = pred1[:, outcome_idx].numpy()
-            features0 = np.reshape(features0.numpy(), (len(seed_batch), -1)).astype(np.float32)
-            features1 = np.reshape(features1.numpy(), (len(seed_batch), -1)).astype(np.float32)
+            if features0 is not None:
+                features0 = np.reshape(features0.numpy(), (len(seed_batch), -1)).astype(np.float32)
+                features1 = np.reshape(features1.numpy(), (len(seed_batch), -1)).astype(np.float32)
 
             # For each seed in the batch, determine if there is "class concordance",
             # where the GAN class label matches the classifier prediction.
@@ -312,8 +349,9 @@ class StyleGAN2Interpolator:
                 img_seeds += [seed_batch[i]]
                 predictions[0] += [pred0[i]]
                 predictions[1] += [pred1[i]]
-                features[0] += [features0[i]]
-                features[1] += [features1[i]]
+                if features0 is not None:
+                    features[0] += [features0[i]]
+                    features[1] += [features1[i]]
 
                 # NOTE: This logic assumes predictions are discretized at 0,
                 # which will not be true for categorical outcomes.
@@ -338,15 +376,18 @@ class StyleGAN2Interpolator:
                     print(f"Seed {seed_batch[i]:<6}: {pred0[i]:.2f}\t{pred1[i]:.2f}{tail}")
 
         # Convert to dataframe.
-        df = pd.DataFrame({
+        df_dict = {
             'seed': pd.Series(img_seeds),
             'pred_start': pd.Series(predictions[0]),
             'pred_end': pd.Series(predictions[1]),
-            'features_start': pd.Series(features[0]).astype(object),
-            'features_end': pd.Series(features[1]).astype(object),
             'concordance': pd.Series(concordance),
-        })
-        return df
+        }
+        if features0 is not None:
+            df_dict.update({
+                'features_start': pd.Series(features[0]).astype(object),
+                'features_end': pd.Series(features[1]).astype(object),
+            })
+        return pd.DataFrame(df_dict)
 
     def plot_comparison(
         self,
@@ -370,7 +411,7 @@ class StyleGAN2Interpolator:
         def _process_to_pil(_img):
             _img = self._crop_and_convert_to_uint8(_img)
             _img = self._preprocess_from_uint8(_img, standardize=False, normalize=False)
-            if sf.backend() == 'torch':
+            if self._classifier_backend == 'torch':
                 _img = sf.io.torch.cwh_to_whc(_img)
             return Image.fromarray(sf.io.convert_dtype(_img[0], np.uint8))
 
@@ -624,7 +665,7 @@ class StyleGAN2Interpolator:
 
             if self.features is not None:
                 pred = self.features(processed_img)[-1]
-                if sf.backend() == 'torch':
+                if self._classifier_backend == 'torch':
                     pred = pred.cpu()
                 pred = pred.numpy()
                 preds += [pred[0][outcome_idx]]

@@ -11,8 +11,8 @@ A variety of fast, optimized whole-slide image processing tools are included, in
 
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
-![workbench preview](https://github.com/jamesdolezal/slideflow/raw/master/docs-source/source/workbench_preview.png)
-*Slideflow Workbench: a visualization tool for interacting with models and whole-slide images.*
+![studio preview](https://github.com/jamesdolezal/slideflow/raw/master/docs-source/source/studio_preview.png)
+*Slideflow Studio: a visualization tool for interacting with models and whole-slide images.*
 
 Slideflow has been used by:
 
@@ -28,7 +28,8 @@ Slideflow has been used by:
 
 ## Requirements
 - Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
-- [Tensorflow](https://www.tensorflow.org/) 2.5-2.9 _or_ [PyTorch](https://pytorch.org/) 1.9-1.12
+- [Tensorflow](https://www.tensorflow.org/) 2.5-2.11 _or_ [PyTorch](https://pytorch.org/) 1.9-2.0
+  - GAN and MIL functions require PyTorch <1.13
 
 ### Optional
 - [Libvips](https://libvips.github.io/libvips/) >= 8.9 (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files).
@@ -113,11 +114,11 @@ P = sf.create_project(
 
 After the slides have been downloaded and verified, you can skip to [Extract tiles from slides](#extract-tiles-from-slides).
 
-Alternatively, to create a new custom project, create an instance of the `slideflow.Project` class, supplying the location of patient-level annotations (CSV), slides, and a destination for TFRecords to be saved:
+Alternatively, to create a new custom project, supply the location of patient-level annotations (CSV), slides, and a destination for TFRecords to be saved:
 
 ```python
 import slideflow as sf
-P = sf.Project(
+P = sf.create_project(
   '/project/path',
   annotations="/patient/annotations.csv",
   slides="/slides/directory",

@@ -93,7 +93,7 @@ Training
 ********
 
 After tiles are extracted, the dataset will be ready for training. We will train with a single set of manually defined
-hyperparameters, which we can configure with :class:`slideflow.model.ModelParams`. We will use the
+hyperparameters, which we can configure with :class:`slideflow.ModelParams`. We will use the
 `Xception <https://arxiv.org/abs/1610.02357>`_ model with a batch size of 32, otherwise keeping defaults.
 
 .. code-block:: python

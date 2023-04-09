@@ -9,22 +9,22 @@
   <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.norm &mdash; slideflow 2.0.0 documentation</title>
+  
 
-  <title>slideflow.norm &mdash; slideflow 1.5.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
@@ -35,11 +35,11 @@
     <link rel="next" title="slideflow.simclr" href="simclr.html" />
     <link rel="prev" title="slideflow.model.torch" href="model_torch.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -102,9 +102,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  1.5
+                  2.0
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -140,15 +140,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
@@ -162,11 +162,12 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mil.html">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ssl.html">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="saliency.html">Saliency Maps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="studio.html">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
@@ -174,16 +175,19 @@
 <li class="toctree-l1"><a class="reference internal" href="slideflow.html">slideflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.Dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.Heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset_features.html">slideflow.DatasetFeatures</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_params.html">slideflow.ModelParams</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="biscuit.html">slideflow.biscuit</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="gan.html">slideflow.gan</a></li>
 <li class="toctree-l1"><a class="reference internal" href="grad.html">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mil_module.html">slideflow.mil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model_tensorflow.html">slideflow.model.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model_torch.html">slideflow.model.torch</a></li>
@@ -193,7 +197,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
-<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
+<li class="toctree-l1"><a class="reference internal" href="studio_module.html">slideflow.studio</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -205,8 +209,8 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -214,7 +218,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -233,30 +237,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>slideflow.norm</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="_sources/norm.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -268,66 +272,218 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
-  <section id="module-slideflow.norm">
-<span id="slideflow-norm"></span><h1>slideflow.norm<a class="headerlink" href="#module-slideflow.norm" title="Permalink to this heading">¶</a></h1>
-<p>This module provides H&amp;E stain normalization tools, with numpy, PyTorch,
-and Tensorflow implementations for several stain normalization methods.</p>
+              
+  <section id="slideflow-norm">
+<h1>slideflow.norm<a class="headerlink" href="#slideflow-norm" title="Permalink to this heading">¶</a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">slideflow.norm</span></code> submodule includes tools for H&amp;E stain normalization and augmentation.</p>
+<p>Available stain normalization algorithms include:</p>
+<ul class="simple">
+<li><p><strong>macenko</strong>: <a class="reference external" href="https://www.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf">Original Macenko paper</a>.</p></li>
+<li><p><strong>macenko_fast</strong>: Modified Macenko algorithm with the brightness standardization step removed.</p></li>
+<li><p><strong>reinhard</strong>: <a class="reference external" href="https://ieeexplore.ieee.org/document/946629">Original Reinhard paper</a>.</p></li>
+<li><p><strong>reinhard_fast</strong>: Modified Reinhard algorithm with the brightness standardization step removed.</p></li>
+<li><p><strong>reinhard_mask</strong>: Modified Reinhard algorithm, with background/whitespace removed.</p></li>
+<li><p><strong>reinhard_fast_mask</strong>: Modified Reinhard-Fast algorithm, with background/whitespace removed.</p></li>
+<li><p><strong>vahadane</strong>: <a class="reference external" href="https://ieeexplore.ieee.org/document/7460968">Original Vahadane paper</a>.</p></li>
+<li><p><strong>augment</strong>: HSV colorspace augmentation.</p></li>
+</ul>
 <section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this heading">¶</a></h2>
 <p>The main normalizer interface, <a class="reference internal" href="#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>, offers
-efficient numpy implementations for the Macenko, Reinhard, Reinhard-Fast,
-Reinhard (masked), and Vahadane H&amp;E stain normalization algorithms, as well
+efficient numpy implementations for the Macenko, Reinhard, and Vahadane H&amp;E stain normalization algorithms, as well
 as an HSV colorspace stain augmentation method. This normalizer can convert
 images to and from Tensors, numpy arrays, and raw JPEG/PNG images.</p>
 <p>In addition to these numpy implementations, PyTorch-native and Tensorflow-native
-implementations are also provided, which offer performance improvements
+implementations are also provided, which offer performance improvements, GPU acceleration,
 and/or vectorized application. The native normalizers are found in
-<code class="docutils literal notranslate"><span class="pre">slideflow.norm.tensorflow</span></code> and <code class="docutils literal notranslate"><span class="pre">slideflow.norm.torch</span></code>, respectively.
-Tensorflow-native normalizer methods include Macenko, Reinhard, and
-Reinhard-fast. Torch-native normalizer methods include Reinhard and
-Reinhard-fast.</p>
+<code class="docutils literal notranslate"><span class="pre">slideflow.norm.tensorflow</span></code> and <code class="docutils literal notranslate"><span class="pre">slideflow.norm.torch</span></code>, respectively.</p>
 <p>The Vahadane normalizer has two numpy implementations available: SPAMS
-(<code class="docutils literal notranslate"><span class="pre">vahadane_spams</span></code>) and sklearn (<code class="docutils literal notranslate"><span class="pre">vahadane_sklearn</span></code>). As of version 1.2.3,
-the sklearn implementation will be used if unspecified (<code class="docutils literal notranslate"><span class="pre">method='vahadane'</span></code>).</p>
-<p>Use <a class="reference internal" href="#slideflow.norm.autoselect" title="slideflow.norm.autoselect"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.norm.autoselect()</span></code></a> to get the fastest available normalizer
+(<code class="docutils literal notranslate"><span class="pre">vahadane_spams</span></code>) and sklearn (<code class="docutils literal notranslate"><span class="pre">vahadane_sklearn</span></code>). By default,
+the SPAMS implementation will be used if unspecified (<code class="docutils literal notranslate"><span class="pre">method='vahadane'</span></code>).</p>
+<p>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.norm.autoselect()</span></code> to get the fastest available normalizer
 for a given method and active backend (Tensorflow/PyTorch).</p>
 </section>
-<dl class="py function">
-<dt class="sig sig-object py" id="slideflow.norm.autoselect">
-<span class="sig-name descname"><span class="pre">autoselect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><span class="pre">StainNormalizer</span></a></span></span><a class="reference internal" href="_modules/slideflow/norm.html#autoselect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.norm.autoselect" title="Permalink to this definition">¶</a></dt>
-<dd><p>Select the best normalizer for a given method, and fit to a given source.</p>
-<p>If a normalizer method has a native implementation in the current backend
-(Tensorflow or PyTorch), the native normalizer will be used.
-If not, the default numpy implementation will be used.</p>
-<p>Currently, the PyTorch-native normalizers are NOT used by default, as they
-are slower than the numpy implementations. Thus, with the PyTorch backend,
-all normalizers will be the default numpy implementations.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Normalization method. Options include ‘macenko’,
-‘reinhard’, ‘reinhard_fast’, ‘reinhard_mask’, ‘reinhard_fast_mask’,
-‘vahadane’, ‘vahadane_spams’, ‘vahadane_sklearn’, and ‘augment’.</p></li>
-<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to a source image. If provided, will
-fit the normalizer to this image. Defaults to None.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Initialized StainNormalizer.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference internal" href="#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer">StainNormalizer</a></p>
-</dd>
-</dl>
-</dd></dl>
+<section id="how-to-use">
+<h2>How to use<a class="headerlink" href="#how-to-use" title="Permalink to this heading">¶</a></h2>
+<p>There are four ways you can use stain normalizers: 1) on individual images, 2) during dataset iteration, 3) during tile extraction, or 4) on-the-fly during training.</p>
+<section id="individual-images">
+<h3>Individual images<a class="headerlink" href="#individual-images" title="Permalink to this heading">¶</a></h3>
+<p>Stain normalizers can be used directly on individual images or batches of images. The Tensorflow and PyTorch-native stain normalizers perform operations on Tensors, allowing you to incoporate stain normalization into an external preprocessing pipeline.</p>
+<p>Load a backend-native stain normalizer with <code class="docutils literal notranslate"><span class="pre">autoselect</span></code>, then transform an image with <code class="docutils literal notranslate"><span class="pre">StainNormalizer.transform()</span></code>. This function will auto-detect the source image type, perform the most efficient transformation possible, and return normalized images of the same type.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 
+<span class="n">macenko</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">autoselect</span><span class="p">(</span><span class="s1">&#39;macenko&#39;</span><span class="p">)</span>
+<span class="n">image</span> <span class="o">=</span> <span class="n">macenko</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can use <a class="reference internal" href="#slideflow.norm.StainNormalizer.fit" title="slideflow.norm.StainNormalizer.fit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer.fit()</span></code></a> to fit the normalizer to a custom reference image, or use one of our preset fits.</p>
+</section>
+<section id="dataloader-pre-processing">
+<h3>Dataloader pre-processing<a class="headerlink" href="#dataloader-pre-processing" title="Permalink to this heading">¶</a></h3>
+<p>You can apply stain normalization during dataloader preprocessing by passing the <code class="docutils literal notranslate"><span class="pre">StainNormalizer</span></code> object to the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> argument of either <code class="docutils literal notranslate"><span class="pre">Dataset.tensorflow()</span></code> or <code class="docutils literal notranslate"><span class="pre">Dataset.torch()</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Get a PyTorch-native Macenko normalizer</span>
+<span class="n">macenko</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">autoselect</span><span class="p">(</span><span class="s1">&#39;macenko&#39;</span><span class="p">)</span>
+
+<span class="c1"># Create a PyTorch dataloader that applies stain normalization</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">dataloader</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">torch</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">normalizer</span><span class="o">=</span><span class="n">macenko</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>GPU acceleration cannot be performed within a PyTorch dataloader. Stain normalizers have a <code class="docutils literal notranslate"><span class="pre">.preprocess()</span></code> function that stain-normalizes and standardizes a batch of images, so the workflow to normalize on GPU in a custom PyTorch training loop would be:</p>
+<ul class="simple">
+<li><p>Get a Dataloader with <code class="docutils literal notranslate"><span class="pre">dataset.torch(standardize=False,</span> <span class="pre">normalize=False)</span></code></p></li>
+<li><p>On an image batch, preprocess with <code class="docutils literal notranslate"><span class="pre">normalizer.preprocess()</span></code>:</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Slideflow dataset</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">Project</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=...</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=...</span><span class="p">)</span>
+
+<span class="c1"># Create PyTorch dataloader</span>
+<span class="n">dataloader</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">torch</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">standardize</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Get a stain normalizer</span>
+<span class="n">normalizer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">autoselect</span><span class="p">(</span><span class="s1">&#39;reinhard&#39;</span><span class="p">)</span>
+
+<span class="c1"># Iterate through the dataloader</span>
+<span class="k">for</span> <span class="n">img_batch</span><span class="p">,</span> <span class="n">labels</span> <span class="ow">in</span> <span class="n">dataloader</span><span class="p">:</span>
+
+    <span class="c1"># Stain normalize using GPU</span>
+    <span class="n">img_batch</span> <span class="o">=</span> <span class="n">img_batch</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;cuda&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+        <span class="n">proc_batch</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">img_batch</span><span class="p">)</span>
+
+    <span class="o">...</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="during-tile-extraction">
+<h3>During tile extraction<a class="headerlink" href="#during-tile-extraction" title="Permalink to this heading">¶</a></h3>
+<p>Image tiles can be normalized during tile extraction by using the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> and <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code> arguments. <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> is the name of the algorithm. The normalizer source - either a path to a reference image, or a <code class="docutils literal notranslate"><span class="pre">str</span></code> indicating one of our presets (e.g. <code class="docutils literal notranslate"><span class="pre">'v1'</span></code>, <code class="docutils literal notranslate"><span class="pre">'v2'</span></code>, <code class="docutils literal notranslate"><span class="pre">'v3'</span></code>) - can also be set with <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span>
+  <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
+  <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span>
+  <span class="n">normalizer</span><span class="o">=</span><span class="s1">&#39;reinhard&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="on-the-fly">
+<h3>On-the-fly<a class="headerlink" href="#on-the-fly" title="Permalink to this heading">¶</a></h3>
+<p>Performing stain normalization on-the-fly provides greater flexibility, as it allows you to change normalization strategies without re-extracting all of your image tiles.</p>
+<p>Real-time normalization can be performed for most pipeline functions - such as model training or feature generation - by setting the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> and/or <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code> hyperparameters.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
+<span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">normalizer</span><span class="o">=</span><span class="s1">&#39;reinhard&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If a model was trained using a normalizer, the normalizer algorithm and fit information will be stored in the model metadata file, <code class="docutils literal notranslate"><span class="pre">params.json</span></code>, in the saved model folder. Any Slideflow function that uses this model will automatically process images using the same normalization strategy.</p>
+</section>
+</section>
+<section id="performance">
+<span id="normalizer-performance"></span><h2>Performance<a class="headerlink" href="#performance" title="Permalink to this heading">¶</a></h2>
+<p>Slideflow has Tensorflow, PyTorch, and Numpy/OpenCV implementations of stain normalization algorithms. Performance benchmarks for these implementations
+are given below:</p>
+<table class="docutils align-default" id="id3">
+<caption><span class="caption-text"><strong>Performance Benchmarks</strong> (299 x 299 images, Slideflow 2.0.0, benchmarked on 3960X and A100 40GB)</span><a class="headerlink" href="#id3" title="Permalink to this table">¶</a></caption>
+<thead>
+<tr class="row-odd"><th class="head"></th>
+<th class="head"><p>Tensorflow backend</p></th>
+<th class="head"><p>PyTorch backend</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>macenko</p></td>
+<td><p>929 img/s (<strong>native</strong>)</p></td>
+<td><p>881 img/s (<strong>native</strong>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>macenko_fast</p></td>
+<td><p>1,404 img/s (<strong>native</strong>)</p></td>
+<td><p>1,088 img/s (<strong>native</strong>)</p></td>
+</tr>
+<tr class="row-even"><td><p>reinhard</p></td>
+<td><p>1,136 img/s (<strong>native</strong>)</p></td>
+<td><p>3,329 img/s (<strong>native</strong>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>reinhard_fast</p></td>
+<td><p>4,226 img/s (<strong>native</strong>)</p></td>
+<td><p>4,187 img/s (<strong>native</strong>)</p></td>
+</tr>
+<tr class="row-even"><td><p>reinhard_mask</p></td>
+<td><p>1,136 img/s (<strong>native</strong>)</p></td>
+<td><p>3,941 img/s (<strong>native</strong>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>reinhard_fast_mask</p></td>
+<td><p>4,496 img/s (<strong>native</strong>)</p></td>
+<td><p>4,058 img/s (<strong>native</strong>)</p></td>
+</tr>
+<tr class="row-even"><td><p>vahadane_spams</p></td>
+<td><p>0.7 img/s</p></td>
+<td><p>2.2 img/s</p></td>
+</tr>
+<tr class="row-odd"><td><p>vahadane_sklearn</p></td>
+<td><p>0.9 img/s</p></td>
+<td><p>1.0 img/s</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="contextual-normalization">
+<span id="id1"></span><h2>Contextual Normalization<a class="headerlink" href="#contextual-normalization" title="Permalink to this heading">¶</a></h2>
+<p>Contextual stain normalization allows you to stain normalize an image using the staining context of a separate image. When the context image is a thumbnail of the whole slide, this may provide slight improvements in normalization quality for areas of a slide that are predominantly eosin (e.g. necrosis or low cellularity). For the Macenko normalizer, this works by determining the maximum H&amp;E concentrations from the context image rather than the image being transformed. For the Reinhard normalizer, channel means and standard deviations are calculated from the context image instead of the image being transformed. This normalization approach can result in poor quality images if the context image has pen marks or other artifacts, so we do not recommend using this approach without ROIs or effective slide-level filtering.</p>
+<p>Contextual normalization can be enabled during tile extraction by passing the argument <code class="docutils literal notranslate"><span class="pre">context_normalize=True</span></code> to <a class="reference internal" href="dataset.html#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>.</p>
+<p>You can use contextual normalization when manually using a <code class="docutils literal notranslate"><span class="pre">StainNormalizer</span></code> object by using the <code class="docutils literal notranslate"><span class="pre">.context()</span></code> function. The context can either be a slide (path or <code class="docutils literal notranslate"><span class="pre">sf.WSI</span></code>) or an image (Tensor or np.ndarray).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Get a Macenko normalizer</span>
+<span class="n">maceno</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">autoselect</span><span class="p">(</span><span class="s1">&#39;macenko&#39;</span><span class="p">)</span>
+
+<span class="c1"># Use a given slide as context</span>
+<span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="s1">&#39;slide.svs&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Context normalize an image</span>
+<span class="k">with</span> <span class="n">macenko</span><span class="o">.</span><span class="n">context</span><span class="p">(</span><span class="n">slide</span><span class="p">):</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">macenko</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can also manually set or clear the normalizer context with <code class="docutils literal notranslate"><span class="pre">.set_context()</span></code> and <code class="docutils literal notranslate"><span class="pre">.clear_context()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Set the normalizer context</span>
+<span class="n">macenko</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
+
+<span class="c1"># Context normalize an image</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">macenko</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+
+<span class="c1"># Remove the normalizer context</span>
+<span class="n">macenko</span><span class="o">.</span><span class="n">clear_context</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Contextual normalization is not supported with on-the-fly normalization during training or dataset iteration.</p>
+</section>
+<section id="stain-augmentation">
+<span id="id2"></span><h2>Stain Augmentation<a class="headerlink" href="#stain-augmentation" title="Permalink to this heading">¶</a></h2>
+<p>One of the benefits of on-the-fly stain normalization is the ability to perform dynamic stain augmentation. For Reinhard normalizers, this is performed by randomizing the channel means and channel standard deviations. For Macenko normalizers, stain augmentation is performed by randomizing the stain matrix target and the target concentrations. In all cases, randomization is performed by sampling from a normal distribution whose mean is the reference fit and whose standard deviation is a predefined value (in <code class="docutils literal notranslate"><span class="pre">sf.norm.utils.augment_presets</span></code>). Of note, this strategy differs from the more commonly used strategy <a class="reference external" href="https://doi.org/10.1109/tmi.2018.2820199">described by Tellez</a>, where augmentation is performed by randomly perturbing images in the stain matrix space without normalization.</p>
+<p>To enable stain augmentation, add the letter ‘s’ to the <code class="docutils literal notranslate"><span class="pre">augment</span></code> parameter when training a model.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Open a project</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Add stain augmentation to augmentation pipeline</span>
+<span class="n">params</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="s1">&#39;xryjs&#39;</span><span class="p">)</span>
+
+<span class="c1"># Train a model</span>
+<span class="n">project</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
 <section id="stainnormalizer">
 <h2>StainNormalizer<a class="headerlink" href="#stainnormalizer" title="Permalink to this heading">¶</a></h2>
 <dl class="py class">
@@ -336,8 +492,8 @@ fit the normalizer to this image. Defaults to None.</p></li>
 <dd><p>H&amp;E Stain normalizer supporting various normalization methods.</p>
 <p>The stain normalizer supports numpy images, PNG or JPG strings,
 Tensorflow tensors, and PyTorch tensors. The default <code class="docutils literal notranslate"><span class="pre">.transform()</span></code>
-method will attempt to preserve the original image type while minimizing
-conversions to and from Tensors.</p>
+method will attempt to preserve the original image type while
+minimizing conversions to and from Tensors.</p>
 <p>Alternatively, you can manually specify the image conversion type
 by using the appropriate function. For example, to convert a Tensor
 to a normalized numpy RGB image, use <code class="docutils literal notranslate"><span class="pre">.tf_to_rgb()</span></code>.</p>
@@ -404,13 +560,15 @@ normalizer does not have a target_stds fit attribute.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.norm.StainNormalizer.fit">
-<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">arg1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.fit" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">arg1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><span class="pre">StainNormalizer</span></a></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.fit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Fit the normalizer to a target image or dataset of images.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>arg1</strong> – (Dataset, np.ndarray, str): Target to fit. May be a numpy
-image array (uint8), path to an image, or a Slideflow Dataset.
+<li><p><strong>arg1</strong> – (Dataset, np.ndarray, str): Target to fit. May be a str,
+numpy image array (uint8), path to an image, or a Slideflow
+Dataset. If this is a string, will fit to the corresponding
+preset fit (either ‘v1’, ‘v2’, or ‘v3’).
 If a Dataset is provided, will average fit values across
 all images in the dataset.</p></li>
 <li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Batch size during fitting, if fitting
@@ -466,127 +624,155 @@ normalizer does not have a target_stds fit attribute.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.norm.StainNormalizer.transform">
-<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tf.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tf.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.transform" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tf.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tf.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.transform" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalize a target image, attempting to preserve the original type.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>image</strong> (<em>np.ndarray</em><em>, </em><em>tf.Tensor</em><em>, or </em><em>torch.Tensor</em>) – Image.</p>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Normalized image of the original type.</p>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Transform using stain aumentation.
+Defaults to False.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Normalized image of the original type.</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.norm.StainNormalizer.jpeg_to_jpeg">
-<span class="sig-name descname"><span class="pre">jpeg_to_jpeg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jpeg_string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">quality</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.jpeg_to_jpeg" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">jpeg_to_jpeg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jpeg_string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quality</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.jpeg_to_jpeg" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalize a JPEG image, returning a JPEG image.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>jpeg_string</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><em>bytes</em></a>) – JPEG image data.</p></li>
+<dd class="field-odd"><p><strong>jpeg_string</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><em>bytes</em></a>) – JPEG image data.</p>
+</dd>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Transform using stain aumentation.
+Defaults to False.</p></li>
 <li><p><strong>quality</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Quality level for creating the resulting
 normalized JPEG image. Defaults to 100.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Normalized JPEG image.</p>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Normalized JPEG image.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)">bytes</a></p>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)">bytes</a></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.norm.StainNormalizer.jpeg_to_rgb">
-<span class="sig-name descname"><span class="pre">jpeg_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jpeg_string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.jpeg_to_rgb" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">jpeg_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jpeg_string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.jpeg_to_rgb" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalize a JPEG image, returning a numpy uint8 array.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>jpeg_string</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><em>bytes</em></a>) – JPEG image data.</p>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Normalized image, uint8, W x H x C.</p>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Transform using stain aumentation.
+Defaults to False.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>np.ndarray</p>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Normalized image, uint8, W x H x C.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.norm.StainNormalizer.png_to_png">
-<span class="sig-name descname"><span class="pre">png_to_png</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">png_string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.png_to_png" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">png_to_png</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">png_string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.png_to_png" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalize a PNG image, returning a PNG image.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>png_string</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><em>bytes</em></a>) – PNG image data.</p>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Normalized PNG image.</p>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Transform using stain aumentation.
+Defaults to False.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)">bytes</a></p>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Normalized PNG image.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)">bytes</a></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.norm.StainNormalizer.png_to_rgb">
-<span class="sig-name descname"><span class="pre">png_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">png_string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.png_to_rgb" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">png_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">png_string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><span class="pre">bytes</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.png_to_rgb" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalize a PNG image, returning a numpy uint8 array.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>png_string</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.11)"><em>bytes</em></a>) – PNG image data.</p>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Normalized image, uint8, W x H x C.</p>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Transform using stain aumentation.
+Defaults to False.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>np.ndarray</p>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Normalized image, uint8, W x H x C.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.norm.StainNormalizer.rgb_to_rgb">
-<span class="sig-name descname"><span class="pre">rgb_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.rgb_to_rgb" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">rgb_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.rgb_to_rgb" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalize a numpy array (uint8), returning a numpy array (uint8).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>image</strong> (<em>np.ndarray</em>) – Image (uint8).</p>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Normalized image, uint8, W x H x C.</p>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Transform using stain aumentation.
+Defaults to False.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>np.ndarray</p>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Normalized image, uint8, W x H x C.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.norm.StainNormalizer.tf_to_rgb">
-<span class="sig-name descname"><span class="pre">tf_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tf.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.tf_to_rgb" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">tf_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tf.Tensor</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.tf_to_rgb" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalize a tf.Tensor (uint8), returning a numpy array (uint8).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>image</strong> (<em>tf.Tensor</em>) – Image (uint8).</p>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Normalized image, uint8, W x H x C.</p>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Transform using stain aumentation.
+Defaults to False.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>np.ndarray</p>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Normalized image, uint8, W x H x C.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.norm.StainNormalizer.tf_to_tf">
-<span class="sig-name descname"><span class="pre">tf_to_tf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tf.Tensor</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.11)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tf.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.tf_to_tf" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">tf_to_tf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tf.Tensor</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.11)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tf.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.tf_to_tf" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalize a tf.Tensor (uint8), returning a numpy array (uint8).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -597,8 +783,12 @@ or a Dictionary with the image under the key ‘tile_image’.</p></li>
 and returned unmodified.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>A tuple containing the normalized tf.Tensor image (uint8,
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Transform using stain aumentation.
+Defaults to False.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A tuple containing the normalized tf.Tensor image (uint8,
 W x H x C) and any additional arguments provided.</p>
 </dd>
 </dl>
@@ -606,7 +796,7 @@ W x H x C) and any additional arguments provided.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.norm.StainNormalizer.torch_to_torch">
-<span class="sig-name descname"><span class="pre">torch_to_torch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.11)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.torch_to_torch" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">torch_to_torch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.11)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#slideflow.norm.StainNormalizer.torch_to_torch" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalize a torch.Tensor (uint8), returning a numpy array (uint8).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -617,8 +807,12 @@ or a Dictionary with the image under the key ‘tile_image’.</p></li>
 and returned unmodified.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><p>A tuple containing</p>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Transform using stain aumentation.
+Defaults to False.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><p>A tuple containing</p>
 <blockquote>
 <div><p>np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.</p>
 <p>args (Any, optional): Any additional arguments provided, unmodified.</p>
@@ -631,124 +825,124 @@ and returned unmodified.</p></li>
 </section>
 <section id="example-images">
 <h2>Example images<a class="headerlink" href="#example-images" title="Permalink to this heading">¶</a></h2>
-<figure class="align-default" id="id1">
+<figure class="align-default" id="id4">
 <img alt="_images/wsi_norm_compare.jpg" src="_images/wsi_norm_compare.jpg" />
 <figcaption>
-<p><span class="caption-text">Comparison of normalizers applied to a whole-slide image.</span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
-</figcaption>
-</figure>
-<figure class="align-default" id="id2">
-<img alt="_images/tile_norm_compare.jpg" src="_images/tile_norm_compare.jpg" />
-<figcaption>
-<p><span class="caption-text">Comparison of normalizers applied to an image tile.</span><a class="headerlink" href="#id2" title="Permalink to this image">¶</a></p>
-</figcaption>
-</figure>
-<figure class="align-default" id="id3">
-<img alt="_images/wsi_unnormalized.jpg" src="_images/wsi_unnormalized.jpg" />
-<figcaption>
-<p><span class="caption-text">Unnormalized whole-slide images.</span><a class="headerlink" href="#id3" title="Permalink to this image">¶</a></p>
-</figcaption>
-</figure>
-<figure class="align-default" id="id4">
-<img alt="_images/wsi_reinhard_v1.jpg" src="_images/wsi_reinhard_v1.jpg" />
-<figcaption>
-<p><span class="caption-text">Whole-slide images normalized with <strong>Reinhard</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id4" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Comparison of normalizers applied to a whole-slide image.</span><a class="headerlink" href="#id4" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id5">
-<img alt="_images/wsi_reinhard_v2.jpg" src="_images/wsi_reinhard_v2.jpg" />
+<img alt="_images/tile_norm_compare.jpg" src="_images/tile_norm_compare.jpg" />
 <figcaption>
-<p><span class="caption-text">Whole-slide images normalized with <strong>Reinhard</strong>, fit to preset “v2”</span><a class="headerlink" href="#id5" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Comparison of normalizers applied to an image tile.</span><a class="headerlink" href="#id5" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id6">
-<img alt="_images/wsi_macenko_v1.jpg" src="_images/wsi_macenko_v1.jpg" />
+<img alt="_images/wsi_unnormalized.jpg" src="_images/wsi_unnormalized.jpg" />
 <figcaption>
-<p><span class="caption-text">Whole-slide images normalized with <strong>Macenko</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id6" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Unnormalized whole-slide images.</span><a class="headerlink" href="#id6" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id7">
-<img alt="_images/wsi_macenko_v2.jpg" src="_images/wsi_macenko_v2.jpg" />
+<img alt="_images/wsi_reinhard_v1.jpg" src="_images/wsi_reinhard_v1.jpg" />
 <figcaption>
-<p><span class="caption-text">Whole-slide images normalized with <strong>Macenko</strong>, fit to preset “v2”</span><a class="headerlink" href="#id7" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Whole-slide images normalized with <strong>Reinhard</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id7" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id8">
-<img alt="_images/wsi_vahadane_v1.jpg" src="_images/wsi_vahadane_v1.jpg" />
+<img alt="_images/wsi_reinhard_v2.jpg" src="_images/wsi_reinhard_v2.jpg" />
 <figcaption>
-<p><span class="caption-text">Whole-slide images normalized with <strong>Vahadane</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id8" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Whole-slide images normalized with <strong>Reinhard</strong>, fit to preset “v2”</span><a class="headerlink" href="#id8" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id9">
-<img alt="_images/wsi_vahadane_v2.jpg" src="_images/wsi_vahadane_v2.jpg" />
+<img alt="_images/wsi_macenko_v1.jpg" src="_images/wsi_macenko_v1.jpg" />
 <figcaption>
-<p><span class="caption-text">Whole-slide images normalized with <strong>Vahadane</strong>, fit to preset “v2”</span><a class="headerlink" href="#id9" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Whole-slide images normalized with <strong>Macenko</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id9" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id10">
-<img alt="_images/wsi_vahadane_spams_v1.jpg" src="_images/wsi_vahadane_spams_v1.jpg" />
+<img alt="_images/wsi_macenko_v2.jpg" src="_images/wsi_macenko_v2.jpg" />
 <figcaption>
-<p><span class="caption-text">Whole-slide images normalized with <strong>Vahadane (SPAMS)</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id10" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Whole-slide images normalized with <strong>Macenko</strong>, fit to preset “v2”</span><a class="headerlink" href="#id10" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id11">
-<img alt="_images/wsi_vahadane_spams_v2.jpg" src="_images/wsi_vahadane_spams_v2.jpg" />
+<img alt="_images/wsi_vahadane_v1.jpg" src="_images/wsi_vahadane_v1.jpg" />
 <figcaption>
-<p><span class="caption-text">Whole-slide images normalized with <strong>Vahadane (SPAMS)</strong>, fit to preset “v2”</span><a class="headerlink" href="#id11" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Whole-slide images normalized with <strong>Vahadane</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id11" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id12">
-<img alt="_images/tile_unnormalized.jpg" src="_images/tile_unnormalized.jpg" />
+<img alt="_images/wsi_vahadane_v2.jpg" src="_images/wsi_vahadane_v2.jpg" />
 <figcaption>
-<p><span class="caption-text">Unnormalized image tiles.</span><a class="headerlink" href="#id12" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Whole-slide images normalized with <strong>Vahadane</strong>, fit to preset “v2”</span><a class="headerlink" href="#id12" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id13">
-<img alt="_images/tile_reinhard_v1.jpg" src="_images/tile_reinhard_v1.jpg" />
+<img alt="_images/wsi_vahadane_spams_v1.jpg" src="_images/wsi_vahadane_spams_v1.jpg" />
 <figcaption>
-<p><span class="caption-text">Image tiles normalized with <strong>Reinhard Mask</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id13" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Whole-slide images normalized with <strong>Vahadane (SPAMS)</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id13" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id14">
-<img alt="_images/tile_reinhard_v2.jpg" src="_images/tile_reinhard_v2.jpg" />
+<img alt="_images/wsi_vahadane_spams_v2.jpg" src="_images/wsi_vahadane_spams_v2.jpg" />
 <figcaption>
-<p><span class="caption-text">Image tiles normalized with <strong>Reinhard Mask</strong>, fit to preset “v2”</span><a class="headerlink" href="#id14" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Whole-slide images normalized with <strong>Vahadane (SPAMS)</strong>, fit to preset “v2”</span><a class="headerlink" href="#id14" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id15">
-<img alt="_images/tile_macenko_v1.jpg" src="_images/tile_macenko_v1.jpg" />
+<img alt="_images/tile_unnormalized.jpg" src="_images/tile_unnormalized.jpg" />
 <figcaption>
-<p><span class="caption-text">Image tiles normalized with <strong>Macenko</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id15" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Unnormalized image tiles.</span><a class="headerlink" href="#id15" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id16">
-<img alt="_images/tile_macenko_v2.jpg" src="_images/tile_macenko_v2.jpg" />
+<img alt="_images/tile_reinhard_v1.jpg" src="_images/tile_reinhard_v1.jpg" />
 <figcaption>
-<p><span class="caption-text">Image tiles normalized with <strong>Macenko</strong>, fit to preset “v2”</span><a class="headerlink" href="#id16" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Image tiles normalized with <strong>Reinhard Mask</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id16" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id17">
-<img alt="_images/tile_vahadane_v1.jpg" src="_images/tile_vahadane_v1.jpg" />
+<img alt="_images/tile_reinhard_v2.jpg" src="_images/tile_reinhard_v2.jpg" />
 <figcaption>
-<p><span class="caption-text">Image tiles normalized with <strong>Vahadane</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id17" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Image tiles normalized with <strong>Reinhard Mask</strong>, fit to preset “v2”</span><a class="headerlink" href="#id17" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id18">
-<img alt="_images/tile_vahadane_v2.jpg" src="_images/tile_vahadane_v2.jpg" />
+<img alt="_images/tile_macenko_v1.jpg" src="_images/tile_macenko_v1.jpg" />
 <figcaption>
-<p><span class="caption-text">Image tiles normalized with <strong>Vahadane</strong>, fit to preset “v2”</span><a class="headerlink" href="#id18" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Image tiles normalized with <strong>Macenko</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id18" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id19">
-<img alt="_images/tile_vahadane_spams_v1.jpg" src="_images/tile_vahadane_spams_v1.jpg" />
+<img alt="_images/tile_macenko_v2.jpg" src="_images/tile_macenko_v2.jpg" />
 <figcaption>
-<p><span class="caption-text">Image tiles normalized with <strong>Vahadane (SPAMS)</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id19" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Image tiles normalized with <strong>Macenko</strong>, fit to preset “v2”</span><a class="headerlink" href="#id19" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 <figure class="align-default" id="id20">
+<img alt="_images/tile_vahadane_v1.jpg" src="_images/tile_vahadane_v1.jpg" />
+<figcaption>
+<p><span class="caption-text">Image tiles normalized with <strong>Vahadane</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id20" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<figure class="align-default" id="id21">
+<img alt="_images/tile_vahadane_v2.jpg" src="_images/tile_vahadane_v2.jpg" />
+<figcaption>
+<p><span class="caption-text">Image tiles normalized with <strong>Vahadane</strong>, fit to preset “v2”</span><a class="headerlink" href="#id21" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<figure class="align-default" id="id22">
+<img alt="_images/tile_vahadane_spams_v1.jpg" src="_images/tile_vahadane_spams_v1.jpg" />
+<figcaption>
+<p><span class="caption-text">Image tiles normalized with <strong>Vahadane (SPAMS)</strong>, fit to preset “v1” (default)</span><a class="headerlink" href="#id22" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<figure class="align-default" id="id23">
 <img alt="_images/tile_vahadane_spams_v2.jpg" src="_images/tile_vahadane_spams_v2.jpg" />
 <figcaption>
-<p><span class="caption-text">Image tiles normalized with <strong>Vahadane (SPAMS)</strong>, fit to preset “v2”</span><a class="headerlink" href="#id20" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Image tiles normalized with <strong>Vahadane (SPAMS)</strong>, fit to preset “v2”</span><a class="headerlink" href="#id23" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 </section>
@@ -756,25 +950,25 @@ and returned unmodified.</p></li>
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="simclr.html" class="btn btn-neutral float-right" title="slideflow.simclr" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="model_torch.html" class="btn btn-neutral" title="slideflow.model.torch" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -782,11 +976,11 @@ and returned unmodified.</p></li>
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -799,7 +993,16 @@ and returned unmodified.</p></li>
               <ul>
 <li><a class="reference internal" href="#">slideflow.norm</a><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#slideflow.norm.autoselect"><code class="docutils literal notranslate"><span class="pre">autoselect()</span></code></a></li>
+<li><a class="reference internal" href="#how-to-use">How to use</a><ul>
+<li><a class="reference internal" href="#individual-images">Individual images</a></li>
+<li><a class="reference internal" href="#dataloader-pre-processing">Dataloader pre-processing</a></li>
+<li><a class="reference internal" href="#during-tile-extraction">During tile extraction</a></li>
+<li><a class="reference internal" href="#on-the-fly">On-the-fly</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#performance">Performance</a></li>
+<li><a class="reference internal" href="#contextual-normalization">Contextual Normalization</a></li>
+<li><a class="reference internal" href="#stain-augmentation">Stain Augmentation</a></li>
 <li><a class="reference internal" href="#stainnormalizer">StainNormalizer</a><ul>
 <li><a class="reference internal" href="#slideflow.norm.StainNormalizer"><code class="docutils literal notranslate"><span class="pre">StainNormalizer</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.norm.StainNormalizer.fit"><code class="docutils literal notranslate"><span class="pre">fit()</span></code></a></li>
@@ -827,19 +1030,19 @@ and returned unmodified.</p></li>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/doctools.js"></script>
          <script src="_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
@@ -850,7 +1053,7 @@ and returned unmodified.</p></li>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 
