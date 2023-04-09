@@ -5,26 +5,14 @@
 
 Slideflow is a deep learning library for digital pathology that provides a unified API for building, training, and testing models using Tensorflow or PyTorch.
 
-Slideflow includes tools for **whole-slide image processing**, **customizable deep learning model training** with dozens of supported architectures, **multi-instance learning**, **self-supervised learning**, **explainability tools** (including heatmaps, mosaic maps, GANs, and saliency maps), **analysis of layer activations**, **uncertainty quantification**, and more.
+Slideflow includes tools for **[whole-slide image processing](https://slideflow.dev/slide_processing)**, **customizable deep learning [model training](https://slideflow.dev/training)** with dozens of supported architectures, **[multi-instance learning](https://slideflow.dev/mil)**, **[self-supervised learning](https://slideflow.dev/ssl)**, **[cell segmentation](https://slideflow.dev/cellseg)**, **explainability tools** (including [heatmaps](https://slideflow.dev/evaluation/#heatmaps), [mosaic maps](https://slideflow.dev/posthoc/#mosaic-maps), [GANs](https://slideflow.dev/stylegan/), and [saliency maps](https://slideflow.dev/saliency/)), **analysis of [layer activations](https://slideflow.dev/posthoc/)**, **[uncertainty quantification](https://slideflow.dev/uq/)**, and more.
 
-A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, [stain normalization](https://slideflow.dev/norm.html), and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an straightforward API for training custom architectures. Slideflow can be used as an image processing backend for external training loops, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
+A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, [stain normalization](https://slideflow.dev/norm), and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an straightforward API for training custom architectures. Slideflow can be used as an image processing backend for external training loops, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
 
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
-![studio preview](https://github.com/jamesdolezal/slideflow/raw/master/docs-source/source/studio_preview.png)
+![Studio preview](https://slideflow.dev/_images/studio_saliency.jpg)
 *Slideflow Studio: a visualization tool for interacting with models and whole-slide images.*
-
-Slideflow has been used by:
-
-- [Dolezal et al](https://www.nature.com/articles/s41379-020-00724-3), _Modern Pathology_, 2020
-- [Rosenberg et al](https://ascopubs.org/doi/10.1200/JCO.2020.38.15_suppl.e23529), _Journal of Clinical Oncology_ [abstract], 2020
-- [Howard et al](https://www.nature.com/articles/s41467-021-24698-1), _Nature Communications_, 2021
-- [Dolezal et al](https://www.nature.com/articles/s41467-022-34025-x) _Nature Communications_, 2022
-- [Storozuk et al](https://www.nature.com/articles/s41379-022-01039-1.pdf), _Modern Pathology_ [abstract], 2022
-- [Partin et al](https://arxiv.org/abs/2204.11678) [arXiv], 2022
-- [Dolezal et al](https://ascopubs.org/doi/abs/10.1200/JCO.2022.40.16_suppl.8549) [abstract], 2022
-- [Howard et al](https://www.biorxiv.org/content/10.1101/2022.07.07.499039v1) [bioRxiv], 2022
-- [Dolezal et al](https://arxiv.org/abs/2211.06522) [arXiv], 2022
 
 ## Requirements
 - Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
@@ -33,7 +21,6 @@ Slideflow has been used by:
 
 ### Optional
 - [Libvips](https://libvips.github.io/libvips/) >= 8.9 (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files).
-- [QuPath](https://qupath.github.io/) (for pathologist ROIs)
 - Linear solver (for preserved-site cross-validation)
   - [CPLEX](https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio) 20.1.0 with [Python API](https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api)
   - _or_ [Pyomo](http://www.pyomo.org/installation) with [Bonmin](https://anaconda.org/conda-forge/coinbonmin) solver
@@ -177,6 +164,21 @@ P.train(
 ## Evaluation, heatmaps, mosaic maps, and more
 
 Slideflow includes a host of additional tools, including model [evaluation and prediction](https://slideflow.dev/evaluation), [heatmaps](https://slideflow.dev/evaluation#heatmaps), analysis of [layer activations](https://slideflow.dev/posthoc), [mosaic maps](https://slideflow.dev/posthoc#mosaic-maps), and more. See our [full documentation](https://slideflow.dev) for more details and tutorials.
+
+## Publications
+
+Slideflow has been used by:
+
+- [Dolezal et al](https://www.nature.com/articles/s41379-020-00724-3), _Modern Pathology_, 2020
+- [Rosenberg et al](https://ascopubs.org/doi/10.1200/JCO.2020.38.15_suppl.e23529), _Journal of Clinical Oncology_ [abstract], 2020
+- [Howard et al](https://www.nature.com/articles/s41467-021-24698-1), _Nature Communications_, 2021
+- [Dolezal et al](https://www.nature.com/articles/s41467-022-34025-x) _Nature Communications_, 2022
+- [Storozuk et al](https://www.nature.com/articles/s41379-022-01039-1.pdf), _Modern Pathology_ [abstract], 2022
+- [Partin et al](https://doi.org/10.3389/fmed.2023.1058919) _Front Med_, 2022
+- [Dolezal et al](https://ascopubs.org/doi/abs/10.1200/JCO.2022.40.16_suppl.8549) [abstract], 2022
+- [Howard et al](https://www.biorxiv.org/content/10.1101/2022.07.07.499039v1) [bioRxiv], 2022
+- [Dolezal et al](https://arxiv.org/abs/2211.06522) [arXiv], 2022
+- [Hieromnimon et al](https://doi.org/10.1101/2023.03.22.533810) [bioRxiv], 2023
 
 ## License
 This code is made available under the GPLv3 License and is available for non-commercial academic purposes.
