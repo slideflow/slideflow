@@ -2265,12 +2265,12 @@ class Dataset:
         return result
 
     def pt_files(self, path, warn_missing=True):
-        r"""Return list of *.pt files with slide names in this dataset.
+        """Return list of \*.pt files with slide names in this dataset.
 
         Args:
-            path (str): Directory to search for *.pt files.
+            path (str): Directory to search for \*.pt files.
             warn_missing (bool): Raise a warning if any slides in this dataset
-                do not have a *.pt file.
+                do not have a \*.pt file.
 
         """
         slides = self.slides()

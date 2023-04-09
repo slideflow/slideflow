@@ -1,0 +1,574 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Quickstart &mdash; slideflow 2.0.0-beta2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" />
+    <link rel="next" title="Setting up a Project" href="../project_setup/" />
+    <link rel="prev" title="Overview" href="../overview/" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  2.0
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Quickstart</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/quickstart.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <section id="quickstart">
+<h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this heading">¶</a></h1>
+<p>This section provides an example of using Slideflow to build a deep learning classifier from digital pathology slides. Follow the links in each section for more information.</p>
+<section id="preparing-a-project">
+<h2>Preparing a project<a class="headerlink" href="#preparing-a-project" title="Permalink to this heading">¶</a></h2>
+<p>Slideflow experiments are organized using <a class="reference internal" href="../project/#slideflow.Project" title="slideflow.Project"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Project</span></code></a>, which supervises storage of data, saved models, and results. The <code class="docutils literal notranslate"><span class="pre">slideflow.project</span></code> module has three preconfigured projects with associated slides and clinical annotations: <code class="docutils literal notranslate"><span class="pre">LungAdenoSquam</span></code>, <code class="docutils literal notranslate"><span class="pre">ThyroidBRS</span></code>, and <code class="docutils literal notranslate"><span class="pre">BreastER</span></code>.</p>
+<p>For this example, we will the <code class="docutils literal notranslate"><span class="pre">LungAdenoSquam</span></code> project to train a classifier to predict lung adenocarcinoma (Adeno) vs. squamous cell carcinoma (Squam).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Download preconfigured project, with slides and annotations.</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">create_project</span><span class="p">(</span>
+    <span class="n">root</span><span class="o">=</span><span class="s1">&#39;data&#39;</span><span class="p">,</span>
+    <span class="n">cfg</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">project</span><span class="o">.</span><span class="n">LungAdenoSquam</span><span class="p">,</span>
+    <span class="n">download</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Read more about <a class="reference internal" href="../project_setup/#project-setup"><span class="std std-ref">setting up a project on your own data</span></a>.</p>
+</section>
+<section id="data-preparation">
+<h2>Data preparation<a class="headerlink" href="#data-preparation" title="Permalink to this heading">¶</a></h2>
+<p>The core imaging data used in Slideflow are image tiles <a class="reference internal" href="../slide_processing/#filtering"><span class="std std-ref">extracted from slides</span></a> at a specific magnification and pixel resolution. Tile extraction and downstream image processing is handled through the primitive <a class="reference internal" href="../datasets_and_val/#datasets-and-validation"><span class="std std-ref">slideflow.Dataset</span></a>. We can request a <code class="docutils literal notranslate"><span class="pre">Dataset</span></code> at a given tile size from our project using <a class="reference internal" href="../project/#slideflow.Project.dataset" title="slideflow.Project.dataset"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.dataset()</span></code></a>. Tile magnification can be specified in microns (as an <code class="docutils literal notranslate"><span class="pre">int</span></code>) or as optical magnification (e.g. <code class="docutils literal notranslate"><span class="pre">'40x'</span></code>).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Prepare a dataset of image tiles.</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>   <span class="c1"># Tile size, in pixels.</span>
+    <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;10x&#39;</span>  <span class="c1"># Tile size, in microns or magnification.</span>
+<span class="p">)</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Overview:
+╒===============================================╕
+│ Configuration file: │ /mnt/data/datasets.json │
+│ Tile size (px):     │ 299                     │
+│ Tile size (um):     │ 10x                     │
+│ Slides:             │ 941                     │
+│ Patients:           │ 941                     │
+│ Slides with ROIs:   │ 941                     │
+│ Patients with ROIs: │ 941                     │
+╘===============================================╛
+
+Filters:
+╒====================╕
+│ Filters:      │ {} │
+├--------------------┤
+│ Filter Blank: │ [] │
+├--------------------┤
+│ Min Tiles:    │ 0  │
+╘====================╛
+
+Sources:
+
+TCGA_LUNG
+╒==============================================╕
+│ slides    │ /mnt/raid/SLIDES/TCGA_LUNG       │
+│ roi       │ /mnt/raid/SLIDES/TCGA_LUNG       │
+│ tiles     │ /mnt/rocket/tiles/TCGA_LUNG      │
+│ tfrecords │ /mnt/rocket/tfrecords/TCGA_LUNG/ │
+│ label     │ 299px_10x                        │
+╘==============================================╛
+
+Number of tiles in TFRecords: 0
+Annotation columns:
+Index([&#39;patient&#39;, &#39;subtype&#39;, &#39;site&#39;, &#39;slide&#39;],
+    dtype=&#39;object&#39;)
+</pre></div>
+</div>
+<section id="tile-extraction">
+<h3>Tile extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this heading">¶</a></h3>
+<p>We prepare imaging data for training by extracting tiles from slides. Background areas of slides will be filtered out with Otsu’s thresholding.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Extract tiles from all slides in the dataset.</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="s1">&#39;otsu&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Read more about tile extraction and <a class="reference internal" href="../slide_processing/#filtering"><span class="std std-ref">slide processing in Slideflow</span></a>.</p>
+</section>
+<section id="held-out-test-sets">
+<h3>Held-out test sets<a class="headerlink" href="#held-out-test-sets" title="Permalink to this heading">¶</a></h3>
+<p>Now that we have our dataset and we’ve completed the initial tile image processing, we’ll split the dataset into a training cohort and a held-out test cohort with <a class="reference internal" href="../dataset/#slideflow.Dataset.split" title="slideflow.Dataset.split"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.split()</span></code></a>. We’ll split while balancing the outcome <code class="docutils literal notranslate"><span class="pre">'subtype'</span></code> equally in the training and test dataset, with 30% of the data retained in the held-out set.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Split our dataset into a training and held-out test set.</span>
+<span class="n">train_dataset</span><span class="p">,</span> <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+    <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span>
+    <span class="n">labels</span><span class="o">=</span><span class="s1">&#39;subtype&#39;</span><span class="p">,</span>
+    <span class="n">val_fraction</span><span class="o">=</span><span class="mf">0.3</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Read more about <a class="reference internal" href="../datasets_and_val/#datasets-and-validation"><span class="std std-ref">Dataset management</span></a>.</p>
+</section>
+</section>
+<section id="configuring-models">
+<h2>Configuring models<a class="headerlink" href="#configuring-models" title="Permalink to this heading">¶</a></h2>
+<p>Neural network models are prepared for training with <a class="reference internal" href="../model_params/#slideflow.ModelParams" title="slideflow.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code></a>, through which we define the model architecture, loss, and hyperparameters. Dozens of <span class="xref std std-ref">preconfigured models</span> are available in both the Tensorflow and PyTorch backends, and both neural network <a class="reference internal" href="../tutorial3/#tutorial3"><span class="std std-ref">architectures</span></a> and <a class="reference internal" href="../training/#custom-loss"><span class="std std-ref">loss</span></a> functions can be customized. In this example, we will use the included Xception network.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Prepare a model and hyperparameters.</span>
+<span class="n">params</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
+    <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;10x&#39;</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;xception&#39;</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
+    <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.0001</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Read more about <a class="reference internal" href="../training/#training"><span class="std std-ref">hyperparameter optimization in Slideflow</span></a>.</p>
+</section>
+<section id="training-a-model">
+<h2>Training a model<a class="headerlink" href="#training-a-model" title="Permalink to this heading">¶</a></h2>
+<p>Models can be trained from these hyperparameter configurations using <code class="xref py py-meth docutils literal notranslate"><span class="pre">Project.train()</span></code>. Models can be trained to categorical, multi-categorical, continuous, or time-series outcomes, and the training process is <a class="reference internal" href="../training/#training"><span class="std std-ref">highly configurable</span></a>. In this case, we are training a binary categorization model to predict the outcome <code class="docutils literal notranslate"><span class="pre">'subtype'</span></code>, and we will distribute training across multiple GPUs.</p>
+<p>By default, Slideflow will train/validate on the full dataset using k-fold cross-validation, but validation settings <a class="reference internal" href="../datasets_and_val/#validation-planning"><span class="std std-ref">can be customized</span></a>. If you would like to restrict training to only a subset of your data - for example, to leave a held-out test set untouched - you can manually specify a dataset for training. In this case, we will train on <code class="docutils literal notranslate"><span class="pre">train_dataset</span></code>, and allow Slideflow to further split this into training and validation using three-fold cross-validation.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Train a model from a set of hyperparameters.</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
+    <span class="s1">&#39;subtype&#39;</span><span class="p">,</span>
+    <span class="n">dataset</span><span class="o">=</span><span class="n">train_dataset</span><span class="p">,</span>
+    <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+    <span class="n">val_strategy</span><span class="o">=</span><span class="s1">&#39;k-fold&#39;</span><span class="p">,</span>
+    <span class="n">val_k_fold</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">multi_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Models and training results will be saved in the project <code class="docutils literal notranslate"><span class="pre">models/</span></code> folder.</p>
+<p>Read more about <a class="reference internal" href="../training/#training"><span class="std std-ref">training a model</span></a>.</p>
+</section>
+<section id="evaluating-a-trained-model">
+<h2>Evaluating a trained model<a class="headerlink" href="#evaluating-a-trained-model" title="Permalink to this heading">¶</a></h2>
+<p>After training, you can test model performance on a held-out test dataset with <code class="xref py py-meth docutils literal notranslate"><span class="pre">Project.evaluate()</span></code>, or generate predictions without evaluation (when ground-truth labels are not available) with <code class="xref py py-meth docutils literal notranslate"><span class="pre">Project.predict()</span></code>. As with <code class="xref py py-meth docutils literal notranslate"><span class="pre">Project.train()</span></code>, we can specify a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> to evaluate.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Train a model from a set of hyperparameters.</span>
+<span class="n">test_results</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/trained_model_epoch1&#39;</span>
+    <span class="n">outcomes</span><span class="o">=</span><span class="s1">&#39;subtype&#39;</span><span class="p">,</span>
+    <span class="n">dataset</span><span class="o">=</span><span class="n">test_dataset</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Read more about <a class="reference internal" href="../evaluation/#evaluation"><span class="std std-ref">model evaluation</span></a>.</p>
+</section>
+<section id="post-hoc-analysis">
+<h2>Post-hoc analysis<a class="headerlink" href="#post-hoc-analysis" title="Permalink to this heading">¶</a></h2>
+<p>Slideflow includes a number of analytical tools for working with trained models. Read more about <a class="reference internal" href="../evaluation/#evaluation"><span class="std std-ref">heatmaps</span></a>, <a class="reference internal" href="../stylegan/#stylegan"><span class="std std-ref">model explainability</span></a>, <a class="reference internal" href="../posthoc/#activations"><span class="std std-ref">analysis of layer activations</span></a>, and real-time inference in an interactive <a class="reference internal" href="../studio/#studio"><span class="std std-ref">whole-slide image reader</span></a>.</p>
+</section>
+</section>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../project_setup/" class="btn btn-neutral float-right" title="Setting up a Project" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="../overview/" class="btn btn-neutral" title="Overview" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2022, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Quickstart</a><ul>
+<li><a class="reference internal" href="#preparing-a-project">Preparing a project</a></li>
+<li><a class="reference internal" href="#data-preparation">Data preparation</a><ul>
+<li><a class="reference internal" href="#tile-extraction">Tile extraction</a></li>
+<li><a class="reference internal" href="#held-out-test-sets">Held-out test sets</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#configuring-models">Configuring models</a></li>
+<li><a class="reference internal" href="#training-a-model">Training a model</a></li>
+<li><a class="reference internal" href="#evaluating-a-trained-model">Evaluating a trained model</a></li>
+<li><a class="reference internal" href="#post-hoc-analysis">Post-hoc analysis</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script src="../_static/sphinx_highlight.js"></script>
+     
+
+  
+  <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

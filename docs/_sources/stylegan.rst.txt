@@ -5,7 +5,7 @@
 Generative Networks (GANs)
 ==========================
 
-.. video:: stylegan.webm
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm
     :width: 100%
     :autoplay:
 

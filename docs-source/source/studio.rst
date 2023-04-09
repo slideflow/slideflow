@@ -3,7 +3,7 @@
 Slideflow Studio: Live Visualization
 ====================================
 
-.. video:: studio_preview.webm
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/studio_preview.webm
     :width: 100%
     :autoplay:
 
@@ -217,7 +217,7 @@ The Cell Segmentation extension adds support for interactive cell segmentation w
 StyleGAN
 --------
 
-.. video:: stylegan.webm
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm
     :width: 100%
     :autoplay:
 
