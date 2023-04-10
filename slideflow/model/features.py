@@ -1385,7 +1385,7 @@ class _FeatureGenerator:
                 for d, slide in enumerate(slides):
                     if self.layers:
                         activations[slide].append(features[d])
-                    if self.include_preds and predictions is not None:
+                    if self.include_preds and preds is not None:
                         predictions[slide].append(preds[d])
                     if self.uq and self.include_uncertainty:
                         uncertainty[slide].append(unc[d])
