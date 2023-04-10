@@ -129,22 +129,29 @@ class Segmentation:
                 polygons, as available in ``slideflow.WSI.annPolys``.
 
         """
-        roi_seg_scale = scale / self.wsi_ratio
-        scaled_polys = [
-            sa.scale(
-                poly,
-                xfact=roi_seg_scale,
-                yfact=roi_seg_scale,
-                origin=(0, 0)
-            ) for poly in annpolys
-        ]
-        roi_seg_mask = rasterio.features.rasterize(
-            scaled_polys,
-            out_shape=self.masks.shape,
-            all_touched=False
-        ).astype(bool)
-        self.masks *= roi_seg_mask
-        self.calculate_centroids(force=True)
+        if self.wsi_ratio is not None and len(annpolys):
+            roi_seg_scale = scale / self.wsi_ratio
+            scaled_polys = [
+                sa.scale(
+                    poly,
+                    xfact=roi_seg_scale,
+                    yfact=roi_seg_scale,
+                    origin=(0, 0)
+                ) for poly in annpolys
+            ]
+            roi_seg_mask = rasterio.features.rasterize(
+                scaled_polys,
+                out_shape=self.masks.shape,
+                all_touched=False
+            ).astype(bool)
+            self.masks *= roi_seg_mask
+            self.calculate_centroids(force=True)
+        elif self.wsi_ratio is None:
+            log.warning("Unable to apply ROIs; WSI dimensions not set.")
+            return
+        else:
+            # No ROIs to apply
+            return
 
     def centroids(self, wsi_dim: bool = False) -> np.ndarray:
         """Calculate and return mask centroids.
