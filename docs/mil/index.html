@@ -400,7 +400,7 @@
 <span class="p">)</span>
 
 <span class="c1"># Train on each cross-fold</span>
-<span class="k">with</span> <span class="n">train</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">:</span>
+<span class="k">for</span> <span class="n">train</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">:</span>
     <span class="n">P</span><span class="o">.</span><span class="n">train_mil</span><span class="p">(</span>
         <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="o">=</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">,</span>

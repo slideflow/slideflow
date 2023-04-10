@@ -153,7 +153,7 @@ Next, prepare a :ref:`training and validation dataset <datasets_and_validation>`
     )
 
     # Train on each cross-fold
-    with train, val in splits:
+    for train, val in splits:
         P.train_mil(
             config=config,
             outcomes='HPV_status',
