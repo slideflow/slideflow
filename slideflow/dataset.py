@@ -1278,6 +1278,7 @@ class Dataset:
     def convert_xml_rois(self):
         """Convert ImageScope XML ROI files to QuPath format CSV ROI files."""
         n_converted = 0
+        xml_list = []
         for source in self.sources:
             if self._roi_set(source):
                 xml_list = glob(join(self.sources[source]['roi'], "*.xml"))
