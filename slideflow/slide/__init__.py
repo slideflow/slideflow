@@ -262,7 +262,7 @@ class _BaseLoader:
         # Collect basic slide information
         try:
             self.mpp = float(self.slide.mpp)
-        except KeyError:
+        except Exception as e:
             raise errors.SlideLoadError(
                 f"Slide [green]{self.name}[/] missing MPP ({OPS_MPP_X})"
             )
