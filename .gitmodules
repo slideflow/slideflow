@@ -8,3 +8,6 @@
 [submodule "slideflow/simclr/simclr"]
 	path = slideflow/simclr/simclr
 	url = https://github.com/jamesdolezal/simclr.git
+[submodule "slideflow/swav"]
+	path = slideflow/swav
+	url = https://github.com/matte-esse/swav.git

@@ -3492,6 +3492,7 @@ class Dataset:
         batch_size: Optional[int] = None,
         rebuild_index: bool = False,
         from_wsi: bool = False,
+        interleave_iter: str = None,
         **kwargs: Any
     ) -> "DataLoader":
         """Return a PyTorch DataLoader object that interleaves tfrecords.
@@ -3584,6 +3585,7 @@ class Dataset:
                                      clip=clip,
                                      indices=indices,
                                      from_wsi=from_wsi,
+                                     interleave_iter=interleave_iter,
                                      **kwargs)
 
     def unclip(self) -> "Dataset":

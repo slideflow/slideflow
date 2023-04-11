@@ -305,6 +305,40 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
     def get_details(self, idx):
         raise NotImplementedError
 
+class MulitCropInterleaveIterator(InterleaveIterator):
+    """Iterator to enable compatibility with SwAV"""
+    
+    def _parser(
+        self,
+        images: torch.Tensor,
+        slide: str,
+        loc_x: Optional[int] = None,
+        loc_y: Optional[int] = None
+    ) -> List[torch.Tensor]:
+        """Parse a standardize PyTorch image (WHC) and slide/location
+        information, to a CWH image formatted for model input."""
+        if self.labels is not None:
+            label = self.labels[slide]
+        else:
+            label = 0
+
+        images = [whc_to_cwh(image) for image in images]
+        to_return = [images]  # type: List[Any]
+
+        # Support for multiple outcome labels
+        if self.num_outcomes > 1:
+            to_return += [{
+                f'out-{i}': torch.tensor(l)
+                for i, l in enumerate(label)  # type: ignore
+            }]
+        else:
+            to_return += [torch.tensor(label)]
+
+        if self.incl_slidenames:
+            to_return += [slide]
+        if self.incl_loc:
+            to_return += [loc_x, loc_y]
+        return to_return
 
 class StyleGAN2Interleaver(InterleaveIterator):
     """Iterator to enable compatibility with StyleGAN2."""
@@ -596,8 +630,7 @@ def preprocess_uint8(
         img = normalizer.torch_to_torch(img)  # type: ignore
     if standardize:
         img = convert_dtype(img, torch.float32)
-    return img
-
+    return img     
 
 def _decode_image(
     image: Union[bytes, str, torch.Tensor],
@@ -624,31 +657,9 @@ def _decode_image(
         )
         return cwh_to_whc(torchvision.io.decode_image(img))
 
-    if augment is True or (isinstance(augment, str) and 'j' in augment):
-        image = torch.where(
-            torch.rand(1)[0] < 0.5,
-            random_jpeg_compression(image),
-            image
-        )
-    if augment is True or (isinstance(augment, str) and 'r' in augment):
-        # Rotate randomly 0, 90, 180, 270 degrees
-        image = torch.rot90(image, np.random.choice(range(5)))
-    if augment is True or (isinstance(augment, str) and 'x' in augment):
-        image = torch.where(
-            torch.rand(1)[0] < 0.5,
-            torch.fliplr(image),
-            image
-        )
-    if augment is True or (isinstance(augment, str) and 'y' in augment):
-        image = torch.where(
-            torch.rand(1)[0] < 0.5,
-            torch.flipud(image),
-            image
-        )
-    if augment is True or (isinstance(augment, str) and 'b' in augment):
-        # image = image.to(device)
-        image = whc_to_cwh(image)
-        image = torch.where(
+    def blur(img):
+        img = whc_to_cwh(img)
+        img = torch.where(
             (torch.rand(1)[0] < 0.1),  # .to(device),
             torch.where(
                 (torch.rand(1)[0] < 0.5),  # .to(device),
@@ -656,30 +667,104 @@ def _decode_image(
                     (torch.rand(1)[0] < 0.5),  # .to(device),
                     torch.where(
                         (torch.rand(1)[0] < 0.5),  # .to(device),
-                        auto_gaussian(image, sigma=2.0),
-                        auto_gaussian(image, sigma=1.5),
+                        auto_gaussian(img, sigma=2.0),
+                        auto_gaussian(img, sigma=1.5),
                     ),
-                    auto_gaussian(image, sigma=1.0)
+                    auto_gaussian(img, sigma=1.0)
                 ),
-                auto_gaussian(image, sigma=0.5),
+                auto_gaussian(img, sigma=0.5),
             ),
-            image
+            img
         )
-        image = cwh_to_whc(image)
-        # image = image.cpu()
+        return cwh_to_whc(img)
+    
+    def get_color_distortion(s=1.0):
+        # s is the strength of color distortion.
+        color_jitter = transforms.ColorJitter(0.8*s, 0.8*s, 0.8*s, 0.2*s)
+        rnd_color_jitter = transforms.RandomApply([color_jitter], p=0.8)
+        rnd_gray = transforms.RandomGrayscale(p=0.2)
+        color_distort = transforms.Compose(
+            [whc_to_cwh, rnd_color_jitter, rnd_gray, cwh_to_whc])
+        return color_distort
+      
+    augmentations = []
+
+    if augment is True or (isinstance(augment, str) and 'j' in augment):
+        augmentations.append(
+            lambda img: torch.where(
+                torch.rand(1)[0] < 0.5,
+                random_jpeg_compression(img),
+                img
+            )
+        )
+
+    if augment is True or (isinstance(augment, str) and 'r' in augment):
+        augmentations.append(
+            lambda img: torch.rot90(img, np.random.choice(range(5)))
+        )
+
+    if augment is True or (isinstance(augment, str) and 'x' in augment):
+        augmentations.append(
+            lambda img: torch.where(
+                torch.rand(1)[0] < 0.5,
+                torch.fliplr(img),
+                img
+            )
+        )
+    
+    if augment is True or (isinstance(augment, str) and 'y' in augment):
+        augmentations.append(
+            lambda img: torch.where(
+                torch.rand(1)[0] < 0.5,
+                torch.flipud(img),
+                img
+            )
+        )
+
+    if (isinstance(augment, str) and 'd' in augment):
+        augmentations.append(get_color_distortion())
+    
+    if augment is True or (isinstance(augment, str) and 'b' in augment):
+        augmentations.append(blur)
+
     if normalizer:
-        image = normalizer.torch_to_torch(
-            image,
-            augment=(isinstance(augment, str) and 'n' in augment)
+        augmentations.append(
+            lambda img: normalizer.torch_to_torch(
+                img,
+                augment=(isinstance(augment, str) and 'n' in augment)
+            )
         )
+    
     if standardize:
         # Note: not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)
-        image = image / 127.5 - 1
-    if transform:
-        image = cwh_to_whc(transform(whc_to_cwh(image)))
-    return image
+        augmentations.append(lambda img: img / 127.5 - 1)
 
+    if (isinstance(augment, str) and 'c' in augment):
+        # augmentations.insert(0, lambda img: rand_crop(img))
+        lists = augment.split('-')
+        nmb_crops = list(map(int, lists[1].split(',')))
+        size_crops = list(map(int, lists[2].split(',')))
+        min_scale_crops = list(map(float, lists[3].split(',')))
+        max_scale_crops = list(map(float, lists[4].split(',')))
+
+        trans = []
+        for i in range(len(size_crops)):
+            randomresizedcrop = transforms.RandomResizedCrop(
+                size_crops[i], 
+                scale=(min_scale_crops[i], max_scale_crops[i]),
+                antialias=None
+            )
+            # FIXME: They also have a normalization step
+            #        and different blur
+            trans.extend([transforms.Compose(
+                    [whc_to_cwh, randomresizedcrop, cwh_to_whc] + 
+                    augmentations
+                )
+            ] * nmb_crops[i])
+        return list(map(lambda trans: trans(image), trans))
+    else:
+        return transforms.Compose(augmentations)(image)
 
 def worker_init_fn(worker_id) -> None:
     np.random.seed(np.random.get_state()[1][0])  # type: ignore
@@ -1092,6 +1177,7 @@ def interleave_dataloader(
     persistent_workers: bool = False,
     drop_last: bool = False,
     from_wsi: bool = False,
+    interleave_iter: str = None, # TODO: docs
     **kwargs
 ) -> torch.utils.data.DataLoader:
 
@@ -1168,7 +1254,12 @@ def interleave_dataloader(
         num_workers = 8
     log.debug(f"Using num_workers={num_workers}")
 
-    iterator = InterleaveIterator(
+    if interleave_iter == 'MulitCropInterleaveIterator':
+        interleave_iter_class = MulitCropInterleaveIterator
+    else : 
+        interleave_iter_class = InterleaveIterator
+
+    iterator = interleave_iter_class(
         tfrecords=tfrecords,
         img_size=img_size,
         use_labels=(labels is not None),
