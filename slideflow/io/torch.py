@@ -630,7 +630,7 @@ def preprocess_uint8(
         img = normalizer.torch_to_torch(img)  # type: ignore
     if standardize:
         img = convert_dtype(img, torch.float32)
-    return img     
+    return img
 
 def _decode_image(
     image: Union[bytes, str, torch.Tensor],
