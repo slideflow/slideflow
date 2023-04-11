@@ -3,6 +3,8 @@
 [![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml)
 [![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
 
+[ArXiv](https://arxiv.org/abs/2304.04142) | [Docs](https://slideflow.dev) | [Slideflow Studio](https://slideflow.dev/studio/) | [Cite](#reference)
+
 Slideflow is a deep learning library for digital pathology that provides a unified API for building, training, and testing models using Tensorflow or PyTorch.
 
 Slideflow includes tools for **[whole-slide image processing](https://slideflow.dev/slide_processing)**, **customizable deep learning [model training](https://slideflow.dev/training)** with dozens of supported architectures, **[multi-instance learning](https://slideflow.dev/mil)**, **[self-supervised learning](https://slideflow.dev/ssl)**, **[cell segmentation](https://slideflow.dev/cellseg)**, **explainability tools** (including [heatmaps](https://slideflow.dev/evaluation/#heatmaps), [mosaic maps](https://slideflow.dev/posthoc/#mosaic-maps), [GANs](https://slideflow.dev/stylegan/), and [saliency maps](https://slideflow.dev/saliency/)), **analysis of [layer activations](https://slideflow.dev/posthoc/)**, **[uncertainty quantification](https://slideflow.dev/uq/)**, and more.
@@ -186,20 +188,15 @@ This code is made available under the GPLv3 License and is available for non-com
 ## Reference
 If you find our work useful for your research, or if you use parts of this code, please consider citing as follows:
 
-James Dolezal, Sara Kochanny, & Frederick Howard. (2022). Slideflow: A Unified Deep Learning Pipeline for Digital Histology (1.5.0). Zenodo. https://doi.org/10.5281/zenodo.5703792
+Dolezal, J. M., Kochanny, S., Dyer, E., *et al*. Slideflow: Deep Learning for Digital Histopathology with Real-Time Whole-Slide Visualization. ArXiv [q-Bio.QM] (2023). http://arxiv.org/abs/2304.04142
 
 ```
-@software{james_dolezal_2022_5703792,
-  author       = {James Dolezal and
-                  Sara Kochanny and
-                  Frederick Howard},
-  title        = {{Slideflow: A Unified Deep Learning Pipeline for
-                   Digital Histology}},
-  month        = oct,
-  year         = 2022,
-  publisher    = {Zenodo},
-  version      = {1.5.0},
-  doi          = {10.5281/zenodo.5703792},
-  url          = {https://doi.org/10.5281/zenodo.5703792}
+@misc{dolezal2023slideflow,
+      title={Slideflow: Deep Learning for Digital Histopathology with Real-Time Whole-Slide Visualization}, 
+      author={James M. Dolezal and Sara Kochanny and Emma Dyer and Andrew Srisuwananukorn and Matteo Sacco and Frederick M. Howard and Anran Li and Prajval Mohan and Alexander T. Pearson},
+      year={2023},
+      eprint={2304.04142},
+      archivePrefix={arXiv},
+      primaryClass={q-bio.QM}
 }
 ```
