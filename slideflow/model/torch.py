@@ -850,6 +850,7 @@ class Trainer:
             self.normalizer.set_fit(**self.config['norm_fit'])
 
     def _has_gpu_normalizer(self) -> bool:
+        import slideflow.norm.torch
         return (isinstance(self.normalizer, sf.norm.torch.TorchStainNormalizer)
                 and self.normalizer.device != "cpu")
 
