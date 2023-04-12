@@ -21,13 +21,13 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 # Repair pixman
 WORKDIR "/scripts"
-RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.0/scripts/pixman_repair.sh && \
+RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.1/scripts/pixman_repair.sh && \
     chmod +x pixman_repair.sh
 
 # Install slideflow & download scripts
 ENV SF_BACKEND=torch
-RUN pip3 install slideflow[cucim]==2.0.0 cupy-cuda11x cellpose pretrainedmodels && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.0/scripts/test.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.0/scripts/run_project.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.0/scripts/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.0/scripts/qupath_roi_legacy.groovy
+RUN pip3 install slideflow[cucim]==2.0.1 cupy-cuda11x cellpose pretrainedmodels && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.1/scripts/test.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.1/scripts/run_project.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.1/scripts/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.1/scripts/qupath_roi_legacy.groovy
