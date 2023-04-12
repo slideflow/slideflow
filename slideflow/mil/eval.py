@@ -282,16 +282,21 @@ def generate_attention_heatmaps(
             slidename = sf.util.path_to_name(bag)
             slide_path = dataset.find_slide(slide=slidename)
             locations_file = join(dirname(bag), f'{slidename}.index.npz')
+            npy_loc_file = locations_file[:-1] + 'y'
             if slide_path is None:
                 log.info(f"Unable to find slide {slidename}")
                 continue
-            if not exists(locations_file):
+            if exists(locations_file):
+                locations = np.load(locations_file)['arr_0']
+            elif exists(npy_loc_file):
+                locations = np.load(npy_loc_file)
+            else:
                 log.info(
                     f"Unable to find locations index file for {slidename}"
                 )
                 continue
             sf.util.location_heatmap(
-                locations=np.load(locations_file)['arr_0'],
+                locations=locations,
                 values=attention[i],
                 slide=slide_path,
                 tile_px=dataset.tile_px,
