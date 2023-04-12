@@ -11,17 +11,24 @@ from typing import Optional, Dict
 from os.path import dirname, join, exists
 from slideflow import errors
 
+
+__allow_zip__ = False
+
+
 TYPENAME_MAPPING = {
     "byte": "bytes_list",
     "float": "float_list",
     "int": "int64_list"
 }
+
 FEATURE_DESCRIPTION = {
-        'image_raw': 'byte',
-        'slide': 'byte',
-        'loc_x': 'int',
-        'loc_y': 'int'
-    }
+    'image_raw': 'byte',
+    'slide': 'byte',
+    'loc_x': 'int',
+    'loc_y': 'int'
+}
+
+# -----------------------------------------------------------------------------
 
 def create_index(tfrecord_file: str, index_file: str) -> None:
     """Create index from the tfrecords file.
@@ -56,10 +63,9 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
             break
     infile.close()
     out_array = np.array(out_array)
-    try:
+    if __allow_zip__:
         np.savez(index_file, out_array)
-    except OSError:
-        # Raised for storage device that do not allow *.zip files
+    else:
         np.save(index_file + '.npy', out_array)
 
 
