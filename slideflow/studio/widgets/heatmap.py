@@ -267,7 +267,7 @@ class HeatmapWidget:
         if viz.heatmap is None or self.uncertainty is None:
             heatmap_uncertainty_max = 0
         else:
-            heatmap_uncertainty_max = self.uncertainty.shape[2]-1
+            heatmap_uncertainty_max = self.uncertainty.shape[2]
 
         self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
         narrow_w = imgui.get_text_line_height_with_spacing()

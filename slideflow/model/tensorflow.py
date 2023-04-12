@@ -2379,6 +2379,8 @@ class Features(BaseFeatureExtractor):
                     _act_batch += [_m.numpy() for _m in m]
                 else:
                     _act_batch.append(m.numpy())
+
+            # Concatenate all output into a single array
             _act_batch = np.concatenate(_act_batch, axis=-1)
 
             _loc_batch = batch_loc.numpy()
@@ -2506,7 +2508,7 @@ class UncertaintyInterface(Features):
         )
         # TODO: As the below to-do suggests, this should be updated
         # for multi-class
-        self.num_uncertainty = 1
+        self.num_uncertainty = self.num_classes
         if self.num_classes > 2:
             log.warn("UncertaintyInterface not yet implemented for multi-class"
                      " models")
@@ -2549,7 +2551,7 @@ class UncertaintyInterface(Features):
         # TODO: Only takes STDEV from first outcome category which works for
         # outcomes with 2 categories, but a better solution is needed
         # for num_categories > 2
-        uncertainty = tf.math.reduce_std(out_drop[-1], axis=0)[:, 0]
+        uncertainty = tf.math.reduce_std(out_drop[-1], axis=0)
         uncertainty = tf.expand_dims(uncertainty, axis=-1)
 
         if self.num_outputs > 1:
