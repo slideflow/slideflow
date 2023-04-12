@@ -201,7 +201,7 @@ def _build_fastai_learner(
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=1,
-        drop_last=True,
+        drop_last=False,
         device=device
     )
     val_dataset = build_dataset(

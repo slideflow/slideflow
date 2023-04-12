@@ -305,6 +305,9 @@ def build_fastai_learner(
     val_idx = np.array([i for i, bag in enumerate(bags)
                             if path_to_name(bag) in val_slides])
 
+    log.info("Training dataset: {} bags (from {} slides)".format(len(train_idx), len(train_slides)))
+    log.info("Validation dataset: {} bags (from {} slides)".format(len(val_idx), len(val_slides)))
+
     # Build FastAI Learner
     learner = _fastai.build_learner(
         config,
