@@ -339,6 +339,22 @@ class _VIPSReader:
                     'height': height,
                     'downsample': downsample
                 }]
+        elif 'n-pages' in self.properties and OPS_LEVEL_COUNT not in self.properties:
+            # This is a multipage tiff without openslide metadata
+            self.level_count = int(self.properties['n-pages'])
+            # Calculate level metadata
+            self.levels = []
+            for lev in range(self.level_count):
+                temp_img = vips.Image.new_from_file(self.path, fail=True, access='sequential', page=lev)
+                width = int(temp_img.get('width'))
+                height = int(temp_img.get('height'))
+                downsample = float(self.dimensions[0] / width)
+                self.levels += [{
+                    'dimensions': (width, height),
+                    'width': width,
+                    'height': height,
+                    'downsample': downsample
+                }]
         else:
             self.level_count = 1
             self.levels = [{
@@ -355,7 +371,13 @@ class _VIPSReader:
         return self.properties[OPS_MPP_X]
 
     def _load_downsample_level(self, level: int) -> "vips.Image":
-        image = self.read_level(level=level)
+        # images in openslide format which treat layers as levels take "level" kwarg passed to vipsloader; images 
+        # which are TIFF files without openslide metadata will have a "page" parameter and need "page" as the kwarg
+        try:
+            image = self.read_level(level=level)
+        except KeyError:
+            image = self.read_level(page=level)
+        
         if self.cache_kw:
             image = image.tilecache(**self.cache_kw)
         self.loaded_downsample_levels.update({
