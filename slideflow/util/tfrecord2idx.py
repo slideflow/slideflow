@@ -12,9 +12,6 @@ from os.path import dirname, join, exists
 from slideflow import errors
 
 
-__allow_zip__ = False
-
-
 TYPENAME_MAPPING = {
     "byte": "bytes_list",
     "float": "float_list",
@@ -63,10 +60,10 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
             break
     infile.close()
     out_array = np.array(out_array)
-    if __allow_zip__:
-        np.savez(index_file, out_array)
-    else:
+    if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
         np.save(index_file + '.npy', out_array)
+    else:
+        np.savez(index_file, out_array)
 
 
 def find_index(tfrecord: str) -> Optional[str]:
