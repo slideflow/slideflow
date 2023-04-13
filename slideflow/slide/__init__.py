@@ -715,6 +715,16 @@ class _BaseLoader:
                 Defaults to False.
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
+            num_threads (int): If specified, will extract tiles with a
+                ThreadPool using the specified number of threads. Cannot
+                supply both `num_threads` and `num_processes`. Libvips is
+                particularly slow with ThreadPools. Defaults to None in the
+                Libvips backend, and the number of CPU cores when using cuCIM.
+            num_processes (int): If specified, will extract tiles with a
+                multiprocessing pool using the specified number of processes.
+                Cannot supply both `num_threads` and `num_processes`.
+                With the libvips backend, this defaults to half the number of
+                CPU cores, and with cuCIM, this defaults to None.
         """
         if img_format not in ('png', 'jpg', 'jpeg'):
             raise ValueError(f"Invalid image format {img_format}")
@@ -1474,7 +1484,7 @@ class WSI(_BaseLoader):
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
-        Args:
+        Keyword args:
             shuffle (bool): Shuffle images during extraction.
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
                 Discard tiles with this fraction of whitespace. If 1, will not
@@ -1496,6 +1506,16 @@ class WSI(_BaseLoader):
                 the rest of the slide when calculating stain matrix
                 concentrations. Defaults to False (normalize each image tile
                 as separate images).
+            num_threads (int): If specified, will extract tiles with a
+                ThreadPool using the specified number of threads. Cannot
+                supply both `num_threads` and `num_processes`. Libvips is
+                particularly slow with ThreadPools. Defaults to None in the
+                Libvips backend, and the number of CPU cores when using cuCIM.
+            num_processes (int): If specified, will extract tiles with a
+                multiprocessing pool using the specified number of processes.
+                Cannot supply both `num_threads` and `num_processes`.
+                With the libvips backend, this defaults to half the number of
+                CPU cores, and with cuCIM, this defaults to None.
             show_progress (bool, optional): Show a progress bar.
             img_format (str, optional): Image format. Either 'numpy', 'jpg',
                 or 'png'. Defaults to 'numpy'.
