@@ -470,14 +470,14 @@ are given below:</p>
 <section id="stain-augmentation">
 <span id="id2"></span><h2>Stain Augmentation<a class="headerlink" href="#stain-augmentation" title="Permalink to this heading">¶</a></h2>
 <p>One of the benefits of on-the-fly stain normalization is the ability to perform dynamic stain augmentation. For Reinhard normalizers, this is performed by randomizing the channel means and channel standard deviations. For Macenko normalizers, stain augmentation is performed by randomizing the stain matrix target and the target concentrations. In all cases, randomization is performed by sampling from a normal distribution whose mean is the reference fit and whose standard deviation is a predefined value (in <code class="docutils literal notranslate"><span class="pre">sf.norm.utils.augment_presets</span></code>). Of note, this strategy differs from the more commonly used strategy <a class="reference external" href="https://doi.org/10.1109/tmi.2018.2820199">described by Tellez</a>, where augmentation is performed by randomly perturbing images in the stain matrix space without normalization.</p>
-<p>To enable stain augmentation, add the letter ‘s’ to the <code class="docutils literal notranslate"><span class="pre">augment</span></code> parameter when training a model.</p>
+<p>To enable stain augmentation, add the letter ‘n’ to the <code class="docutils literal notranslate"><span class="pre">augment</span></code> parameter when training a model.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 
 <span class="c1"># Open a project</span>
 <span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
 
 <span class="c1"># Add stain augmentation to augmentation pipeline</span>
-<span class="n">params</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="s1">&#39;xryjs&#39;</span><span class="p">)</span>
+<span class="n">params</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="s1">&#39;xryjn&#39;</span><span class="p">)</span>
 
 <span class="c1"># Train a model</span>
 <span class="n">project</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
