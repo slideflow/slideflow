@@ -59,11 +59,15 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
             print("Failed to parse TFRecord.")
             break
     infile.close()
-    out_array = np.array(out_array)
+    save_index(np.array(out_array), index_file)
+
+
+def save_index(index_array: np.ndarray, index_file: str) -> None:
+    """Save an array as an index file."""
     if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
-        np.save(index_file + '.npy', out_array)
+        np.save(index_file + '.npy', index_array)
     else:
-        np.savez(index_file, out_array)
+        np.savez(index_file, index_array)
 
 
 def find_index(tfrecord: str) -> Optional[str]:
