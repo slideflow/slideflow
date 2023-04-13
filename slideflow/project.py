@@ -3635,7 +3635,7 @@ class Project:
 
         # Set up SwAV experiment data directory
         if exp_label is None:
-            exp_label = 'simclr'
+            exp_label = 'swav'
         if not exists(join(self.root, 'swav')):
             os.makedirs(join(self.root, 'swav'))
         dump_path = sf.util.create_new_model_dir(

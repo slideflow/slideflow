@@ -753,7 +753,6 @@ def _decode_image(
             randomresizedcrop = transforms.RandomResizedCrop(
                 size_crops[i], 
                 scale=(min_scale_crops[i], max_scale_crops[i]),
-                antialias=None
             )
             # FIXME: They also have a normalization step
             #        and different blur
