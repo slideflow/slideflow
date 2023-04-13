@@ -56,12 +56,10 @@ class HeatmapWidget:
     def _create_heatmap(self):
         viz = self.viz
         self.reset()
-        if sf.slide_backend() == 'cucim':
-            mp_kw = dict(num_threads=os.cpu_count())
-        else:
-            mp_kw = dict(num_processes=os.cpu_count())
         if viz.low_memory:
             mp_kw = dict(num_threads=1, batch_size=4)
+        else:
+            mp_kw = dict()
         if sf.util.model_backend(self.viz.model) == 'torch':
             mp_kw['apply_softmax'] = self.is_categorical()
         viz.heatmap = sf.heatmap.ModelHeatmap(

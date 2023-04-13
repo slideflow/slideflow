@@ -652,6 +652,7 @@ class _BaseLoader:
         pool: Optional["mp.pool.Pool"] = None,
         dry_run: bool = False
     ) -> Optional[Callable]:
+        """Build a tile generator."""
         lead_msg = f'Extracting {self.tile_um}um tiles'
         if self.extract_px != self.tile_px:
             resize_msg = f'(resizing {self.extract_px}px -> {self.tile_px}px)'
@@ -892,6 +893,7 @@ class _BaseLoader:
             kwargs['show_progress'] = (self.pb is None)
         generator = self.build_generator(
             dry_run=True,
+            deterministic=False,
             **kwargs
         )
         if generator is None:
@@ -1468,6 +1470,7 @@ class WSI(_BaseLoader):
         max_tiles: Optional[int] = None,
         from_centroids: bool = False,
         apply_masks: bool = True,
+        deterministic: bool = True
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
@@ -1511,6 +1514,9 @@ class WSI(_BaseLoader):
                 `WSI.apply_segmentation()`. Defaults to False.
             apply_masks (bool): Apply cell segmentation masks to tiles. Ignored
                 if cell segmentation has been applied to the slide.
+                Defaults to True.
+            deterministic (bool): Return tile images in reproducible,
+                deterministic order. May slightly decrease iteration time.
                 Defaults to True.
 
         Returns:
@@ -1612,7 +1618,7 @@ class WSI(_BaseLoader):
         })
 
         def generator():
-            nonlocal pool
+            nonlocal pool, num_threads, num_processes
             should_close = False
             n_extracted = 0
 
@@ -1658,15 +1664,18 @@ class WSI(_BaseLoader):
             # Set up worker pool
             if pool is None:
                 if num_threads is None and num_processes is None:
-                    # ThreadPool used by default due to escalating memory
-                    # requirements when using multiprocessing
+                    # Libvips is extremely slow with ThreadPools.
+                    # In the cuCIM backend, ThreadPools are used by default
+                    # to reduce memory utilization.
+                    # In the Libvips backend, a multiprocessing pool is default
+                    # to significantly improve performance.
+                    n_cores = os.cpu_count() if os.cpu_count() else 8
+                    if sf.slide_backend() == 'libvips':
+                        num_processes = max(int(n_cores/2), 1)
+                    else:
+                        num_threads = n_cores
+                if num_threads is not None and num_threads > 1:
                     log.debug(f"Building generator ThreadPool({num_threads})")
-                    _threads = os.cpu_count() if os.cpu_count() else 8
-                    pool = mp.dummy.Pool(processes=_threads)
-                    should_close = True
-                elif num_threads is not None and num_threads > 1:
-                    log.debug(f"Building generator ThreadPool({num_threads})")
-                    _threads = os.cpu_count() if os.cpu_count() else 8
                     pool = mp.dummy.Pool(processes=num_threads)
                     should_close = True
                 elif num_processes is not None and num_processes > 1:
@@ -1689,8 +1698,11 @@ class WSI(_BaseLoader):
                 pbar = Progress(transient=sf.getLoggingLevel() > 20)
                 task = pbar.add_task('Extracting...', total=self.estimated_num_tiles)
                 pbar.start()
+            else:
+                pbar = None
 
             if pool is not None:
+                map_fn = pool.imap if deterministic else pool.imap_unordered
                 if lazy_iter:
                     if max_tiles:
                         batch_size = min(pool._processes, max_tiles)
@@ -1699,7 +1711,7 @@ class WSI(_BaseLoader):
                     batched_coord = sf.util.batch(non_roi_coord, batch_size)
                     def _generator():
                         for batch in batched_coord:
-                            yield from pool.imap(
+                            yield from map_fn(
                                 partial(tile_worker, args=w_args),
                                 batch
                             )
@@ -1708,26 +1720,26 @@ class WSI(_BaseLoader):
                 else:
                     csize = max(min(int(self.estimated_num_tiles/pool._processes), 64), 1)
                     log.debug(f"Using imap chunksize={csize}")
-                    i_mapped = pool.imap(
+                    i_mapped = map_fn(
                         partial(tile_worker, args=w_args),
                         non_roi_coord,
                         chunksize=csize
                     )
 
-            for e, result in enumerate(i_mapped):
-                if show_progress:
-                    pbar.advance(task, 1)
-                elif self.pb is not None:
-                    self.pb.advance(0)
-                if result is None:
-                    continue
-                else:
-                    yield result
-                    n_extracted += 1
-                    if max_tiles and n_extracted >= max_tiles:
-                        break
-            if show_progress:
-                pbar.stop()
+            with sf.util.cleanup_progress(pbar):
+                for e, result in enumerate(i_mapped):
+                    if show_progress:
+                        pbar.advance(task, 1)
+                    elif self.pb is not None:
+                        self.pb.advance(0)
+                    if result is None:
+                        continue
+                    else:
+                        yield result
+                        n_extracted += 1
+                        if max_tiles and n_extracted >= max_tiles:
+                            break
+
             if should_close:
                 pool.close()
 
@@ -2584,83 +2596,83 @@ class TMA(_BaseLoader):
                     total=self.estimated_num_tiles
                 )
                 pbar.start()
-            ctx = mp.get_context('spawn')
-            extraction_pool = ctx.Pool(
-                num_threads,
-                section_extraction_worker,
-                (rectangle_queue, extraction_queue,)
-            )
-            for rect in self.object_rects:
-                rectangle_queue.put(rect)
-            rectangle_queue.put((-1, "DONE"))
+            else:
+                pbar = None
+            with sf.util.cleanup_progress(pbar):
+                ctx = mp.get_context('spawn')
+                extraction_pool = ctx.Pool(
+                    num_threads,
+                    section_extraction_worker,
+                    (rectangle_queue, extraction_queue,)
+                )
+                for rect in self.object_rects:
+                    rectangle_queue.put(rect)
+                rectangle_queue.put((-1, "DONE"))
 
-            queue_progress = 0
-            while True:
-                queue_progress += 1
-                tile_id, image_core = extraction_queue.get()
-                if type(image_core) == str and image_core == "DONE":
-                    break
-                else:
-                    if self.pb:
-                        self.pb.advance(0)
-                    if show_progress:
-                        pbar.advance(task, 1)
-
-                    resized_core = self._resize_to_target(image_core)
-
-                    if full_core:
-                        resized = cv2.resize(
-                            image_core,
-                            (self.tile_px, self.tile_px)
-                        )
-                        # Convert to final image format
-                        if img_format != 'numpy':
-                            resized = _convert_img_to_format(
-                                resized,
-                                img_format
-                            )
-
-                        yield {'image': resized, 'loc': [0, 0]}
+                queue_progress = 0
+                while True:
+                    queue_progress += 1
+                    tile_id, image_core = extraction_queue.get()
+                    if type(image_core) == str and image_core == "DONE":
+                        break
                     else:
-                        subtiles = self._split_core(resized_core)
-                        for subtile in subtiles:
-                            # Perform whitespace filtering
-                            if whitespace_fraction < 1:
-                                frac = (np.mean(subtile, axis=2)
-                                        > whitespace_threshold).sum()
-                                frac = frac / (self.tile_px**2)
-                                if frac > whitespace_fraction:
-                                    continue
+                        if self.pb:
+                            self.pb.advance(0)
+                        if show_progress:
+                            pbar.advance(task, 1)
 
-                            # Perform grayspace filtering
-                            if grayspace_fraction < 1:
-                                hsv_image = mcol.rgb_to_hsv(subtile)
-                                frac = (hsv_image[:, :, 1]
-                                        < grayspace_threshold).sum()
-                                frac = frac / (self.tile_px**2)
-                                if frac > grayspace_fraction:
-                                    continue
+                        resized_core = self._resize_to_target(image_core)
 
-                            # Apply normalization
-                            if norm is not None:
-                                try:
-                                    subtile = norm.rgb_to_rgb(subtile)
-                                except Exception:
-                                    # The image could not be normalized, which
-                                    # happens when a tile is primarily one
-                                    # solid color (background)
-                                    continue
-
+                        if full_core:
+                            resized = cv2.resize(
+                                image_core,
+                                (self.tile_px, self.tile_px)
+                            )
                             # Convert to final image format
                             if img_format != 'numpy':
-                                subtile = _convert_img_to_format(
-                                    subtile,
+                                resized = _convert_img_to_format(
+                                    resized,
                                     img_format
                                 )
-                            yield {'image': subtile, 'loc': [0, 0]}
 
-            extraction_pool.close()
-            if show_progress:
-                pbar.stop()
+                            yield {'image': resized, 'loc': [0, 0]}
+                        else:
+                            subtiles = self._split_core(resized_core)
+                            for subtile in subtiles:
+                                # Perform whitespace filtering
+                                if whitespace_fraction < 1:
+                                    frac = (np.mean(subtile, axis=2)
+                                            > whitespace_threshold).sum()
+                                    frac = frac / (self.tile_px**2)
+                                    if frac > whitespace_fraction:
+                                        continue
+
+                                # Perform grayspace filtering
+                                if grayspace_fraction < 1:
+                                    hsv_image = mcol.rgb_to_hsv(subtile)
+                                    frac = (hsv_image[:, :, 1]
+                                            < grayspace_threshold).sum()
+                                    frac = frac / (self.tile_px**2)
+                                    if frac > grayspace_fraction:
+                                        continue
+
+                                # Apply normalization
+                                if norm is not None:
+                                    try:
+                                        subtile = norm.rgb_to_rgb(subtile)
+                                    except Exception:
+                                        # The image could not be normalized, which
+                                        # happens when a tile is primarily one
+                                        # solid color (background)
+                                        continue
+
+                                # Convert to final image format
+                                if img_format != 'numpy':
+                                    subtile = _convert_img_to_format(
+                                        subtile,
+                                        img_format
+                                    )
+                                yield {'image': subtile, 'loc': [0, 0]}
+                extraction_pool.close()
 
         return generator
