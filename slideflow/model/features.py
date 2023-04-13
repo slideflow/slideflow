@@ -20,7 +20,7 @@ import scipy.stats as stats
 import slideflow as sf
 from rich.progress import track, Progress
 from slideflow import errors
-from slideflow.util import log, Labels, ImgBatchSpeedColumn
+from slideflow.util import log, Labels, ImgBatchSpeedColumn, tfrecord2idx
 from .base import BaseFeatureExtractor
 
 
@@ -538,9 +538,10 @@ class DatasetFeatures:
 
         Args:
             outdir (str): Path to directory in which to save .pt files.
-        """
 
+        """
         import torch
+
         if not exists(outdir):
             os.makedirs(outdir)
         slides = self.slides if not slides else slides
@@ -552,7 +553,10 @@ class DatasetFeatures:
                 self.activations[slide].astype(np.float32)
             )
             torch.save(slide_activations, join(outdir, f'{slide}.pt'))
-            np.savez(join(outdir, f'{slide}.index'), self.locations[slide])
+            tfrecord2idx.save_index(
+                self.locations[slide],
+                join(outdir, f'{slide}.index')
+            )
         args = {
             'model': self.model if isinstance(self.model, str) else '<NA>',
             'num_features': self.num_features
