@@ -2081,8 +2081,12 @@ class Features(BaseFeatureExtractor):
         **kwargs
     ) -> Optional[Union[List[Tensor], np.ndarray]]:
         """Process a given input and return activations and/or predictions. Expects
-        either a batch of images or a :class:`slideflow.slide.WSI` object."""
+        either a batch of images or a :class:`slideflow.slide.WSI` object.
 
+        When calling on a `WSI` object, keyword arguments are passed to
+        :meth:`slideflow.WSI.build_generator()`.
+
+        """
         if isinstance(inp, sf.slide.WSI):
             return self._predict_slide(inp, **kwargs)
         else:

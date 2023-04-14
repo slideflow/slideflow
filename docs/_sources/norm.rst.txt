@@ -215,7 +215,7 @@ Stain Augmentation
 
 One of the benefits of on-the-fly stain normalization is the ability to perform dynamic stain augmentation. For Reinhard normalizers, this is performed by randomizing the channel means and channel standard deviations. For Macenko normalizers, stain augmentation is performed by randomizing the stain matrix target and the target concentrations. In all cases, randomization is performed by sampling from a normal distribution whose mean is the reference fit and whose standard deviation is a predefined value (in ``sf.norm.utils.augment_presets``). Of note, this strategy differs from the more commonly used strategy `described by Tellez <https://doi.org/10.1109/tmi.2018.2820199>`_, where augmentation is performed by randomly perturbing images in the stain matrix space without normalization.
 
-To enable stain augmentation, add the letter 's' to the ``augment`` parameter when training a model.
+To enable stain augmentation, add the letter 'n' to the ``augment`` parameter when training a model.
 
 .. code-block:: python
 

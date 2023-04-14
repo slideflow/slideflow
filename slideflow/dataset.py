@@ -1441,11 +1441,12 @@ class Dataset:
                 given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in
                 tfrecords. Defaults to True.
-            num_threads (int, optional): Number of workers threads for each
+            num_threads (int, optional): Number of worker processes for each
                 tile extractor. When using cuCIM slide reading backend,
-                defaults to the total number of available CPU threads.
-                With Libvips, this defaults to the total number of available
-                CPU threads or 32, whichever is lower.
+                defaults to the total number of available CPU cores, using the
+                'fork' multiprocessing method. With Libvips, this defaults to
+                the total number of available CPU cores or 32, whichever is
+                lower, using 'spawn' multiprocessing.
             qc_blur_radius (int, optional): Quality control blur radius for
                 out-of-focus area detection. Used if qc=True. Defaults to 3.
             qc_blur_threshold (float, optional): Quality control blur threshold
