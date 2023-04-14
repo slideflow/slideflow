@@ -1,8 +1,7 @@
 """Dataset utility functions for MIL."""
 
 from dataclasses import dataclass
-from collections.abc import Sequence
-from typing import Any, Iterable, Optional, Tuple, Callable, Union, Protocol
+from typing import Any, List, Optional, Tuple, Callable, Union, Protocol
 from pathlib import Path
 
 import numpy as np
@@ -65,7 +64,7 @@ def _to_fixed_size_bag(
 class BagDataset(Dataset):
     """A dataset of bags of instances."""
 
-    bags: Sequence[Iterable[Path]]
+    bags: List[Path]
     """The `.h5` files containing the bags.
     Each bag consists of the features taken from one or multiple h5 files.
     Each of the h5 files needs to have a dataset called `feats` of shape N x
@@ -136,9 +135,9 @@ class MapDataset(Dataset):
 class SKLearnEncoder(Protocol):
     """An sklearn-style encoder."""
 
-    categories_: Sequence[Sequence[str]]
+    categories_: List[List[str]]
 
-    def transform(self, x: Sequence[Sequence[Any]]):
+    def transform(self, x: List[List[Any]]):
         ...
 
 
