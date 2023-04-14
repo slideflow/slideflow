@@ -157,8 +157,13 @@ def eval_mil(
         if not exists(att_path):
             os.makedirs(att_path)
         for slide, att in zip(slides, y_att):
-            np.savez(join(att_path, f'{slide}_att.npz'), att)
-        log.info(f"Attention scores exported to [green]{att_path}[/]")
+            if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
+                out_path = join(att_path, f'{slide}_att.npy')
+                np.save(out_path, att)
+            else:
+                out_path = join(att_path, f'{slide}_att.npz')
+                np.savez(out_path, att)
+        log.info(f"Attention scores exported to [green]{out_path}[/]")
 
     # Attention heatmaps
     if y_att and attention_heatmaps:
