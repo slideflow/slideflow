@@ -615,12 +615,16 @@ class _BaseLoader:
             log.debug("Requesting thumbnail using associated image")
             thumb_kw = dict(associated='thumbnail')
         elif low_res:
-            log.debug("Requesting thumbnail at level={}, width={}".format(level, width))
+            log.debug("Requesting thumbnail at level={}, width={}".format(
+                self.slide.level_count-1, width
+            ))
             thumb_kw = dict(level=self.slide.level_count-1, width=width)
         else:
             ds = self.dimensions[0] / width
             level = self.slide.best_level_for_downsample(ds)
-            log.debug("Requesting thumbnail at level={}, width={}".format(level, width))
+            log.debug("Requesting thumbnail at level={}, width={}".format(
+                level, width
+            ))
             thumb_kw = dict(level=level, width=width)
 
         np_thumb = self.slide.thumbnail(**thumb_kw)
