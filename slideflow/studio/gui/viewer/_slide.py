@@ -2,6 +2,7 @@
 
 import imgui
 import numpy as np
+from contextlib import contextmanager
 from typing import Tuple, Optional, TYPE_CHECKING
 from ._viewer import Viewer
 from .. import gl_utils, text_utils
@@ -259,35 +260,39 @@ class SlideViewer(Viewer):
 
         # Fill in parts of the missing image
         if p.moved_right and p.full_dx:
-            new_horizontal = region.crop(
-                int(p.tl_new[0] / p.target_ds),
-                int(p.tl_new[1] / p.target_ds),
-                p.dx,
-                view_params.target_size[1])
+            left_edge = int(p.tl_new[0] / p.target_ds)
+            top_edge = int(p.tl_new[1] / p.target_ds)
+            extract_w = p.dx
+            extract_h = min(view_params.target_size[1], region.height)
+            with log_vips_error(left_edge, top_edge, extract_w, extract_h):
+                new_horizontal = region.crop(left_edge, top_edge, extract_w, extract_h)
             new_horizontal = self._process_vips(new_horizontal)
             new_view[:, None:p.dx, :] = new_horizontal
         if p.moved_down and p.full_dy:
-            new_vertical = region.crop(
-                int(p.tl_new[0] / p.target_ds),
-                int(p.tl_new[1] / p.target_ds),
-                view_params.target_size[0],
-                p.dy)
+            left_edge = int(p.tl_new[0] / p.target_ds)
+            top_edge = int(p.tl_new[1] / p.target_ds)
+            extract_w = min(view_params.target_size[0], region.width)
+            extract_h = p.dy
+            with log_vips_error(left_edge, top_edge, extract_w, extract_h):
+                new_vertical = region.crop(left_edge, top_edge, extract_w, extract_h)
             new_vertical = self._process_vips(new_vertical)
             new_view[None:p.dy, :, :] = new_vertical
         if p.moved_left and p.full_dx:
-            new_horizontal = region.crop(
-                int((p.tl_new[0] + view_params.window_size[0] + p.full_dx) / p.target_ds),
-                int(p.tl_new[1] / p.target_ds),
-                -p.dx,
-                view_params.target_size[1])
+            left_edge = int((p.tl_new[0] + view_params.window_size[0] + p.full_dx) / p.target_ds)
+            top_edge = int(p.tl_new[1] / p.target_ds)
+            extract_w = -p.dx
+            extract_h = min(view_params.target_size[1], region.height)
+            with log_vips_error(left_edge, top_edge, extract_w, extract_h):
+                new_horizontal = region.crop(left_edge, top_edge, extract_w, extract_h)
             new_horizontal = self._process_vips(new_horizontal)
             new_view[:, view_params.target_size[0]+p.dx:None, :] = new_horizontal
         if p.moved_up and p.full_dy:
-            new_vertical = region.crop(
-                int(p.tl_new[0] / p.target_ds),
-                int((p.tl_new[1] + view_params.window_size[1] + p.full_dy) / p.target_ds),
-                view_params.target_size[0],
-                -p.dy)
+            left_edge = int(p.tl_new[0] / p.target_ds)
+            top_edge = int((p.tl_new[1] + view_params.window_size[1] + p.full_dy) / p.target_ds)
+            extract_w = min(view_params.target_size[0], region.width)
+            extract_h = -p.dy
+            with log_vips_error(left_edge, top_edge, extract_w, extract_h):
+                new_vertical = region.crop(left_edge, top_edge, extract_w, extract_h)
             new_vertical = self._process_vips(new_vertical)
             new_view[view_params.target_size[1]+p.dy:None, :, :] = new_vertical
 
@@ -600,3 +605,20 @@ class SlideViewer(Viewer):
         view_params = self._calculate_view_params(new_origin)
         if view_params != self.view_params:
             self._refresh_view_full(view_params=view_params)
+
+# -----------------------------------------------------------------------------
+
+@contextmanager
+def log_vips_error(left_edge, top_edge, extract_w, extract_h):
+    try:
+        yield
+    except Exception:
+        sf.log.error(
+            "Error attempting to crop pyvips image, with "
+            "top/left (x,y) = ({}, {}) and width/height = ({}, {})".format(
+                left_edge,
+                top_edge,
+                extract_w,
+                extract_h
+            ))
+        raise
