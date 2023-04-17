@@ -572,7 +572,7 @@ class _BaseLoader:
         use_associated_image: bool = False,
         low_res: bool = False
     ) -> Image.Image:
-        '''Returns PIL thumbnail of the slide.
+        """Returns PIL thumbnail of the slide.
 
         Args:
             mpp (float, optional): Microns-per-pixel, used to determine
@@ -584,11 +584,13 @@ class _BaseLoader:
                 y_center), ...] format. Defaults to None.
             use_associated_image (bool): Use the associated thumbnail image
                 in the slide, rather than reading from a pyramid layer.
+            low_res (bool): Create thumbnail from the lowest-mangnification
+                pyramid layer. Defaults to False.
 
         Returns:
             PIL image
-        '''
 
+        """
         # If no values provided, create thumbnail of width 1024
         if mpp is None and width is None:
             width = 1024
@@ -610,12 +612,15 @@ class _BaseLoader:
         height = int((self.mpp * self.dimensions[1]) / mpp)
 
         if use_associated_image:
+            log.debug("Requesting thumbnail using associated image")
             thumb_kw = dict(associated='thumbnail')
         elif low_res:
+            log.debug("Requesting thumbnail at level={}, width={}".format(level, width))
             thumb_kw = dict(level=self.slide.level_count-1, width=width)
         else:
             ds = self.dimensions[0] / width
             level = self.slide.best_level_for_downsample(ds)
+            log.debug("Requesting thumbnail at level={}, width={}".format(level, width))
             thumb_kw = dict(level=level, width=width)
 
         np_thumb = self.slide.thumbnail(**thumb_kw)
@@ -1798,11 +1803,15 @@ class WSI(_BaseLoader):
             rois (bool, optional): Draw ROIs onto thumbnail. Defaults to False.
             linewidth (int, optional): Width of ROI line. Defaults to 2.
             color (str, optional): Color of ROI. Defaults to black.
+            use_associated_image (bool): Use the associated thumbnail image
+                in the slide, rather than reading from a pyramid layer.
+            low_res (bool): Create thumbnail from the lowest-mangnification
+                pyramid layer. Defaults to False.
 
         Returns:
             PIL image
-        """
 
+        """
         if rois and len(self.rois):
             if (mpp is not None and width is not None):
                 raise ValueError(
