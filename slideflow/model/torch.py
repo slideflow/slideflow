@@ -1209,7 +1209,6 @@ class Trainer:
             num_workers=4 if not from_wsi else 0,
             onehot=False,
             incl_slidenames=True,
-            device=self.device,
             from_wsi=from_wsi,
             **kwargs
         )

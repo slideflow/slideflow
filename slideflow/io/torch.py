@@ -61,7 +61,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         model_type: str = 'categorical',
         onehot: bool = False,
         indices: Optional[np.ndarray] = None,
-        device: Optional[torch.device] = None,
         max_size: int = 0,
         from_wsi: bool = False,
         tile_um: Optional[int] = None,
@@ -138,7 +137,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.incl_loc = incl_loc
         self.num_tiles = num_tiles
         self.model_type = model_type
-        self.device = device
         self.from_wsi = from_wsi
         self.tile_um = tile_um
         self.rois = rois
@@ -279,7 +277,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             rank=self.rank + worker_id,
             chunk_size=self.chunk_size,
             indices=self.indices,
-            device=self.device,
             tile_px=self.img_size,
             from_wsi=self.from_wsi,
             tile_um=self.tile_um,
@@ -888,7 +885,6 @@ def interleave(
     num_replicas: int = 1,
     rank: int = 0,
     indices: Optional[List[str]] = None,
-    device: Optional[torch.device] = None,
     from_wsi: bool = False,
     tile_px: Optional[int] = None,
     tile_um: Optional[int] = None,
@@ -1096,7 +1092,6 @@ def interleave(
             record[0],  # Image is the first returned variable
             img_type=img_type,
             transform=transform_fn,
-            device=device
         )
         return record
 
