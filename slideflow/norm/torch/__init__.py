@@ -29,6 +29,7 @@ class TorchStainNormalizer(StainNormalizer):
         self,
         method: str,
         device: Optional[str] = None,
+        batch_size: int = 32,
         **kwargs
     ) -> None:
         """PyTorch-native H&E Stain normalizer.
@@ -44,6 +45,13 @@ class TorchStainNormalizer(StainNormalizer):
 
         Args:
             method (str): Normalization method to use.
+            device (str): Device (cpu, gpu) on which normalization should
+                be performed. Defaults to the preferred method for each
+                normalizer.
+            batch_size (int): Maximum batch size to use when performing
+                stain normalization. Will split larger batches into chunks.
+                Helps avoid "input tensor is too large" issues with
+                torch.quantile(). Defaults to 32.
 
         Keyword args:
             stain_matrix_target (np.ndarray, optional): Set the stain matrix
@@ -68,6 +76,7 @@ class TorchStainNormalizer(StainNormalizer):
 
         super().__init__(method, **kwargs)
         self._device = device
+        self.batch_size = batch_size
 
     @property
     def device(self) -> str:
@@ -220,7 +229,16 @@ class TorchStainNormalizer(StainNormalizer):
 
         """
         from slideflow.io.torch import cwh_to_whc, whc_to_cwh, is_cwh
-        if is_cwh(inp):
+
+        if inp.ndim == 4 and inp.shape[0] > self.batch_size:
+            return torch.cat(
+                [
+                    self._torch_transform(t)
+                    for t in torch.split(inp, self.batch_size)
+                ],
+                dim=0
+            )
+        elif is_cwh(inp):
             # Convert from CWH -> WHC (normalize) -> CWH
             return whc_to_cwh(
                 self.n.transform(

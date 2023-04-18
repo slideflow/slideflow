@@ -274,9 +274,6 @@ class ModelParams(_base._ModelParams):
         assert self.model in self.ModelDict.keys() or self.model.startswith('timm_')
         assert self.optimizer in self.OptDict.keys()
         assert self.loss in self.AllLossDict
-        if isinstance(self.augment, str) and 'b' in self.augment:
-            log.warn('Gaussian blur not yet optimized in PyTorch backend; '
-                     'image pre-processing may be slow.')
         if self.model == 'inception':
             log.warn("Model 'inception' has an auxillary classifier, which "
                      "is currently ignored during training. Auxillary "
