@@ -905,7 +905,7 @@ class Dataset:
         return ret
 
     def build_index(self, force: bool = True) -> None:
-        """Build index files for TFRecords. Required for PyTorch.
+        """Build index files for TFRecords.
 
         Args:
             force (bool): Force re-build existing indices.
@@ -913,12 +913,21 @@ class Dataset:
         Returns:
             None
         """
+        if force:
+            missing_index = self.tfrecords()
+        else:
+            missing_index = [
+                tfr for tfr in self.tfrecords()
+                if not tfrecord2idx.find_index(tfr)
+            ]
+            if not missing_index:
+                return
+        index_fn = partial(_create_index, force=force)
         pool = mp.Pool(
             os.cpu_count(),
             initializer=sf.util.set_ignore_sigint
         )
-        index_fn = partial(_create_index, force=force)
-        for _ in track(pool.imap_unordered(index_fn, self.tfrecords()),
+        for _ in track(pool.imap_unordered(index_fn, missing_index),
                        description='Creating index files...',
                        total=len(self.tfrecords()),
                        transient=True):
