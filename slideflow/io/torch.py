@@ -305,6 +305,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
     def get_details(self, idx):
         raise NotImplementedError
 
+
 class MulitCropInterleaveIterator(InterleaveIterator):
     """Iterator to enable compatibility with SwAV"""
     
@@ -339,6 +340,7 @@ class MulitCropInterleaveIterator(InterleaveIterator):
         if self.incl_loc:
             to_return += [loc_x, loc_y]
         return to_return
+
 
 class StyleGAN2Interleaver(InterleaveIterator):
     """Iterator to enable compatibility with StyleGAN2."""
@@ -445,6 +447,7 @@ class LocLabelInterleaver(StyleGAN2Interleaver):
         """Returns a random label. Used for compatibility with StyleGAN2."""
         return np.random.rand(*self.label_shape)
 
+# -------------------------------------------------------------------------
 
 def _get_images_by_dir(directory: str) -> List[str]:
     files = [
@@ -529,6 +532,7 @@ def whc_to_cwh(img: torch.Tensor) -> torch.Tensor:
             "Invalid shape for channel conversion. Expected 3 or 4 dims, "
             f"got {len(img.shape)} (shape={img.shape})")
 
+# -------------------------------------------------------------------------
 
 def auto_gaussian(image: torch.Tensor, sigma: float) -> torch.Tensor:
     """Perform Gaussian blur on an image with a given sigma, automatically
@@ -540,12 +544,177 @@ def auto_gaussian(image: torch.Tensor, sigma: float) -> torch.Tensor:
 
     Returns:
         torch.Tensor: Image(s) with Gaussian blur applied.
+
     """
     opt_kernel = int((sigma * 4) + 1)
     if opt_kernel % 2 == 0:
         opt_kernel += 1
     return torchvision.transforms.GaussianBlur(opt_kernel, sigma=sigma)(image)
 
+
+def random_jpeg_compression(img: torch.Tensor):
+    """Perform random JPEG compression on an image.
+    
+    Args:
+        img (torch.Tensor): Image tensor, shape C x W x H.
+    
+    Returns: 
+        torch.Tensor: Transformed image (C x W x H).
+
+    """
+    q = (torch.rand(1)[0] * 50) + 50
+    img = torchvision.io.encode_jpeg(img, quality=q)
+    return torchvision.io.decode_image(img)
+
+
+def blur_augment(img: torch.Tensor):
+    """Perform random Gaussian blur on an image.
+    
+    Args:
+        img (torch.Tensor): Image tensor, shape C x W x H.
+
+    Returns: 
+        torch.Tensor: Transformed image (C x W x H).
+
+    """
+    img = torch.where(
+        (torch.rand(1)[0] < 0.1),  # .to(device),
+        torch.where(
+            (torch.rand(1)[0] < 0.5),  # .to(device),
+            torch.where(
+                (torch.rand(1)[0] < 0.5),  # .to(device),
+                torch.where(
+                    (torch.rand(1)[0] < 0.5),  # .to(device),
+                    auto_gaussian(img, sigma=2.0),
+                    auto_gaussian(img, sigma=1.5),
+                ),
+                auto_gaussian(img, sigma=1.0)
+            ),
+            auto_gaussian(img, sigma=0.5),
+        ),
+        img
+    )
+    return img
+
+
+def compose_color_distortion(s=1.0):
+    """Compose augmentation for random color distortion.
+    
+    Args:
+        s (float): Strength of the distortion.
+
+    Returns:
+        Callable: PyTorch transform
+    
+    """
+    color_jitter = transforms.ColorJitter(0.8*s, 0.8*s, 0.8*s, 0.2*s)
+    rnd_color_jitter = transforms.RandomApply([color_jitter], p=0.8)
+    rnd_gray = transforms.RandomGrayscale(p=0.2)
+    color_distort = transforms.Compose(
+        [whc_to_cwh, rnd_color_jitter, rnd_gray, cwh_to_whc])
+    return color_distort
+
+
+def compose_augmentations(
+    augment: Union[str, bool] = False,
+    *,
+    standardize: bool = False,
+    normalizer: Optional["StainNormalizer"] = None,
+    transform: Optional[Callable] = None,
+    whc: bool = True
+):
+    """Compose an augmentation pipeline for image processing.
+
+    Args:
+        augment (str or bool): Image augmentations to perform. String 
+            containing characters designating augmentations. 'x' indicates 
+            random x-flipping, 'y' y-flipping, 'r' rotating, 'j' JPEG
+            compression/decompression at random quality levels, 'g' random
+            Gaussin blur, 'c' random color distortion. Passing
+            True will translate to 'xyrjb'. Defaults to False.
+
+    Keyword args:
+        standardize (bool, optional): Standardize images into the range (0,1)
+            using img / (255/2) - 1. Defaults to False.
+        normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer
+            to use on images. Defaults to None.
+        transform (Callable, optional): Arbitrary torchvision transform function.
+            Performs transformation after augmentations but before standardization.
+            Defaults to None.
+        whc (bool): Images are in W x H x C format. Defaults to True.
+    """
+
+    transformations = []
+
+    # Random JPEG compression.
+    if augment is True or (isinstance(augment, str) and 'j' in augment):
+        transformations.append(
+            lambda img: torch.where(
+                torch.rand(1)[0] < 0.5,
+                random_jpeg_compression(img),
+                img
+            )
+        )
+
+    # Random cardinal rotation.
+    if augment is True or (isinstance(augment, str) and 'r' in augment):
+        transformations.append(
+            lambda img: torch.rot90(img, np.random.choice(range(5)))
+        )
+
+    # Random x-flip.
+    if augment is True or (isinstance(augment, str) and 'x' in augment):
+        transformations.append(
+            lambda img: torch.where(
+                torch.rand(1)[0] < 0.5,
+                torch.fliplr(img),
+                img
+            )
+        )
+    
+    # Random y-flip.
+    if augment is True or (isinstance(augment, str) and 'y' in augment):
+        transformations.append(
+            lambda img: torch.where(
+                torch.rand(1)[0] < 0.5,
+                torch.flipud(img),
+                img
+            )
+        )
+
+    # Stain normalization.
+    if normalizer:
+        transformations.append(
+            lambda img: normalizer.torch_to_torch(
+                img,
+                augment=(isinstance(augment, str) and 'n' in augment)
+            )
+        )
+
+    # Random color distortion.
+    if (isinstance(augment, str) and 'd' in augment):
+        transformations.append(compose_color_distortion())
+    
+    # Random Gaussian blur.
+    if augment is True or (isinstance(augment, str) and 'b' in augment):
+        transformations.append(blur)
+
+    # Arbitrary transformations.
+    if transform is not None:
+        transformations.append(transform)
+
+    # Image standardization.
+    # Note: not the same as tensorflow's per_image_standardization
+    # Convert back: image = (image + 1) * (255/2)
+    if standardize:
+        transformations.append(lambda img: img / (255/2) - 1)
+
+    if transformations and whc:
+        return transforms.Compose([whc_to_cwh] + transformations + [cwh_to_whc])
+    else:
+        return transforms.Compose(transformations)
+
+# -------------------------------------------------------------------------
 
 def read_and_return_record(
     record: bytes,
@@ -631,13 +800,12 @@ def preprocess_uint8(
     if standardize:
         img = convert_dtype(img, torch.float32)
     return img
+    
 
 def _decode_image(
     image: Union[bytes, str, torch.Tensor],
+    *,
     img_type: str,
-    standardize: bool = False,
-    normalizer: Optional["StainNormalizer"] = None,
-    augment: bool = False,
     device: Optional[torch.device] = None,
     transform: Optional[Any] = None,
 ) -> torch.Tensor:
@@ -648,122 +816,16 @@ def _decode_image(
         image = cwh_to_whc(torchvision.io.decode_image(np_data))
         # Alternative method using PIL decoding:
         # image = np.array(Image.open(BytesIO(img_string)))
+
     assert isinstance(image, torch.Tensor)
 
-    def random_jpeg_compression(img):
-        img = torchvision.io.encode_jpeg(
-            whc_to_cwh(img),
-            quality=(torch.rand(1)[0]*50 + 50)
-        )
-        return cwh_to_whc(torchvision.io.decode_image(img))
+    if device is not None:
+        image = image.to(device)
 
-    def blur(img):
-        img = whc_to_cwh(img)
-        img = torch.where(
-            (torch.rand(1)[0] < 0.1),  # .to(device),
-            torch.where(
-                (torch.rand(1)[0] < 0.5),  # .to(device),
-                torch.where(
-                    (torch.rand(1)[0] < 0.5),  # .to(device),
-                    torch.where(
-                        (torch.rand(1)[0] < 0.5),  # .to(device),
-                        auto_gaussian(img, sigma=2.0),
-                        auto_gaussian(img, sigma=1.5),
-                    ),
-                    auto_gaussian(img, sigma=1.0)
-                ),
-                auto_gaussian(img, sigma=0.5),
-            ),
-            img
-        )
-        return cwh_to_whc(img)
-    
-    def get_color_distortion(s=1.0):
-        # s is the strength of color distortion.
-        color_jitter = transforms.ColorJitter(0.8*s, 0.8*s, 0.8*s, 0.2*s)
-        rnd_color_jitter = transforms.RandomApply([color_jitter], p=0.8)
-        rnd_gray = transforms.RandomGrayscale(p=0.2)
-        color_distort = transforms.Compose(
-            [whc_to_cwh, rnd_color_jitter, rnd_gray, cwh_to_whc])
-        return color_distort
-      
-    augmentations = []
+    if transform is not None:
+        image = transform(image)
 
-    if augment is True or (isinstance(augment, str) and 'j' in augment):
-        augmentations.append(
-            lambda img: torch.where(
-                torch.rand(1)[0] < 0.5,
-                random_jpeg_compression(img),
-                img
-            )
-        )
-
-    if augment is True or (isinstance(augment, str) and 'r' in augment):
-        augmentations.append(
-            lambda img: torch.rot90(img, np.random.choice(range(5)))
-        )
-
-    if augment is True or (isinstance(augment, str) and 'x' in augment):
-        augmentations.append(
-            lambda img: torch.where(
-                torch.rand(1)[0] < 0.5,
-                torch.fliplr(img),
-                img
-            )
-        )
-    
-    if augment is True or (isinstance(augment, str) and 'y' in augment):
-        augmentations.append(
-            lambda img: torch.where(
-                torch.rand(1)[0] < 0.5,
-                torch.flipud(img),
-                img
-            )
-        )
-
-    if (isinstance(augment, str) and 'd' in augment):
-        augmentations.append(get_color_distortion())
-    
-    if augment is True or (isinstance(augment, str) and 'b' in augment):
-        augmentations.append(blur)
-
-    if normalizer:
-        augmentations.append(
-            lambda img: normalizer.torch_to_torch(
-                img,
-                augment=(isinstance(augment, str) and 'n' in augment)
-            )
-        )
-    
-    if standardize:
-        # Note: not the same as tensorflow's per_image_standardization
-        # Convert back: image = (image + 1) * (255/2)
-        augmentations.append(lambda img: img / 127.5 - 1)
-
-    if (isinstance(augment, str) and 'c' in augment):
-        # augmentations.insert(0, lambda img: rand_crop(img))
-        lists = augment.split('-')
-        nmb_crops = list(map(int, lists[1].split(',')))
-        size_crops = list(map(int, lists[2].split(',')))
-        min_scale_crops = list(map(float, lists[3].split(',')))
-        max_scale_crops = list(map(float, lists[4].split(',')))
-
-        trans = []
-        for i in range(len(size_crops)):
-            randomresizedcrop = transforms.RandomResizedCrop(
-                size_crops[i], 
-                scale=(min_scale_crops[i], max_scale_crops[i]),
-            )
-            # FIXME: They also have a normalization step
-            #        and different blur
-            trans.extend([transforms.Compose(
-                    [whc_to_cwh, randomresizedcrop, cwh_to_whc] + 
-                    augmentations
-                )
-            ] * nmb_crops[i])
-        return list(map(lambda trans: trans(image), trans))
-    else:
-        return transforms.Compose(augmentations)(image)
+# -------------------------------------------------------------------------
 
 def worker_init_fn(worker_id) -> None:
     np.random.seed(np.random.get_state()[1][0])  # type: ignore
@@ -824,6 +886,13 @@ def get_tfrecord_parser(
             f'were found in the tfrecord {detected}'
         )
 
+    # Build the transformations / augmentations.
+    transform = compose_augmentations(
+        augment=augment,
+        standardize=standardize,
+        normalizer=normalizer
+    )
+
     def parser(record):
         """Each item in args is an array with one item, as the dareblopy reader
         returns items in batches and we have set our batch_size = 1 for
@@ -838,10 +907,8 @@ def get_tfrecord_parser(
             if decode_images:
                 features['image_raw'] = _decode_image(
                     img,
-                    img_type,
-                    standardize,
-                    normalizer,
-                    augment
+                    img_type=img_type,
+                    transform=transform
                 )
             else:
                 features['image_raw'] = img
@@ -1065,6 +1132,14 @@ def interleave(
             infinite=infinite
         )
         sampler_iter = iter(random_sampler)
+    
+    # Compose augmentation transformations
+    transform_fn = compose_augmentations(
+        augment=augment, 
+        standardize=standardize,
+        normalizer=normalizer,
+        transform=transform
+    )
 
     # Worker to decode images and process records
     def threading_worker(record):
@@ -1072,10 +1147,7 @@ def interleave(
         record[0] = _decode_image(
             record[0],  # Image is the first returned variable
             img_type=img_type,
-            standardize=standardize,
-            normalizer=normalizer,
-            augment=augment,
-            transform=transform,
+            transform=transform_fn,
             device=device
         )
         return record
