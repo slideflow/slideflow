@@ -197,7 +197,7 @@ class TestSuite:
             )
 
         # Create single hyperparameter combination
-        hp = sf.model.ModelParams(
+        hp = sf.ModelParams(
             tile_px=self.tile_px,
             tile_um=1208,
             epochs=1,
@@ -733,8 +733,8 @@ class TestSuite:
             if not passed:
                 test.fail()
 
-    def test_clam(self) -> None:
-        """Test the CLAM submodule."""
+    def test_mil(self) -> None:
+        """Test the MIL submodule."""
 
         assert self.project is not None
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
@@ -744,10 +744,10 @@ class TestSuite:
             skip_test = False
             import torch  # noqa F401
         except ImportError:
-            log.warning("Unable to import pytorch, skipping CLAM test")
+            log.warning("Unable to import pytorch, skipping MIL test")
             skip_test = True
 
-        with TaskWrapper("Testing CLAM feature export...") as test:
+        with TaskWrapper("Testing MIL feature export...") as test:
             if skip_test:
                 test.skip()
             else:
@@ -759,17 +759,21 @@ class TestSuite:
                 if not passed:
                     test.fail()
 
-        with TaskWrapper("Testing CLAM training...") as test:
+        with TaskWrapper("Testing MIL training...") as test:
             if skip_test:
                 test.skip()
             else:
                 try:
                     dataset = self.project.dataset(self.tile_px, 1208)
-                    self.project.train_clam(
-                        'TEST_CLAM',
-                        join(self.project.root, 'clam'),
-                        'category1',
-                        dataset
+                    train_dts, val_dts = dataset.split(val_fraction=0.3)
+                    import slideflow.mil
+                    config = sf.mil.mil_config('clam_sb')
+                    self.project.train_mil(
+                        config,
+                        train_dts,
+                        val_dts,
+                        outcomes='category1',
+                        bags=join(self.project.root, 'clam'),
                     )
                 except Exception as e:
                     log.error(traceback.format_exc())
@@ -787,7 +791,7 @@ class TestSuite:
         heatmap: bool = True,
         activations: bool = True,
         predict_wsi: bool = True,
-        clam: bool = True,
+        mil: bool = True,
         slide_threads: Optional[int] = None
     ) -> None:
         """Perform and report results of all available testing."""
@@ -817,8 +821,8 @@ class TestSuite:
                 self.test_activations_and_mosaic()
             if predict_wsi:
                 self.test_predict_wsi()
-            if clam:
-                self.test_clam()
+            if mil:
+                self.test_mil()
         end = time.time()
         m, s = divmod(end-start, 60)
         print(f'Tests complete. Time: {int(m)} min, {s:.2f} sec')

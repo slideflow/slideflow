@@ -13,7 +13,7 @@ from ..utils import EasyDict
 class Texture:
     """Class to assist with creation and render of an OpenGL texture."""
 
-    def __init__(self, *, image=None, width=None, height=None, channels=None, dtype=None, bilinear=True, mipmap=True):
+    def __init__(self, *, image=None, width=None, height=None, channels=None, dtype=None, bilinear=True, mipmap=True, maxlevel=None):
         self.gl_id = None
         self.bilinear = bilinear
         self.mipmap = mipmap
@@ -43,6 +43,8 @@ class Texture:
             gl.glTexParameterf(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
             gl.glTexParameterf(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR if self.bilinear else gl.GL_NEAREST)
             gl.glTexParameterf(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR_MIPMAP_LINEAR if self.mipmap else gl.GL_NEAREST)
+            if maxlevel:
+                gl.glTexParameterf(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAX_LEVEL, maxlevel)
         self.update(image)
 
     def delete(self):

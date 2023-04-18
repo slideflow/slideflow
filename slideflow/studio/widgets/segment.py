@@ -4,17 +4,25 @@ import imgui
 import numpy as np
 import cellpose
 import cellpose.models
+from os.path import join, dirname, abspath
 from functools import partial
 from threading import Thread
 from slideflow.slide.utils import draw_roi
 from slideflow.cellseg import segment_slide, Segmentation
+
+from ._utils import Widget
 from ..gui import imgui_utils
 
 
-class SegmentWidget:
+class SegmentWidget(Widget):
+
+    tag = 'segment'
+    description = 'Cell Segmentation'
+    icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_segment.png')
+    icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_segment_highlighted.png')
+
     def __init__(self, viz):
         self.viz                    = viz
-        self.header                 = "Cellpose"
         self.alpha                  = 1
         self.downscale              = 1
         self.show_advanced          = False
@@ -26,11 +34,10 @@ class SegmentWidget:
         self.segmentation           = None
         self.diameter_microns       = 10
         self.overlay                = None
-        self.content_height         = 0
         self.show_mask              = True
         self.show_gradXY            = False
         self.show_centroid          = False
-        self.overlay_background     = True
+        self.overlay_background     = False
         self.tile_px                = 512
         self.save_flow              = False
 
@@ -74,6 +81,9 @@ class SegmentWidget:
     @property
     def mpp(self):
         return self.diameter_microns / self.diam_mean
+
+    def close(self):
+        pass
 
     def formatted_slide_levels(self):
         if self.viz.wsi:
@@ -301,28 +311,14 @@ class SegmentWidget:
         kind = 'mask' if self.overlay_background else 'outline'
         self.viz.viewer.set_overlay_alpha(partial(self.set_image_alpha, alpha=self.alpha, kind=kind))
 
-    @imgui_utils.scoped_by_object_id
-    def __call__(self, show=True):
+    def draw_config(self):
         viz = self.viz
         has_viewer = (viz.viewer is not None)
 
-        if not show:
-            self.content_height = 0
-            return
-
-        # Set up settings interface.
-        child_width = imgui.get_content_region_max()[0] / 3 - viz.spacing
-        child_height = imgui.get_text_line_height_with_spacing() * 6 + viz.spacing * 2
-        self.content_height = child_height + viz.spacing
-
-        # --- Configuration ---------------------------------------------------
         with imgui_utils.grayed_out(not has_viewer):
-            imgui.begin_child('##config_child', width=child_width, height=child_height, border=True)
-            imgui.text("Model & cell diameter")
-            imgui.separator()
 
             ## Cell segmentation model.
-            with imgui_utils.item_width(child_width - viz.spacing * 2):
+            with imgui_utils.item_width(- 1 - viz.spacing * 2):
                 _clicked, self._selected_model_idx = imgui.combo(
                     "##cellpose_model",
                     self._selected_model_idx,
@@ -340,7 +336,7 @@ class SegmentWidget:
             imgui.text('um')
 
             # Preview segmentation.
-            if imgui_utils.button("Preview", width=viz.button_w):
+            if viz.sidebar.full_button("Preview", enabled=has_viewer and not self.is_thread_running()):
                 self._segment_toast = viz.create_toast(
                     title=f"Segmenting current view",
                     icon='info',
@@ -348,57 +344,45 @@ class SegmentWidget:
                     spinner=True)
                 self._thread = Thread(target=self.segment_slide, args=(True,))
                 self._thread.start()
+            imgui_utils.vertical_break()
 
-            imgui.end_child()
+    def draw_segment(self):
+        viz = self.viz
+        has_viewer = (viz.viewer is not None)
+        has_seg = self.segmentation is not None
 
-        # --- Whole-slide segmentation ----------------------------------------
-        imgui.same_line()
         with imgui_utils.grayed_out(not has_viewer or self.diam_radio_auto):
-            imgui.begin_child('##segment_child', width=child_width, height=child_height, border=True)
-            imgui.text("Whole-slide segmentation")
-            imgui.separator()
-
             _, self.otsu = imgui.checkbox('Otsu threshold', self.otsu)
             _, self.save_flow = imgui.checkbox('Save flows', self.save_flow)
-            _, self.show_advanced = imgui.checkbox('Show advanced', self.show_advanced)
-
-            if self.show_advanced:
-                with imgui_utils.item_width(viz.font_size*3):
-                    _, self.tile_px = imgui.input_int('Window', self.tile_px, step=0)
-                imgui.same_line()
-                _, self.tile = imgui.checkbox('Tile', self.tile)
-                with imgui_utils.item_width(viz.font_size*2):
-                    _, self.downscale = imgui.input_int('Downscale factor', self.downscale, step=0)
-                _, self.spawn_workers = imgui.checkbox('Enable spawn workers', self.spawn_workers)
 
             # WSI segmentation.
-            if (imgui_utils.button("Segment", width=viz.button_w)
-               and not self.is_thread_running()
-               and has_viewer
-               and not self.diam_radio_auto):
-                self._segment_toast = viz.create_toast(
-                    title=f"Segmenting whole-slide image",
-                    icon='info',
-                    sticky=True,
-                    spinner=True)
-                self._thread = Thread(target=self.segment_slide)
-                self._thread.start()
+            with imgui_utils.item_width(imgui.get_content_region_max()[0]/2 - viz.spacing):
+                if (viz.sidebar.full_button("Segment", enabled=has_viewer and not self.is_thread_running())
+                and not self.is_thread_running()
+                and has_viewer
+                and not self.diam_radio_auto):
+                    self._segment_toast = viz.create_toast(
+                        title=f"Segmenting whole-slide image",
+                        icon='info',
+                        sticky=True,
+                        spinner=True)
+                    self._thread = Thread(target=self.segment_slide)
+                    self._thread.start()
 
             # Export
-            imgui.same_line(viz.font_size*6)
-            with imgui_utils.grayed_out(self.segmentation is None):
-                if imgui_utils.button("Export", width=viz.button_w) and self.segmentation is not None:
-                    filename = f'{viz.wsi.name}-masks.zip'
-                    self.segmentation.save(filename, centroids=True)
-                    viz.create_toast(f"Exported masks and centroids to {filename}", icon='success')
-            imgui.end_child()
+            with imgui_utils.item_width(imgui.get_content_region_max()[0]/2 - viz.spacing):
+                with imgui_utils.grayed_out(not has_seg):
+                    if viz.sidebar.full_button("Export", enabled=(has_seg)) and has_seg:
+                        filename = f'{viz.wsi.name}-masks.zip'
+                        self.segmentation.save(filename, centroids=True)
+                        viz.create_toast(f"Exported masks and centroids to {filename}", icon='success')
+            imgui_utils.vertical_break()
 
-        # --- View ------------------------------------------------------------
-        imgui.same_line()
+    def draw_view_controls(self):
+        viz = self.viz
+        has_viewer = (viz.viewer is not None)
+
         with imgui_utils.grayed_out(self.segmentation is None):
-            imgui.begin_child('##view_child', width=child_width, height=child_height, border=True)
-            imgui.text("View controls")
-            imgui.separator()
 
             # Show segmentation mask
             _mask_clicked, self.show_mask = imgui.checkbox('Mask', self.show_mask)
@@ -455,7 +439,7 @@ class SegmentWidget:
                 self.show_mask = True
                 self.show_gradXY = False
                 self.show_centroid = False
-                self.overlay_background = True
+                self.overlay_background = False
                 self.alpha = 1
                 self.refresh_segmentation_view()
 
@@ -485,5 +469,34 @@ class SegmentWidget:
                 if self.segmentation is not None:
                     self.refresh_segmentation_view()
                     self.update_transparency()
+        imgui_utils.vertical_break()
 
-        imgui.end_child()
+    def draw_advanced_settings(self):
+        viz = self.viz
+
+        with imgui_utils.item_width(viz.font_size*3):
+            _, self.tile_px = imgui.input_int('Window', self.tile_px, step=0)
+        imgui.same_line()
+        _, self.tile = imgui.checkbox('Tile', self.tile)
+        with imgui_utils.item_width(viz.font_size*2):
+            _, self.downscale = imgui.input_int('Downscale factor', self.downscale, step=0)
+        _, self.spawn_workers = imgui.checkbox('Enable spawn workers', self.spawn_workers)
+
+    @imgui_utils.scoped_by_object_id
+    def __call__(self, show=True):
+        viz = self.viz
+
+        if show:
+            viz.header("Cell Segmentation")
+
+            if viz.collapsing_header('Model & cell diameter', default=True):
+                self.draw_config()
+
+            if viz.collapsing_header('Whole-slide segmentation', default=True):
+                self.draw_segment()
+
+            if viz.collapsing_header('View controls', default=False):
+                self.draw_view_controls()
+
+            if viz.collapsing_header('Advanced', default=False):
+                self.draw_advanced_settings()

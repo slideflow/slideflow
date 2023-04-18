@@ -44,7 +44,9 @@ Methods
 .. autofunction:: slideflow.Dataset.load_annotations
 .. autofunction:: slideflow.Dataset.load_indices
 .. autofunction:: slideflow.Dataset.manifest
+.. autofunction:: slideflow.Dataset.manifest_histogram
 .. autofunction:: slideflow.Dataset.patients
+.. autofunction:: slideflow.Dataset.pt_files
 .. autofunction:: slideflow.Dataset.read_tfrecord_by_location
 .. autofunction:: slideflow.Dataset.remove_filter
 .. autofunction:: slideflow.Dataset.rebuild_index

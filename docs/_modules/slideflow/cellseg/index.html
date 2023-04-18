@@ -1,0 +1,1126 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>slideflow.cellseg &mdash; slideflow 2.0.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex/" />
+    <link rel="search" title="Search" href="../../../search/" />
+  <!-- Google Analytics -->
+
+  <!-- End Google Analytics -->
+
+
+
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+
+
+
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+
+
+
+
+
+                <div class="version">
+                  2.0
+                </div>
+
+
+
+
+
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+          </div>
+
+
+
+
+
+
+
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+</ul>
+
+
+
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+
+      <li>
+        <a href="../../../">
+
+            Docs
+
+        </a> &gt;
+      </li>
+
+
+          <li><a href="../../">Module code</a> &gt;</li>
+
+      <li>slideflow.cellseg</li>
+
+
+      <li class="pytorch-breadcrumbs-aside">
+
+      </li>
+
+  </ul>
+
+
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+
+
+          <div class="rst-content">
+
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+
+  <h1>Source code for slideflow.cellseg</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">rasterio</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">cellpose</span>
+<span class="kn">import</span> <span class="nn">cellpose.models</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">import</span> <span class="nn">zarr</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">shapely.affinity</span> <span class="k">as</span> <span class="nn">sa</span>
+<span class="kn">from</span> <span class="nn">queue</span> <span class="kn">import</span> <span class="n">Queue</span>
+<span class="kn">from</span> <span class="nn">numcodecs</span> <span class="kn">import</span> <span class="n">Blosc</span>
+<span class="kn">from</span> <span class="nn">matplotlib.colors</span> <span class="kn">import</span> <span class="n">to_rgb</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">ImageDraw</span>
+<span class="kn">from</span> <span class="nn">cellpose.utils</span> <span class="kn">import</span> <span class="n">outlines_list</span>
+<span class="kn">from</span> <span class="nn">cellpose.models</span> <span class="kn">import</span> <span class="n">Cellpose</span>
+<span class="kn">from</span> <span class="nn">cellpose</span> <span class="kn">import</span> <span class="n">transforms</span><span class="p">,</span> <span class="n">plot</span><span class="p">,</span> <span class="n">dynamics</span>
+<span class="kn">from</span> <span class="nn">slideflow.slide.utils</span> <span class="kn">import</span> <span class="n">draw_roi</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">batch_generator</span><span class="p">,</span> <span class="n">log</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">seg_utils</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span><span class="p">,</span> <span class="n">TaskID</span>
+    <span class="kn">import</span> <span class="nn">shapely.geometry</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="Segmentation"><a class="viewcode-back" href="../../../slideflow_cellseg/#slideflow.cellseg.Segmentation">[docs]</a><span class="k">class</span> <span class="nc">Segmentation</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">masks</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">flows</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">styles</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">diams</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">wsi_dim</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">wsi_offset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Organizes a collection of cell segmentation masks for a slide.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            masks (np.ndarray): Array of masks, dtype int32, where 0 represents</span>
+<span class="sd">                non-segmented background, and each segmented mask is represented</span>
+<span class="sd">                by unique increasing integers.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            slide (slideflow.WSI): If provided, ``Segmentation`` can coordinate</span>
+<span class="sd">                extracting tiles at mask centroids. Defaults to None.</span>
+<span class="sd">            flows (np.ndarray): Array of flows, dtype float32. Defaults to None.</span>
+<span class="sd">            wsi_dim (tuple(int, int)): Size of ``masks`` in the slide</span>
+<span class="sd">                pixel space (highest magnification). Used to align the mask</span>
+<span class="sd">                array to a corresponding slide. Required for calculating</span>
+<span class="sd">                centroids. Defaults to None.</span>
+<span class="sd">            wsi_offset (tuple(int, int)): Top-left starting location for</span>
+<span class="sd">                ``masks``, in slide pixel space (highest magnification).</span>
+<span class="sd">                Used to align the mask array to a corresponding slide.</span>
+<span class="sd">                Required for calculating centroids. Defaults to None.</span>
+<span class="sd">            styles (np.ndarray): Array of styles, currently ignored.</span>
+<span class="sd">            diams (np.ndarray): Array of diameters, currently ignored.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">masks</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;First argument (masks) must be a numpy array.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slide</span> <span class="o">=</span> <span class="n">slide</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">masks</span> <span class="o">=</span> <span class="n">masks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flows</span> <span class="o">=</span> <span class="n">flows</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_outlines</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_centroids</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wsi_dim</span> <span class="o">=</span> <span class="n">wsi_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wsi_offset</span> <span class="o">=</span> <span class="n">wsi_offset</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Segmentation&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Alternate class initializer; load a saved Segmentation from *.zip.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): Path to *.zip containing saved Segmentation, as created</span>
+<span class="sd">                through :meth:`slideflow.cellseg.Segmentation.save`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">loaded</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;masks&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">loaded</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to load &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;; &#39;masks&#39; index not found.&quot;</span><span class="p">)</span>
+        <span class="n">flows</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="s1">&#39;flows&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">loaded</span> <span class="k">else</span> <span class="n">loaded</span><span class="p">[</span><span class="s1">&#39;flows&#39;</span><span class="p">]</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">slide</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">masks</span><span class="o">=</span><span class="n">loaded</span><span class="p">[</span><span class="s1">&#39;masks&#39;</span><span class="p">],</span> <span class="n">flows</span><span class="o">=</span><span class="n">flows</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">wsi_dim</span> <span class="o">=</span> <span class="n">loaded</span><span class="p">[</span><span class="s1">&#39;wsi_dim&#39;</span><span class="p">]</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">wsi_offset</span> <span class="o">=</span> <span class="n">loaded</span><span class="p">[</span><span class="s1">&#39;wsi_offset&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;centroids&#39;</span> <span class="ow">in</span> <span class="n">loaded</span><span class="p">:</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">_centroids</span> <span class="o">=</span> <span class="n">loaded</span><span class="p">[</span><span class="s1">&#39;centroids&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">obj</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">outlines</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate and return mask outlines as ``np.ndarray``.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlines</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calculate_outlines</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlines</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">wsi_ratio</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ratio of WSI base dimension to the mask shape.</span>
+
+<span class="sd">        Returns `None` if ``wsi_dim`` was not set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_dim</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">apply_rois</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">annpolys</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;shapely.geometry.Polygon&quot;</span><span class="p">]</span>
+    <span class="p">)</span>  <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply regions of interest (ROIs), excluding masks outside ROIs.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            scale (float): ROI scale (roi size / WSI base dimension size).</span>
+<span class="sd">            annpolys (list(``shapely.geometry.Polygon``)): List of ROI</span>
+<span class="sd">                polygons, as available in ``slideflow.WSI.annPolys``.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">roi_seg_scale</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_ratio</span>
+        <span class="n">scaled_polys</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">sa</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span>
+                <span class="n">poly</span><span class="p">,</span>
+                <span class="n">xfact</span><span class="o">=</span><span class="n">roi_seg_scale</span><span class="p">,</span>
+                <span class="n">yfact</span><span class="o">=</span><span class="n">roi_seg_scale</span><span class="p">,</span>
+                <span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="p">)</span> <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="n">annpolys</span>
+        <span class="p">]</span>
+        <span class="n">roi_seg_mask</span> <span class="o">=</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">rasterize</span><span class="p">(</span>
+            <span class="n">scaled_polys</span><span class="p">,</span>
+            <span class="n">out_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+            <span class="n">all_touched</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">masks</span> <span class="o">*=</span> <span class="n">roi_seg_mask</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">calculate_centroids</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">centroids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wsi_dim</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate and return mask centroids.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            wsi_dim (bool): Convert centroids from mask space to WSI space.</span>
+<span class="sd">                Requires that ``wsi_dim`` was provided during initialization.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A ``np.ndarray`` with shape ``(2, num_masks)``.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centroids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calculate_centroids</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">wsi_dim</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_dim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unable to calculate wsi_dim for centroids - &quot;</span>
+                                 <span class="s2">&quot;wsi_dim is not set.&quot;</span><span class="p">)</span>
+            <span class="n">ratio</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_dim</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_centroids</span> <span class="o">*</span> <span class="n">ratio</span><span class="p">)[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_offset</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centroids</span>
+
+    <span class="k">def</span> <span class="nf">_draw_centroid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">):</span>
+        <span class="n">pil_img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+        <span class="n">draw</span> <span class="o">=</span> <span class="n">ImageDraw</span><span class="o">.</span><span class="n">Draw</span><span class="p">(</span><span class="n">pil_img</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">centroids</span><span class="p">():</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">draw</span><span class="o">.</span><span class="n">ellipse</span><span class="p">((</span><span class="n">x</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="n">y</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="n">x</span><span class="o">+</span><span class="mi">3</span><span class="p">,</span> <span class="n">y</span><span class="o">+</span><span class="mi">3</span><span class="p">),</span> <span class="n">fill</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">pil_img</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">calculate_centroids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate centroids.</span>
+
+<span class="sd">        Centroid values are buffered into ``Segmentation._centroids`` to</span>
+<span class="sd">        reduce unnecessary recalculations.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            force (bool): Recalculate centroids, even if calculated before.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centroids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">mask_s</span> <span class="o">=</span> <span class="n">seg_utils</span><span class="o">.</span><span class="n">sparse_mask</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_centroids</span> <span class="o">=</span> <span class="n">seg_utils</span><span class="o">.</span><span class="n">get_sparse_centroid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">,</span> <span class="n">mask_s</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">calculate_outlines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate mask outlines.</span>
+
+<span class="sd">        Mask outlines are buffered into ``Segmentation._outlines`` to</span>
+<span class="sd">        reduce unnecessary recalculations.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            force (bool): Recalculate outlines, even if calculated before.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlines</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_outlines</span> <span class="o">=</span> <span class="n">outlines_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">centroid_to_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;green&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Render an image with the location of all centroids as a point.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            color (str): Centroid color. Defaults to &#39;green&#39;.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_centroid</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">extract_centroids</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">tile_px</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a generator which extracts tiles from a slide at mask centroids.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            slide (str): Path to a slide.</span>
+<span class="sd">            tile_px (int): Height/width of tile to extract at centroids.</span>
+<span class="sd">                Defaults to 128.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A generator which yields a numpy array, with shape</span>
+<span class="sd">                ``(tile_px, tile_px, 3)``, at each mask centroid.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">wsi_reader</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
+        <span class="n">factor</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">def</span> <span class="nf">generator</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centroids</span><span class="p">:</span>
+                <span class="n">cf</span> <span class="o">=</span> <span class="n">c</span> <span class="o">*</span> <span class="n">factor</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_offset</span>
+                <span class="k">yield</span> <span class="n">reader</span><span class="o">.</span><span class="n">read_from_pyramid</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">cf</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">tile_px</span><span class="o">/</span><span class="mi">2</span><span class="p">),</span> <span class="n">cf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">tile_px</span><span class="o">/</span><span class="mi">2</span><span class="p">)),</span>
+                    <span class="p">(</span><span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">),</span>
+                    <span class="p">(</span><span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">),</span>
+                    <span class="n">convert</span><span class="o">=</span><span class="s1">&#39;numpy&#39;</span><span class="p">,</span>
+                    <span class="n">flatten</span><span class="o">=</span><span class="kc">True</span>
+                <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">generator</span>
+
+    <span class="k">def</span> <span class="nf">mask_to_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">centroid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;cyan&#39;</span><span class="p">,</span> <span class="n">centroid_color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Render an image of all masks.</span>
+
+<span class="sd">        Masks are rendered on a black background.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            centroid (bool): Include centroids as points on the image.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            color (str): Color of the masks. Defaults to &#39;cyan&#39;.</span>
+<span class="sd">            centroid_color (str): Color of centroid points. Defaults to &#39;green&#39;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.ndarray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">color</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">c</span> <span class="o">*</span> <span class="mi">255</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">to_rgb</span><span class="p">(</span><span class="n">color</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">color</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="n">img</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">color</span>
+        <span class="k">if</span> <span class="n">centroid</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_centroid</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">centroid_color</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">img</span>
+
+    <span class="k">def</span> <span class="nf">outline_to_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">centroid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">centroid_color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Render an image with the outlines of all masks.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            centroid (bool): Include centroids as points on the image.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            color (str): Color of the mask outlines. Defaults to &#39;red&#39;.</span>
+<span class="sd">            centroid_color (str): Color of centroid points. Defaults to &#39;green&#39;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.ndarray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">empty</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">draw_roi</span><span class="p">(</span><span class="n">empty</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">outlines</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">centroid</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_centroid</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">centroid_color</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">img</span>
+
+    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">centroids</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">flows</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save segmentation masks and metadata to \*.zip.</span>
+
+<span class="sd">        A :class:`slideflow.cellseg.Segmentation` object can be loaded from</span>
+<span class="sd">        this file with ``.load()``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (str): Destination filename (ends with \*.zip)</span>
+<span class="sd">            centroids (bool): Save centroid locations.</span>
+<span class="sd">            flows (bool): Save flows.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;zip&#39;</span><span class="p">):</span>
+            <span class="n">filename</span> <span class="o">+=</span> <span class="s1">&#39;.zip&#39;</span>
+        <span class="n">save_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">masks</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">,</span>
+            <span class="n">compressor</span><span class="o">=</span><span class="n">Blosc</span><span class="p">(</span>
+                <span class="n">cname</span><span class="o">=</span><span class="s1">&#39;zstd&#39;</span><span class="p">,</span> <span class="n">clevel</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="n">Blosc</span><span class="o">.</span><span class="n">BITSHUFFLE</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">centroids</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calculate_centroids</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centroids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">centroids</span><span class="p">:</span>
+            <span class="n">save_dict</span><span class="p">[</span><span class="s1">&#39;centroids&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centroids</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flows</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">flows</span><span class="p">:</span>
+            <span class="n">save_dict</span><span class="p">[</span><span class="s1">&#39;flows&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flows</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">save_dict</span><span class="p">[</span><span class="s1">&#39;wsi_dim&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_dim</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_offset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">save_dict</span><span class="p">[</span><span class="s1">&#39;wsi_offset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_offset</span>
+        <span class="n">seg_utils</span><span class="o">.</span><span class="n">save_zarr_compressed</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="o">**</span><span class="n">save_dict</span><span class="p">)</span></div>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+
+<span class="k">def</span> <span class="nf">follow_flows</span><span class="p">(</span><span class="n">dP_and_cellprob</span><span class="p">,</span> <span class="n">cp_thresh</span><span class="p">,</span> <span class="n">gpus</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">dP</span><span class="p">,</span> <span class="n">cellprob</span> <span class="o">=</span> <span class="n">dP_and_cellprob</span>
+    <span class="k">if</span> <span class="n">gpus</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_id</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">current_process</span><span class="p">()</span><span class="o">.</span><span class="n">_identity</span>
+        <span class="n">proc</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">_id</span><span class="p">)</span> <span class="k">else</span> <span class="n">_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;device&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;cuda:</span><span class="si">{</span><span class="n">gpus</span><span class="p">[</span><span class="n">proc</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">gpus</span><span class="p">)]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">cellprob</span> <span class="o">&gt;</span> <span class="n">cp_thresh</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">dynamics</span><span class="o">.</span><span class="n">follow_flows</span><span class="p">(</span>
+            <span class="n">dP</span> <span class="o">*</span> <span class="p">(</span><span class="n">cellprob</span> <span class="o">&gt;</span> <span class="n">cp_thresh</span><span class="p">)</span> <span class="o">/</span> <span class="mf">5.</span><span class="p">,</span>
+            <span class="n">use_gpu</span><span class="o">=</span><span class="p">(</span><span class="n">gpus</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">remove_bad_flow</span><span class="p">(</span><span class="n">mask_and_dP</span><span class="p">,</span> <span class="n">flow_threshold</span><span class="p">,</span> <span class="n">gpus</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">mask</span><span class="p">,</span> <span class="n">dP</span> <span class="o">=</span> <span class="n">mask_and_dP</span>
+    <span class="k">if</span> <span class="n">gpus</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_id</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">current_process</span><span class="p">()</span><span class="o">.</span><span class="n">_identity</span>
+        <span class="n">proc</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">_id</span><span class="p">)</span> <span class="k">else</span> <span class="n">_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;device&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;cuda:</span><span class="si">{</span><span class="n">gpus</span><span class="p">[</span><span class="n">proc</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">gpus</span><span class="p">)]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">flow_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">flow_threshold</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">dynamics</span><span class="o">.</span><span class="n">remove_bad_flow_masks</span><span class="p">(</span>
+            <span class="n">mask</span><span class="p">,</span>
+            <span class="n">dP</span><span class="p">,</span>
+            <span class="n">threshold</span><span class="o">=</span><span class="n">flow_threshold</span><span class="p">,</span>
+            <span class="n">use_gpu</span><span class="o">=</span><span class="p">(</span><span class="n">gpus</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">mask</span>
+
+
+<span class="k">def</span> <span class="nf">resize_and_clean_mask</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">target_size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Resizing</span>
+    <span class="n">recast</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">16</span><span class="o">-</span><span class="mi">1</span>
+    <span class="k">if</span> <span class="n">target_size</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">recast</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
+            <span class="n">mask</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">target_size</span><span class="p">,</span> <span class="n">target_size</span><span class="p">),</span>
+            <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="n">recast</span><span class="p">:</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">dynamics</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">fill_holes_and_remove_small_masks</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">min_size</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">uint32</span> <span class="ow">and</span> <span class="n">mask</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">==</span> <span class="mi">65535</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;more than 65535 masks in image, masks returned as np.uint32&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mask</span>
+
+
+<span class="k">def</span> <span class="nf">get_empty_mask</span><span class="p">(</span><span class="n">shape</span><span class="p">):</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="o">*</span><span class="n">shape</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mask</span><span class="p">,</span> <span class="n">p</span>
+
+
+<span class="k">def</span> <span class="nf">normalize_img</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+    <span class="n">i99</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="mf">0.99</span><span class="p">)</span>
+    <span class="n">i1</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="n">i1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">i99</span> <span class="o">-</span> <span class="n">i1</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">process_image</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">nchan</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">transforms</span><span class="o">.</span><span class="n">convert_image</span><span class="p">(</span>
+        <span class="n">img</span><span class="p">,</span>
+        <span class="n">channels</span><span class="o">=</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span>
+        <span class="n">channel_axis</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">z_axis</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">do_3D</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">normalize</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">invert</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">nchan</span><span class="o">=</span><span class="n">nchan</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">process_batch</span><span class="p">(</span><span class="n">img_batch</span><span class="p">):</span>
+    <span class="c1"># Ensure Ly and Lx are divisible by 4</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="p">(</span><span class="n">img_batch</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">%</span> <span class="mi">16</span> <span class="ow">or</span> <span class="n">img_batch</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">%</span> <span class="mi">16</span><span class="p">)</span>
+
+    <span class="c1"># Normalize and permute axes.</span>
+    <span class="n">img_batch</span> <span class="o">=</span> <span class="n">normalize_img</span><span class="p">(</span><span class="n">img_batch</span><span class="p">)</span>
+    <span class="n">img_batch</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="n">img_batch</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">img_batch</span>
+
+
+<span class="k">def</span> <span class="nf">get_masks</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">cp_thresh</span><span class="p">):</span>
+    <span class="n">p</span><span class="p">,</span> <span class="n">inds</span><span class="p">,</span> <span class="n">cellprob</span> <span class="o">=</span> <span class="n">args</span>
+    <span class="k">if</span> <span class="n">inds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mask</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">get_empty_mask</span><span class="p">(</span><span class="n">cellprob</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">dynamics</span><span class="o">.</span><span class="n">get_masks</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">iscell</span><span class="o">=</span><span class="p">(</span><span class="n">cellprob</span> <span class="o">&gt;</span> <span class="n">cp_thresh</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">mask</span><span class="p">,</span> <span class="n">p</span>
+
+
+<span class="k">def</span> <span class="nf">tile_processor</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">nchan</span><span class="p">):</span>
+    <span class="n">tiles</span> <span class="o">=</span> <span class="n">batch_generator</span><span class="p">(</span>
+        <span class="n">slide</span><span class="o">.</span><span class="n">torch</span><span class="p">(</span>
+            <span class="n">incl_loc</span><span class="o">=</span><span class="s1">&#39;grid&#39;</span><span class="p">,</span>
+            <span class="n">num_threads</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+            <span class="n">to_tensor</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">grayspace_fraction</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">lazy_iter</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">),</span>
+        <span class="n">batch_size</span>
+    <span class="p">)</span>
+    <span class="k">for</span> <span class="n">tile_dict</span> <span class="ow">in</span> <span class="n">tiles</span><span class="p">:</span>
+        <span class="n">imgs</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tile_dict</span><span class="p">]</span>
+        <span class="n">imgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">process_image</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">nchan</span><span class="p">)</span> <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">imgs</span><span class="p">])</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="p">[(</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">],</span> <span class="n">t</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tile_dict</span><span class="p">]</span>
+        <span class="n">q</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">imgs</span><span class="p">,</span> <span class="n">c</span><span class="p">))</span>
+    <span class="n">q</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="segment_slide"><a class="viewcode-back" href="../../../slideflow_cellseg/#slideflow.cellseg.segment_slide">[docs]</a><span class="k">def</span> <span class="nf">segment_slide</span><span class="p">(</span>
+    <span class="n">slide</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;cellpose.models.Cellpose&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;cyto2&#39;</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">diam_um</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">diam_mean</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">window_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">downscale</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="n">gpus</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,),</span>
+    <span class="n">spawn_workers</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;Progress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">pb_tasks</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="s2">&quot;TaskID&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">show_progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_flow</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">cp_thresh</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">flow_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span><span class="p">,</span>
+    <span class="n">interp</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">tile</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Segmentation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Segment cells in a whole-slide image, returning masks and centroids.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        slide (str, :class:`slideflow.WSI`): Whole-slide image. May be a path</span>
+<span class="sd">            (str) or WSI object (`slideflow.WSI`).</span>
+
+<span class="sd">    Keyword arguments:</span>
+<span class="sd">        model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use</span>
+<span class="sd">            for cell segmentation. May be any valid cellpose model. Defaults</span>
+<span class="sd">            to &#39;cyto2&#39;.</span>
+<span class="sd">        diam_um (float, optional): Cell diameter to detect, in microns.</span>
+<span class="sd">            Determines tile extraction microns-per-pixel resolution to match</span>
+<span class="sd">            the given pixel diameter specified by `diam_mean`. Not used if</span>
+<span class="sd">            `slide` is a `sf.WSI` object.</span>
+<span class="sd">        diam_mean (int, optional): Cell diameter to detect, in pixels (without</span>
+<span class="sd">            image resizing). If None, uses Cellpose defaults (17 for the</span>
+<span class="sd">            &#39;nuclei&#39; model, 30 for all others).</span>
+<span class="sd">        window_size (int): Window size, in pixels, at which to segment cells.</span>
+<span class="sd">            Not used if slide is a `sf.WSI` object.</span>
+<span class="sd">        downscale (float): Factor by which to downscale generated masks after</span>
+<span class="sd">            calculation. Defaults to None (keep masks at original size).</span>
+<span class="sd">        batch_size (int): Batch size for cell segmentation. Defaults to 8.</span>
+<span class="sd">        gpus (int, list(int)): GPUs to use for cell segmentation.</span>
+<span class="sd">            Defaults to 0 (first GPU).</span>
+<span class="sd">        spawn_workers (bool): Enable spawn-based multiprocessing. Increases</span>
+<span class="sd">            cell segmentation speed at the cost of higher memory utilization.</span>
+<span class="sd">        pb (:class:`rich.progress.Progress`, optional): Progress bar instance.</span>
+<span class="sd">            Used for external progress bar tracking. Defaults to None.</span>
+<span class="sd">        pb_tasks (list(:class:`rich.progress.TaskID`)): Progress bar tasks.</span>
+<span class="sd">            Used for external progress bar tracking. Defaults to None.</span>
+<span class="sd">        show_progress (bool): Show a tqdm progress bar. Defaults to True.</span>
+<span class="sd">        save_flow (bool): Save flow values for the whole-slide image.</span>
+<span class="sd">            Increases memory utilization. Defaults to True.</span>
+<span class="sd">        cp_thresh (float): Cell probability threshold. All pixels with value</span>
+<span class="sd">            above threshold kept for masks, decrease to find more and larger</span>
+<span class="sd">            masks. Defaults to 0.</span>
+<span class="sd">        flow_threshold (float): Flow error threshold (all cells with errors</span>
+<span class="sd">            below threshold are kept). Defaults to 0.4.</span>
+<span class="sd">        interp (bool): Interpolate during 2D dynamics. Defaults to True.</span>
+<span class="sd">        tile (bool): Tiles image to decrease GPU/CPU memory usage.</span>
+<span class="sd">            Defaults to True.</span>
+<span class="sd">        verbose (bool): Verbose log output at the INFO level. Defaults to True.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        :class:`slideflow.cellseg.Segmentation`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Quiet the logger to suppress warnings of empty masks</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;cellpose&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="mi">40</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">diam_mean</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">diam_mean</span> <span class="o">=</span> <span class="mi">30</span> <span class="k">if</span> <span class="n">model</span> <span class="o">!=</span> <span class="s1">&#39;nuclei&#39;</span> <span class="k">else</span> <span class="mi">17</span>
+
+    <span class="c1"># Initial validation checks. ----------------------------------------------</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">diam_um</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;Must supply diam_um if slide is a path to a slide&quot;</span>
+        <span class="k">assert</span> <span class="n">window_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;Must supply window_size if slide is a path to a slide&quot;</span>
+        <span class="n">tile_um</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">window_size</span> <span class="o">*</span> <span class="p">(</span><span class="n">diam_um</span> <span class="o">/</span> <span class="n">diam_mean</span><span class="p">))</span>
+        <span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="n">window_size</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="n">tile_um</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">window_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">diam_um</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid argument: cannot provide window_size or diam_um &quot;</span>
+                         <span class="s2">&quot;when slide is a sf.WSI object&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">window_size</span> <span class="o">=</span> <span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span>
+        <span class="n">diam_um</span> <span class="o">=</span> <span class="n">diam_mean</span> <span class="o">*</span> <span class="p">(</span><span class="n">slide</span><span class="o">.</span><span class="n">tile_um</span><span class="o">/</span><span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">window_size</span> <span class="o">%</span> <span class="mi">16</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Window size (tile_px) must be a multiple of 16.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">downscale</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">target_size</span> <span class="o">=</span> <span class="n">window_size</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">target_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">window_size</span> <span class="o">/</span> <span class="n">downscale</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">slide</span><span class="o">.</span><span class="n">stride_div</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Whole-slide cell segmentation not configured for strides &quot;</span>
+                 <span class="sa">f</span><span class="s2">&quot;other than 1 (got: </span><span class="si">{</span><span class="n">slide</span><span class="o">.</span><span class="n">stride_div</span><span class="si">}</span><span class="s2">).&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Set up model and parameters. --------------------------------------------</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s1">&#39;cuda:0&#39;</span><span class="p">)</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Cellpose</span><span class="p">(</span><span class="n">gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">cp</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">cp</span>
+    <span class="n">cp</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+    <span class="n">cp</span><span class="o">.</span><span class="n">net</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">pretrained_model</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cpu</span><span class="o">=</span><span class="p">(</span><span class="ow">not</span> <span class="n">cp</span><span class="o">.</span><span class="n">gpu</span><span class="p">))</span>  <span class="c1"># Modify to accept different models</span>
+    <span class="n">cp</span><span class="o">.</span><span class="n">net</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+    <span class="n">rescale</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># No rescaling, as we are manually setting diameter = diam_mean</span>
+    <span class="n">mask_dim</span> <span class="o">=</span> <span class="p">(</span><span class="n">slide</span><span class="o">.</span><span class="n">stride</span> <span class="o">*</span> <span class="p">(</span><span class="n">slide</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
+                <span class="n">slide</span><span class="o">.</span><span class="n">stride</span> <span class="o">*</span> <span class="p">(</span><span class="n">slide</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
+    <span class="n">all_masks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">slide</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">target_size</span><span class="p">,</span>
+                          <span class="n">slide</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">target_size</span><span class="p">),</span>
+                         <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">save_flow</span><span class="p">:</span>
+        <span class="n">all_flows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">slide</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">target_size</span><span class="p">,</span>
+                              <span class="n">slide</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">target_size</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                             <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+    <span class="n">log_fn</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="s2">&quot;=== Segmentation parameters ===&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Diameter (px):     </span><span class="si">{</span><span class="n">diam_mean</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Diameter (um):     </span><span class="si">{</span><span class="n">diam_um</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Window size:       </span><span class="si">{</span><span class="n">window_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Target size:       </span><span class="si">{</span><span class="n">target_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Perform tiled:     </span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Slide dimensions:  </span><span class="si">{</span><span class="n">slide</span><span class="o">.</span><span class="n">dimensions</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Slide shape:       </span><span class="si">{</span><span class="n">slide</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Slide stride (px): </span><span class="si">{</span><span class="n">slide</span><span class="o">.</span><span class="n">stride</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Est. tiles:        </span><span class="si">{</span><span class="n">slide</span><span class="o">.</span><span class="n">estimated_num_tiles</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Save flow:         </span><span class="si">{</span><span class="n">save_flow</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mask dimensions:   </span><span class="si">{</span><span class="n">mask_dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mask size:         </span><span class="si">{</span><span class="n">all_masks</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log_fn</span><span class="p">(</span><span class="s2">&quot;===============================&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Processes and pools. ----------------------------------------------------</span>
+    <span class="n">tile_q</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Queue</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+    <span class="n">y_q</span> <span class="o">=</span> <span class="n">Queue</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">ctx</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>
+    <span class="n">fork_pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
+        <span class="n">batch_size</span><span class="p">,</span>
+        <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">spawn_workers</span><span class="p">:</span>
+        <span class="n">spawn_pool</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
+            <span class="mi">4</span><span class="p">,</span>
+            <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">spawn_pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+    <span class="n">proc_fn</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Process</span> <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;libvips&#39;</span> <span class="k">else</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span>
+    <span class="n">tile_process</span> <span class="o">=</span> <span class="n">proc_fn</span><span class="p">(</span>
+        <span class="n">target</span><span class="o">=</span><span class="n">tile_processor</span><span class="p">,</span>
+        <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">tile_q</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">cp</span><span class="o">.</span><span class="n">nchan</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">tile_process</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">net_runner</span><span class="p">():</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="n">tile_q</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">y_q</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="n">imgs</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">item</span>
+            <span class="n">torch_batch</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">_to_device</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span>
+            <span class="n">torch_batch</span> <span class="o">=</span> <span class="n">process_batch</span><span class="p">(</span><span class="n">torch_batch</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">tile</span><span class="p">:</span>
+                <span class="n">y</span><span class="p">,</span> <span class="n">style</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">_run_tiled</span><span class="p">(</span>
+                    <span class="n">torch_batch</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span>
+                    <span class="n">augment</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">bsize</span><span class="o">=</span><span class="mi">224</span><span class="p">,</span>
+                    <span class="n">return_conv</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">y</span><span class="p">,</span> <span class="n">style</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">network</span><span class="p">(</span><span class="n">torch_batch</span><span class="p">)</span>
+            <span class="n">y_q</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">y</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">c</span><span class="p">))</span>
+
+    <span class="n">runner</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">net_runner</span><span class="p">)</span>
+    <span class="n">runner</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+    <span class="c1"># Main loop. --------------------------------------------------------------</span>
+    <span class="n">running_max</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
+        <span class="n">tqdm_pb</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">slide</span><span class="o">.</span><span class="n">estimated_num_tiles</span><span class="p">)</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">item</span> <span class="o">=</span> <span class="n">y_q</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">y</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">item</span>
+
+        <span class="c1"># Initial preparation</span>
+        <span class="c1">#style /= (style**2).sum()**0.5</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">cellprob</span> <span class="o">=</span> <span class="n">y</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">dP</span> <span class="o">=</span> <span class="n">y</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+        <span class="k">del</span> <span class="n">y</span><span class="p">,</span> <span class="n">style</span>
+        <span class="c1">#styles = style.squeeze()</span>
+
+        <span class="c1"># Calculate flows</span>
+        <span class="n">batch_p</span><span class="p">,</span> <span class="n">batch_ind</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">spawn_pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+            <span class="n">partial</span><span class="p">(</span><span class="n">follow_flows</span><span class="p">,</span>
+                    <span class="n">niter</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">rescale</span> <span class="o">*</span> <span class="mi">200</span><span class="p">),</span>
+                    <span class="n">interp</span><span class="o">=</span><span class="n">interp</span><span class="p">,</span>
+                    <span class="n">cp_thresh</span><span class="o">=</span><span class="n">cp_thresh</span><span class="p">,</span>
+                    <span class="n">gpus</span><span class="o">=</span><span class="n">gpus</span><span class="p">),</span>
+            <span class="nb">zip</span><span class="p">([</span><span class="n">dP</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">))],</span> <span class="n">cellprob</span><span class="p">)</span>
+        <span class="p">))</span>
+
+        <span class="c1"># Calculate masks</span>
+        <span class="n">batch_masks</span><span class="p">,</span> <span class="n">batch_p</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">fork_pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+            <span class="n">partial</span><span class="p">(</span><span class="n">get_masks</span><span class="p">,</span> <span class="n">cp_thresh</span><span class="o">=</span><span class="n">cp_thresh</span><span class="p">),</span>
+            <span class="nb">zip</span><span class="p">(</span><span class="n">batch_p</span><span class="p">,</span> <span class="n">batch_ind</span><span class="p">,</span> <span class="n">cellprob</span><span class="p">)))</span>
+
+        <span class="c1"># Remove bad flow</span>
+        <span class="n">batch_masks</span> <span class="o">=</span> <span class="n">spawn_pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+            <span class="n">partial</span><span class="p">(</span><span class="n">remove_bad_flow</span><span class="p">,</span> <span class="n">flow_threshold</span><span class="o">=</span><span class="n">flow_threshold</span><span class="p">,</span> <span class="n">gpus</span><span class="o">=</span><span class="n">gpus</span><span class="p">),</span>
+            <span class="nb">zip</span><span class="p">(</span><span class="n">batch_masks</span><span class="p">,</span> <span class="p">[</span><span class="n">dP</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">))]))</span>
+
+        <span class="c1"># Resize masks and clean (remove small masks/holes)</span>
+        <span class="n">batch_masks</span> <span class="o">=</span> <span class="n">fork_pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+            <span class="n">partial</span><span class="p">(</span><span class="n">resize_and_clean_mask</span><span class="p">,</span>
+                    <span class="n">target_size</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span> <span class="k">if</span> <span class="n">target_size</span> <span class="o">==</span> <span class="n">window_size</span>
+                                      <span class="k">else</span> <span class="n">target_size</span><span class="p">)),</span>
+            <span class="n">batch_masks</span><span class="p">)</span>
+
+        <span class="n">dP</span> <span class="o">=</span> <span class="n">dP</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+        <span class="n">cellprob</span> <span class="o">=</span> <span class="n">cellprob</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+        <span class="c1">#p = np.stack(batch_p, axis=0)</span>
+        <span class="c1">#flows = [plot.dx_to_circ(dP), dP, cellprob, p]</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)):</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">img_masks</span> <span class="o">=</span> <span class="n">batch_masks</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+            <span class="n">max_in_mask</span> <span class="o">=</span> <span class="n">img_masks</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+            <span class="n">img_masks</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">img_masks</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">running_max</span>
+            <span class="n">running_max</span> <span class="o">+=</span> <span class="n">max_in_mask</span>
+            <span class="n">all_masks</span><span class="p">[</span><span class="n">y</span> <span class="o">*</span> <span class="n">target_size</span><span class="p">:</span> <span class="p">(</span><span class="n">y</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">target_size</span><span class="p">,</span>
+                      <span class="n">x</span> <span class="o">*</span> <span class="n">target_size</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">target_size</span><span class="p">]</span> <span class="o">=</span> <span class="n">img_masks</span>
+            <span class="k">if</span> <span class="n">save_flow</span><span class="p">:</span>
+                <span class="n">flow_plot</span> <span class="o">=</span> <span class="n">plot</span><span class="o">.</span><span class="n">dx_to_circ</span><span class="p">(</span><span class="n">dP</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">target_size</span> <span class="o">!=</span> <span class="n">window_size</span><span class="p">:</span>
+                    <span class="n">flow_plot</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">flow_plot</span><span class="p">,</span> <span class="p">(</span><span class="n">target_size</span><span class="p">,</span> <span class="n">target_size</span><span class="p">))</span>
+                <span class="n">all_flows</span><span class="p">[</span><span class="n">y</span> <span class="o">*</span> <span class="n">target_size</span><span class="p">:</span> <span class="p">(</span><span class="n">y</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">target_size</span><span class="p">,</span>
+                          <span class="n">x</span> <span class="o">*</span> <span class="n">target_size</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">target_size</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">flow_plot</span>
+
+        <span class="c1"># Final cleanup</span>
+        <span class="k">del</span> <span class="n">dP</span><span class="p">,</span> <span class="n">cellprob</span>
+
+        <span class="c1"># Update progress bars</span>
+        <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
+            <span class="n">tqdm_pb</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">pb_tasks</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">pb_tasks</span><span class="p">:</span>
+                <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+
+    <span class="c1"># Close pools/processes and log time.</span>
+    <span class="n">spawn_pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">spawn_pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+    <span class="n">fork_pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">fork_pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+    <span class="n">runner</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+    <span class="n">tile_process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+    <span class="n">ttime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Segmented </span><span class="si">{</span><span class="n">running_max</span><span class="si">}</span><span class="s2"> cells for </span><span class="si">{</span><span class="n">slide</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">ttime</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> s)&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Calculate WSI dimensions and return final segmentation.</span>
+    <span class="n">wsi_dim</span> <span class="o">=</span> <span class="p">(</span><span class="n">slide</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">slide</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">,</span>
+               <span class="n">slide</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">slide</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">)</span>
+    <span class="n">wsi_offset</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">Segmentation</span><span class="p">(</span>
+        <span class="n">slide</span><span class="o">=</span><span class="n">slide</span><span class="p">,</span>
+        <span class="n">masks</span><span class="o">=</span><span class="n">all_masks</span><span class="p">,</span>
+        <span class="n">flows</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">save_flow</span> <span class="k">else</span> <span class="n">all_flows</span><span class="p">,</span>
+        <span class="n">wsi_dim</span><span class="o">=</span><span class="n">wsi_dim</span><span class="p">,</span>
+        <span class="n">wsi_offset</span><span class="o">=</span><span class="n">wsi_offset</span><span class="p">)</span></div>
+</pre></div>
+
+             </article>
+
+            </div>
+            <footer>
+
+
+
+
+    <hr>
+
+
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2022, James M Dolezal.
+
+    </p>
+  </div>
+
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+
+
+
+
+
+       <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+         <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+         <script src="../../../_static/doctools.js"></script>
+         <script src="../../../_static/sphinx_highlight.js"></script>
+
+
+
+  <script type="text/javascript" src="../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

@@ -1278,9 +1278,10 @@ class Dataset:
     def convert_xml_rois(self):
         """Convert ImageScope XML ROI files to QuPath format CSV ROI files."""
         n_converted = 0
+        xml_list = []
         for source in self.sources:
             if self._roi_set(source):
-                xml_list += glob(join(self.sources[source]['roi'], "*.xml"))
+                xml_list = glob(join(self.sources[source]['roi'], "*.xml"))
                 if len(xml_list) == 0:
                     raise errors.DatasetError(
                         'No XML files found. Check dataset configuration.'
@@ -1342,6 +1343,7 @@ class Dataset:
         stride_div: int = 1,
         enable_downsample: bool = True,
         roi_method: str = 'auto',
+        roi_filter_method: Union[str, float] = 'center',
         skip_extracted: bool = True,
         tma: bool = False,
         randomize_origin: bool = False,
@@ -1361,7 +1363,7 @@ class Dataset:
         the tfrecord and tile directories configured by
         :class:`slideflow.Dataset`.
 
-        Args:
+        Keyword Args:
             save_tiles (bool): Save images of extracted tiles to
                 project tile directory. Defaults to False.
             save_tfrecords (bool): Save compressed image data from
@@ -1386,6 +1388,16 @@ class Dataset:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
+            roi_filter_method (str or float): Method of filtering tiles with
+                ROIs. Either 'center' or float (0-1). If 'center', tiles are
+                filtered with ROIs based on the center of the tile. If float,
+                tiles are filtered based on the proportion of the tile inside
+                the ROI, and ``roi_filter_method`` is interpreted as a
+                threshold. If the proportion of a tile inside the ROI is
+                greater than this number, the tile is included. For example,
+                if ``roi_filter_method=0.7``, a tile that is 80% inside of an
+                ROI will be included, and a tile that is 50% inside of an ROI
+                will be excluded. Defaults to 'center'.
             skip_extracted (bool): Skip slides that have already
                 been extracted. Defaults to True.
             tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),
@@ -1404,8 +1416,6 @@ class Dataset:
                 Increases tile extraction time. Defaults to None.
             report (bool): Save a PDF report of tile extraction.
                 Defaults to True.
-
-        Keyword Args:
             normalizer (str, optional): Normalization strategy.
                 Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image.
@@ -1431,11 +1441,12 @@ class Dataset:
                 given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in
                 tfrecords. Defaults to True.
-            num_threads (int, optional): Number of workers threads for each
+            num_threads (int, optional): Number of worker processes for each
                 tile extractor. When using cuCIM slide reading backend,
-                defaults to the total number of available CPU threads.
-                With Libvips, this defaults to the total number of available
-                CPU threads or 32, whichever is lower.
+                defaults to the total number of available CPU cores, using the
+                'fork' multiprocessing method. With Libvips, this defaults to
+                the total number of available CPU cores or 32, whichever is
+                lower, using 'spawn' multiprocessing.
             qc_blur_radius (int, optional): Quality control blur radius for
                 out-of-focus area detection. Used if qc=True. Defaults to 3.
             qc_blur_threshold (float, optional): Quality control blur threshold
@@ -1577,6 +1588,7 @@ class Dataset:
                     'enable_downsample': enable_downsample,
                     'roi_dir': roi_dir,
                     'roi_method': roi_method,
+                    'roi_filter_method': roi_filter_method,
                     'randomize_origin': randomize_origin,
                     'pb': pb
                 }
@@ -2254,12 +2266,23 @@ class Dataset:
                     result[slide] = patient
         return result
 
-    def pt_files(self, path):
-        """Return list of *.pt files with slide names in this dataset."""
-        return np.array([
+    def pt_files(self, path, warn_missing=True):
+        """Return list of \*.pt files with slide names in this dataset.
+
+        Args:
+            path (str): Directory to search for \*.pt files.
+            warn_missing (bool): Raise a warning if any slides in this dataset
+                do not have a \*.pt file.
+
+        """
+        slides = self.slides()
+        bags = np.array([
             join(path, f) for f in os.listdir(path)
-            if f.endswith('.pt') and path_to_name(f) in self.slides()
+            if f.endswith('.pt') and path_to_name(f) in slides
         ])
+        if (len(bags) != len(slides)) and warn_missing:
+            log.warning(f"Bags missing for {len(slides) - len(bags)} slides.")
+        return bags
 
     def read_tfrecord_by_location(
         self,
@@ -2291,7 +2314,7 @@ class Dataset:
             raise errors.TFRecordsError(
                 f"Could not find associated TFRecord for slide '{slide}'"
             )
-        return sf.io.read_tfrecord_by_location(tfr, loc, decode=decode)
+        return sf.io.get_tfrecord_by_location(tfr, loc, decode=decode)
 
     def remove_filter(self, **kwargs: Any) -> "Dataset":
         """Remove a specific filter from the active filters.
@@ -2894,7 +2917,11 @@ class Dataset:
             assert sorted(val_dts.slide_paths()) == sorted(val_tfr)
         return training_dts, val_dts
 
-    def split_tfrecords_by_roi(self, destination: str) -> None:
+    def split_tfrecords_by_roi(
+        self,
+        destination: str,
+        roi_filter_method: Union[str, float] = 'center'
+    ) -> None:
         """Split dataset tfrecords into separate tfrecords according to ROI.
 
         Will generate two sets of tfrecords, with identical names: one with
@@ -2903,6 +2930,16 @@ class Dataset:
 
         Args:
             destination (str): Destination path.
+            roi_filter_method (str or float): Method of filtering tiles with
+                ROIs. Either 'center' or float (0-1). If 'center', tiles are
+                filtered with ROIs based on the center of the tile. If float,
+                tiles are filtered based on the proportion of the tile inside
+                the ROI, and ``roi_filter_method`` is interpreted as a
+                threshold. If the proportion of a tile inside the ROI is
+                greater than this number, the tile is included. For example,
+                if ``roi_filter_method=0.7``, a tile that is 80% inside of an
+                ROI will be included, and a tile that is 50% inside of an ROI
+                will be excluded. Defaults to 'center'.
 
         Returns:
             None
@@ -2927,7 +2964,8 @@ class Dataset:
                     self.tile_px,
                     self.tile_um,
                     rois=rois,
-                    roi_method='inside'
+                    roi_method='inside',
+                    roi_filter_method=roi_filter_method
                 )
             except errors.SlideLoadError as e:
                 log.error(e)
@@ -3160,7 +3198,11 @@ class Dataset:
                 if normalizer:
                     image_raw_data = normalizer.jpeg_to_jpeg(image_raw_data)
                 sample_tiles += [image_raw_data]
-            reports += [SlideReport(sample_tiles, tfr)]
+            reports += [SlideReport(sample_tiles,
+                                    tfr,
+                                    tile_px=self.tile_px,
+                                    tile_um=self.tile_um,
+                                    ignore_thumb_errors=True)]
 
         # Generate and save PDF
         log.info('Generating PDF (this may take some time)...')
@@ -3432,19 +3474,6 @@ class Dataset:
                 thumb = whole_slide.square_thumb(size)
             thumb.save(join(outdir, f'{whole_slide.name}.png'))
         log.info('Thumbnail generation complete.')
-
-    def training_validation_split(
-        self,
-        *args: Any,
-        **kwargs: Any
-    ) -> Tuple["Dataset", "Dataset"]:
-        """Deprecated function."""  # noqa: D401
-        warnings.warn(
-            "Dataset.training_validation_split() is deprecated and will be "
-            "removed in a future version. Please use Dataset.split()",
-            DeprecationWarning
-        )
-        return self.split(*args, **kwargs)
 
     def train_val_split(
         self,

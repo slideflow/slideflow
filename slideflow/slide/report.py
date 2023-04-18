@@ -7,12 +7,13 @@ import os
 import tempfile
 import pandas as pd
 import numpy as np
+import cv2
 from fpdf import FPDF
 from PIL import Image
 from datetime import datetime
 from os.path import join, exists
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 
 import slideflow as sf
 from slideflow.util import log, path_to_name  # noqa F401
@@ -40,11 +41,14 @@ class SlideReport:
         self,
         images: List[bytes],
         path: str,
+        tile_px: int,
+        tile_um: Union[int, str],
         *,
         thumb: Optional[Image.Image] = None,
         thumb_coords: Optional[np.ndarray] = None,
-        data: Dict[str, Any] = None,
-        compress: bool = True
+        data: Optional[Dict[str, Any]] = None,
+        compress: bool = True,
+        ignore_thumb_errors: bool = False
     ) -> None:
         """Creates a slide report summarizing tile extraction, with some example
         extracted images.
@@ -60,15 +64,23 @@ class SlideReport:
             thumb (PIL.Image): Thumbnail of slide. Defaults to None.
             thumb_coords (np.ndarray): Array of (x, y) tile extraction
                 coordinates, for display on the thumbnail. Defaults to None.
+            ignore_thumb_errors (bool): Ignore errors raised when attempting
+                to create a slide thumbnail.
 
 
         """
         self.data = data
         self.path = path
-        self.has_rois = 'num_rois' in data and data['num_rois'] > 0
+        self.tile_px = tile_px
+        self.tile_um = tile_um
+        if data is not None:
+            self.has_rois = 'num_rois' in data and data['num_rois'] > 0
+        else:
+            self.has_rois = False
         self.timestamp = str(datetime.now())
 
         # Thumbnail
+        self.ignore_thumb_errors = ignore_thumb_errors
         self.thumb_coords = thumb_coords
         if thumb is not None:
             self._thumb = Image.fromarray(np.array(thumb)[:, :, 0:3])
@@ -83,13 +95,13 @@ class SlideReport:
     @property
     def thumb(self):
         if self._thumb is None:
-            wsi = sf.WSI(self.path, 500, 500, verbose=False)
-            self._thumb = wsi.thumb(
-                coords=self.thumb_coords,
-                rois=self.has_rois,
-                low_res=True
-            )
-            self._thumb = Image.fromarray(np.array(self._thumb)[:, :, 0:3])
+            try:
+                self.calc_thumb()
+            except Exception:
+                if self.ignore_thumb_errors:
+                    return None
+                else:
+                    raise
         return self._thumb
 
     @property
@@ -168,9 +180,27 @@ class SlideReport:
         else:
             return None
 
+    def calc_thumb(self) -> None:
+        wsi = sf.WSI(
+            self.path,
+            tile_px=self.tile_px,
+            tile_um=self.tile_um,
+            verbose=False
+        )
+        self._thumb = wsi.thumb(
+            coords=self.thumb_coords,
+            rois=self.has_rois,
+            low_res=True,
+            width=512
+        )
+        self._thumb = Image.fromarray(np.array(self._thumb)[:, :, 0:3])
+
     def _compress(self, img: bytes) -> bytes:
         with io.BytesIO() as output:
-            Image.open(io.BytesIO(img)).save(output, format="JPEG", quality=75)
+            img = Image.open(io.BytesIO(img))
+            if img.height > 256:
+                img = Image.fromarray(cv2.resize(np.array(img), [256, 256]))
+            img.save(output, format="JPEG", quality=75)
             return output.getvalue()
 
     def image_row(self) -> Optional[bytes]:
@@ -265,6 +295,17 @@ class ExtractionReport:
         pdf.alias_nb_pages()
         pdf.add_page()
 
+        # Render thumbnails, if a multiprocesing pool is provided.
+        if pool is not None:
+            log.debug("Rendering thumbnails with pool.")
+            thumbnails = pool.map(render_thumbnail, reports)
+            log.debug("Rendering tile images with pool.")
+            image_rows = pool.map(render_image_row, reports)
+            log.debug("Report render complete.")
+        else:
+            thumbnails = [r.thumb for r in reports]
+            image_rows = [r.image_row() for r in reports]
+
         if meta is not None and hasattr(meta, 'ws_frac'):
             n_tiles = np.array([r.num_tiles for r in reports if r is not None])
             bb = np.array([r.blur_burden for r in reports if r is not None])
@@ -329,17 +370,6 @@ class ExtractionReport:
                 pdf.cell(75)
                 pdf.cell(20, 4, str(m), ln=1)
             pdf.ln(20)
-
-            # Render thumbnails, if a multiprocesing pool is provided.
-            if pool is not None:
-                log.debug("Rendering thumbnails with pool.")
-                thumbnails = pool.map(render_thumbnail, reports)
-                log.debug("Rendering tile images with pool.")
-                image_rows = pool.map(render_image_row, reports)
-                log.debug("Report render complete.")
-            else:
-                thumbnails = [r.thumb for r in reports]
-                image_rows = [r.image_row() for r in reports]
 
             # Save thumbnail first
             pdf.set_font('Arial', 'B', 7)

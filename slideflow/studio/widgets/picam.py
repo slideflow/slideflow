@@ -165,11 +165,13 @@ class PicamViewer(Viewer):
             self._tex_obj.draw(pos=h_pos, zoom=1, align=0.5, rint=True, anchor='topleft')
 
 class PicamWidget:
+
+    tag = 'camera'
+
     def __init__(self, viz):
         self.viz            = viz
         self.um_width       = 800
         self.content_height = 0
-        self.header         = 'Camera'
 
         viewer = PicamViewer(self.um_width, **viz._viewer_kwargs())
         viz.set_viewer(viewer)

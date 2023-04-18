@@ -137,7 +137,7 @@ def xml_to_csv(path: str) -> str:
     """
     tree = ET.parse(path)
     root = tree.getroot()
-    new_csv_file = path[:-4] + 'csv'
+    new_csv_file = path[:-4] + '.csv'
     required_attributes = ['.//Region', './/Vertex']
     if not all(root.findall(a) for a in required_attributes):
         raise errors.ROIError(

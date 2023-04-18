@@ -1,57 +1,39 @@
 import os
 import time
-import multiprocessing
 import numpy as np
 import webbrowser
 import pyperclip
 import imgui
 import glfw
 import OpenGL.GL as gl
-from typing import List, Any, Optional, Dict, Tuple, Union
+from contextlib import contextmanager
+from typing import List, Any, Optional, Dict, Union
 from os.path import join, dirname, abspath
 from PIL import Image
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 
 import slideflow as sf
-import slideflow.grad
 from slideflow import log
 
 from .gui import imgui_utils
 from .gui import gl_utils
 from .gui import text_utils
+from .gui.theme import StudioTheme
 from .gui.window import ImguiWindow
 from .gui.viewer import SlideViewer
 from .widgets import (
     ProjectWidget, SlideWidget, ModelWidget, HeatmapWidget, PerformanceWidget,
-    CaptureWidget
+    CaptureWidget, SettingsWidget, ExtensionsWidget, Widget
 )
-from .utils import EasyDict, _load_model_and_saliency
-from ._renderer import Renderer, CapturedException
+from .utils import EasyDict
+from ._renderer import AsyncRenderer, Renderer, CapturedException
 
 OVERLAY_GRID    = 0
 OVERLAY_WSI     = 1
 OVERLAY_VIEW    = 2
 
-#----------------------------------------------------------------------------
-
-def stylegan_widgets(advanced: bool = True) -> List[Any]:
-    from slideflow.gan.stylegan3.stylegan3.viz import (latent_widget,
-                                                       pickle_widget,
-                                                       stylemix_widget,
-                                                       trunc_noise_widget,
-                                                       equivariance_widget)
-    widgets = [
-        pickle_widget.PickleWidget,
-        latent_widget.LatentWidget,
-        stylemix_widget.StyleMixingWidget,
-    ]
-    if advanced:
-        widgets += [trunc_noise_widget.TruncationNoiseWidget,
-                    equivariance_widget.EquivarianceWidget]
-    return widgets
-
-#----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class Studio(ImguiWindow):
 
@@ -59,7 +41,8 @@ class Studio(ImguiWindow):
         self,
         low_memory: bool = False,
         widgets: Optional[List[Any]] = None,
-        skip_tk_init: bool = False
+        skip_tk_init: bool = False,
+        theme: Optional[StudioTheme] = None,
     ) -> None:
         """Create the main Studio window.
 
@@ -80,7 +63,13 @@ class Studio(ImguiWindow):
         if not skip_tk_init:
             Tk().withdraw()
 
-        super().__init__(title=f'Slideflow Studio')
+        if theme is None:
+            theme = StudioTheme()
+
+        super().__init__(
+            title=f'Slideflow Studio',
+            background=theme.main_background
+        )
 
         # Internals.
         self._dx                = 0
@@ -119,20 +108,17 @@ class Studio(ImguiWindow):
         self._defer_tile_refresh = None
         self._should_close_slide = False
         self._should_close_model = False
-        self._pane_w_div        = 37
         self._bg_logo           = None
         self.low_memory         = low_memory
 
         # Interface.
         self._show_about        = False
-        self._show_control      = True
-        self._dock_control      = True
         self._show_performance  = False
-        self._control_size      = 0
         self._show_tile_preview = False
         self._tile_preview_is_new = True
         self._tile_preview_image_is_new = True
         self._show_overlays     = True
+        self.theme              = theme
 
         # Widget interface.
         self.wsi                = None
@@ -161,6 +147,9 @@ class Studio(ImguiWindow):
         self.mouse_y            = None
         self.menu_bar_height    = self.font_size + self.spacing
 
+        # Control sidebar.
+        self.sidebar            = Sidebar(self)
+
         # Core widgets.
         self.project_widget     = ProjectWidget(self)
         self.slide_widget       = SlideWidget(self)
@@ -168,16 +157,21 @@ class Studio(ImguiWindow):
         self.heatmap_widget     = HeatmapWidget(self)
         self.performance_widget = PerformanceWidget(self)
         self.capture_widget     = CaptureWidget(self)
+        self.settings_widget    = SettingsWidget(self)
 
         # User-defined widgets.
         self.widgets = []
         if widgets is None:
             widgets = self.get_default_widgets()
-        for widget in widgets:
-            self.widgets += [widget(self)]
+        self.add_widgets(widgets)
+
+        # Extensions widget.
+        self.extensions_widget  = ExtensionsWidget(self)
 
         # Initialize window.
+        self.set_window_icon(imgui_utils.logo_image())
         self.set_position(0, 0)
+        self._update_window_limits()
         self._set_default_font_size()
         self.skip_frame() # Layout may change after first frame.
         self.load_slide('')
@@ -221,13 +215,8 @@ class Studio(ImguiWindow):
         return int(self.offset_y * self.pixel_ratio)
 
     @property
-    def has_controls_to_render(self):
-        return (
-            self.P is not None
-            or self.wsi is not None
-            or self._model_path is not None
-            or any(not hasattr(w, 'visible') or w.visible for w in self.widgets)
-        )
+    def status_bar_height(self):
+        return self.font_size + self.spacing
 
     # --- Internals -----------------------------------------------------------
 
@@ -239,6 +228,7 @@ class Studio(ImguiWindow):
             self.skip_frame()  # Layout changed.
 
     def _clear_textures(self) -> None:
+        """Remove all textures."""
         for tex in self._tex_to_delete:
             tex.delete()
         self._tex_to_delete = []
@@ -272,6 +262,9 @@ class Studio(ImguiWindow):
         self.mouse_y = None
         self.clear_result()
         self._async_renderer._live_updates = False
+        self._heatmap_tex_img   = None
+        self._heatmap_tex_obj   = None
+        self.heatmap_widget.reset()
         self.set_title("Slideflow Studio")
 
     def _draw_about_dialog(self) -> None:
@@ -304,7 +297,7 @@ class Studio(ImguiWindow):
             if imgui.begin_popup('about_popup'):
 
                 if self._about_tex_obj is None:
-                    about_img = imgui_utils.about_image().resize((96, 96))
+                    about_img = imgui_utils.logo_image().resize((96, 96))
                     self._about_tex_obj = gl_utils.Texture(image=about_img)
                 imgui.text('')
                 imgui.text('')
@@ -329,95 +322,10 @@ class Studio(ImguiWindow):
 
     def _draw_control_pane(self) -> None:
         """Draw the control pane and widgets."""
-
-        if not self.has_controls_to_render:
-            self.pane_w = 0
-        else:
-            _pane_w = self.font_size * self._pane_w_div
-            if self._dock_control and self._show_control:
-                self.pane_w = _pane_w
-                imgui.set_next_window_position(0, self.menu_bar_height)
-                imgui.set_next_window_size(self.pane_w, self.content_height - self.menu_bar_height)
-                control_kw = dict(
-                    closable=False,
-                    flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
-            else:
-                imgui.set_next_window_size(_pane_w, self._control_size)
-                self.pane_w = 0
-                control_kw = dict(
-                    closable=True,
-                    flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_ALWAYS_AUTO_RESIZE)
-                )
-
-        # Hide control pane if there are no widgets to show
-        if self._show_control and self.has_controls_to_render:
-            drawing_control_pane = True
-            _, self._show_control = imgui.begin('Control Pane', **control_kw)
-        else:
-            drawing_control_pane = False
-
-        # --- Core widgets (always rendered, not always shown) ----------------
-        header_height = self.font_size + (self.spacing * 2)
-        self._control_size = self.spacing * 4
-
-        # Slide widget
-        if (self.P or self.wsi) and self._show_control:
-            expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
-            self._control_size += header_height
-        else:
-            expanded = False
-        self.slide_widget(expanded and self._show_control)
-        self._control_size += self.slide_widget.content_height
-
-        # Project widget
-        if self.P and self._show_control:
-            expanded, _visible = imgui_utils.collapsing_header('Project', default=True)
-            self._control_size += header_height
-        else:
-            expanded = False
-        self.project_widget(expanded and self._show_control)
-        self._control_size += self.project_widget.content_height
-
-        # Model widget
-        if (self.P or self._model_path) and self._show_control:
-            expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
-            self._control_size += header_height
-        else:
-            expanded = False
-        self.model_widget(expanded and self._show_control)
-        self._control_size += self.model_widget.content_height
-
-        # Heatmap / prediction widget
-        if self.viewer is not None and self._model_config is not None and self._show_control:
-            expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
-            self._control_size += header_height
-        else:
-            expanded = False
-        self.heatmap_widget(expanded and self._show_control)
-        self._control_size += self.heatmap_widget.content_height
-
-        # ---------------------------------------------------------------------
-
-        # User-defined widgets
-        for header, widgets in self._widgets_by_header():
-            if header and self._show_control:
-                expanded, _visible = imgui_utils.collapsing_header(header, default=True)
-                self._control_size += header_height
-            else:
-                expanded = True
-            for widget in widgets:
-                widget(expanded and self._show_control)
-                if hasattr(widget, 'content_height'):
-                    self._control_size += widget.content_height
-
-        # Render control panel contents, if the control pane is shown.
-        if drawing_control_pane:
-            imgui.end()
-
-        if not self.has_controls_to_render:
-            self.result.message = 'Load a slide with File -> "Open Slide..."'
+        self.sidebar.draw()
 
     def _draw_empty_background(self):
+        """Render an empty background with the Studio logo."""
         if self._bg_logo is None:
             bg_path = join(dirname(abspath(__file__)), 'gui', 'logo_dark_outline.png')
             img = np.array(Image.open(bg_path))
@@ -552,19 +460,17 @@ class Studio(ImguiWindow):
             if imgui.begin_menu('View', True):
                 if imgui.menu_item('Fullscreen', 'Ctrl+F')[0]:
                     self.toggle_fullscreen()
-                if imgui.menu_item('Dock Controls', 'Ctrl+Shift+D')[0]:
-                    self._dock_control = not self._dock_control
                 imgui.separator()
 
                 # --- Show sub-menu -------------------------------------------
                 if imgui.begin_menu('Show', True):
-                    if imgui.menu_item('Control Pane', 'Ctrl+Shift+C', selected=self._show_control)[0]:
-                        self._show_control = not self._show_control
                     if imgui.menu_item('Performance', 'Ctrl+Shift+P', selected=self._show_performance)[0]:
                         self._show_performance = not self._show_performance
                     if imgui.menu_item('Tile Preview', 'Ctrl+Shift+T', selected=self._show_tile_preview)[0]:
                         self._show_tile_preview = not self._show_tile_preview
                     imgui.separator()
+                    if imgui.menu_item('Thumbnail', selected=(has_wsi and self.viewer.show_thumbnail), enabled=has_wsi)[0]:
+                        self.viewer.show_thumbnail = not self.viewer.show_thumbnail
                     if imgui.menu_item('Scale', selected=(has_wsi and self.viewer.show_scale), enabled=has_wsi)[0]:
                         self.viewer.show_scale = not self.viewer.show_scale
 
@@ -602,7 +508,7 @@ class Studio(ImguiWindow):
             # --- Help --------------------------------------------------------
             if imgui.begin_menu('Help', True):
                 if imgui.menu_item('Get Started')[1]:
-                    webbrowser.open('https://slideflow.dev/slideflow_studio')
+                    webbrowser.open('https://slideflow.dev/studio')
                 if imgui.menu_item('Documentation')[1]:
                     webbrowser.open('https://slideflow.dev')
 
@@ -625,20 +531,56 @@ class Studio(ImguiWindow):
                 imgui.end_menu()
 
             version_text = f'slideflow {sf.__version__}'
-            imgui.same_line(imgui.get_content_region_max()[0] - (imgui.calc_text_size(version_text)[0] + self.spacing))
-            imgui.text(version_text)
+            imgui_utils.right_aligned_text(version_text, spacing=self.spacing)
             imgui.end_main_menu_bar()
 
-    def _draw_performance_pane(self):
-        """Draw the performance and capture window."""
+    def _draw_status_bar(self) -> None:
+        """Draw the bottom status bar."""
 
-        if self._show_performance:
-            _, self._show_performance = imgui.begin('Performance & Capture', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE))
-            self.performance_widget(True)
-            self.capture_widget(True)
-            imgui.end()
+        h = self.status_bar_height
+        r = self.pixel_ratio
+        y_pos = int((self.content_frame_height - (h * r)) / r)
+        imgui.set_next_window_position(0-2, y_pos)
+        imgui.set_next_window_size(self.content_frame_width+4, h)
+        imgui.push_style_color(imgui.COLOR_WINDOW_BACKGROUND, *self.theme.main_background)
+        imgui.push_style_var(imgui.STYLE_WINDOW_PADDING, [10, 5])
+
+        imgui.begin('Status bar', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_SCROLLBAR))
+
+        # Backend
+        backend = sf.slide_backend()
+        if backend == 'cucim':
+            tex = self.sidebar._button_tex[f'small_cucim'].gl_id
+            imgui.image(tex, self.font_size, self.font_size)
+            imgui.same_line()
+            imgui.text_colored('cuCIM', 0.55, 1, 0.47, 1)
+        elif backend == 'libvips':
+            tex = self.sidebar._button_tex[f'small_vips'].gl_id
+            imgui.image(tex, self.font_size, self.font_size)
+            imgui.same_line()
+            imgui.text_colored('VIPS', 0.47, 0.65, 1, 1)
         else:
-            self.capture_widget(False)
+            imgui.text(backend)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Slide backend")
+
+        # Low memory mode
+        if self.low_memory:
+            tex = self.sidebar._button_tex[f'small_lowmem'].gl_id
+            imgui.same_line()
+            imgui.image(tex, self.font_size, self.font_size)
+            imgui.same_line()
+            imgui.text_colored("Low memory mode", 0.99, 0.75, 0.42, 1)
+
+        # Location / MPP
+        if self.viewer and hasattr(self.viewer, 'mpp'):
+            imgui_utils.right_aligned_text('x={:<8} y={:<8} mpp={:.3f}'.format(int(self.mouse_x), int(self.mouse_y), self.viewer.mpp))
+        elif self.viewer:
+            imgui_utils.right_aligned_text('x={:<8} y={:<8}'.format(int(self.mouse_x), int(self.mouse_y)))
+
+        imgui.end()
+        imgui.pop_style_color(1)
+        imgui.pop_style_var(1)
 
     def _draw_tile_view(self):
         """Draw the tile view window, displaying the currently rendered tile(s).
@@ -653,10 +595,11 @@ class Studio(ImguiWindow):
         Rendered images are expected to be stored in the OpenGL objects
         ``.tex_obj`` and ``._norm_tex_obj``.
         """
-
         if self._show_tile_preview:
-            has_raw_image = self._tex_obj is not None# and self.tile_px
+            has_raw_image = self._tex_obj is not None
             has_norm_image = self.model_widget.use_model and self._normalizer is not None and self._norm_tex_obj is not None and self.tile_px
+            if not has_raw_image:
+                return
 
             if not (has_raw_image or has_norm_image):
                 width = self.font_size * 8
@@ -670,11 +613,11 @@ class Studio(ImguiWindow):
             imgui.set_next_window_size(width, height)
 
             if self._tile_preview_is_new:
-                imgui.set_next_window_position(self.content_width - width - self.spacing, self.spacing + self.offset_y_pixels)
+                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing - self.status_bar_height)
                 self._tile_preview_is_new = False
 
             if self._tile_preview_image_is_new and (has_raw_image or has_norm_image):
-                imgui.set_next_window_position(self.content_width - width - self.spacing, self.spacing + self.offset_y_pixels)
+                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing - self.status_bar_height)
                 self._tile_preview_image_is_new = False
 
             _, self._show_tile_preview = imgui.begin("##tile view", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_SCROLLBAR))
@@ -683,15 +626,14 @@ class Studio(ImguiWindow):
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
             dim_color[-1] *= 0.5
             imgui.begin_child('##pred_image', border=False)
-            if has_raw_image:
-                imgui.image(self._tex_obj.gl_id, raw_img_w, raw_img_w)
-            elif self._model_path is not None:
-                imgui.text_colored('Right click to preview', *dim_color)
-            else:
-                imgui.text_colored('No model loaded', *dim_color)
+            imgui.image(self._tex_obj.gl_id, raw_img_w, raw_img_w)
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Raw image")
             imgui.same_line()
             if has_norm_image:
                 imgui.image(self._norm_tex_obj.gl_id, norm_img_w, norm_img_w)
+                if imgui.is_item_hovered():
+                    imgui.set_tooltip("Stain-normalized image")
             elif self._tex_obj is not None and self.tile_px:
                 imgui.text_colored('Normalizer not used', *dim_color)
             imgui.end_child()
@@ -701,10 +643,6 @@ class Studio(ImguiWindow):
     def _glfw_key_callback(self, _window, key, _scancode, action, _mods):
         """Callback for handling keyboard input."""
         super()._glfw_key_callback(_window, key, _scancode, action, _mods)
-        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_C:
-            self._show_control = not self._show_control
-        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_D:
-            self._dock_control = not self._dock_control
         if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_P:
             self._show_performance = not self._show_performance
         if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_T:
@@ -730,6 +668,7 @@ class Studio(ImguiWindow):
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_BACKSLASH:
             self.reset_tile_zoom()
 
+        self.slide_widget.keyboard_callback(key, action)
         for widget in self.widgets:
             if hasattr(widget, 'keyboard_callback'):
                 widget.keyboard_callback(key, action)
@@ -766,7 +705,8 @@ class Studio(ImguiWindow):
         self,
         path: Optional[str] = None,
         stride: Optional[int] = None,
-        use_rois: bool = True
+        use_rois: bool = True,
+        **kwargs
     ) -> None:
         """Reload the currently loaded Whole-Slide Image.
 
@@ -791,9 +731,7 @@ class Studio(ImguiWindow):
         else:
             rois = None
         if sf.slide_backend() == 'cucim':
-            reader_kwargs = dict(num_workers=os.cpu_count())
-        else:
-            reader_kwargs = {}
+            kwargs['num_workers'] = os.cpu_count()
         self.wsi = sf.WSI(
             path,
             tile_px=(self.tile_px if self.tile_px else 256),
@@ -808,7 +746,8 @@ class Studio(ImguiWindow):
                 persistent=True
             ),
             verbose=False,
-            **reader_kwargs)
+            mpp=self.slide_widget.manual_mpp,
+            **kwargs)
         self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
         self.set_title(os.path.basename(self.wsi.path))
 
@@ -830,7 +769,7 @@ class Studio(ImguiWindow):
         widgets, and heatmaps."""
 
         # Render WSI thumbnail in the widget.
-        if self.wsi_thumb is not None and self._show_control:
+        if self.wsi_thumb is not None:
             if self._wsi_tex_img is not self.wsi_thumb:
                 self._wsi_tex_img = self.wsi_thumb
                 if self._wsi_tex_obj is None or not self._wsi_tex_obj.is_compatible(image=self._wsi_tex_img):
@@ -864,27 +803,174 @@ class Studio(ImguiWindow):
             viz=self
         )
 
-    def _widgets_by_header(self) -> List[Tuple[str, List[Any]]]:
-        """Return all unique widget headers and their corresponding widgets.
+    def _update_window_limits(self):
+        """Update the minimum window size limits based on loaded widgets."""
 
-        Returns:
-            List of tuple (header, List of widgets) for all unique headers.
+        minheight = (((len(self.sidebar.navbuttons) + 3)
+                       * self.sidebar.navbutton_width)
+                     + self.status_bar_height
+                     + self.menu_bar_height)
+
+        glfw.set_window_size_limits(
+            self._glfw_window,
+            minwidth=int(self.sidebar.content_width+100),
+            minheight=int(minheight),
+            maxwidth=-1,
+            maxheight=-1)
+
+    # --- Imgui methods -------------------------------------------------------
+
+    @contextmanager
+    def dim_text(self):
+        """Render dim text.
+
+        Examples
+            Render dim text.
+
+                .. code-block:: python
+
+                    with studio.dim_text():
+                        imgui.text('This is dim')
+
         """
-        def _get_header(w):
-            return '' if not hasattr(w, 'header') else w.header
+        imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.dim)
+        yield
+        imgui.pop_style_color(1)
 
-        headers = []
-        for widget in self.widgets:
-            _widget_header = _get_header(widget)
-            if _widget_header not in headers:
-                headers.append(_widget_header)
+    def collapsing_header(self, text, **kwargs):
+        """Render a collapsing header using the active theme.
 
-        return [
-            (header, [w for w in self.widgets if _get_header(w) == header])
-            for header in headers
-        ]
+        Examples
+            Render a collapsing header that is open by default.
+
+                .. code-block:: python
+
+                    if viz.collapsing_header("Header", default=True):
+                        imgui.text("Text underneath")
+
+        Args:
+            text (str): Header text.
+
+        """
+        imgui.push_style_color(imgui.COLOR_HEADER, *self.theme.header)
+        imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, *self.theme.header_hovered)
+        imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, *self.theme.header_hovered)
+        imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.header_text)
+        expanded = imgui_utils.collapsing_header(text.upper(), **kwargs)[0]
+        imgui.pop_style_color(4)
+        return expanded
+
+    def header(self, text):
+        """Render a header using the active theme.
+
+        Args:
+            text (str): Text for the header. Text will be rendered in
+                uppercase.
+
+        """
+        with imgui_utils.header(
+            text.upper(),
+            hpad=self.font_size,
+            vpad=(int(self.font_size*0.4), int(self.font_size*0.75))
+        ):
+            pass
+
+    @contextmanager
+    def header_with_buttons(self, text):
+        """Render a widget header with ability to add buttons.
+
+        Examples
+            Render a header with a gear icon.
+
+                .. code-block:: python
+
+                    with studio.header_with_buttons('Button'):
+                        # Right align the button
+                        x_width = imgui.get_content_region_max()[0]
+                        imgui.same_line(x_width - 30)
+                        cx, cy = imgui.get_cursor_pos()
+                        imgui.set_cursor_position((cx, cy-5))
+
+                        # Render the button
+                        if sidebar.small_button('gear'):
+                            do_something()
+
+        Args:
+            text (str): Text for the header. Text will be rendered in
+                uppercase.
+
+        """
+        with imgui_utils.header(
+            text.upper(),
+            hpad=self.font_size,
+            vpad=(int(self.font_size*0.4), int(self.font_size*0.75))
+        ):
+            yield
+
+    def center_next_window(self, width, height):
+        """Center the next imgui window.
+
+        Args:
+            width (int): Width of the next window.
+            height (int): Height of the next window.
+
+        """
+
+        imgui.set_next_window_position(
+            (self.content_width - width) / 2,
+            (self.content_height - height - self.status_bar_height) / 2
+        )
 
     # --- Public methods ------------------------------------------------------
+
+    def reset_background(self):
+        """Reset the Studio background to the default theme color."""
+        self._background_color = self.theme.main_background
+
+    def add_widgets(self, widgets: Widget) -> None:
+        """Add widget extension(s).
+
+        Add widgets to Studio and the sidebar. The ``.tag`` property is used
+        as a unique identifier for the widget. The ``.icon`` property should
+        be a path to an image file used for rendering the sidebar navigation
+        icon. ``.icon_highlighted`` property should be a path to an image file
+        used for rendering a hovered navigation icon.
+
+        The widget should implement ``__call__()`` and ``.close()`` methods
+        for rendering the imgui GUI and cleanup, respectively.
+
+        Args:
+            widgets (list(:class:`slideflow.studio.widgets.Widget`)): List of
+                widgets to add as extensions. These should be classes, not
+                instantiated objects.
+
+        """
+        if not isinstance(widgets, list):
+            widgets = [widgets]
+        for widget in widgets:
+            self.widgets += [widget(self)]
+        self.sidebar.add_widgets(widgets)
+        self._update_window_limits()
+
+    def remove_widget(self, widget: Widget) -> None:
+        """Remove a widget from Studio.
+
+        Args:
+            widget (:class:`slideflow.studio.widgets.Widget`): Widget to remove.
+                This should be a class, not an instantiated object.
+
+        """
+        widget_obj = None
+        for w_idx, w in enumerate(self.widgets):
+            if isinstance(w, widget):
+                widget_obj = w
+                self.widgets.remove(w)
+                break
+        if widget_obj is None:
+            raise ValueError(f'Could not find widget "{widget}"')
+        widget_obj.close()
+        self.sidebar.remove_widget(widget_obj.tag)
+        self._update_window_limits()
 
     def add_to_render_pipeline(
         self,
@@ -895,6 +981,21 @@ class Studio(ImguiWindow):
         if name is not None:
             self._addl_renderers[name] = renderer
         self._async_renderer.add_to_render_pipeline(renderer)
+
+    def remove_from_render_pipeline(self, name: str):
+        """Remove a renderer from the render pipeline.
+
+        Remove a renderer added with ``.add_to_render_pipeline()``.
+
+        Args:
+            name (str): Name of the renderer to remove.
+
+        """
+        if name not in self._addl_renderers:
+            raise ValueError(f'Could not find renderer "{name}"')
+        renderer = self._addl_renderers[name]
+        self._async_renderer.remove_from_render_pipeline(renderer)
+        del self._addl_renderers[name]
 
     def ask_load_heatmap(self):
         """Prompt user for location of exported heatmap (\*.npz) and load."""
@@ -931,8 +1032,17 @@ class Studio(ImguiWindow):
             self.load_slide(slide_path, ignore_errors=True)
 
     def autoload(self, path, ignore_errors=False):
-        """Automatically load a path, detecting if the path is a slide, model, or project."""
-        sf.log.info(f"Attempting to load {path}")
+        """Automatically load a path, detecting the type of object to load.
+
+        Supports slides, models, projects, and other items supported by
+        widgets if the widget has implemented a `.drag_and_drop_hook` function.
+
+        Args:
+            path (str): Path to file to load.
+            ignore_errors (bool): Gracefully handle errors.
+
+        """
+        sf.log.info(f"Loading [green]{path}[/]")
         if sf.util.is_project(path):
             self.load_project(path, ignore_errors=ignore_errors)
         elif sf.util.is_slide(path):
@@ -954,7 +1064,7 @@ class Studio(ImguiWindow):
                 self.create_toast(f"No loading handler found for {path}", icon="error")
 
     def clear_overlay(self) -> None:
-        """Remove the currently overlay image."""
+        """Remove the current overlay image, include heatmaps and masks."""
         self.overlay = None
         if self.viewer is not None:
             self.viewer.clear_overlay()
@@ -964,6 +1074,7 @@ class Studio(ImguiWindow):
         self.clear_model_results()
         self.clear_overlay()
         self.result = EasyDict()
+        self.args = EasyDict()
         self._wsi_tex_img = None
         if self.viewer:
             self.viewer.clear()
@@ -986,8 +1097,6 @@ class Studio(ImguiWindow):
         """Clear all model results and associated images."""
         self._async_renderer.clear_result()
         self._predictions       = None
-        self._tex_img           = None
-        self._tex_obj           = None
         self._norm_tex_img      = None
         self._norm_tex_obj      = None
         self._heatmap_tex_img   = None
@@ -1040,7 +1149,7 @@ class Studio(ImguiWindow):
         self.args = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
         self.button_w = self.font_size * 5
         self.label_w = round(self.font_size * 4.5)
-        self.menu_bar_height = self.font_size + self.spacing
+        self.menu_bar_height = self.font_size + self.spacing/2
 
         max_w = self.content_frame_width - self.offset_x_pixels
         max_h = self.content_frame_height - self.offset_y_pixels
@@ -1054,9 +1163,8 @@ class Studio(ImguiWindow):
             self.autoload(paths[0], ignore_errors=True)
 
         self._clear_textures()
-        self._draw_menu_bar()
         self._draw_control_pane()
-        self._draw_performance_pane()
+        self._draw_menu_bar()
         self._draw_about_dialog()
 
         user_input = self._handle_user_input()
@@ -1117,8 +1225,7 @@ class Studio(ImguiWindow):
         # ---------------------------------------------------------------------
 
         # Render control pane contents.
-        if self._show_control and self.has_controls_to_render:
-            self._render_control_pane_contents()
+        self._render_control_pane_contents()
 
         # Render user widgets.
         for widget in self.widgets:
@@ -1167,8 +1274,9 @@ class Studio(ImguiWindow):
             tex = text_utils.get_texture(_msg, size=self.gl_font_size, max_width=max_w, max_height=max_h, outline=2)
             tex.draw(pos=middle_pos, align=0.5, rint=True, color=1)
 
-        # Render the tile view.
+        # Render the tile view and status bar.
         self._draw_tile_view()
+        self._draw_status_bar()
 
         # Draw prediction message next to box on main display.
         if (self._use_model
@@ -1198,12 +1306,34 @@ class Studio(ImguiWindow):
         from .widgets import MosaicWidget
         return [MosaicWidget]
 
-    def get_renderer(self, name: str) -> Any:
-        """Check for the given additional renderer in the rendering pipeline."""
-        return self._addl_renderers[name]
+    def get_renderer(self, name: str) -> Optional[Renderer]:
+        """Check for the given additional renderer in the rendering pipeline.
 
-    def get_widget(self, name: str) -> Any:
-        """Returns a given widget by class name."""
+        Args:
+            name (str): Name of the renderer to check for.
+
+        Returns:
+            Renderer if name is a recognized renderer, otherwise None
+
+        """
+        if name in self._addl_renderers:
+            return self._addl_renderers[name]
+        else:
+            return None
+
+    def get_widget(self, name: str) -> Widget:
+        """Returns a given widget by class name.
+
+        Args:
+            name (str): Name of the widget to search for.
+
+        Returns:
+            slideflow.studio.widgets.Widget
+
+        Raises:
+            ValueError: If the widget could not be found.
+
+        """
         for w in self.widgets:
             if w.__class__.__name__ == name:
                 return w
@@ -1238,6 +1368,7 @@ class Studio(ImguiWindow):
         Args:
             path (str): Path to exported heatmap in \*.npz format, as generated
                 by Heatmap.save() or Heatmap.save_npz().
+
         """
         if self._model_config is None:
             self.create_toast(
@@ -1260,6 +1391,7 @@ class Studio(ImguiWindow):
             model (str): Path to Slideflow model (in either backend).
             ignore_errors (bool): Do not fail if an error is encountered.
                 Defaults to False.
+
         """
         log.debug("Loading model from Studio")
         self.close_model(True)
@@ -1268,6 +1400,7 @@ class Studio(ImguiWindow):
         log.debug("Model result cleared")
         self.skip_frame() # The input field will change on next frame.
         self._async_renderer.get_result() # Flush prior result
+        self._async_renderer.clear_result()
         try:
             self.defer_rendering()
             self.model_widget.user_model = model
@@ -1294,19 +1427,26 @@ class Studio(ImguiWindow):
 
             # Update widgets
             log.debug("Updating widgets")
+            self.model_widget.reset()
             self.model_widget.cur_model = model
             self.model_widget.use_model = True
             self.model_widget.use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
-            self.model_widget.refresh_recent()
             if normalizer is not None and hasattr(self, 'slide_widget'):
                 self.slide_widget.show_model_normalizer()
                 self.slide_widget.norm_idx = len(self.slide_widget._normalizer_methods)-1
             if self.wsi:
                 log.debug(f"Loading slide... tile_px={self.tile_px}, tile_um={self.tile_um}")
-                self.slide_widget.load(self.wsi.path, ignore_errors=ignore_errors)
+                self.slide_widget.load(
+                    self.wsi.path,
+                    mpp=self.slide_widget.manual_mpp,
+                    ignore_errors=ignore_errors
+                )
             if hasattr(self, 'heatmap_widget'):
                 log.debug("Resetting heatmap")
                 self.heatmap_widget.reset()
+            if not self.sidebar.expanded:
+                self.sidebar.selected = 'model'
+                self.sidebar.expanded = True
 
             # Update viewer
             self._show_tile_preview = True
@@ -1377,7 +1517,28 @@ class Studio(ImguiWindow):
         self._message = msg
 
     def set_overlay(self, overlay: np.ndarray, method: int) -> None:
-        """Configure the overlay to be applied to the current view screen."""
+        """Configure the overlay to be applied to the current view screen.
+
+        Overlay is a numpy array, and method is a flag indicating the
+        method to use when showing the overlay.
+
+        If ``method`` is ``sf.studio.OVERLAY_WSI``, the array will be mapped
+        to the entire whole-slide image, without offsets.
+
+        If ``method`` is ``sf.studio.OVERLAY_GRID``, the array is interpreted
+        as having been generated from the slide's grid, meaning that an offset
+        will be applied to ensure that the overlay is aligned properly.
+
+        If ``method`` is ``sf.studio.OVERLAY_VIEW``, the array is interpreted
+        as an overlay that is applied only to the area of the slide
+        currently in view.
+
+        Args:
+            overlay (np.ndarray): Overlay to render.
+            method (int): Mapping method for linking the overlay to the
+                whole-slide image.
+
+        """
         if self.viewer is None:
             raise ValueError("Unable to set overlay; viewer not loaded.")
         self.overlay = overlay
@@ -1404,157 +1565,326 @@ class Studio(ImguiWindow):
             raise ValueError(f"Unrecognized method {method}")
 
     def set_viewer(self, viewer: Any) -> None:
-        """Set the main viewer."""
+        """Set the main viewer.
+
+        Args:
+            viewer (:class:`slideflow.studio.gui.viewer.Viewer`): Viewer to use.
+
+        """
         log.debug("Setting viewer to {}".format(viewer))
+        if self.viewer is not None:
+            self.viewer.close()
         self.viewer = viewer
         self._async_renderer._live_updates = viewer.live
         self._async_renderer.set_async(viewer.live)
 
-#----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-class AsyncRenderer:
-    def __init__(self):
-        self._closed        = False
-        self._is_async      = False
-        self._cur_args      = None
-        self._cur_result    = None
-        self._cur_stamp     = 0
-        self._renderer_obj  = None
-        self._args_queue    = None
-        self._result_queue  = None
-        self._process       = None
-        self._model_path    = None
-        self._model         = None
-        self._saliency      = None
-        self._umap_encoders = None
-        self._live_updates  = False
-        self.tile_px        = None
-        self.extract_px     = None
-        self._addl_render   = []
+class Sidebar:
 
-        if sf.util.torch_available:
-            import torch
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        else:
-            self.device = None
+    """Sidebar for Studio, rendering a navigation bar and widgets."""
 
-    def close(self):
-        self._closed = True
-        self._renderer_obj = None
-        if self._process is not None:
-            self._process.terminate()
-        self._process = None
-        self._args_queue = None
-        self._result_queue = None
+    def __init__(self, viz: Studio):
+        self.viz                = viz
+        self.expanded           = False
+        self.selected           = None
+        self.buttonbar_width    = 72
+        self.navbutton_width    = 70
+        self._button_tex        = dict()
+        self._pane_w_div        = 15
+        self.navbuttons         = ['project', 'slide', 'model', 'heatmap']
+
+        self.add_widgets(viz.widgets)
+        self._load_button_textures()
 
     @property
-    def is_async(self):
-        return self._is_async
+    def theme(self):
+        """Active Studio theme."""
+        return self.viz.theme
 
-    def add_to_render_pipeline(self, renderer):
-        if self.is_async:
-            raise ValueError("Cannot add to rendering pipeline when in "
-                             "asynchronous mode.")
-        self._addl_render += [renderer]
-        if self._renderer_obj is not None:
-            self._renderer_obj.add_renderer(renderer)
+    @property
+    def content_width(self):
+        """Widget width."""
+        return self.viz.font_size * self._pane_w_div
 
+    @property
+    def full_width(self):
+        """Width of the expanded sidebar, including navigation and widgets."""
+        return self.content_width + self.buttonbar_width
 
-    def set_async(self, is_async):
-        self._is_async = is_async
+    # --- Internals -----------------------------------------------------------
 
-    def set_args(self, **args):
-        assert not self._closed
-        if args != self._cur_args or self._live_updates:
-            if self._is_async:
-                self._set_args_async(**args)
-            else:
-                self._set_args_sync(**args)
-            if not self._live_updates:
-                self._cur_args = args
+    def _set_sidebar_style(self) -> None:
+        """Start the Imgui sidebar style based on the active theme."""
+        t = self.viz.theme
+        imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, *t.item_background)
+        imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND_HOVERED, *t.item_hover)
+        imgui.push_style_color(imgui.COLOR_BORDER, *t.border)
+        imgui.push_style_color(imgui.COLOR_WINDOW_BACKGROUND, *t.sidebar_background)
+        imgui.push_style_color(imgui.COLOR_BUTTON, *t.button)
+        imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, *t.button_hovered)
+        imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, *t.button_active)
+        imgui.push_style_color(imgui.COLOR_PLOT_HISTOGRAM, *t.accent)
+        imgui.push_style_color(imgui.COLOR_PLOT_HISTOGRAM_HOVERED, *t.accent_hovered)
 
-    def _set_args_async(self, **args):
-        if self._process is None:
-            ctx = multiprocessing.get_context('spawn')
-            self._args_queue = ctx.Queue()
-            self._result_queue = ctx.Queue()
-            self._process = ctx.Process(target=self._process_fn,
-                                        args=(self._args_queue, self._result_queue, self._model_path, self._live_updates),
-                                        daemon=True)
-            self._process.start()
-        self._args_queue.put([args, self._cur_stamp])
+    def _end_sidebar_style(self) -> None:
+        """End the Imgui sidebar style based on the active theme."""
+        imgui.pop_style_color(9)
 
-    def _set_args_sync(self, **args):
-        if self._renderer_obj is None:
-            self._renderer_obj = Renderer(device=self.device)
-            for _renderer in self._addl_render:
-                self._renderer_obj.add_renderer(_renderer)
-            self._renderer_obj._model = self._model
-            self._renderer_obj._saliency = self._saliency
-        self._cur_result = self._renderer_obj.render(**args)
+    def _set_sidebar_button_style(self) -> None:
+        """Start the Imgui sidebar button style based on the active theme."""
+        imgui.push_style_color(imgui.COLOR_WINDOW_BACKGROUND, *self.theme.sidebar_background)
+        imgui.push_style_color(imgui.COLOR_BUTTON, 0, 0, 0, 0)
+        imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, 0, 0, 0, 0)
+        imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, 0, 0, 0, 0)
+        imgui.push_style_color(imgui.COLOR_BORDER, 0, 0, 0, 0)
+        imgui.push_style_var(imgui.STYLE_WINDOW_PADDING, [0, 0])
+        imgui.push_style_var(imgui.STYLE_ITEM_SPACING, [0, 0])
 
-    def get_result(self):
-        assert not self._closed
-        if self._result_queue is not None:
-            while self._result_queue.qsize() > 0:
-                result, stamp = self._result_queue.get()
-                if stamp == self._cur_stamp:
-                    self._cur_result = result
-        return self._cur_result
+    def _end_sidebar_button_style(self) -> None:
+        """End the Imgui sidebar button style based on the active theme."""
+        imgui.pop_style_color(5)
+        imgui.pop_style_var(2)
 
-    def clear_result(self):
-        assert not self._closed
-        self._cur_args = None
-        self._cur_result = None
-        self._cur_stamp += 1
+    def _load_button_textures(self) -> None:
+        """Reload textures for buttons."""
+        button_dir = join(dirname(abspath(__file__)), 'gui', 'buttons')
+        for bname in self.navbuttons + ['gear', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy', 'model_loaded', 'extensions']:
+            if bname in self._button_tex:
+                continue
+            self._button_tex[bname] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}.png')), bilinear=True, mipmap=True)
+            self._button_tex[f'{bname}_highlighted'] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}_highlighted.png')), bilinear=True, mipmap=True)
+        for name in ('vips', 'cucim', 'lowmem', 'ellipsis', 'gear', 'refresh'):
+            if f"small_{name}" in self._button_tex:
+                continue
+            self._button_tex[f"small_{name}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{name}.png')), bilinear=True, mipmap=True)
 
-    def load_model(self, model_path):
-        if self._is_async:
-            self._set_args_async(load_model=model_path)
-        elif model_path != self._model_path:
-            self._model_path = model_path
-            if self._renderer_obj is None:
-                self._renderer_obj = Renderer(device=self.device)
-                for _renderer in self._addl_render:
-                    self._renderer_obj.add_renderer(_renderer)
-            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
-            self._renderer_obj._model = self._model
-            self._renderer_obj._saliency = self._saliency
-            if _umap_encoders is not None:
-                self._umap_encoders = _umap_encoders
-            self._renderer_obj._umap_encoders = self._umap_encoders
+    def _draw_navbar_button(self, name, start_px):
+        """Draw a navigation bar button.
 
-    def clear_model(self):
-        self._model_path = None
-        self._model = None
-        self._saliency = None
+        Args:
+            name (str): Name of the image associated with the button.
+            start_px (int): Starting location of the button (y coordinates).
 
-    @staticmethod
-    def _process_fn(args_queue, result_queue, model_path, live_updates):
-        if sf.util.torch_available:
-            import torch
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        """
+        viz = self.viz
+
+        if name == 'model' and viz._model_config is not None:
+            tex_name = 'model_loaded'
         else:
-            device = None
-        renderer_obj = Renderer(device=device)
-        if model_path:
-            _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device)
-            renderer_obj._model = _model
-            renderer_obj._saliency = _saliency
-            renderer_obj._umap_encoders = _umap_encoders
-        while True:
-            while args_queue.qsize() > 0:
-                args, stamp = args_queue.get()
-                if 'load_model' in args:
-                    _model, _saliency, _umap_encoders = _load_model_and_saliency(args['load_model'], device=device)
-                    renderer_obj._model = _model
-                    renderer_obj._saliency = _saliency
-                    renderer_obj._umap_encoders = _umap_encoders
-                if 'quit' in args:
-                    return
-            if (live_updates and not result_queue.qsize()):
-                result = renderer_obj.render(**args)
-                if 'error' in result:
-                    result.error = CapturedException(result.error)
+            tex_name = name
 
-                result_queue.put([result, stamp])
+        cx, cy = imgui.get_mouse_pos()
+        cy -= viz.menu_bar_height
+        end_px = start_px + self.navbutton_width
+        if ((cx < 0 or cx > self.navbutton_width) or (cy < start_px or cy > end_px)) and self.selected != name:
+            tex = self._button_tex[tex_name].gl_id
+        else:
+            tex = self._button_tex[f'{tex_name}_highlighted'].gl_id
+        imgui.set_cursor_position((0, start_px))
+        if imgui.image_button(tex, 64, 64):
+            if name == self.selected or self.selected is None or not self.expanded:
+                self.expanded = not self.expanded
+            self.selected = name
+        if self.selected == name:
+            draw_list = imgui.get_window_draw_list()
+            draw_list.add_line(2, viz.menu_bar_height+start_px, 2, viz.menu_bar_height+start_px+self.navbutton_width, imgui.get_color_u32_rgba(1,1,1,1), 2)
+
+    def _draw_buttons(self) -> None:
+        """Draw all navigation bar buttons."""
+        viz = self.viz
+
+        imgui.set_next_window_position(0, viz.menu_bar_height)
+        buttonbar_height = viz.content_height - viz.menu_bar_height - viz.status_bar_height
+        imgui.set_next_window_size(self.buttonbar_width, buttonbar_height)
+        imgui.begin(
+            'Sidebar',
+            closable=False,
+            flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS)
+        )
+        for b_id, b_name in enumerate(self.navbuttons):
+            start_px = b_id * self.navbutton_width
+            self._draw_navbar_button(b_name, start_px)
+
+        self._draw_navbar_button('circle_lightning', buttonbar_height + viz.menu_bar_height - self.navbutton_width*3 - viz.status_bar_height)
+        self._draw_navbar_button('extensions', buttonbar_height + viz.menu_bar_height - self.navbutton_width*2 - viz.status_bar_height)
+        self._draw_navbar_button('gear', buttonbar_height + viz.menu_bar_height - self.navbutton_width - viz.status_bar_height)
+
+        imgui.end()
+
+    # --- Public methods ------------------------------------------------------
+
+    def add_widgets(self, widgets):
+        """Add widget extension(s).
+
+        Add widgets to the navigation sidebar. The ``.tag`` property is used
+        as a unique identifier for the widget. The ``.icon`` property should
+        be a path to an image file used for rendering the sidebar navigation
+        icon. ``.icon_highlighted`` property should be a path to an image file
+        used for rendering a hovered navigation icon.
+
+        The widget should implement ``__call__()`` and ``.close()`` methods
+        for rendering the imgui GUI and cleanup, respectively.
+
+        Args:
+            widgets (list(:class:`slideflow.studio.widgets.Widget`)): List of
+                widgets to add as extensions. These should be classes, not
+                instantiated objects.
+
+        """
+        if not isinstance(widgets, list):
+            widgets = [widgets]
+        if not widgets:
+            return
+        for widget in widgets:
+            self.navbuttons.append(widget.tag)
+            self._button_tex[widget.tag] = gl_utils.Texture(image=Image.open(widget.icon), bilinear=True, mipmap=True)
+            self._button_tex[f'{widget.tag}_highlighted'] = gl_utils.Texture(image=Image.open(widget.icon_highlighted), bilinear=True, mipmap=True)
+
+    def remove_widget(self, tag):
+        """Remove a widget from Studio.
+
+        Args:
+            widget (:class:`slideflow.studio.widgets.Widget`): Widget to remove.
+                This should be a class, not an instantiated object.
+
+        """
+        if tag not in self.navbuttons:
+            raise ValueError(f'No matching widget with tag "{tag}".')
+        idx = self.navbuttons.index(tag)
+        del self.navbuttons[idx]
+
+    def full_button(self, text, width=None, **kwargs):
+        """Render a button that spans the full width of the sidebar.
+
+        The color of the button is determined through the loaded theme,
+        ``bright_button`` properties.
+
+        Args:
+            text (str): Text of the button.
+            width (int, optional): Width of the button. If not specified,
+                uses a width that spans the width of the sidebar.
+
+        Keyword args:
+            enabled (bool): Whether the button is enabled.
+
+        Returns:
+            bool: Whether the button was clicked.
+
+        """
+        t = self.theme
+        imgui.push_style_color(imgui.COLOR_BUTTON, *t.bright_button)
+        imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, *t.bright_button_hovered)
+        imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, *t.bright_button_active)
+        imgui.push_style_color(imgui.COLOR_BORDER, 0, 0, 0, 0)
+        imgui.push_style_color(imgui.COLOR_TEXT, 0, 0, 0, 1)
+        if width is None:
+            width = self.viz.sidebar.content_width - (self.viz.spacing * 2)
+        result = imgui_utils.button(
+            text,
+            width=width,
+            height=self.viz.font_size * 1.7,
+            **kwargs
+        )
+        imgui.pop_style_color(5)
+        return result
+
+    def small_button(self, image_name):
+        """Render a small button for the sidebar.
+
+        Args:
+            image_name (str): Name of the image to render on the button.
+                Valid names include 'vips', 'cucim', 'lowmem', 'ellipsis',
+                'gear', and 'refresh'.
+
+        Returns:
+            bool: If the button was clicked.
+
+        """
+        viz = self.viz
+        tex = self._button_tex[f'small_{image_name}'].gl_id
+        imgui.push_style_color(imgui.COLOR_BUTTON, 0, 0, 0, 0)
+        imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, *self.theme.button_hovered)
+        imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, *self.theme.button_active)
+        result = imgui.image_button(tex, viz.font_size, viz.font_size)
+        imgui.pop_style_color(3)
+        return result
+
+    def large_image_button(self, image_name, size=64):
+        """Render a small button for the sidebar.
+
+        Args:
+            image_name (str): Name of the image to render on the button.
+                Valid names include 'gear', 'circle_lightning', 'circle_plus',
+                'pencil', 'folder', 'floppy', 'model_loaded', 'extensions',
+                'project', 'slide', 'model', and 'heatmap'.
+            size (int): Simage button. Defaults to 64.
+
+        Returns:
+            bool: If the button was clicked.
+
+        """
+        tex = self._button_tex[f'{image_name}'].gl_id
+        return imgui.image_button(tex, size, size)
+
+    def draw(self):
+        """Draw the sidebar and render all widgets."""
+        viz = self.viz
+
+        self._set_sidebar_button_style()
+        self._draw_buttons()
+        self._end_sidebar_button_style()
+        self._set_sidebar_style()
+
+        if self.expanded:
+            drawing_control_pane = True
+
+            viz.pane_w = self.full_width
+            imgui.set_next_window_position(self.navbutton_width, viz.menu_bar_height)
+            imgui.set_next_window_size(self.content_width, viz.content_height - viz.menu_bar_height - viz.status_bar_height)
+            imgui.begin(
+                'Control Pane',
+                closable=False,
+                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS)
+            )
+        else:
+            viz.pane_w = self.navbutton_width
+            drawing_control_pane = False
+
+        # --- Core widgets (always rendered, not always shown) ----------------
+
+        # Slide widget
+        viz.slide_widget(self.expanded and self.selected == 'slide')
+
+        # Project widget
+        viz.project_widget(self.expanded and self.selected == 'project')
+
+        # Model widget
+        viz.model_widget(self.expanded and self.selected == 'model')
+
+        # Heatmap / prediction widget
+        viz.heatmap_widget(self.expanded and self.selected == 'heatmap')
+
+        # Performance / capture widget
+        viz.performance_widget(self.expanded and self.selected == 'circle_lightning')
+        viz.capture_widget(self.expanded and self.selected == 'circle_lightning')
+
+        # Extensions widget
+        viz.extensions_widget(self.expanded and self.selected == 'extensions')
+
+        # Settings widget
+        viz.settings_widget(self.expanded and self.selected == 'gear')
+
+        # ---------------------------------------------------------------------
+
+        # User-defined widgets
+        for widget in viz.widgets:
+            widget(self.expanded and self.selected == widget.tag)
+
+        # Render control panel contents, if the control pane is shown.
+        if drawing_control_pane:
+            imgui.end()
+
+        self._end_sidebar_style()
+
+# -----------------------------------------------------------------------------

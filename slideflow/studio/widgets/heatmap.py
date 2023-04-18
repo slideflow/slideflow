@@ -41,29 +41,27 @@ class HeatmapWidget:
         self.cmap_idx               = 0
         self.predictions            = None
         self.uncertainty            = None
-        self.content_height         = 0
         self._generating            = False
-        self._button_pressed        = False
+        self._triggered             = False
         self._old_predictions       = 0
         self._old_uncertainty       = 0
         self._predictions_gain      = 1.0
         self._uq_gain               = 1.0
-        self._heatmap_sum           = 0
         self._heatmap_grid          = None
         self._heatmap_thread        = None
         self._heatmap_toast         = None
         self._colormaps             = plt.colormaps()
-        self._rendering_message     = "Calculating heatmap..."
+        self._rendering_message     = "Calculating whole-slide prediction..."
 
     def _create_heatmap(self):
         viz = self.viz
         self.reset()
-        if sf.slide_backend() == 'cucim':
-            mp_kw = dict(num_threads=os.cpu_count())
-        else:
-            mp_kw = dict(num_processes=os.cpu_count())
         if viz.low_memory:
             mp_kw = dict(num_threads=1, batch_size=4)
+        else:
+            mp_kw = dict()
+        if sf.util.model_backend(self.viz.model) == 'torch':
+            mp_kw['apply_softmax'] = self.is_categorical()
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
             viz.model,
@@ -83,12 +81,16 @@ class HeatmapWidget:
                 if not ignore_errors:
                     raise
 
-    def generate_heatmap(self):
+    def is_categorical(self):
+        """Check if model is a categorical model."""
+        return self.viz.model_widget.is_categorical()
+
+    def _generate(self):
         """Create and generate a heatmap asynchronously."""
 
         sw = self.viz.slide_widget
         self._create_heatmap()
-        self._button_pressed = True
+        self._triggered = True
         self._generating = True
         self._heatmap_grid, self._heatmap_thread = self.viz.heatmap.generate(
             asynchronous=True,
@@ -96,7 +98,8 @@ class HeatmapWidget:
             grayspace_threshold=sw.gs_threshold,
             whitespace_fraction=sw.ws_fraction,
             whitespace_threshold=sw.ws_threshold,
-            lazy_iter=self.viz.low_memory
+            lazy_iter=self.viz.low_memory,
+            callback=self.refresh_heatmap_grid,
         )
 
     def load(self, obj: Union[str, "sf.Heatmap"]):
@@ -116,21 +119,19 @@ class HeatmapWidget:
         self.uncertainty = self.viz.heatmap.uncertainty
         self.render_heatmap()
 
-    def refresh_generating_heatmap(self):
-        """Refresh render of the asynchronously generating heatmap."""
-
+    def refresh_heatmap_grid(self, grid_idx=None):
         if self.viz.heatmap is not None and self._heatmap_grid is not None:
             predictions, uncertainty = process_grid(self.viz.heatmap, self._heatmap_grid)
-            _sum = np.sum(predictions)
-            if _sum != self._heatmap_sum:
-                self.predictions = predictions
-                self.uncertainty = uncertainty
-                self.render_heatmap()
-                self._heatmap_sum = _sum
+            self.predictions = predictions
+            self.uncertainty = uncertainty
+            self.render_heatmap()
+            self.viz.model_widget._update_slide_preds()
 
+    def refresh_generating_heatmap(self):
+        """Refresh render of the asynchronously generating heatmap."""
         if self._heatmap_thread is not None and not self._heatmap_thread.is_alive():
             self._generating = False
-            self._button_pressed = False
+            self._triggered = False
             self._heatmap_thread = None
             self.viz.clear_message(self._rendering_message)
             if self._heatmap_toast is not None:
@@ -160,15 +161,14 @@ class HeatmapWidget:
         self.viz.rendered_heatmap   = None
         self.viz.overlay            = None
         self.viz.heatmap            = None
-        self._heatmap_sum           = 0
         self._heatmap_grid          = None
         self._heatmap_thread        = None
-        self._old_predictions            = 0
+        self._old_predictions       = 0
         self._old_uncertainty       = 0
-        self.predictions                 = None
+        self.predictions            = None
         self.uncertainty            = None
         self._generating            = False
-        self.heatmap_predictions         = 0
+        self.heatmap_predictions    = 0
         self.heatmap_uncertainty    = 0
 
     def update_transparency(self):
@@ -181,234 +181,220 @@ class HeatmapWidget:
             overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
             self.viz.set_overlay(overlay, method=sf.studio.OVERLAY_GRID)
 
-    @imgui_utils.scoped_by_object_id
-    def __call__(self, show=True):
+    def generate(self):
+        self.viz.set_message(self._rendering_message)
+        self._heatmap_toast = self.viz.create_toast(
+            title="Calculating heatmap",
+            icon='info',
+            sticky=True,
+            spinner=True
+        )
+        _thread = threading.Thread(target=self._generate)
+        _thread.start()
+        self.show = True
+
+    def _get_all_outcome_names(self):
+        config = self.viz._model_config
+        if config['model_type'] != 'categorical':
+            return config['outcomes']
+        if len(config['outcomes']) > 1:
+            return [config['outcome_labels'][outcome][o] for outcome in config['outcomes'] for o in config['outcome_labels'][outcome]]
+        else:
+            return [config['outcome_labels'][str(oidx)] for oidx in range(len(config['outcome_labels']))]
+
+    def draw_heatmap_thumb(self):
         viz = self.viz
+        width = imgui.get_content_region_max()[0] - viz.spacing
+        height = imgui.get_text_line_height_with_spacing() * 7 + viz.spacing
+        imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
+        imgui.push_style_color(imgui.COLOR_BORDER, *viz.theme.popup_border)
+        imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, 0, 0, 0, 1)
+        imgui.push_style_color(imgui.COLOR_HEADER, 0, 0, 0, 0)
+        imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, 0.16, 0.29, 0.48, 0.5)
+        imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, 0.16, 0.29, 0.48, 0.9)
+        imgui.begin_child('##heatmap_display', width=width, height=height, border=True)
 
-        if self._generating:
-            self.refresh_generating_heatmap()
+        if viz.rendered_heatmap is not None:
+            hw_ratio = (viz.rendered_heatmap.shape[0] / viz.rendered_heatmap.shape[1])
+            max_width = min(width - viz.spacing*2, (height - viz.spacing*2) / hw_ratio)
+            max_height = max_width * hw_ratio
 
-        if show:
-            self.content_height = imgui.get_text_line_height_with_spacing() * 13 + viz.spacing * 2
-            _cmap_changed = False
-            _uq_predictions_switched = False
-            bg_color = [0.16, 0.29, 0.48, 0.2]
-            dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
-            dim_color[-1] *= 0.5
+            if viz._heatmap_tex_obj is not None:
+                imgui.same_line(int((width - max_width)/2))
+                imgui.image(viz._heatmap_tex_obj.gl_id, max_width, max_height)
 
-            # Begin heatmap view.
-            width = viz.font_size * 20
-            height = imgui.get_text_line_height_with_spacing() * 13 + viz.spacing
-            imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
-            imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, *bg_color)
-            imgui.push_style_color(imgui.COLOR_HEADER, 0, 0, 0, 0)
-            imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, 0.16, 0.29, 0.48, 0.5)
-            imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, 0.16, 0.29, 0.48, 0.9)
-            imgui.begin_child('##heatmap_display', width=width, height=height, border=True)
+        imgui.end_child()
+        imgui.pop_style_color(5)
+        imgui.pop_style_var(1)
 
-            if viz.rendered_heatmap is not None:
-                hw_ratio = (viz.rendered_heatmap.shape[0] / viz.rendered_heatmap.shape[1])
-                max_width = min(width - viz.spacing*2, (height - viz.spacing*2) / hw_ratio)
-                max_height = max_width * hw_ratio
+    def draw_outcome_selection(self, radio: bool = True) -> bool:
+        viz = self.viz
+        changed = False
 
-                if viz._heatmap_tex_obj is not None:
-                    imgui.same_line(int((width - max_width)/2))
-                    imgui.image(viz._heatmap_tex_obj.gl_id, max_width, max_height)
+        heatmap_predictions_max = 0 if self.predictions is None else self.predictions.shape[2]-1
+        self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
+        narrow_w = imgui.get_text_line_height_with_spacing()
+        with imgui_utils.grayed_out(heatmap_predictions_max == 0):
+            if radio and imgui.radio_button('##predictions_radio', self.use_predictions):
+                if viz.has_uq():
+                    changed = True
+                    self.use_predictions = True
+            if radio:
+                imgui.same_line()
 
-            # End heatmap view.
-            if viz.rendered_heatmap is None:
-                imgui.text_colored('Heatmap not generated', *dim_color)
-            imgui.end_child()
-            imgui.pop_style_color(4)
-            imgui.pop_style_var(1)
+            with imgui_utils.item_width(-1 - narrow_w * 2 - viz.spacing*2):
 
+                # Determine outcome name
+                outcome_names = self._get_all_outcome_names()
+                _, hpred = imgui.drag_int('##heatmap_predictions',
+                                          self.heatmap_predictions+1,
+                                          change_speed=0.05,
+                                          min_value=1,
+                                          max_value=heatmap_predictions_max+1,
+                                          format=f'{outcome_names[self.heatmap_predictions]} (%d/{heatmap_predictions_max+1})')
+                self.heatmap_predictions = hpred - 1
             imgui.same_line()
-            imgui.begin_child('##heatmap_options', width=-1, height=height, border=False)
+            if imgui_utils.button('-##heatmap_predictions', width=narrow_w):
+                self.heatmap_predictions -= 1
+            imgui.same_line()
+            if imgui_utils.button('+##heatmap_predictions', width=narrow_w):
+                self.heatmap_predictions += 1
+            self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
 
-            # Heatmap options.
-            with imgui_utils.grayed_out(viz._model_path is None or viz.wsi is None):
+        # Uncertainty.
+        if viz.heatmap is None or self.uncertainty is None:
+            heatmap_uncertainty_max = 0
+        else:
+            heatmap_uncertainty_max = self.uncertainty.shape[2]-1
 
-                # Colormap.
-                with imgui_utils.item_width(viz.font_size * 6):
-                    _clicked, self.cmap_idx = imgui.combo("##cmap", self.cmap_idx, self._colormaps)
-                if _clicked:
-                    _cmap_changed = True
+        self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
+        narrow_w = imgui.get_text_line_height_with_spacing()
+        with imgui_utils.grayed_out(viz.heatmap is None or not viz.has_uq()):
+            if radio and imgui.radio_button('##uncertainty_radio', not self.use_predictions):
+                if viz.has_uq():
+                    changed = True
+                    self.use_predictions = False
 
-                imgui.same_line(viz.font_size * 6 + viz.spacing)
-                _clicked, self.show = imgui.checkbox('Show', self.show)
+            if radio:
+                imgui.same_line()
+            with imgui_utils.item_width(-1 - narrow_w * 2 - viz.spacing*2):
+                _, huq = imgui.drag_int('##heatmap_uncertainty',
+                                        self.heatmap_uncertainty+1,
+                                        change_speed=0.05,
+                                        min_value=1,
+                                        max_value=heatmap_uncertainty_max+1,
+                                        format=f'Uncertainty %d/{heatmap_uncertainty_max+1}')
+                self.heatmap_uncertainty = huq - 1
+            imgui.same_line()
+            if imgui_utils.button('-##heatmap_uncertainty', width=narrow_w):
+                self.heatmap_uncertainty -= 1
+            imgui.same_line()
+            if imgui_utils.button('+##heatmap_uncertainty', width=narrow_w):
+                self.heatmap_uncertainty += 1
+            self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
+
+        return changed
+
+    def draw_display_options(self):
+        viz = self.viz
+        _cmap_changed = False
+        _alpha_changed = False
+        _gain_changed = False
+        _uq_predictions_switched = False
+
+        # Predictions and UQ.
+        imgui_utils.vertical_break()
+        _uq_predictions_switched = self.draw_outcome_selection()
+        imgui_utils.vertical_break()
+
+        # Display options (colormap, opacity, etc).
+        if viz.collapsing_header('Display', default=False):
+            with imgui_utils.item_width(viz.font_size * 5):
+                _clicked, self.show = imgui.checkbox('##saliency', self.show)
                 if _clicked:
                     self.render_heatmap()
                     if self.show:
                         self.viz.slide_widget.show_slide_filter  = False
                         self.viz.slide_widget.show_tile_filter   = False
 
+            # Colormap.
+            imgui.same_line()
+            with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.font_size*1.8):
+                _clicked, self.cmap_idx = imgui.combo("##cmap", self.cmap_idx, self._colormaps)
+            if _clicked:
+                _cmap_changed = True
+
+
+            with imgui_utils.grayed_out(viz.heatmap is None):
+
+                # Alpha.
+                with imgui_utils.item_width(-1 - viz.button_w - viz.spacing):
+                    _alpha_changed, self.alpha = imgui.slider_float('##alpha',
+                                                                    self.alpha,
+                                                                    min_value=0,
+                                                                    max_value=1,
+                                                                    format='Alpha %.2f')
+
                 imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
-                _button_text = ('Generate' if not self._button_pressed else "Working...")
-                if imgui_utils.button(_button_text, width=viz.button_w, enabled=(not self._button_pressed)):
-                    self.viz.set_message(self._rendering_message)
-                    self._heatmap_toast = self.viz.create_toast(
-                        title="Calculating heatmap",
-                        icon='info',
-                        sticky=True,
-                        spinner=True
-                    )
-                    _thread = threading.Thread(target=self.generate_heatmap)
-                    _thread.start()
-                    self.show = True
+                if imgui_utils.button('Reset##alpha', width=-1, enabled=True):
+                    self.alpha = 0.5
+                    _alpha_changed = True
 
-                with imgui_utils.grayed_out(viz.heatmap is None):
+                # Gain.
+                with imgui_utils.item_width(-1 - viz.button_w - viz.spacing):
+                    _gain_changed, self.gain = imgui.slider_float('##gain',
+                                                                    self.gain,
+                                                                    min_value=0,
+                                                                    max_value=10,
+                                                                    format='Gain %.2f')
 
-                    # Alpha.
-                    with imgui_utils.item_width(-1 - viz.button_w - viz.spacing):
-                        _alpha_changed, self.alpha = imgui.slider_float('##alpha',
-                                                                        self.alpha,
-                                                                        min_value=0,
-                                                                        max_value=1,
-                                                                        format='Alpha %.2f')
-
-                    imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
-                    if imgui_utils.button('Reset##alpha', width=-1, enabled=True):
-                        self.alpha = 0.5
-                        _alpha_changed = True
-
-                    # Gain.
-                    with imgui_utils.item_width(-1 - viz.button_w - viz.spacing):
-                        _gain_changed, self.gain = imgui.slider_float('##gain',
-                                                                      self.gain,
-                                                                      min_value=0,
-                                                                      max_value=10,
-                                                                      format='Gain %.2f')
-
-                    imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
-                    if imgui_utils.button('Reset##gain', width=-1, enabled=True):
-                        if self.use_predictions:
-                            self.gain = 1.0
-                        else:
-                            self.gain = 1.0
-                        _gain_changed = True
-
-                # Predictions.
-                heatmap_predictions_max = 0 if self.predictions is None else self.predictions.shape[2]-1
-                self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
-                narrow_w = imgui.get_text_line_height_with_spacing()
-                with imgui_utils.grayed_out(heatmap_predictions_max == 0):
-                    if imgui.radio_button('##predictions_radio', self.use_predictions):
-                        if viz.has_uq():
-                            _uq_predictions_switched = True
-                            self.use_predictions = True
-
-                    imgui.same_line()
-                    with imgui_utils.item_width(-1 - viz.button_w - narrow_w * 2 - viz.spacing * 3):
-                        _changed, self.heatmap_predictions = imgui.drag_int('##heatmap_predictions',
-                                                                       self.heatmap_predictions,
-                                                                       change_speed=0.05,
-                                                                       min_value=0,
-                                                                       max_value=heatmap_predictions_max,
-                                                                       format=f'predictions %d/{heatmap_predictions_max}')
-                    imgui.same_line()
-                    if imgui_utils.button('-##heatmap_predictions', width=narrow_w):
-                        self.heatmap_predictions -= 1
-                    imgui.same_line()
-                    if imgui_utils.button('+##heatmap_predictions', width=narrow_w):
-                        self.heatmap_predictions += 1
-                    self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
-                    if heatmap_predictions_max > 0 and viz._model_config:
-                        imgui.same_line()
-                        imgui.text(viz._model_config['outcome_labels'][str(self.heatmap_predictions)])
-
-                # Uncertainty.
-                if viz.heatmap is None or self.uncertainty is None:
-                    heatmap_uncertainty_max = 0
-                else:
-                    heatmap_uncertainty_max = self.uncertainty.shape[2] - 1
-
-                self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
-                narrow_w = imgui.get_text_line_height_with_spacing()
-                with imgui_utils.grayed_out(viz.heatmap is None or not viz.has_uq()):
-                    if imgui.radio_button('##uncertainty_radio', not self.use_predictions):
-                        if viz.has_uq():
-                            _uq_predictions_switched = True
-                            self.use_predictions = False
-
-                    imgui.same_line()
-                    with imgui_utils.item_width(-1 - viz.button_w - narrow_w * 2 - viz.spacing * 3):
-                        _changed, self.heatmap_uncertainty = imgui.drag_int('##heatmap_uncertainty',
-                                                                            self.heatmap_uncertainty,
-                                                                            change_speed=0.05,
-                                                                            min_value=0,
-                                                                            max_value=heatmap_uncertainty_max,
-                                                                            format=f'UQ %d/{heatmap_uncertainty_max}')
-                    imgui.same_line()
-                    if imgui_utils.button('-##heatmap_uncertainty', width=narrow_w):
-                        self.heatmap_uncertainty -= 1
-                    imgui.same_line()
-                    if imgui_utils.button('+##heatmap_uncertainty', width=narrow_w):
-                        self.heatmap_uncertainty += 1
-                    self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
-
-                _histogram_size = imgui.get_content_region_max()[0] - 1, viz.font_size * 4
-                if viz.heatmap and self.predictions is not None:
-                    flattened = self.predictions[:, :, self.heatmap_predictions].flatten()
-                    flattened = flattened[flattened >= 0]
-                    _hist, _bin_edges = np.histogram(flattened, range=(0, 1))
-                    if flattened.shape[0] > 0:
-                        overlay_text = f"Predictions (avg: {np.mean(flattened):.2f})"
-                        _hist_arr = array('f', _hist/np.sum(_hist))
-                        scale_max = np.max(_hist/np.sum(_hist))
+                imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
+                if imgui_utils.button('Reset##gain', width=-1, enabled=True):
+                    if self.use_predictions:
+                        self.gain = 1.0
                     else:
-                        overlay_text = "Predictions (avg: - )"
-                        _hist_arr = array('f', [0])
-                        scale_max = 1
-                    imgui.separator()
-                    imgui.core.plot_histogram('##heatmap_pred',
-                                              _hist_arr,
-                                              scale_min=0,
-                                              overlay_text=overlay_text,
-                                              scale_max=scale_max,
-                                              graph_size=_histogram_size)
+                        self.gain = 1.0
+                    _gain_changed = True
 
-                if viz.heatmap and self.uncertainty is not None:
-                    flattened = self.uncertainty[:, :, self.heatmap_uncertainty].flatten()
-                    flattened = flattened[flattened >= 0]
-                    _hist, _bin_edges = np.histogram(flattened)
-                    if flattened.shape[0] > 0:
-                        overlay_text = f"Uncertainty (avg: {np.mean(flattened):.2f})"
-                        _hist_arr = array('f', _hist/np.sum(_hist))
-                        scale_max = np.max(_hist/np.sum(_hist))
-                    else:
-                        overlay_text = "Uncertainty (avg: - )"
-                        _hist_arr = array('f', [0])
-                        scale_max = 1
-                    imgui.separator()
-                    imgui.core.plot_histogram('##heatmap_pred',
-                                              _hist_arr,
-                                              scale_min=0,
-                                              overlay_text=overlay_text,
-                                              scale_max=scale_max,
-                                              graph_size=_histogram_size)
-                    imgui.separator()
-                elif not viz.has_uq():
-                    imgui.text("Model not trained with uncertainty.")
+        # Render heatmap
+        if _alpha_changed:
+            self.update_transparency()
+        if _gain_changed:
+            if self.use_predictions:
+                self._predictions_gain = self.gain
+            else:
+                self._uq_gain = self.gain
+            self.render_heatmap()
+        if _uq_predictions_switched:
+            self.gain = self._predictions_gain if self.use_predictions else self._uq_gain
+            self.render_heatmap()
+        if (_cmap_changed
+            or (self.heatmap_predictions != self._old_predictions and self.use_predictions)
+            or (self.heatmap_uncertainty != self._old_uncertainty and self.use_uncertainty)
+            or _uq_predictions_switched):
+            self.render_heatmap()
 
-            imgui.end_child()
+    @imgui_utils.scoped_by_object_id
+    def __call__(self, show=True):
+        viz = self.viz
+        config = viz._model_config
 
-            # Render heatmap.
-            if _alpha_changed:
-                self.update_transparency()
-            if _gain_changed:
-                if self.use_predictions:
-                    self._predictions_gain = self.gain
-                else:
-                    self._uq_gain = self.gain
-                self.render_heatmap()
-            if _uq_predictions_switched:
-                self.gain = self._predictions_gain if self.use_predictions else self._uq_gain
-                self.render_heatmap()
-            if (_cmap_changed
-               or (self.heatmap_predictions != self._old_predictions and self.use_predictions)
-               or (self.heatmap_uncertainty != self._old_uncertainty and self.use_uncertainty)
-               or _uq_predictions_switched):
-                self.render_heatmap()
-        else:
-            self.content_height = 0
-#----------------------------------------------------------------------------
+        if self._generating:
+            self.refresh_generating_heatmap()
+
+        if show:
+            viz.header("Heatmap")
+
+        if show and not config:
+            imgui_utils.padded_text('No model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
+            if viz.sidebar.full_button("Load a Model"):
+                viz.ask_load_model()
+            if viz.sidebar.full_button("Download a Model"):
+                viz.model_widget._show_download = True
+
+        elif show:
+            self.draw_heatmap_thumb()
+            txt = "Generate" if not self._triggered else "Generating..."
+            if viz.sidebar.full_button(txt, enabled=(not self._triggered and viz.wsi)):
+                self.generate()
+            self.draw_display_options()

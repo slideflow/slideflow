@@ -69,9 +69,10 @@ class SlideMap:
             slides (list(str)): List of slide names
         """
         assert isinstance(parametric_umap, bool), "Expected <bool> for argument 'parametric_umap'"
-        self.data = None   # type: DataFrame
-        self.ftrs = None   # type: Optional[DatasetFeatures]
-        self.slides = None # type: List[str]
+        self.data = None    # type: DataFrame
+        self.ftrs = None    # type: Optional[DatasetFeatures]
+        self.slides = None  # type: List[str]
+        self.tfrecords = None  # type: List[str]
         self.parametric_umap = parametric_umap
         self._umap_normalized_range = None
         self.map_meta = {}  # type: Dict[str, Any]
@@ -98,7 +99,7 @@ class SlideMap:
             path (str): Directory from which to load a previously saved UMAP.
 
         """
-        log.debug(f"Attempting to load SlideMap from {path}")
+        log.debug(f"Loading SlideMap from {path}")
         obj = cls()
         if isdir(path):
             # Load coordinates
@@ -108,7 +109,7 @@ class SlideMap:
                 log.warn("Could not find slidemap.parquet; no data loaded.")
             # Load UMAP
             if exists(join(path, 'parametric_model')):
-                obj.parametric_umap=True
+                obj.parametric_umap = True
                 obj.load_umap(path)
             elif exists(join(path, 'umap.pkl')):
                 obj.load_umap(join(path, 'umap.pkl'))

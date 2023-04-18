@@ -10,6 +10,7 @@ import slideflow as sf
 from types import SimpleNamespace
 from PIL import Image, UnidentifiedImageError
 from typing import (Any, Dict, List, Optional, Tuple, Union)
+from slideflow import errors
 from slideflow.util import log, path_to_name, path_to_ext  # noqa F401
 from slideflow.slide.utils import *
 
@@ -50,7 +51,7 @@ def get_libvips_reader(path: str, *args, **kwargs):
         return __vipsreader__
 
     # Read a JPEG image.
-    if path_to_ext(path).lower() in ('jpg', 'jpeg'):
+    if path_to_ext(path).lower() in ('jpg', 'jpeg', 'png'):
         reader = _JPGVIPSReader(path, *args, **kwargs)
 
     # Read a slide image.
@@ -264,7 +265,8 @@ class _VIPSReader:
         self,
         path: str,
         mpp: Optional[float] = None,
-        cache_kw: Optional[Dict[str, Any]] = None
+        cache_kw: Optional[Dict[str, Any]] = None,
+        ignore_missing_mpp: bool = False
     ) -> None:
         '''Wrapper for Libvips to preserve cross-compatible functionality.'''
 
@@ -330,9 +332,14 @@ class _VIPSReader:
                             f"Missing Microns-Per-Pixel (MPP) for {name}"
                         )
             except AttributeError:
-                mpp = DEFAULT_JPG_MPP
-                log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
-                self.properties[OPS_MPP_X] = mpp
+                if ignore_missing_mpp:
+                    mpp = DEFAULT_JPG_MPP
+                    log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
+                    self.properties[OPS_MPP_X] = mpp
+                else:
+                    raise errors.SlideMissingMPPError(
+                        f'Could not detect microns-per-pixel for slide: {path}'
+                    )
             except UnidentifiedImageError:
                 log.error(
                     f"PIL error; unable to read slide {path_to_name(path)}."
@@ -545,7 +552,13 @@ class _JPGVIPSReader(_VIPSReader):
 
     has_levels = False
 
-    def __init__(self, path: str, mpp: Optional[float] = None, cache_kw = None) -> None:
+    def __init__(
+        self,
+        path: str,
+        mpp: Optional[float] = None,
+        cache_kw = None,
+        ignore_missing_mpp: bool = True
+    ) -> None:
         self.path = path
         self.full_image = vips.Image.new_from_file(path)
         self.cache_kw = cache_kw if cache_kw else {}
@@ -586,6 +599,11 @@ class _JPGVIPSReader(_VIPSReader):
                     else:
                         raise AttributeError
             except AttributeError:
-                mpp = DEFAULT_JPG_MPP
-                log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
-                self.properties[OPS_MPP_X] = mpp
+                if ignore_missing_mpp:
+                    mpp = DEFAULT_JPG_MPP
+                    log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
+                    self.properties[OPS_MPP_X] = mpp
+                else:
+                    raise errors.SlideMissingMPPError(
+                        f'Could not detect microns-per-pixel for slide: {path}'
+                    )

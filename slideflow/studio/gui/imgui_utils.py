@@ -1,14 +1,17 @@
 """Utility functions for Imgui applications."""
 
+import time
 import os
 from PIL import Image
 from os.path import join, dirname, abspath
 import contextlib
 import imgui
 
+_SPINNER_ARRAY = ['.  ', '.. ', '...', ' ..', '  .', '   ']
+
 #----------------------------------------------------------------------------
 
-def about_image():
+def logo_image():
     return Image.open(join(dirname(abspath(__file__)), 'icons', 'logo.png'))
 
 
@@ -21,7 +24,7 @@ def icons():
 
 #----------------------------------------------------------------------------
 
-def set_default_style(color_scheme='dark', spacing=9, indent=23, scrollbar=27):
+def set_default_style(spacing=9, indent=23, scrollbar=27):
     s = imgui.get_style()
     s.window_padding        = [spacing, spacing]
     s.item_spacing          = [spacing, spacing]
@@ -41,10 +44,67 @@ def set_default_style(color_scheme='dark', spacing=9, indent=23, scrollbar=27):
     s.scrollbar_rounding    = 3
     s.grab_rounding         = 3
 
-    getattr(imgui, f'style_colors_{color_scheme}')(s)
-    c0 = s.colors[imgui.COLOR_MENUBAR_BACKGROUND]
-    c1 = s.colors[imgui.COLOR_FRAME_BACKGROUND]
-    s.colors[imgui.COLOR_POPUP_BACKGROUND] = [x * 0.7 + y * 0.3 for x, y in zip(c0, c1)][:3] + [1]
+#----------------------------------------------------------------------------
+
+@contextlib.contextmanager
+def header(text, color=0.4, hpad=20, vpad=15):
+    if isinstance(vpad, (float, int)):
+        vpad = [vpad, vpad]
+    if isinstance(hpad, (float, int)):
+        hpad = [hpad, hpad]
+    line_height =  imgui.core.get_text_line_height()
+    if isinstance(color, (float, int)):
+        color = [color, color, color, 1]
+    imgui.push_style_color(imgui.COLOR_TEXT, *color)
+    cx, cy = imgui.get_cursor_position()
+    imgui.set_cursor_position([cx+hpad[0], cy+vpad[0]])
+    imgui.text(text)
+    imgui.pop_style_color(1)
+    yield
+    imgui.set_cursor_position([cx+hpad[1], cy + line_height + vpad[0] + vpad[1]])
+    imgui.separator()
+
+#----------------------------------------------------------------------------
+
+def vertical_break():
+    cx, cy = imgui.get_cursor_position()
+    imgui.set_cursor_position([cx, cy+10])
+
+#----------------------------------------------------------------------------
+
+def padded_text(text, hpad=0, vpad=0):
+    if isinstance(vpad, (float, int)):
+        vpad = [vpad, vpad]
+    if isinstance(hpad, (float, int)):
+        hpad = [hpad, hpad]
+    line_height =  imgui.core.get_text_line_height()
+    cx, cy = imgui.get_cursor_position()
+    imgui.set_cursor_position([cx+hpad[0], cy+vpad[0]])
+    imgui.text(text)
+    imgui.set_cursor_position([cx+hpad[1], cy + line_height + vpad[0] + vpad[1]])
+
+#----------------------------------------------------------------------------
+
+def spinner():
+    imgui.text(spinner_text())
+
+def spinner_text():
+    return _SPINNER_ARRAY[int(time.time()/0.05) % len(_SPINNER_ARRAY)]
+
+#----------------------------------------------------------------------------
+
+def ellipsis_clip(text, length):
+    if len(text) > length:
+        return text[:length-3] + '...'
+    else:
+        return text
+
+@contextlib.contextmanager
+def clipped_with_tooltip(text, length):
+    clipped = ellipsis_clip(text, length)
+    yield
+    if clipped != text and imgui.is_item_hovered():
+        imgui.set_tooltip(text)
 
 #----------------------------------------------------------------------------
 
@@ -85,6 +145,13 @@ def item_width(width=None):
     else:
         yield
 
+def right_align(text, spacing=0):
+    imgui.same_line(imgui.get_content_region_max()[0] - (imgui.calc_text_size(text)[0] + spacing))
+
+def right_aligned_text(text, spacing=0):
+    imgui.same_line(imgui.get_content_region_max()[0] - (imgui.calc_text_size(text)[0] + spacing))
+    imgui.text(text)
+
 #----------------------------------------------------------------------------
 
 def scoped_by_object_id(method):
@@ -97,9 +164,9 @@ def scoped_by_object_id(method):
 
 #----------------------------------------------------------------------------
 
-def button(label, width=0, enabled=True):
+def button(label, width=0, height=0, enabled=True):
     with grayed_out(not enabled):
-        clicked = imgui.button(label, width=width)
+        clicked = imgui.button(label, width=width, height=height)
     clicked = clicked and enabled
     return clicked
 

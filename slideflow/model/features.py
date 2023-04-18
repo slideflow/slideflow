@@ -20,7 +20,7 @@ import scipy.stats as stats
 import slideflow as sf
 from rich.progress import track, Progress
 from slideflow import errors
-from slideflow.util import log, Labels, ImgBatchSpeedColumn
+from slideflow.util import log, Labels, ImgBatchSpeedColumn, tfrecord2idx
 from .base import BaseFeatureExtractor
 
 
@@ -538,9 +538,10 @@ class DatasetFeatures:
 
         Args:
             outdir (str): Path to directory in which to save .pt files.
-        """
 
+        """
         import torch
+
         if not exists(outdir):
             os.makedirs(outdir)
         slides = self.slides if not slides else slides
@@ -552,7 +553,10 @@ class DatasetFeatures:
                 self.activations[slide].astype(np.float32)
             )
             torch.save(slide_activations, join(outdir, f'{slide}.pt'))
-            np.savez(join(outdir, f'{slide}.index'), self.locations[slide])
+            tfrecord2idx.save_index(
+                self.locations[slide],
+                join(outdir, f'{slide}.index')
+            )
         args = {
             'model': self.model if isinstance(self.model, str) else '<NA>',
             'num_features': self.num_features
@@ -1006,11 +1010,7 @@ class DatasetFeatures:
                 if not tfr_dir:
                     log.warning("TFRecord location not found for "
                                 f"slide {g['slide']}")
-                slide, image = sf.io.get_tfrecord_by_index(
-                    tfr_dir,
-                    g['index'],
-                    decode=False
-                )
+                slide, image = sf.io.get_tfrecord_by_index(tfr_dir, g['index'])
                 tile_filename = (f"{i}-tfrecord{g['slide']}-{g['index']}"
                                  + f"-{g['val']:.2f}.jpg")
                 image_string = open(join(outdir, str(f), tile_filename), 'wb')
@@ -1265,12 +1265,12 @@ class _FeatureGenerator:
         # Generator is a loaded torch.nn.Module
         elif self.is_torch():
             return sf.model.Features.from_model(
-                self.model,
+                self.model.to('cuda'),
                 tile_px=self.tile_px,
                 layers=self.layers,
                 include_preds=self.include_preds,
                 **kwargs
-            ).to('cuda')
+            )
 
         # Unrecognized feature generator
         else:
@@ -1389,7 +1389,7 @@ class _FeatureGenerator:
                 for d, slide in enumerate(slides):
                     if self.layers:
                         activations[slide].append(features[d])
-                    if self.include_preds and predictions is not None:
+                    if self.include_preds and preds is not None:
                         predictions[slide].append(preds[d])
                     if self.uq and self.include_uncertainty:
                         uncertainty[slide].append(unc[d])

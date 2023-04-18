@@ -3,10 +3,16 @@ import cv2
 import imgui
 import numpy as np
 import threading
+import contextlib
+import glfw
+from shapely.geometry import Point
+from shapely.geometry import Polygon
+from tkinter.filedialog import askopenfilename
 
 from .._renderer import CapturedException
 from ..utils import EasyDict
-from ..gui import imgui_utils
+from ..gui import imgui_utils, text_utils, gl_utils
+from ..gui.annotator import AnnotationCapture
 
 import slideflow as sf
 
@@ -15,12 +21,8 @@ import slideflow as sf
 class SlideWidget:
     def __init__(self, viz):
         self.viz                    = viz
-        self.search_dirs            = []
         self.cur_slide              = None
         self.user_slide             = ''
-        self.project_slides         = []
-        self.browse_cache           = dict()
-        self.browse_refocus         = False
         self.normalize_wsi          = False
         self.norm_idx               = 0
         self.qc_idx                 = 0
@@ -34,7 +36,6 @@ class SlideWidget:
         self.ws_fraction            = sf.slide.DEFAULT_WHITESPACE_FRACTION
         self.ws_threshold           = sf.slide.DEFAULT_WHITESPACE_THRESHOLD
         self.num_total_rois         = 0
-        self.content_height         = 0
         self._filter_grid           = None
         self._filter_thread         = None
         self._capturing_ws_thresh   = None
@@ -42,6 +43,19 @@ class SlideWidget:
         self._capturing_stride      = None
         self._use_rois              = True
         self._rendering_message     = "Calculating tile filter..."
+        self._show_filter_controls  = False
+        self._show_mpp_popup        = False
+        self._input_mpp             = 1.0
+        self._mpp_reload_kwargs     = dict()
+
+        # ROI Annotation params
+        self.annotator              = AnnotationCapture(named=False)
+        self.capturing              = False
+        self.editing                = False
+        self.annotations            = []
+        self._mouse_down            = False
+        self._late_render           = []
+
         self._all_normalizer_methods = [
             'reinhard',
             'reinhard_fast',
@@ -80,9 +94,9 @@ class SlideWidget:
         if self.viz.wsi is not None:
             self.viz.set_message(self._rendering_message)
             if self.viz.low_memory or sf.slide_backend() == 'cucim':
-                mp_kw = dict(num_threads=os.cpu_count(), lazy_iter=True)
+                mp_kw = dict(lazy_iter=True)
             else:
-                mp_kw = dict(num_processes=os.cpu_count())
+                mp_kw = dict()
             generator = self.viz.wsi.build_generator(
                 img_format='numpy',
                 grayspace_fraction=sf.slide.FORCE_CALCULATE_GRAYSPACE,
@@ -155,9 +169,108 @@ class SlideWidget:
             if self.show_tile_filter:
                 self.render_overlay(self._filter_grid, correct_wsi_dim=True)
 
+    # --- ROI annotation functions --------------------------------------------
+
+    def late_render(self):
+        for _ in range(len(self._late_render)):
+            annotation, name, kwargs = self._late_render.pop()
+            gl_utils.draw_roi(annotation, **kwargs)
+            if isinstance(name, str):
+                tex = text_utils.get_texture(
+                    name,
+                    size=self.viz.gl_font_size,
+                    max_width=self.viz.viewer.width,
+                    max_height=self.viz.viewer.height,
+                    outline=2
+                )
+                text_pos = (annotation.mean(axis=0))
+                tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
+
+    def render_annotation(self, annotation, origin, name=None, color=1, alpha=1, linewidth=3):
+        kwargs = dict(color=color, linewidth=linewidth, alpha=alpha)
+        self._late_render.append((np.array(annotation) + origin, name, kwargs))
+
+    def keyboard_callback(self, key, action):
+        if (key == glfw.KEY_DELETE and action == glfw.PRESS):
+            if self.editing and hasattr(self.viz.viewer, 'selected_rois'):
+                for idx in self.viz.viewer.selected_rois:
+                    self.viz.wsi.remove_roi(idx)
+                self.viz.viewer.deselect_roi()
+                self.viz.viewer.refresh_view()
+
+
+    def check_for_selected_roi(self):
+        mouse_down = imgui.is_mouse_down(0)
+
+        # Mouse is newly up
+        if not mouse_down:
+            self._mouse_down = False
+            return
+        # Mouse is already down
+        elif self._mouse_down:
+            return
+        # Mouse is newly down
+        else:
+            self._mouse_down = True
+            mouse_point = Point(imgui.get_mouse_pos())
+            for roi_idx, roi_array in self.viz.viewer.rois:
+                try:
+                    roi_poly = Polygon(roi_array)
+                except ValueError:
+                    continue
+                if roi_poly.contains(mouse_point):
+                    return roi_idx
+
+    def _process_roi_capture(self):
+        viz = self.viz
+        if self.capturing:
+            new_annotation, annotation_name = self.annotator.capture(
+                x_range=(viz.viewer.x_offset, viz.viewer.x_offset + viz.viewer.width),
+                y_range=(viz.viewer.y_offset, viz.viewer.y_offset + viz.viewer.height),
+            )
+
+            # Render in-progress annotations
+            if new_annotation is not None:
+                self.render_annotation(new_annotation, origin=(viz.viewer.x_offset, viz.viewer.y_offset))
+            if annotation_name:
+                wsi_coords = []
+                for c in new_annotation:
+                    _x, _y = viz.viewer.display_coords_to_wsi_coords(c[0], c[1], offset=False)
+                    int_coords = (int(_x), int(_y))
+                    if int_coords not in wsi_coords:
+                        wsi_coords.append(int_coords)
+                wsi_coords = np.array(wsi_coords)
+                viz.wsi.load_roi_array(wsi_coords)
+                viz.viewer.refresh_view()
+
+        # Edit ROIs
+        if self.editing:
+            selected_roi = self.check_for_selected_roi()
+            if imgui.is_mouse_down(1):
+                viz.viewer.deselect_roi()
+            elif selected_roi is not None:
+                viz.viewer.deselect_roi()
+                viz.viewer.select_roi(selected_roi)
+
+    def _set_roi_button_style(self):
+        imgui.push_style_color(imgui.COLOR_BUTTON, 0, 0, 0, 0)
+        imgui.push_style_var(imgui.STYLE_ITEM_SPACING, [0, 0])
+
+    def _end_roi_button_style(self):
+        imgui.pop_style_color(1)
+        imgui.pop_style_var(1)
+
+    @contextlib.contextmanager
+    def highlighted(self, boolean):
+        if boolean:
+            imgui.push_style_color(imgui.COLOR_BUTTON, *self.viz.theme.button_active)
+        yield
+        if boolean:
+            imgui.pop_style_color(1)
+
     # --- Public interface ----------------------------------------------------
 
-    def load(self, slide, stride=None, ignore_errors=False):
+    def load(self, slide, stride=None, ignore_errors=False, mpp=None, **kwargs):
         """Load a slide."""
 
         viz = self.viz
@@ -180,13 +293,32 @@ class SlideWidget:
             name = slide.replace('\\', '/').split('/')[-1]
             self.cur_slide = slide
             self.user_slide = slide
+            self.manual_mpp = mpp
             self._use_rois = True
             viz.set_message(f'Loading {name}...')
             sf.log.debug(f"Loading slide {slide}...")
             viz.defer_rendering()
             if stride is not None:
                 self.stride = stride
-            viz._reload_wsi(slide, stride=self.stride, use_rois=self._use_rois)
+            try:
+                viz._reload_wsi(
+                    slide,
+                    stride=self.stride,
+                    use_rois=self._use_rois,
+                    ignore_missing_mpp=False,
+                    **kwargs
+                )
+            except sf.errors.SlideMissingMPPError:
+                self.cur_slide = None
+                self.user_slide = slide
+                self._show_mpp_popup = True
+                self._mpp_reload_kwargs = dict(
+                    slide=slide,
+                    stride=stride,
+                    ignore_errors=ignore_errors,
+                    **kwargs
+                )
+                return
             viz.heatmap_widget.reset()
             self.num_total_rois = len(viz.wsi.rois)
 
@@ -195,11 +327,14 @@ class SlideWidget:
             max_width = int(min(800 - viz.spacing*2, (800 - viz.spacing*2) / hw_ratio))
             viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width, low_res=True))
             viz.clear_message(f'Loading {name}...')
+            if not viz.sidebar.expanded:
+                viz.sidebar.selected = 'slide'
+                viz.sidebar.expanded = True
 
         except Exception as e:
             self.cur_slide = None
             self.user_slide = slide
-            viz.clear_message(f'Loading {name}...')
+            viz.clear_message()
             viz.result = EasyDict(error=CapturedException())
             sf.log.warn(f"Error loading slide {slide}: {e}")
             viz.create_toast(f"Error loading slide {slide}", icon="error")
@@ -301,247 +436,280 @@ class SlideWidget:
             if self.show_slide_filter:
                 self.render_slide_filter()
 
+    # --- Widget --------------------------------------------------------------
+
+    def draw_info(self):
+        viz = self.viz
+        height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing
+        if viz.wsi is not None:
+            width, height = viz.wsi.dimensions
+            if self._filter_grid is not None and self.show_tile_filter:
+                est_tiles = int(self._filter_grid.sum())
+            elif self.show_slide_filter:
+                est_tiles = viz.wsi.estimated_num_tiles
+            else:
+                est_tiles = viz.wsi.grid.shape[0] * viz.wsi.grid.shape[1]
+            vals = [
+                f"{width} x {height}",
+                f'{viz.wsi.mpp:.4f} ({int(10 / (viz.wsi.slide.level_downsamples[0] * viz.wsi.mpp)):d}x)',
+                viz.wsi.vendor if viz.wsi.vendor is not None else '-',
+                str(est_tiles),
+            ]
+        else:
+            vals = ["-" for _ in range(8)]
+        rows = [
+            ['Dimensions (w x h)',  vals[0]],
+            ['MPP (Magnification)', vals[1]],
+            ['Scanner',             vals[2]],
+            ['Est. tiles',          vals[3]],
+        ]
+        imgui.text_colored('Filename', *viz.theme.dim)
+        imgui.same_line(viz.font_size * 8)
+        with imgui_utils.clipped_with_tooltip(viz.wsi.name, 17):
+            imgui.text(imgui_utils.ellipsis_clip(viz.wsi.name, 17))
+        for y, cols in enumerate(rows):
+            for x, col in enumerate(cols):
+                if x != 0:
+                    imgui.same_line(viz.font_size * (8 + (x - 1) * 6))
+                if x == 0:
+                    imgui.text_colored(col, *viz.theme.dim)
+                else:
+                    imgui.text(col)
+
+        imgui_utils.vertical_break()
+
+    def draw_filtering_popup(self):
+        viz = self.viz
+        cx, cy = imgui.get_cursor_pos()
+        imgui.set_next_window_position(viz.sidebar.full_width, cy - viz.font_size)
+        imgui.set_next_window_size(viz.font_size*17, viz.font_size*3 + viz.spacing*1.5)
+        imgui.push_style_color(imgui.COLOR_WINDOW_BACKGROUND, *viz.theme.popup_background)
+        imgui.push_style_color(imgui.COLOR_BORDER, *viz.theme.popup_border)
+        imgui.begin(
+            '##tile_filter_popup',
+            flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+        )
+        with imgui_utils.grayed_out(self._thread_is_running):
+            imgui.text_colored('Grayspace', *viz.theme.dim)
+            imgui.same_line(viz.font_size * 5)
+            slider_w = (imgui.get_content_region_max()[0] - (viz.spacing + viz.label_w)) / 2
+            with imgui_utils.item_width(slider_w):
+                _gsf_changed, _gs_frac = imgui.slider_float('##gs_fraction',
+                                                            self.gs_fraction,
+                                                            min_value=0,
+                                                            max_value=1,
+                                                            format='Fraction %.2f')
+            imgui.same_line()
+            with imgui_utils.item_width(slider_w):
+                _gst_changed, _gs_thresh = imgui.slider_float('##gs_threshold',
+                                                              self.gs_threshold,
+                                                              min_value=0,
+                                                              max_value=1,
+                                                              format='Thresh %.2f')
+
+            imgui.text_colored('Whitespace', *viz.theme.dim)
+            imgui.same_line(viz.font_size * 5)
+            with imgui_utils.item_width(slider_w):
+                _wsf_changed, _ws_frac = imgui.slider_float('##ws_fraction',
+                                                            self.ws_fraction,
+                                                            min_value=0,
+                                                            max_value=1,
+                                                            format='Fraction %.2f')
+            imgui.same_line()
+            with imgui_utils.item_width(slider_w):
+                _wst_changed, _ws_thresh = imgui.slider_float('##ws_threshold',
+                                                              self.ws_threshold,
+                                                              min_value=0,
+                                                              max_value=255,
+                                                              format='Thresh %.0f')
+
+            if not self._thread_is_running:
+                if _gsf_changed or _wsf_changed:
+                    self.gs_fraction = _gs_frac
+                    self.ws_fraction = _ws_frac
+                    self._refresh_gs_ws()
+                if _gst_changed or _wst_changed:
+                    self._capturing_ws_thresh = _ws_thresh
+                    self._capturing_gs_thresh = _gs_thresh
+            if imgui.is_mouse_released() and self._capturing_gs_thresh:
+                self.gs_threshold = self._capturing_gs_thresh
+                self.ws_threshold = self._capturing_ws_thresh
+                self._capturing_ws_thresh = None
+                self._capturing_gs_thresh = None
+                self._reset_tile_filter_and_join_thread()
+                self.update_tile_filter()
+        imgui.end()
+        imgui.pop_style_color(2)
+
+    def draw_slide_processing(self):
+        viz = self.viz
+
+        # Stride
+        imgui.text_colored('Stride', *viz.theme.dim)
+        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+        with imgui_utils.item_width(viz.font_size * 7):
+            _stride_changed, _stride = imgui.slider_int('##stride',
+                                                        self.stride,
+                                                        min_value=1,
+                                                        max_value=16,
+                                                        format='Stride %d')
+            if _stride_changed:
+                self._capturing_stride = _stride
+            if imgui.is_mouse_released() and self._capturing_stride:
+                # Refresh stride
+                self.stride = self._capturing_stride
+                self._capturing_stride = None
+                self.show_tile_filter = False
+                self.show_slide_filter = False
+                self._reset_tile_filter_and_join_thread()
+                self.viz.clear_overlay()
+                self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
+
+        # Tile filtering
+        with viz.dim_text():
+            _filter_clicked, self.show_tile_filter = imgui.checkbox('Tile filter', self.show_tile_filter)
+            if _filter_clicked:
+                self.update_tile_filter()
+        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+        if viz.sidebar.small_button('ellipsis'):
+            self._show_filter_controls = not self._show_filter_controls
+        if self._show_filter_controls:
+            self.draw_filtering_popup()
+
+        # Slide filtering
+        with viz.dim_text():
+            _qc_clicked, self.show_slide_filter = imgui.checkbox('Slide filter', self.show_slide_filter)
+        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+        with imgui_utils.item_width(viz.font_size * 7):
+            _qc_method_clicked, self.qc_idx = imgui.combo("##qc_method", self.qc_idx, self._qc_methods_str)
+        if _qc_clicked or _qc_method_clicked:
+            self.update_slide_filter(method=self._qc_methods[self.qc_idx])
+
+        # Normalizing
+        with viz.dim_text():
+            _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
+        viz._normalize_wsi = self.normalize_wsi
+        if self.normalize_wsi and viz.viewer:
+            viz.viewer.set_normalizer(viz._normalizer)
+        elif viz.viewer:
+            viz.viewer.clear_normalizer()
+
+        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+        with imgui_utils.item_width(viz.font_size * 7):
+            _norm_method_clicked, self.norm_idx = imgui.combo("##norm_method", self.norm_idx, self._normalizer_methods_str)
+        if _norm_clicked or _norm_method_clicked:
+            # Update the normalizer
+            method = self._normalizer_methods[self.norm_idx]
+            if method == 'model':
+                self.viz._normalizer = sf.util.get_model_normalizer(self.viz._model_path)
+            else:
+                self.viz._normalizer = sf.norm.autoselect(method, source='v3')
+            viz._refresh_view = True
+
+    def draw_mpp_popup(self):
+        """Prompt the user to specify microns-per-pixel for a slide."""
+        window_size = (self.viz.font_size * 18, self.viz.font_size * 8.25)
+        self.viz.center_next_window(*window_size)
+        imgui.set_next_window_size(*window_size)
+        _, opened = imgui.begin('Microns-per-pixel (MPP) Not Found', closable=True, flags=imgui.WINDOW_NO_RESIZE)
+        if not opened:
+            self._show_mpp_popup = False
+
+        imgui.text("Could not read microns-per-pixel (MPP) value.")
+        imgui.text("Set a MPP to continue loading this slide.")
+        imgui.separator()
+        imgui.text('')
+        imgui.same_line(self.viz.font_size*4)
+        with imgui_utils.item_width(self.viz.font_size*4):
+            _changed, self._input_mpp = imgui.input_float('MPP##input_mpp', self._input_mpp, format='%.3f')
+        imgui.same_line()
+        if self._input_mpp:
+            mag = f'{10/self._input_mpp:.1f}x'
+        else:
+            mag = '-'
+        imgui.text(mag)
+        if self.viz.sidebar.full_button("Use MPP", width=-1):
+            self.load(mpp=self._input_mpp, **self._mpp_reload_kwargs)
+            self._show_mpp_popup = False
+        imgui.end()
+
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
 
         if show:
-            imgui.text('Slide')
-            imgui.same_line(viz.label_w)
-            changed, self.user_slide = imgui_utils.input_text('##slide', self.user_slide, 1024,
-                flags=(imgui.INPUT_TEXT_AUTO_SELECT_ALL | imgui.INPUT_TEXT_ENTER_RETURNS_TRUE),
-                width=(-1 - viz.button_w * 1 - viz.spacing * 1),
-                help_text='<PATH>.svs')
-            if changed:
-                self.load(self.user_slide, ignore_errors=True)
-            if imgui.is_item_hovered() and not imgui.is_item_active() and self.user_slide != '':
-                imgui.set_tooltip(self.user_slide)
-            imgui.same_line()
-            if imgui_utils.button('Browse...', width=viz.button_w, enabled=(viz.project_widget.P is not None)):
-                imgui.open_popup('project_slides_popup')
+            viz.header("Slide")
 
-            dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
-            dim_color[-1] *= 0.5
+        if show and viz.wsi is None:
+            imgui_utils.padded_text('No slide has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
+            if viz.sidebar.full_button("Load a Slide"):
+                viz.ask_load_slide()
+            self.capturing = False
+            self.editing = False
 
-            if viz.wsi is not None:
-                self.content_height = imgui.get_text_line_height_with_spacing() * 13 + viz.spacing * 3
+        elif show:
+            if viz.collapsing_header('Info', default=True):
+                self.draw_info()
+            if viz.collapsing_header('ROIs', default=True):
+                imgui.text_colored('ROIs', *viz.theme.dim)
+                imgui.same_line(viz.font_size * 8)
+                imgui.text(str(self.num_total_rois))
+                self._set_roi_button_style()
 
-                # WSI thumbnail ===================================================
-                width = viz.font_size * 20
-                height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing
-                imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
-                imgui.push_style_color(imgui.COLOR_HEADER, 0, 0, 0, 0)
-                imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, 0.16, 0.29, 0.48, 0.5)
-                imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, 0.16, 0.29, 0.48, 0.9)
-                imgui.begin_child('##slide_thumb', width=width, height=height, border=True)
-
-                if viz.wsi_thumb is not None:
-                    hw_ratio = (viz.wsi_thumb.shape[0] / viz.wsi_thumb.shape[1])
-                    max_width = min(width - viz.spacing*2, (height - viz.spacing*2) / hw_ratio)
-                    max_height = max_width * hw_ratio
-
-                    if viz._wsi_tex_obj is not None:
-                        imgui.same_line(int((width - max_width)/2))
-                        imgui.image(viz._wsi_tex_obj.gl_id, max_width, max_height)
-
-                        # Show location overlay
-                        if viz.viewer.wsi_window_size and viz._show_control:
-                            # Convert from wsi coords to thumbnail coords
-                            t_x, t_y = imgui.get_window_position()
-                            t_x = t_x + int((width - max_width)/2)
-                            t_w_ratio = max_width / viz.wsi.dimensions[0]
-                            t_h_ratio = max_height / viz.wsi.dimensions[1]
-                            t_x += viz.viewer.origin[0] * t_w_ratio
-                            t_y += viz.viewer.origin[1] * t_h_ratio
-                            t_y += viz.spacing
-
-                            draw_list = imgui.get_window_draw_list()
-                            draw_list.add_rect(
-                                t_x,
-                                t_y,
-                                t_x + (viz.viewer.wsi_window_size[0] * t_w_ratio),
-                                t_y + (viz.viewer.wsi_window_size[1] * t_h_ratio),
-                                imgui.get_color_u32_rgba(0, 0, 0, 1),
-                                thickness=2)
-
-                if viz.wsi_thumb is None:
-                    imgui.text_colored('Slide not loaded', *dim_color)
-
-                imgui.end_child()
-                imgui.pop_style_color(3)
-                imgui.pop_style_var(1)
-                # =================================================================
-
-                # Slide options and properties (child) ============================
+                # Add button.
+                with self.highlighted(self.capturing):
+                    if viz.sidebar.large_image_button('circle_plus', size=viz.font_size*3):
+                        self.capturing = not self.capturing
+                        self.editing = False
+                        if self.capturing:
+                            viz.create_toast(f'Capturing new ROIs. Right click and drag to create a new ROI.', icon='info')
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Add ROI")
                 imgui.same_line()
-                imgui.begin_child('##slide_options', width=-1, height=height, border=False)
 
-                # Slide properties (sub-child). -----------------------------------
-                if viz.wsi is not None:
-                    width, height = viz.wsi.dimensions
-                    if self._filter_grid is not None and self.show_tile_filter:
-                        est_tiles = int(self._filter_grid.sum())
-                    elif self.show_slide_filter:
-                        est_tiles = viz.wsi.estimated_num_tiles
-                    else:
-                        est_tiles = viz.wsi.grid.shape[0] * viz.wsi.grid.shape[1]
-                    vals = [
-                        f"{width} x {height}",
-                        f'{viz.wsi.mpp:.4f} ({int(10 / (viz.wsi.slide.level_downsamples[0] * viz.wsi.mpp)):d}x)',
-                        viz.wsi.vendor if viz.wsi.vendor is not None else '-',
-                        str(est_tiles),
-                        str(self.num_total_rois)
-                    ]
-                else:
-                    vals = ["-" for _ in range(8)]
-                rows = [
-                    ['Dimensions (w x h)',  vals[0]],
-                    ['MPP (Magnification)', vals[1]],
-                    ['Scanner',             vals[2]],
-                    ['Est. tiles',          vals[3]],
-                    ['ROIs',                vals[4]],
-                ]
-                height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing
-                imgui.begin_child('##slide_properties', width=-1, height=height, border=True, flags=imgui.WINDOW_NO_SCROLLBAR)
-                for y, cols in enumerate(rows):
-                    for x, col in enumerate(cols):
-                        if x != 0:
-                            imgui.same_line(viz.font_size * (8 + (x - 1) * 6))
-                        if x == 0:
-                            imgui.text_colored(col, *dim_color)
+                # Edit button.
+                with self.highlighted(self.editing):
+                    if viz.sidebar.large_image_button('pencil', size=viz.font_size*3):
+                        self.editing = not self.editing
+                        if self.editing:
+                            viz.create_toast(f'Editing ROIs. Click to select an ROI, and press <Del> to remove.', icon='info')
                         else:
-                            imgui.text(col)
+                            viz.viewer.deselect_roi()
+                        self.capturing = False
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Edit ROIs")
+                imgui.same_line()
 
-                with imgui_utils.grayed_out(not viz.wsi or not self.num_total_rois):
-                    imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size * 4 - viz.spacing * 3)
-                    _rois_clicked, self._use_rois = imgui.checkbox("Use ROIs", self._use_rois)
-                    if _rois_clicked:
-                        viz._reload_wsi(use_rois=self._use_rois)
+                # Save button.
+                if viz.sidebar.large_image_button('floppy', size=viz.font_size*3):
+                    dest = viz.wsi.export_rois()
+                    viz.create_toast(f'ROIs saved to {dest}', icon='success')
+                    self.editing = False
+                    self.capturing = False
+                if imgui.is_item_hovered():
+                    imgui.set_tooltip("Save ROIs")
+                imgui.same_line()
 
-                imgui.end_child()
-                # -----------------------------------------------------------------
+                # Load button.
+                if viz.sidebar.large_image_button('folder', size=viz.font_size*3):
+                    path = askopenfilename(title="Load ROIs...", filetypes=[("CSV", "*.csv",)])
+                    if path:
+                        viz.wsi.load_csv_roi(path)
+                        viz.viewer.refresh_view()
+                    self.editing = False
+                    self.capturing = False
+                if imgui.is_item_hovered():
+                    imgui.set_tooltip("Load ROIs")
+                self._end_roi_button_style()
 
-                # Tile filtering
-                _filter_clicked, self.show_tile_filter = imgui.checkbox('Tile filter', self.show_tile_filter)
-                if _filter_clicked:
-                    self.update_tile_filter()
-                imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
-                with imgui_utils.item_width(viz.font_size * 8):
-                    _stride_changed, _stride = imgui.slider_int('##stride',
-                                                                self.stride,
-                                                                min_value=1,
-                                                                max_value=16,
-                                                                format='Stride %d')
-                    if _stride_changed:
-                        self._capturing_stride = _stride
-                    if imgui.is_mouse_released() and self._capturing_stride:
-                        # Refresh stride
-                        self.stride = self._capturing_stride
-                        self._capturing_stride = None
-                        self.show_tile_filter = False
-                        self.show_slide_filter = False
-                        self._reset_tile_filter_and_join_thread()
-                        self.viz.clear_overlay()
-                        self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
-
-                # Slide filtering
-                _qc_clicked, self.show_slide_filter = imgui.checkbox('Slide filter', self.show_slide_filter)
-                imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
-                with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.show_slide_filter):
-                    _qc_method_clicked, self.qc_idx = imgui.combo("##qc_method", self.qc_idx, self._qc_methods_str)
-                if _qc_clicked or _qc_method_clicked:
-                    self.update_slide_filter(method=self._qc_methods[self.qc_idx])
-
-                # Normalizing
-                _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
-                viz._normalize_wsi = self.normalize_wsi
-                if self.normalize_wsi and viz.viewer:
-                    viz._normalizer.set_context(viz.wsi)
-                    viz.viewer.set_normalizer(viz._normalizer)
-                elif viz.viewer:
-                    viz.viewer.clear_normalizer()
-
-                imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
-                with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.normalize_wsi):
-                    _norm_method_clicked, self.norm_idx = imgui.combo("##norm_method", self.norm_idx, self._normalizer_methods_str)
-                if _norm_clicked or _norm_method_clicked:
-                    # Update the normalizer
-                    method = self._normalizer_methods[self.norm_idx]
-                    if method == 'model':
-                        self.viz._normalizer = sf.util.get_model_normalizer(self.viz._model_path)
-                    else:
-                        self.viz._normalizer = sf.norm.autoselect(method, source='v3')
-                    viz._refresh_view = True
-
-                # Grayspace & whitespace filtering --------------------------------
-                with imgui_utils.grayed_out(self._thread_is_running or not self.show_tile_filter):
-                    imgui.separator()
-                    imgui.text("Grayspace")
-                    imgui.same_line(viz.label_w)
-                    slider_w = (imgui.get_content_region_max()[0] - (viz.spacing + viz.label_w)) / 2
-                    with imgui_utils.item_width(slider_w):
-                        _gsf_changed, _gs_frac = imgui.slider_float('##gs_fraction',
-                                                                    self.gs_fraction,
-                                                                    min_value=0,
-                                                                    max_value=1,
-                                                                    format='Fraction %.2f')
-                    imgui.same_line()
-                    with imgui_utils.item_width(slider_w):
-                        _gst_changed, _gs_thresh = imgui.slider_float('##gs_threshold',
-                                                                    self.gs_threshold,
-                                                                    min_value=0,
-                                                                    max_value=1,
-                                                                    format='Thresh %.2f')
-
-                    imgui.text("Whitespace")
-                    imgui.same_line(viz.label_w)
-                    with imgui_utils.item_width(slider_w):
-                        _wsf_changed, _ws_frac = imgui.slider_float('##ws_fraction',
-                                                                    self.ws_fraction,
-                                                                    min_value=0,
-                                                                    max_value=1,
-                                                                    format='Fraction %.2f')
-                    imgui.same_line()
-                    with imgui_utils.item_width(slider_w):
-                        _wst_changed, _ws_thresh = imgui.slider_float('##ws_threshold',
-                                                                    self.ws_threshold,
-                                                                    min_value=0,
-                                                                    max_value=255,
-                                                                    format='Thresh %.0f')
-
-                    if not self._thread_is_running:
-                        if _gsf_changed or _wsf_changed:
-                            self.gs_fraction = _gs_frac
-                            self.ws_fraction = _ws_frac
-                            self._refresh_gs_ws()
-                        if _gst_changed or _wst_changed:
-                            self._capturing_ws_thresh = _ws_thresh
-                            self._capturing_gs_thresh = _gs_thresh
-                    if imgui.is_mouse_released() and self._capturing_gs_thresh:
-                        self.gs_threshold = self._capturing_gs_thresh
-                        self.ws_threshold = self._capturing_ws_thresh
-                        self._capturing_ws_thresh = None
-                        self._capturing_gs_thresh = None
-                        self._reset_tile_filter_and_join_thread()
-                        self.update_tile_filter()
-
-                # -----------------------------------------------------------------
-
-                imgui.end_child()
-            else:
-                self.content_height = imgui.get_text_line_height_with_spacing() + viz.spacing
+                imgui_utils.vertical_break()
+            if viz.collapsing_header('Slide Processing', default=False):
+                self.draw_slide_processing()
+            self._process_roi_capture()
         else:
-            self.content_height = 0
-            # =================================================================
+            self.capturing = False
+            self.editing = False
 
-        if imgui.begin_popup('project_slides_popup'):
-            if len(self.project_slides) == 0:
-                    with imgui_utils.grayed_out():
-                        imgui.menu_item('No results found')
-            for slide in self.project_slides:
-                clicked, _state = imgui.menu_item(slide)
-                if clicked:
-                    self.load(slide, ignore_errors=True)
-            imgui.end_popup()
-
-#----------------------------------------------------------------------------
+        if self._show_mpp_popup:
+            self.draw_mpp_popup()

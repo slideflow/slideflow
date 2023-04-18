@@ -34,11 +34,8 @@ def main(
     # Load widgets
     widgets = Studio.get_default_widgets()
     if stylegan:
-        from . import stylegan_widgets
-        from .widgets.seed_map import SeedMapWidget
-        from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
-        widgets += stylegan_widgets(advanced=advanced)
-        widgets += [SeedMapWidget]
+        from .widgets.stylegan import StyleGANWidget
+        widgets += [StyleGANWidget]
 
     if picam:
         from .widgets.picam import PicamWidget
@@ -48,19 +45,8 @@ def main(
         from .widgets.segment import SegmentWidget
         widgets += [SegmentWidget]
 
-    # Experimental ROI annotation widget
-    from .widgets.annotation import AnnotationWidget
-    widgets += [AnnotationWidget]
-
     viz = Studio(low_memory=low_memory, widgets=widgets)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
-
-    # --- StyleGAN3 -----------------------------------------------------------
-    if stylegan:
-        viz.add_to_render_pipeline(GANRenderer(), name='stylegan')
-        if advanced:
-            viz._pane_w_div = 45
-    # -------------------------------------------------------------------------
 
     # Load model.
     if model is not None:

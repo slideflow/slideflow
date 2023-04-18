@@ -6,7 +6,6 @@ import seaborn as sns
 
 from sklearn import metrics
 from sklearn.exceptions import UndefinedMetricWarning
-from skmisc.loess import loess
 from slideflow.util import log
 
 from . import errors, utils
@@ -27,13 +26,18 @@ def plot_uncertainty(df, kind, threshold=None, title=None):
     Returns:
         None
     """
+    try:
+        from skmisc.loess import loess
+    except ImportError:
+        raise ImportError(
+            "Uncertainty plots with loess estimation require scikit-misc, "
+            "which is not installed."
+        )
 
     # Subsample tile-level predictions
     if kind == 'tile':
         df = df.sample(n=1000)
 
-    #print(f"Saving uncertainty plot (threshold={threshold})")
-    #df.to_csv('uncertainty_plot_raw.csv')
     f, axes = plt.subplots(1, 3)
     f.set_size_inches(15, 5)
     palette = sns.color_palette("Set2")
@@ -183,7 +187,7 @@ def process_group_predictions(df, pred_thresh, level):
 
     if any(c not in df.columns for c in ('y_true', 'y_pred', 'uncertainty')):
         raise ValueError('Missing columns. Expected y_true, y_pred, uncertainty.'
-                         f'Got: {grouped.columns}')
+                         f'Got: {df.columns}')
 
     # Calculate group-level predictions
     log.debug(f'Calculating {level}-level means from {len(df)} predictions')

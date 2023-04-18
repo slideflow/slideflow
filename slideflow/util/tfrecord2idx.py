@@ -11,17 +11,21 @@ from typing import Optional, Dict
 from os.path import dirname, join, exists
 from slideflow import errors
 
+
 TYPENAME_MAPPING = {
     "byte": "bytes_list",
     "float": "float_list",
     "int": "int64_list"
 }
+
 FEATURE_DESCRIPTION = {
-        'image_raw': 'byte',
-        'slide': 'byte',
-        'loc_x': 'int',
-        'loc_y': 'int'
-    }
+    'image_raw': 'byte',
+    'slide': 'byte',
+    'loc_x': 'int',
+    'loc_y': 'int'
+}
+
+# -----------------------------------------------------------------------------
 
 def create_index(tfrecord_file: str, index_file: str) -> None:
     """Create index from the tfrecords file.
@@ -55,7 +59,15 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
             print("Failed to parse TFRecord.")
             break
     infile.close()
-    np.savez(index_file, np.array(out_array))
+    save_index(np.array(out_array), index_file)
+
+
+def save_index(index_array: np.ndarray, index_file: str) -> None:
+    """Save an array as an index file."""
+    if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
+        np.save(index_file + '.npy', index_array)
+    else:
+        np.savez(index_file, index_array)
 
 
 def find_index(tfrecord: str) -> Optional[str]:
@@ -64,6 +76,8 @@ def find_index(tfrecord: str) -> Optional[str]:
         return join(dirname(tfrecord), name+'.index')
     elif exists(join(dirname(tfrecord), name+'.index.npz')):
         return join(dirname(tfrecord), name+'.index.npz')
+    elif exists(join(dirname(tfrecord), name+'.index.npy')):
+        return join(dirname(tfrecord), name+'.index.npy')
     else:
         return None
 
@@ -76,22 +90,62 @@ def load_index(tfrecord: str) -> Optional[np.ndarray]:
         return None
     elif index_path.endswith('npz'):
         return np.load(index_path)['arr_0']
+    elif index_path.endswith('npy'):
+        return np.load(index_path)
     else:
         return np.loadtxt(index_path, dtype=np.int64)
 
 
 def get_tfrecord_length(tfrecord: str) -> int:
+    """Return the number of records in a TFRecord file.
+
+    Uses an index file if available, otherwise iterates through
+    the file to find the total record length.
+
+    Args:
+        tfrecord (str): Path to TFRecord.
+
+    Returns:
+        int: Number of records.
+
+    """
     index_path = find_index(tfrecord)
     if index_path is None:
-        raise OSError(f"Could not find index path for TFRecord {tfrecord}")
+        return read_tfrecord_length(tfrecord)
     if os.stat(index_path).st_size == 0:
         return 0
     else:
-        idx = load_index(tfrecord)
-        return idx.shape[0]
+        index_array = load_index(tfrecord)
+        if index_array is None:
+            return 0
+        else:
+            return index_array.shape[0]
 
 
-def get_record_by_index(
+def read_tfrecord_length(tfrecord: str) -> int:
+    """Returns number of records stored in the given tfrecord file."""
+    infile = open(tfrecord, "rb")
+    num_records = 0
+    while True:
+        infile.tell()
+        try:
+            byte_len = infile.read(8)
+            if len(byte_len) == 0:
+                break
+            infile.read(4)
+            proto_len = struct.unpack("q", byte_len)[0]
+            infile.read(proto_len)
+            infile.read(4)
+            num_records += 1
+        except Exception:
+            sf.log.error(f"Failed to parse TFRecord at {tfrecord}")
+            infile.close()
+            return 0
+    infile.close()
+    return num_records
+
+
+def get_tfrecord_by_index(
     tfrecord: str,
     index: int,
     compression_type: Optional[str] = None,

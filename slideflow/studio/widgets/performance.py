@@ -25,12 +25,12 @@ class PerformanceWidget:
 
     def timing_text(self, times):
         viz = self.viz
-        imgui.same_line(viz.label_w + viz.font_size * 9)
+        imgui.same_line(viz.label_w + viz.font_size * 7)
         t = [x for x in times if x > 0]
         t = np.mean(t) if len(t) > 0 else 0
         imgui.text(f'{t*1e3:.1f} ms' if t > 0 else 'N/A')
-        imgui.same_line(viz.label_w + viz.font_size * 14)
-        imgui.text(f'{1/t:.1f} FPS' if t > 0 else 'N/A')
+        if imgui.is_item_hovered():
+            imgui.set_tooltip(f'{1/t:.1f} FPS' if t > 0 else 'N/A')
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -47,50 +47,54 @@ class PerformanceWidget:
             del viz.result.inference_time
 
         if show:
-            # GUI times
-            imgui.text('GUI')
-            imgui.same_line(viz.label_w)
-            with imgui_utils.item_width(viz.font_size * 8):
-                imgui.plot_lines('##gui_times', array.array('f', self.gui_times), scale_min=0)
-            self.timing_text(self.gui_times)
-            imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
-            with imgui_utils.item_width(viz.font_size * 6):
-                _changed, self.fps_limit = imgui.input_int('FPS limit', self.fps_limit, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
-                self.fps_limit = min(max(self.fps_limit, 5), 1000)
-                if _changed:
-                    viz.set_fps_limit(self.fps_limit)
 
-            # Render
-            imgui.text('Render')
-            imgui.same_line(viz.label_w)
-            with imgui_utils.item_width(viz.font_size * 8):
-                imgui.plot_lines('##render_times', array.array('f', self.render_times), scale_min=0)
-            self.timing_text(self.render_times)
-            imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
-            _clicked, self.low_memory = imgui.checkbox('Low memory mode', self.low_memory)
-            if _clicked:
-                viz.low_memory = self.low_memory
+            viz.header("Performance")
 
-            # Normalizer times
-            imgui.text('Normalize')
-            imgui.same_line(viz.label_w)
-            with imgui_utils.item_width(viz.font_size * 8):
-                imgui.plot_lines('##norm_times', array.array('f', self.norm_times), scale_min=0)
-            self.timing_text(self.norm_times)
-            imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
-            _clicked, self.use_vsync = imgui.checkbox('Vertical sync', self.use_vsync)
-            if _clicked:
-                viz.set_vsync(self.use_vsync)
+            if viz.collapsing_header('Timing', default=True):
+                # GUI times
+                imgui.text_colored('GUI', *viz.theme.dim)
+                imgui.same_line(viz.label_w)
+                with imgui_utils.item_width(viz.font_size * 6):
+                    imgui.plot_lines('##gui_times', array.array('f', self.gui_times), scale_min=0)
+                self.timing_text(self.gui_times)
+                #imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
+                #with imgui_utils.item_width(viz.font_size * 6):
+                #    _changed, self.fps_limit = imgui.input_int('FPS limit', self.fps_limit, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
+                #    self.fps_limit = min(max(self.fps_limit, 5), 1000)
+                #    if _changed:
+                #        viz.set_fps_limit(self.fps_limit)
 
-            # Inference times
-            imgui.text('Predict')
-            imgui.same_line(viz.label_w)
-            with imgui_utils.item_width(viz.font_size * 8):
-                imgui.plot_lines('##predict_times', array.array('f', self.predict_times), scale_min=0)
-            self.timing_text(self.predict_times)
-            imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
-            _clicked, self.ignore_jpg = imgui.checkbox('Ignore compression', self.ignore_jpg)
-            if _clicked:
-                viz._use_model_img_fmt = not self.ignore_jpg
+                # Render
+                imgui.text_colored('Render', *viz.theme.dim)
+                imgui.same_line(viz.label_w)
+                with imgui_utils.item_width(viz.font_size * 6):
+                    imgui.plot_lines('##render_times', array.array('f', self.render_times), scale_min=0)
+                self.timing_text(self.render_times)
+                #imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
+                #_clicked, self.low_memory = imgui.checkbox('Low memory mode', self.low_memory)
+                #if _clicked:
+                #    viz.low_memory = self.low_memory
+
+                # Normalizer times
+                imgui.text_colored('Normalize', *viz.theme.dim)
+                imgui.same_line(viz.label_w)
+                with imgui_utils.item_width(viz.font_size * 6):
+                    imgui.plot_lines('##norm_times', array.array('f', self.norm_times), scale_min=0)
+                self.timing_text(self.norm_times)
+                #imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
+                #_clicked, self.use_vsync = imgui.checkbox('Vertical sync', self.use_vsync)
+                #if _clicked:
+                #    viz.set_vsync(self.use_vsync)
+
+                # Inference times
+                imgui.text_colored('Predict', *viz.theme.dim)
+                imgui.same_line(viz.label_w)
+                with imgui_utils.item_width(viz.font_size * 6):
+                    imgui.plot_lines('##predict_times', array.array('f', self.predict_times), scale_min=0)
+                self.timing_text(self.predict_times)
+                #imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
+                #_clicked, self.ignore_jpg = imgui.checkbox('Ignore compression', self.ignore_jpg)
+                #if _clicked:
+                #    viz._use_model_img_fmt = not self.ignore_jpg
 
 #----------------------------------------------------------------------------

@@ -1,7 +1,6 @@
 """Modification of https://github.com/mahmoodlab/CLAM"""
 
 import os
-import h5py
 import numpy as np
 import pandas as pd
 import torch
@@ -345,6 +344,7 @@ class Generic_MIL_Dataset(Generic_WSI_Classification_Dataset):
         self.use_h5 = toggle
 
     def __getitem__(self, idx):
+        import h5py
         slide_id = self.slide_data['slide'][idx]
         label = self.slide_data['label'][idx]
         if type(self.data_dir) == dict:

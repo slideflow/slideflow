@@ -2,6 +2,7 @@
 
 import imgui
 import numpy as np
+from contextlib import contextmanager
 from typing import Tuple, Optional, TYPE_CHECKING
 from ._viewer import Viewer
 from .. import gl_utils, text_utils
@@ -32,6 +33,7 @@ class SlideViewer(Viewer):
         self._max_w         = None  # Used for late rendering
         self._max_h         = None  # Used for late rendering
         self.show_scale     = True
+        self.show_thumbnail = True
 
         # Create initial display
         wsi_ratio = self.dimensions[0] / self.dimensions[1]
@@ -159,6 +161,56 @@ class SlideViewer(Viewer):
         tex = text_utils.get_texture(f"{self.scale_um:.0f} µm", size=int(18*r), max_width=max_w, max_height=max_h, outline=2)
         tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 
+    def _draw_thumbnail(self):
+        viz = self.viz
+
+        width = viz.font_size * 20
+        height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing
+
+        if viz.wsi_thumb is not None:
+            hw_ratio = (viz.wsi_thumb.shape[0] / viz.wsi_thumb.shape[1])
+            max_width = min(width - viz.spacing*2, (height - viz.spacing*2) / hw_ratio)
+            max_height = max_width * hw_ratio
+
+            imgui.set_next_window_position(viz.content_frame_width - max_width - viz.spacing*3, viz.menu_bar_height + viz.spacing)
+            imgui.set_next_window_size(max_width + viz.spacing*2, max_height + viz.spacing*2)
+
+            imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
+            imgui.push_style_color(imgui.COLOR_HEADER, 0, 0, 0, 0)
+            imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, 0.16, 0.29, 0.48, 0.5)
+            imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, 0.16, 0.29, 0.48, 0.9)
+            imgui.begin(
+                '##slide_thumb',
+                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+            )
+
+            if viz._wsi_tex_obj is not None:
+                imgui.image(viz._wsi_tex_obj.gl_id, max_width, max_height)
+
+                # Show location overlay
+                if viz.viewer.wsi_window_size:
+                    # Convert from wsi coords to thumbnail coords
+                    t_x, t_y = imgui.get_window_position()
+                    t_x = t_x + viz.spacing
+                    t_w_ratio = max_width / viz.wsi.dimensions[0]
+                    t_h_ratio = max_height / viz.wsi.dimensions[1]
+                    t_x += viz.viewer.origin[0] * t_w_ratio
+                    t_y += viz.viewer.origin[1] * t_h_ratio
+                    t_y += viz.spacing
+
+                    draw_list = imgui.get_window_draw_list()
+                    draw_list.add_rect(
+                        t_x,
+                        t_y,
+                        t_x + (viz.viewer.wsi_window_size[0] * t_w_ratio),
+                        t_y + (viz.viewer.wsi_window_size[1] * t_h_ratio),
+                        imgui.get_color_u32_rgba(0, 0, 0, 1),
+                        thickness=2)
+
+            imgui.end()
+            imgui.pop_style_color(3)
+            imgui.pop_style_var(1)
+
     def _fast_refresh_cucim(self, new_view, p, view_params):
         # Fill in parts of the missing image
         if p.moved_right and p.full_dx:
@@ -208,35 +260,39 @@ class SlideViewer(Viewer):
 
         # Fill in parts of the missing image
         if p.moved_right and p.full_dx:
-            new_horizontal = region.crop(
-                int(p.tl_new[0] / p.target_ds),
-                int(p.tl_new[1] / p.target_ds),
-                p.dx,
-                view_params.target_size[1])
+            left_edge = int(p.tl_new[0] / p.target_ds)
+            top_edge = int(p.tl_new[1] / p.target_ds)
+            extract_w = p.dx
+            extract_h = min(view_params.target_size[1], region.height)
+            with log_vips_error(left_edge, top_edge, extract_w, extract_h):
+                new_horizontal = region.crop(left_edge, top_edge, extract_w, extract_h)
             new_horizontal = self._process_vips(new_horizontal)
             new_view[:, None:p.dx, :] = new_horizontal
         if p.moved_down and p.full_dy:
-            new_vertical = region.crop(
-                int(p.tl_new[0] / p.target_ds),
-                int(p.tl_new[1] / p.target_ds),
-                view_params.target_size[0],
-                p.dy)
+            left_edge = int(p.tl_new[0] / p.target_ds)
+            top_edge = int(p.tl_new[1] / p.target_ds)
+            extract_w = min(view_params.target_size[0], region.width)
+            extract_h = p.dy
+            with log_vips_error(left_edge, top_edge, extract_w, extract_h):
+                new_vertical = region.crop(left_edge, top_edge, extract_w, extract_h)
             new_vertical = self._process_vips(new_vertical)
             new_view[None:p.dy, :, :] = new_vertical
         if p.moved_left and p.full_dx:
-            new_horizontal = region.crop(
-                int((p.tl_new[0] + view_params.window_size[0] + p.full_dx) / p.target_ds),
-                int(p.tl_new[1] / p.target_ds),
-                -p.dx,
-                view_params.target_size[1])
+            left_edge = int((p.tl_new[0] + view_params.window_size[0] + p.full_dx) / p.target_ds)
+            top_edge = int(p.tl_new[1] / p.target_ds)
+            extract_w = -p.dx
+            extract_h = min(view_params.target_size[1], region.height)
+            with log_vips_error(left_edge, top_edge, extract_w, extract_h):
+                new_horizontal = region.crop(left_edge, top_edge, extract_w, extract_h)
             new_horizontal = self._process_vips(new_horizontal)
             new_view[:, view_params.target_size[0]+p.dx:None, :] = new_horizontal
         if p.moved_up and p.full_dy:
-            new_vertical = region.crop(
-                int(p.tl_new[0] / p.target_ds),
-                int((p.tl_new[1] + view_params.window_size[1] + p.full_dy) / p.target_ds),
-                view_params.target_size[0],
-                -p.dy)
+            left_edge = int(p.tl_new[0] / p.target_ds)
+            top_edge = int((p.tl_new[1] + view_params.window_size[1] + p.full_dy) / p.target_ds)
+            extract_w = min(view_params.target_size[0], region.width)
+            extract_h = -p.dy
+            with log_vips_error(left_edge, top_edge, extract_w, extract_h):
+                new_vertical = region.crop(left_edge, top_edge, extract_w, extract_h)
             new_vertical = self._process_vips(new_vertical)
             new_view[view_params.target_size[1]+p.dy:None, :, :] = new_vertical
 
@@ -441,6 +497,8 @@ class SlideViewer(Viewer):
         self._render_rois()
         if self.show_scale:
             self._draw_scale(self._max_w, self._max_h)
+        if self.show_thumbnail:
+            self._draw_thumbnail()
 
     def move(self, dx: float, dy: float) -> None:
         """Move the view in the given directions.
@@ -470,15 +528,6 @@ class SlideViewer(Viewer):
             zoom = np.floor(zoom) if zoom >= 1 else zoom
             self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
         self._max_w, self._max_h = max_w, max_h
-        h = self.viz.font_size + self.viz.spacing
-        r = self.viz.pixel_ratio
-        x_pos = int(self.x_offset / r)
-        y_pos = int((self.height + self.y_offset - (h * r)) / r)
-        imgui.set_next_window_position(x_pos, y_pos)
-        imgui.set_next_window_size(self.width, h)
-        imgui.begin('Status bar', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_SCROLLBAR))
-        imgui.text('x={:<8} y={:<8} mpp={:.3f}'.format(int(self.viz.mouse_x), int(self.viz.mouse_y), self.mpp))
-        imgui.end()
 
     def select_roi(self, idx: int) -> None:
         if idx not in self.selected_rois:
@@ -556,3 +605,20 @@ class SlideViewer(Viewer):
         view_params = self._calculate_view_params(new_origin)
         if view_params != self.view_params:
             self._refresh_view_full(view_params=view_params)
+
+# -----------------------------------------------------------------------------
+
+@contextmanager
+def log_vips_error(left_edge, top_edge, extract_w, extract_h):
+    try:
+        yield
+    except Exception:
+        sf.log.error(
+            "Error attempting to crop pyvips image, with "
+            "top/left (x,y) = ({}, {}) and width/height = ({}, {})".format(
+                left_edge,
+                top_edge,
+                extract_w,
+                extract_h
+            ))
+        raise

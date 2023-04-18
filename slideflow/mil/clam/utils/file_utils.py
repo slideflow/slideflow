@@ -1,7 +1,6 @@
 """Modification of https://github.com/mahmoodlab/CLAM"""
 
 import pickle
-import h5py
 
 
 def save_pkl(filename, save_object):
@@ -18,6 +17,7 @@ def load_pkl(filename):
 
 
 def save_hdf5(output_path, asset_dict, attr_dict= None, mode='a'):
+    import h5py
     file = h5py.File(output_path, mode)
     for key, val in asset_dict.items():
         data_shape = val.shape

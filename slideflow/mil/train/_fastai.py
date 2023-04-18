@@ -32,12 +32,12 @@ def train(learner, config, callbacks=None):
     if callbacks:
         cbs += callbacks
     if config.fit_one_cycle:
-        if config.lr_max is None:
-            lr_max = learner.lr_find().valley
-            log.info(f"Using auto-detected learning rate: {lr_max}")
+        if config.lr is None:
+            lr = learner.lr_find().valley
+            log.info(f"Using auto-detected learning rate: {lr}")
         else:
-            lr_max = config.lr_max
-        learner.fit_one_cycle(n_epoch=config.epochs, lr_max=lr_max, cbs=cbs)
+            lr = config.lr
+        learner.fit_one_cycle(n_epoch=config.epochs, lr_max=lr, cbs=cbs)
     else:
         if config.lr is None:
             lr = learner.lr_find().valley
@@ -201,7 +201,7 @@ def _build_fastai_learner(
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=1,
-        drop_last=True,
+        drop_last=False,
         device=device
     )
     val_dataset = build_dataset(

@@ -23,7 +23,7 @@ Slideflow Studio
 
 Cellpose models have several configurable parameters which will affect the quality of your segmentation masks, namely the **pretrained model** and **cell diameter**. The best way to determine the optimal parameters to use for your dataset is through interactive visualization using :ref:`Slideflow Studio <studio>`.
 
-Start Studio with Cellpose enabled by using the ``--cellpose`` flag:
+Use Cellpose-based cell segmentation in Slideflow Studio by :ref:`enabling the extension <extensions>`, or start Studio with the ``--cellpose`` flag:
 
 .. code-block:: bash
 
@@ -32,39 +32,31 @@ Start Studio with Cellpose enabled by using the ``--cellpose`` flag:
 Control panel
 -------------
 
-You'll see a control panel on the left which is grayed out until a slide is
-loaded. Load a slide by drag-and-drop, or with File -> Open Slide.... Once a slide is opened,
-the cell segmentation control panel will become active.
+Open the Cell Segmentation section in the control panel to access the segmentation controls.
 
-.. figure:: https://github.com/jamesdolezal/slideflow/raw/1.5.0/docs/_images/cellseg_workbench_panel.png
+.. figure:: cellseg_workbench_panel.png
 
-The left side of the control panel is used to customize the segmentation model (defaults to
+The **Model & Cell Diameter** subsection is used to customize the segmentation model (defaults to
 'cyto2') and cell diameter (defaults to 10 microns). Selecting "Auto-detect diameter" then
-clicking "Preview" will perform cell segmentation on the portion of the slide currently in view.
-
-Once complete, the diameter text box will be updated with the detected cell diameter.
-Once cell segmentation is complete, the "View controls" section of the control panel will
-become active, allowing you to customize how cell segmentation is shown.
+clicking "Preview" will perform cell segmentation on the portion of the slide currently in view. Once complete, the diameter text box will be updated with the detected cell diameter.
 
 Viewing cell segmentations
 --------------------------
 
-.. figure:: https://github.com/jamesdolezal/slideflow/raw/1.5.0/docs/_images/cellseg_workbench_masks.png
+.. figure:: cellseg_workbench_masks.png
 
-By default, cell segmentation masks are shown in cyan on a black background. The black
-background can be removed by unchecking "Black BG". You can add a green dot at each
-cell's detected centroid by selecting the "Centroid option." The "Alpha" slider controls
-transparency for the mask overlay.
+The **View Controls** subsection provides options for customizing how cell segmentations are displayed. By default, cell segmentation masks are shown in cyan on a black background. The black
+background can be removed by unchecking "Black BG". You can add a green dot at each cell's detected centroid by selecting the "Centroid option." The "Alpha" slider controls transparency for the mask overlay.
 
 You can also choose to view the segmentation masks as outlines. The "Outline" button will
 convert any masks currently in view to outlines, allowing you to more easily see how the
 masks match cells visible on the slide.
 
-.. figure:: https://github.com/jamesdolezal/slideflow/raw/1.5.0/docs/_images/cellseg_workbench_outlines.png
+.. figure:: cellseg_workbench_outlines.png
 
 Finally, the "gradXY" option will show the flow gradients calculated during cell segmentation.
 
-.. figure:: https://github.com/jamesdolezal/slideflow/raw/1.5.0/docs/_images/cellseg_workbench_flows.png
+.. figure:: cellseg_workbench_flows.png
 
 Preparing WSI segmentation
 --------------------------
@@ -75,8 +67,7 @@ activate, allowing you to perform whole-slide segmentation.
 
 The **Otsu threshold** option will perform strict Otsu's thresholding on the whole slide image,
 only performing cell segmentation in non-background areas (reducing computational time).
-You can preview the Otsu's thresholding algorithm by checking the **Slide filter** box in the
-first control panel box. This option is disabled by default, as Otsu's thresholding does not
+You can preview the Otsu's thresholding algorithm in the :ref:`Slide section <studio_wsi>`. This option is disabled by default, as Otsu's thresholding does not
 work well for all slides (particularly cytology slides).
 
 The **Save flows** option saves gradients during cell segmentation, allowing you to generate
@@ -86,8 +77,7 @@ calculation requires high RAM usage and may not be practical on all systems.
 .. list-table::
     :widths: 60 40
 
-    * - When **Show advanced** is checked, additional options controlling the cell segmentation
-        process are shown.
+    * - The **Advanced** subsection provides additional options for controlling the cell segmentation process.
 
         **Window** controls the window size during cell segmentation; cell segmentation is performed
         on images of this pixel size and then stitched together. The **Tile** option permits further sub-
@@ -96,7 +86,7 @@ calculation requires high RAM usage and may not be practical on all systems.
         **Downscale** will scale down the final generated cell segmentation mask, reducing memory
         utilization (both RAM and disk). **Enable spawn workers** enables a multiprocessing technique that improves cell segmentation speed at the cost of higher RAM usage.
 
-      - .. image:: https://github.com/jamesdolezal/slideflow/raw/1.5.0/docs/_images/cellseg_workbench_advanced.png
+      - .. image:: cellseg_workbench_advanced.png
             :width: 245
             :align: right
 

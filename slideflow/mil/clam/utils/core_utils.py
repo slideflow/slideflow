@@ -58,7 +58,7 @@ class EarlyStopping:
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
-                            Default: 20
+                            Default: 5
             stop_epoch (int): Earliest epoch possible for stopping
             verbose (bool): If True, prints a message for each validation loss improvement.
                             Default: False

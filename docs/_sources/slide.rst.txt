@@ -38,6 +38,7 @@ Methods
 .. autofunction:: slideflow.WSI.get_tile_mask
 .. autofunction:: slideflow.WSI.extract_cells
 .. autofunction:: slideflow.WSI.extract_tiles
+.. autofunction:: slideflow.WSI.export_rois
 .. autofunction:: slideflow.WSI.load_csv_roi
 .. autofunction:: slideflow.WSI.load_json_roi
 .. autofunction:: slideflow.WSI.mpp_to_dim
@@ -48,6 +49,7 @@ Methods
 .. autofunction:: slideflow.WSI.tensorflow
 .. autofunction:: slideflow.WSI.torch
 .. autofunction:: slideflow.WSI.thumb
+.. autofunction:: slideflow.WSI.view
 
 
 slideflow.TMA

@@ -3,8 +3,7 @@
 Tutorial 1: Model training (simple)
 =====================================
 
-In this first tutorial, we will walk through the steps needed to take an example project from start to finish, using
-the bundled ``run_project.py`` script to execute pipeline functions. As with all of these tutorials, we will use
+In this first tutorial, we will walk through the steps needed to take an example project from start to finish. As with all of these tutorials, we will use
 publicly available data from `The Cancer Genome Atlas (TCGA) <https://portal.gdc.cancer.gov>`_. In this first tutorial,
 we will train a model to predict ER status from breast cancer slides.
 
@@ -93,7 +92,7 @@ Training
 ********
 
 After tiles are extracted, the dataset will be ready for training. We will train with a single set of manually defined
-hyperparameters, which we can configure with :class:`slideflow.model.ModelParams`. We will use the
+hyperparameters, which we can configure with :class:`slideflow.ModelParams`. We will use the
 `Xception <https://arxiv.org/abs/1610.02357>`_ model with a batch size of 32, otherwise keeping defaults.
 
 .. code-block:: python

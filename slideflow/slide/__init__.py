@@ -175,10 +175,10 @@ def predict(
     log.info("Calculating whole-slide prediction...")
     heatmap = Heatmap(slide, model, generate=True, stride_div=stride_div, **kwargs)
     preds = heatmap.predictions.reshape(-1, heatmap.predictions.shape[-1])
-    preds = np.ma.masked_where(preds < 0, preds).mean(axis=0).filled()
+    preds = np.ma.masked_where(preds == -99, preds).mean(axis=0).filled()
     if heatmap.uncertainty is not None:
         unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
-        unc = np.ma.masked_where(unc < 0, unc).mean(axis=0).filled()
+        unc = np.ma.masked_where(unc == -99, unc).mean(axis=0).filled()
         return preds, unc
     else:
         return preds
@@ -262,7 +262,7 @@ class _BaseLoader:
         # Collect basic slide information
         try:
             self.mpp = float(self.slide.mpp)
-        except KeyError:
+        except Exception as e:
             raise errors.SlideLoadError(
                 f"Slide [green]{self.name}[/] missing MPP ({OPS_MPP_X})"
             )
@@ -390,6 +390,8 @@ class _BaseLoader:
                 self._mpp_override,
                 **self._reader_kwargs)
             return self.__slide  # type: ignore
+        except errors.SlideMissingMPPError:
+            raise
         except Exception as e:
             raise errors.SlideLoadError(
                 f"Error loading slide {self.shortname}: {e}"
@@ -523,12 +525,12 @@ class _BaseLoader:
 
         downsample = self.dimensions[0] / mask.shape[1]
         qc_ratio = 1 / downsample
-        qc_width = int(self.full_extract_px * qc_ratio)
+        qc_width = int(np.round(self.full_extract_px * qc_ratio))
         for i, (x, y, xi, yi) in enumerate(self.coord):  # type: ignore
-            qc_x = int(x * qc_ratio)
-            qc_y = int(y * qc_ratio)
+            qc_x = int(np.round(x * qc_ratio))
+            qc_y = int(np.round(y * qc_ratio))
             submask = mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
-            if np.mean(submask) >= filter_threshold:
+            if np.mean(submask) > filter_threshold:
                 self.grid[xi, yi] = 0
 
         self.qc_masks.append(mask)
@@ -570,7 +572,7 @@ class _BaseLoader:
         use_associated_image: bool = False,
         low_res: bool = False
     ) -> Image.Image:
-        '''Returns PIL thumbnail of the slide.
+        """Returns PIL thumbnail of the slide.
 
         Args:
             mpp (float, optional): Microns-per-pixel, used to determine
@@ -582,11 +584,13 @@ class _BaseLoader:
                 y_center), ...] format. Defaults to None.
             use_associated_image (bool): Use the associated thumbnail image
                 in the slide, rather than reading from a pyramid layer.
+            low_res (bool): Create thumbnail from the lowest-mangnification
+                pyramid layer. Defaults to False.
 
         Returns:
             PIL image
-        '''
 
+        """
         # If no values provided, create thumbnail of width 1024
         if mpp is None and width is None:
             width = 1024
@@ -608,12 +612,19 @@ class _BaseLoader:
         height = int((self.mpp * self.dimensions[1]) / mpp)
 
         if use_associated_image:
+            log.debug("Requesting thumbnail using associated image")
             thumb_kw = dict(associated='thumbnail')
         elif low_res:
+            log.debug("Requesting thumbnail at level={}, width={}".format(
+                self.slide.level_count-1, width
+            ))
             thumb_kw = dict(level=self.slide.level_count-1, width=width)
         else:
             ds = self.dimensions[0] / width
             level = self.slide.best_level_for_downsample(ds)
+            log.debug("Requesting thumbnail at level={}, width={}".format(
+                level, width
+            ))
             thumb_kw = dict(level=level, width=width)
 
         np_thumb = self.slide.thumbnail(**thumb_kw)
@@ -650,6 +661,7 @@ class _BaseLoader:
         pool: Optional["mp.pool.Pool"] = None,
         dry_run: bool = False
     ) -> Optional[Callable]:
+        """Build a tile generator."""
         lead_msg = f'Extracting {self.tile_um}um tiles'
         if self.extract_px != self.tile_px:
             resize_msg = f'(resizing {self.extract_px}px -> {self.tile_px}px)'
@@ -712,6 +724,16 @@ class _BaseLoader:
                 Defaults to False.
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
+            num_threads (int): If specified, will extract tiles with a
+                ThreadPool using the specified number of threads. Cannot
+                supply both `num_threads` and `num_processes`. Libvips is
+                particularly slow with ThreadPools. Defaults to None in the
+                Libvips backend, and the number of CPU cores when using cuCIM.
+            num_processes (int): If specified, will extract tiles with a
+                multiprocessing pool using the specified number of processes.
+                Cannot supply both `num_threads` and `num_processes`.
+                With the libvips backend, this defaults to half the number of
+                CPU cores, and with cuCIM, this defaults to None.
         """
         if img_format not in ('png', 'jpg', 'jpeg'):
             raise ValueError(f"Invalid image format {img_format}")
@@ -840,13 +862,17 @@ class _BaseLoader:
                 num_tiles=len(locations),
                 qc_mask=self.qc_mask,
                 locations=pd.DataFrame(df_dict),
-                num_rois=(0 if self.roi_method == 'ignore' else len(self.rois))
+                num_rois=(0 if self.roi_method == 'ignore' else len(self.rois)),
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
             )
             slide_report = SlideReport(
                 sample_tiles,
                 self.slide.path,
                 data=report_data,
                 thumb_coords=locations,
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
             )
             return slide_report
         else:
@@ -886,6 +912,7 @@ class _BaseLoader:
             kwargs['show_progress'] = (self.pb is None)
         generator = self.build_generator(
             dry_run=True,
+            deterministic=False,
             **kwargs
         )
         if generator is None:
@@ -910,6 +937,7 @@ class WSI(_BaseLoader):
         roi_dir: Optional[str] = None,
         rois: Optional[List[str]] = None,
         roi_method: str = 'auto',
+        roi_filter_method: Union[str, float] = 'center',
         randomize_origin: bool = False,
         pb: Optional[Progress] = None,
         verbose: bool = True,
@@ -942,6 +970,16 @@ class WSI(_BaseLoader):
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
+            roi_filter_method (str or float): Method of filtering tiles with
+                ROIs. Either 'center' or float (0-1). If 'center', tiles are
+                filtered with ROIs based on the center of the tile. If float,
+                tiles are filtered based on the proportion of the tile inside
+                the ROI, and ``roi_filter_method`` is interpreted as a
+                threshold. If the proportion of a tile inside the ROI is
+                greater than this number, the tile is included. For example,
+                if ``roi_filter_method=0.7``, a tile that is 80% inside of an
+                ROI will be included, and a tile that is 50% inside of an ROI
+                will be excluded. Defaults to 'center'.
             randomize_origin (bool, optional): Offset the starting grid by a
                 random amount. Defaults to False.
             pb (:class:`Progress`, optional): Multiprocessing
@@ -952,6 +990,11 @@ class WSI(_BaseLoader):
                 Defaults to True.
             mpp (float, optional): Override the microns-per-pixel value for
                 the slide. Defaults to None (auto-detects).
+            ignore_missing_mpp (bool, optional): If a slide does not have
+                microns-per-pixel (MPP) information stored in EXIF data
+                (key 65326), set the MPP to a default value
+                (``sf.slide.DEFAULG_JPG_MPP``). If False and MPP data is
+                missing, raises ``sf.errors.SlideMissingMPPError``.
         """
         super().__init__(
             path=path,
@@ -970,21 +1013,34 @@ class WSI(_BaseLoader):
         self.annPolys = []  # type: List
         self.roi_scale = 10  # type: float
         self.roi_method = roi_method
+        self.roi_filter_method = roi_filter_method
         self.randomize_origin = randomize_origin
         self.verbose = verbose
         self.segmentation = None
         self.grid = None
+
+        if (not isinstance(roi_filter_method, (int, float))
+           and roi_filter_method != 'center'):
+            raise ValueError(
+                "Unrecognized value for argument 'roi_filter_method': {} ."
+                "Expected either float or 'center'.".format(roi_filter_method)
+            )
+        if (isinstance(roi_filter_method, (int, float))
+           and (roi_filter_method < 0 or roi_filter_method > 1)):
+            raise ValueError(
+                "If 'roi_filter_method' is a float, it must be between 0-1."
+            )
 
         if rois is not None and not isinstance(rois, (list, tuple)):
             rois = [rois]
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
-            self.load_csv_roi(join(roi_dir, self.name + ".csv"))
+            self.load_csv_roi(join(roi_dir, self.name + ".csv"), process=False)
 
         # Else try loading ROI from same folder as slide
         elif exists(self.name + ".csv"):
-            self.load_csv_roi(path_to_name(path) + ".csv")
+            self.load_csv_roi(path_to_name(path) + ".csv", process=False)
         elif rois and self.name in [path_to_name(r) for r in rois]:
             matching_rois = []
             for rp in rois:
@@ -996,7 +1052,7 @@ class WSI(_BaseLoader):
                 log.warning(
                     f"Multiple ROIs found for {self.name}; using {mr}"
                 )
-            self.load_csv_roi(mr)
+            self.load_csv_roi(mr, process=False)
 
         # Handle missing ROIs
         if (not len(self.rois)
@@ -1025,7 +1081,7 @@ class WSI(_BaseLoader):
             self.roi_method = 'inside'
 
         # Build coordinate grid
-        self._build_coord()
+        self.process_rois()
 
         mpp_roi_msg = f'{self.mpp} um/px | {len(self.rois)} ROI(s)'
         size_msg = f'Size: {self.dimensions[0]} x {self.dimensions[1]}'
@@ -1112,6 +1168,8 @@ class WSI(_BaseLoader):
     def _build_coord(self) -> None:
         '''Set up coordinate grid.'''
 
+        log.debug("Setting up coordinate grid.")
+
         # Calculate window sizes, strides, and coordinates for windows
         self.extracted_x_size = self.dimensions[0] - self.full_extract_px
         self.extracted_y_size = self.dimensions[1] - self.full_extract_px
@@ -1140,6 +1198,7 @@ class WSI(_BaseLoader):
         self.grid = np.ones((len(x_range), len(y_range)), dtype=bool)
 
         # ROI filtering
+        roi_by_center = (self.roi_filter_method == 'center')
         if self.has_rois():
 
             # Full extraction size and stride
@@ -1159,20 +1218,26 @@ class WSI(_BaseLoader):
             x_offset = - (full_extract/2 - stride/2)
             y_offset = - (full_extract/2 - stride/2)
 
-            # Translate and scale the ROI polygons
+            # Translate ROI polygons
             translated = [
                 sa.translate(poly, x_offset/self.roi_scale, y_offset/self.roi_scale)
                 for poly in self.annPolys
             ]
+
+            # Set scale to 50 times greater than grid size
+            # if filtering by float
+            o = 1 if roi_by_center else 50
+
+            # Scale ROI polygons
             scaled = [
-                sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
+                sa.scale(poly, xfact=xfact * o, yfact=yfact * o, origin=(0, 0))
                 for poly in translated
             ]
 
             # Rasterize polygons to the size of the tile extraction grid
             self.roi_mask = rasterio.features.rasterize(
                 scaled,
-                out_shape=(self.grid.shape[1], self.grid.shape[0]),
+                out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
                 all_touched=False).astype(bool)
         else:
             self.roi_mask = None
@@ -1184,13 +1249,22 @@ class WSI(_BaseLoader):
                 self.coord.append([x, y, xi, yi])
 
                 # ROI filtering
-                if self.has_rois():
+                if self.has_rois() and roi_by_center:
                     point_in_roi = self.roi_mask[yi, xi]
                     # If the extraction method is 'inside',
                     # skip the tile if it's not in an ROI
                     if (((self.roi_method == 'inside') and not point_in_roi)
                        or ((self.roi_method == 'outside') and point_in_roi)):
                         self.grid[xi, yi] = 0
+
+        # If roi_filter_method is a float, then perform tile selection
+        # based on what proportion of the tile is in an ROI,
+        # rather than choosing a tile by centroid (roi_filter_method='center')
+        if self.has_rois() and not roi_by_center:
+            self.apply_qc_mask(
+                ~self.roi_mask,
+                filter_threshold=(1-self.roi_filter_method)
+            )
 
         self.coord = np.array(self.coord)
         self.estimated_num_tiles = int(self.grid.sum())
@@ -1415,10 +1489,11 @@ class WSI(_BaseLoader):
         max_tiles: Optional[int] = None,
         from_centroids: bool = False,
         apply_masks: bool = True,
+        deterministic: bool = True
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
-        Args:
+        Keyword args:
             shuffle (bool): Shuffle images during extraction.
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
                 Discard tiles with this fraction of whitespace. If 1, will not
@@ -1440,6 +1515,16 @@ class WSI(_BaseLoader):
                 the rest of the slide when calculating stain matrix
                 concentrations. Defaults to False (normalize each image tile
                 as separate images).
+            num_threads (int): If specified, will extract tiles with a
+                ThreadPool using the specified number of threads. Cannot
+                supply both `num_threads` and `num_processes`. Libvips is
+                particularly slow with ThreadPools. Defaults to None in the
+                Libvips backend, and the number of CPU cores when using cuCIM.
+            num_processes (int): If specified, will extract tiles with a
+                multiprocessing pool using the specified number of processes.
+                Cannot supply both `num_threads` and `num_processes`.
+                With the libvips backend, this defaults to half the number of
+                CPU cores, and with cuCIM, this defaults to None.
             show_progress (bool, optional): Show a progress bar.
             img_format (str, optional): Image format. Either 'numpy', 'jpg',
                 or 'png'. Defaults to 'numpy'.
@@ -1458,6 +1543,9 @@ class WSI(_BaseLoader):
                 `WSI.apply_segmentation()`. Defaults to False.
             apply_masks (bool): Apply cell segmentation masks to tiles. Ignored
                 if cell segmentation has been applied to the slide.
+                Defaults to True.
+            deterministic (bool): Return tile images in reproducible,
+                deterministic order. May slightly decrease iteration time.
                 Defaults to True.
 
         Returns:
@@ -1559,7 +1647,7 @@ class WSI(_BaseLoader):
         })
 
         def generator():
-            nonlocal pool
+            nonlocal pool, num_threads, num_processes
             should_close = False
             n_extracted = 0
 
@@ -1605,15 +1693,18 @@ class WSI(_BaseLoader):
             # Set up worker pool
             if pool is None:
                 if num_threads is None and num_processes is None:
-                    # ThreadPool used by default due to escalating memory
-                    # requirements when using multiprocessing
+                    # Libvips is extremely slow with ThreadPools.
+                    # In the cuCIM backend, ThreadPools are used by default
+                    # to reduce memory utilization.
+                    # In the Libvips backend, a multiprocessing pool is default
+                    # to significantly improve performance.
+                    n_cores = os.cpu_count() if os.cpu_count() else 8
+                    if sf.slide_backend() == 'libvips':
+                        num_processes = max(int(n_cores/2), 1)
+                    else:
+                        num_threads = n_cores
+                if num_threads is not None and num_threads > 1:
                     log.debug(f"Building generator ThreadPool({num_threads})")
-                    _threads = os.cpu_count() if os.cpu_count() else 8
-                    pool = mp.dummy.Pool(processes=_threads)
-                    should_close = True
-                elif num_threads is not None and num_threads > 1:
-                    log.debug(f"Building generator ThreadPool({num_threads})")
-                    _threads = os.cpu_count() if os.cpu_count() else 8
                     pool = mp.dummy.Pool(processes=num_threads)
                     should_close = True
                 elif num_processes is not None and num_processes > 1:
@@ -1636,8 +1727,11 @@ class WSI(_BaseLoader):
                 pbar = Progress(transient=sf.getLoggingLevel() > 20)
                 task = pbar.add_task('Extracting...', total=self.estimated_num_tiles)
                 pbar.start()
+            else:
+                pbar = None
 
             if pool is not None:
+                map_fn = pool.imap if deterministic else pool.imap_unordered
                 if lazy_iter:
                     if max_tiles:
                         batch_size = min(pool._processes, max_tiles)
@@ -1646,7 +1740,7 @@ class WSI(_BaseLoader):
                     batched_coord = sf.util.batch(non_roi_coord, batch_size)
                     def _generator():
                         for batch in batched_coord:
-                            yield from pool.imap(
+                            yield from map_fn(
                                 partial(tile_worker, args=w_args),
                                 batch
                             )
@@ -1655,26 +1749,26 @@ class WSI(_BaseLoader):
                 else:
                     csize = max(min(int(self.estimated_num_tiles/pool._processes), 64), 1)
                     log.debug(f"Using imap chunksize={csize}")
-                    i_mapped = pool.imap(
+                    i_mapped = map_fn(
                         partial(tile_worker, args=w_args),
                         non_roi_coord,
                         chunksize=csize
                     )
 
-            for e, result in enumerate(i_mapped):
-                if show_progress:
-                    pbar.advance(task, 1)
-                elif self.pb is not None:
-                    self.pb.advance(0)
-                if result is None:
-                    continue
-                else:
-                    yield result
-                    n_extracted += 1
-                    if max_tiles and n_extracted >= max_tiles:
-                        break
-            if show_progress:
-                pbar.stop()
+            with sf.util.cleanup_progress(pbar):
+                for e, result in enumerate(i_mapped):
+                    if show_progress:
+                        pbar.advance(task, 1)
+                    elif self.pb is not None:
+                        self.pb.advance(0)
+                    if result is None:
+                        continue
+                    else:
+                        yield result
+                        n_extracted += 1
+                        if max_tiles and n_extracted >= max_tiles:
+                            break
+
             if should_close:
                 pool.close()
 
@@ -1713,11 +1807,15 @@ class WSI(_BaseLoader):
             rois (bool, optional): Draw ROIs onto thumbnail. Defaults to False.
             linewidth (int, optional): Width of ROI line. Defaults to 2.
             color (str, optional): Color of ROI. Defaults to black.
+            use_associated_image (bool): Use the associated thumbnail image
+                in the slide, rather than reading from a pyramid layer.
+            low_res (bool): Create thumbnail from the lowest-mangnification
+                pyramid layer. Defaults to False.
 
         Returns:
             PIL image
-        """
 
+        """
         if rois and len(self.rois):
             if (mpp is not None and width is not None):
                 raise ValueError(
@@ -1755,16 +1853,17 @@ class WSI(_BaseLoader):
         else:
             return thumb
 
-    def load_roi_array(self, array: np.ndarray):
+    def load_roi_array(self, array: np.ndarray, process: bool = True):
         existing = [
             int(r.name[4:]) for r in self.rois
             if r.name.startswith('ROI_') and r.name[4:].isnumeric()
         ]
         roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
         self.rois.append(ROI(f'ROI_{roi_id}', array))
-        self.process_rois()
+        if process:
+            self.process_rois()
 
-    def load_csv_roi(self, path: str) -> int:
+    def load_csv_roi(self, path: str, process: bool = True) -> int:
         '''Loads CSV ROI from a given path.'''
 
         # Clear any previously loaded ROIs.
@@ -1798,9 +1897,16 @@ class WSI(_BaseLoader):
 
             for roi_object in roi_dict.values():
                 self.rois.append(roi_object)
-        return self.process_rois()
+        if process:
+            self.process_rois()
+        return len(self.rois)
 
-    def load_json_roi(self, path: str, scale: int = 10) -> int:
+    def load_json_roi(
+        self,
+        path: str,
+        scale: int = 10,
+        process: bool = True
+    ) -> int:
         '''Loads ROI from a JSON file.'''
 
         with open(path, "r") as json_file:
@@ -1809,7 +1915,9 @@ class WSI(_BaseLoader):
             area_reduced = np.multiply(shape['points'], scale)
             self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
-        return self.process_rois()
+        if process:
+            self.process_rois()
+        return len(self.rois)
 
     def masked_thumb(self, background: str = 'white', **kwargs) -> np.ndarray:
         """Return a masked thumbnail of a slide, using QC and/or ROI masks.
@@ -1901,10 +2009,10 @@ class WSI(_BaseLoader):
         log.info("Calculating whole-slide prediction...")
         heatmap = Heatmap(self, model, generate=True, **kwargs)
         preds = heatmap.predictions.reshape(-1, heatmap.predictions.shape[-1])
-        preds = np.ma.masked_where(preds < 0, preds).mean(axis=0).filled()
+        preds = np.nanmean(np.ma.masked_where(preds == -99, preds), axis=0).filled()
         if heatmap.uncertainty is not None:
             unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
-            unc = np.ma.masked_where(unc < 0, unc).mean(axis=0).filled()
+            unc = np.nanmean(np.ma.masked_where(unc == -99, unc), axis=0).filled()
             return preds, unc
         else:
             return preds
@@ -1948,16 +2056,15 @@ class WSI(_BaseLoader):
                       * (self.dimensions[1]/self.roi_scale))
         self.roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
-        # If a grid already exists, then regenerate the grid
-        # to reflect the newly-loaded ROIs.
-        if self.grid is not None:
-            self._build_coord()
+        # Regenerate the grid to reflect the newly-loaded ROIs.
+        self._build_coord()
 
         return len(self.rois)
 
-    def remove_roi(self, idx):
+    def remove_roi(self, idx: int, process: bool = True) -> None:
         del self.rois[idx]
-        self.process_rois()
+        if process:
+            self.process_rois()
 
     def tensorflow(
         self,
@@ -2522,83 +2629,83 @@ class TMA(_BaseLoader):
                     total=self.estimated_num_tiles
                 )
                 pbar.start()
-            ctx = mp.get_context('spawn')
-            extraction_pool = ctx.Pool(
-                num_threads,
-                section_extraction_worker,
-                (rectangle_queue, extraction_queue,)
-            )
-            for rect in self.object_rects:
-                rectangle_queue.put(rect)
-            rectangle_queue.put((-1, "DONE"))
+            else:
+                pbar = None
+            with sf.util.cleanup_progress(pbar):
+                ctx = mp.get_context('spawn')
+                extraction_pool = ctx.Pool(
+                    num_threads,
+                    section_extraction_worker,
+                    (rectangle_queue, extraction_queue,)
+                )
+                for rect in self.object_rects:
+                    rectangle_queue.put(rect)
+                rectangle_queue.put((-1, "DONE"))
 
-            queue_progress = 0
-            while True:
-                queue_progress += 1
-                tile_id, image_core = extraction_queue.get()
-                if type(image_core) == str and image_core == "DONE":
-                    break
-                else:
-                    if self.pb:
-                        self.pb.advance(0)
-                    if show_progress:
-                        pbar.advance(task, 1)
-
-                    resized_core = self._resize_to_target(image_core)
-
-                    if full_core:
-                        resized = cv2.resize(
-                            image_core,
-                            (self.tile_px, self.tile_px)
-                        )
-                        # Convert to final image format
-                        if img_format != 'numpy':
-                            resized = _convert_img_to_format(
-                                resized,
-                                img_format
-                            )
-
-                        yield {'image': resized, 'loc': [0, 0]}
+                queue_progress = 0
+                while True:
+                    queue_progress += 1
+                    tile_id, image_core = extraction_queue.get()
+                    if type(image_core) == str and image_core == "DONE":
+                        break
                     else:
-                        subtiles = self._split_core(resized_core)
-                        for subtile in subtiles:
-                            # Perform whitespace filtering
-                            if whitespace_fraction < 1:
-                                frac = (np.mean(subtile, axis=2)
-                                        > whitespace_threshold).sum()
-                                frac = frac / (self.tile_px**2)
-                                if frac > whitespace_fraction:
-                                    continue
+                        if self.pb:
+                            self.pb.advance(0)
+                        if show_progress:
+                            pbar.advance(task, 1)
 
-                            # Perform grayspace filtering
-                            if grayspace_fraction < 1:
-                                hsv_image = mcol.rgb_to_hsv(subtile)
-                                frac = (hsv_image[:, :, 1]
-                                        < grayspace_threshold).sum()
-                                frac = frac / (self.tile_px**2)
-                                if frac > grayspace_fraction:
-                                    continue
+                        resized_core = self._resize_to_target(image_core)
 
-                            # Apply normalization
-                            if norm is not None:
-                                try:
-                                    subtile = norm.rgb_to_rgb(subtile)
-                                except Exception:
-                                    # The image could not be normalized, which
-                                    # happens when a tile is primarily one
-                                    # solid color (background)
-                                    continue
-
+                        if full_core:
+                            resized = cv2.resize(
+                                image_core,
+                                (self.tile_px, self.tile_px)
+                            )
                             # Convert to final image format
                             if img_format != 'numpy':
-                                subtile = _convert_img_to_format(
-                                    subtile,
+                                resized = _convert_img_to_format(
+                                    resized,
                                     img_format
                                 )
-                            yield {'image': subtile, 'loc': [0, 0]}
 
-            extraction_pool.close()
-            if show_progress:
-                pbar.stop()
+                            yield {'image': resized, 'loc': [0, 0]}
+                        else:
+                            subtiles = self._split_core(resized_core)
+                            for subtile in subtiles:
+                                # Perform whitespace filtering
+                                if whitespace_fraction < 1:
+                                    frac = (np.mean(subtile, axis=2)
+                                            > whitespace_threshold).sum()
+                                    frac = frac / (self.tile_px**2)
+                                    if frac > whitespace_fraction:
+                                        continue
+
+                                # Perform grayspace filtering
+                                if grayspace_fraction < 1:
+                                    hsv_image = mcol.rgb_to_hsv(subtile)
+                                    frac = (hsv_image[:, :, 1]
+                                            < grayspace_threshold).sum()
+                                    frac = frac / (self.tile_px**2)
+                                    if frac > grayspace_fraction:
+                                        continue
+
+                                # Apply normalization
+                                if norm is not None:
+                                    try:
+                                        subtile = norm.rgb_to_rgb(subtile)
+                                    except Exception:
+                                        # The image could not be normalized, which
+                                        # happens when a tile is primarily one
+                                        # solid color (background)
+                                        continue
+
+                                # Convert to final image format
+                                if img_format != 'numpy':
+                                    subtile = _convert_img_to_format(
+                                        subtile,
+                                        img_format
+                                    )
+                                yield {'image': subtile, 'loc': [0, 0]}
+                extraction_pool.close()
 
         return generator

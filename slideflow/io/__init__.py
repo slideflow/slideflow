@@ -13,6 +13,7 @@ import slideflow as sf
 from slideflow import errors
 from slideflow.io.io_utils import detect_tfrecord_format, convert_dtype
 from slideflow.util import log
+from slideflow.util.tfrecord2idx import get_tfrecord_by_index, get_tfrecord_length
 from rich.progress import Progress
 
 # --- Backend-specific imports and configuration ------------------------------
@@ -45,14 +46,8 @@ def update_manifest_at_dir(
     """Log number of tiles in each TFRecord file present in the given
     directory and all subdirectories, saving manifest to file within
     the parent directory.
+
     """
-
-    if sf.backend() == 'tensorflow':
-        import tensorflow as tf
-        dataloss_errors = [tf.errors.DataLossError, errors.TFRecordsError]
-    else:
-        dataloss_errors = [errors.TFRecordsError]
-
     manifest_path = join(directory, "manifest.json")
     if not exists(manifest_path):
         manifest = {}
@@ -80,8 +75,8 @@ def update_manifest_at_dir(
             return None
         rel_tfr_manifest = {rel_tfr: {}}
         try:
-            total = read_tfrecord_length(tfr)
-        except dataloss_errors:
+            total = get_tfrecord_length(tfr)
+        except (errors.TFRecordsError, OSError):
             log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
             os.remove(tfr)
             return None
@@ -113,42 +108,7 @@ def update_manifest_at_dir(
     return manifest
 
 
-def get_tfrecord_by_index(
-    tfrecord: str,
-    index: int,
-    decode: bool = True
-) -> Any:
-    '''Reads and returns an individual record from a tfrecord by index,
-    including slide name and processed image data.
-    '''
-    if type(index) != int:
-        try:
-            index = int(index)
-        except ValueError:
-            raise IndexError(f"index must be an integer, not {type(index)} "
-                             f"(provided {index}).")
-
-    dataset = TFRecordDataset(tfrecord)
-    parser = get_tfrecord_parser(
-        tfrecord,
-        ('slide', 'image_raw'),
-        decode_images=decode
-    )
-    total = 0
-    for i, record in enumerate(dataset):
-        total += 1
-        if i == index:
-            return parser(record)  # type: ignore
-        else:
-            continue
-    log.error(
-        f"Unable to find record: index {index} in {sf.util.green(tfrecord)}"
-        f" ({total} total records)"
-    )
-    return False, False
-
-
-def read_tfrecord_by_location(
+def get_tfrecord_by_location(
     tfrecord: str,
     location: Tuple[int, int],
     decode: bool = True
@@ -350,29 +310,6 @@ def extract_tiles(tfrecord: str, destination: str) -> None:
         image_string.close()
 
 
-def read_tfrecord_length(tfrecord: str) -> int:
-    """Returns number of records stored in the given tfrecord file."""
-    infile = open(tfrecord, "rb")
-    num_records = 0
-    while True:
-        infile.tell()
-        try:
-            byte_len = infile.read(8)
-            if len(byte_len) == 0:
-                break
-            infile.read(4)
-            proto_len = struct.unpack("q", byte_len)[0]
-            infile.read(proto_len)
-            infile.read(4)
-            num_records += 1
-        except Exception:
-            log.error(f"Failed to parse TFRecord at {tfrecord}")
-            infile.close()
-            return 0
-    infile.close()
-    return num_records
-
-
 def get_locations_from_tfrecord(
     filename: str,
     as_dict: bool = True
@@ -383,8 +320,8 @@ def get_locations_from_tfrecord(
     '''Returns dictionary mapping indices to tile locations (X, Y)'''
     out_dict = {}
     out_list = []
-    for i in range(sf.util.get_tfrecord_length(filename)):
-        record = sf.util.get_record_by_index(filename, i)
+    for i in range(sf.io.get_tfrecord_length(filename)):
+        record = sf.io.get_tfrecord_by_index(filename, i)
         loc_x = record['loc_x']
         loc_y = record['loc_y']
         if as_dict:
@@ -400,5 +337,5 @@ def tfrecord_has_locations(
     check_y: bool = False
 ) -> bool:
     """Check if a given TFRecord has location information stored."""
-    record = sf.util.get_record_by_index(filename, 0)
+    record = sf.io.get_tfrecord_by_index(filename, 0)
     return (((not check_x) or 'loc_x' in record ) and ((not check_y) or 'loc_y' in record ))

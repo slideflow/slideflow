@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 from slideflow.slide import wsi_reader
 
 from . import Viewer
-from .. import gl_utils
+from .. import gl_utils, imgui_utils
 from ...utils import EasyDict
 
 # -----------------------------------------------------------------------------
@@ -59,9 +59,12 @@ class MosaicViewer(Viewer):
     def view_offset(self):
         return (self.mosaic_x_offset, self.mosaic_y_offset)
 
+    def close(self):
+        self.viz.reset_background()
+
     def get_slide_path(self, slide: str) -> Optional[str]:
         if self.viz.P is not None:
-            return self.viz.P.dataset().find_slide(slide=slide)
+            return self.viz.P.dataset(verification=None).find_slide(slide=slide)
         elif slide in self.slides:
             return self.slides[slide]
         else:
@@ -102,8 +105,9 @@ class MosaicViewer(Viewer):
                 log.debug("Unable to display tooltip; location information not found.")
                 return
             slide_path = self.get_slide_path(slide)
+            slide_clip = imgui_utils.ellipsis_clip(slide, 40)
             if slide_path is None:
-                imgui.set_tooltip(f"Mosaic grid: ({grid_x}, {grid_y})\n{slide}: {location}")
+                imgui.set_tooltip(f"Mosaic grid: ({grid_x}, {grid_y})\n{slide_clip}: {location}")
                 return
 
             # Get WSI preview at the tile location.
@@ -129,12 +133,13 @@ class MosaicViewer(Viewer):
                 self.preview_height + self.viz.spacing + imgui.get_text_line_height_with_spacing()*2
             )
             imgui.begin("##mosaic_tooltip", flags=flags)
-            imgui.text(f"Mosaic grid: ({grid_x}, {grid_y})\n{slide}: {location}")
+            imgui.text(f"Mosaic grid: ({grid_x}, {grid_y})\n{slide_clip} : {location}")
             imgui.image(self.preview_texture.gl_id, self.preview_width, self.preview_height)
             imgui.end()
 
     def render(self, max_w: int, max_h: int) -> None:
         """Render the mosaic map."""
+        max_h = max_h - self.viz.status_bar_height
         if self.size < min(max_w, max_h):
             self.zoomed = False
         if not self.zoomed:
@@ -148,7 +153,7 @@ class MosaicViewer(Viewer):
         self.width = max_w
         self.height = max_h
 
-        image_size = int(self.size / self.mosaic.num_tiles_x)
+        image_size = round(self.size / self.mosaic.num_tiles_x)
         imgui.set_next_window_bg_alpha(0)
         mouse_x, mouse_y = self.get_mouse_pos()
         _hov_x, _hov_y = None, None
@@ -159,8 +164,8 @@ class MosaicViewer(Viewer):
         imgui.begin("Mosaic", flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_SCROLLBAR | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS))
         for (x, y), image in self.mosaic.grid_images.items():
             pos = (
-                self.mosaic_x_offset + x * image_size,
-                self.mosaic_y_offset + self.size - (y * image_size)
+                self.mosaic_x_offset + (x * image_size),
+                self.mosaic_y_offset + self.size - ((y+1) * image_size)
             )
             out_of_view = ((pos[0] + image_size < 0)
                            or (pos[1] + image_size < 0)
@@ -170,7 +175,7 @@ class MosaicViewer(Viewer):
                 continue
             if isinstance(image, np.ndarray):
                 self.mosaic.grid_images[(x, y)] = gl_utils.Texture(
-                    image=image, bilinear=True, mipmap=False
+                    image=image, bilinear=True, mipmap=True, maxlevel=2
                 )
             gl_id = self.mosaic.grid_images[(x, y)].gl_id
             imgui.set_cursor_pos(pos)

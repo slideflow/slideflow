@@ -82,8 +82,7 @@ class Experiment:
         self.outcome2 = outcome2
         self.outdir = outdir
 
-    @staticmethod
-    def add(path, label, out1, out2, order='f', order_col='order', gan=0):
+    def add(self, path, label, out1, out2, order='f', order_col='order', gan=0):
         """Adds a sample size experiment to the given project annotations file.
 
         Args:
