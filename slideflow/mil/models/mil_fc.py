@@ -71,7 +71,12 @@ class MIL_fc_mc(nn.Module):
         gate: bool = True,
     ):
         super().__init__()
-        assert n_classes > 2
+        if not n_classes > 2:
+            raise ValueError(
+                "The 'MIL_fc_mc' model is a multi-categorical model that "
+                "requires more than two outcome categories. For binary outcomes "
+                "with only 2 categories, use 'MIL_fc'."
+            )
 
         self.size = self.sizes[size] if isinstance(size, str) else size
 
