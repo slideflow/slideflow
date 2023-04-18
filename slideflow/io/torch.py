@@ -809,7 +809,7 @@ def _decode_image(
     device: Optional[torch.device] = None,
     transform: Optional[Any] = None,
 ) -> torch.Tensor:
-    """Decodes image. Torch implementation; different than sf.io.tensorflow"""
+    """Decodes image (W x H x C). Torch implementation; different than sf.io.tensorflow"""
 
     if img_type != 'numpy':
         np_data = torch.from_numpy(np.fromstring(image, dtype=np.uint8))
@@ -824,6 +824,8 @@ def _decode_image(
 
     if transform is not None:
         image = transform(image)
+
+    return image
 
 # -------------------------------------------------------------------------
 
