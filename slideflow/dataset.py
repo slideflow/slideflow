@@ -1578,6 +1578,7 @@ class Dataset:
                         num_threads,
                         initializer=sf.util.set_ignore_sigint
                     )
+                    qc_kwargs['pool'] = pool
                 else:
                     pool = None
                     ptype = None

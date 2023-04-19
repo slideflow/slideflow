@@ -116,6 +116,30 @@ def vips_resize(
     return vips2numpy(vips_image)
 
 
+def vips_padded_crop(image, x, y, width, height):
+    bg = [255]
+    if x+width <= image.width and y+height <= image.height:
+        return image.crop(x, y, width, height)
+    elif x+width > image.width and y+height <= image.height:
+        cropped = image.crop(x, y, image.width-x, height)
+        return cropped.gravity('west', width, height, background=bg)
+    elif x+width <= image.width and y+height > image.height:
+        cropped = image.crop(x, y, width, image.height-y)
+        return cropped.gravity('north', width, height, background=bg)
+    elif x+width > image.width and y+height > image.height:
+        cropped = image.crop(x, y, image.width-x, image.height-y)
+        return cropped.gravity('north-west', width, height, background=bg)
+    else:
+        raise errors.SlideError(
+            "Unable to interpret padded crop for image {} at location {}, {} "
+            "and width/height {}, {}.".format(
+                image, x, y, width, height
+            ))
+
+
+
+# -----------------------------------------------------------------------------
+
 def tile_worker(
     c: List[int],
     args: SimpleNamespace
@@ -265,12 +289,32 @@ class _VIPSReader:
         self,
         path: str,
         mpp: Optional[float] = None,
+        *,
         cache_kw: Optional[Dict[str, Any]] = None,
-        ignore_missing_mpp: bool = False
+        ignore_missing_mpp: bool = False,
+        pad_missing: bool = True,
     ) -> None:
-        '''Wrapper for Libvips to preserve cross-compatible functionality.'''
+        """Libvips slide reader.
 
+        Args:
+            path (str): Path to slide.
+            mpp (float, optional): Forcibly set microns-per-pixel.
+
+        Keyword args:
+            cache_kw (Dict, Optional): Optional keyword arguments for setting
+                up a libvips cache. Keyword arguments are passed to
+                ``pyvips.image.tilecache(**cache_kw)``. If not specified,
+                tile cache is not used. Defaults to None.
+            ignore_missing_mpp (bool): If MPP information cannot be found,
+                do not raise an error. Defaults to False.
+            pad_missing (bool): If an image crop is out-of-bounds for a slide
+                (e.g., an edge tile), pad the image with black. If False,
+                will raise an error if an out-of-bounds area is requested.
+                Defaults to False.
+
+        """
         self.path = path
+        self.pad_missing = pad_missing
         self.cache_kw = cache_kw if cache_kw else {}
         self.loaded_downsample_levels = {}  # type: Dict[int, "vips.Image"]
         loaded_image = self._load_downsample_level(0)
@@ -461,12 +505,16 @@ class _VIPSReader:
         downsample_x = int(base_level_x / downsample_factor)
         downsample_y = int(base_level_y / downsample_factor)
         image = self.get_downsampled_image(downsample_level)
-        region = image.crop(
+        crop_args = (
             downsample_x,
             downsample_y,
             extract_width,
             extract_height
         )
+        if self.pad_missing:
+            region = vips_padded_crop(image, *crop_args)
+        else:
+            region = image.crop(*crop_args)
         # Final conversions
         if flatten and region.bands == 4:
             region = region.flatten()
@@ -510,12 +558,16 @@ class _VIPSReader:
         image = self.get_downsampled_image(ds_level)
         resize_factor = self.level_downsamples[ds_level] / target_downsample
         image = image.resize(resize_factor)
-        image = image.crop(
+        crop_args = (
             int(top_left[0] / target_downsample),
             int(top_left[1] / target_downsample),
             min(target_size[0], image.width),
             min(target_size[1], image.height)
         )
+        if self.pad_missing:
+            image = vips_padded_crop(image, *crop_args)
+        else:
+            image = image.crop(*crop_args)
         # Final conversions
         if flatten and image.bands == 4:
             image = image.flatten()

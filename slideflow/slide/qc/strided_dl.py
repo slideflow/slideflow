@@ -1,11 +1,10 @@
 import numpy as np
-import slideflow as sf
 
 from typing import Callable, Union
-from tqdm import tqdm
+from .strided_qc import StridedQC
 
 
-class StridedDL:
+class StridedDL(StridedQC):
 
     def __init__(
         self,
@@ -75,58 +74,26 @@ class StridedDL:
                 If None, will save in the same directory as the slide.
                 Defaults to None.
         """
-        self.buffer = buffer
-        self.kernel = tile_px
-        self.tile_um = tile_um
-        self.verbose = verbose
-        self.wsi_kwargs = wsi_kwargs
+        super().__init__(
+            tile_px=tile_px,
+            tile_um=tile_um,
+            buffer=buffer,
+            verbose=verbose,
+            **wsi_kwargs
+        )
         self.model = model
         self.pred_idx = pred_idx
         self.pred_threshold = pred_threshold
 
-    def __call__(
-        self,
-        wsi: "sf.WSI",
-    ) -> np.ndarray:
+    def build_mask(self, x, y) -> np.ndarray:
+        return np.ones((x, y), dtype=np.float32)
 
-        # Initialize whole-slide reader.
-        b = self.buffer
-        k = self.kernel
-        qc_wsi = sf.WSI(wsi.path, tile_px=(k * b), tile_um=self.tile_um, verbose=False)
-        existing_mask = wsi.qc_mask
-        if existing_mask is not None:
-            qc_wsi.apply_qc_mask(existing_mask)
+    def apply(self, image: np.ndarray) -> np.ndarray:
+        y_pred = self.model(image)[:, self.pred_idx].numpy()
+        return y_pred.reshape(self.buffer, self.buffer) > self.pred_threshold
 
-        # Build tile generator.
-        dts = qc_wsi.build_generator(
-            shuffle=False,
-            show_progress=False,
-            img_format='numpy',
-            **self.wsi_kwargs)()
+    def collate_mask(self, mask: np.ndarray):
+        return mask > self.pred_threshold
 
-        # Generate prediction for slide.
-        focus_mask = np.ones((qc_wsi.grid.shape[1] * b,
-                              qc_wsi.grid.shape[0] * b),
-                             dtype=np.float32)
-        if self.verbose:
-            pb = tqdm(dts, desc="Generating...", total=qc_wsi.estimated_num_tiles)
-        else:
-            pb = dts
-        for item in pb:
-            img = np.clip(item['image'].astype(np.float32) / 255, 0, 1)
-            sz = img.itemsize
-            grid_i = item['grid'][1]
-            grid_j = item['grid'][0]
-            batch = np.lib.stride_tricks.as_strided(img,
-                                                    shape=(b, b, k, k, 3),
-                                                    strides=(k * sz * 3 * k * b,
-                                                            k * sz * 3,
-                                                            sz * 3 * k * b,
-                                                            sz * 3,
-                                                            sz))
-            batch = batch.reshape(batch.shape[0] * batch.shape[1], *batch.shape[2:])
-            y_pred = self.model(batch)[:, self.pred_idx].numpy()
-            predictions = y_pred.reshape(b, b)
-            focus_mask[grid_i * b: grid_i * b + b, grid_j * b: grid_j * b + b] = predictions
-
-        return focus_mask > self.pred_threshold
+    def preprocess(self, image: np.ndarray):
+        return np.clip(image.astype(np.float32) / 255, 0, 1)
