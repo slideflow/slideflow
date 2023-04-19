@@ -204,7 +204,7 @@ def about(console=None) -> None:
         >>> sf.about()
         ╭=======================╮
         │       Slideflow       │
-        │    Version: 1.5.0     │
+        │    Version: 2.0.0     │
         │  Backend: tensorflow  │
         │ Slide Backend: cucim  │
         │ https://slideflow.dev │

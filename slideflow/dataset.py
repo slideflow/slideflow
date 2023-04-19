@@ -1485,6 +1485,10 @@ class Dataset:
         all_reports = []
         self.verify_annotations_slides()
 
+        # Log the active slide reading backend
+        col = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
+        log.info(f"Slide reading backend: [{col}]{sf.slide_backend()}[/]")
+
         # Set up kwargs for tile extraction generator and quality control
         qc_kwargs = {k[3:]: v for k, v in kwargs.items() if k[:3] == 'qc_'}
         kwargs = {k: v for k, v in kwargs.items() if k[:3] != 'qc_'}
