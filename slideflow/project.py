@@ -3604,8 +3604,8 @@ class Project:
         # Set up SimCLR experiment data directory
         if exp_label is None:
             exp_label = 'simclr'
-        if not exists(join(self.root, 'swav')):
-            os.makedirs(join(self.root, 'swav'))
+        if not exists(join(self.root, 'simclr')):
+            os.makedirs(join(self.root, 'simclr'))
         outdir = sf.util.create_new_model_dir(
             join(self.root, 'simclr'), exp_label
         )
