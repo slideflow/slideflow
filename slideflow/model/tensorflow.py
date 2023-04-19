@@ -1661,8 +1661,8 @@ class Trainer:
                 Defaults to 'parquet'.
             save_model (bool, optional): Save models when evaluating at
                 specified epochs. Defaults to True.
-            resume_training (str, optional): Path to Tensorflow model to
-                continue training. Defaults to None.
+            resume_training (str, optional): Path to model to continue training.
+                Only valid in Tensorflow backend. Defaults to None.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow
                 model from which to load weights. Defaults to 'imagenet'.
             checkpoint (str, optional): Path to cp.ckpt from which to load

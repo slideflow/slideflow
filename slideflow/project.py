@@ -2428,7 +2428,7 @@ class Project:
 
         Keyword Args:
             dataset (:class:`slideflow.Dataset`): Dataset object.
-            model (str, optional): Path to Tensorflow model to use when
+            model (str, optional): Path to model to use when
                 generating layer activations.
             Defaults to None.
                 If not provided, mosaic will not be calculated or saved.
@@ -3284,8 +3284,8 @@ class Project:
                 model from which to load weights. Defaults to 'imagenet'.
             multi_gpu (bool): Train using multiple GPUs when available.
                 Defaults to False.
-            resume_training (str, optional): Path to Tensorflow model to
-                continue training. Defaults to None.
+            resume_training (str, optional): Path to model to continue training.
+                Only valid in Tensorflow backend. Defaults to None.
             starting_epoch (int): Start training at the specified epoch.
                 Defaults to 0.
             steps_per_epoch_override (int): If provided, will manually set the
@@ -3302,7 +3302,7 @@ class Project:
             validation_batch_size (int): Validation dataset batch size.
                 Defaults to 32.
             use_tensorboard (bool): Add tensorboard callback for realtime
-                training monitoring. Defaults to False.
+                training monitoring. Defaults to True.
             validation_steps (int): Number of steps of validation to perform
                 each time doing a mid-epoch validation check. Defaults to 200.
 
