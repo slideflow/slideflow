@@ -516,8 +516,10 @@ class RandomGaussianBlur:
         self.sigma = sigma
         self.weights = weights
         self.blur_fn = {
-            s: transforms.GaussianBlur(self.calc_kernel(s), sigma=s)
-            for s in self.sigma
+            s: (
+                transforms.GaussianBlur(self.calc_kernel(s), sigma=s)
+                if s else lambda x: x
+            ) for s in self.sigma
         }
 
     @staticmethod
@@ -636,8 +638,8 @@ def compose_augmentations(
     if augment is True or (isinstance(augment, str) and 'b' in augment):
         transformations.append(
             RandomGaussianBlur(
-                sigma=[0.5, 1.0, 1.5, 2.0],
-                weights=[0.1, 0.05, 0.025, 0.0125]
+                sigma=[0, 0.5, 1.0, 1.5, 2.0],
+                weights=[0.9, 0.1, 0.05, 0.025, 0.0125]
             )
         )
 
