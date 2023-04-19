@@ -596,7 +596,7 @@ def load_json(filename: str) -> Any:
 
 
 def write_json(data: Any, filename: str) -> None:
-    '''Writes data to JSON file.'''
+    """Write data to JSON file."""
     with open(filename, "w") as data_file:
         json.dump(data, data_file, indent=1)
 

@@ -574,7 +574,7 @@ def compose_augmentations(
     standardize: bool = False,
     normalizer: Optional["StainNormalizer"] = None,
     transform: Optional[Callable] = None,
-    whc: bool = True
+    whc: bool = False
 ):
     """Compose an augmentation pipeline for image processing.
 
@@ -594,7 +594,7 @@ def compose_augmentations(
         transform (Callable, optional): Arbitrary torchvision transform function.
             Performs transformation after augmentations but before standardization.
             Defaults to None.
-        whc (bool): Images are in W x H x C format. Defaults to True.
+        whc (bool): Images are in W x H x C format. Defaults to False.
     """
 
     transformations = []
@@ -643,7 +643,11 @@ def compose_augmentations(
             )
         )
 
-    # Arbitrary transformations.
+    # Arbitrary transformations via `augment` argument.
+    if callable(augment):
+        transformations.append(augment)
+
+    # Arbitrary transformations via `transform` argument.
     if transform is not None:
         transformations.append(transform)
 
@@ -837,7 +841,8 @@ def get_tfrecord_parser(
     transform = compose_augmentations(
         augment=augment,
         standardize=standardize,
-        normalizer=normalizer
+        normalizer=normalizer,
+        whc=True
     )
 
     def parser(record):
@@ -1084,7 +1089,8 @@ def interleave(
         augment=augment,
         standardize=standardize,
         normalizer=normalizer,
-        transform=transform
+        transform=transform,
+        whc=True
     )
 
     # Worker to decode images and process records
