@@ -283,6 +283,7 @@ def eval_from_model(
                 pb.advance(task, img.shape[0])
 
             img = img.to(device, non_blocking=True)
+            img = img.to(memory_format=torch.channels_last)
             with torch.cuda.amp.autocast():
                 with torch.no_grad():
                     # GPU normalization
