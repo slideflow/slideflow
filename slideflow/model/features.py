@@ -1208,11 +1208,36 @@ class _FeatureGenerator:
             self.normalizer = None
             self.uq = False
 
+    def _norm_from_kwargs(self, kwargs):
+        if 'normalizer' in kwargs and kwargs['normalizer'] is not None:
+            norm = kwargs['normalizer']
+            del kwargs['normalizer']
+            if 'normalizer_source' in kwargs:
+                norm_src = kwargs['normalizer_source']
+                del kwargs['normalizer_source']
+            else:
+                norm_src = None
+            if isinstance(norm, str):
+                normalizer = sf.norm.autoselect(
+                    norm,
+                    source=norm_src,
+                    backend='tensorflow' if self.is_tf() else 'torch'
+                )
+            else:
+                normalizer = norm
+            log.info(f"Normalizing with {normalizer.method}")
+            return normalizer, kwargs
+        else:
+            if 'normalizer_source' in kwargs:
+                del kwargs['normalizer_source']
+            return None, kwargs
+
     def _prepare_generator(self, **kwargs) -> Callable:
         """Prepare the feature generator."""
 
         # Generator is a Feature Extractor
         if self.is_extractor():
+            self.normalizer, kwargs = self._norm_from_kwargs(kwargs)
             if kwargs:
                 raise ValueError(
                     f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
@@ -1234,10 +1259,7 @@ class _FeatureGenerator:
             generator = simclr.load(self.model)
             generator.num_features = self.simclr_args.proj_out_dim
             generator.num_classes = self.simclr_args.num_classes
-            if 'normalizer' in kwargs:
-                self.normalizer = kwargs['normalizer']
-                del kwargs['normalizer']
-                log.info(f"Normalizing with {self.normalizer.method}")
+            self.normalizer, kwargs = self._norm_from_kwargs(kwargs)
             if kwargs:
                 raise ValueError(
                     f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
