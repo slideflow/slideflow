@@ -1051,6 +1051,7 @@ class Trainer:
         for _ in range(self.validation_steps):
             val_img, val_label, slides, *_ = next(self.mid_train_val_dts)  # type:ignore
             val_img = val_img.to(self.device)
+            val_img = val_img.to(memory_format=torch.channels_last)
 
             with torch.no_grad():
                 _mp = self.mixed_precision
@@ -1267,6 +1268,7 @@ class Trainer:
         assert self.model is not None
         images, labels, slides = next(self.dataloaders['train'])
         images = images.to(self.device, non_blocking=True)
+        images = images.to(memory_format=torch.channels_last)
         labels = self._labels_to_device(labels, self.device)
         self.optimizer.zero_grad()
         with torch.set_grad_enabled(True):
@@ -2203,7 +2205,8 @@ class Features(BaseFeatureExtractor):
         _mp = self.mixed_precision
         with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
             with torch.no_grad() if no_grad else no_scope():
-                logits = self._model(inp.to(self.device))
+                inp = inp.to(self.device).to(memory_format=torch.channels_last)
+                logits = self._model(inp)
                 if isinstance(logits, (tuple, list)) and self.apply_softmax:
                     logits = [softmax(l, dim=1) for l in logits]
                 elif self.apply_softmax:
@@ -2386,7 +2389,9 @@ class UncertaintyInterface(Features):
         for _ in range(30):
             with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
                 with torch.no_grad() if no_grad else no_scope():
-                    logits = self._model(inp.to(self.device))
+                    inp = inp.to(self.device)
+                    inp = inp.to(memory_format=torch.channels_last)
+                    logits = self._model(inp)
                     if isinstance(logits, (tuple, list)) and self.apply_softmax:
                         logits = [softmax(l, dim=1) for l in logits]
                     elif self.apply_softmax:
