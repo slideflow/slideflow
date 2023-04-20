@@ -1403,7 +1403,7 @@ def interleave_dataloader_iterator(
     from_wsi: bool = False,
     interleave_iter: str = None, # TODO: docs
     **kwargs
-) -> torch.utils.data.DataLoader:
+):
 
     """Prepares a PyTorch DataLoader with a new InterleaveIterator instance,
     interleaving tfrecords and processing labels and tiles, with support for
