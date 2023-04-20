@@ -45,6 +45,6 @@ pyperclip
 requests
 cucim
 versioneer
-cellpose
+cellpose<2.2
 zarr
 fastai
