@@ -4,7 +4,7 @@ import multiprocessing
 
 def main():
   project_path = '/home/mattsacco/data/PROJECTS/UPenn_debug'
-  project_path = '/home/mattsacco/PROJECTS/UPenn_debug'
+  # project_path = '/home/mattsacco/PROJECTS/UPenn_debug'
 
   P = sf.Project(root=project_path)
   dataset = P.dataset(tile_px=299, tile_um=604)

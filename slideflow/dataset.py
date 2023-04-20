@@ -3616,6 +3616,108 @@ class Dataset:
                                      from_wsi=from_wsi,
                                      interleave_iter=interleave_iter,
                                      **kwargs)
+    
+    def torch_iterator(
+        self,
+        labels: Optional[Dict[str, Any]] = None,
+        batch_size: Optional[int] = None,
+        rebuild_index: bool = False,
+        from_wsi: bool = False,
+        interleave_iter: str = None,
+        **kwargs: Any
+    )
+        """Return a PyTorch DataLoader object that interleaves tfrecords.
+
+        The returned dataloader yields a batch of (image, label) for each tile.
+
+        Args:
+            labels (dict or str): If a dict is provided, expect a dict mapping
+                slide names to outcome labels. If a str, will intepret as
+                categorical annotation header. For linear outcomes, or outcomes
+                with manually assigned labels, pass the first result of
+                dataset.labels(...). If None, returns slide instead of label.
+            batch_size (int): Batch size.
+            rebuild_index (bool): Re-build index files even if already present.
+                Defaults to True.
+
+        Keyword Args:
+            onehot (bool, optional): Onehot encode labels. Defaults to False.
+            incl_slidenames (bool, optional): Include slidenames as third
+                returned variable. Defaults to False.
+            infinite (bool, optional): Infinitely repeat data.
+                Defaults to True.
+            rank (int, optional): Worker ID to identify which worker this
+                represents. Used to interleave results among workers without
+                duplications. Defaults to 0 (first worker).
+            num_replicas (int, optional): Number of GPUs or unique instances
+                which will have their own DataLoader. Used to interleave
+                results among workers without duplications. Defaults to 1.
+            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+                Normalizer to use on images. Defaults to None.
+            seed (int, optional): Use the following seed when randomly
+                interleaving. Necessary for synchronized multiprocessing.
+            chunk_size (int, optional): Chunk size for image decoding.
+                Defaults to 16.
+            preload_factor (int, optional): Number of batches to preload.
+                Defaults to 1.
+            augment (str, optional): Image augmentations to perform. Str
+                containing characters designating augmentations. 'x' indicates
+                random x-flipping, 'y' y-flipping, 'r' rotating, 'j' JPEG
+                compression/decompression at random quality levels, and 'b'
+                random gaussian blur. Passing either 'xyrjb' or True will use
+                all augmentations. Defaults to 'xyrjb'.
+            standardize (bool, optional): Standardize images to (0,1).
+                Defaults to True.
+            num_workers (int, optional): Number of DataLoader workers.
+                Defaults to 2.
+            pin_memory (bool, optional): Pin memory to GPU.
+                Defaults to True.
+            drop_last (bool, optional): Drop the last non-full batch.
+                Defaults to False.
+
+        """
+        from slideflow.io.torch import interleave_dataloader_iterator
+
+        if isinstance(labels, str):
+            labels = self.labels(labels)[0]
+        if self.tile_px is None:
+            raise errors.DatasetError("tile_px and tile_um must be non-zero"
+                                      "to create dataloaders.")
+        if self._clip not in (None, {}) and from_wsi:
+            log.warning("Dataset clipping is disabled when `from_wsi=True`")
+
+        if from_wsi:
+            tfrecords = self.slide_paths()
+            kwargs['rois'] = self.rois()
+            kwargs['tile_um'] = self.tile_um
+            indices = None
+            clip = None
+        else:
+            self.build_index(rebuild_index)
+            tfrecords = self.tfrecords()
+            if not tfrecords:
+                raise errors.TFRecordsNotFoundError
+            self.verify_img_format()
+            _idx_dict = self.load_indices()
+            indices = [_idx_dict[path_to_name(tfr)] for tfr in tfrecords]
+            clip = self._clip
+
+        if self.prob_weights:
+            prob_weights = [self.prob_weights[tfr] for tfr in tfrecords]
+        else:
+            prob_weights = None
+
+        return interleave_dataloader_iterator(tfrecords=tfrecords,
+                                     img_size=self.tile_px,
+                                     batch_size=batch_size,
+                                     labels=labels,
+                                     num_tiles=self.num_tiles,
+                                     prob_weights=prob_weights,
+                                     clip=clip,
+                                     indices=indices,
+                                     from_wsi=from_wsi,
+                                     interleave_iter=interleave_iter,
+                                     **kwargs)
 
     def unclip(self) -> "Dataset":
         """Return a dataset object with all clips removed.

@@ -1387,3 +1387,110 @@ def interleave_dataloader(
     # to cleanup open files from iter()
     dataloader.close = iterator.close
     return dataloader
+
+def interleave_dataloader_iterator(
+    tfrecords: List[str],
+    img_size: int,
+    batch_size: Optional[int],
+    *,
+    num_replicas: int = 1,
+    labels: Optional[Labels] = None,
+    prefetch_factor: int = 2,
+    num_workers: Optional[int] = None,
+    pin_memory: bool = False,
+    persistent_workers: bool = False,
+    drop_last: bool = False,
+    from_wsi: bool = False,
+    interleave_iter: str = None, # TODO: docs
+    **kwargs
+) -> torch.utils.data.DataLoader:
+
+    """Prepares a PyTorch DataLoader with a new InterleaveIterator instance,
+    interleaving tfrecords and processing labels and tiles, with support for
+    scaling the dataset across GPUs and dataset workers.
+
+    Args:
+        tfrecords (list(str)): List of paths to TFRecord files.
+        img_size (int): Tile size in pixels.
+        batch_size (int): Batch size.
+
+    Keyword Args:
+        prob_weights (dict, optional): Dict mapping tfrecords to probability
+            of including in batch. Defaults to None.
+        clip (dict, optional): Dict mapping tfrecords to number of tiles to
+            take per tfrecord. Defaults to None.
+        onehot (bool, optional): Onehot encode labels. Defaults to False.
+        incl_slidenames (bool, optional): Include slidenames as third returned
+            variable. Defaults to False.
+        incl_loc (bool, optional): Include loc_x and loc_y as additional
+            returned variables. Defaults to False.
+        infinite (bool, optional): Infinitely repeat data. Defaults to True.
+        rank (int, optional): Worker ID to identify this worker.
+            Used to interleave results.
+            among workers without duplications. Defaults to 0 (first worker).
+        num_replicas (int, optional): Number of GPUs or unique instances which
+            will have their own DataLoader. Used to interleave results among
+            workers without duplications. Defaults to 1.
+        labels (dict, optional): Dict mapping slide names to outcome labels,
+            used for balancing. Defaults to None.
+        normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+            Normalizer to use on images. Defaults to None.
+        chunk_size (int, optional): Chunk size for image decoding.
+            Defaults to 1.
+        prefetch_factor (int, optional): Number of batches to prefetch in each
+            SlideflowIterator. Defaults to 1.
+        manifest (dict, optional): Dataset manifest containing number of tiles
+            per tfrecord.
+        balance (str, optional): Batch-level balancing. Options: category,
+            patient, and None. If infinite is not True, will drop tiles to
+            maintain proportions across the interleaved dataset.
+        augment (str, optional): Image augmentations to perform. String
+            containing characters designating augmentations. 'x' indicates
+            random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG
+            compression/decompression at random quality levels. Passing either
+            'xyrj' or True will use all augmentations.
+        standardize (bool, optional): Standardize images to (0,1).
+            Defaults to True.
+        num_workers (int, optional): Number of DataLoader workers.
+            Defaults to 2.
+        persistent_workers (bool, optional): Sets the DataLoader
+            persistent_workers flag. Defaults toNone (4 if not using a SPAMS
+            normalizer, 1 if using SPAMS).
+        pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
+        drop_last (bool, optional): Drop the last non-full batch.
+            Defaults to False.
+
+    Returns:
+        torch.utils.data.DataLoader
+
+    """
+    if batch_size is None:
+        replica_batch_size = None
+    else:
+        replica_batch_size = batch_size // num_replicas
+    if from_wsi and num_workers:
+        raise ValueError("Option `from_wsi=True` incompatible with "
+                         "num_workers > 0")
+
+    if num_workers is None and os.cpu_count():
+        num_workers = os.cpu_count() // 4  # type: ignore
+    elif num_workers is None:
+        num_workers = 8
+    log.debug(f"Using num_workers={num_workers}")
+
+    if interleave_iter == 'MulitCropInterleaveIterator':
+        interleave_iter_class = MulitCropInterleaveIterator
+    else :
+        interleave_iter_class = InterleaveIterator
+
+    iterator = interleave_iter_class(
+        tfrecords=tfrecords,
+        img_size=img_size,
+        use_labels=(labels is not None),
+        num_replicas=num_replicas,
+        labels=labels,
+        from_wsi=from_wsi,
+        **kwargs
+    )
+    # TODO: persistent_workers
+    return iterator
