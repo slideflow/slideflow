@@ -16,6 +16,7 @@ class GaussianV2:
         mpp: Optional[float] = None,
         sigma: int = 3,
         threshold: float = 0.02,
+        *,
         tile_px: int = 512,
         verbose: bool = False,
         grayspace_fraction: float = 1,
@@ -25,6 +26,64 @@ class GaussianV2:
         pool: Optional["mp.Pool"] = None,
         **wsi_kwargs
     ) -> None:
+        """Optimized Gaussian blur filter for slide-level filtering (V2).
+        
+        This method is used to remove out-of-focus areas and pen marks,
+        and is an optimization of the original 
+        :class:`slideflow.slide.qc.Gaussian` method.
+
+        This method works by calculating Gaussian blur filtering for each tile
+        in a slide, then stitching tile masks together to assemble the final
+        slide-level mask. This approach is more computationally efficient
+        and reduces memory consumption. Tiles are extracted with ``sigma * 2``
+        overlap to eliminate stitching artifacts.
+
+        Examples
+            Apply Gaussian filtering to a slide.
+
+                .. code-block:: python
+
+                    import slideflow as sf
+                    from slideflow.slide import qc
+
+                    wsi = sf.WSI(...)
+                    gaussian = qc.GaussianV2()
+                    wsi.qc(gaussian)
+
+        Args:
+            mpp (float): Microns-per-pixel at which to perform filtering.
+                Defaults to 4 times the tile extraction MPP (e.g. for a
+                tile_px/tile_um combination at 10X effective magnification,
+                where tile_px=tile_um, the default blur_mpp would be 4, or
+                effective magnification 2.5x).
+            sigma (int): Sigma (radius) for Gaussian filter. Defaults to 3.
+            threshold (float): Gaussian threshold. Defaults to 0.02.
+
+        Keyword args:
+            tile_px (int): Size of tiles (height/width) on which to calculate 
+                Gaussian blur.
+            verbose (bool): Show a progress bar during calculation.
+            grayspace_fraction (float): Grayspace fraction to use during
+                tile filtering. Defaults to 1 (disabled).
+            overlap (int, optional): Specify the amount of overlap between
+                tiles, in pixels, for reducing stitching artifacts. Defaults
+                to ``sigma * 2``.
+            filter_threads (int, optional): Number of threads to use for
+                workers calculating Gaussian filter. If None, will disable
+                multithreading for Gaussian filter workers. Defaults to 8.
+            persistent_threads (bool): Keep thread pools alive. If False,
+                will close the thread pools after this function has been called
+                on a slide. Thread pools can be manually closed with 
+                ``.close()``. Defaults to True.
+            pool (multiprocessing.Pool): Multiprocessing pool to use for tile
+                extraction workers. If not provided, will create a thread pool
+                with number of threads equal to the cpu count divided by 2.
+                This is a separate multithreading pool than the Gaussian filter
+                workers. Defaults to None.
+            kwargs (Any): All remaining keyword arguments are passed to
+                :meth:`slideflow.WSI.build_generator()`.
+
+        """
         self.mpp = mpp
         self.tile_px = tile_px
         self.sigma = sigma
@@ -34,7 +93,7 @@ class GaussianV2:
         self.gs_fraction = grayspace_fraction
         self.filter_threads = filter_threads
         self.persistent_threads = persistent_threads
-        self.gaussian_qc = Gaussian(sigma=sigma, threshold=threshold)
+        self._gaussian_qc = Gaussian(sigma=sigma, threshold=threshold)
         self._tile_pool = pool
         self._tile_pool_is_manual = (pool is not None)
         self._filter_pool = None
@@ -44,18 +103,28 @@ class GaussianV2:
         if 'lazy_iter' not in wsi_kwargs:
             wsi_kwargs['lazy_iter'] = True
 
+    def apply(self, image: np.ndarray) -> np.ndarray):
+        """Apply the QC algorithm to an image tile."""
+        return self._gaussian_qc(image)
+
+    def close(self):
+        """Close multiprocessing pools and clean up."""
+        self.close_pools()
+
     @property
     def pool(self):
+        """Return the tile worker multiprocessing pool."""
         return self._tile_pool
 
     @pool.setter
     def pool(self, pool):
+        """Set the tile worker multiprocessing pool."""
         self._tile_pool = pool
         self._tile_pool_is_manual = (pool is not None)
 
     @property
     def tile_pool(self):
-        """Return the thread pool used for slide reading."""
+        """Return the tile worker thread pool used for slide reading."""
         if self._tile_pool is not None:
             return self._tile_pool
         else:
@@ -119,7 +188,7 @@ class GaussianV2:
         grid_i = item['grid'][1]
         grid_j = item['grid'][0]
         image = item['image']
-        g_mask = self.gaussian_qc(image)
+        
 
         # Handle edge tiles.
         start_i = start_j = self.overlap
@@ -133,14 +202,15 @@ class GaussianV2:
         if grid_j >= grid_shape[0]:
             end_j = None
 
-        g_mask_cropped = g_mask[start_i: end_i, start_j: end_j]
-        return grid_i, grid_j, g_mask_cropped
+        image = image[start_i: end_i, start_j: end_j]
+        g_mask = self.apply(image)
+        return grid_i, grid_j, g_mask
 
     def __call__(
         self,
         wsi: "sf.WSI",
     ) -> Optional[np.ndarray]:
-
+        """Apply Gaussian blur filtering to a slide."""
         if self.mpp is None:
             mpp = (wsi.tile_um/wsi.tile_px)*4
         else:

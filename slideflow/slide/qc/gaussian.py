@@ -32,8 +32,8 @@ class Gaussian:
                     from slideflow.slide import qc
 
                     wsi = sf.WSI(...)
-                    otsu = qc.Otsu()
-                    wsi.qc(otsu)
+                    gaussian = qc.Gaussian()
+                    wsi.qc(gaussian)
 
         Args:
             mpp (float): Microns-per-pixel at which to perform filtering.

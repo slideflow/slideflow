@@ -1,10 +1,10 @@
 import numpy as np
 
 from typing import Callable, Union
-from .strided_qc import StridedQC
+from .strided_qc import _StridedQC
 
 
-class StridedDL(StridedQC):
+class StridedDL(_StridedQC):
 
     def __init__(
         self,
@@ -73,6 +73,7 @@ class StridedDL(StridedQC):
             dest (str, optional): Path in which to save the qc mask.
                 If None, will save in the same directory as the slide.
                 Defaults to None.
+                
         """
         super().__init__(
             tile_px=tile_px,
@@ -86,14 +87,18 @@ class StridedDL(StridedQC):
         self.pred_threshold = pred_threshold
 
     def build_mask(self, x, y) -> np.ndarray:
+        """Build the base, empty QC mask."""
         return np.ones((x, y), dtype=np.float32)
 
     def apply(self, image: np.ndarray) -> np.ndarray:
+        """Predict focus value of an image tile using DeepFocus model."""
         y_pred = self.model(image)[:, self.pred_idx].numpy()
         return y_pred.reshape(self.buffer, self.buffer) > self.pred_threshold
 
     def collate_mask(self, mask: np.ndarray):
+        """Convert the mask from predictions to bool using a threshold."""
         return mask > self.pred_threshold
 
     def preprocess(self, image: np.ndarray):
+        """Apply preprocessing to an image."""
         return np.clip(image.astype(np.float32) / 255, 0, 1)
