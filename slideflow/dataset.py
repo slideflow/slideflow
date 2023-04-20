@@ -3625,7 +3625,7 @@ class Dataset:
         from_wsi: bool = False,
         interleave_iter: str = None,
         **kwargs: Any
-    )
+    ):
         """Return a PyTorch DataLoader object that interleaves tfrecords.
 
         The returned dataloader yields a batch of (image, label) for each tile.
