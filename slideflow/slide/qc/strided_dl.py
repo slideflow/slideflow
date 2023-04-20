@@ -15,6 +15,7 @@ class StridedDL(_StridedQC):
         pred_idx: int,
         tile_px: int,
         tile_um: Union[str, int],
+        *,
         buffer: int = 8,
         verbose: bool = False,
         pred_threshold: float = 0.5,
@@ -73,9 +74,23 @@ class StridedDL(_StridedQC):
 
 
         Args:
-            dest (str, optional): Path in which to save the qc mask.
-                If None, will save in the same directory as the slide.
-                Defaults to None.
+            model (callable): Deep learning model.
+            pred_idx (int): Index of the model output to interpret as the
+                final prediction.
+            tile_px (int): Tile size.
+            tile_um (str or float): Tile size, in microns (int) or
+                magnification (str).
+
+        Keyword arguments:
+            verbose (bool): Show a progress bar during calculation.
+            buffer (int): Number of tiles (width and height) to extract and
+                process simultaneously. Extracted tile size (width/height)
+                will be  ``tile_px * buffer``. Defaults to 8.
+            grayspace_fraction (float): Grayspace fraction when extracting
+                tiles from slides. Defaults to 1 (disables).
+            pred_threshold (float): Predictions below this value are masked.
+            kwargs (Any): All remaining keyword arguments are passed to
+                :meth:`slideflow.WSI.build_generator()`.
 
         """
         super().__init__(

@@ -2,7 +2,7 @@ import numpy as np
 import slideflow as sf
 
 from typing import Optional, Tuple
-from .gaussian import Gaussian
+from .gaussian import Gaussian, blur_burden
 from .strided_qc import _StridedQC_V2
 
 
@@ -100,7 +100,7 @@ class GaussianV2(_StridedQC_V2):
             mpp = self.mpp
         tile_um = int(mpp * self.tile_px)
         stride_div = self.tile_px / (self.tile_px - self.overlap*2)
-        wsi = sf.WSI(
+        qc_wsi = sf.WSI(
             wsi.path,
             tile_px=self.tile_px,
             tile_um=tile_um,
@@ -108,6 +108,24 @@ class GaussianV2(_StridedQC_V2):
             verbose=False,
             use_edge_tiles=True,
         )
-        return wsi, mpp
+        return qc_wsi, mpp
+
+    def __call__(
+        self,
+        wsi: "sf.WSI",
+        mask: Optional[np.ndarray] = None
+    ) -> Optional[np.ndarray]:
+        """Apply Gaussian blur filtering to a slide."""
+        blur_mask = super().__call__(wsi)
+
+        # Assign blur burden value
+        existing_qc_mask = mask
+        if mask is None and isinstance(wsi, sf.WSI):
+            existing_qc_mask = wsi.qc_mask
+        if existing_qc_mask is not None and isinstance(wsi, sf.WSI):
+            wsi.blur_burden = blur_burden(blur_mask, existing_qc_mask)
+            sf.log.debug(f"Blur burden: {wsi.blur_burden}")
+
+        return blur_mask
 
 # -----------------------------------------------------------------------------

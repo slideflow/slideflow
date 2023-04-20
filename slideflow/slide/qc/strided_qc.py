@@ -30,23 +30,29 @@ class _StridedQC:
             tile_px (int): Tile size.
             tile_um (str or float): Tile size, in microns (int) or
                 magnification (str).
+
+        Keyword arguments:
+            verbose (bool): Show a progress bar during calculation.
             buffer (int): Number of tiles (width and height) to extract and
                 process simultaneously. Extracted tile size (width/height)
                 will be  ``tile_px * buffer``. Defaults to 8.
             grayspace_fraction (float): Grayspace fraction when extracting
                 tiles from slides. Defaults to 1 (disables).
-
-        Keyword arguments:
             kwargs (Any): All remaining keyword arguments are passed to
                 :meth:`slideflow.WSI.build_generator()`.
 
         """
+        if isinstance(tile_um, str):
+            self.tile_um = tile_um
+        else:
+            self.tile_um = tile_um * buffer
+
         self.buffer = buffer
         self.kernel = tile_px
-        self.tile_um = tile_um
         self.verbose = verbose
         self.wsi_kwargs = wsi_kwargs
         self.gs_fraction = grayspace_fraction
+        self.pb_msg = "Generating..."
         if 'lazy_iter' not in wsi_kwargs:
             wsi_kwargs['lazy_iter'] = True
 
@@ -122,7 +128,7 @@ class _StridedQC:
             qc_wsi.grid.shape[0] * b
         )
         if self.verbose:
-            pb = tqdm(dts, desc="Generating...", total=qc_wsi.estimated_num_tiles)
+            pb = tqdm(dts, desc=self.pb_msg, total=qc_wsi.estimated_num_tiles)
         else:
             pb = dts
         for item in pb:
@@ -299,7 +305,6 @@ class _StridedQC_V2:
         grid_j = item['grid'][0]
         image = item['image']
 
-
         # Handle edge tiles.
         start_i = start_j = self.overlap
         end_i = end_j = self.tile_px - self.overlap
@@ -319,7 +324,7 @@ class _StridedQC_V2:
     def get_slide_and_mpp(self, wsi: "sf.WSI") -> Tuple["sf.WSI", float]:
         """Get a WSI object with the proper tile extraction size and stride."""
         stride_div = self.tile_px / (self.tile_px - self.overlap*2)
-        wsi = sf.WSI(
+        qc_wsi = sf.WSI(
             wsi.path,
             tile_px=self.tile_px,
             tile_um=self.tile_um,
@@ -327,8 +332,8 @@ class _StridedQC_V2:
             verbose=False,
             use_edge_tiles=True,
         )
-        mpp = wsi.tile_um / self.tile_px
-        return wsi, mpp
+        mpp = qc_wsi.tile_um / self.tile_px
+        return qc_wsi, mpp
 
     def __call__(
         self,

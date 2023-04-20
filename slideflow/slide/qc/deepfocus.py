@@ -14,7 +14,7 @@ The training dataset is available at
 
 import numpy as np
 from packaging import version
-from typing import Optional
+from typing import Optional, Union
 
 from .strided_dl import StridedDL
 
@@ -25,6 +25,9 @@ class DeepFocus(StridedDL):
     def __init__(
         self,
         ckpt: Optional[str] = None,
+        *,
+        buffer: int = 16,
+        tile_um: Union[str, int] = '40x',
         **kwargs
     ):
         """Utilizes the DeepFocus QC algorithm, as published by Senaras et al:
@@ -37,12 +40,33 @@ class DeepFocus(StridedDL):
         format and is available at https://github.com/jamesdolezal/deepfocus.
 
         Args:
-            ckpt (str): Checkpoint version. Only 'ver5' is available.
+            ckpt (str, optional): Path to checkpoint. If not provided,
+                will use the default, published 'ver5' checkpoint.
+            tile_um (str or float): Tile size, in microns (int) or
+                magnification (str). Defaults to '40x'.
+
+        Keyword args:
+            buffer (int): Number of tiles (width and height) to extract and
+                process simultaneously. Extracted tile size (width/height)
+                will be  ``tile_px * buffer``. Defaults to 8.
+            grayspace_fraction (float): Grayspace fraction when extracting
+                tiles from slides. Defaults to 1 (disables).
+            verbose (bool): Show a progress bar during calculation.
+            kwargs (Any): All remaining keyword arguments are passed to
+                :meth:`slideflow.WSI.build_generator()`.
         """
         model = deepfocus_v3()
         self.enable_mixed_precision()
         load_checkpoint(model, ckpt)
-        super().__init__(model=model, pred_idx=1, tile_px=64, tile_um='40x', **kwargs)
+        super().__init__(
+            model=model,
+            pred_idx=1,
+            tile_px=64,
+            tile_um=tile_um,
+            buffer=buffer,
+            **kwargs
+        )
+        self.pb_msg = "Applying DeepFocus..."
 
     def enable_mixed_precision(self):
         import tensorflow as tf
