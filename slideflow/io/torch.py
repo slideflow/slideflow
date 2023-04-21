@@ -754,11 +754,10 @@ def preprocess_uint8(
     return img
 
 
-
 def _decode_image(
     image: Union[bytes, str, torch.Tensor],
     *,
-    img_type: str,
+    img_type: Optional[str] = None,
     device: Optional[torch.device] = None,
     transform: Optional[Any] = None,
 ) -> torch.Tensor:

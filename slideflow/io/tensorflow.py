@@ -267,6 +267,13 @@ def decode_image(
     return image
 
 
+def _decode_image(img_string: bytes, *, img_type: Optional[str] = None):
+    if img_type is None:
+        import imghdr
+        img_type = imghdr.what('', img_string)
+    return decode_image(img_string, img_type)
+
+
 def get_tfrecord_parser(
     tfrecord_path: str,
     features_to_return: Optional[Iterable[str]] = None,

@@ -2308,7 +2308,7 @@ class Dataset:
         self,
         slide: str,
         loc: Tuple[int, int],
-        decode: bool = True
+        decode: Optional[bool] = None
     ) -> Any:
         """Read a record from a TFRecord, indexed by location.
 
@@ -2333,6 +2333,14 @@ class Dataset:
         if tfr is None:
             raise errors.TFRecordsError(
                 f"Could not find associated TFRecord for slide '{slide}'"
+            )
+        if decode is None:
+            decode = True
+        else:
+            warnings.warn(
+                "The 'decode' argument to `Dataset.read_tfrecord_by_location` "
+                "is deprecated and will be removed in a future version. In the "
+                "future, all records will be decoded."
             )
         return sf.io.get_tfrecord_by_location(tfr, loc, decode=decode)
 

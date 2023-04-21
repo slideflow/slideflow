@@ -19,17 +19,18 @@ from rich.progress import Progress
 # --- Backend-specific imports and configuration ------------------------------
 
 if sf.backend() == 'tensorflow':
-    from slideflow.io.tensorflow import get_tfrecord_parser  # noqa F401
-    from slideflow.io.tensorflow import read_and_return_record  # noqa F401
-    from slideflow.io.tensorflow import serialized_record
-
+    from slideflow.io.tensorflow import (
+        get_tfrecord_parser, read_and_return_record, serialized_record,
+        _decode_image
+    )
     from tensorflow.data import TFRecordDataset
     from tensorflow.io import TFRecordWriter
 
 elif sf.backend() == 'torch':
-    from slideflow.io.torch import \
-        get_tfrecord_parser  # type: ignore  # noqa F401
-    from slideflow.io.torch import read_and_return_record, serialized_record
+    from slideflow.io.torch import (
+        get_tfrecord_parser, read_and_return_record, serialized_record,
+        _decode_image
+    )
     from slideflow.tfrecord import TFRecordWriter
     from slideflow.tfrecord.torch.dataset import TFRecordDataset
 
@@ -137,24 +138,41 @@ def get_tfrecord_by_location(
        or not isinstance(location[1], (int, np.integer))):
         raise IndexError(f"index must be a tuple of two ints. Got: {location}")
 
-    dataset = TFRecordDataset(tfrecord)
-    parser = get_tfrecord_parser(
-        tfrecord,
-        ('slide', 'image_raw', 'loc_x', 'loc_y'),
-        decode_images=decode
-    )
-    for i, record in enumerate(dataset):
-        slide, image_raw, loc_x, loc_y = parser(record)
-        if (loc_x, loc_y) == location:
-            if decode:
-                return slide, image_raw
-            else:
-                return record
+    # Use index files, if available.
+    index = tfrecord2idx.find_index(tfrecord)
+    if decode and index and tfrecord2idx.index_has_locations(index):
+        locations = tfrecord2idx.get_locations_from_index(index)
+        try:
+            idx = locations.index(location)
+        except ValueError:
+            log.error(
+                f"Unable to find record with location {location} in {tfrecord}"
+            )
+            return False, False
+        record = tfrecord2idx.get_tfrecord_by_index(tfrecord, idx)
+        slide = record['slide']
+        image = sf.io._decode_image(record['image_raw'])
+        return slide, image
 
-    log.error(
-        f"Unable to find record with location {location} in {tfrecord}"
-    )
-    return False, False
+    else:
+        parser = get_tfrecord_parser(
+            tfrecord,
+            ('slide', 'image_raw', 'loc_x', 'loc_y'),
+            decode_images=decode
+        )
+        dataset = TFRecordDataset(tfrecord)
+        for i, record in enumerate(dataset):
+            slide, image, loc_x, loc_y = parser(record)
+            if (loc_x, loc_y) == location:
+                if decode:
+                    return slide, image
+                else:
+                    return record
+
+        log.error(
+            f"Unable to find record with location {location} in {tfrecord}"
+        )
+        return False, False
 
 
 def write_tfrecords_multi(input_directory: str, output_directory: str) -> None:
