@@ -1179,7 +1179,7 @@ def interleave_dataloader(
         num_workers = 8
     log.debug(f"Using num_workers={num_workers}")
     if 'num_threads' not in kwargs and os.cpu_count():
-        kwargs['num_threads'] = int(math.ceil(os.cpu_count() / num_workers))
+        kwargs['num_threads'] = int(math.ceil(os.cpu_count() / max(num_workers, 1)))
         log.debug(f"Threads per worker={kwargs['num_threads']}")
 
     iterator = InterleaveIterator(
