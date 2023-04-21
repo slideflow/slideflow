@@ -1411,5 +1411,6 @@ class _FeatureGenerator:
                 pb.advance(task, self.batch_size)
         q.put((None, None, None))
         batch_proc_thread.join()
+        dataset.close()
 
         return activations, predictions, locations, uncertainty
