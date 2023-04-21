@@ -1012,6 +1012,7 @@ def interleave(
             self.n_threads = num_threads
             self.n_closed = 0
             self.il_closed = False
+            self._close_complete = False
 
             def interleaver():
                 msg = []
@@ -1065,7 +1066,12 @@ def interleave(
                     for item in record:
                         yield item
 
+        def __del__(self):
+            self.close()
+
         def close(self):
+            if self._close_complete:
+                return
             log.debug("Closing QueueRetriever")
             self.closed = True
 
@@ -1079,6 +1085,7 @@ def interleave(
                 pool.close()
             else:
                 self.sampler.close()
+            self._close_complete = True
 
     return QueueRetriever(random_sampler, num_threads)
 
