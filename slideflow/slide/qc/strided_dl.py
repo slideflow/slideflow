@@ -1,6 +1,7 @@
 import numpy as np
 
-from typing import Callable, Union, Tuple, TYPE_CHECKING
+from contextlib import contextmanager
+from typing import Callable, Union, Optional, TYPE_CHECKING
 from .strided_qc import _StridedQC
 
 if TYPE_CHECKING:
@@ -113,12 +114,40 @@ class StridedDL(_StridedQC):
     def apply(self, image: np.ndarray) -> np.ndarray:
         """Predict focus value of an image tile using DeepFocus model."""
         y_pred = self.model(image, training=False)[:, self.pred_idx].numpy()
-        return y_pred.reshape(self.buffer, self.buffer) > self.pred_threshold
+        return y_pred.reshape(self.buffer, self.buffer)
 
     def collate_mask(self, mask: np.ndarray):
         """Convert the mask from predictions to bool using a threshold."""
-        return mask > self.pred_threshold
+        if self.pred_threshold is not None:
+            return mask > self.pred_threshold
+        else:
+            return mask
 
     def preprocess(self, image: np.ndarray):
         """Apply preprocessing to an image."""
         return np.clip(image.astype(np.float32) / 255, 0, 1)
+
+    @contextmanager
+    def _set_threshold(self, threshold: Optional[Union[bool, float]]):
+        """Temporariliy set or disable the prediction threshold."""
+        _orig_threshold = self.pred_threshold
+        if isinstance(threshold, float):
+            # Set the threshold to a given threshold
+            self.pred_threshold = threshold
+        elif threshold is False:
+            # Disable thresholding (return raw values)
+            self.pred_threshold = None
+
+        yield
+
+        # Return the threshold to irs original value
+        self.pred_threshold = _orig_threshold
+
+    def __call__(
+        self,
+        wsi: "sf.WSI",
+        threshold: Optional[Union[bool, float]] = None
+    ) -> Optional[np.ndarray]:
+
+        with self._set_threshold(threshold):
+            return super().__call__(wsi)
