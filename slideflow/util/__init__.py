@@ -940,6 +940,7 @@ def location_heatmap(
 
     slide_name = sf.util.path_to_name(slide)
     log.info(f'Generating heatmap for [green]{slide}[/]...')
+    log.debug(f"Plotting {len(values)} values")
     wsi = sf.slide.WSI(slide, tile_px, tile_um, verbose=False)
 
     stats = {}
