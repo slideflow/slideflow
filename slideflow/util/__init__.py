@@ -1070,17 +1070,16 @@ def tfrecord_heatmap(
         Dictionary mapping slide names to dict of statistics
         (mean, median)
     """
-    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
-    if tile_dict.keys() != loc_dict.keys():
-        td_len = len(list(tile_dict.keys()))
-        loc_len = len(list(loc_dict.keys()))
+    locations = sf.io.get_locations_from_tfrecord(tfrecord)
+    if len(tile_dict) != len(locations):
         raise errors.TFRecordsError(
-            f'tile_dict length ({td_len}) != TFRecord length ({loc_len}).'
+            f'tile_dict length ({len(tile_dict)}) != TFRecord length '
+            f'({len(locations)}).'
         )
 
     return location_heatmap(
-        locations=np.array([loc_dict[loc] for loc in loc_dict]),
-        values=np.array([tile_dict[loc] for loc in loc_dict]),
+        locations=np.array(locations),
+        values=np.array([tile_dict[loc] for loc in range(len(locations))]),
         slide=slide,
         tile_px=tile_px,
         tile_um=tile_um,

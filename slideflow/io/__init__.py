@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional, Tuple, Union, List
 import slideflow as sf
 from slideflow import errors
 from slideflow.io.io_utils import detect_tfrecord_format, convert_dtype
-from slideflow.util import log
+from slideflow.util import log, tfrecord2idx
 from slideflow.util.tfrecord2idx import get_tfrecord_by_index, get_tfrecord_length
 from rich.progress import Progress
 
@@ -310,25 +310,22 @@ def extract_tiles(tfrecord: str, destination: str) -> None:
         image_string.close()
 
 
-def get_locations_from_tfrecord(
-    filename: str,
-    as_dict: bool = True
-) -> Union[
-    Dict[int, Tuple[int, int]],
-    List[Tuple[int, int]],
-]:
-    '''Returns dictionary mapping indices to tile locations (X, Y)'''
-    out_dict = {}
+def get_locations_from_tfrecord(filename: str) -> List[Tuple[int, int]]:
+    """Return list of tile locations (X, Y) for all items in the TFRecord."""
+
+    # Use the TFRecord index file, if one exists and it has info stored.
+    index = tfrecord2idx.find_index(filename)
+    if index and tfrecord2idx.index_has_locations(index):
+        return tfrecord2idx.get_locations_from_index(index)
+
+    # Otherwise, read the TFRecord manually.
     out_list = []
     for i in range(sf.io.get_tfrecord_length(filename)):
         record = sf.io.get_tfrecord_by_index(filename, i)
         loc_x = record['loc_x']
         loc_y = record['loc_y']
-        if as_dict:
-            out_dict.update({i: (loc_x, loc_y)})
-        else:
-            out_list.append((loc_x, loc_y))
-    return out_dict if as_dict else out_list
+        out_list.append((loc_x, loc_y))
+    return out_list
 
 
 def tfrecord_has_locations(
@@ -337,5 +334,10 @@ def tfrecord_has_locations(
     check_y: bool = False
 ) -> bool:
     """Check if a given TFRecord has location information stored."""
+    index = tfrecord2idx.find_index(filename)
+    if index and tfrecord2idx.index_has_locations(index):
+        if check_y:
+            return np.load(index)['locations'].shape[1] == 2
+        return True
     record = sf.io.get_tfrecord_by_index(filename, 0)
     return (((not check_x) or 'loc_x' in record ) and ((not check_y) or 'loc_y' in record ))

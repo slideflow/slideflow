@@ -914,22 +914,28 @@ class Dataset:
             None
         """
         if force:
-            missing_index = self.tfrecords()
+            index_to_update = self.tfrecords()
         else:
-            missing_index = [
-                tfr for tfr in self.tfrecords()
-                if not tfrecord2idx.find_index(tfr)
-            ]
-            if not missing_index:
+            index_to_update = []
+            for tfr in self.tfrecords():
+                index = tfrecord2idx.find_index(tfr)
+                if not index:
+                    index_to_update.append(tfr)
+                elif (not tfrecord2idx.index_has_locations(index)
+                      and sf.io.tfrecord_has_locations(tfr)):
+                    os.remove(index)
+                    index_to_update.append(tfr)
+            if not index_to_update:
                 return
+
         index_fn = partial(_create_index, force=force)
         pool = mp.Pool(
             os.cpu_count(),
             initializer=sf.util.set_ignore_sigint
         )
-        for _ in track(pool.imap_unordered(index_fn, missing_index),
-                       description='Creating index files...',
-                       total=len(self.tfrecords()),
+        for _ in track(pool.imap_unordered(index_fn, index_to_update),
+                       description=f'Updating index files...',
+                       total=len(index_to_update),
                        transient=True):
             pass
         pool.close()
@@ -1861,7 +1867,7 @@ class Dataset:
             log.info(f"Updating index for {tfr}...")
             os.remove(tfr_idx)
             _create_index(tfr)
-        return sf.io.get_locations_from_tfrecord(tfr, as_dict=False)
+        return sf.io.get_locations_from_tfrecord(tfr)
 
     def harmonize_labels(
         self,

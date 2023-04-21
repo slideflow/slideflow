@@ -101,6 +101,10 @@ class TFRecordsError(Exception):
     pass
 
 
+class TFRecordsIndexError(Exception):
+    pass
+
+
 class EmptyTFRecordsError(Exception):
     pass
 
