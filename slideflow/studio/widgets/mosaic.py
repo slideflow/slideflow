@@ -161,11 +161,7 @@ class MosaicWidget(Widget):
         if tfrecords is None:
             tfrecords = self.slidemap.tfrecords
         if self.pool is None:
-            ctx = mp.get_context('fork')
-            self.pool = ctx.Pool(
-                os.cpu_count(),
-                initializer=sf.util.set_ignore_sigint
-            )
+            self.pool = mp.dummy.Pool(os.cpu_count())
         self.mosaic = OpenGLMosaic(
             self.slidemap,
             tfrecords=tfrecords,

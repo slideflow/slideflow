@@ -407,7 +407,6 @@ class Mosaic:
         self.tile_size = (max_x - min_x) / self.num_tiles_x
         self.num_tiles_y = int((max_y - min_y) / self.tile_size)
 
-        log.info("Building grid...")
         self.grid_idx = np.reshape(np.dstack(np.indices((self.num_tiles_x, self.num_tiles_y))), (self.num_tiles_x * self.num_tiles_y, 2))
         _grid_offset = np.array([(self.tile_size/2) + min_x, (self.tile_size/2) + min_y])
         self.grid_coords = (self.grid_idx * self.tile_size) + _grid_offset
@@ -444,7 +443,6 @@ class Mosaic:
                     centroid_index = get_centroid_index(_points.meta.values)
                     self.points.loc[_points.index[centroid_index], 'selected'] = True
 
-        log.info('Selecting tile images...')
         start = time.time()
 
         if tile_select == 'first':
@@ -523,9 +521,6 @@ class Mosaic:
 
         log.debug("Initializing figure...")
         self._initialize_figure(figsize=figsize, background=background)
-
-        # Next, prepare mosaic grid by placing tile outlines
-        log.info('Placing tile outlines...')
 
         # Reset alpha and display size
         if focus_slide:
