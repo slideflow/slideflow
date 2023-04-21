@@ -66,7 +66,13 @@ class DeepFocus(StridedDL):
             buffer=buffer,
             **kwargs
         )
+        self.ckpt = ckpt
         self.pb_msg = "Applying DeepFocus..."
+
+    def __repr__(self):
+        return "DeepFocus(tile_um={!r}, buffer={!r}, ckpt={!r})".format(
+            self.tile_um, self.buffer, self.ckpt
+        )
 
     def enable_mixed_precision(self):
         import tensorflow as tf
