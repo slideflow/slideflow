@@ -63,6 +63,8 @@ def decode_image(
                 return normalizer.jpeg_to_rgb(image)
             elif img_format == 'png':
                 return normalizer.png_to_rgb(image)
+            else:
+                return normalizer.transform(image)
         except Exception as e:
             log.error("Error encountered during image normalization, "
                         f"displaying image tile non-normalized. {e}")
@@ -634,5 +636,10 @@ class Mosaic:
 
         studio = Studio(widgets=[MosaicWidget])
         mosaic = studio.get_widget('MosaicWidget')
-        mosaic.load(self.slide_map, tfrecords=self.tfrecords, slides=slides)
+        mosaic.load(
+            self.slide_map,
+            tfrecords=self.tfrecords,
+            slides=slides,
+            normalizer=self.normalizer
+        )
         studio.run()
