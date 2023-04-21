@@ -88,6 +88,11 @@ class GaussianV2(_StridedQC_V2):
         self.threshold = threshold
         self._gaussian_qc = Gaussian(sigma=sigma, threshold=threshold)
 
+    def __repr__(self):
+        return "GaussianV2(mpp={!r}, sigma={!r}, threshold={!r})".format(
+            self.mpp, self.sigma, self.threshold
+        )
+
     def apply(self, image: np.ndarray) -> np.ndarray:
         """Apply the QC algorithm to an image tile."""
         return self._gaussian_qc(image)

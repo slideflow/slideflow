@@ -483,9 +483,9 @@ class _BaseLoader:
         if 'blur' in method:
             idx = method.index('blur')  # type: ignore
             method.remove('blur')       # type: ignore
-            method.insert(idx, sf.slide.qc.Gaussian(mpp=blur_mpp,
-                                                    sigma=blur_radius,
-                                                    threshold=blur_threshold))
+            method.insert(idx, sf.slide.qc.GaussianV2(mpp=blur_mpp,
+                                                      sigma=blur_radius,
+                                                      threshold=blur_threshold))
         if 'otsu' in method:
             idx = method.index('otsu')  # type: ignore
             method.remove('otsu')       # type: ignore
@@ -1958,7 +1958,7 @@ class WSI(_BaseLoader):
                 "Applying Otsu's thresholding & Gaussian blur filter "
                 "to stain norm context"
             )
-            _blur_mask = Gaussian()(image)
+            _blur_mask = GaussianV2()(image)
             qc_mask = Otsu()(image, mask=_blur_mask)
         # Mask by ROI and QC, if applied.
         # Use white as background for masked areas.
