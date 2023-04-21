@@ -397,7 +397,7 @@ def _predict_mil(
         loaded = torch.unsqueeze(loaded, dim=0)
         with torch.no_grad():
             if use_lens:
-                lens = torch.from_numpy(np.array([loaded.shape[0]])).to(device)
+                lens = torch.from_numpy(np.array([loaded.shape[1]])).to(device)
                 model_args = (loaded, lens)
             else:
                 model_args = (loaded,)
