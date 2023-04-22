@@ -959,11 +959,13 @@ def location_heatmap(
         try:
             idx = loc_grid_dict[tuple(wsi_dim)]
         except (IndexError, KeyError):
-            raise ValueError(
-                "Error plotting value at location {} for slide {}. Location "
-                "values are not aligned to the slide coordinate grid. Ensure "
-                "that the WSI has the appropriate tile_px (got: {}) and "
-                "tile_um (got: {}) to match the given location values.".format(
+            raise errors.CoordinateAlignmentError(
+                "Error plotting value at location {} for slide {}. The heatmap "
+                "grid is not aligned to the slide coordinate grid. Ensure "
+                "that tile_px (got: {}) and tile_um (got: {}) match the given "
+                "location values. If you are using data stored in TFRecords, "
+                "verify that the TFRecord was generated using the same "
+                "tile_px and tile_um.".format(
                     tuple(wsi_dim), slide, tile_px, tile_um
                 )
             )
@@ -1041,7 +1043,7 @@ def tfrecord_heatmap(
         Dictionary mapping slide names to dict of statistics
         (mean, median)
     """
-    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
+    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord, as_dict=False)
     if tile_dict.keys() != loc_dict.keys():
         td_len = len(list(tile_dict.keys()))
         loc_len = len(list(loc_dict.keys()))
