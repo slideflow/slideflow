@@ -915,7 +915,8 @@ def location_heatmap(
 
     Args:
         locations (np.ndarray): Array of shape ``(n_tiles, 2)`` containing x, y
-            coordinates for all image tiles.
+            coordinates for all image tiles. Coordinates represent the center
+            for an associated tile, and must be in a grid.
         values (np.ndarray): Array of shape ``(n_tiles,)`` containing heatmap
             values for each tile.
         slide (str): Path to corresponding slide.
@@ -955,6 +956,12 @@ def location_heatmap(
     grid = np.ones((wsi.grid.shape[1], wsi.grid.shape[0]))
     grid *= -99
 
+    if not isinstance(locations, np.ndarray):
+        locations = np.array(locations)
+    
+    # Transform from coordinates as center locations to top-left locations.
+    locations = locations - int(wsi.full_extract_px/2)
+    
     for i, wsi_dim in enumerate(locations):
         try:
             idx = loc_grid_dict[tuple(wsi_dim)]
