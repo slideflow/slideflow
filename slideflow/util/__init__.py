@@ -958,11 +958,12 @@ def location_heatmap(
     for i, wsi_dim in enumerate(locations):
         try:
             idx = loc_grid_dict[tuple(wsi_dim)]
-        except IndexError:
+        except (IndexError, KeyError):
             raise ValueError(
-                "Location values are not aligned to the slide coordinate grid. "
-                "Ensure that the WSI has the appropriate tile_px and tile_um "
-                "to match the given location values."
+                "Error plotting value at location {}. Location values are not "
+                "aligned to the slide coordinate grid. Ensure that the WSI has "
+                "the appropriate tile_px and tile_um to match the given "
+                "location values.".format(tuple(wsi_dim))
             )
         grid[idx[1]][idx[0]] = values[i]
 
