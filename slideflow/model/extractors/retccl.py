@@ -276,10 +276,11 @@ class RetCCLFeatures(BaseFeatureExtractor):
 
     tag = 'retccl'
 
-    def __init__(self, device='cuda', center_crop=False):
+    def __init__(self, device=None, center_crop=False):
         super().__init__(backend='torch')
 
-        self.device = device
+        from slideflow.model import torch_utils
+        self.device = torch_utils.get_device(device)
         self.model = ResNet50(
             block=Bottleneck,
             layers=[3, 4, 6, 3],

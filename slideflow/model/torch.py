@@ -428,6 +428,7 @@ class Trainer:
         neptune_workspace: Optional[str] = None,
         load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
+        device: Optional[str] = None,
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -473,7 +474,7 @@ class Trainer:
         self.model = None  # type: Optional[torch.nn.Module]
         self.inference_model = None  # type: Optional[torch.nn.Module]
         self.mixed_precision = mixed_precision
-        self.device = torch.device('cuda:0')
+        self.device = torch_utils.get_device(device)
         self.mid_train_val_dts: Optional[Iterable] = None
         self.loss_fn: torch.nn.modules.loss._Loss
         self.use_tensorboard: bool
@@ -1053,7 +1054,7 @@ class Trainer:
             with torch.no_grad():
                 _mp = self.mixed_precision
                 _ns = no_scope()
-                with torch.cuda.amp.autocast() if _mp else _ns:  # type: ignore
+                with torch.amp.autocast(self.device.type) if _mp else _ns:  # type: ignore
 
                     # GPU normalization, if specified.
                     if self._has_gpu_normalizer():
@@ -1126,8 +1127,8 @@ class Trainer:
         else:
             self.scheduler = None  # type: ignore
         self.loss_fn = self.hp.get_loss()
-        if self.mixed_precision:
-            self.scaler = torch.cuda.amp.GradScaler()
+        if self.mixed_precision and self.device.type == 'cuda':
+            self.scaler = torch.cuda.amp.GradScaler(self.device.type)
 
     def _prepare_neptune_run(self, dataset: "sf.Dataset", label: str) -> None:
         if self.use_neptune:
@@ -1270,7 +1271,7 @@ class Trainer:
         with torch.set_grad_enabled(True):
             _mp = self.mixed_precision
             _ns = no_scope()
-            with torch.cuda.amp.autocast() if _mp else _ns:  # type: ignore
+            with torch.amp.autocast(self.device.type) if _mp else _ns:  # type: ignore
 
                 # GPU normalization, if specified.
                 if self._has_gpu_normalizer():
@@ -1459,8 +1460,7 @@ class Trainer:
         # Load and initialize model
         if not self.model:
             raise errors.ModelNotLoadedError
-        device = torch.device('cuda:0')
-        self.model.to(device)
+        self.model.to(self.device)
         self.model.eval()
         self._log_manifest(None, dataset, labels=None)
 
@@ -1977,10 +1977,12 @@ class Features(BaseFeatureExtractor):
         self.path = path
         self.apply_softmax = apply_softmax
         self.mixed_precision = mixed_precision
+        self._model = None
         # Hook for storing layer activations during model inference
         self.activation = {}  # type: Dict[Any, Tensor]
-        self.device = device if device is not None else torch.device('cuda')
-        self._model = None
+
+        # Configure device
+        self.device = torch_utils.get_device(device)
 
         if path is not None:
             config = sf.util.get_model_config(path)
@@ -2156,7 +2158,9 @@ class Features(BaseFeatureExtractor):
                     if self.parent.wsi_normalizer:
                         img = img.permute(1, 2, 0)  # CWH => WHC
                         img = torch.from_numpy(
-                            self.parent.wsi_normalizer.rgb_to_rgb(img.numpy())
+                            self.parent.wsi_normalizer.rgb_to_rgb(
+                                img.cpu().float().detach().numpy()
+                            )
                         )
                         img = img.permute(2, 0, 1)  # WHC => CWH
                     loc = np.array(image_dict['grid'])
@@ -2175,9 +2179,9 @@ class Features(BaseFeatureExtractor):
             _act_batch = []
             for m in model_out:
                 if isinstance(m, (list, tuple)):
-                    _act_batch += [_m.cpu().detach().numpy() for _m in m]
+                    _act_batch += [_m.cpu().float().detach().numpy() for _m in m]
                 else:
-                    _act_batch.append(m.cpu().detach().numpy())
+                    _act_batch.append(m.cpu().float().detach().numpy())
             _act_batch = np.concatenate(_act_batch, axis=-1)
 
             grid_idx_updated = []
@@ -2199,7 +2203,7 @@ class Features(BaseFeatureExtractor):
         """Return activations for a single batch of images."""
         assert torch.is_floating_point(inp), "Input tensor must be float"
         _mp = self.mixed_precision
-        with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
+        with torch.amp.autocast(self.device.type) if _mp else no_scope():  # type: ignore
             with torch.no_grad() if no_grad else no_scope():
                 inp = inp.to(self.device).to(memory_format=torch.channels_last)
                 logits = self._model(inp)
@@ -2383,7 +2387,7 @@ class UncertaintyInterface(Features):
         if self.layers:
             out_act_drop = [[] for _ in range(len(self.layers))]
         for _ in range(30):
-            with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
+            with torch.amp.autocast(self.device.type) if _mp else no_scope():  # type: ignore
                 with torch.no_grad() if no_grad else no_scope():
                     inp = inp.to(self.device)
                     inp = inp.to(memory_format=torch.channels_last)

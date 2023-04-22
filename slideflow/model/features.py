@@ -1054,6 +1054,7 @@ class _FeatureGenerator:
         include_preds: Optional[bool] = None,
         include_uncertainty: bool = True,
         batch_size: int = 32,
+        device: Optional[str] = None,
         **kwargs
     ) -> None:
         self.model = model
@@ -1081,6 +1082,11 @@ class _FeatureGenerator:
         self.generator = self._prepare_generator(**kwargs)
         self.num_features = self.generator.num_features
         self.num_classes = 0 if not include_preds else self.generator.num_classes
+        if self.is_torch():
+            from slideflow.model import torch_utils
+            self.device = torch_utils.get_device(device)
+        else:
+            self.device = None
         self._prepare_dataset_kwargs()
 
     def _calculate_feature_batch(self, batch_img):
@@ -1090,7 +1096,7 @@ class _FeatureGenerator:
         if self.is_torch():
             import torch
             with torch.no_grad():
-                batch_img = batch_img.to('cuda')
+                batch_img = batch_img.to(self.device)
                 if self.has_torch_gpu_normalizer():
                     batch_img = self.normalizer.preprocess(
                         batch_img,
@@ -1287,7 +1293,7 @@ class _FeatureGenerator:
         # Generator is a loaded torch.nn.Module
         elif self.is_torch():
             return sf.model.Features.from_model(
-                self.model.to('cuda'),
+                self.model.to(self.device),
                 tile_px=self.tile_px,
                 layers=self.layers,
                 include_preds=self.include_preds,
