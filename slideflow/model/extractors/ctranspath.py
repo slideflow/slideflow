@@ -582,15 +582,15 @@ class CTransPathFeatures(BaseFeatureExtractor):
         from slideflow.model import torch_utils
         self.device = torch_utils.get_device(device)
         self.model = _build_ctranspath_model()
-        self.model.head = torch.nn.Identity().to(device)
+        self.model.head = torch.nn.Identity().to(self.device)
 
         checkpoint_path = hf_hub_download(
             repo_id='jamesdolezal/CTransPath',
             filename='ctranspath.pth'
         )
-        td = torch.load(checkpoint_path)
+        td = torch.load(checkpoint_path, map_location=self.device)
         self.model.load_state_dict(td['model'], strict=True)
-        self.model = self.model.to(device)
+        self.model = self.model.to(self.device)
         self.model.eval()
 
         # ---------------------------------------------------------------------

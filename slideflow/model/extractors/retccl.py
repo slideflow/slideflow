@@ -289,15 +289,15 @@ class RetCCLFeatures(BaseFeatureExtractor):
             two_branch=False,
             normlinear=True
         )
-        self.model.fc = torch.nn.Identity().to(device)
+        self.model.fc = torch.nn.Identity().to(self.device)
 
         checkpoint_path = hf_hub_download(
             repo_id='jamesdolezal/RetCCL',
             filename='retccl.pth'
         )
-        td = torch.load(checkpoint_path)
+        td = torch.load(checkpoint_path, map_location=self.device)
         self.model.load_state_dict(td, strict=True)
-        self.model = self.model.to(device)
+        self.model = self.model.to(self.device)
         self.model.eval()
 
         # ---------------------------------------------------------------------
