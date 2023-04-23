@@ -910,6 +910,7 @@ def location_heatmap(
     interpolation: Optional[str] = 'bicubic',
     cmap: str = 'inferno',
     norm: Optional[str] = None,
+    background: str = 'min'
 ) -> Dict[str, Dict[str, float]]:
     """Generate a heatmap for a slide.
 
@@ -943,6 +944,7 @@ def location_heatmap(
     log.info(f'Generating heatmap for [green]{slide}[/]...')
     log.debug(f"Plotting {len(values)} values")
     wsi = sf.slide.WSI(slide, tile_px, tile_um, verbose=False)
+    no_interpolation = (interpolation is None or interpolation == 'nearest')
 
     stats = {
         slide_name: {
@@ -953,8 +955,26 @@ def location_heatmap(
 
     # Slide coordinate information
     loc_grid_dict = {(c[0], c[1]): (c[2], c[3]) for c in wsi.coord}
+
+    # Determine the heatmap background
     grid = np.empty((wsi.grid.shape[1], wsi.grid.shape[0]))
-    grid[:] = np.nan
+    if background == 'mask' and not no_interpolation:
+        raise ValueError(
+            "'mask' background is not compatible with interpolation method "
+            "'{}'. Expected: None or 'nearest'".format(interpolation)
+        )
+    elif background == 'mask':
+        grid[:] = np.nan
+    elif background == 'min':
+        grid[:] = np.min(values)
+    elif background == 'mean': 
+        grid[:] = np.mean(values)
+    elif background == 'median':
+        grid[:] = np.median(values)
+    elif background == 'max':
+        grid[:] = np.max(values)
+    else:
+        raise ValueError(f"Unrecognized value for background: {background}")
 
     if not isinstance(locations, np.ndarray):
         locations = np.array(locations)
@@ -978,8 +998,11 @@ def location_heatmap(
             )
         grid[idx[1]][idx[0]] = values[i]
 
-    # Mask out background
-    masked_grid = np.ma.masked_invalid(grid)
+    # Mask out background, if interpolation is not used and background == 'mask'
+    if no_interpolation and background == 'mask':
+        masked_grid = np.ma.masked_invalid(grid)
+    else:
+        masked_grid = grid
 
     fig = plt.figure(figsize=(18, 16))
     ax = fig.add_subplot(111)
