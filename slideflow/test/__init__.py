@@ -774,6 +774,7 @@ class TestSuite:
                         val_dts,
                         outcomes='category1',
                         bags=join(self.project.root, 'clam'),
+                        attention_heatmaps=True
                     )
                 except Exception as e:
                     log.error(traceback.format_exc())
