@@ -953,8 +953,8 @@ def location_heatmap(
 
     # Slide coordinate information
     loc_grid_dict = {(c[0], c[1]): (c[2], c[3]) for c in wsi.coord}
-    grid = np.ones((wsi.grid.shape[1], wsi.grid.shape[0]))
-    grid *= -99
+    grid = np.empty((wsi.grid.shape[1], wsi.grid.shape[0]))
+    grid[:] = np.nan
 
     if not isinstance(locations, np.ndarray):
         locations = np.array(locations)
@@ -979,7 +979,7 @@ def location_heatmap(
         grid[idx[1]][idx[0]] = values[i]
 
     # Mask out background
-    masked_grid = np.ma.masked_where(grid == -99, grid)
+    masked_grid = np.ma.masked_invalid(grid)
 
     fig = plt.figure(figsize=(18, 16))
     ax = fig.add_subplot(111)
