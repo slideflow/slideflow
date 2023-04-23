@@ -1052,7 +1052,7 @@ class Trainer:
             val_img = val_img.to(memory_format=torch.channels_last)
 
             with torch.no_grad():
-                _mp = self.mixed_precision
+                _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
                 _ns = no_scope()
                 with torch.amp.autocast(self.device.type) if _mp else _ns:  # type: ignore
 
@@ -1269,7 +1269,7 @@ class Trainer:
         labels = self._labels_to_device(labels, self.device)
         self.optimizer.zero_grad()
         with torch.set_grad_enabled(True):
-            _mp = self.mixed_precision
+            _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
             _ns = no_scope()
             with torch.amp.autocast(self.device.type) if _mp else _ns:  # type: ignore
 
@@ -2202,7 +2202,7 @@ class Features(BaseFeatureExtractor):
     def _predict(self, inp: Tensor, no_grad: bool = True) -> List[Tensor]:
         """Return activations for a single batch of images."""
         assert torch.is_floating_point(inp), "Input tensor must be float"
-        _mp = self.mixed_precision
+        _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
         with torch.amp.autocast(self.device.type) if _mp else no_scope():  # type: ignore
             with torch.no_grad() if no_grad else no_scope():
                 inp = inp.to(self.device).to(memory_format=torch.channels_last)
@@ -2381,7 +2381,7 @@ class UncertaintyInterface(Features):
         (stdev) for a single batch of images."""
 
         assert torch.is_floating_point(inp), "Input tensor must be float"
-        _mp = self.mixed_precision
+        _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
 
         out_pred_drop = [[] for _ in range(self.num_outputs)]
         if self.layers:

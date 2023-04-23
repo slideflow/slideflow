@@ -12,6 +12,7 @@ from scipy.special import softmax
 from slideflow.stats import df_from_pred
 from slideflow.errors import DatasetError
 from slideflow.util import log, ImgBatchSpeedColumn
+from slideflow.model.base import no_scope
 from rich.progress import Progress, TimeElapsedColumn, SpinnerColumn
 from functools import reduce
 
@@ -239,6 +240,7 @@ def eval_from_model(
     corrects, acc, loss = None, None, None
     model.eval()
     device = get_device(device)
+    _mp = (device.type in ('cuda', 'cpu'))
 
     if verbosity != 'silent':
         pb = Progress(SpinnerColumn(), transient=True)
@@ -285,7 +287,7 @@ def eval_from_model(
 
             img = img.to(device, non_blocking=True)
             img = img.to(memory_format=torch.channels_last)
-            with torch.amp.autocast(device.type):
+            with torch.amp.autocast(device.type) if _mp else no_scope():
                 with torch.no_grad():
                     # GPU normalization
                     if torch_args is not None and torch_args.normalizer:
