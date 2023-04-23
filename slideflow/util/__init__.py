@@ -915,7 +915,8 @@ def location_heatmap(
 
     Args:
         locations (np.ndarray): Array of shape ``(n_tiles, 2)`` containing x, y
-            coordinates for all image tiles.
+            coordinates for all image tiles. Coordinates represent the center
+            for an associated tile, and must be in a grid.
         values (np.ndarray): Array of shape ``(n_tiles,)`` containing heatmap
             values for each tile.
         slide (str): Path to corresponding slide.
@@ -955,14 +956,25 @@ def location_heatmap(
     grid = np.ones((wsi.grid.shape[1], wsi.grid.shape[0]))
     grid *= -99
 
+    if not isinstance(locations, np.ndarray):
+        locations = np.array(locations)
+    
+    # Transform from coordinates as center locations to top-left locations.
+    locations = locations - int(wsi.full_extract_px/2)
+    
     for i, wsi_dim in enumerate(locations):
         try:
             idx = loc_grid_dict[tuple(wsi_dim)]
-        except IndexError:
-            raise ValueError(
-                "Location values are not aligned to the slide coordinate grid. "
-                "Ensure that the WSI has the appropriate tile_px and tile_um "
-                "to match the given location values."
+        except (IndexError, KeyError):
+            raise errors.CoordinateAlignmentError(
+                "Error plotting value at location {} for slide {}. The heatmap "
+                "grid is not aligned to the slide coordinate grid. Ensure "
+                "that tile_px (got: {}) and tile_um (got: {}) match the given "
+                "location values. If you are using data stored in TFRecords, "
+                "verify that the TFRecord was generated using the same "
+                "tile_px and tile_um.".format(
+                    tuple(wsi_dim), slide, tile_px, tile_um
+                )
             )
         grid[idx[1]][idx[0]] = values[i]
 

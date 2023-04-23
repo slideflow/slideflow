@@ -104,7 +104,7 @@ setuptools.setup(
         'shapely',
         'umap-learn',
         'seaborn<0.12',
-        'pandas',
+        'pandas<2',
         'pyvips',
         'fpdf2',
         'lifelines',

@@ -67,6 +67,10 @@ class HeatmapError(Exception):
 class MosaicError(Exception):
     pass
 
+# --- TFRecord Heatmap Errors -------------------------------------------------
+
+class CoordinateAlignmentError(Exception):
+    pass
 
 # --- Project errors ----------------------------------------------------------
 class ProjectError(Exception):
