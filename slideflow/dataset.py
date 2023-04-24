@@ -1957,7 +1957,7 @@ class Dataset:
             temp_dir = tempfile.TemporaryDirectory()
             splits = join(temp_dir.name, '_splits.json')
         else:
-            temp_file = None
+            temp_dir = None
         crossval_splits = []
         for k_fold_iter in range(k):
             split_kw = dict(
