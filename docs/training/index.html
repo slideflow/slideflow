@@ -444,7 +444,7 @@
 <p>Models can also be trained to a time series outcome using Cox Proportional Hazards (CPH) and negative log likelihood loss. For CPH models, use <code class="docutils literal notranslate"><span class="pre">'negative_log_likelihood'</span></code> loss and set <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> equal to the annotation column indicating event <em>time</em>. Specify the event <em>type</em> (0 or 1) by passing the event type annotation column to the argument <code class="docutils literal notranslate"><span class="pre">input_header</span></code>. If you are using multiple clinical inputs, the first header passed to <code class="docutils literal notranslate"><span class="pre">input_header</span></code> must be event type. CPH models are not compatible with multiple outcomes.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>CPH models are currently unavailable with the PyTorch backend. PyTorch support for CPH outcomes is in development.</p>
+<p>CPH models are currently only available with the Tensorflow backend. PyTorch support for CPH outcomes is in development.</p>
 </div>
 </section>
 <section id="multimodal-models">
