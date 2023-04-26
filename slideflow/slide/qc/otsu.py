@@ -94,7 +94,10 @@ class Otsu:
 
         try:
             if wsi.slide.has_levels:
-                thumb = wsi.slide.read_level(level=level, to_numpy=True)
+                try:   
+                    thumb = wsi.slide.read_level(level=level, to_numpy=True)
+                except KeyError:
+                    thumb = wsi.slide.read_level(page=level, to_numpy=True)
             else:
                 thumb = wsi.slide.read_level(to_numpy=True)
         except Exception as e:

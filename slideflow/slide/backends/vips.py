@@ -52,8 +52,12 @@ def get_libvips_reader(path: str, *args, **kwargs):
 
     # Read a JPEG image.
     if path_to_ext(path).lower() in ('jpg', 'jpeg', 'png'):
-        reader = _JPGVIPSReader(path, *args, **kwargs)
-
+        reader = _ALTVIPSReader(path, *args, **kwargs)
+    
+    # Read an image without pyramid levels.
+    if 'slide-level' not in vips.Image.new_from_file(path).get_fields():
+        reader = _ALTVIPSReader(path, *args, **kwargs)
+        
     # Read a slide image.
     else:
         reader = _VIPSReader(path, *args, **kwargs)
@@ -359,6 +363,22 @@ class _VIPSReader:
                     'height': height,
                     'downsample': downsample
                 }]
+        elif 'n-pages' in self.properties and OPS_LEVEL_COUNT not in self.properties:
+            # This is a multipage tiff without openslide metadata
+            self.level_count = int(self.properties['n-pages'])
+            # Calculate level metadata
+            self.levels = []
+            for lev in range(self.level_count):
+                temp_img = vips.Image.new_from_file(self.path, fail=True, access='sequential', page=lev)
+                width = int(temp_img.get('width'))
+                height = int(temp_img.get('height'))
+                downsample = float(self.dimensions[0] / width)
+                self.levels += [{
+                    'dimensions': (width, height),
+                    'width': width,
+                    'height': height,
+                    'downsample': downsample
+                }]
         else:
             self.level_count = 1
             self.levels = [{
@@ -375,7 +395,12 @@ class _VIPSReader:
         return self.properties[OPS_MPP_X]
 
     def _load_downsample_level(self, level: int) -> "vips.Image":
-        image = self.read_level(level=level)
+        try:
+            image = self.read_level(level=level)
+            if image is None:
+                image = self.read_level(page=level)
+        except KeyError:
+            image = self.read_level(page=level)
         if self.cache_kw:
             image = image.tilecache(**self.cache_kw)
         self.loaded_downsample_levels.update({
@@ -546,7 +571,7 @@ class _VIPSReader:
         except vips.error.Error as e:
             raise sf.errors.SlideLoadError(f"Error loading slide thumbnail: {e}")
 
-class _JPGVIPSReader(_VIPSReader):
+class _ALTVIPSReader(_VIPSReader):
     '''Wrapper for JPG files, which do not possess separate levels, to
     preserve openslide-like functions.'''
 
