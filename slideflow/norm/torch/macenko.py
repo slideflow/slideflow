@@ -338,8 +338,6 @@ class MacenkoNormalizer:
                     "Error encountered during normalization. Returning "
                     f"original image. Error: {e}"
                 )
-                if self.standardize:
-                    img = standardize_brightness(img)
                 return img
             else:
                 raise
