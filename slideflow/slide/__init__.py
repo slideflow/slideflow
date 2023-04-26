@@ -1715,7 +1715,7 @@ class WSI(_BaseLoader):
                     # to reduce memory utilization.
                     # In the Libvips backend, a multiprocessing pool is default
                     # to significantly improve performance.
-                    n_cores = os.cpu_count() if os.cpu_count() else 8
+                    n_cores = sf.util.num_cpu(default=8)
                     if sf.slide_backend() == 'libvips':
                         num_processes = max(int(n_cores/2), 1)
                     else:
@@ -2608,9 +2608,7 @@ class TMA(_BaseLoader):
         )
         # Detect CPU cores if num_threads not specified
         if num_threads is None:
-            num_threads = os.cpu_count()
-            if num_threads is None:
-                num_threads = 8
+            num_threads = sf.util.num_cpu(default=8)
 
         # Shuffle TMAs
         if shuffle:

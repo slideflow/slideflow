@@ -514,11 +514,11 @@ def interleave(
             # Load slides and apply Otsu's thresholding
             if pool is None and sf.slide_backend() == 'cucim':
                 pool = mp.Pool(
-                    8 if os.cpu_count is None else os.cpu_count(),
+                    sf.util.num_cpu(default=8),
                     initializer=sf.util.set_ignore_sigint
                 )
             elif pool is None:
-                pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
+                pool = mp.dummy.Pool(sf.util.num_cpu(default=16))
             wsi_list = []
             to_remove = []
             otsu_list = []

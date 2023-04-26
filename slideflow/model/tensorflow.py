@@ -1719,7 +1719,7 @@ class Trainer:
         # Prepare multiprocessing pool if from_wsi=True
         if from_wsi:
             pool = mp.Pool(
-                8 if os.cpu_count is None else os.cpu_count(),
+                sf.util.num_cpu(default=8),
                 initializer=sf.util.set_ignore_sigint
             )
         else:

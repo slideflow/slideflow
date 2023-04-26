@@ -236,7 +236,7 @@ class _StridedQC_V2:
         if self._tile_pool is not None:
             return self._tile_pool
         else:
-            n_threads = int(os.cpu_count() // 2)
+            n_threads = max(int(sf.util.num_cpu(default=8) // 2), 1)
             sf.log.debug("Creating tile pool (n_threads={})".format(
                 n_threads
             ))

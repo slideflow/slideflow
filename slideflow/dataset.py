@@ -930,7 +930,7 @@ class Dataset:
 
         index_fn = partial(_create_index, force=force)
         pool = mp.Pool(
-            os.cpu_count(),
+            sf.util.num_cpu(),
             initializer=sf.util.set_ignore_sigint
         )
         for _ in track(pool.imap_unordered(index_fn, index_to_update),
@@ -1572,7 +1572,7 @@ class Dataset:
 
                 # Use a single shared multiprocessing pool
                 if 'num_threads' not in kwargs:
-                    num_threads = os.cpu_count()
+                    num_threads = sf.util.num_cpu()
                     if sf.slide_backend() == 'libvips':
                         num_threads = min(num_threads, 32)
                     if num_threads is None:
@@ -2478,7 +2478,7 @@ class Dataset:
             otsu_task = pb.add_task("Otsu thresholding...", total=len(paths))
         pb.start()
         pool = mp.Pool(
-            16 if os.cpu_count is None else os.cpu_count(),
+            sf.util.num_cpu(default=16),
             initializer=sf.util.set_ignore_sigint
         )
         wsi_list = []

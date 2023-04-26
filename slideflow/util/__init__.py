@@ -72,7 +72,20 @@ Labels = Union[Dict[str, str], Dict[str, int], Dict[str, List[float]]]
 # Normalizer fit keyword arguments
 NormFit = Union[Dict[str, np.ndarray], Dict[str, List]]
 
+# --- Detect CPU cores --------------------------------------------------------
+
+def num_cpu(default: Optional[int] = None) -> Optional[int]:
+    try:
+        return len(os.sched_getaffinity(0))
+    except Exception as e:
+        count = os.cpu_count()
+        if count is None and default is not None:
+            return default
+        else:
+            return count
+
 # --- Configure logging--------------------------------------------------------
+
 log = logging.getLogger('slideflow')
 log.setLevel(logging.DEBUG)
 
@@ -967,7 +980,7 @@ def location_heatmap(
         grid[:] = np.nan
     elif background == 'min':
         grid[:] = np.min(values)
-    elif background == 'mean': 
+    elif background == 'mean':
         grid[:] = np.mean(values)
     elif background == 'median':
         grid[:] = np.median(values)
@@ -978,10 +991,10 @@ def location_heatmap(
 
     if not isinstance(locations, np.ndarray):
         locations = np.array(locations)
-    
+
     # Transform from coordinates as center locations to top-left locations.
     locations = locations - int(wsi.full_extract_px/2)
-    
+
     for i, wsi_dim in enumerate(locations):
         try:
             idx = loc_grid_dict[tuple(wsi_dim)]

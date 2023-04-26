@@ -1466,11 +1466,11 @@ class Trainer:
 
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
-                os.cpu_count() if os.cpu_count() else 8,
+                sf.util.num_cpu(default=8),
                 initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
-            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
+            pool = mp.dummy.Pool(sf.util.num_cpu(default=8))
         else:
             pool = None
         if not batch_size:
@@ -1565,11 +1565,11 @@ class Trainer:
             raise errors.ModelNotLoadedError
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
-                os.cpu_count() if os.cpu_count() else 8,
+                sf.util.num_cpu(default=8),
                 initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
-            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
+            pool = mp.dummy.Pool(sf.util.num_cpu(default=8))
         else:
             pool = None
 
@@ -1720,11 +1720,11 @@ class Trainer:
 
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
-                os.cpu_count() if os.cpu_count() else 8,
+                sf.util.num_cpu(default=8),
                 initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
-            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
+            pool = mp.dummy.Pool(sf.util.num_cpu(default=8))
         else:
             pool = None
 

@@ -986,11 +986,11 @@ def interleave(
         # ---- Load slides and apply Otsu thresholding ------------------------
         if pool is None and sf.slide_backend() == 'cucim':
             pool = mp.Pool(
-                8 if os.cpu_count is None else os.cpu_count(),
+                sf.util.num_cpu(default=8),
                 initializer=sf.util.set_ignore_sigint
             )
         elif pool is None:
-            pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
+            pool = mp.dummy.Pool(sf.util.num_cpu(default=16))
         wsi_list = []
         to_remove = []
         otsu_list = []
@@ -1279,13 +1279,13 @@ def interleave_dataloader(
         raise ValueError("Option `from_wsi=True` incompatible with "
                          "num_workers > 0")
 
-    if num_workers is None and os.cpu_count():
-        num_workers = os.cpu_count() // 4  # type: ignore
+    if num_workers is None and sf.util.num_cpu():
+        num_workers = max(sf.util.num_cpu() // 4, 1)  # type: ignore
     elif num_workers is None:
         num_workers = 8
     log.debug(f"Using num_workers={num_workers}")
-    if 'num_threads' not in kwargs and os.cpu_count():
-        kwargs['num_threads'] = int(math.ceil(os.cpu_count() / max(num_workers, 1)))
+    if 'num_threads' not in kwargs and sf.util.num_cpu():
+        kwargs['num_threads'] = int(math.ceil(sf.util.num_cpu() / max(num_workers, 1)))
         log.debug(f"Threads per worker={kwargs['num_threads']}")
 
     iterator = InterleaveIterator(

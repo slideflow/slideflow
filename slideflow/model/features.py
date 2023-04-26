@@ -337,7 +337,7 @@ class DatasetFeatures:
                     or not self.locations[s].size
                     or not self.uncertainty[s].size)
             ]
-            pool = mp.Pool(os.cpu_count())
+            pool = mp.Pool(sf.util.num_cpu())
             for i, true_locs in enumerate(track(pool.imap(self.dataset.get_tfrecord_locations, slides_to_sort),
                                                 transient=False,
                                                 total=len(slides_to_sort),

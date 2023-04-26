@@ -452,7 +452,7 @@ class Mosaic:
         elif tile_select == 'nearest':
             self.points['selected'] = False
             dist_fn = partial(select_nearest_points)
-            pool = DPool(os.cpu_count())
+            pool = DPool(sf.util.num_cpu())
             for i, _ in track(enumerate(pool.imap_unordered(dist_fn, range(len(self.grid_idx))), 1), total=len(self.grid_idx)):
                 pass
             pool.close()
@@ -557,7 +557,7 @@ class Mosaic:
             to_map.append((idx, point.grid_x * self.tile_size, point.grid_y * self.tile_size, point.display_size, point.alpha, image))
 
         if pool is None:
-            pool = DPool(os.cpu_count())
+            pool = DPool(sf.util.num_cpu())
             should_close_pool = True
         for i, (point_idx, image, extent, alpha) in track(enumerate(pool.imap(partial(process_tile_image, decode_kwargs=self.decode_kwargs), to_map)), total=len(selected_points)):
             if point_idx is not None:
