@@ -3574,6 +3574,8 @@ class Project:
         exp_label: Optional[str] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
         dataset_kwargs: Optional[Dict[str, Any]] = None,
+        normalizer: Optional[Union[str, "sf.norm.StainNormalizer"]] = None,
+        normalizer_source: Optional[str] = None,
         **kwargs
     ) -> None:
         """Train SimCLR model.
@@ -3622,7 +3624,9 @@ class Project:
             train_dts=train_dataset,
             val_dts=val_dataset,
             labels=outcomes,
-            dataset_kwargs=dataset_kwargs
+            dataset_kwargs=dataset_kwargs,
+            normalizer=normalizer,
+            normalizer_source=normalizer_source
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
