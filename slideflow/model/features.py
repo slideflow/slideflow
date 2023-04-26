@@ -1106,7 +1106,7 @@ class _FeatureGenerator:
         model_out = sf.util.as_list(model_out)
 
         # Process data if the output is Tensorflow (SimCLR or Tensorflow model)
-        if self.is_simclr() or self.is_tf():
+        if self.is_tf():
             slides = [
                 bs.decode('utf-8')
                 for bs in batch_slides.numpy()
@@ -1292,6 +1292,8 @@ class _FeatureGenerator:
             return sf.model.is_torch_model(self.model)
 
     def is_tf(self):
+        if self.is_simclr():
+            return True
         if self.is_extractor():
             return self.model.is_tensorflow()
         else:
