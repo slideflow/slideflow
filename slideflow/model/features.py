@@ -1055,6 +1055,7 @@ class _FeatureGenerator:
         include_uncertainty: bool = True,
         batch_size: int = 32,
         device: Optional[str] = None,
+        num_workers: Optional[int] = None,
         **kwargs
     ) -> None:
         self.model = model
@@ -1062,6 +1063,7 @@ class _FeatureGenerator:
         self.layers = sf.util.as_list(layers)
         self.batch_size = batch_size
         self.simclr_args = None
+        self.num_workers = num_workers
 
         # Check if location information is stored in TFRecords
         self.tfrecords_have_loc = self.dataset.tfrecords_have_locations()
@@ -1372,7 +1374,10 @@ class _FeatureGenerator:
 
         # Generator is a PyTorch model.
         elif self.is_torch():
-            n_workers = (4 if self.tfrecords_have_loc else 1)
+            if self.num_workers is None:
+                n_workers = (4 if self.tfrecords_have_loc else 1)
+            else:
+                n_workers = self.num_workers
             log.debug(
                 "Setting up PyTorch dataset iterator (num_workers="
                 f"{n_workers}, chunk_size=8)"
