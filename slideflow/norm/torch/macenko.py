@@ -279,7 +279,7 @@ class MacenkoNormalizer:
         img: torch.Tensor,
         *,
         augment: bool = False,
-        allow_errors: bool = True
+        original_on_error: bool = True
     ) -> torch.Tensor:
         """Normalize an H&E image.
 
@@ -333,7 +333,7 @@ class MacenkoNormalizer:
             else:
                 HE, maxC, C = self.matrix_and_concentrations(img)
         except Exception as e:
-            if allow_errors:
+            if original_on_error:
                 log.debug(
                     "Error encountered during normalization. Returning "
                     f"original image. Error: {e}"
