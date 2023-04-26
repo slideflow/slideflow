@@ -504,7 +504,7 @@ class DatasetFeatures:
             for slide in track(slides):
                 if level == 'tile':
                     for i, tile_act in enumerate(self.activations[slide]):
-                        if self.predictions[slide] != []:
+                        if self.num_classes and self.predictions[slide] != []:
                             csvwriter.writerow(
                                 [slide]
                                 + self.predictions[slide][i].tolist()
@@ -517,7 +517,7 @@ class DatasetFeatures:
                         self.activations[slide],
                         axis=0
                     ).tolist()
-                    if self.predictions[slide] != []:
+                    if self.num_classes and self.predictions[slide] != []:
                         logit = meth_fn[method](
                             self.predictions[slide],
                             axis=0
