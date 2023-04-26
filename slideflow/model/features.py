@@ -1191,6 +1191,7 @@ class _FeatureGenerator:
             # Otherwise, let the dataset handle normalization/standardization.
             dts_kw['normalizer'] = self.normalizer
 
+        # This is not used by SimCLR feature extractors.
         self.dts_kw = dts_kw
 
     def _determine_uq_and_normalizer(self):
@@ -1262,9 +1263,10 @@ class _FeatureGenerator:
         elif self.is_simclr():
             from slideflow import simclr
             self.simclr_args = simclr.load_model_args(self.model)
-            generator = simclr.load(self.model)
-            generator.num_features = self.simclr_args.proj_out_dim
-            generator.num_classes = self.simclr_args.num_classes
+            model = simclr.load(self.model)
+            generator = sf.simclr.SimCLR_Generator(model)
+            generator.num_features = self.simclr_args.proj_out_dim  # type: ignore
+            generator.num_classes = self.simclr_args.num_classes  # type: ignore
             self.normalizer, kwargs = self._norm_from_kwargs(kwargs)
             if kwargs:
                 raise ValueError(
@@ -1320,6 +1322,8 @@ class _FeatureGenerator:
             return sf.model.is_torch_model(self.model)
 
     def is_tf(self):
+        if self.is_simclr():
+            return True
         if self.is_extractor():
             return self.model.is_tensorflow()
         else:
@@ -1341,10 +1345,10 @@ class _FeatureGenerator:
             from slideflow import simclr
             builder = simclr.DatasetBuilder(
                 val_dts=self.dataset,
+                normalizer=self.normalizer,
                 dataset_kwargs=dict(
                     incl_slidenames=True,
                     incl_loc=True,
-                    normalizer=self.normalizer
                 )
             )
             return builder.build_dataset(
