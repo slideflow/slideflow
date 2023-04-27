@@ -263,8 +263,8 @@ class _BaseLoader:
         try:
             self.mpp = float(self.slide.mpp)
         except Exception as e:
-            raise errors.SlideLoadError(
-                f"Slide [green]{self.name}[/] missing MPP ({OPS_MPP_X})"
+            raise errors.SlideMissingMPPError(
+                f"Slide {self.name} missing MPP ({OPS_MPP_X})"
             )
 
         # Calculate downsample by magnification

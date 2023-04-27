@@ -50,14 +50,10 @@ def get_libvips_reader(path: str, *args, **kwargs):
        and __vipsreader_kwargs__ == kwargs):
         return __vipsreader__
 
-    # Read a JPEG image.
+    # Read a JPEG/PNG/TIFF image.
     if path_to_ext(path).lower() in ('jpg', 'jpeg', 'png'):
-        reader = _ALTVIPSReader(path, *args, **kwargs)
-    
-    # Read an image without pyramid levels.
-    if 'slide-level' not in vips.Image.new_from_file(path).get_fields():
-        reader = _ALTVIPSReader(path, *args, **kwargs)
-        
+        reader = _SingleLevelVIPSReader(path, *args, **kwargs)
+
     # Read a slide image.
     else:
         reader = _VIPSReader(path, *args, **kwargs)
@@ -139,6 +135,76 @@ def vips_padded_crop(image, x, y, width, height):
             "and width/height {}, {}.".format(
                 image, x, y, width, height
             ))
+
+def detect_mpp(
+    path: str,
+    loaded_image: Optional["vips.image.Image"] = None,
+) -> Optional[float]:
+
+    # --- Search VIPS fields ------------------------------------------
+
+    # Load the image with Vips, if not already loaded
+    if loaded_image is None:
+        loaded_image = vips.Image.new_from_file(path)
+
+    vips_fields = loaded_image.get_fields()
+
+    if OPS_MPP_X in vips_fields:
+        return float(loaded_image.get(OPS_MPP_X))
+
+    # Search for MPP using SCN format
+    if (sf.util.path_to_ext(path).lower() == 'svs'
+            and 'image-description' in vips_fields):
+        img_des = loaded_image.get('image-description')
+        _mpp = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)
+        if _mpp is not None:
+            log.debug(
+                f"Using MPP {_mpp} from 'image-description' for SCN"
+                "-converted SVS format"
+            )
+            return float(_mpp[0])
+
+    # Search for MPP via TIFF EXIF field
+    if (sf.util.path_to_ext(path).lower() in ('tif', 'tiff')
+            and 'xres' in vips_fields):
+        xres = loaded_image.get('xres')  # 4000.0
+        if (xres == 4000.0
+            and 'resolution-unit' in vips_fields
+            and loaded_image.get('resolution-unit') == 'cm'):
+            # xres = xres # though resolution from tiffinfo
+            # says 40000 pixels/cm, for some reason the xres
+            # val is 4000.0, so multipley by 10.
+            # Convert from pixels/cm to cm/pixels, then convert
+            # to microns by multiplying by 1000
+            mpp_x = (1/xres) * 1000
+            log.debug(
+                f"Using MPP {mpp_x} per TIFF 'xres' field"
+                f" {loaded_image.get('xres')} and "
+                f"{loaded_image.get('resolution-unit')}"
+            )
+            return mpp_x
+
+    # --- Search EXIF & tags ------------------------------------------
+    try:
+        with Image.open(path) as img:
+            # Search exif data
+            exif_data = img.getexif()
+            if exif_data and TIF_EXIF_KEY_MPP in exif_data.keys():
+                _mpp = exif_data[TIF_EXIF_KEY_MPP]
+                log.debug(f"Using MPP {_mpp} per EXIF field {TIF_EXIF_KEY_MPP}")
+                return float(_mpp)
+
+            # Search image tags
+            if hasattr(img, 'tag') and TIF_EXIF_KEY_MPP in img.tag.keys():
+                _mpp = img.tag[TIF_EXIF_KEY_MPP][0]
+                log.debug(
+                    f"Using MPP {_mpp} per EXIF {TIF_EXIF_KEY_MPP}"
+                )
+                return float(_mpp)
+    except UnidentifiedImageError:
+        pass
+
+    return None
 
 
 
@@ -284,6 +350,7 @@ def tile_worker(
         return_dict.update({'yolo': yolo_anns})
     return return_dict
 
+# -----------------------------------------------------------------------------
 
 class _VIPSReader:
 
@@ -321,7 +388,7 @@ class _VIPSReader:
         self.pad_missing = pad_missing
         self.cache_kw = cache_kw if cache_kw else {}
         self.loaded_downsample_levels = {}  # type: Dict[int, "vips.Image"]
-        loaded_image = self._load_downsample_level(0)
+        loaded_image = vips.Image.new_from_file(path)
 
         # Load image properties
         self.properties = {}
@@ -336,63 +403,20 @@ class _VIPSReader:
             log.debug(f"Setting MPP to {mpp}")
             self.properties[OPS_MPP_X] = mpp
         elif OPS_MPP_X not in self.properties.keys():
-            log.debug(
-                "Microns-Per-Pixel (MPP) not found, Searching EXIF"
-            )
-            try:
-                with Image.open(path) as img:
-                    if TIF_EXIF_KEY_MPP in img.tag.keys():
-                        _mpp = img.tag[TIF_EXIF_KEY_MPP][0]
-                        log.debug(
-                            f"Using MPP {_mpp} per EXIF {TIF_EXIF_KEY_MPP}"
-                        )
-                        self.properties[OPS_MPP_X] = _mpp
-                    elif (sf.util.path_to_ext(path).lower() == 'svs'
-                          and 'image-description' in loaded_image.get_fields()):
-                          img_des = loaded_image.get('image-description')
-                          _mpp = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)
-                          if _mpp is not None:
-                            log.debug(
-                                f"Using MPP {_mpp} from 'image-description' for SCN"
-                                "-converted SVS format"
-                            )
-                            self.properties[OPS_MPP_X] = _mpp[0]
-                    elif (sf.util.path_to_ext(path).lower() in ('tif', 'tiff')
-                          and 'xres' in loaded_image.get_fields()):
-                        xres = loaded_image.get('xres')  # 4000.0
-                        if (xres == 4000.0
-                           and loaded_image.get('resolution-unit') == 'cm'):
-                            # xres = xres # though resolution from tiffinfo
-                            # says 40000 pixels/cm, for some reason the xres
-                            # val is 4000.0, so multipley by 10.
-                            # Convert from pixels/cm to cm/pixels, then convert
-                            # to microns by multiplying by 1000
-                            mpp_x = (1/xres) * 1000
-                            self.properties[OPS_MPP_X] = str(mpp_x)
-                            log.debug(
-                                f"Using MPP {mpp_x} per TIFF 'xres' field"
-                                f" {loaded_image.get('xres')} and "
-                                f"{loaded_image.get('resolution-unit')}"
-                            )
-                    else:
-                        name = path_to_name(path)
-                        log.warning(
-                            f"Missing Microns-Per-Pixel (MPP) for {name}"
-                        )
-            except AttributeError:
-                if ignore_missing_mpp:
-                    mpp = DEFAULT_JPG_MPP
-                    log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
-                    self.properties[OPS_MPP_X] = mpp
-                else:
-                    raise errors.SlideMissingMPPError(
-                        f'Could not detect microns-per-pixel for slide: {path}'
-                    )
-            except UnidentifiedImageError:
-                log.error(
-                    f"PIL error; unable to read slide {path_to_name(path)}."
+            log.debug("Microns-Per-Pixel (MPP) not found, Searching EXIF")
+            mpp = detect_mpp(path, loaded_image)
+            if mpp is not None:
+                self.properties[OPS_MPP_X] = mpp
+            elif ignore_missing_mpp:
+                self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+                log.debug(f"Could not detect microns-per-pixel; using default "
+                          f"{DEFAULT_JPG_MPP}")
+            else:
+                raise errors.SlideMissingMPPError(
+                    f'Could not detect microns-per-pixel for slide: {path}'
                 )
 
+        # Load levels
         if OPS_LEVEL_COUNT in self.properties:
             self.level_count = int(self.properties[OPS_LEVEL_COUNT])
             # Calculate level metadata
@@ -413,7 +437,7 @@ class _VIPSReader:
             # Calculate level metadata
             self.levels = []
             for lev in range(self.level_count):
-                temp_img = vips.Image.new_from_file(self.path, fail=True, access='sequential', page=lev)
+                temp_img = vips.Image.new_from_file(self.path, page=lev)
                 width = int(temp_img.get('width'))
                 height = int(temp_img.get('height'))
                 downsample = float(self.dimensions[0] / width)
@@ -439,14 +463,9 @@ class _VIPSReader:
         return self.properties[OPS_MPP_X]
 
     def _load_downsample_level(self, level: int) -> "vips.Image":
-        try:
-            image = self.read_level(level=level)
-            if image is None:
-                image = self.read_level(page=level)
-        except KeyError:
-            image = self.read_level(page=level)
+        image = self.read_level(level=level)
         if self.cache_kw:
-            image = image.tilecache(**self.cache_kw)
+            image = image.tilecache(**self.cache_kw)  # type: ignore
         self.loaded_downsample_levels.update({
             level: image
         })
@@ -494,9 +513,15 @@ class _VIPSReader:
         fail: bool = True,
         access=vips.enums.Access.RANDOM,
         to_numpy: bool = False,
+        level: Optional[int] = None,
         **kwargs
     ) -> Union[vips.Image, np.ndarray]:
         """Read a pyramid level."""
+
+        if self.properties['vips-loader'] == 'tiffload' and level is not None:
+            kwargs['page'] = level
+        elif level is not None:
+            kwargs['level'] = level
         image = vips.Image.new_from_file(self.path, fail=fail, access=access, **kwargs)
         if to_numpy:
             return vips2numpy(image)
@@ -623,7 +648,7 @@ class _VIPSReader:
         except vips.error.Error as e:
             raise sf.errors.SlideLoadError(f"Error loading slide thumbnail: {e}")
 
-class _ALTVIPSReader(_VIPSReader):
+class _SingleLevelVIPSReader(_VIPSReader):
     '''Wrapper for JPG files, which do not possess separate levels, to
     preserve openslide-like functions.'''
 
@@ -634,22 +659,24 @@ class _ALTVIPSReader(_VIPSReader):
         path: str,
         mpp: Optional[float] = None,
         cache_kw = None,
-        ignore_missing_mpp: bool = True
+        ignore_missing_mpp: bool = True,
+        pad_missing: bool = True,
     ) -> None:
         self.path = path
-        self.full_image = vips.Image.new_from_file(path)
+        self.pad_missing = pad_missing
+        loaded_image = vips.Image.new_from_file(path)
         self.cache_kw = cache_kw if cache_kw else {}
-        if not self.full_image.hasalpha():
-            self.full_image = self.full_image.addalpha()
+        if not loaded_image.hasalpha():
+            loaded_image = loaded_image.addalpha()
         self.properties = {}
-        for field in self.full_image.get_fields():
-            self.properties.update({field: self.full_image.get(field)})
+        for field in loaded_image.get_fields():
+            self.properties.update({field: loaded_image.get(field)})
         width = int(self.properties[OPS_WIDTH])
         height = int(self.properties[OPS_HEIGHT])
         self.dimensions = (width, height)
         self.level_count = 1
         self.loaded_downsample_levels = {
-            0: self.full_image
+            0: loaded_image
         }
         # Calculate level metadata
         self.levels = [{
@@ -661,26 +688,49 @@ class _ALTVIPSReader(_VIPSReader):
         self.level_downsamples = [1]
         self.level_dimensions = [(width, height)]
 
-        # MPP data
+        # If MPP is not provided, try reading from metadata
         if mpp is not None:
             log.debug(f"Setting MPP to {mpp}")
             self.properties[OPS_MPP_X] = mpp
-        else:
-            try:
-                with Image.open(path) as img:
-                    exif_data = img.getexif()
-                    if TIF_EXIF_KEY_MPP in exif_data.keys():
-                        _mpp = exif_data[TIF_EXIF_KEY_MPP]
-                        log.debug(f"Using MPP {_mpp} per EXIF field {TIF_EXIF_KEY_MPP}")
-                        self.properties[OPS_MPP_X] = _mpp
-                    else:
-                        raise AttributeError
-            except AttributeError:
-                if ignore_missing_mpp:
-                    mpp = DEFAULT_JPG_MPP
-                    log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
-                    self.properties[OPS_MPP_X] = mpp
-                else:
-                    raise errors.SlideMissingMPPError(
-                        f'Could not detect microns-per-pixel for slide: {path}'
-                    )
+        elif OPS_MPP_X not in self.properties.keys():
+            log.debug("Microns-Per-Pixel (MPP) not found, Searching EXIF")
+            mpp = detect_mpp(path, loaded_image)
+            if mpp is not None:
+                self.properties[OPS_MPP_X] = mpp
+            elif ignore_missing_mpp:
+                self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+                log.debug(f"Could not detect microns-per-pixel; using default "
+                          f"{DEFAULT_JPG_MPP}")
+            else:
+                raise errors.SlideMissingMPPError(
+                    f'Could not detect microns-per-pixel for slide: {path}'
+                )
+
+    def _load_downsample_level(self, level: int = 0) -> "vips.Image":
+        if level:
+            raise ValueError(f"_SingleLevelVipsReader does not support levels")
+        image = self.read_level()
+        if self.cache_kw:
+            image = image.tilecache(**self.cache_kw)  # type: ignore
+        self.loaded_downsample_levels.update({
+            level: image
+        })
+        return image
+
+    def read_level(
+        self,
+        fail: bool = True,
+        access=vips.enums.Access.RANDOM,
+        to_numpy: bool = False,
+        level: Optional[int] = None,
+        **kwargs
+    ) -> Union[vips.Image, np.ndarray]:
+        """Read a pyramid level."""
+        if level:
+            raise ValueError(f"_SingleLevelVipsReader does not support levels")
+        return super().read_level(
+            fail=fail,
+            access=access,
+            to_numpy=to_numpy,
+            **kwargs
+        )
