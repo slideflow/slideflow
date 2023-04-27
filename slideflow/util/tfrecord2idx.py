@@ -65,7 +65,9 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
                 )
         datum_bytes_view = memoryview(datum_bytes)[:proto_len]
         if infile.readinto(datum_bytes_view) != proto_len:
-            raise RuntimeError(f"Failed to read {tfrecord_file} index {idx}")
+            raise RuntimeError(
+                f"Failed to read record {idx} of file {tfrecord_file}"
+            )
         infile.read(4)
         start_bytes_array += [[cur, infile.tell() - cur]]
 
