@@ -56,7 +56,17 @@ def get_libvips_reader(path: str, *args, **kwargs):
 
     # Read a slide image.
     else:
-        reader = _VIPSReader(path, *args, **kwargs)
+        vips_image = vips.Image.new_from_file(path)
+        if (vips_image.get('vips-loader') == 'tiffload'
+            and 'n-pages' in vips_image.get_fields()
+            and 'image-description' in vips_image.get_fields()
+            and vips_image.get('image-description').startswith('Versa')):
+            reader = _VersaVIPSReader(path, *args, **kwargs)
+        elif (vips_image.get('vips-loader') == 'tiffload'
+              and 'n-pages' in vips_image.get_fields()):
+            reader = _MultiPageVIPSReader(path, *args, **kwargs)
+        else:
+            reader = _VIPSReader(path, *args, **kwargs)
 
     # Buffer args and return.
     __vipsreader_path__ = path
@@ -156,13 +166,13 @@ def detect_mpp(
     if (sf.util.path_to_ext(path).lower() == 'svs'
             and 'image-description' in vips_fields):
         img_des = loaded_image.get('image-description')
-        _mpp = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)
+        _mpp = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)[0]
         if _mpp is not None:
             log.debug(
                 f"Using MPP {_mpp} from 'image-description' for SCN"
                 "-converted SVS format"
             )
-            return float(_mpp[0])
+            return float(_mpp)
 
     # Search for MPP via TIFF EXIF field
     if (sf.util.path_to_ext(path).lower() in ('tif', 'tiff')
@@ -352,6 +362,7 @@ def tile_worker(
 
 # -----------------------------------------------------------------------------
 
+
 class _VIPSReader:
 
     has_levels = True
@@ -364,6 +375,7 @@ class _VIPSReader:
         cache_kw: Optional[Dict[str, Any]] = None,
         ignore_missing_mpp: bool = False,
         pad_missing: bool = True,
+        loaded_image: Optional["vips.Image"] = None
     ) -> None:
         """Libvips slide reader.
 
@@ -388,7 +400,9 @@ class _VIPSReader:
         self.pad_missing = pad_missing
         self.cache_kw = cache_kw if cache_kw else {}
         self.loaded_downsample_levels = {}  # type: Dict[int, "vips.Image"]
-        loaded_image = vips.Image.new_from_file(path)
+        if loaded_image is None:
+            loaded_image = vips.Image.new_from_file(path)
+        self.vips_loader = loaded_image.get('vips-loader')
 
         # Load image properties
         self.properties = {}
@@ -417,23 +431,39 @@ class _VIPSReader:
                 )
 
         # Load levels
+        self._load_levels(loaded_image)
+
+    @property
+    def mpp(self):
+        return self.properties[OPS_MPP_X]
+
+    def _load_levels(self, vips_image: Optional["vips.Image"]):
+        """Load downsample levels."""
+
+        if vips_image is None:
+            vips_image = vips.Image.new_from_file(self.path)
+
         if OPS_LEVEL_COUNT in self.properties:
             self.level_count = int(self.properties[OPS_LEVEL_COUNT])
             # Calculate level metadata
             self.levels = []   # type: List[Dict[str, Any]]
             for lev in range(self.level_count):
-                width = int(loaded_image.get(OPS_LEVEL_WIDTH(lev)))
-                height = int(loaded_image.get(OPS_LEVEL_HEIGHT(lev)))
-                downsample = float(loaded_image.get(OPS_LEVEL_DOWNSAMPLE(lev)))
+                width = int(vips_image.get(OPS_LEVEL_WIDTH(lev)))
+                height = int(vips_image.get(OPS_LEVEL_HEIGHT(lev)))
+                downsample = float(vips_image.get(OPS_LEVEL_DOWNSAMPLE(lev)))
                 self.levels += [{
                     'dimensions': (width, height),
                     'width': width,
                     'height': height,
-                    'downsample': downsample
+                    'downsample': downsample,
+                    'level': lev
                 }]
         elif 'n-pages' in self.properties and OPS_LEVEL_COUNT not in self.properties:
-            # This is a multipage tiff without openslide metadata
-            self.level_count = int(self.properties['n-pages'])
+            log.debug("Attempting to read non-standard multi-page TIFF")
+            # This is a multipage tiff without openslide metadata.
+            # Ignore the last 2 pages, which per our experimentation,
+            # are likely to be the slide label and image thumbnail.
+            self.level_count = min(int(self.properties['n-pages']) - 3, 1)
             # Calculate level metadata
             self.levels = []
             for lev in range(self.level_count):
@@ -445,22 +475,22 @@ class _VIPSReader:
                     'dimensions': (width, height),
                     'width': width,
                     'height': height,
-                    'downsample': downsample
+                    'downsample': downsample,
+                    'level': lev
                 }]
+            self.levels = sorted(self.levels, key=lambda x: x['width'], reverse=True)
+
         else:
             self.level_count = 1
             self.levels = [{
                     'dimensions': self.dimensions,
                     'width': self.dimensions[0],
                     'height': self.dimensions[1],
-                    'downsample': 1
+                    'downsample': 1,
+                    'level': 0
                 }]
         self.level_downsamples = [lev['downsample'] for lev in self.levels]
         self.level_dimensions = [lev['dimensions'] for lev in self.levels]
-
-    @property
-    def mpp(self):
-        return self.properties[OPS_MPP_X]
 
     def _load_downsample_level(self, level: int) -> "vips.Image":
         image = self.read_level(level=level)
@@ -519,7 +549,7 @@ class _VIPSReader:
         """Read a pyramid level."""
 
         if self.properties['vips-loader'] == 'tiffload' and level is not None:
-            kwargs['page'] = level
+            kwargs['page'] = self.levels[level]['level']
         elif level is not None:
             kwargs['level'] = level
         image = vips.Image.new_from_file(self.path, fail=fail, access=access, **kwargs)
@@ -639,7 +669,8 @@ class _VIPSReader:
     ) -> np.ndarray:
         """Return thumbnail of slide as numpy array."""
 
-        if (OPS_VENDOR in self.properties and self.properties[OPS_VENDOR] == 'leica'):
+        if ((OPS_VENDOR in self.properties and self.properties[OPS_VENDOR] == 'leica')
+           or (self.vips_loader == 'tiffload')):
             thumbnail = self.read_level(fail=fail, access=access, **kwargs)
         else:
             thumbnail = vips.Image.thumbnail(self.path, width)
@@ -647,6 +678,73 @@ class _VIPSReader:
             return vips2numpy(thumbnail)
         except vips.error.Error as e:
             raise sf.errors.SlideLoadError(f"Error loading slide thumbnail: {e}")
+
+
+class _MultiPageVIPSReader(_VIPSReader):
+
+    def _load_levels(self, vips_image: Optional["vips.Image"]):
+        """Load downsample levels."""
+        log.debug("Attempting to read levels from non-standard multi-page TIFF")
+        # This is a multipage tiff without openslide metadata.
+        # Ignore the last 2 pages, which per our experimentation,
+        # are likely to be the slide label and image thumbnail.
+        self.level_count = int(self.properties['n-pages'])
+        # Calculate level metadata
+        self.levels = []
+        for lev in range(self.level_count):
+            temp_img = vips.Image.new_from_file(self.path, page=lev)
+            width = int(temp_img.get('width'))
+            height = int(temp_img.get('height'))
+            downsample = float(self.dimensions[0] / width)
+            self.levels += [{
+                'dimensions': (width, height),
+                'width': width,
+                'height': height,
+                'downsample': downsample,
+                'level': lev
+            }]
+        self.levels = sorted(self.levels, key=lambda x: x['width'], reverse=True)
+        log.debug(f"Read {self.level_count} levels.")
+        self.level_downsamples = [lev['downsample'] for lev in self.levels]
+        self.level_dimensions = [lev['dimensions'] for lev in self.levels]
+
+
+class _VersaVIPSReader(_VIPSReader):
+
+    def _load_levels(self, vips_image: Optional["vips.Image"]):
+        """Load downsample levels."""
+        log.debug("Attempting to read levels from Versa multi-page image")
+        # This is a multipage tiff without openslide metadata.
+        # Ignore the last 2 pages, which per our experimentation,
+        # are likely to be the slide label and image thumbnail.
+        all_lev = self.level_count = max(int(self.properties['n-pages']) - 2, 1)
+        # Calculate level metadata
+        self.levels = []
+        for lev in range(self.level_count):
+            temp_img = vips.Image.new_from_file(self.path, page=lev)
+            width = int(temp_img.get('width'))
+            height = int(temp_img.get('height'))
+            downsample = float(self.dimensions[0] / width)
+            self.levels += [{
+                'dimensions': (width, height),
+                'width': width,
+                'height': height,
+                'downsample': downsample,
+                'level': lev
+            }]
+        self.levels = sorted(self.levels, key=lambda x: x['width'], reverse=True)
+        log.debug(f"Read {self.level_count} of {all_lev} levels.")
+        self.level_downsamples = [lev['downsample'] for lev in self.levels]
+        self.level_dimensions = [lev['dimensions'] for lev in self.levels]
+
+    def thumbnail(self, width: int = 512, *args, **kwargs) -> np.ndarray:
+        """Return thumbnail of slide as numpy array."""
+        vips_image = vips.Image.new_from_file(self.path, page=1)
+        np_image = vips2numpy(vips_image)
+        width_height_ratio = np_image.shape[1] / np_image.shape[0]
+        height = int(width / width_height_ratio)
+        return cv2.resize(np_image, (width, height))
+
 
 class _SingleLevelVIPSReader(_VIPSReader):
     '''Wrapper for JPG files, which do not possess separate levels, to
@@ -661,10 +759,12 @@ class _SingleLevelVIPSReader(_VIPSReader):
         cache_kw = None,
         ignore_missing_mpp: bool = True,
         pad_missing: bool = True,
+        loaded_image: Optional["vips.Image"] = None
     ) -> None:
         self.path = path
         self.pad_missing = pad_missing
-        loaded_image = vips.Image.new_from_file(path)
+        if loaded_image is None:
+            loaded_image = vips.Image.new_from_file(path)
         self.cache_kw = cache_kw if cache_kw else {}
         if not loaded_image.hasalpha():
             loaded_image = loaded_image.addalpha()
@@ -674,6 +774,7 @@ class _SingleLevelVIPSReader(_VIPSReader):
         width = int(self.properties[OPS_WIDTH])
         height = int(self.properties[OPS_HEIGHT])
         self.dimensions = (width, height)
+        self.vips_loader = loaded_image.get('vips-loader')
         self.level_count = 1
         self.loaded_downsample_levels = {
             0: loaded_image
@@ -684,6 +785,7 @@ class _SingleLevelVIPSReader(_VIPSReader):
             'width': width,
             'height': height,
             'downsample': 1,
+            'level': 0
         }]
         self.level_downsamples = [1]
         self.level_dimensions = [(width, height)]
