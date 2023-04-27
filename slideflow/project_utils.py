@@ -950,13 +950,13 @@ class BreastER(_ProjectConfig):
     labels_md5 = 'e25028e87760749973ceea691e6d63d7'
 
 class ThyroidBRS(_ProjectConfig):
-    config_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/thyroid_brs/thyroid_brs.json'
+    config_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/master/datasets/thyroid_brs/thyroid_brs.json'
     config_md5 = 'c4fbe83766db8f637780f7881cb1045e'
-    labels_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/thyroid_brs/thyroid_labels.csv'
+    labels_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/master/datasets/thyroid_brs/thyroid_labels.csv'
     labels_md5 = 'c04f2569dc3a914241fae0d0b644a327'
 
 class LungAdenoSquam(_ProjectConfig):
-    config_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/lung_adeno_squam/lung_adeno_squam.json'
+    config_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/master/datasets/lung_adeno_squam/lung_adeno_squam.json'
     config_md5 = '9239d18b66e054132700c08831560669'
-    labels_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/lung_adeno_squam/lung_labels.csv'
+    labels_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/master/datasets/lung_adeno_squam/lung_labels.csv'
     labels_md5 = '6619d520d707e211b22b477996bcfdcd'

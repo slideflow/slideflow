@@ -6,6 +6,8 @@ import skimage
 from slideflow import errors
 from typing import Union, Optional
 
+# -----------------------------------------------------------------------------
+
 class Gaussian:
 
     def __init__(
@@ -32,8 +34,8 @@ class Gaussian:
                     from slideflow.slide import qc
 
                     wsi = sf.WSI(...)
-                    otsu = qc.Otsu()
-                    wsi.qc(otsu)
+                    gaussian = qc.Gaussian()
+                    wsi.qc(gaussian)
 
         Args:
             mpp (float): Microns-per-pixel at which to perform filtering.
@@ -110,17 +112,21 @@ class Gaussian:
         existing_qc_mask = mask
         if mask is None and isinstance(wsi, sf.WSI):
             existing_qc_mask = wsi.qc_mask
-        if existing_qc_mask is not None:
-            blur_mask = skimage.transform.resize(blur_mask, existing_qc_mask.shape)
-            blur_mask = blur_mask.astype(bool)
-            blur = np.count_nonzero(
-                np.logical_and(
-                    blur_mask,
-                    np.logical_xor(blur_mask, existing_qc_mask)
-                )
-            )
-            if isinstance(wsi, sf.WSI):
-                wsi.blur_burden = blur / (blur_mask.shape[0] * blur_mask.shape[1])
-                sf.log.debug(f"Blur burden: {wsi.blur_burden}")
+        if existing_qc_mask is not None and isinstance(wsi, sf.WSI):
+            wsi.blur_burden = blur_burden(blur_mask, existing_qc_mask)
+            sf.log.debug(f"Blur burden: {wsi.blur_burden}")
 
         return blur_mask
+
+# -----------------------------------------------------------------------------
+
+def blur_burden(blur_mask, existing_mask):
+    blur_mask = skimage.transform.resize(blur_mask, existing_mask.shape)
+    blur_mask = blur_mask.astype(bool)
+    blur = np.count_nonzero(
+        np.logical_and(
+            blur_mask,
+            np.logical_xor(blur_mask, existing_mask)
+        )
+    )
+    return blur / (blur_mask.shape[0] * blur_mask.shape[1])

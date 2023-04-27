@@ -67,6 +67,10 @@ class HeatmapError(Exception):
 class MosaicError(Exception):
     pass
 
+# --- TFRecord Heatmap Errors -------------------------------------------------
+
+class CoordinateAlignmentError(Exception):
+    pass
 
 # --- Project errors ----------------------------------------------------------
 class ProjectError(Exception):
@@ -98,6 +102,10 @@ class InvalidFeatureExtractor(Exception):
 
 # --- TFRecords errors --------------------------------------------------------
 class TFRecordsError(Exception):
+    pass
+
+
+class TFRecordsIndexError(Exception):
     pass
 
 

@@ -47,7 +47,7 @@ class Otsu:
                     from slideflow.slide import qc
 
                     wsi = sf.WSI(...)
-                    gaussian = qc.Gaussian()
+                    gaussian = qc.GaussianV2()
                     otsu = qc.Otsu()
                     wsi.qc([gaussian, otsu])
 

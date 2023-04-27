@@ -1,0 +1,909 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>slideflow.biscuit.utils &mdash; slideflow 2.0.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../genindex/" />
+    <link rel="search" title="Search" href="../../../../search/" />
+  <!-- Google Analytics -->
+
+  <!-- End Google Analytics -->
+
+
+
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+
+
+
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+
+
+
+
+
+                <div class="version">
+                  2.0
+                </div>
+
+
+
+
+
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+          </div>
+
+
+
+
+
+
+
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+</ul>
+
+
+
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+
+      <li>
+        <a href="../../../../">
+
+            Docs
+
+        </a> &gt;
+      </li>
+
+
+          <li><a href="../../../">Module code</a> &gt;</li>
+
+      <li>slideflow.biscuit.utils</li>
+
+
+      <li class="pytorch-breadcrumbs-aside">
+
+      </li>
+
+  </ul>
+
+
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+
+
+          <div class="rst-content">
+
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+
+  <h1>Source code for slideflow.biscuit.utils</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span>
+<span class="kn">from</span> <span class="nn">statistics</span> <span class="kn">import</span> <span class="n">mean</span><span class="p">,</span> <span class="n">variance</span>
+
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">matplotlib.colors</span> <span class="k">as</span> <span class="nn">colors</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">metrics</span>
+<span class="kn">from</span> <span class="nn">sklearn.exceptions</span> <span class="kn">import</span> <span class="n">UndefinedMetricWarning</span>
+
+<span class="kn">from</span> <span class="nn">.delong</span> <span class="kn">import</span> <span class="n">delong_roc_variance</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">ModelNotFoundError</span><span class="p">,</span> <span class="n">MultipleModelsFoundError</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<span class="k">def</span> <span class="nf">uncertainty_header</span><span class="p">(</span><span class="n">outcome</span><span class="p">,</span> <span class="n">underscore</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">outcome</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;_&#39;</span> <span class="k">if</span> <span class="n">underscore</span> <span class="k">else</span> <span class="s1">&#39;-&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;uncertainty1&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">y_true_header</span><span class="p">(</span><span class="n">outcome</span><span class="p">,</span> <span class="n">underscore</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">outcome</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;_&#39;</span> <span class="k">if</span> <span class="n">underscore</span> <span class="k">else</span> <span class="s1">&#39;-&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;y_true0&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">y_pred_header</span><span class="p">(</span><span class="n">outcome</span><span class="p">,</span> <span class="n">underscore</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">outcome</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;_&#39;</span> <span class="k">if</span> <span class="n">underscore</span> <span class="k">else</span> <span class="s1">&#39;-&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;y_pred1&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">rename_cols</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">y_true</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">uncertainty</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Renames columns of dataframe, in place.&quot;&quot;&quot;</span>
+    <span class="c1"># Support for using underscore or dashes</span>
+    <span class="k">if</span> <span class="n">y_true</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">y_true</span> <span class="o">=</span> <span class="n">y_true_header</span><span class="p">(</span>
+            <span class="n">outcome</span><span class="p">,</span>
+            <span class="n">underscore</span><span class="o">=</span><span class="p">(</span><span class="n">y_true_header</span><span class="p">(</span><span class="n">outcome</span><span class="p">,</span> <span class="n">underscore</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">y_true</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">y_true</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">outcome</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;-y_true&#39;</span>
+    <span class="k">if</span> <span class="n">y_pred</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">y_pred_header</span><span class="p">(</span>
+            <span class="n">outcome</span><span class="p">,</span>
+            <span class="n">underscore</span><span class="o">=</span><span class="p">(</span><span class="n">y_pred_header</span><span class="p">(</span><span class="n">outcome</span><span class="p">,</span> <span class="n">underscore</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">uncertainty</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">uncertainty</span> <span class="o">=</span> <span class="n">uncertainty_header</span><span class="p">(</span>
+            <span class="n">outcome</span><span class="p">,</span>
+            <span class="n">underscore</span><span class="o">=</span><span class="p">(</span><span class="n">uncertainty_header</span><span class="p">(</span><span class="n">outcome</span><span class="p">,</span> <span class="n">underscore</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">))</span>
+    <span class="n">new_cols</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">y_true</span><span class="p">:</span> <span class="s1">&#39;y_true&#39;</span><span class="p">,</span>
+        <span class="n">y_pred</span><span class="p">:</span> <span class="s1">&#39;y_pred&#39;</span><span class="p">,</span>
+        <span class="n">uncertainty</span><span class="p">:</span> <span class="s1">&#39;uncertainty&#39;</span>
+    <span class="p">}</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">new_cols</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># --- General utility functions -----------------------------------------------</span>
+
+<div class="viewcode-block" id="truncate_colormap"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.truncate_colormap">[docs]</a><span class="k">def</span> <span class="nf">truncate_colormap</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="n">minval</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">maxval</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Truncates matplotlib colormap.&quot;&quot;&quot;</span>
+
+    <span class="n">new_cmap</span> <span class="o">=</span> <span class="n">colors</span><span class="o">.</span><span class="n">LinearSegmentedColormap</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span>
+        <span class="s1">&#39;trunc(</span><span class="si">{n}</span><span class="s1">,</span><span class="si">{a:.2f}</span><span class="s1">,</span><span class="si">{b:.2f}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">cmap</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="n">minval</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="n">maxval</span><span class="p">),</span>
+        <span class="n">cmap</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">minval</span><span class="p">,</span> <span class="n">maxval</span><span class="p">,</span> <span class="n">n</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">new_cmap</span></div>
+
+
+<div class="viewcode-block" id="get_model_results"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.get_model_results">[docs]</a><span class="k">def</span> <span class="nf">get_model_results</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">outcome</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reads results/metrics from a trained model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path (str): Path to model.</span>
+<span class="sd">        outcome (str): Outcome name.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dict of results with the keys: pt_auc, pt_ap, slide_auc, slide_ap,</span>
+<span class="sd">            tile_auc, tile_ap, opt_thresh</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">csv</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;results_log.csv&#39;</span><span class="p">))</span>
+    <span class="n">result_rows</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">csv</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">row_epoch</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;model_name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;epoch&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">result_rows</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+            <span class="n">row_epoch</span><span class="p">:</span> <span class="n">row</span>
+        <span class="p">})</span>
+    <span class="k">if</span> <span class="n">epoch</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result_rows</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ModelNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to find results for epoch </span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">model_res</span> <span class="o">=</span> <span class="n">result_rows</span><span class="p">[</span><span class="n">epoch</span><span class="p">]</span>
+    <span class="n">pt_ap</span> <span class="o">=</span> <span class="n">mean</span><span class="p">(</span><span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;patient_ap&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">])</span>
+    <span class="n">pt_auc</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;patient_auc&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">slide_ap</span> <span class="o">=</span> <span class="n">mean</span><span class="p">(</span><span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;slide_ap&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">])</span>
+    <span class="n">slide_auc</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;slide_auc&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">tile_ap</span> <span class="o">=</span> <span class="n">mean</span><span class="p">(</span><span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;tile_ap&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">])</span>
+    <span class="n">tile_auc</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;tile_auc&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">pred_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span>
+        <span class="n">path</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s1">&#39;patient_predictions_</span><span class="si">{</span><span class="n">outcome</span><span class="si">}</span><span class="s1">_val_epoch</span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s1">.csv&#39;</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">pred_path</span><span class="p">):</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">opt_thresh</span> <span class="o">=</span> <span class="n">auc_and_threshold</span><span class="p">(</span><span class="o">*</span><span class="n">read_group_predictions</span><span class="p">(</span><span class="n">pred_path</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parquet_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;patient_predictions_val_epoch1.parquet.gzip&#39;</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">opt_thresh</span> <span class="o">=</span> <span class="n">auc_and_threshold</span><span class="p">(</span><span class="o">*</span><span class="n">read_group_predictions</span><span class="p">(</span><span class="n">parquet_path</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="n">opt_thresh</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;pt_auc&#39;</span><span class="p">:</span> <span class="n">pt_auc</span><span class="p">,</span>
+        <span class="s1">&#39;pt_ap&#39;</span><span class="p">:</span> <span class="n">pt_ap</span><span class="p">,</span>
+        <span class="s1">&#39;slide_auc&#39;</span><span class="p">:</span> <span class="n">slide_auc</span><span class="p">,</span>
+        <span class="s1">&#39;slide_ap&#39;</span><span class="p">:</span> <span class="n">slide_ap</span><span class="p">,</span>
+        <span class="s1">&#39;tile_auc&#39;</span><span class="p">:</span> <span class="n">tile_auc</span><span class="p">,</span>
+        <span class="s1">&#39;tile_ap&#39;</span><span class="p">:</span> <span class="n">tile_ap</span><span class="p">,</span>
+        <span class="s1">&#39;opt_thresh&#39;</span><span class="p">:</span> <span class="n">opt_thresh</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="get_eval_results"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.get_eval_results">[docs]</a><span class="k">def</span> <span class="nf">get_eval_results</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">outcome</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reads results/metrics from a trained model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path (str): Path to model.</span>
+<span class="sd">        outcome (str): Outcome name.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dict of results with the keys: pt_auc, pt_ap, slide_auc, slide_ap,</span>
+<span class="sd">            tile_auc, tile_ap, opt_thresh</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">csv</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;results_log.csv&#39;</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">csv</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+        <span class="n">model_res</span> <span class="o">=</span> <span class="n">row</span>
+    <span class="n">pt_ap</span> <span class="o">=</span> <span class="n">mean</span><span class="p">(</span><span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;patient_ap&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">])</span>
+    <span class="n">pt_auc</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;patient_auc&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">slide_ap</span> <span class="o">=</span> <span class="n">mean</span><span class="p">(</span><span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;slide_ap&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">])</span>
+    <span class="n">slide_auc</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;slide_auc&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">tile_ap</span> <span class="o">=</span> <span class="n">mean</span><span class="p">(</span><span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;tile_ap&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">])</span>
+    <span class="n">tile_auc</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;tile_auc&#39;</span><span class="p">])[</span><span class="n">outcome</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">pred_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span>
+        <span class="n">path</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s1">&#39;patient_predictions_</span><span class="si">{</span><span class="n">outcome</span><span class="si">}</span><span class="s1">_eval.csv&#39;</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">pred_path</span><span class="p">):</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">opt_thresh</span> <span class="o">=</span> <span class="n">auc_and_threshold</span><span class="p">(</span><span class="o">*</span><span class="n">read_group_predictions</span><span class="p">(</span><span class="n">pred_path</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parquet_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;patient_predictions_eval.parquet.gzip&#39;</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">opt_thresh</span> <span class="o">=</span> <span class="n">auc_and_threshold</span><span class="p">(</span><span class="o">*</span><span class="n">read_group_predictions</span><span class="p">(</span><span class="n">parquet_path</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="n">opt_thresh</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;pt_auc&#39;</span><span class="p">:</span> <span class="n">pt_auc</span><span class="p">,</span>
+        <span class="s1">&#39;pt_ap&#39;</span><span class="p">:</span> <span class="n">pt_ap</span><span class="p">,</span>
+        <span class="s1">&#39;slide_auc&#39;</span><span class="p">:</span> <span class="n">slide_auc</span><span class="p">,</span>
+        <span class="s1">&#39;slide_ap&#39;</span><span class="p">:</span> <span class="n">slide_ap</span><span class="p">,</span>
+        <span class="s1">&#39;tile_auc&#39;</span><span class="p">:</span> <span class="n">tile_auc</span><span class="p">,</span>
+        <span class="s1">&#39;tile_ap&#39;</span><span class="p">:</span> <span class="n">tile_ap</span><span class="p">,</span>
+        <span class="s1">&#39;opt_thresh&#39;</span><span class="p">:</span> <span class="n">opt_thresh</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="find_cv_early_stop"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.find_cv_early_stop">[docs]</a><span class="k">def</span> <span class="nf">find_cv_early_stop</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Detects early stop batch from cross-val trained models.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        project (slideflow.Project): Project.</span>
+<span class="sd">        label (str): Experimental label.</span>
+<span class="sd">        k (int, optional): Number of k-fold iterations. Defaults to 3.</span>
+<span class="sd">        outcome (str): Outcome name.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        int: Early stop batch.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cv_folders</span> <span class="o">=</span> <span class="n">find_cv</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">outcome</span><span class="o">=</span><span class="n">outcome</span><span class="p">)</span>
+    <span class="n">early_stop_batch</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">cv_folder</span> <span class="ow">in</span> <span class="n">cv_folders</span><span class="p">:</span>
+        <span class="n">csv</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">cv_folder</span><span class="p">,</span> <span class="s1">&#39;results_log.csv&#39;</span><span class="p">))</span>
+        <span class="n">model_res</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">csv</span><span class="o">.</span><span class="n">iterrows</span><span class="p">())[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;early_stop_batch&#39;</span> <span class="ow">in</span> <span class="n">model_res</span><span class="p">:</span>
+            <span class="n">early_stop_batch</span> <span class="o">+=</span> <span class="p">[</span><span class="n">model_res</span><span class="p">[</span><span class="s1">&#39;early_stop_batch&#39;</span><span class="p">]]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">early_stop_batch</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">cv_folders</span><span class="p">):</span>
+        <span class="c1"># Only returns early stop if it was triggered in all crossfolds</span>
+        <span class="k">return</span> <span class="nb">round</span><span class="p">(</span><span class="n">mean</span><span class="p">(</span><span class="n">early_stop_batch</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="df_from_cv"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.df_from_cv">[docs]</a><span class="k">def</span> <span class="nf">df_from_cv</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">y_true</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">y_pred</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">uncertainty</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads tile predictions from cross-fold models &amp; renames columns.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        project (sf.Project): Slideflow project.</span>
+<span class="sd">        label (str): Experimental label.</span>
+<span class="sd">        epoch (int, optional): Epoch number of saved model. Defaults to None.</span>
+<span class="sd">        k (int, optional): K-fold iteration. Defaults to 3.</span>
+<span class="sd">        outcome (str, optional): Outcome name.</span>
+<span class="sd">        y_true (str, optional): Column name for ground truth labels.</span>
+<span class="sd">            Defaults to {outcome}_y_true0.</span>
+<span class="sd">        y_pred (str, optional): Column name for predictions.</span>
+<span class="sd">            Defaults to {outcome}_y_pred1.</span>
+<span class="sd">        uncertainty (str, optional): Column name for uncertainty.</span>
+<span class="sd">            Defaults to {outcome}_y_uncertainty1.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        list(DataFrame): DataFrame for each k-fold.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">dfs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">model_folders</span> <span class="o">=</span> <span class="n">find_cv</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="n">epoch</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">outcome</span><span class="o">=</span><span class="n">outcome</span><span class="p">)</span>
+    <span class="n">patients</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">()</span><span class="o">.</span><span class="n">patients</span><span class="p">()</span>
+    <span class="n">e</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="n">epoch</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;../&#39;</span>
+
+    <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">model_folders</span><span class="p">:</span>
+        <span class="n">csv_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">tile_predictions_val_epoch1.csv&#39;</span><span class="p">)</span>
+        <span class="n">parquet_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">tile_predictions_val_epoch1.parquet.gzip&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">csv_path</span><span class="p">):</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">csv_path</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">parquet_path</span><span class="p">):</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">parquet_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find tile predictions file at </span><span class="si">{</span><span class="n">folder</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">rename_cols</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">y_true</span><span class="o">=</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">uncertainty</span><span class="o">=</span><span class="n">uncertainty</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;patient&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">df</span><span class="p">[</span><span class="s1">&#39;patient&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">patients</span><span class="p">)</span>
+        <span class="n">dfs</span> <span class="o">+=</span> <span class="p">[</span><span class="n">df</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">dfs</span></div>
+
+
+<span class="c1"># --- Utility functions for finding experiment models -------------------------</span>
+
+<div class="viewcode-block" id="find_model"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.find_model">[docs]</a><span class="k">def</span> <span class="nf">find_model</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kfold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Searches for a model in a project model directory.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        project (slideflow.Project): Project.</span>
+<span class="sd">        label (str): Experimental label.</span>
+<span class="sd">        outcome (str): Outcome name.</span>
+<span class="sd">        epoch (int, optional): Epoch to search for. If not None, returns</span>
+<span class="sd">            path to the saved model. If None, returns path to parent model</span>
+<span class="sd">            folder. Defaults to None.</span>
+<span class="sd">        kfold (int, optional): K-fold iteration. Defaults to None.</span>
+
+
+<span class="sd">    Raises:</span>
+<span class="sd">        MultipleModelsFoundError: If multiple potential matches are found.</span>
+<span class="sd">        ModelNotFoundError: If no matching model is found.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: Path to matching model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tail</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="n">kfold</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;-kfold</span><span class="si">{</span><span class="n">kfold</span><span class="si">}</span><span class="s1">&#39;</span>
+    <span class="n">model_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">outcome</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">-HP0</span><span class="si">{</span><span class="n">tail</span><span class="si">}</span><span class="s1">&#39;</span>
+    <span class="n">matching</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">project</span><span class="o">.</span><span class="n">models_dir</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">o</span><span class="p">[</span><span class="mi">6</span><span class="p">:]</span> <span class="o">==</span> <span class="n">model_name</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">MultipleModelsFoundError</span><span class="p">(</span><span class="s2">&quot;Multiple matching models found &quot;</span>
+                                       <span class="sa">f</span><span class="s2">&quot;matching </span><span class="si">{</span><span class="n">model_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">ModelNotFoundError</span><span class="p">(</span><span class="s2">&quot;No matching model found matching &quot;</span>
+                                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">model_name</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">epoch</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">join</span><span class="p">(</span>
+            <span class="n">project</span><span class="o">.</span><span class="n">models_dir</span><span class="p">,</span>
+            <span class="n">matching</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">outcome</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">-HP0</span><span class="si">{</span><span class="n">tail</span><span class="si">}</span><span class="s1">_epoch</span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">join</span><span class="p">(</span><span class="n">project</span><span class="o">.</span><span class="n">models_dir</span><span class="p">,</span> <span class="n">matching</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="model_exists"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.model_exists">[docs]</a><span class="k">def</span> <span class="nf">model_exists</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kfold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if matching model exists.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        project (slideflow.Project): Project.</span>
+<span class="sd">        label (str): Experimental label.</span>
+<span class="sd">        outcome (str, optional): Outcome name.</span>
+<span class="sd">        epoch (int, optional): Epoch number of saved model. Defaults to None.</span>
+<span class="sd">        kfold (int, optional): K-fold iteration. Defaults to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: If model exists</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">find_model</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">kfold</span><span class="o">=</span><span class="n">kfold</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="n">epoch</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="n">ModelNotFoundError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="find_cv"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.find_cv">[docs]</a><span class="k">def</span> <span class="nf">find_cv</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Finds paths to cross-validation models.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        project (slideflow.Project): Project.</span>
+<span class="sd">        label (str): Experimental label.</span>
+<span class="sd">        outcome (str, optional): Outcome name.</span>
+<span class="sd">        epoch (int, optional): Epoch number of saved model. Defaults to None.</span>
+<span class="sd">        kfold (int, optional): K-fold iteration. Defaults to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        list(str): Paths to cross-validation models.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="n">find_model</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="n">epoch</span><span class="p">,</span> <span class="n">kfold</span><span class="o">=</span><span class="n">_k</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="find_eval"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.find_eval">[docs]</a><span class="k">def</span> <span class="nf">find_eval</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Finds matching eval directory.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        project (slideflow.Project): Project.</span>
+<span class="sd">        label (str): Experimental label.</span>
+<span class="sd">        outcome (str, optional): Outcome name.</span>
+<span class="sd">        epoch (int, optional): Epoch number of saved model. Defaults to None.</span>
+
+
+<span class="sd">    Raises:</span>
+<span class="sd">        MultipleModelsFoundError: If multiple matches are found.</span>
+<span class="sd">        ModelNotFoundError: If no match is found.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: path to eval directory</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">matching</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">project</span><span class="o">.</span><span class="n">eval_dir</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">o</span><span class="p">[</span><span class="mi">11</span><span class="p">:]</span> <span class="o">==</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">outcome</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">-HP0_epoch</span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s1">&#39;</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">MultipleModelsFoundError</span><span class="p">(</span><span class="s2">&quot;Multiple matching eval experiments &quot;</span>
+                                       <span class="sa">f</span><span class="s2">&quot;found for label </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">ModelNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No matching eval found for label </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">join</span><span class="p">(</span><span class="n">project</span><span class="o">.</span><span class="n">eval_dir</span><span class="p">,</span> <span class="n">matching</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="eval_exists"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.eval_exists">[docs]</a><span class="k">def</span> <span class="nf">eval_exists</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if matching eval exists.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        project (slideflow.Project): Project.</span>
+<span class="sd">        label (str): Experimental label.</span>
+<span class="sd">        epoch (int, optional): Epoch number of saved model. Defaults to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: If eval exists</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">find_eval</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="n">epoch</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="n">ModelNotFoundError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<span class="c1"># --- Thresholding and metrics functions --------------------------------------</span>
+
+<div class="viewcode-block" id="read_group_predictions"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.read_group_predictions">[docs]</a><span class="k">def</span> <span class="nf">read_group_predictions</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Reads patient- or slide-level predictions CSV or parquet file,</span>
+<span class="sd">    returning y_true and y_pred.</span>
+
+<span class="sd">    Expects a binary categorical outcome.</span>
+
+<span class="sd">    Compatible with Slideflow 1.1 and 1.2.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find predictions file at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;csv&#39;</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;parquet&#39;</span><span class="p">,</span> <span class="s1">&#39;gzip&#39;</span><span class="p">):</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized extension for prediction file </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;y_true1&#39;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="n">y_true</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;y_true1&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">y_true_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;y_true&#39;</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_true_cols</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">y_true</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">y_true_cols</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find y_true column at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;percent_tiles_positive1&#39;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;percent_tiles_positive1&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">y_pred_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="s1">&#39;y_pred&#39;</span> <span class="ow">in</span> <span class="n">c</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_pred_cols</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">y_pred</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">y_pred_cols</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected exactly 2 y_pred columns at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">; &quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">y_pred_cols</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span></div>
+
+
+<div class="viewcode-block" id="prediction_metrics"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.prediction_metrics">[docs]</a><span class="k">def</span> <span class="nf">prediction_metrics</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">threshold</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate prediction metrics (AUC, sensitivity/specificity, etc)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        y_true (np.ndarray): True labels.</span>
+<span class="sd">        y_pred (np.ndarray): Predictions.</span>
+<span class="sd">        threshold (_type_): Prediction threshold.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dict: Prediction metrics.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">yt</span> <span class="o">=</span> <span class="n">y_true</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="n">yp</span> <span class="o">=</span> <span class="n">y_pred</span> <span class="o">&gt;</span> <span class="n">threshold</span>
+
+    <span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.05</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">alpha</span><span class="o">/</span><span class="mi">2</span><span class="p">))</span>
+    <span class="n">tp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">yt</span><span class="p">,</span> <span class="n">yp</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">yt</span><span class="p">),</span> <span class="n">yp</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">tn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">yt</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">yp</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">fn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">yt</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">yp</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">acc</span> <span class="o">=</span> <span class="p">(</span><span class="n">tp</span> <span class="o">+</span> <span class="n">tn</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">tp</span> <span class="o">+</span> <span class="n">tn</span> <span class="o">+</span> <span class="n">fp</span> <span class="o">+</span> <span class="n">fn</span><span class="p">)</span>
+    <span class="n">sensitivity</span> <span class="o">=</span> <span class="n">tp</span> <span class="o">/</span> <span class="p">(</span><span class="n">tp</span> <span class="o">+</span> <span class="n">fn</span><span class="p">)</span>
+    <span class="n">specificity</span> <span class="o">=</span> <span class="n">tn</span> <span class="o">/</span> <span class="p">(</span><span class="n">tn</span> <span class="o">+</span> <span class="n">fp</span><span class="p">)</span>
+
+    <span class="c1"># Youden&#39;s confidence interval, via BAC (bootstrap AC estimate)</span>
+    <span class="c1"># Bootstrapping performed with sample size n = 100 and iterations B = 500</span>
+    <span class="n">all_jac</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">500</span><span class="p">):</span>
+        <span class="n">bootstrap_i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">yt</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">150</span><span class="p">,))</span>
+        <span class="n">_yt</span> <span class="o">=</span> <span class="n">yt</span><span class="p">[</span><span class="n">bootstrap_i</span><span class="p">]</span>
+        <span class="n">_yp</span> <span class="o">=</span> <span class="n">yp</span><span class="p">[</span><span class="n">bootstrap_i</span><span class="p">]</span>
+        <span class="n">_tp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">_yt</span><span class="p">,</span> <span class="n">_yp</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">_fp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">_yt</span><span class="p">),</span> <span class="n">_yp</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">_tn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">_yt</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">_yp</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">_fn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">_yt</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">_yp</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">_jac</span> <span class="o">=</span> <span class="p">(((</span><span class="n">_tn</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">z</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">_tn</span> <span class="o">+</span> <span class="n">_fp</span> <span class="o">+</span> <span class="n">z</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+                <span class="o">-</span> <span class="p">((</span><span class="n">_fn</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">z</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">_fn</span> <span class="o">+</span> <span class="n">_tp</span> <span class="o">+</span> <span class="n">z</span><span class="o">**</span><span class="mi">2</span><span class="p">)))</span>
+        <span class="n">all_jac</span> <span class="o">+=</span> <span class="p">[</span><span class="n">_jac</span><span class="p">]</span>
+
+    <span class="n">jac</span> <span class="o">=</span> <span class="n">mean</span><span class="p">(</span><span class="n">all_jac</span><span class="p">)</span>
+    <span class="n">jac_var</span> <span class="o">=</span> <span class="n">variance</span><span class="p">(</span><span class="n">all_jac</span><span class="p">)</span>
+    <span class="n">jac_low</span> <span class="o">=</span> <span class="n">jac</span> <span class="o">-</span> <span class="n">z</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">jac_var</span><span class="p">)</span>
+    <span class="n">jac_high</span> <span class="o">=</span> <span class="n">jac</span> <span class="o">+</span> <span class="n">z</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">jac_var</span><span class="p">)</span>
+
+    <span class="c1"># AUC confidence intervals</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">y_true</span><span class="p">),</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]):</span>
+        <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Unable to calculate CI; NaNs exist&quot;</span><span class="p">)</span>
+        <span class="n">ci</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">delong_auc</span><span class="p">,</span> <span class="n">auc_cov</span> <span class="o">=</span> <span class="n">delong_roc_variance</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+        <span class="n">auc_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">auc_cov</span><span class="p">)</span>
+        <span class="n">lower_upper_q</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="n">alpha</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">ci</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">lower_upper_q</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="n">delong_auc</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">auc_std</span><span class="p">)</span>
+        <span class="n">ci</span><span class="p">[</span><span class="n">ci</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;auc_low&#39;</span><span class="p">:</span> <span class="n">ci</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="s1">&#39;auc_high&#39;</span><span class="p">:</span> <span class="n">ci</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="s1">&#39;acc&#39;</span><span class="p">:</span> <span class="n">acc</span><span class="p">,</span>
+        <span class="s1">&#39;sens&#39;</span><span class="p">:</span> <span class="n">sensitivity</span><span class="p">,</span>
+        <span class="s1">&#39;spec&#39;</span><span class="p">:</span> <span class="n">specificity</span><span class="p">,</span>
+        <span class="s1">&#39;youden&#39;</span><span class="p">:</span> <span class="n">sensitivity</span> <span class="o">+</span> <span class="n">specificity</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;youden_low&#39;</span><span class="p">:</span> <span class="n">jac_low</span><span class="p">,</span>
+        <span class="s1">&#39;youden_high&#39;</span><span class="p">:</span> <span class="n">jac_high</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="auc_and_threshold"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.auc_and_threshold">[docs]</a><span class="k">def</span> <span class="nf">auc_and_threshold</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculates AUC and optimal threshold (via Youden&#39;s J)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        y_true (np.ndarray): Y true (labels).</span>
+<span class="sd">        y_pred (np.ndarray): Y pred (predictions).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        float: AUC</span>
+<span class="sd">        float: Optimal threshold</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="n">UndefinedMetricWarning</span><span class="p">)</span>
+        <span class="n">fpr</span><span class="p">,</span> <span class="n">tpr</span><span class="p">,</span> <span class="n">threshold</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">roc_curve</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+        <span class="n">roc_auc</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">auc</span><span class="p">(</span><span class="n">fpr</span><span class="p">,</span> <span class="n">tpr</span><span class="p">)</span>
+    <span class="n">max_j</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">tpr</span><span class="p">,</span> <span class="n">fpr</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">optimal_threshold</span> <span class="o">=</span> <span class="n">threshold</span><span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">tpr</span><span class="p">,</span> <span class="n">fpr</span><span class="p">))</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">max_j</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">roc_auc</span><span class="p">,</span> <span class="n">optimal_threshold</span></div>
+
+
+<div class="viewcode-block" id="auc"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.auc">[docs]</a><span class="k">def</span> <span class="nf">auc</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate Area Under Receiver Operator Curve (AUC / AUROC)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        y_true (np.ndarray): True labels.</span>
+<span class="sd">        y_pred (np.ndarray): Predictions.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Float: AUC</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="n">UndefinedMetricWarning</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fpr</span><span class="p">,</span> <span class="n">tpr</span><span class="p">,</span> <span class="n">threshold</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">roc_curve</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">metrics</span><span class="o">.</span><span class="n">auc</span><span class="p">(</span><span class="n">fpr</span><span class="p">,</span> <span class="n">tpr</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Unable to calculate ROC&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span></div>
+</pre></div>
+
+             </article>
+
+            </div>
+            <footer>
+
+
+
+
+    <hr>
+
+
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2022, James M Dolezal.
+
+    </p>
+  </div>
+
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+
+
+
+
+
+       <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+         <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+         <script src="../../../../_static/doctools.js"></script>
+         <script src="../../../../_static/sphinx_highlight.js"></script>
+
+
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

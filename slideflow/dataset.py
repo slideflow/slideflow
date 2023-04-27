@@ -905,7 +905,7 @@ class Dataset:
         return ret
 
     def build_index(self, force: bool = True) -> None:
-        """Build index files for TFRecords. Required for PyTorch.
+        """Build index files for TFRecords.
 
         Args:
             force (bool): Force re-build existing indices.
@@ -913,14 +913,29 @@ class Dataset:
         Returns:
             None
         """
+        if force:
+            index_to_update = self.tfrecords()
+        else:
+            index_to_update = []
+            for tfr in self.tfrecords():
+                index = tfrecord2idx.find_index(tfr)
+                if not index:
+                    index_to_update.append(tfr)
+                elif (not tfrecord2idx.index_has_locations(index)
+                      and sf.io.tfrecord_has_locations(tfr)):
+                    os.remove(index)
+                    index_to_update.append(tfr)
+            if not index_to_update:
+                return
+
+        index_fn = partial(_create_index, force=force)
         pool = mp.Pool(
-            os.cpu_count(),
+            sf.util.num_cpu(),
             initializer=sf.util.set_ignore_sigint
         )
-        index_fn = partial(_create_index, force=force)
-        for _ in track(pool.imap_unordered(index_fn, self.tfrecords()),
-                       description='Creating index files...',
-                       total=len(self.tfrecords()),
+        for _ in track(pool.imap_unordered(index_fn, index_to_update),
+                       description=f'Updating index files...',
+                       total=len(index_to_update),
                        transient=True):
             pass
         pool.close()
@@ -1441,11 +1456,12 @@ class Dataset:
                 given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in
                 tfrecords. Defaults to True.
-            num_threads (int, optional): Number of workers threads for each
+            num_threads (int, optional): Number of worker processes for each
                 tile extractor. When using cuCIM slide reading backend,
-                defaults to the total number of available CPU threads.
-                With Libvips, this defaults to the total number of available
-                CPU threads or 32, whichever is lower.
+                defaults to the total number of available CPU cores, using the
+                'fork' multiprocessing method. With Libvips, this defaults to
+                the total number of available CPU cores or 32, whichever is
+                lower, using 'spawn' multiprocessing.
             qc_blur_radius (int, optional): Quality control blur radius for
                 out-of-focus area detection. Used if qc=True. Defaults to 3.
             qc_blur_threshold (float, optional): Quality control blur threshold
@@ -1474,6 +1490,10 @@ class Dataset:
             sources = list(self.sources.keys())
         all_reports = []
         self.verify_annotations_slides()
+
+        # Log the active slide reading backend
+        col = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
+        log.info(f"Slide reading backend: [{col}]{sf.slide_backend()}[/]")
 
         # Set up kwargs for tile extraction generator and quality control
         qc_kwargs = {k[3:]: v for k, v in kwargs.items() if k[:3] == 'qc_'}
@@ -1552,7 +1572,7 @@ class Dataset:
 
                 # Use a single shared multiprocessing pool
                 if 'num_threads' not in kwargs:
-                    num_threads = os.cpu_count()
+                    num_threads = sf.util.num_cpu()
                     if sf.slide_backend() == 'libvips':
                         num_threads = min(num_threads, 32)
                     if num_threads is None:
@@ -1564,6 +1584,7 @@ class Dataset:
                         num_threads,
                         initializer=sf.util.set_ignore_sigint
                     )
+                    qc_kwargs['pool'] = pool
                 else:
                     pool = None
                     ptype = None
@@ -1846,7 +1867,7 @@ class Dataset:
             log.info(f"Updating index for {tfr}...")
             os.remove(tfr_idx)
             _create_index(tfr)
-        return sf.io.get_locations_from_tfrecord(tfr, as_dict=False)
+        return sf.io.get_locations_from_tfrecord(tfr)
 
     def harmonize_labels(
         self,
@@ -1936,7 +1957,7 @@ class Dataset:
             temp_dir = tempfile.TemporaryDirectory()
             splits = join(temp_dir.name, '_splits.json')
         else:
-            temp_file = None
+            temp_dir = None
         crossval_splits = []
         for k_fold_iter in range(k):
             split_kw = dict(
@@ -2266,12 +2287,12 @@ class Dataset:
         return result
 
     def pt_files(self, path, warn_missing=True):
-        r"""Return list of *.pt files with slide names in this dataset.
+        """Return list of \*.pt files with slide names in this dataset.
 
         Args:
-            path (str): Directory to search for *.pt files.
+            path (str): Directory to search for \*.pt files.
             warn_missing (bool): Raise a warning if any slides in this dataset
-                do not have a *.pt file.
+                do not have a \*.pt file.
 
         """
         slides = self.slides()
@@ -2287,7 +2308,7 @@ class Dataset:
         self,
         slide: str,
         loc: Tuple[int, int],
-        decode: bool = True
+        decode: Optional[bool] = None
     ) -> Any:
         """Read a record from a TFRecord, indexed by location.
 
@@ -2312,6 +2333,14 @@ class Dataset:
         if tfr is None:
             raise errors.TFRecordsError(
                 f"Could not find associated TFRecord for slide '{slide}'"
+            )
+        if decode is None:
+            decode = True
+        else:
+            warnings.warn(
+                "The 'decode' argument to `Dataset.read_tfrecord_by_location` "
+                "is deprecated and will be removed in a future version. In the "
+                "future, all records will be decoded."
             )
         return sf.io.get_tfrecord_by_location(tfr, loc, decode=decode)
 
@@ -2449,7 +2478,7 @@ class Dataset:
             otsu_task = pb.add_task("Otsu thresholding...", total=len(paths))
         pb.start()
         pool = mp.Pool(
-            16 if os.cpu_count is None else os.cpu_count(),
+            sf.util.num_cpu(default=16),
             initializer=sf.util.set_ignore_sigint
         )
         wsi_list = []

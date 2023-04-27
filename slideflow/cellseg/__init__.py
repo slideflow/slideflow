@@ -23,6 +23,7 @@ from cellpose.models import Cellpose
 from cellpose import transforms, plot, dynamics
 from slideflow.slide.utils import draw_roi
 from slideflow.util import batch_generator, log
+from slideflow.model import torch_utils
 
 from . import seg_utils
 
@@ -129,22 +130,29 @@ class Segmentation:
                 polygons, as available in ``slideflow.WSI.annPolys``.
 
         """
-        roi_seg_scale = scale / self.wsi_ratio
-        scaled_polys = [
-            sa.scale(
-                poly,
-                xfact=roi_seg_scale,
-                yfact=roi_seg_scale,
-                origin=(0, 0)
-            ) for poly in annpolys
-        ]
-        roi_seg_mask = rasterio.features.rasterize(
-            scaled_polys,
-            out_shape=self.masks.shape,
-            all_touched=False
-        ).astype(bool)
-        self.masks *= roi_seg_mask
-        self.calculate_centroids(force=True)
+        if self.wsi_ratio is not None and len(annpolys):
+            roi_seg_scale = scale / self.wsi_ratio
+            scaled_polys = [
+                sa.scale(
+                    poly,
+                    xfact=roi_seg_scale,
+                    yfact=roi_seg_scale,
+                    origin=(0, 0)
+                ) for poly in annpolys
+            ]
+            roi_seg_mask = rasterio.features.rasterize(
+                scaled_polys,
+                out_shape=self.masks.shape,
+                all_touched=False
+            ).astype(bool)
+            self.masks *= roi_seg_mask
+            self.calculate_centroids(force=True)
+        elif self.wsi_ratio is None:
+            log.warning("Unable to apply ROIs; WSI dimensions not set.")
+            return
+        else:
+            # No ROIs to apply
+            return
 
     def centroids(self, wsi_dim: bool = False) -> np.ndarray:
         """Calculate and return mask centroids.
@@ -467,7 +475,8 @@ def segment_slide(
     flow_threshold: float = 0.4,
     interp: bool = True,
     tile: bool = True,
-    verbose: bool = True
+    verbose: bool = True,
+    device: Optional[str] = None,
 ) -> Segmentation:
     """Segment cells in a whole-slide image, returning masks and centroids.
 
@@ -545,7 +554,7 @@ def segment_slide(
 
     # Set up model and parameters. --------------------------------------------
     start_time = time.time()
-    device = torch.device('cuda:0')
+    device = torch_utils.get_device(device)
     model = Cellpose(gpu=True, device=device)
     cp = model.cp
     cp.batch_size = batch_size

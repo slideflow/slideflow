@@ -1,0 +1,709 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Cell Segmentation &mdash; slideflow 2.0.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" />
+    <link rel="next" title="Training" href="../training/" />
+    <link rel="prev" title="Slide Processing" href="../slide_processing/" />
+  <!-- Google Analytics -->
+
+  <!-- End Google Analytics -->
+
+
+
+  <script src="../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+
+
+
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+
+
+
+
+
+                <div class="version">
+                  2.0
+                </div>
+
+
+
+
+
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+          </div>
+
+
+
+
+
+
+
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+</ul>
+
+
+
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+
+      <li>
+        <a href="../">
+
+            Docs
+
+        </a> &gt;
+      </li>
+
+
+      <li>Cell Segmentation</li>
+
+
+      <li class="pytorch-breadcrumbs-aside">
+
+
+            <a href="../_sources/cellseg.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+
+
+      </li>
+
+  </ul>
+
+
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+
+
+          <div class="rst-content">
+
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+
+  <section id="cell-segmentation">
+<span id="cellseg"></span><h1>Cell Segmentation<a class="headerlink" href="#cell-segmentation" title="Permalink to this heading">¶</a></h1>
+<p>Many tasks in digital pathology rely on analysis of cellular features, as opposed to higher-level architectural features. Slideflow supports whole-slide analysis of cellular features with a cell detection and segmentation pipeline based on <a class="reference external" href="https://www.nature.com/articles/s41592-020-01018-x">Cellpose</a>. To start, ensure <code class="docutils literal notranslate"><span class="pre">cellpose</span></code> has been installed via pip:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>cellpose
+</pre></div>
+</div>
+<section id="approach">
+<h2>Approach<a class="headerlink" href="#approach" title="Permalink to this heading">¶</a></h2>
+<figure class="align-default">
+<img alt="../_images/cell_segmentation.png" src="../_images/cell_segmentation.png" />
+</figure>
+<p>The general approach for cell detection and segmentation in Slideflow is illustrated above, and will be discussed in the following sections. In short, the general approach is to tune the cell segmentation parameters on a single slide, use these parameters to detect cells in all of your slides, then extract cell images at these locations.</p>
+</section>
+<section id="slideflow-studio">
+<h2>Slideflow Studio<a class="headerlink" href="#slideflow-studio" title="Permalink to this heading">¶</a></h2>
+<p>Cellpose models have several configurable parameters which will affect the quality of your segmentation masks, namely the <strong>pretrained model</strong> and <strong>cell diameter</strong>. The best way to determine the optimal parameters to use for your dataset is through interactive visualization using <a class="reference internal" href="../studio/#studio"><span class="std std-ref">Slideflow Studio</span></a>.</p>
+<p>Use Cellpose-based cell segmentation in Slideflow Studio by <a class="reference internal" href="../studio/#extensions"><span class="std std-ref">enabling the extension</span></a>, or start Studio with the <code class="docutils literal notranslate"><span class="pre">--cellpose</span></code> flag:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>slideflow.studio<span class="w"> </span>--cellpose
+</pre></div>
+</div>
+<section id="control-panel">
+<h3>Control panel<a class="headerlink" href="#control-panel" title="Permalink to this heading">¶</a></h3>
+<p>Open the Cell Segmentation section in the control panel to access the segmentation controls.</p>
+<figure class="align-default">
+<img alt="../_images/cellseg_workbench_panel.png" src="../_images/cellseg_workbench_panel.png" />
+</figure>
+<p>The <strong>Model &amp; Cell Diameter</strong> subsection is used to customize the segmentation model (defaults to
+‘cyto2’) and cell diameter (defaults to 10 microns). Selecting “Auto-detect diameter” then
+clicking “Preview” will perform cell segmentation on the portion of the slide currently in view. Once complete, the diameter text box will be updated with the detected cell diameter.</p>
+</section>
+<section id="viewing-cell-segmentations">
+<h3>Viewing cell segmentations<a class="headerlink" href="#viewing-cell-segmentations" title="Permalink to this heading">¶</a></h3>
+<figure class="align-default">
+<img alt="../_images/cellseg_workbench_masks.png" src="../_images/cellseg_workbench_masks.png" />
+</figure>
+<p>The <strong>View Controls</strong> subsection provides options for customizing how cell segmentations are displayed. By default, cell segmentation masks are shown in cyan on a black background. The black
+background can be removed by unchecking “Black BG”. You can add a green dot at each cell’s detected centroid by selecting the “Centroid option.” The “Alpha” slider controls transparency for the mask overlay.</p>
+<p>You can also choose to view the segmentation masks as outlines. The “Outline” button will
+convert any masks currently in view to outlines, allowing you to more easily see how the
+masks match cells visible on the slide.</p>
+<figure class="align-default">
+<img alt="../_images/cellseg_workbench_outlines.png" src="../_images/cellseg_workbench_outlines.png" />
+</figure>
+<p>Finally, the “gradXY” option will show the flow gradients calculated during cell segmentation.</p>
+<figure class="align-default">
+<img alt="../_images/cellseg_workbench_flows.png" src="../_images/cellseg_workbench_flows.png" />
+</figure>
+</section>
+<section id="preparing-wsi-segmentation">
+<h3>Preparing WSI segmentation<a class="headerlink" href="#preparing-wsi-segmentation" title="Permalink to this heading">¶</a></h3>
+<p>Once you are satisifed with a chosen model and cell diameter, set the cell diameter to a
+manual value in microns. Once the cell diameter has been set, the middle control panel will
+activate, allowing you to perform whole-slide segmentation.</p>
+<p>The <strong>Otsu threshold</strong> option will perform strict Otsu’s thresholding on the whole slide image,
+only performing cell segmentation in non-background areas (reducing computational time).
+You can preview the Otsu’s thresholding algorithm in the <a class="reference internal" href="../studio/#studio-wsi"><span class="std std-ref">Slide section</span></a>. This option is disabled by default, as Otsu’s thresholding does not
+work well for all slides (particularly cytology slides).</p>
+<p>The <strong>Save flows</strong> option saves gradients during cell segmentation, allowing you to generate
+visualizations as shown with the <strong>gradXY</strong> option above. This is disabled by default, as
+calculation requires high RAM usage and may not be practical on all systems.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 60.0%" />
+<col style="width: 40.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>The <strong>Advanced</strong> subsection provides additional options for controlling the cell segmentation process.</p>
+<p><strong>Window</strong> controls the window size during cell segmentation; cell segmentation is performed
+on images of this pixel size and then stitched together. The <strong>Tile</strong> option permits further sub-
+tiling of each window, reducing GPU and CPU memory utilization.</p>
+<p><strong>Downscale</strong> will scale down the final generated cell segmentation mask, reducing memory
+utilization (both RAM and disk). <strong>Enable spawn workers</strong> enables a multiprocessing technique that improves cell segmentation speed at the cost of higher RAM usage.</p>
+</td>
+<td><a class="reference internal image-reference" href="../_images/cellseg_workbench_advanced.png"><img alt="../_images/cellseg_workbench_advanced.png" class="align-right" src="../_images/cellseg_workbench_advanced.png" style="width: 245px;" /></a>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="running-wsi-segmentation">
+<h3>Running WSI segmentation<a class="headerlink" href="#running-wsi-segmentation" title="Permalink to this heading">¶</a></h3>
+<p>Once you are satisifed with the settings, whole-slide cell segmentation can be initialized by
+clicking <strong>Segment</strong>. You will see a notification in the bottom-right corner of the screen when
+segmentation is complete. In the meantime, a progress bar will be shown in the terminal
+along with ETA.</p>
+</section>
+<section id="exporting-results">
+<h3>Exporting results<a class="headerlink" href="#exporting-results" title="Permalink to this heading">¶</a></h3>
+<p>Once segmentation is complete, masks can be saved to disk for later use with <strong>Export</strong>.
+Masks are saved in *.zip format, and can be loaded in Studio with drag-and-drop.</p>
+</section>
+</section>
+<section id="segmenting-cells">
+<h2>Segmenting cells<a class="headerlink" href="#segmenting-cells" title="Permalink to this heading">¶</a></h2>
+<section id="single-slide-segmentation">
+<h3>Single slide segmentation<a class="headerlink" href="#single-slide-segmentation" title="Permalink to this heading">¶</a></h3>
+<p>Once the segmentation parameters have been determined, you can run segmentation for a single slide using <a class="reference internal" href="../slideflow_cellseg/#slideflow.cellseg.segment_slide" title="slideflow.cellseg.segment_slide"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.cellseg.segment_slide()</span></code></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">slideflow.cellseg</span> <span class="kn">import</span> <span class="n">segment_slide</span>
+
+<span class="n">segmentation</span> <span class="o">=</span> <span class="n">segment_slide</span><span class="p">(</span>
+    <span class="s1">&#39;.../slide.svs&#39;</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;cyto2&#39;</span><span class="p">,</span>
+    <span class="n">diam_um</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="o">...</span>
+<span class="p">)</span>
+<span class="n">segmentation</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;...masks.zip&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="project-wide-segmentation">
+<h3>Project-wide segmentation<a class="headerlink" href="#project-wide-segmentation" title="Permalink to this heading">¶</a></h3>
+<p>Cell segmentation can also be performed automatically for all slides in a Slideflow project.
+Cell segmentation masks (and associated cell centroids) are calculated for all slides in the project using <a class="reference internal" href="../project/#slideflow.Project.cell_segmentation" title="slideflow.Project.cell_segmentation"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.cell_segmentation()</span></code></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Load a slideflow project</span>
+<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Perform cell segmentation</span>
+<span class="n">P</span><span class="o">.</span><span class="n">cell_segmentation</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;cyto2&#39;</span><span class="p">,</span>
+    <span class="n">diam_um</span><span class="o">=</span><span class="mi">10</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Relevant arguments for this function include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">model</span></code> : Cell segmentation model. All cellpose models are supported, including ‘cyto’,
+‘cyto2’, ‘nuclei’, and more.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">diam_um</span></code> : Cell diameter, in microns.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">buffer</span></code> : Path to a buffer, significantly speeds up segmentation if running from a HDD
+(same as P.extract_tiles())</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">window_size</span></code> : Integer. Defaults to 256. Increasing this to 512 will make things slightly
+faster, but will use a bit more GPU memory.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">downscale</span></code> : Factor by which to downscale the masks, to save memory. Defaults to 1
+(no downscaling, full resolution). Downscale of 2 is a nice balance between memory
+size and fidelity.</p></li>
+</ul>
+<p>Depending on the size of the slide, this may take between 5-25 minutes per slide.</p>
+<p>Masks will be saved in the project subfolder <code class="docutils literal notranslate"><span class="pre">masks/</span></code> . As described above,
+these masks can be loaded in Studio for interactive visualization via drag-and-drop.
+They can also be used for downstream analysis and cell extraction, as described in the next
+section.</p>
+</section>
+<section id="accessing-segmentation-masks">
+<h3>Accessing segmentation masks<a class="headerlink" href="#accessing-segmentation-masks" title="Permalink to this heading">¶</a></h3>
+<p>Saved cell segmentation masks (in *.zip format) can be loaded with <a class="reference internal" href="../slideflow_cellseg/#slideflow.cellseg.Segmentation" title="slideflow.cellseg.Segmentation"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.cellseg.Segmentation</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.cellseg</span> <span class="kn">import</span> <span class="n">Segmentation</span>
+<span class="n">seg</span> <span class="o">=</span> <span class="n">Segmentation</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;.../slide-masks.zip&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The mask array, <code class="docutils literal notranslate"><span class="pre">Segmentation.masks</span></code> , is a <code class="docutils literal notranslate"><span class="pre">np.ndarray</span></code> with dtype of np.uint32. Zero values are background, and masks for each cell are represented by a unique integer. Flows/gradients,
+if calculated, will be available in <code class="docutils literal notranslate"><span class="pre">Segmentation.flows</span></code>.</p>
+<p>Centroids for detected cells can be calculated with Segmentation.centroids(), returning an array of centroid locations. By default, coordinates are returned in mask dimension space. With the argument <code class="docutils literal notranslate"><span class="pre">wsi_dim=True</span></code>, centroid coordinates will be in the slide dimension space.</p>
+</section>
+<section id="caveats">
+<h3>Caveats<a class="headerlink" href="#caveats" title="Permalink to this heading">¶</a></h3>
+<p>There are some caveats to the cell segmentation process, including:</p>
+<ul class="simple">
+<li><p><strong>Memory usage</strong>: Cell segmentation requires at minimum 32 GB of RAM. Larger slides (particularly cytology) may require up to 64 GB of RAM.</p></li>
+<li><p><strong>Stitching artifacts</strong>: At present, due to the algorithm by which whole-slide cell segmentations are stitched together, you may see some cells that are not detected, missing in a grid-like pattern. Work is ongoing to reduce these stitching artifacts.</p></li>
+<li><p><strong>Cell diameter</strong>: The quality of cell segmentation results is highly dependent on an appropriately chosen cell diameter. Use Slideflow Studio to find the best cell diameter for your application.</p></li>
+</ul>
+</section>
+</section>
+<section id="extracting-cells-from-slides">
+<h2>Extracting cells from slides<a class="headerlink" href="#extracting-cells-from-slides" title="Permalink to this heading">¶</a></h2>
+<p>Once segmentation masks have been calculated, images of individual cells can be extracted from a whole-slide image. This can be performed for either a single slide, or all slides in a project.</p>
+<section id="from-a-single-slide">
+<h3>From a single slide<a class="headerlink" href="#from-a-single-slide" title="Permalink to this heading">¶</a></h3>
+<p>Start by loading the saved segmentation, as described above. Then, use <a class="reference internal" href="../slide/#slideflow.WSI.apply_segmentation" title="slideflow.WSI.apply_segmentation"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.WSI.apply_segmentation()</span></code></a>, followed by <a class="reference internal" href="../slide/#slideflow.WSI.extract_cells" title="slideflow.WSI.extract_cells"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.WSI.extract_cells()</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">slideflow.cellseg</span> <span class="kn">import</span> <span class="n">Segmentation</span>
+
+<span class="c1"># Load WSI.</span>
+<span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="s1">&#39;../slide.svs&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">96</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;40x&#39;</span><span class="p">)</span>
+
+<span class="c1"># Load cell segmentations.</span>
+<span class="n">seg</span> <span class="o">=</span> <span class="n">Segmentation</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;.../slide-masks.zip&#39;</span><span class="p">)</span>
+
+<span class="c1"># Apply segmentations to the slide.</span>
+<span class="n">wsi</span><span class="o">.</span><span class="n">apply_segmentation</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+
+<span class="c1"># Extract images of cells.</span>
+<span class="n">wsi</span><span class="o">.</span><span class="n">extract_cells</span><span class="p">(</span><span class="n">tiles_dir</span><span class="o">=...</span><span class="p">)</span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 80.0%" />
+<col style="width: 20.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>By default, segmentation masks will be applied to the extracted cell images:</p></td>
+<td><img alt="../_images/cell_masked.png" src="../_images/cell_masked.png" />
+</td>
+</tr>
+<tr class="row-even"><td><p>However, you can choose not to apply masks by using the argument <code class="docutils literal notranslate"><span class="pre">apply_masks=False</span></code>.</p></td>
+<td><img alt="../_images/cell_unmasked.png" src="../_images/cell_unmasked.png" />
+</td>
+</tr>
+</tbody>
+</table>
+<p>Tile extraction is then performed as usual. Cell images (tiles) can either be saved as loose images or in TFRecord format. See <a class="reference internal" href="../slide/#slideflow.WSI.extract_cells" title="slideflow.WSI.extract_cells"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.WSI.extract_cells()</span></code></a> for more information.</p>
+</section>
+<section id="from-all-slides">
+<h3>From all slides<a class="headerlink" href="#from-all-slides" title="Permalink to this heading">¶</a></h3>
+<p>Additionally, cell images can be extracted from all slides in a project. This should only be
+done after <a class="reference internal" href="../project/#slideflow.Project.cell_segmentation" title="slideflow.Project.cell_segmentation"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.cell_segmentation()</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_cells</span><span class="p">(</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">96</span><span class="p">,</span>
+    <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;40x&#39;</span><span class="p">,</span>
+    <span class="n">apply_masks</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Extracted cell images are saved by default in TFRecord format, and are otherwise handled
+identically to tile images generated through <a class="reference internal" href="../project/#slideflow.Project.extract_tiles" title="slideflow.Project.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.extract_tiles()</span></code></a>.</p>
+</section>
+</section>
+<section id="complete-example">
+<h2>Complete example<a class="headerlink" href="#complete-example" title="Permalink to this heading">¶</a></h2>
+<p>An example of a complete cell segmentation pipeline is shown below, from parameter tuning
+to final tile extraction from detected cells.</p>
+<section id="id1">
+<h3>1. Slideflow Studio<a class="headerlink" href="#id1" title="Permalink to this heading">¶</a></h3>
+<p>Determine optimal cell segmenation parameters using Studio, as described above:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>slideflow.studio<span class="w"> </span>--cellpose
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h3>2. Cell segmentation<a class="headerlink" href="#id2" title="Permalink to this heading">¶</a></h3>
+<p>Segment cells for all slides in a Slideflow project.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">P</span><span class="o">.</span><span class="n">cell_segmentation</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;cyto2&#39;</span><span class="p">,</span>
+    <span class="n">diam_um</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">window_size</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+    <span class="n">downscale</span><span class="o">=</span><span class="mi">2</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="cell-image-extraction">
+<h3>3. Cell image extraction<a class="headerlink" href="#cell-image-extraction" title="Permalink to this heading">¶</a></h3>
+<p>Extract image tiles of segmented cells, in this case using segmentation masks.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_cells</span><span class="p">(</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">96</span><span class="p">,</span>
+    <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;40x&#39;</span><span class="p">,</span>
+    <span class="n">apply_masks</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">grayspace_fraction</span><span class="o">=</span><span class="mi">1</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+             </article>
+
+            </div>
+            <footer>
+
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+        <a href="../training/" class="btn btn-neutral float-right" title="Training" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+
+
+        <a href="../slide_processing/" class="btn btn-neutral" title="Slide Processing" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+
+    </div>
+
+
+
+
+    <hr>
+
+
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2022, James M Dolezal.
+
+    </p>
+  </div>
+
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Cell Segmentation</a><ul>
+<li><a class="reference internal" href="#approach">Approach</a></li>
+<li><a class="reference internal" href="#slideflow-studio">Slideflow Studio</a><ul>
+<li><a class="reference internal" href="#control-panel">Control panel</a></li>
+<li><a class="reference internal" href="#viewing-cell-segmentations">Viewing cell segmentations</a></li>
+<li><a class="reference internal" href="#preparing-wsi-segmentation">Preparing WSI segmentation</a></li>
+<li><a class="reference internal" href="#running-wsi-segmentation">Running WSI segmentation</a></li>
+<li><a class="reference internal" href="#exporting-results">Exporting results</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#segmenting-cells">Segmenting cells</a><ul>
+<li><a class="reference internal" href="#single-slide-segmentation">Single slide segmentation</a></li>
+<li><a class="reference internal" href="#project-wide-segmentation">Project-wide segmentation</a></li>
+<li><a class="reference internal" href="#accessing-segmentation-masks">Accessing segmentation masks</a></li>
+<li><a class="reference internal" href="#caveats">Caveats</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#extracting-cells-from-slides">Extracting cells from slides</a><ul>
+<li><a class="reference internal" href="#from-a-single-slide">From a single slide</a></li>
+<li><a class="reference internal" href="#from-all-slides">From all slides</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#complete-example">Complete example</a><ul>
+<li><a class="reference internal" href="#id1">1. Slideflow Studio</a></li>
+<li><a class="reference internal" href="#id2">2. Cell segmentation</a></li>
+<li><a class="reference internal" href="#cell-image-extraction">3. Cell image extraction</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+
+
+
+
+
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script src="../_static/sphinx_highlight.js"></script>
+
+
+
+  <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

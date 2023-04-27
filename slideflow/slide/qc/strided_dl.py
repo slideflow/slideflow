@@ -1,11 +1,14 @@
 import numpy as np
-import slideflow as sf
 
-from typing import Callable, Union
-from tqdm import tqdm
+from contextlib import contextmanager
+from typing import Callable, Union, Optional, TYPE_CHECKING
+from .strided_qc import _StridedQC
+
+if TYPE_CHECKING:
+    import slideflow as sf
 
 
-class StridedDL:
+class StridedDL(_StridedQC):
 
     def __init__(
         self,
@@ -13,6 +16,7 @@ class StridedDL:
         pred_idx: int,
         tile_px: int,
         tile_um: Union[str, int],
+        *,
         buffer: int = 8,
         verbose: bool = False,
         pred_threshold: float = 0.5,
@@ -71,62 +75,79 @@ class StridedDL:
 
 
         Args:
-            dest (str, optional): Path in which to save the qc mask.
-                If None, will save in the same directory as the slide.
-                Defaults to None.
+            model (callable): Deep learning model.
+            pred_idx (int): Index of the model output to interpret as the
+                final prediction.
+            tile_px (int): Tile size.
+            tile_um (str or float): Tile size, in microns (int) or
+                magnification (str).
+
+        Keyword arguments:
+            verbose (bool): Show a progress bar during calculation.
+            buffer (int): Number of tiles (width and height) to extract and
+                process simultaneously. Extracted tile size (width/height)
+                will be  ``tile_px * buffer``. Defaults to 8.
+            grayspace_fraction (float): Grayspace fraction when extracting
+                tiles from slides. Defaults to 1 (disables).
+            pred_threshold (float): Predictions below this value are masked.
+            kwargs (Any): All remaining keyword arguments are passed to
+                :meth:`slideflow.WSI.build_generator()`.
+
         """
-        self.buffer = buffer
-        self.kernel = tile_px
-        self.tile_um = tile_um
-        self.verbose = verbose
-        self.wsi_kwargs = wsi_kwargs
+        super().__init__(
+            tile_px=tile_px,
+            tile_um=tile_um,
+            buffer=buffer,
+            verbose=verbose,
+            lazy_iter=True,
+            deterministic=False,
+            **wsi_kwargs
+        )
         self.model = model
         self.pred_idx = pred_idx
         self.pred_threshold = pred_threshold
 
+    def build_mask(self, x, y) -> np.ndarray:
+        """Build the base, empty QC mask."""
+        return np.ones((x, y), dtype=np.float32)
+
+    def apply(self, image: np.ndarray) -> np.ndarray:
+        """Predict focus value of an image tile using DeepFocus model."""
+        y_pred = self.model(image, training=False)[:, self.pred_idx].numpy()
+        return y_pred.reshape(self.buffer, self.buffer)
+
+    def collate_mask(self, mask: np.ndarray):
+        """Convert the mask from predictions to bool using a threshold."""
+        if self.pred_threshold is not None:
+            return mask > self.pred_threshold
+        else:
+            return mask
+
+    def preprocess(self, image: np.ndarray):
+        """Apply preprocessing to an image."""
+        return np.clip(image.astype(np.float32) / 255, 0, 1)
+
+    @contextmanager
+    def _set_threshold(self, threshold: Optional[Union[bool, float]]):
+        """Temporariliy set or disable the prediction threshold."""
+        _orig_threshold = self.pred_threshold
+        if isinstance(threshold, float):
+            # Set the threshold to a given threshold
+            self.pred_threshold = threshold
+        elif threshold is False:
+            # Disable thresholding (return raw values)
+            self.pred_threshold = None
+
+        yield
+
+        # Return the threshold to irs original value
+        self.pred_threshold = _orig_threshold
+
     def __call__(
         self,
         wsi: "sf.WSI",
-    ) -> np.ndarray:
+        threshold: Optional[Union[bool, float]] = None
+    ) -> Optional[np.ndarray]:
 
-        # Initialize whole-slide reader.
-        b = self.buffer
-        k = self.kernel
-        qc_wsi = sf.WSI(wsi.path, tile_px=(k * b), tile_um=self.tile_um, verbose=False)
-        existing_mask = wsi.qc_mask
-        if existing_mask is not None:
-            qc_wsi.apply_qc_mask(existing_mask)
-
-        # Build tile generator.
-        dts = qc_wsi.build_generator(
-            shuffle=False,
-            show_progress=False,
-            img_format='numpy',
-            **self.wsi_kwargs)()
-
-        # Generate prediction for slide.
-        focus_mask = np.ones((qc_wsi.grid.shape[1] * b,
-                              qc_wsi.grid.shape[0] * b),
-                             dtype=np.float32)
-        if self.verbose:
-            pb = tqdm(dts, desc="Generating...", total=qc_wsi.estimated_num_tiles)
-        else:
-            pb = dts
-        for item in pb:
-            img = np.clip(item['image'].astype(np.float32) / 255, 0, 1)
-            sz = img.itemsize
-            grid_i = item['grid'][1]
-            grid_j = item['grid'][0]
-            batch = np.lib.stride_tricks.as_strided(img,
-                                                    shape=(b, b, k, k, 3),
-                                                    strides=(k * sz * 3 * k * b,
-                                                            k * sz * 3,
-                                                            sz * 3 * k * b,
-                                                            sz * 3,
-                                                            sz))
-            batch = batch.reshape(batch.shape[0] * batch.shape[1], *batch.shape[2:])
-            y_pred = self.model(batch)[:, self.pred_idx].numpy()
-            predictions = y_pred.reshape(b, b)
-            focus_mask[grid_i * b: grid_i * b + b, grid_j * b: grid_j * b + b] = predictions
-
-        return focus_mask > self.pred_threshold
+        with self._set_threshold(threshold):
+            return super().__call__(wsi)

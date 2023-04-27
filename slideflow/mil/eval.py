@@ -157,8 +157,13 @@ def eval_mil(
         if not exists(att_path):
             os.makedirs(att_path)
         for slide, att in zip(slides, y_att):
-            np.savez(join(att_path, f'{slide}_att.npz'), att)
-        log.info(f"Attention scores exported to [green]{att_path}[/]")
+            if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
+                out_path = join(att_path, f'{slide}_att.npy')
+                np.save(out_path, att)
+            else:
+                out_path = join(att_path, f'{slide}_att.npz')
+                np.savez(out_path, att)
+        log.info(f"Attention scores exported to [green]{out_path}[/]")
 
     # Attention heatmaps
     if y_att and attention_heatmaps:
@@ -282,16 +287,21 @@ def generate_attention_heatmaps(
             slidename = sf.util.path_to_name(bag)
             slide_path = dataset.find_slide(slide=slidename)
             locations_file = join(dirname(bag), f'{slidename}.index.npz')
+            npy_loc_file = locations_file[:-1] + 'y'
             if slide_path is None:
                 log.info(f"Unable to find slide {slidename}")
                 continue
-            if not exists(locations_file):
+            if exists(locations_file):
+                locations = np.load(locations_file)['arr_0']
+            elif exists(npy_loc_file):
+                locations = np.load(npy_loc_file)
+            else:
                 log.info(
                     f"Unable to find locations index file for {slidename}"
                 )
                 continue
             sf.util.location_heatmap(
-                locations=np.load(locations_file)['arr_0'],
+                locations=locations,
                 values=attention[i],
                 slide=slide_path,
                 tile_px=dataset.tile_px,
@@ -387,7 +397,7 @@ def _predict_mil(
         loaded = torch.unsqueeze(loaded, dim=0)
         with torch.no_grad():
             if use_lens:
-                lens = torch.from_numpy(np.array([loaded.shape[0]])).to(device)
+                lens = torch.from_numpy(np.array([loaded.shape[1]])).to(device)
                 model_args = (loaded, lens)
             else:
                 model_args = (loaded,)

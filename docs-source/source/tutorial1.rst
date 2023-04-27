@@ -3,8 +3,7 @@
 Tutorial 1: Model training (simple)
 =====================================
 
-In this first tutorial, we will walk through the steps needed to take an example project from start to finish, using
-the bundled ``run_project.py`` script to execute pipeline functions. As with all of these tutorials, we will use
+In this first tutorial, we will walk through the steps needed to take an example project from start to finish. As with all of these tutorials, we will use
 publicly available data from `The Cancer Genome Atlas (TCGA) <https://portal.gdc.cancer.gov>`_. In this first tutorial,
 we will train a model to predict ER status from breast cancer slides.
 

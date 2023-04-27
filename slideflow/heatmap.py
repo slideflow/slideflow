@@ -16,6 +16,7 @@ from slideflow.util import log
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
     from matplotlib.axes import Axes
+    from PIL import Image
     try:
         import tensorflow as tf
     except ImportError:
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 
 Inset = namedtuple("Inset", "x y zoom loc mark1 mark2 axes")
 
+# -----------------------------------------------------------------------------
 
 class Heatmap:
     """Generates a heatmap of predictions across a whole-slide image."""
@@ -164,6 +166,7 @@ class Heatmap:
         self.num_uncertainty = self.interface.num_uncertainty
         self.predictions = None
         self.uncertainty = None
+        self._thumb = None
 
         if isinstance(slide, str):
             if stride_div is None:
@@ -419,19 +422,19 @@ class Heatmap:
         ax = self._prepare_ax(ax)
         if width is None and mpp is None:
             width = 2048
-        thumb = self.slide.thumb(width=width, mpp=mpp)
+        self._thumb = self.slide.thumb(width=width, mpp=mpp)
         self._format_ax(
             ax,
-            thumb_size=thumb.size,
+            thumb_size=self._thumb.size,
             show_roi=show_roi,
             color=roi_color,
             linewidth=linewidth,
         )
-        imshow_thumb = ax.imshow(thumb, zorder=0)
+        imshow_thumb = ax.imshow(self._thumb, zorder=0)
 
         for inset in self.insets:
             axins = zoomed_inset_axes(ax, inset.zoom, loc=inset.loc)
-            axins.imshow(thumb)
+            axins.imshow(self._thumb)
             axins.set_xlim(inset.x[0], inset.x[1])
             axins.set_ylim(inset.y[0], inset.y[1])
             mark_inset(
@@ -482,7 +485,7 @@ class Heatmap:
             linewidth (int): Width of ROI line. Defaults to 5.
         """
         ax = self._prepare_ax(ax)
-        implot = self.plot_thumbnail(ax=ax, **thumb_kwargs)
+        self.plot_thumbnail(ax=ax, **thumb_kwargs)
         ax.set_facecolor("black")
         if callable(logit_cmap):
             map_logit = logit_cmap
@@ -493,12 +496,17 @@ class Heatmap:
                 return (logit[logit_cmap['r']],
                         logit[logit_cmap['g']],
                         logit[logit_cmap['b']])
+        extent = calculate_heatmap_extent(
+            self.slide, self._thumb, self.predictions
+        )
         ax.imshow(
             [[map_logit(logit) for logit in row] for row in self.predictions],
-            extent=implot.get_extent(),
+            extent=extent,
             interpolation=interpolation,
             zorder=10
         )
+        ax.set_xlim(0, self._thumb.size[0])
+        ax.set_ylim(self._thumb.size[1], 0)
 
     def plot_uncertainty(
         self,
@@ -541,15 +549,20 @@ class Heatmap:
             self.uncertainty == -99,
             self.uncertainty
         )
+        extent = calculate_heatmap_extent(
+            self.slide, self._thumb, self.predictions
+        )
         ax.imshow(
             masked_uncertainty,
             norm=uqnorm,
-            extent=implot.get_extent(),
+            extent=extent,
             cmap=cmap,
             alpha=heatmap_alpha,
             interpolation=interpolation,
             zorder=10
         )
+        ax.set_xlim(0, self._thumb.size[0])
+        ax.set_ylim(self._thumb.size[1], 0)
 
     def plot(
         self,
@@ -625,15 +638,20 @@ class Heatmap:
             self.predictions[:, :, class_idx] == -99,
             self.predictions[:, :, class_idx]
         )
+        extent = calculate_heatmap_extent(
+            self.slide, self._thumb, self.predictions
+        )
         ax.imshow(
             masked_arr,
             norm=divnorm,
-            extent=implot.get_extent(),
+            extent=extent,
             cmap=cmap,
             alpha=heatmap_alpha,
             interpolation=interpolation,
             zorder=10
         )
+        ax.set_xlim(0, self._thumb.size[0])
+        ax.set_ylim(self._thumb.size[1], 0)
 
     def save_npz(self, path: Optional[str] = None) -> str:
         """Save heatmap predictions and uncertainty in .npz format.
@@ -978,3 +996,32 @@ class ModelHeatmap(Heatmap):
 
     def view(self):
         raise NotImplementedError
+    
+# -----------------------------------------------------------------------------
+
+def calculate_heatmap_extent(
+        wsi: "sf.WSI", 
+        thumbnail: "Image", 
+        grid: np.ndarray
+) -> Tuple[float, float, float, float]:
+    """Calculate implot extent for a heatmap grid."""
+    full_extract = int(wsi.tile_um / wsi.mpp)
+    wsi_stride = int(full_extract / wsi.stride_div)
+    _overlay_wsi_dim = (wsi_stride * (grid.shape[1]),
+                        wsi_stride * (grid.shape[0]))
+    _overlay_offset_wsi_dim = (
+        full_extract/2 - wsi_stride/2, 
+        full_extract/2 - wsi_stride/2
+    )
+    thumb_ratio = (
+        wsi.dimensions[0] / thumbnail.size[0], 
+        wsi.dimensions[1] / thumbnail.size[1]
+    )
+    return (
+        _overlay_offset_wsi_dim[0] / thumb_ratio[0],
+        _overlay_wsi_dim[0] / thumb_ratio[0],
+        _overlay_wsi_dim[1] / thumb_ratio[1],
+        _overlay_offset_wsi_dim[1] / thumb_ratio[1]
+    )
+
+# -----------------------------------------------------------------------------

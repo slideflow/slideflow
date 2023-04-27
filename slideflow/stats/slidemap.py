@@ -510,7 +510,9 @@ class SlideMap:
                 "of TFRecord paths to the `tfrecords` argument "
                 "of `SlideMap.build_mosaic()`"
             )
-        elif self.ftrs is not None and len(self.ftrs.tfrecords):
+        elif (tfrecords is None
+             and self.ftrs is not None
+             and len(self.ftrs.tfrecords)):
             return sf.Mosaic(self, tfrecords=self.ftrs.tfrecords, **kwargs)
         else:
             return sf.Mosaic(self, tfrecords=tfrecords, **kwargs)

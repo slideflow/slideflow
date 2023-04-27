@@ -15,12 +15,15 @@ def features_from_slide_torch(
     grid: Optional[np.ndarray] = None,
     shuffle: bool = False,
     show_progress: bool = True,
-    device: str = 'cuda',
+    device: Optional[str] = None,
     **kwargs
 ) -> Optional[np.ndarray]:
         """Generate features from tiles in a slide into an array."""
 
         import torch
+
+        from slideflow.model import torch_utils
+        device = torch_utils.get_device(device)
 
         log.debug(f"Slide prediction (batch_size={batch_size})")
         total_out = extractor.num_features + extractor.num_classes

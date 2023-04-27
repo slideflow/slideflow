@@ -9,6 +9,7 @@ import numpy as np
 from typing import Tuple, Dict, Optional, Union
 from contextlib import contextmanager
 
+from slideflow import log
 import slideflow.norm.utils as ut
 from .utils import clip_size, standardize_brightness
 
@@ -34,6 +35,7 @@ class MacenkoNormalizer:
     vectorized = False
     preferred_device = 'cpu'
     preset_tag = 'macenko'
+    standardize = True
 
     def __init__(
         self,
@@ -177,8 +179,7 @@ class MacenkoNormalizer:
     def _matrix_and_concentrations(
         self,
         img: torch.Tensor,
-        mask: bool = False,
-        standardize: bool = True
+        mask: bool = False
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -201,7 +202,7 @@ class MacenkoNormalizer:
         if mask:
             ones = torch.all(img == 255, dim=1)
 
-        if standardize:
+        if self.standardize:
             img = standardize_brightness(img, mask=mask)
 
         # Calculate optical density.
@@ -273,7 +274,13 @@ class MacenkoNormalizer:
 
         return HE, maxC, C
 
-    def transform(self, img: torch.Tensor, *, augment: bool = False) -> torch.Tensor:
+    def transform(
+        self,
+        img: torch.Tensor,
+        *,
+        augment: bool = False,
+        original_on_error: bool = True
+    ) -> torch.Tensor:
         """Normalize an H&E image.
 
         Args:
@@ -319,11 +326,21 @@ class MacenkoNormalizer:
             maxCRef = self.target_concentrations.to(img.device)
 
         # Get stain matrix and concentrations from image.
-        if self._ctx_maxC is not None:
-            HE, C = self._matrix_and_concentrations(img)
-            maxC = self._ctx_maxC
-        else:
-            HE, maxC, C = self.matrix_and_concentrations(img)
+        try:
+            if self._ctx_maxC is not None:
+                HE, C = self._matrix_and_concentrations(img)
+                maxC = self._ctx_maxC
+            else:
+                HE, maxC, C = self.matrix_and_concentrations(img)
+        except Exception as e:
+            if original_on_error:
+                log.debug(
+                    "Error encountered during normalization. Returning "
+                    f"original image. Error: {e}"
+                )
+                return img
+            else:
+                raise
 
         tmp = torch.divide(maxC, maxCRef)
         C2 = torch.divide(C, tmp[:, None])
@@ -398,11 +415,4 @@ class MacenkoFastNormalizer(MacenkoNormalizer):
     """Macenko H&E stain normalizer, with brightness standardization disabled."""
 
     preset_tag = 'macenko_fast'
-
-    def _matrix_and_concentrations(
-        self,
-        img: torch.Tensor,
-        mask: bool = False,
-        standardize: bool = False
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        return super()._matrix_and_concentrations(img, mask, standardize=False)
+    standardize = False

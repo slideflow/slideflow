@@ -1,0 +1,1163 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>slideflow.studio &mdash; slideflow 2.0.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" />
+    <link rel="next" title="Tutorial 1: Model training (simple)" href="../tutorial1/" />
+    <link rel="prev" title="slideflow.util" href="../util/" />
+  <!-- Google Analytics -->
+
+  <!-- End Google Analytics -->
+
+
+
+  <script src="../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+
+
+
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+
+
+
+
+
+                <div class="version">
+                  2.0
+                </div>
+
+
+
+
+
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+          </div>
+
+
+
+
+
+
+
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../util/">slideflow.util</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+</ul>
+
+
+
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+
+      <li>
+        <a href="../">
+
+            Docs
+
+        </a> &gt;
+      </li>
+
+
+      <li>slideflow.studio</li>
+
+
+      <li class="pytorch-breadcrumbs-aside">
+
+
+            <a href="../_sources/studio_module.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+
+
+      </li>
+
+  </ul>
+
+
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+
+
+          <div class="rst-content">
+
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+
+  <section id="slideflow-studio">
+<h1>slideflow.studio<a class="headerlink" href="#slideflow-studio" title="Permalink to this heading">¶</a></h1>
+<p>This module contains the Slideflow Studio visualization tool. See <a class="reference internal" href="../studio/#studio"><span class="std std-ref">Slideflow Studio: Live Visualization</span></a> for more information.</p>
+<span class="target" id="module-slideflow.studio"></span><dl class="py class">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Sidebar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">viz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#slideflow.studio.Studio" title="slideflow.studio.Studio"><span class="pre">Studio</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Sidebar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Sidebar" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sidebar for Studio, rendering a navigation bar and widgets.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">viz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#slideflow.studio.Studio" title="slideflow.studio.Studio"><span class="pre">Studio</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Sidebar.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Sidebar.__init__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar.add_widgets">
+<span class="sig-name descname"><span class="pre">add_widgets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">widgets</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Sidebar.add_widgets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Sidebar.add_widgets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add widget extension(s).</p>
+<p>Add widgets to the navigation sidebar. The <code class="docutils literal notranslate"><span class="pre">.tag</span></code> property is used
+as a unique identifier for the widget. The <code class="docutils literal notranslate"><span class="pre">.icon</span></code> property should
+be a path to an image file used for rendering the sidebar navigation
+icon. <code class="docutils literal notranslate"><span class="pre">.icon_highlighted</span></code> property should be a path to an image file
+used for rendering a hovered navigation icon.</p>
+<p>The widget should implement <code class="docutils literal notranslate"><span class="pre">__call__()</span></code> and <code class="docutils literal notranslate"><span class="pre">.close()</span></code> methods
+for rendering the imgui GUI and cleanup, respectively.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>widgets</strong> (list(<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.studio.widgets.Widget</span></code>)) – List of
+widgets to add as extensions. These should be classes, not
+instantiated objects.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar.content_width">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">content_width</span></span><a class="headerlink" href="#slideflow.studio.Sidebar.content_width" title="Permalink to this definition">¶</a></dt>
+<dd><p>Widget width.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar.draw">
+<span class="sig-name descname"><span class="pre">draw</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Sidebar.draw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Sidebar.draw" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draw the sidebar and render all widgets.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar.full_button">
+<span class="sig-name descname"><span class="pre">full_button</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Sidebar.full_button"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Sidebar.full_button" title="Permalink to this definition">¶</a></dt>
+<dd><p>Render a button that spans the full width of the sidebar.</p>
+<p>The color of the button is determined through the loaded theme,
+<code class="docutils literal notranslate"><span class="pre">bright_button</span></code> properties.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>text</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Text of the button.</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Width of the button. If not specified,
+uses a width that spans the width of the sidebar.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>enabled</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Whether the button is enabled.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Whether the button was clicked.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar.full_width">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">full_width</span></span><a class="headerlink" href="#slideflow.studio.Sidebar.full_width" title="Permalink to this definition">¶</a></dt>
+<dd><p>Width of the expanded sidebar, including navigation and widgets.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar.large_image_button">
+<span class="sig-name descname"><span class="pre">large_image_button</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">64</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Sidebar.large_image_button"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Sidebar.large_image_button" title="Permalink to this definition">¶</a></dt>
+<dd><p>Render a small button for the sidebar.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Name of the image to render on the button.
+Valid names include ‘gear’, ‘circle_lightning’, ‘circle_plus’,
+‘pencil’, ‘folder’, ‘floppy’, ‘model_loaded’, ‘extensions’,
+‘project’, ‘slide’, ‘model’, and ‘heatmap’.</p></li>
+<li><p><strong>size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Simage button. Defaults to 64.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>If the button was clicked.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar.remove_widget">
+<span class="sig-name descname"><span class="pre">remove_widget</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tag</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Sidebar.remove_widget"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Sidebar.remove_widget" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a widget from Studio.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>widget</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.studio.widgets.Widget</span></code>) – Widget to remove.
+This should be a class, not an instantiated object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar.small_button">
+<span class="sig-name descname"><span class="pre">small_button</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Sidebar.small_button"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Sidebar.small_button" title="Permalink to this definition">¶</a></dt>
+<dd><p>Render a small button for the sidebar.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>image_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Name of the image to render on the button.
+Valid names include ‘vips’, ‘cucim’, ‘lowmem’, ‘ellipsis’,
+‘gear’, and ‘refresh’.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>If the button was clicked.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.studio.Sidebar.theme">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">theme</span></span><a class="headerlink" href="#slideflow.studio.Sidebar.theme" title="Permalink to this definition">¶</a></dt>
+<dd><p>Active Studio theme.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="slideflow.studio.Studio">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Studio</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low_memory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">widgets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_tk_init</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theme</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">StudioTheme</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create the main Studio window.</p>
+<p>Slideflow Studio is started by running the studio module.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>slideflow.studio
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>low_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Enable low memory mode, which uses thread pools
+instead of multiprocessing pools when applicable to reduce
+memory footprint, at the cost of decreased performance.</p></li>
+<li><p><strong>widgets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><em>Any</em><em>)</em><em>, </em><em>optional</em>) – Additional widgets to render.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.P">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">P</span></span><a class="headerlink" href="#slideflow.studio.Studio.P" title="Permalink to this definition">¶</a></dt>
+<dd><p>Slideflow project currently in use.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low_memory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">widgets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_tk_init</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theme</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">StudioTheme</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create the main Studio window.</p>
+<p>Slideflow Studio is started by running the studio module.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>slideflow.studio
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>low_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Enable low memory mode, which uses thread pools
+instead of multiprocessing pools when applicable to reduce
+memory footprint, at the cost of decreased performance.</p></li>
+<li><p><strong>widgets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><em>Any</em><em>)</em><em>, </em><em>optional</em>) – Additional widgets to render.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.add_to_render_pipeline">
+<span class="sig-name descname"><span class="pre">add_to_render_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">renderer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.add_to_render_pipeline"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.add_to_render_pipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a renderer to the rendering pipeline.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.add_widgets">
+<span class="sig-name descname"><span class="pre">add_widgets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">widgets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Widget</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.add_widgets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.add_widgets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add widget extension(s).</p>
+<p>Add widgets to Studio and the sidebar. The <code class="docutils literal notranslate"><span class="pre">.tag</span></code> property is used
+as a unique identifier for the widget. The <code class="docutils literal notranslate"><span class="pre">.icon</span></code> property should
+be a path to an image file used for rendering the sidebar navigation
+icon. <code class="docutils literal notranslate"><span class="pre">.icon_highlighted</span></code> property should be a path to an image file
+used for rendering a hovered navigation icon.</p>
+<p>The widget should implement <code class="docutils literal notranslate"><span class="pre">__call__()</span></code> and <code class="docutils literal notranslate"><span class="pre">.close()</span></code> methods
+for rendering the imgui GUI and cleanup, respectively.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>widgets</strong> (list(<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.studio.widgets.Widget</span></code>)) – List of
+widgets to add as extensions. These should be classes, not
+instantiated objects.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.ask_load_heatmap">
+<span class="sig-name descname"><span class="pre">ask_load_heatmap</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.ask_load_heatmap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.ask_load_heatmap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompt user for location of exported heatmap (*.npz) and load.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.ask_load_model">
+<span class="sig-name descname"><span class="pre">ask_load_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.ask_load_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.ask_load_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompt user for location of a model and load.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.ask_load_project">
+<span class="sig-name descname"><span class="pre">ask_load_project</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.ask_load_project"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.ask_load_project" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompt user for location of a project and load.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.ask_load_slide">
+<span class="sig-name descname"><span class="pre">ask_load_slide</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.ask_load_slide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.ask_load_slide" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompt user for location of a slide and load.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.autoload">
+<span class="sig-name descname"><span class="pre">autoload</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.autoload"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.autoload" title="Permalink to this definition">¶</a></dt>
+<dd><p>Automatically load a path, detecting the type of object to load.</p>
+<p>Supports slides, models, projects, and other items supported by
+widgets if the widget has implemented a <cite>.drag_and_drop_hook</cite> function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to file to load.</p></li>
+<li><p><strong>ignore_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Gracefully handle errors.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.center_next_window">
+<span class="sig-name descname"><span class="pre">center_next_window</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.center_next_window"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.center_next_window" title="Permalink to this definition">¶</a></dt>
+<dd><p>Center the next imgui window.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Width of the next window.</p></li>
+<li><p><strong>height</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Height of the next window.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.clear_message">
+<span class="sig-name descname"><span class="pre">clear_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.clear_message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.clear_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear a specific message from display, if the message is being shown.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>msg</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Message to clear.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Whether message was cleared from display.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.clear_model_results">
+<span class="sig-name descname"><span class="pre">clear_model_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.clear_model_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.clear_model_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear all model results and associated images.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.clear_overlay">
+<span class="sig-name descname"><span class="pre">clear_overlay</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.clear_overlay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.clear_overlay" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove the current overlay image, include heatmaps and masks.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.clear_result">
+<span class="sig-name descname"><span class="pre">clear_result</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.clear_result"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.clear_result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear all shown results and images.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close the application and renderer.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.close_model">
+<span class="sig-name descname"><span class="pre">close_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">now</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.close_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.close_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close the currently loaded model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>now</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Close the model now, instead of at the end of the frame.
+Defaults to False (closes model at frame end).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.close_slide">
+<span class="sig-name descname"><span class="pre">close_slide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">now</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.close_slide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.close_slide" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close the currently loaded slide.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>now</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Close the slide now, instead of at the end of the frame.
+Defaults to False (closes slide at frame end).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.collapsing_header">
+<span class="sig-name descname"><span class="pre">collapsing_header</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.collapsing_header"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.collapsing_header" title="Permalink to this definition">¶</a></dt>
+<dd><p>Render a collapsing header using the active theme.</p>
+<dl>
+<dt>Examples</dt><dd><p>Render a collapsing header that is open by default.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="n">viz</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="s2">&quot;Header&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">imgui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;Text underneath&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>text</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Header text.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.decrease_tile_zoom">
+<span class="sig-name descname"><span class="pre">decrease_tile_zoom</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.decrease_tile_zoom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.decrease_tile_zoom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decrease zoom of tile view by half.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.defer_rendering">
+<span class="sig-name descname"><span class="pre">defer_rendering</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_frames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.defer_rendering"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.defer_rendering" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defer rendering for a number of frames.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.dim_text">
+<span class="sig-name descname"><span class="pre">dim_text</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.dim_text"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.dim_text" title="Permalink to this definition">¶</a></dt>
+<dd><p>Render dim text.</p>
+<dl>
+<dt>Examples</dt><dd><p>Render dim text.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">studio</span><span class="o">.</span><span class="n">dim_text</span><span class="p">():</span>
+    <span class="n">imgui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s1">&#39;This is dim&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.draw_frame">
+<span class="sig-name descname"><span class="pre">draw_frame</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.draw_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.draw_frame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main draw loop.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.get_default_widgets">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_default_widgets</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.get_default_widgets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.get_default_widgets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of the default non-mandatory widgets.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.get_renderer">
+<span class="sig-name descname"><span class="pre">get_renderer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Renderer</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.get_renderer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.get_renderer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check for the given additional renderer in the rendering pipeline.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Name of the renderer to check for.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Renderer if name is a recognized renderer, otherwise None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.get_widget">
+<span class="sig-name descname"><span class="pre">get_widget</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Widget</span></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.get_widget"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.get_widget" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a given widget by class name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Name of the widget to search for.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>slideflow.studio.widgets.Widget</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.11)"><strong>ValueError</strong></a> – If the widget could not be found.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.has_live_viewer">
+<span class="sig-name descname"><span class="pre">has_live_viewer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.has_live_viewer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.has_live_viewer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if the current viewer is a live viewer (e.g. camera feed).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.has_uq">
+<span class="sig-name descname"><span class="pre">has_uq</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.has_uq"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.has_uq" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if the current model supports uncertainty quantification.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.header">
+<span class="sig-name descname"><span class="pre">header</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.header"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.header" title="Permalink to this definition">¶</a></dt>
+<dd><p>Render a header using the active theme.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>text</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Text for the header. Text will be rendered in
+uppercase.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.header_with_buttons">
+<span class="sig-name descname"><span class="pre">header_with_buttons</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.header_with_buttons"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.header_with_buttons" title="Permalink to this definition">¶</a></dt>
+<dd><p>Render a widget header with ability to add buttons.</p>
+<dl>
+<dt>Examples</dt><dd><p>Render a header with a gear icon.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">studio</span><span class="o">.</span><span class="n">header_with_buttons</span><span class="p">(</span><span class="s1">&#39;Button&#39;</span><span class="p">):</span>
+    <span class="c1"># Right align the button</span>
+    <span class="n">x_width</span> <span class="o">=</span> <span class="n">imgui</span><span class="o">.</span><span class="n">get_content_region_max</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">imgui</span><span class="o">.</span><span class="n">same_line</span><span class="p">(</span><span class="n">x_width</span> <span class="o">-</span> <span class="mi">30</span><span class="p">)</span>
+    <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="n">imgui</span><span class="o">.</span><span class="n">get_cursor_pos</span><span class="p">()</span>
+    <span class="n">imgui</span><span class="o">.</span><span class="n">set_cursor_position</span><span class="p">((</span><span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="o">-</span><span class="mi">5</span><span class="p">))</span>
+
+    <span class="c1"># Render the button</span>
+    <span class="k">if</span> <span class="n">sidebar</span><span class="o">.</span><span class="n">small_button</span><span class="p">(</span><span class="s1">&#39;gear&#39;</span><span class="p">):</span>
+        <span class="n">do_something</span><span class="p">()</span>
+</pre></div>
+</div>
+</div></blockquote>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>text</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Text for the header. Text will be rendered in
+uppercase.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.increase_tile_zoom">
+<span class="sig-name descname"><span class="pre">increase_tile_zoom</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.increase_tile_zoom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.increase_tile_zoom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Increase zoom of tile view two-fold.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.load_heatmap">
+<span class="sig-name descname"><span class="pre">load_heatmap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="../heatmap/#slideflow.Heatmap" title="slideflow.heatmap.Heatmap"><span class="pre">Heatmap</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.load_heatmap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.load_heatmap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load a saved heatmap (*.npz).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to exported heatmap in *.npz format, as generated
+by Heatmap.save() or Heatmap.save_npz().</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.load_model">
+<span class="sig-name descname"><span class="pre">load_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.load_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.load_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load the given model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to Slideflow model (in either backend).</p></li>
+<li><p><strong>ignore_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Do not fail if an error is encountered.
+Defaults to False.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.load_project">
+<span class="sig-name descname"><span class="pre">load_project</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.load_project"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.load_project" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load the given project.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>project</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to Slideflow project.</p></li>
+<li><p><strong>ignore_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Do not fail if an error is encountered.
+Defaults to False.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.load_slide">
+<span class="sig-name descname"><span class="pre">load_slide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.load_slide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.load_slide" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load the given slide.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to whole-slide image.</p></li>
+<li><p><strong>stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Stride for tiles. 1 is non-overlapping
+tiles, 2 is tiles with 50% overlap, etc. Defaults to 1.</p></li>
+<li><p><strong>ignore_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Do not fail if an error is encountered.
+Defaults to False.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.model">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">model</span></span><a class="headerlink" href="#slideflow.studio.Studio.model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tensorflow/PyTorch model currently in use.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.offset_x">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">offset_x</span></span><a class="headerlink" href="#slideflow.studio.Studio.offset_x" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main window offset (x), in points.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.offset_x_pixels">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">offset_x_pixels</span></span><a class="headerlink" href="#slideflow.studio.Studio.offset_x_pixels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main window offset (x), in pixels.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.offset_y">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">offset_y</span></span><a class="headerlink" href="#slideflow.studio.Studio.offset_y" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main window offset (y), in points.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.offset_y_pixels">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">offset_y_pixels</span></span><a class="headerlink" href="#slideflow.studio.Studio.offset_y_pixels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main window offset (y), in pixels.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.print_error">
+<span class="sig-name descname"><span class="pre">print_error</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">error</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.print_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.print_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print the given error message.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.reload_model">
+<span class="sig-name descname"><span class="pre">reload_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.reload_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.reload_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reload the current model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.reload_viewer">
+<span class="sig-name descname"><span class="pre">reload_viewer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.reload_viewer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.reload_viewer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reload the current main viewer.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.remove_from_render_pipeline">
+<span class="sig-name descname"><span class="pre">remove_from_render_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.remove_from_render_pipeline"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.remove_from_render_pipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a renderer from the render pipeline.</p>
+<p>Remove a renderer added with <code class="docutils literal notranslate"><span class="pre">.add_to_render_pipeline()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Name of the renderer to remove.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.remove_widget">
+<span class="sig-name descname"><span class="pre">remove_widget</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">widget</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Widget</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.remove_widget"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.remove_widget" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a widget from Studio.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>widget</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.studio.widgets.Widget</span></code>) – Widget to remove.
+This should be a class, not an instantiated object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.reset_background">
+<span class="sig-name descname"><span class="pre">reset_background</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.reset_background"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.reset_background" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reset the Studio background to the default theme color.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.reset_tile_zoom">
+<span class="sig-name descname"><span class="pre">reset_tile_zoom</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.reset_tile_zoom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.reset_tile_zoom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reset tile zoom level.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.set_message">
+<span class="sig-name descname"><span class="pre">set_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.set_message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.set_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set a message for display.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.set_overlay">
+<span class="sig-name descname"><span class="pre">set_overlay</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">overlay</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.set_overlay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.set_overlay" title="Permalink to this definition">¶</a></dt>
+<dd><p>Configure the overlay to be applied to the current view screen.</p>
+<p>Overlay is a numpy array, and method is a flag indicating the
+method to use when showing the overlay.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">method</span></code> is <code class="docutils literal notranslate"><span class="pre">sf.studio.OVERLAY_WSI</span></code>, the array will be mapped
+to the entire whole-slide image, without offsets.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">method</span></code> is <code class="docutils literal notranslate"><span class="pre">sf.studio.OVERLAY_GRID</span></code>, the array is interpreted
+as having been generated from the slide’s grid, meaning that an offset
+will be applied to ensure that the overlay is aligned properly.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">method</span></code> is <code class="docutils literal notranslate"><span class="pre">sf.studio.OVERLAY_VIEW</span></code>, the array is interpreted
+as an overlay that is applied only to the area of the slide
+currently in view.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>overlay</strong> (<em>np.ndarray</em>) – Overlay to render.</p></li>
+<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Mapping method for linking the overlay to the
+whole-slide image.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.set_viewer">
+<span class="sig-name descname"><span class="pre">set_viewer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">viewer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.set_viewer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.set_viewer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the main viewer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>viewer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.studio.gui.viewer.Viewer</span></code>) – Viewer to use.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.show_overlay">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">show_overlay</span></span><a class="headerlink" href="#slideflow.studio.Studio.show_overlay" title="Permalink to this definition">¶</a></dt>
+<dd><p>An overlay (e.g. tile filter or heatmap) is currently being shown
+over the main view.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+             </article>
+
+            </div>
+            <footer>
+
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+        <a href="../tutorial1/" class="btn btn-neutral float-right" title="Tutorial 1: Model training (simple)" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+
+
+        <a href="../util/" class="btn btn-neutral" title="slideflow.util" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+
+    </div>
+
+
+
+
+    <hr>
+
+
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2022, James M Dolezal.
+
+    </p>
+  </div>
+
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">slideflow.studio</a><ul>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar"><code class="docutils literal notranslate"><span class="pre">Sidebar</span></code></a><ul>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar.__init__"><code class="docutils literal notranslate"><span class="pre">Sidebar.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar.add_widgets"><code class="docutils literal notranslate"><span class="pre">Sidebar.add_widgets()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar.content_width"><code class="docutils literal notranslate"><span class="pre">Sidebar.content_width</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar.draw"><code class="docutils literal notranslate"><span class="pre">Sidebar.draw()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar.full_button"><code class="docutils literal notranslate"><span class="pre">Sidebar.full_button()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar.full_width"><code class="docutils literal notranslate"><span class="pre">Sidebar.full_width</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar.large_image_button"><code class="docutils literal notranslate"><span class="pre">Sidebar.large_image_button()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar.remove_widget"><code class="docutils literal notranslate"><span class="pre">Sidebar.remove_widget()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar.small_button"><code class="docutils literal notranslate"><span class="pre">Sidebar.small_button()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Sidebar.theme"><code class="docutils literal notranslate"><span class="pre">Sidebar.theme</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#slideflow.studio.Studio"><code class="docutils literal notranslate"><span class="pre">Studio</span></code></a><ul>
+<li><a class="reference internal" href="#slideflow.studio.Studio.P"><code class="docutils literal notranslate"><span class="pre">Studio.P</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.__init__"><code class="docutils literal notranslate"><span class="pre">Studio.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.add_to_render_pipeline"><code class="docutils literal notranslate"><span class="pre">Studio.add_to_render_pipeline()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.add_widgets"><code class="docutils literal notranslate"><span class="pre">Studio.add_widgets()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.ask_load_heatmap"><code class="docutils literal notranslate"><span class="pre">Studio.ask_load_heatmap()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.ask_load_model"><code class="docutils literal notranslate"><span class="pre">Studio.ask_load_model()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.ask_load_project"><code class="docutils literal notranslate"><span class="pre">Studio.ask_load_project()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.ask_load_slide"><code class="docutils literal notranslate"><span class="pre">Studio.ask_load_slide()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.autoload"><code class="docutils literal notranslate"><span class="pre">Studio.autoload()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.center_next_window"><code class="docutils literal notranslate"><span class="pre">Studio.center_next_window()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.clear_message"><code class="docutils literal notranslate"><span class="pre">Studio.clear_message()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.clear_model_results"><code class="docutils literal notranslate"><span class="pre">Studio.clear_model_results()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.clear_overlay"><code class="docutils literal notranslate"><span class="pre">Studio.clear_overlay()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.clear_result"><code class="docutils literal notranslate"><span class="pre">Studio.clear_result()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.close"><code class="docutils literal notranslate"><span class="pre">Studio.close()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.close_model"><code class="docutils literal notranslate"><span class="pre">Studio.close_model()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.close_slide"><code class="docutils literal notranslate"><span class="pre">Studio.close_slide()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.collapsing_header"><code class="docutils literal notranslate"><span class="pre">Studio.collapsing_header()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.decrease_tile_zoom"><code class="docutils literal notranslate"><span class="pre">Studio.decrease_tile_zoom()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.defer_rendering"><code class="docutils literal notranslate"><span class="pre">Studio.defer_rendering()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.dim_text"><code class="docutils literal notranslate"><span class="pre">Studio.dim_text()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.draw_frame"><code class="docutils literal notranslate"><span class="pre">Studio.draw_frame()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.get_default_widgets"><code class="docutils literal notranslate"><span class="pre">Studio.get_default_widgets()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.get_renderer"><code class="docutils literal notranslate"><span class="pre">Studio.get_renderer()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.get_widget"><code class="docutils literal notranslate"><span class="pre">Studio.get_widget()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.has_live_viewer"><code class="docutils literal notranslate"><span class="pre">Studio.has_live_viewer()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.has_uq"><code class="docutils literal notranslate"><span class="pre">Studio.has_uq()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.header"><code class="docutils literal notranslate"><span class="pre">Studio.header()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.header_with_buttons"><code class="docutils literal notranslate"><span class="pre">Studio.header_with_buttons()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.increase_tile_zoom"><code class="docutils literal notranslate"><span class="pre">Studio.increase_tile_zoom()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.load_heatmap"><code class="docutils literal notranslate"><span class="pre">Studio.load_heatmap()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.load_model"><code class="docutils literal notranslate"><span class="pre">Studio.load_model()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.load_project"><code class="docutils literal notranslate"><span class="pre">Studio.load_project()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.load_slide"><code class="docutils literal notranslate"><span class="pre">Studio.load_slide()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.model"><code class="docutils literal notranslate"><span class="pre">Studio.model</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.offset_x"><code class="docutils literal notranslate"><span class="pre">Studio.offset_x</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.offset_x_pixels"><code class="docutils literal notranslate"><span class="pre">Studio.offset_x_pixels</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.offset_y"><code class="docutils literal notranslate"><span class="pre">Studio.offset_y</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.offset_y_pixels"><code class="docutils literal notranslate"><span class="pre">Studio.offset_y_pixels</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.print_error"><code class="docutils literal notranslate"><span class="pre">Studio.print_error()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.reload_model"><code class="docutils literal notranslate"><span class="pre">Studio.reload_model()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.reload_viewer"><code class="docutils literal notranslate"><span class="pre">Studio.reload_viewer()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.remove_from_render_pipeline"><code class="docutils literal notranslate"><span class="pre">Studio.remove_from_render_pipeline()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.remove_widget"><code class="docutils literal notranslate"><span class="pre">Studio.remove_widget()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.reset_background"><code class="docutils literal notranslate"><span class="pre">Studio.reset_background()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.reset_tile_zoom"><code class="docutils literal notranslate"><span class="pre">Studio.reset_tile_zoom()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.set_message"><code class="docutils literal notranslate"><span class="pre">Studio.set_message()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.set_overlay"><code class="docutils literal notranslate"><span class="pre">Studio.set_overlay()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.set_viewer"><code class="docutils literal notranslate"><span class="pre">Studio.set_viewer()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.show_overlay"><code class="docutils literal notranslate"><span class="pre">Studio.show_overlay</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+
+
+
+
+
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script src="../_static/sphinx_highlight.js"></script>
+
+
+
+  <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

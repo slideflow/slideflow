@@ -45,7 +45,7 @@ def fast_outlines_list(masks, num_threads=None):
     by multithreading for large images.
     """
     if num_threads is None:
-        num_threads = os.cpu_count()
+        num_threads = sf.util.num_cpu()
 
     def get_mask_outline(mask_id):
         mn = (masks == mask_id)
@@ -80,7 +80,7 @@ def get_sparse_chunk_centroid(sparse_mask, shape):
 
 
 def get_sparse_centroid(mask, sparse_mask):
-    n_proc = os.cpu_count() if os.cpu_count() else 8
+    n_proc = sf.util.num_cpu(default=8)
     with mp.Pool(n_proc) as pool:
         return np.concatenate(
             pool.map(

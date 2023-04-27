@@ -1,0 +1,804 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>slideflow.mil._params &mdash; slideflow 2.0.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../genindex/" />
+    <link rel="search" title="Search" href="../../../../search/" />
+  <!-- Google Analytics -->
+
+  <!-- End Google Analytics -->
+
+
+
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+
+
+
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+
+
+
+
+
+                <div class="version">
+                  2.0
+                </div>
+
+
+
+
+
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+          </div>
+
+
+
+
+
+
+
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+</ul>
+
+
+
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+
+      <li>
+        <a href="../../../../">
+
+            Docs
+
+        </a> &gt;
+      </li>
+
+
+          <li><a href="../../../">Module code</a> &gt;</li>
+
+      <li>slideflow.mil._params</li>
+
+
+      <li class="pytorch-breadcrumbs-aside">
+
+      </li>
+
+  </ul>
+
+
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+
+
+          <div class="rst-content">
+
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+
+  <h1>Source code for slideflow.mil._params</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Model and trainer configuration for MIL models.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">from</span> <span class="nn">slideflow.mil.models</span> <span class="kn">import</span> <span class="n">Attention_MIL</span>
+
+
+<div class="viewcode-block" id="mil_config"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.mil_config">[docs]</a><span class="k">def</span> <span class="nf">mil_config</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">trainer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;fastai&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a multiple-instance learning (MIL) training configuration.</span>
+
+<span class="sd">    All models by default are trained with the FastAI trainer. However, CLAM</span>
+<span class="sd">    models can also be trained using the original, legacy CLAM trainer. This</span>
+<span class="sd">    deprecated trainer has been kept for backwards compatibility; the</span>
+<span class="sd">    FastAI trainer is preferred to all models, including CLAM.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model (str, Callable): Either the name of a model, or a custom torch</span>
+<span class="sd">            module. Valid model names include ``&quot;clam_sb&quot;``, ``&quot;clam_mb&quot;``,</span>
+<span class="sd">            ``&quot;mil_fc&quot;``, ``&quot;mil_fc_mc&quot;``, ``&quot;attention_mil&quot;``, and</span>
+<span class="sd">            ``&quot;transmil&quot;``.</span>
+<span class="sd">        trainer (str): Type of MIL trainer to use. Either &#39;fastai&#39; or &#39;clam&#39;.</span>
+<span class="sd">            All models (including CLAM) can be trained with &#39;fastai&#39;.</span>
+<span class="sd">            The deprecated, legacy &#39;clam&#39; trainer is only available for CLAM</span>
+<span class="sd">            models, and has been kept for backwards compatibility.</span>
+<span class="sd">            Defaults to &#39;fastai&#39; (preferred).</span>
+<span class="sd">        **kwargs: All additional keyword arguments are passed to either</span>
+<span class="sd">            :class:`slideflow.mil.TrainerConfigCLAM` for CLAM models, or</span>
+<span class="sd">            :class:`slideflow.mil.TrainerConfigFastAI` for all other models.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">model</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ModelConfigCLAM</span><span class="o">.</span><span class="n">valid_models</span> <span class="ow">and</span> <span class="n">trainer</span> <span class="o">==</span> <span class="s1">&#39;clam&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Model </span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2"> incompatible with trainer </span><span class="si">{</span><span class="n">trainer</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">trainer</span> <span class="o">==</span> <span class="s1">&#39;fastai&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">TrainerConfigFastAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">trainer</span> <span class="o">==</span> <span class="s1">&#39;clam&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">TrainerConfigCLAM</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized trainer </span><span class="si">{</span><span class="n">trainer</span><span class="si">}</span><span class="s2">, expected fastai or clam.&quot;</span><span class="p">)</span></div>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<span class="k">class</span> <span class="nc">DictConfig</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;self&#39;</span><span class="p">,</span> <span class="s1">&#39;model_fn&#39;</span><span class="p">,</span> <span class="s1">&#39;loss_fn&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)}</span>
+
+
+<span class="k">class</span> <span class="nc">_TrainerConfig</span><span class="p">(</span><span class="n">DictConfig</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Multiple-instance learning (MIL) training configuration.</span>
+
+<span class="sd">        This configuration should not be created directly, but rather should</span>
+<span class="sd">        be created through :func:`slideflow.mil.mil_config`, which will create</span>
+<span class="sd">        and prepare an appropriate trainer configuration.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(&quot;</span>
+        <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">p</span> <span class="o">!=</span> <span class="s1">&#39;model_config&#39;</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">  </span><span class="si">{}</span><span class="s1">=</span><span class="si">{!r}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">)&#39;</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">model_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;MIL model architecture (class/module).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">model_fn</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">loss_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;MIL loss function.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">loss_fn</span>
+
+    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts this training configuration to a dictionary.&quot;&quot;&quot;</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">d</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+            <span class="k">del</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;model_config&#39;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">d</span>
+
+    <span class="k">def</span> <span class="nf">json_dump</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts this training configuration to a JSON-compatible dict.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">trainer</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;fastai&#39;</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">TrainerConfigFastAI</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;clam&#39;</span><span class="p">),</span>
+            <span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="p">)</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="TrainerConfigFastAI"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.TrainerConfigFastAI">[docs]</a><span class="k">class</span> <span class="nc">TrainerConfigFastAI</span><span class="p">(</span><span class="n">_TrainerConfig</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;attention_mil&#39;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">lr</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">wd</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">,</span>
+        <span class="n">bag_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span>
+        <span class="n">fit_one_cycle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Training configuration for FastAI MIL models.</span>
+
+<span class="sd">        This configuration should not be created directly, but rather should</span>
+<span class="sd">        be created through :func:`slideflow.mil.mil_config`, which will create</span>
+<span class="sd">        and prepare an appropriate trainer configuration.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model (str, Callable): Either the name of a model, or a custom torch</span>
+<span class="sd">                module. Valid model names include ``&quot;clam_sb&quot;``, ``&quot;clam_mb&quot;``,</span>
+<span class="sd">                ``&quot;mil_fc&quot;``, ``&quot;mil_fc_mc&quot;``, ``&quot;attention_mil&quot;``, and</span>
+<span class="sd">                ``&quot;transmil&quot;``.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            lr (float, optional): Learning rate. If ``fit_one_cycle=True``,</span>
+<span class="sd">                this is the maximum learning rate. If None, uses the Leslie</span>
+<span class="sd">                Smith `LR Range test &lt;https://arxiv.org/abs/1506.01186&gt;`_ to</span>
+<span class="sd">                find an optimal learning rate. Defaults to None.</span>
+<span class="sd">            wd (float): Weight decay. Only used if ``fit_one_cycle=False``.</span>
+<span class="sd">                Defaults to 1e-5.</span>
+<span class="sd">            bag_size (int): Bag size. Defaults to 512.</span>
+<span class="sd">            fit_one_cycle (bool): Use `1cycle &lt;https://sgugger.github.io/the-1cycle-policy.html&gt;`_</span>
+<span class="sd">                learning rate schedule. Defaults to True.</span>
+<span class="sd">            epochs (int): Maximum number of epochs. Defaults to 32.</span>
+<span class="sd">            batch_size (int): Batch size. Defaults to 64.</span>
+<span class="sd">            **kwargs: All additional keyword arguments are passed to either</span>
+<span class="sd">                :class:`slideflow.mil.ModelConfigCLAM` for CLAM models, or</span>
+<span class="sd">                :class:`slideflow.mil.ModelConfigFastAI` for all other models.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="n">lr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wd</span> <span class="o">=</span> <span class="n">wd</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bag_size</span> <span class="o">=</span> <span class="n">bag_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fit_one_cycle</span> <span class="o">=</span> <span class="n">fit_one_cycle</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">epochs</span> <span class="o">=</span> <span class="n">epochs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="k">if</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">ModelConfigCLAM</span><span class="o">.</span><span class="n">valid_models</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span> <span class="o">=</span> <span class="n">ModelConfigCLAM</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span> <span class="o">=</span> <span class="n">ModelConfigFastAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TrainerConfigCLAM"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.TrainerConfigCLAM">[docs]</a><span class="k">class</span> <span class="nc">TrainerConfigCLAM</span><span class="p">(</span><span class="n">_TrainerConfig</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">num_splits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>   <span class="c1"># Unused; kept for backwards compatibility</span>
+        <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">k_start</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">k_end</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">max_epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-4</span><span class="p">,</span>
+        <span class="n">reg</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">,</span>
+        <span class="n">label_frac</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">weighted_sample</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">log_data</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">testing</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">early_stopping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">subtyping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">results_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># Unused; kept for compatibility</span>
+        <span class="n">n_classes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">split_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">data_root_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">micro_average</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Training configuration for the legacy CLAM trainer.</span>
+
+<span class="sd">        This configures the legacy CLAM trainer. The FastAI trainer is</span>
+<span class="sd">        preferred for all models, including CLAM.</span>
+
+<span class="sd">        The configuration options for the legacy CLAM trainer are identical to</span>
+<span class="sd">        the options in the `original CLAM paper &lt;https://arxiv.org/abs/2004.09666&gt;`_.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            k (int): Number of cross-fold splits. Defaults to 3.</span>
+<span class="sd">            k_start (int): Starting cross-fold. Defaults to first cross-fold.</span>
+<span class="sd">            k_end (int): Ending cross-fold. Defaults to ending after last</span>
+<span class="sd">                cross-fold is done.</span>
+<span class="sd">            max_epochs (int): Number of epochs to train. Defaults to 20.</span>
+<span class="sd">            lr (float): Learning rate. Defaults to 1e-4.</span>
+<span class="sd">            reg (float): Weight decay. Defaults to 1e-5.</span>
+<span class="sd">            weighted_sample (bool): Equally sample from all outcome classes.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            log_data (bool): Log to tensorboard. Defaults to False.</span>
+<span class="sd">            early_stopping (bool): Stop the training if validation loss doesn&#39;t</span>
+<span class="sd">                improve after 5 epochs. Will not trigger early stopping</span>
+<span class="sd">                until epoch 50. Defaults to False.</span>
+<span class="sd">            subtyping (bool): Whether this is a subtyping problem.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            seed (int): Set the random seed. Defaults to 1.</span>
+<span class="sd">            n_classes (int): Number of outcome classes. Defaults to None.</span>
+<span class="sd">            micro_average (bool): Use micro averaging when calculate AUROC.</span>
+<span class="sd">            **kwargs: All additional keyword arguments are passed to</span>
+<span class="sd">                :class:`slideflow.mil.ModelConfigCLAM`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">argname</span><span class="p">,</span> <span class="n">argval</span> <span class="ow">in</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">locals</span><span class="p">())</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">argname</span> <span class="o">!=</span> <span class="s1">&#39;kwargs&#39;</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argname</span><span class="p">,</span> <span class="n">argval</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span> <span class="o">=</span> <span class="n">ModelConfigCLAM</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_to_clam_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert into CLAM_Args format (legacy support).&quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">..clam</span> <span class="kn">import</span> <span class="n">CLAM_Args</span>
+        <span class="n">all_kw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="n">all_kw</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+        <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">]</span>
+        <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;drop_out&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;dropout&#39;</span><span class="p">]</span>
+        <span class="k">del</span> <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">]</span>
+        <span class="k">del</span> <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;dropout&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">CLAM_Args</span><span class="p">(</span><span class="o">**</span><span class="n">all_kw</span><span class="p">)</span></div>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="ModelConfigCLAM"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.ModelConfigCLAM">[docs]</a><span class="k">class</span> <span class="nc">ModelConfigCLAM</span><span class="p">(</span><span class="n">DictConfig</span><span class="p">):</span>
+
+    <span class="n">valid_models</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;clam_sb&#39;</span><span class="p">,</span> <span class="s1">&#39;clam_mb&#39;</span><span class="p">,</span> <span class="s1">&#39;mil_fc_mc&#39;</span><span class="p">,</span> <span class="s1">&#39;mil_fc&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;clam_sb&#39;</span><span class="p">,</span>
+        <span class="n">model_size</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;small&#39;</span><span class="p">,</span>
+        <span class="n">bag_loss</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;ce&#39;</span><span class="p">,</span>
+        <span class="n">bag_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">opt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;adam&#39;</span><span class="p">,</span>
+        <span class="n">inst_loss</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;ce&#39;</span><span class="p">,</span>
+        <span class="n">no_inst_cluster</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">B</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Model configuration for CLAM models.</span>
+
+<span class="sd">        These configuration options are identical to the options in the</span>
+<span class="sd">        `original CLAM paper &lt;https://arxiv.org/abs/2004.09666&gt;`_.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            model (str): Model. Either ``&#39;clam_sb&#39;``, ``&#39;clam_mb&#39;``,</span>
+<span class="sd">                ``&#39;mil_fc&#39;``, or ``&#39;mil_fc_mc&#39;``. Defaults to ``&#39;clam_sb&#39;``.</span>
+<span class="sd">            model_size (str): Size of the model. Available sizes include:</span>
+
+<span class="sd">                ``clam_sb``</span>
+
+<span class="sd">                .. list-table::</span>
+<span class="sd">                    :header-rows: 0</span>
+
+<span class="sd">                    * - small</span>
+<span class="sd">                      - [1024, 512, 256]</span>
+<span class="sd">                    * - big</span>
+<span class="sd">                      - [1024, 512, 384]</span>
+<span class="sd">                    * - multiscale</span>
+<span class="sd">                      - [2048, 512, 256]</span>
+<span class="sd">                    * - xception</span>
+<span class="sd">                      - [2048, 256, 128]</span>
+<span class="sd">                    * - xception_multi</span>
+<span class="sd">                      - [1880, 128, 64]</span>
+<span class="sd">                    * - xception_3800</span>
+<span class="sd">                      - [3800, 512, 256]</span>
+
+<span class="sd">                ``clam_mb``</span>
+
+<span class="sd">                .. list-table::</span>
+<span class="sd">                    :header-rows: 0</span>
+
+<span class="sd">                    * - small</span>
+<span class="sd">                      - [1024, 512, 256]</span>
+<span class="sd">                    * - big</span>
+<span class="sd">                      - [1024, 512, 384]</span>
+<span class="sd">                    * - multiscale</span>
+<span class="sd">                      - [2048, 512, 256]</span>
+
+<span class="sd">                ``mil_fc``</span>
+
+<span class="sd">                .. list-table::</span>
+<span class="sd">                    :header-rows: 0</span>
+
+<span class="sd">                    * - small</span>
+<span class="sd">                      - [1024, 512]</span>
+
+<span class="sd">                ``mil_fc_mc``</span>
+
+<span class="sd">                .. list-table::</span>
+<span class="sd">                    :header-rows: 0</span>
+
+<span class="sd">                    * - small</span>
+<span class="sd">                      - [1024, 512]</span>
+
+<span class="sd">            bag_loss (str): Primary loss function. Either &#39;ce&#39; or &#39;svm&#39;.</span>
+<span class="sd">                If &#39;ce&#39;, the model loss function is a cross entropy loss.</span>
+<span class="sd">                If &#39;svm&#39;, the model loss is topk.SmoothTop1SVM.</span>
+<span class="sd">                Defaults to &#39;ce&#39;.</span>
+<span class="sd">            bag_weight (float): Weight of the bag loss. The total loss is</span>
+<span class="sd">                defined0 as ``W * loss + (1 - W) * instance_loss``, where</span>
+<span class="sd">                ``W`` is the bag weight. Defaults to 0.7</span>
+<span class="sd">            dropout (bool): Add dropout (p=0.25) after the attention layers.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            opt (str): Optimizer. Either &#39;adam&#39; (Adam optimizer) or &#39;sgd&#39;</span>
+<span class="sd">                (Stochastic Gradient Descent). Defaults to &#39;adam&#39;.</span>
+<span class="sd">            inst_loss (str): Instance loss function. Either &#39;ce&#39; or &#39;svm&#39;.</span>
+<span class="sd">                If &#39;ce&#39;, the instance loss is a cross entropy loss.</span>
+<span class="sd">                If &#39;svm&#39;, the loss is topk.SmoothTop1SVM.</span>
+<span class="sd">                Defaults to &#39;ce&#39;.</span>
+<span class="sd">            no_inst_cluster (bool): Disable instance-level clustering.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            B (int): Number of positive/negative patches to sample for</span>
+<span class="sd">                instance-level training. Defaults to 8.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">argname</span><span class="p">,</span> <span class="n">argval</span> <span class="ow">in</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">locals</span><span class="p">())</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argname</span><span class="p">,</span> <span class="n">argval</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">model_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">.models</span> <span class="kn">import</span> <span class="n">CLAM_MB</span><span class="p">,</span> <span class="n">CLAM_SB</span><span class="p">,</span> <span class="n">MIL_fc_mc</span><span class="p">,</span> <span class="n">MIL_fc</span>
+        <span class="n">model_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;clam_sb&#39;</span><span class="p">:</span> <span class="n">CLAM_SB</span><span class="p">,</span>
+            <span class="s1">&#39;clam_mb&#39;</span><span class="p">:</span> <span class="n">CLAM_MB</span><span class="p">,</span>
+            <span class="s1">&#39;mil_fc_mc&#39;</span><span class="p">:</span> <span class="n">MIL_fc_mc</span><span class="p">,</span>
+            <span class="s1">&#39;mil_fc&#39;</span><span class="p">:</span> <span class="n">MIL_fc</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">model_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">loss_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">.clam.utils</span> <span class="kn">import</span> <span class="n">loss_utils</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;clam&#39;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">loss_utils</span><span class="o">.</span><span class="n">CrossEntropyWithInstanceLoss</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">loss_utils</span><span class="o">.</span><span class="n">CrossEntropyLoss</span></div>
+
+
+<div class="viewcode-block" id="ModelConfigFastAI"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.ModelConfigFastAI">[docs]</a><span class="k">class</span> <span class="nc">ModelConfigFastAI</span><span class="p">(</span><span class="n">DictConfig</span><span class="p">):</span>
+
+    <span class="n">valid_models</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;attention_mil&#39;</span><span class="p">,</span> <span class="s1">&#39;transmil&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;attention_mil&#39;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">use_lens</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Model configuration for a non-CLAM MIL model.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model (str, Callable): Either the name of a model, or a custom torch</span>
+<span class="sd">                module. Valid model names include ``&quot;attention_mil&quot;`` and</span>
+<span class="sd">                ``&quot;transmil&quot;``. Defaults to &#39;attention_mil&#39;.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            use_lens (bool, optional): Whether the model expects a second</span>
+<span class="sd">                argument to its ``.forward()`` function, an array with the</span>
+<span class="sd">                bag size for each slide. If None, will default to True for</span>
+<span class="sd">                ``&#39;attention_mil&#39;`` models and False otherwise.</span>
+<span class="sd">                Defaults to None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+        <span class="k">if</span> <span class="n">use_lens</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">model</span> <span class="o">==</span> <span class="s1">&#39;attention_mil&#39;</span> <span class="ow">or</span> <span class="n">model</span> <span class="ow">is</span> <span class="n">Attention_MIL</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">use_lens</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">elif</span> <span class="n">use_lens</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">use_lens</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">use_lens</span> <span class="o">=</span> <span class="n">use_lens</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">model_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;attention_mil&#39;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">.models</span> <span class="kn">import</span> <span class="n">Attention_MIL</span>
+            <span class="k">return</span> <span class="n">Attention_MIL</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;transmil&#39;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">.models</span> <span class="kn">import</span> <span class="n">TransMIL</span>
+            <span class="k">return</span> <span class="n">TransMIL</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized model </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">loss_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span>
+
+    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">d</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">]</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="k">return</span> <span class="n">d</span></div>
+</pre></div>
+
+             </article>
+
+            </div>
+            <footer>
+
+
+
+
+    <hr>
+
+
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2022, James M Dolezal.
+
+    </p>
+  </div>
+
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+
+
+
+
+
+       <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+         <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+         <script src="../../../../_static/doctools.js"></script>
+         <script src="../../../../_static/sphinx_highlight.js"></script>
+
+
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

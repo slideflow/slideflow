@@ -3,13 +3,13 @@
 Slideflow Studio: Live Visualization
 ====================================
 
-.. video:: studio_preview.webm
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/studio_preview.webm
     :width: 100%
     :autoplay:
 
 |
 
-Slideflow Studio provides powerful tools for interactive visualization whole-slide images, model predictions, and GAN-generated images. It's also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you'll get a smooth experience that can even run on a Raspberry Pi.
+Slideflow Studio provides powerful tools for interactive visualization of whole-slide images, model predictions, and GAN-generated images. It's also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you'll get a smooth experience that can even run on a Raspberry Pi.
 
 If you have installed slideflow via PIP, you can run Studio from a terminal with:
 
@@ -217,7 +217,7 @@ The Cell Segmentation extension adds support for interactive cell segmentation w
 StyleGAN
 --------
 
-.. video:: stylegan.webm
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm
     :width: 100%
     :autoplay:
 

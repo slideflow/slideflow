@@ -731,7 +731,7 @@ class Studio(ImguiWindow):
         else:
             rois = None
         if sf.slide_backend() == 'cucim':
-            kwargs['num_workers'] = os.cpu_count()
+            kwargs['num_workers'] = sf.util.num_cpu(default=4)
         self.wsi = sf.WSI(
             path,
             tile_px=(self.tile_px if self.tile_px else 256),

@@ -1,0 +1,668 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Datasets &mdash; slideflow 2.0.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" />
+    <link rel="next" title="Slide Processing" href="../slide_processing/" />
+    <link rel="prev" title="Setting up a Project" href="../project_setup/" />
+  <!-- Google Analytics -->
+
+  <!-- End Google Analytics -->
+
+
+
+  <script src="../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+
+
+
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+
+
+
+
+
+                <div class="version">
+                  2.0
+                </div>
+
+
+
+
+
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+          </div>
+
+
+
+
+
+
+
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+</ul>
+
+
+
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+
+      <li>
+        <a href="../">
+
+            Docs
+
+        </a> &gt;
+      </li>
+
+
+      <li>Datasets</li>
+
+
+      <li class="pytorch-breadcrumbs-aside">
+
+
+            <a href="../_sources/datasets_and_val.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+
+
+      </li>
+
+  </ul>
+
+
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+
+
+          <div class="rst-content">
+
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+
+  <section id="datasets">
+<span id="datasets-and-validation"></span><h1>Datasets<a class="headerlink" href="#datasets" title="Permalink to this heading">¶</a></h1>
+<p>Working with large-scale imaging data can be both challenging and messy, so Slideflow provides the <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a> class to assist with managing, splitting, filtering, and transforming your data for easy downstream use. <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a> organizes a set of image tiles extracted at a specific size, along with their associated slides and clinical annotations. Datasets are used for many Slideflow functions, and can quickly generate <code class="docutils literal notranslate"><span class="pre">torch.utils.data.DataLoader</span></code> and <code class="docutils literal notranslate"><span class="pre">tf.data.Datasets</span></code> objects that provide preprocessed slide images for external applications.</p>
+<section id="dataset-sources">
+<h2>Dataset Sources<a class="headerlink" href="#dataset-sources" title="Permalink to this heading">¶</a></h2>
+<p>Datasets are comprised of one or more <em>sources</em>, which are a set of slides, Regions of Interest (if available), and any tiles extracted from these slides. You might choose to organize your data into separate sources if slides are organized into distinct locations on disk - for example, if you are using multiple sets of slides from different institutions, with data from each institution stored separately.</p>
+</section>
+<section id="loading-a-dataset">
+<h2>Loading a Dataset<a class="headerlink" href="#loading-a-dataset" title="Permalink to this heading">¶</a></h2>
+<p>Datasets can be created either from a <a class="reference internal" href="../project_setup/#project-setup"><span class="std std-ref">Project</span></a> - using the project’s dataset configuration file - or directly by providing paths to slides, annotations, and image tile destinations. In the next sections, we’ll take a look at how to create a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a> with each method.</p>
+<section id="from-a-project">
+<h3>From a project<a class="headerlink" href="#from-a-project" title="Permalink to this heading">¶</a></h3>
+<p>If you are working in the context of a <a class="reference internal" href="../project_setup/#project-setup"><span class="std std-ref">Project</span></a>, a dataset can be quickly created using <code class="xref py py-meth docutils literal notranslate"><span class="pre">Project.dataset()</span></code>. A dataset can be loaded from a given <code class="docutils literal notranslate"><span class="pre">Project</span></code> with the following parameters:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tile_px</span></code> is the tile size, in pixels</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tile_um</span></code> is the tile size, in microns (<code class="docutils literal notranslate"><span class="pre">int</span></code>) or magnification (<code class="docutils literal notranslate"><span class="pre">'40x'</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sources</span></code> is an optional list of dataset sources to use</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="s1">&#39;/project/path&#39;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;10x&#39;</span><span class="p">,</span> <span class="n">sources</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Source1&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>If <code class="docutils literal notranslate"><span class="pre">sources</span></code> is not provided, all available sources will be used.</p>
+<p>Alternatively, you can accomplish the same by creating a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a> object directly, passing in the project <a class="reference internal" href="../project_setup/#dataset-sources"><span class="std std-ref">dataset configuration file</span></a> to the <code class="docutils literal notranslate"><span class="pre">config</span></code> argument, and a path to the annotations file to <code class="docutils literal notranslate"><span class="pre">annotations</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span>
+    <span class="n">config</span><span class="o">=</span><span class="s1">&#39;config.json&#39;</span><span class="p">,</span>
+    <span class="n">sources</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Source1&#39;</span><span class="p">],</span>
+    <span class="n">annotations</span><span class="o">=</span><span class="s1">&#39;annotations.csv&#39;</span><span class="p">,</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
+    <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;10x&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="manually-from-paths">
+<h3>Manually from paths<a class="headerlink" href="#manually-from-paths" title="Permalink to this heading">¶</a></h3>
+<p>You can also create a dataset by manually supplying paths to slides, destination for image tiles, and clinical annotations. A single dataset source will be created from the provided arguments, which include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tile_px</span></code> is the tile size, in pixels</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tile_um</span></code> is the size in microns or magnification</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">slides</span></code> is the directory containing whole-slide images</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">roi</span></code> is the directory containing Regions of Interest *.csv files</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tfrecords</span></code> is the path to where image tiles should be stored in TFRecords</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tiles</span></code> is the path to where image tiles should be stored as *.jpg images</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">annotations</span></code> is either an annotations file (CSV) or Pandas DataFrame.</p></li>
+</ul>
+<p>For example, to create a dataset from a set of slides, with a configured TFRecord directory and annotations provided via Pandas DataFrame:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="c1"># Create some clinical annotations</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Create a dataset</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span>
+    <span class="n">slides</span><span class="o">=</span><span class="s1">&#39;/slides&#39;</span><span class="p">,</span>
+    <span class="n">tfrecords</span><span class="o">=</span><span class="s1">&#39;/tfrecords&#39;</span><span class="p">,</span>
+    <span class="n">annotations</span><span class="o">=</span><span class="n">df</span><span class="p">,</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
+    <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;10x&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="filtering">
+<h2>Filtering<a class="headerlink" href="#filtering" title="Permalink to this heading">¶</a></h2>
+<p>Datasets can be filtered (by slides or patients) through several mechanisms:</p>
+<ul class="simple">
+<li><p><strong>filters</strong>: A dictionary, where keys are clinical annotation headers and values are the variable states which should be included. All remaining slides are removed from the dataset.</p></li>
+<li><p><strong>filter_blank</strong>: A list of headers; any slide with a blank value in the clinical annotations in one of these columns will be excluded.</p></li>
+<li><p><strong>min_tiles</strong>: An <code class="docutils literal notranslate"><span class="pre">int</span></code>; any tfrecords with fewer than this number of tiles will be excluded.</p></li>
+</ul>
+<p>Filters can be provided at the time of Dataset creation by passing to the initializer:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">Dataset</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;negative&#39;</span><span class="p">,</span> <span class="s1">&#39;positive&#39;</span><span class="p">]})</span>
+</pre></div>
+</div>
+<p>or by using the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.filter()</span></code> method:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">min_tiles</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="dataset-manipulation">
+<h2>Dataset Manipulation<a class="headerlink" href="#dataset-manipulation" title="Permalink to this heading">¶</a></h2>
+<p>A number of functions can be applied to Datasets to manipulate patient filters (<code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.filter()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.remove_filter()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.clear_filters()</span></code>), clip tfrecords to a maximum number of tiles (<code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.clip()</span></code>), or prepare mini-batch balancing (<code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.balance()</span></code>). The full documentation for these functions is given <a class="reference internal" href="../dataset/#dataset"><span class="std std-ref">in the API</span></a>. Each of these manipulations return an altered copy of the dataset for easy chaining:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Each of these manipulations is performed in memory and will not affect data stored on disk.</p>
+</section>
+<section id="dataset-inspection">
+<span id="balancing"></span><h2>Dataset Inspection<a class="headerlink" href="#dataset-inspection" title="Permalink to this heading">¶</a></h2>
+<p>The fastest way to inspect a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a> and the dataset sources loaded, number of slides found, clinical annotation columns available, and number of tiles extracted into TFRecords is the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.summary()</span></code> method.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Overview:
+╒===============================================╕
+│ Configuration file: │ /mnt/data/datasets.json │
+│ Tile size (px):     │ 299                     │
+│ Tile size (um):     │ 10x                     │
+│ Slides:             │ 941                     │
+│ Patients:           │ 941                     │
+│ Slides with ROIs:   │ 941                     │
+│ Patients with ROIs: │ 941                     │
+╘===============================================╛
+
+Filters:
+╒====================╕
+│ Filters:      │ {} │
+├--------------------┤
+│ Filter Blank: │ [] │
+├--------------------┤
+│ Min Tiles:    │ 0  │
+╘====================╛
+
+Sources:
+
+TCGA_LUNG
+╒==============================================╕
+│ slides    │ /mnt/raid/SLIDES/TCGA_LUNG       │
+│ roi       │ /mnt/raid/SLIDES/TCGA_LUNG       │
+│ tiles     │ /mnt/rocket/tiles/TCGA_LUNG      │
+│ tfrecords │ /mnt/rocket/tfrecords/TCGA_LUNG/ │
+│ label     │ 299px_10x                        │
+╘==============================================╛
+
+Number of tiles in TFRecords: 18354
+Annotation columns:
+Index([&#39;patient&#39;, &#39;subtype&#39;, &#39;site&#39;, &#39;slide&#39;],
+    dtype=&#39;object&#39;)
+</pre></div>
+</div>
+</section>
+<section id="manifest">
+<h2>Manifest<a class="headerlink" href="#manifest" title="Permalink to this heading">¶</a></h2>
+<p><code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.manifest()</span></code> provides a dictionary mapping tfrecords to the total number of image tiles and the number of tiles after clipping or mini-batch balancing. For example, after clipping:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>the manifest may look something like:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;/path/tfrecord1.tfrecords&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;total&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1526</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;clipped&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">500</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;/path/tfrecord2.tfrecords&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;total&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">455</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;clipped&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">455</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Inspecting a dataset’s manifest may be useful to better understand the effects of dataset manipulations.</p>
+</section>
+<section id="training-validation-splitting">
+<span id="validation-planning"></span><h2>Training/Validation Splitting<a class="headerlink" href="#training-validation-splitting" title="Permalink to this heading">¶</a></h2>
+<p>An important step when planning an experiment is to determine your validation and testing data. In total, deep learning experiments should have three groups of data:</p>
+<ol class="arabic simple">
+<li><p><strong>Training</strong> - data used for learning during training</p></li>
+<li><p><strong>Validation</strong> - data used for validating training parameters and early stopping (if applicable)</p></li>
+<li><p><strong>Evaluation</strong> - held-out data used for final testing once all training and parameter tuning has completed. Preferably an external cohort.</p></li>
+</ol>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Slideflow includes tools for flexible training, validation, and evaluation data planning as discussed in the next sections.</p>
+<section id="creating-a-split">
+<h3>Creating a split<a class="headerlink" href="#creating-a-split" title="Permalink to this heading">¶</a></h3>
+<p>Datasets can be split into training and validation or test datasets with <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.split()</span></code>. The result of this function is two datasets - the first training, the second validation - each a separate instance of <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a>.</p>
+<p>Slideflow provides several options for preparing a validation plan, including:</p>
+<ul class="simple">
+<li><p><strong>strategy</strong>:  <code class="docutils literal notranslate"><span class="pre">'bootstrap'</span></code>, <code class="docutils literal notranslate"><span class="pre">'k-fold'</span></code>, <code class="docutils literal notranslate"><span class="pre">'k-fold-manual'</span></code>, <code class="docutils literal notranslate"><span class="pre">'k-fold-preserved-site'</span></code>, <code class="docutils literal notranslate"><span class="pre">'fixed'</span></code>, and <code class="docutils literal notranslate"><span class="pre">'none'</span></code></p></li>
+<li><p><strong>fraction</strong>:  (float between 0-1) [not used for k-fold validation]</p></li>
+<li><p><strong>k_fold</strong>:  int</p></li>
+</ul>
+<p>The default validation strategy is three-fold cross-validation (<code class="docutils literal notranslate"><span class="pre">strategy='k-fold'</span></code> and  <code class="docutils literal notranslate"><span class="pre">k=3</span></code>).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Split a dataset into training and validation</span>
+<span class="c1"># using 5-fold cross-validation, with this being</span>
+<span class="c1"># the first cross-fold.</span>
+<span class="n">train_dataset</span><span class="p">,</span> <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+    <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span> <span class="c1"># Categorical labels</span>
+    <span class="n">labels</span><span class="o">=</span><span class="s1">&#39;subtype&#39;</span><span class="p">,</span>         <span class="c1"># Label to balance between datasets</span>
+    <span class="n">k_fold</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>                 <span class="c1"># Total number of crossfolds</span>
+    <span class="n">k_fold_iter</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>            <span class="c1"># Cross-fold iteration</span>
+    <span class="n">splits</span><span class="o">=</span><span class="s1">&#39;splits.json&#39;</span>      <span class="c1"># Where to save/load crossfold splits</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>You can also use <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.kfold_split()</span></code> to iterate through cross-fold splits:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Split a dataset into training and validation</span>
+<span class="c1"># using 5-fold cross-validation</span>
+<span class="k">for</span> <span class="n">train</span><span class="p">,</span> <span class="n">test</span> <span class="ow">in</span> <span class="n">dataset</span><span class="o">.</span><span class="n">kfold_split</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="s1">&#39;subtype&#39;</span><span class="p">):</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+</section>
+<section id="validation-strategies">
+<span id="id1"></span><h3>Validation strategies<a class="headerlink" href="#validation-strategies" title="Permalink to this heading">¶</a></h3>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/validation.png"><img alt="../_images/validation.png" src="../_images/validation.png" style="width: 100%;" /></a>
+</figure>
+<p>The <code class="docutils literal notranslate"><span class="pre">strategy</span></code> option determines how the validation data is selected.</p>
+<p>If <strong>fixed</strong>, a certain percentage of your training data is set aside for testing (determined by <code class="docutils literal notranslate"><span class="pre">fraction</span></code>).</p>
+<p>If <strong>bootstrap</strong>, validation data will be selected at random (percentage determined by <code class="docutils literal notranslate"><span class="pre">fraction</span></code>), and all training iterations will be repeated a number of times equal to <code class="docutils literal notranslate"><span class="pre">k_fold</span></code>. When used during training, the reported model training metrics will be an average of all bootstrap iterations.</p>
+<p>If <strong>k-fold</strong>, training data will be automatically separated into <em>k</em> number of groups (where <em>k</em> is equal to <code class="docutils literal notranslate"><span class="pre">k_fold</span></code>), and all training iterations will be repeated <em>k</em> number of times using k-fold cross validation. The saved and reported model training metrics will be an average of all k-fold iterations.</p>
+<p>Datasets can be separated into manually-curated k-folds using the <strong>k-fold-manual</strong> strategy. Assign each slide to a k-fold cohort in the annotations file, and designate the appropriate column header with <code class="docutils literal notranslate"><span class="pre">k_fold_header</span></code></p>
+<p>The <strong>k-fold-preserved-site</strong> strategy is a cross-validation strategy that ensures site is preserved across the training/validation sets, in order to reduce bias from batch effect as described by <a class="reference external" href="https://www.nature.com/articles/s41467-021-24698-1">Howard, et al</a>. This strategy is recommended when using data from The Cancer Genome Atlas (<a class="reference external" href="https://portal.gdc.cancer.gov/">TCGA</a>).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Preserved-site cross-validation requires either <a class="reference external" href="https://www.ibm.com/analytics/cplex-optimizer">CPLEX</a> or <a class="reference external" href="https://anaconda.org/conda-forge/coinbonmin">Pyomo/Bonmin</a>. The original implementation of the preserved-site cross-validation algorithm described by Howard et al can be found <a class="reference external" href="https://github.com/fmhoward/PreservedSiteCV">on GitHub</a>.</p>
+</div>
+<p>If <strong>none</strong>, no validation testing will be performed.</p>
+</section>
+<section id="re-using-splits">
+<h3>Re-using splits<a class="headerlink" href="#re-using-splits" title="Permalink to this heading">¶</a></h3>
+<p>For all validation strategies, training/validation splits can be logged to a JSON file automatically if a splits configuration file is provided to the argument <code class="docutils literal notranslate"><span class="pre">splits</span></code>. When provided, <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.split()</span></code> will prioritize using previously-generated training/validation splits rather than generating a new split. This aids with experiment reproducibility and hyperparameter tuning. If training/validation splits are being prepared by a <a class="reference internal" href="../project/#project"><span class="std std-ref">Project-level function</span></a>, splits will be automatically logged to a <code class="docutils literal notranslate"><span class="pre">splits.json</span></code> file in the project root directory.</p>
+</section>
+</section>
+<section id="creating-dataloaders">
+<span id="dataloaders"></span><h2>Creating Dataloaders<a class="headerlink" href="#creating-dataloaders" title="Permalink to this heading">¶</a></h2>
+<p>Finally, Datasets can also return either a <code class="docutils literal notranslate"><span class="pre">tf.data.Datasets</span></code> or <code class="docutils literal notranslate"><span class="pre">torch.utils.data.Dataloader</span></code> object to quickly and easily create a deep learning dataset ready to be used as model input, with the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.tensorflow()</span></code> and <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.torch()</span></code> methods, respectively.</p>
+<p>Datasets have many other utility functions for working with and processing data. Read more in the <a class="reference internal" href="../dataset/#dataset"><span class="std std-ref">Dataset API documentation</span></a>.</p>
+</section>
+</section>
+
+
+             </article>
+
+            </div>
+            <footer>
+
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+        <a href="../slide_processing/" class="btn btn-neutral float-right" title="Slide Processing" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+
+
+        <a href="../project_setup/" class="btn btn-neutral" title="Setting up a Project" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+
+    </div>
+
+
+
+
+    <hr>
+
+
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2022, James M Dolezal.
+
+    </p>
+  </div>
+
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Datasets</a><ul>
+<li><a class="reference internal" href="#dataset-sources">Dataset Sources</a></li>
+<li><a class="reference internal" href="#loading-a-dataset">Loading a Dataset</a><ul>
+<li><a class="reference internal" href="#from-a-project">From a project</a></li>
+<li><a class="reference internal" href="#manually-from-paths">Manually from paths</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filtering">Filtering</a></li>
+<li><a class="reference internal" href="#dataset-manipulation">Dataset Manipulation</a></li>
+<li><a class="reference internal" href="#dataset-inspection">Dataset Inspection</a></li>
+<li><a class="reference internal" href="#manifest">Manifest</a></li>
+<li><a class="reference internal" href="#training-validation-splitting">Training/Validation Splitting</a><ul>
+<li><a class="reference internal" href="#creating-a-split">Creating a split</a></li>
+<li><a class="reference internal" href="#validation-strategies">Validation strategies</a></li>
+<li><a class="reference internal" href="#re-using-splits">Re-using splits</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#creating-dataloaders">Creating Dataloaders</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+
+
+
+
+
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script src="../_static/sphinx_highlight.js"></script>
+
+
+
+  <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

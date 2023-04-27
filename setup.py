@@ -15,7 +15,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/jamesdolezal/slideflow",
     packages=setuptools.find_packages(),
-    scripts=['slideflow-studio', 'slideflow-studio.py'],
+    scripts=['scripts/slideflow-studio'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
@@ -104,7 +104,7 @@ setuptools.setup(
         'shapely',
         'umap-learn',
         'seaborn<0.12',
-        'pandas',
+        'pandas<2',
         'pyvips',
         'fpdf2',
         'lifelines',
@@ -143,7 +143,7 @@ setuptools.setup(
             'torch',
             'torchvision',
             'pretrainedmodels',
-            'cellpose',
+            'cellpose<2.2',
             'fastai'
         ],
         'dev': [
@@ -155,10 +155,10 @@ setuptools.setup(
             'cucim'
         ],
         'cellpose': [
-            'cellpose',
+            'cellpose<2.2',
         ],
         'all': [
-            'cellpose',
+            'cellpose<2.2',
             'cucim',
             'sphinx',
             'sphinx-markdown-tables',
