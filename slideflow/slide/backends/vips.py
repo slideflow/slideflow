@@ -609,9 +609,11 @@ class _JPGVIPSReader(_VIPSReader):
         path: str,
         mpp: Optional[float] = None,
         cache_kw = None,
-        ignore_missing_mpp: bool = True
+        ignore_missing_mpp: bool = True,
+        pad_missing: bool = True
     ) -> None:
         self.path = path
+        self.pad_missing = pad_missing
         self.full_image = vips.Image.new_from_file(path)
         self.cache_kw = cache_kw if cache_kw else {}
         if not self.full_image.hasalpha():
