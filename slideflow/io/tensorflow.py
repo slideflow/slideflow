@@ -617,10 +617,6 @@ def interleave(
             )
             if normalizer.vectorized:
                 dataset = dataset.unbatch()
-            if normalizer.method == 'macenko':
-                # Drop the images that causes an error, e.g. if eigen
-                # decomposition is unsuccessful.
-                dataset = dataset.apply(tf.data.experimental.ignore_errors())
 
         # ------- Standardize and augment images ------------------------------
         dataset = dataset.map(
