@@ -191,7 +191,8 @@ class SlideReport:
             coords=self.thumb_coords,
             rois=self.has_rois,
             low_res=True,
-            width=512
+            width=512,
+            rect_linewidth=1,
         )
         self._thumb = Image.fromarray(np.array(self._thumb)[:, :, 0:3])
 

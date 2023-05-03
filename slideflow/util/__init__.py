@@ -910,12 +910,14 @@ def location_heatmap(
     interpolation: Optional[str] = 'bicubic',
     cmap: str = 'inferno',
     norm: Optional[str] = None,
+    background: str = 'min'
 ) -> Dict[str, Dict[str, float]]:
     """Generate a heatmap for a slide.
 
     Args:
         locations (np.ndarray): Array of shape ``(n_tiles, 2)`` containing x, y
-            coordinates for all image tiles.
+            coordinates for all image tiles. Coordinates represent the center
+            for an associated tile, and must be in a grid.
         values (np.ndarray): Array of shape ``(n_tiles,)`` containing heatmap
             values for each tile.
         slide (str): Path to corresponding slide.
@@ -940,62 +942,67 @@ def location_heatmap(
 
     slide_name = sf.util.path_to_name(slide)
     log.info(f'Generating heatmap for [green]{slide}[/]...')
+    log.debug(f"Plotting {len(values)} values")
     wsi = sf.slide.WSI(slide, tile_px, tile_um, verbose=False)
+    no_interpolation = (interpolation is None or interpolation == 'nearest')
 
-    stats = {}
-
-    # Loaded CSV coordinates:
-    x = locations[:, 0]
-    y = locations[:, 1]
-
-    stats.update({
+    stats = {
         slide_name: {
             'mean': np.mean(values),
             'median': np.median(values)
         }
-    })
-
-    roi_scaling = False
-    scale = wsi.roi_scale if roi_scaling else 1
-    scaled_x = [(xi * scale) - wsi.full_extract_px/2 for xi in x]
-    scaled_y = [(yi * scale) - wsi.full_extract_px/2 for yi in y]
+    }
 
     # Slide coordinate information
-    max_coord_x = max([c[0] for c in wsi.coord])
-    max_coord_y = max([c[1] for c in wsi.coord])
-    num_x = len(set([c[0] for c in wsi.coord]))
-    num_y = len(set([c[1] for c in wsi.coord]))
+    loc_grid_dict = {(c[0], c[1]): (c[2], c[3]) for c in wsi.coord}
 
-    log.debug('Slide tile grid:')
-    log.debug(f'Number of tiles (x): {num_x}\t Max coord (x): {max_coord_x}')
-    log.debug(f'Number of tiles (y): {num_y}\t Max coord (y): {max_coord_y}')
+    # Determine the heatmap background
+    grid = np.empty((wsi.grid.shape[1], wsi.grid.shape[0]))
+    if background == 'mask' and not no_interpolation:
+        raise ValueError(
+            "'mask' background is not compatible with interpolation method "
+            "'{}'. Expected: None or 'nearest'".format(interpolation)
+        )
+    elif background == 'mask':
+        grid[:] = np.nan
+    elif background == 'min':
+        grid[:] = np.min(values)
+    elif background == 'mean': 
+        grid[:] = np.mean(values)
+    elif background == 'median':
+        grid[:] = np.median(values)
+    elif background == 'max':
+        grid[:] = np.max(values)
+    else:
+        raise ValueError(f"Unrecognized value for background: {background}")
 
-    # Calculate dead space (un-extracted tiles) in x and y axes
-    dead_x = wsi.dimensions[0] - max_coord_x
-    dead_y = wsi.dimensions[1] - max_coord_y
-    fraction_dead_x = dead_x / wsi.dimensions[0]
-    fraction_dead_y = dead_y / wsi.dimensions[1]
+    if not isinstance(locations, np.ndarray):
+        locations = np.array(locations)
+    
+    # Transform from coordinates as center locations to top-left locations.
+    locations = locations - int(wsi.full_extract_px/2)
+    
+    for i, wsi_dim in enumerate(locations):
+        try:
+            idx = loc_grid_dict[tuple(wsi_dim)]
+        except (IndexError, KeyError):
+            raise errors.CoordinateAlignmentError(
+                "Error plotting value at location {} for slide {}. The heatmap "
+                "grid is not aligned to the slide coordinate grid. Ensure "
+                "that tile_px (got: {}) and tile_um (got: {}) match the given "
+                "location values. If you are using data stored in TFRecords, "
+                "verify that the TFRecord was generated using the same "
+                "tile_px and tile_um.".format(
+                    tuple(wsi_dim), slide, tile_px, tile_um
+                )
+            )
+        grid[idx[1]][idx[0]] = values[i]
 
-    log.debug('Slide dead space')
-    log.debug(f'x: {dead_x}\t y:{dead_y}')
-
-    # Work on grid
-    x_grid_scale = max_coord_x / (num_x-1)
-    y_grid_scale = max_coord_y / (num_y-1)
-
-    log.debug('Coordinate grid scale:')
-    log.debug(f'x: {x_grid_scale}\t y: {y_grid_scale}')
-
-    grid = np.ones((num_y, num_x))
-    grid *= -99
-    indexed_x = [round(xi / x_grid_scale) for xi in scaled_x]
-    indexed_y = [round(yi / y_grid_scale) for yi in scaled_y]
-
-    for xi, yi, v in zip(indexed_x, indexed_y, values):
-        grid[yi][xi] = v
-
-    # Mask out background
-    masked_grid = np.ma.masked_where(grid == -99, grid)
+    # Mask out background, if interpolation is not used and background == 'mask'
+    if no_interpolation and background == 'mask':
+        masked_grid = np.ma.masked_invalid(grid)
+    else:
+        masked_grid = grid
 
     fig = plt.figure(figsize=(18, 16))
     ax = fig.add_subplot(111)
@@ -1008,19 +1015,13 @@ def location_heatmap(
         bottom=False,
         labelbottom=False
     )
-    log.debug('Generating thumbnail...')
     thumb = wsi.thumb(mpp=5)
-    log.debug('Generating figure...')
-    implot = ax.imshow(thumb, zorder=0)
-    extent = implot.get_extent()
-    extent_x = extent[1] * (1-fraction_dead_x)
-    extent_y = extent[2] * (1-fraction_dead_y)
-    grid_extent = (extent[0], extent_x, extent_y, extent[3])
-    log.debug('\nImage extent:')
-    log.debug(extent)
-    log.debug('\nGrid extent:')
-    log.debug(grid_extent)
+    ax.imshow(thumb, zorder=0)
 
+    # Calculate overlay offset
+    extent = sf.heatmap.calculate_heatmap_extent(wsi, thumb, masked_grid)
+
+    # Plot
     if norm == 'two_slope':
         norm = mcol.TwoSlopeNorm(
             vmin=min(-0.01, min(values)),
@@ -1031,11 +1032,13 @@ def location_heatmap(
         masked_grid,
         zorder=10,
         alpha=0.6,
-        extent=grid_extent,
+        extent=extent,
         interpolation=interpolation,
         cmap=cmap,
         norm=norm
     )
+    ax.set_xlim(0, thumb.size[0])
+    ax.set_ylim(thumb.size[1], 0)
     log.debug('Saving figure...')
     plt.savefig(join(outdir, f'{slide_name}_attn.png'), bbox_inches='tight')
     plt.close(fig)
@@ -1070,7 +1073,7 @@ def tfrecord_heatmap(
         Dictionary mapping slide names to dict of statistics
         (mean, median)
     """
-    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
+    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord, as_dict=False)
     if tile_dict.keys() != loc_dict.keys():
         td_len = len(list(tile_dict.keys()))
         loc_len = len(list(loc_dict.keys()))

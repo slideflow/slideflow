@@ -242,7 +242,7 @@ class DatasetFeatures:
         if not all([len(df) == len(dfs[0]) for df in dfs]):
             raise ValueError(
                 "Unable to concatenate DatasetFeatures of different lengths "
-                f"(got: {', '.join([len(_df) for _df in dfs])})"
+                f"(got: {', '.join([str(len(_df)) for _df in dfs])})"
             )
         log.debug(f"Created {len(dfs)} dataframes")
         for i in range(len(dfs)):
@@ -1411,5 +1411,7 @@ class _FeatureGenerator:
                 pb.advance(task, self.batch_size)
         q.put((None, None, None))
         batch_proc_thread.join()
+        if hasattr(dataset, 'close'):
+            dataset.close()
 
         return activations, predictions, locations, uncertainty

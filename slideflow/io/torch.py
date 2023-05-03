@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import torchvision
 import torch
+import math
 from torchvision import transforms
 from os import listdir
 from os.path import dirname, exists, isfile, join
@@ -68,7 +69,8 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         rois: Optional[List[str]] = None,
         roi_method: str = 'auto',
         pool: Optional[Any] = None,
-        transform: Optional[Any] = None
+        transform: Optional[Any] = None,
+        **interleave_kwargs
     ) -> None:
         """Pytorch IterableDataset that interleaves tfrecords with
         :func:`slideflow.io.torch.interleave`.
@@ -145,6 +147,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.roi_method = roi_method
         self.pool = pool
         self.transform = transform
+        self.interleave_kwargs = interleave_kwargs
 
         # Values for random label generation, for GAN
         if labels is not None:
@@ -286,7 +289,8 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             rois=self.rois,
             roi_method=self.roi_method,
             pool=self.pool,
-            transform=self.transform
+            transform=self.transform,
+            **self.interleave_kwargs
         )
         self.close = queue_retriever.close
         try:
@@ -1008,6 +1012,7 @@ def interleave(
             self.n_threads = num_threads
             self.n_closed = 0
             self.il_closed = False
+            self._close_complete = False
 
             def interleaver():
                 msg = []
@@ -1061,7 +1066,12 @@ def interleave(
                     for item in record:
                         yield item
 
+        def __del__(self):
+            self.close()
+
         def close(self):
+            if self._close_complete:
+                return
             log.debug("Closing QueueRetriever")
             self.closed = True
 
@@ -1075,6 +1085,7 @@ def interleave(
                 pool.close()
             else:
                 self.sampler.close()
+            self._close_complete = True
 
     return QueueRetriever(random_sampler, num_threads)
 
@@ -1167,6 +1178,9 @@ def interleave_dataloader(
     elif num_workers is None:
         num_workers = 8
     log.debug(f"Using num_workers={num_workers}")
+    if 'num_threads' not in kwargs and os.cpu_count():
+        kwargs['num_threads'] = int(math.ceil(os.cpu_count() / max(num_workers, 1)))
+        log.debug(f"Threads per worker={kwargs['num_threads']}")
 
     iterator = InterleaveIterator(
         tfrecords=tfrecords,

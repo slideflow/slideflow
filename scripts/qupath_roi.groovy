@@ -1,11 +1,12 @@
 // Tile ROI coordinate exporter
-// for QuPath 0.2.X
+// for QuPath 0.2.X - 0.3.X
 // Written by James Dolezal
 
 import qupath.lib.gui.QuPathGUI
 import qupath.lib.images.servers.ImageServer
 import qupath.lib.objects.PathObject
 import qupath.lib.regions.RegionRequest
+import qupath.lib.gui.scripting.QPEx
 
 import javax.imageio.ImageIO
 import java.awt.Color
@@ -17,6 +18,7 @@ import java.nio.file.Paths
 
 def qupath = QuPathGUI.getInstance()
 def project = qupath.getProject()
+def server = getCurrentServer()
 if (project == null) {
     print("ERROR: No project open, please create a project and try again.")
     return
@@ -50,7 +52,7 @@ for (entry in project.getImageList()) {
         def roi_file = new File(roi_dir, String.format("%s.csv", name))
         roi_file.text = ''
         roi_file << "ROI_Name,X_base,Y_base" << System.lineSeparator()
-        
+
         def roi_count = 0
         for (obj in annotations) {
             if (obj.isAnnotation()) {
@@ -66,8 +68,8 @@ for (entry in project.getImageList()) {
                 // Export annotation
                 points = roi.getAllPoints()
                 for (point in points) {
-                    p_x = point.getX()
-                    p_y = point.getY()
+                    p_x = point.getX() + server.boundsX
+                    p_y = point.getY() + server.boundsY
                     roi_file << roi_name + "," + p_x + "," + p_y << System.lineSeparator()
                 }
             }

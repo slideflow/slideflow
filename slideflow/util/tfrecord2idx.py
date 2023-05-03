@@ -240,7 +240,9 @@ def get_tfrecord_by_index(
     if 'loc_y' in record:
         record['loc_y'] = record['loc_y'][0]
 
+    file.close()
     return record
+
 
 def process_record(record, description=None):
     if description is None:

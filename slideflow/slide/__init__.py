@@ -615,12 +615,16 @@ class _BaseLoader:
             log.debug("Requesting thumbnail using associated image")
             thumb_kw = dict(associated='thumbnail')
         elif low_res:
-            log.debug("Requesting thumbnail at level={}, width={}".format(level, width))
+            log.debug("Requesting thumbnail at level={}, width={}".format(
+                self.slide.level_count-1, width
+            ))
             thumb_kw = dict(level=self.slide.level_count-1, width=width)
         else:
             ds = self.dimensions[0] / width
             level = self.slide.best_level_for_downsample(ds)
-            log.debug("Requesting thumbnail at level={}, width={}".format(level, width))
+            log.debug("Requesting thumbnail at level={}, width={}".format(
+                level, width
+            ))
             thumb_kw = dict(level=level, width=width)
 
         np_thumb = self.slide.thumbnail(**thumb_kw)
@@ -875,7 +879,12 @@ class _BaseLoader:
             log.debug("Skipping slide report")
             return None
 
-    def preview(self, rois: bool = True, **kwargs) -> Optional[Image.Image]:
+    def preview(
+        self,
+        rois: bool = True,
+        thumb_kwargs: Optional[Dict] = None,
+        **kwargs
+    ) -> Optional[Image.Image]:
         """Performs a dry run of tile extraction without saving any images,
         returning a PIL image of the slide thumbnail annotated with a grid of
         tiles that were marked for extraction.
@@ -911,13 +920,17 @@ class _BaseLoader:
             deterministic=False,
             **kwargs
         )
+        if thumb_kwargs is None:
+            thumb_kwargs = dict()
         if generator is None:
-            return self.thumb(rois=rois, low_res=True)
+            return self.thumb(rois=rois, low_res=True, **thumb_kwargs)
         locations = []
         for tile_dict in generator():
             locations += [tile_dict['loc']]
         log.debug(f"Previewing with {len(locations)} extracted tile locations.")
-        return self.thumb(coords=locations, rois=rois, low_res=True)
+        return self.thumb(
+            coords=locations, rois=rois, low_res=True, **thumb_kwargs
+        )
 
 
 class WSI(_BaseLoader):
@@ -1789,7 +1802,8 @@ class WSI(_BaseLoader):
         linewidth: int = 2,
         color: str = 'black',
         use_associated_image: bool = False,
-        low_res: bool = False
+        low_res: bool = False,
+        **kwargs
     ) -> Image.Image:
         """Returns PIL Image of thumbnail with ROI overlay.
 
@@ -1832,7 +1846,8 @@ class WSI(_BaseLoader):
             width=width,
             coords=coords,
             use_associated_image=use_associated_image,
-            low_res=low_res
+            low_res=low_res,
+            **kwargs
         )
 
         if rois and len(self.rois):
