@@ -1928,7 +1928,16 @@ class Project:
         return df
 
     @auto_dataset_allow_none
-    def generate_features_for_clam(
+    def generate_features_for_clam(self, *args, **kwargs):
+        warnings.warn(
+            "Project.generate_features_for_clam() is deprecated. "
+            "Please use .generate_feature_bags()",
+            DeprecationWarning
+        )
+        self.generate_feature_bags(*args, **kwargs)
+
+    @auto_dataset_allow_none
+    def generate_feature_bags(
         self,
         model: str,
         outdir: str = 'auto',
@@ -2053,15 +2062,22 @@ class Project:
             log.info(f'Skipping {len(done)} files already done.')
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
 
-        # Set up activations interface
-        df = sf.DatasetFeatures(
-            model=model,
-            dataset=dataset,
-            layers=layers,
-            include_preds=False,
-            batch_size=batch_size
-        )
-        df.to_torch(outdir)
+        # Set up activations interface.
+        # Calculate features one slide at a time to reduce memory consumption.
+        for slide in dataset.slides():
+            try:
+                _dataset = dataset.remove_filter(filters='slide')
+            except errors.DatasetFilterError:
+                _dataset = dataset
+            _dataset = _dataset.filter(filters={'slide': slide})
+            df = sf.DatasetFeatures(
+                model=model,
+                dataset=_dataset,
+                layers=layers,
+                include_preds=False,
+                batch_size=batch_size
+            )
+            df.to_torch(outdir)
         return outdir
 
     @auto_dataset
