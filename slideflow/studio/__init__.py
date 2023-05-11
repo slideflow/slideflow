@@ -112,13 +112,14 @@ class Studio(ImguiWindow):
         self.low_memory         = low_memory
 
         # Interface.
-        self._show_about        = False
-        self._show_performance  = False
-        self._show_tile_preview = False
-        self._tile_preview_is_new = True
+        self._show_about                = False
+        self._show_tile_preview         = False
+        self._tile_preview_is_new       = True
         self._tile_preview_image_is_new = True
-        self._show_overlays     = True
-        self.theme              = theme
+        self._show_overlays             = True
+        self._show_mpp_zoom_popup       = False
+        self._input_mpp                 = 1.
+        self.theme                      = theme
 
         # Widget interface.
         self.wsi                = None
@@ -320,6 +321,35 @@ class Studio(ImguiWindow):
                     self._show_about = False
                 imgui.end_popup()
 
+    def _draw_mpp_zoom_dialog(self):
+        """Show a dialog that prompts the user to specify microns-per-pixel."""
+        if not self._show_mpp_zoom_popup:
+            return
+        
+        window_size = (self.font_size * 18, self.font_size * 7)
+        self.center_next_window(*window_size)
+        imgui.set_next_window_size(*window_size)
+        _, opened = imgui.begin('Zoom to Microns-Per-Pixel (MPP)', closable=True, flags=imgui.WINDOW_NO_RESIZE)
+        if not opened:
+            self._show_mpp_zoom_popup = False
+
+        imgui.text("Zoom the current view to a given MPP.")
+        imgui.separator()
+        imgui.text('')
+        imgui.same_line(self.font_size*4)
+        with imgui_utils.item_width(self.font_size*4):
+            _changed, self._input_mpp = imgui.input_float('MPP##input_mpp', self._input_mpp, format='%.3f')
+        imgui.same_line()
+        if self._input_mpp:
+            mag = f'{10/self._input_mpp:.1f}x'
+        else:
+            mag = '-'
+        imgui.text(mag)
+        if self.sidebar.full_button("Zoom", width=-1):
+            self.viewer.zoom_to_mpp(window_size[0] / 2, window_size[1] / 2, self._input_mpp)
+            self._show_mpp_zoom_popup = False
+        imgui.end()
+
     def _draw_control_pane(self) -> None:
         """Draw the control pane and widgets."""
         self.sidebar.draw()
@@ -464,8 +494,6 @@ class Studio(ImguiWindow):
 
                 # --- Show sub-menu -------------------------------------------
                 if imgui.begin_menu('Show', True):
-                    if imgui.menu_item('Performance', 'Ctrl+Shift+P', selected=self._show_performance)[0]:
-                        self._show_performance = not self._show_performance
                     if imgui.menu_item('Tile Preview', 'Ctrl+Shift+T', selected=self._show_tile_preview)[0]:
                         self._show_tile_preview = not self._show_tile_preview
                     imgui.separator()
@@ -494,6 +522,8 @@ class Studio(ImguiWindow):
                     self.increase_tile_zoom()
                 if imgui.menu_item('Decrease Tile Zoom', 'Ctrl+[')[1]:
                     self.decrease_tile_zoom()
+                if imgui.menu_item('Zoom to MPP', 'Ctrl+/')[1]:
+                    self.ask_zoom_to_mpp()
                 if imgui.menu_item('Reset Tile Zoom', 'Ctrl+\\')[1]:
                     self.reset_tile_zoom()
 
@@ -541,7 +571,7 @@ class Studio(ImguiWindow):
         r = self.pixel_ratio
         y_pos = int((self.content_frame_height - (h * r)) / r)
         imgui.set_next_window_position(0-2, y_pos)
-        imgui.set_next_window_size(self.content_frame_width+4, h)
+        imgui.set_next_window_size(self.content_width+4, h)
         imgui.push_style_color(imgui.COLOR_WINDOW_BACKGROUND, *self.theme.main_background)
         imgui.push_style_var(imgui.STYLE_WINDOW_PADDING, [10, 5])
 
@@ -643,8 +673,6 @@ class Studio(ImguiWindow):
     def _glfw_key_callback(self, _window, key, _scancode, action, _mods):
         """Callback for handling keyboard input."""
         super()._glfw_key_callback(_window, key, _scancode, action, _mods)
-        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_P:
-            self._show_performance = not self._show_performance
         if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_T:
             self._show_tile_preview = not self._show_tile_preview
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_Q:
@@ -665,6 +693,8 @@ class Studio(ImguiWindow):
             self.decrease_tile_zoom()
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_RIGHT_BRACKET:
             self.increase_tile_zoom()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_SLASH:
+            self.ask_zoom_to_mpp()
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_BACKSLASH:
             self.reset_tile_zoom()
 
@@ -1166,6 +1196,7 @@ class Studio(ImguiWindow):
         self._draw_control_pane()
         self._draw_menu_bar()
         self._draw_about_dialog()
+        self._draw_mpp_zoom_dialog()
 
         user_input = self._handle_user_input()
 
@@ -1349,6 +1380,11 @@ class Studio(ImguiWindow):
                 and self._model_config is not None
                 and 'uq' in self._model_config['hp']
                 and self._model_config['hp']['uq'])
+
+    def ask_zoom_to_mpp(self) -> None:
+        """Prompt the user to zoom to a specific microns-per-pixel (MPP)."""
+        if self.viewer and isinstance(self.viewer, SlideViewer):
+            self._show_mpp_zoom_popup = True
 
     def increase_tile_zoom(self) -> None:
         """Increase zoom of tile view two-fold."""
