@@ -1626,6 +1626,7 @@ class Sidebar:
         self.selected           = None
         self.buttonbar_width    = 72
         self.navbutton_width    = 70
+        self.imagebutton_width  = 64
         self._button_tex        = dict()
         self._pane_w_div        = 15
         self.navbuttons         = ['project', 'slide', 'model', 'heatmap']
@@ -1718,7 +1719,7 @@ class Sidebar:
         else:
             tex = self._button_tex[f'{tex_name}_highlighted'].gl_id
         imgui.set_cursor_position((0, start_px))
-        if imgui.image_button(tex, 64, 64):
+        if imgui.image_button(tex, self.imagebutton_width, self.imagebutton_width):
             if name == self.selected or self.selected is None or not self.expanded:
                 self.expanded = not self.expanded
             self.selected = name
@@ -1846,7 +1847,7 @@ class Sidebar:
         imgui.pop_style_color(3)
         return result
 
-    def large_image_button(self, image_name, size=64):
+    def large_image_button(self, image_name, size=None):
         """Render a small button for the sidebar.
 
         Args:
@@ -1860,6 +1861,8 @@ class Sidebar:
             bool: If the button was clicked.
 
         """
+        if size is None:
+            size = self.imagebutton_width
         tex = self._button_tex[f'{image_name}'].gl_id
         return imgui.image_button(tex, size, size)
 
