@@ -153,6 +153,16 @@ def _prepare_slide(
     except errors.MissingROIError:
         log.debug(f'Missing ROI for slide {path}; skipping')
         return None
+    except errors.IncompatibleBackendError:
+        log.error('Slide {} has type {}, which is incompatible with the active '
+                  'slide reading backend, {}. Consider using a different '
+                  'backend, which can be set with the environmental variable '
+                  'SF_SLIDE_BACKEND. See https://slideflow.dev/installation/#cucim-vs-libvips '
+                  'for more information.'.format(
+                    path,
+                    sf.util.path_to_ext(path).upper(),
+                    sf.slide_backend()
+                  ))
     except errors.SlideLoadError as e:
         log.error(f'Error loading slide {path}: {e}. Skipping')
         return None

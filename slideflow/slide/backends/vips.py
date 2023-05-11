@@ -20,12 +20,19 @@ except (ModuleNotFoundError, OSError) as e:
     log.error("Unable to load vips; slide processing will be unavailable. "
               f"Error raised: {e}")
 
+# -----------------------------------------------------------------------------
+
+SUPPORTED_BACKEND_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
+                             'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png']
+
+# -----------------------------------------------------------------------------
 
 __vipsreader__ = None
 __vipsreader_path__ = None
 __vipsreader_args__ = None
 __vipsreader_kwargs__ = None
 
+# -----------------------------------------------------------------------------
 
 VIPS_FORMAT_TO_DTYPE = {
     'uchar': np.uint8,
