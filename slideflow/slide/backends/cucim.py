@@ -17,11 +17,17 @@ from slideflow.slide.utils import *
 if TYPE_CHECKING:
     from cucim import CuImage
 
+# -----------------------------------------------------------------------------
+
+SUPPORTED_BACKEND_FORMATS = ['svs', 'tif', 'tiff']
+
+# -----------------------------------------------------------------------------
 
 __cv2_resize__ = True
 __cuimage__ = None
 __cuimage_path__ = None
 
+# -----------------------------------------------------------------------------
 
 def get_cucim_reader(path: str, *args, **kwargs):
     return _cuCIMReader(path, *args, **kwargs)

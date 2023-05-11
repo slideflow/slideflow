@@ -129,7 +129,8 @@ class SlideNotFoundError(SlideError):
 class SlideMissingMPPError(SlideLoadError):
     pass
 
-
+class IncompatibleBackendError(SlideLoadError):
+    pass
 
 class ROIError(SlideError):
     pass
