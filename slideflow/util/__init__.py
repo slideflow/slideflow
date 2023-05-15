@@ -72,7 +72,20 @@ Labels = Union[Dict[str, str], Dict[str, int], Dict[str, List[float]]]
 # Normalizer fit keyword arguments
 NormFit = Union[Dict[str, np.ndarray], Dict[str, List]]
 
+# --- Detect CPU cores --------------------------------------------------------
+
+def num_cpu(default: Optional[int] = None) -> Optional[int]:
+    try:
+        return len(os.sched_getaffinity(0))
+    except Exception as e:
+        count = os.cpu_count()
+        if count is None and default is not None:
+            return default
+        else:
+            return count
+
 # --- Configure logging--------------------------------------------------------
+
 log = logging.getLogger('slideflow')
 log.setLevel(logging.DEBUG)
 
@@ -204,7 +217,7 @@ def about(console=None) -> None:
         >>> sf.about()
         ╭=======================╮
         │       Slideflow       │
-        │    Version: 1.5.0     │
+        │    Version: 2.0.0     │
         │  Backend: tensorflow  │
         │ Slide Backend: cucim  │
         │ https://slideflow.dev │
@@ -217,12 +230,24 @@ def about(console=None) -> None:
     if console is None:
         console = Console()
     col1 = 'yellow' if sf.backend() == 'tensorflow' else 'purple'
-    col2 = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
+    if sf.slide_backend() == 'libvips':
+        try:
+            import pyvips
+            _version = '{}.{}.{}'.format(
+                pyvips.major, pyvips.minor, pyvips.micro
+            )
+        except Exception:
+            _version = 'unknown'
+        col2 = 'cyan'
+        slide_backend = 'libvips ({})'.format(_version)
+    else:
+        slide_backend = sf.slide_backend()
+        col2 = 'green'
     console.print(
         Panel(f"[white bold]Slideflow[/]"
               f"\nVersion: {sf.__version__}"
               f"\nBackend: [{col1}]{sf.backend()}[/]"
-              f"\nSlide Backend: [{col2}]{sf.slide_backend()}[/]"
+              f"\nSlide Backend: [{col2}]{slide_backend}[/]"
               "\n[blue]https://slideflow.dev[/]",
               border_style='purple'),
         justify='left')
@@ -596,7 +621,7 @@ def load_json(filename: str) -> Any:
 
 
 def write_json(data: Any, filename: str) -> None:
-    '''Writes data to JSON file.'''
+    """Write data to JSON file."""
     with open(filename, "w") as data_file:
         json.dump(data, data_file, indent=1)
 
@@ -967,7 +992,7 @@ def location_heatmap(
         grid[:] = np.nan
     elif background == 'min':
         grid[:] = np.min(values)
-    elif background == 'mean': 
+    elif background == 'mean':
         grid[:] = np.mean(values)
     elif background == 'median':
         grid[:] = np.median(values)
@@ -978,10 +1003,10 @@ def location_heatmap(
 
     if not isinstance(locations, np.ndarray):
         locations = np.array(locations)
-    
+
     # Transform from coordinates as center locations to top-left locations.
     locations = locations - int(wsi.full_extract_px/2)
-    
+
     for i, wsi_dim in enumerate(locations):
         try:
             idx = loc_grid_dict[tuple(wsi_dim)]
@@ -1073,17 +1098,16 @@ def tfrecord_heatmap(
         Dictionary mapping slide names to dict of statistics
         (mean, median)
     """
-    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord, as_dict=False)
-    if tile_dict.keys() != loc_dict.keys():
-        td_len = len(list(tile_dict.keys()))
-        loc_len = len(list(loc_dict.keys()))
+    locations = sf.io.get_locations_from_tfrecord(tfrecord)
+    if len(tile_dict) != len(locations):
         raise errors.TFRecordsError(
-            f'tile_dict length ({td_len}) != TFRecord length ({loc_len}).'
+            f'tile_dict length ({len(tile_dict)}) != TFRecord length '
+            f'({len(locations)}).'
         )
 
     return location_heatmap(
-        locations=np.array([loc_dict[loc] for loc in loc_dict]),
-        values=np.array([tile_dict[loc] for loc in loc_dict]),
+        locations=np.array(locations),
+        values=np.array([tile_dict[loc] for loc in range(len(locations))]),
         slide=slide,
         tile_px=tile_px,
         tile_um=tile_um,

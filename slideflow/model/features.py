@@ -337,7 +337,7 @@ class DatasetFeatures:
                     or not self.locations[s].size
                     or not self.uncertainty[s].size)
             ]
-            pool = mp.Pool(os.cpu_count())
+            pool = mp.Pool(sf.util.num_cpu())
             for i, true_locs in enumerate(track(pool.imap(self.dataset.get_tfrecord_locations, slides_to_sort),
                                                 transient=False,
                                                 total=len(slides_to_sort),
@@ -1054,6 +1054,8 @@ class _FeatureGenerator:
         include_preds: Optional[bool] = None,
         include_uncertainty: bool = True,
         batch_size: int = 32,
+        device: Optional[str] = None,
+        num_workers: Optional[int] = None,
         **kwargs
     ) -> None:
         self.model = model
@@ -1061,6 +1063,7 @@ class _FeatureGenerator:
         self.layers = sf.util.as_list(layers)
         self.batch_size = batch_size
         self.simclr_args = None
+        self.num_workers = num_workers
 
         # Check if location information is stored in TFRecords
         self.tfrecords_have_loc = self.dataset.tfrecords_have_locations()
@@ -1081,6 +1084,11 @@ class _FeatureGenerator:
         self.generator = self._prepare_generator(**kwargs)
         self.num_features = self.generator.num_features
         self.num_classes = 0 if not include_preds else self.generator.num_classes
+        if self.is_torch():
+            from slideflow.model import torch_utils
+            self.device = torch_utils.get_device(device)
+        else:
+            self.device = None
         self._prepare_dataset_kwargs()
 
     def _calculate_feature_batch(self, batch_img):
@@ -1090,7 +1098,7 @@ class _FeatureGenerator:
         if self.is_torch():
             import torch
             with torch.no_grad():
-                batch_img = batch_img.to('cuda')
+                batch_img = batch_img.to(self.device)
                 if self.has_torch_gpu_normalizer():
                     batch_img = self.normalizer.preprocess(
                         batch_img,
@@ -1185,6 +1193,7 @@ class _FeatureGenerator:
             # Otherwise, let the dataset handle normalization/standardization.
             dts_kw['normalizer'] = self.normalizer
 
+        # This is not used by SimCLR feature extractors.
         self.dts_kw = dts_kw
 
     def _determine_uq_and_normalizer(self):
@@ -1208,11 +1217,36 @@ class _FeatureGenerator:
             self.normalizer = None
             self.uq = False
 
+    def _norm_from_kwargs(self, kwargs):
+        if 'normalizer' in kwargs and kwargs['normalizer'] is not None:
+            norm = kwargs['normalizer']
+            del kwargs['normalizer']
+            if 'normalizer_source' in kwargs:
+                norm_src = kwargs['normalizer_source']
+                del kwargs['normalizer_source']
+            else:
+                norm_src = None
+            if isinstance(norm, str):
+                normalizer = sf.norm.autoselect(
+                    norm,
+                    source=norm_src,
+                    backend='tensorflow' if self.is_tf() else 'torch'
+                )
+            else:
+                normalizer = norm
+            log.info(f"Normalizing with {normalizer.method}")
+            return normalizer, kwargs
+        else:
+            if 'normalizer_source' in kwargs:
+                del kwargs['normalizer_source']
+            return None, kwargs
+
     def _prepare_generator(self, **kwargs) -> Callable:
         """Prepare the feature generator."""
 
         # Generator is a Feature Extractor
         if self.is_extractor():
+            self.normalizer, kwargs = self._norm_from_kwargs(kwargs)
             if kwargs:
                 raise ValueError(
                     f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
@@ -1231,13 +1265,11 @@ class _FeatureGenerator:
         elif self.is_simclr():
             from slideflow import simclr
             self.simclr_args = simclr.load_model_args(self.model)
-            generator = simclr.load(self.model)
-            generator.num_features = self.simclr_args.proj_out_dim
-            generator.num_classes = self.simclr_args.num_classes
-            if 'normalizer' in kwargs:
-                self.normalizer = kwargs['normalizer']
-                del kwargs['normalizer']
-                log.info(f"Normalizing with {self.normalizer.method}")
+            model = simclr.load(self.model)
+            generator = sf.simclr.SimCLR_Generator(model)
+            generator.num_features = self.simclr_args.proj_out_dim  # type: ignore
+            generator.num_classes = self.simclr_args.num_classes  # type: ignore
+            self.normalizer, kwargs = self._norm_from_kwargs(kwargs)
             if kwargs:
                 raise ValueError(
                     f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
@@ -1265,7 +1297,7 @@ class _FeatureGenerator:
         # Generator is a loaded torch.nn.Module
         elif self.is_torch():
             return sf.model.Features.from_model(
-                self.model.to('cuda'),
+                self.model.to(self.device),
                 tile_px=self.tile_px,
                 layers=self.layers,
                 include_preds=self.include_preds,
@@ -1315,10 +1347,10 @@ class _FeatureGenerator:
             from slideflow import simclr
             builder = simclr.DatasetBuilder(
                 val_dts=self.dataset,
+                normalizer=self.normalizer,
                 dataset_kwargs=dict(
                     incl_slidenames=True,
                     incl_loc=True,
-                    normalizer=self.normalizer
                 )
             )
             return builder.build_dataset(
@@ -1342,7 +1374,10 @@ class _FeatureGenerator:
 
         # Generator is a PyTorch model.
         elif self.is_torch():
-            n_workers = (4 if self.tfrecords_have_loc else 1)
+            if self.num_workers is None:
+                n_workers = (4 if self.tfrecords_have_loc else 1)
+            else:
+                n_workers = self.num_workers
             log.debug(
                 "Setting up PyTorch dataset iterator (num_workers="
                 f"{n_workers}, chunk_size=8)"

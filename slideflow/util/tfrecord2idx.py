@@ -42,35 +42,75 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
         Path where to store the index file.
     """
     infile = open(tfrecord_file, "rb")
-    out_array = []
+    start_bytes_array = []
+    loc_array = []
+    idx = 0
+    datum_bytes = bytearray(1024 * 1024)
 
     while True:
         cur = infile.tell()
-        try:
-            byte_len = infile.read(8)
-            if len(byte_len) == 0:
-                break
-            infile.read(4)
-            proto_len = struct.unpack("q", byte_len)[0]
-            infile.read(proto_len)
-            infile.read(4)
-            out_array += [[cur, infile.tell() - cur]]
-        except Exception:
-            print("Failed to parse TFRecord.")
+        byte_len = infile.read(8)
+        if len(byte_len) == 0:
             break
+        infile.read(4)
+        proto_len = struct.unpack("q", byte_len)[0]
+
+        if proto_len > len(datum_bytes):
+            try:
+                _fill = int(proto_len * 1.5)
+                datum_bytes = datum_bytes.zfill(_fill)
+            except OverflowError:
+                raise OverflowError(
+                    f'Error reading tfrecord {tfrecord_file}'
+                )
+        datum_bytes_view = memoryview(datum_bytes)[:proto_len]
+        if infile.readinto(datum_bytes_view) != proto_len:
+            raise RuntimeError(
+                f"Failed to read record {idx} of file {tfrecord_file}"
+            )
+        infile.read(4)
+        start_bytes_array += [[cur, infile.tell() - cur]]
+
+        # Process record bytes, to read location information.
+        try:
+            record = process_record_from_bytes(datum_bytes_view)
+        except errors.TFRecordsError:
+            raise errors.TFRecordsError(
+                f'Unable to detect TFRecord format: {tfrecord_file}'
+            )
+        if 'loc_x' in record and 'loc_y' in record:
+            loc_array += [[record['loc_x'], record['loc_y']]]
+        elif 'loc_x' in record:
+            loc_array += [[record['loc_x']]]
+        idx += 1
+
     infile.close()
-    save_index(np.array(out_array), index_file)
+    if loc_array:
+        loc_array = np.array(loc_array)
+    save_index(np.array(start_bytes_array), index_file, locations=loc_array)
 
 
-def save_index(index_array: np.ndarray, index_file: str) -> None:
+def save_index(
+    index_array: np.ndarray,
+    index_file: str,
+    locations: Optional[np.ndarray] = None
+) -> None:
     """Save an array as an index file."""
     if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
         np.save(index_file + '.npy', index_array)
     else:
-        np.savez(index_file, index_array)
+        loc_kw = dict()
+        if locations is not None:
+            loc_kw['locations'] = locations
+        np.savez(
+            index_file,
+            arr_0=index_array,
+            **loc_kw
+        )
 
 
 def find_index(tfrecord: str) -> Optional[str]:
+    """Find the index file for a TFRecord."""
     name = sf.util.path_to_name(tfrecord)
     if exists(join(dirname(tfrecord), name+'.index')):
         return join(dirname(tfrecord), name+'.index')
@@ -83,6 +123,7 @@ def find_index(tfrecord: str) -> Optional[str]:
 
 
 def load_index(tfrecord: str) -> Optional[np.ndarray]:
+    """Find and load the index associated with a TFRecord."""
     index_path = find_index(tfrecord)
     if index_path is None:
         raise OSError(f"Could not find index path for TFRecord {tfrecord}")
@@ -94,6 +135,26 @@ def load_index(tfrecord: str) -> Optional[np.ndarray]:
         return np.load(index_path)
     else:
         return np.loadtxt(index_path, dtype=np.int64)
+
+
+def index_has_locations(index: str) -> bool:
+    """Check if an index file has tile location information stored."""
+    if index.endswith('npy'):
+        return False
+    else:
+        return 'locations' in np.load(index).files
+
+def get_locations_from_index(index: str):
+    if index.endswith('npy'):
+        raise errors.TFRecordsIndexError(
+            f"Index file {index} does not contain location information."
+        )
+    loaded = np.load(index)
+    if 'locations' not in loaded:
+        raise errors.TFRecordsIndexError(
+            f"Index file {index} does not contain location information."
+        )
+    return [tuple(l) for l in loaded['locations']]
 
 
 def get_tfrecord_length(tfrecord: str) -> int:
@@ -217,18 +278,28 @@ def get_tfrecord_by_index(
 
     # Process record bytes.
     try:
-        record = process_record(datum_bytes_view)
+        record = process_record_from_bytes(datum_bytes_view)
+    except errors.TFRecordsError:
+        raise errors.TFRecordsError(
+            f'Unable to detect TFRecord format: {tfrecord}'
+        )
+
+    file.close()
+    return record
+
+
+def process_record_from_bytes(bytes_view):
+    try:
+        record = process_record(bytes_view)
     except KeyError:
         feature_description = {
             k: v for k, v in FEATURE_DESCRIPTION.items()
             if k in ('slide', 'image_raw')
         }
         try:
-            record = process_record(datum_bytes_view, description=feature_description)
+            record = process_record(bytes_view, description=feature_description)
         except KeyError:
-            raise errors.TFRecordsError(
-                f'Unable to detect TFRecord format: {tfrecord}'
-            )
+            raise errors.TFRecordsError
 
     # Final parsing.
     if 'slide' in record:
@@ -239,8 +310,6 @@ def get_tfrecord_by_index(
         record['loc_x'] = record['loc_x'][0]
     if 'loc_y' in record:
         record['loc_y'] = record['loc_y'][0]
-
-    file.close()
     return record
 
 

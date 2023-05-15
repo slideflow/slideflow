@@ -105,6 +105,10 @@ class TFRecordsError(Exception):
     pass
 
 
+class TFRecordsIndexError(Exception):
+    pass
+
+
 class EmptyTFRecordsError(Exception):
     pass
 
@@ -129,7 +133,8 @@ class SlideNotFoundError(SlideError):
 class SlideMissingMPPError(SlideLoadError):
     pass
 
-
+class IncompatibleBackendError(SlideLoadError):
+    pass
 
 class ROIError(SlideError):
     pass

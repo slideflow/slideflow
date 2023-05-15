@@ -27,8 +27,7 @@ from slideflow import errors
 from functools import partial
 from os.path import exists, join
 from types import SimpleNamespace
-from typing import (Any, Callable, Dict, List, Optional, Tuple, Union,
-                    TYPE_CHECKING)
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import slideflow as sf
 import slideflow.slide.qc
@@ -37,7 +36,7 @@ from slideflow.util import log, path_to_name  # noqa F401
 from .report import ExtractionPDF  # noqa F401
 from .report import ExtractionReport, SlideReport
 from .utils import *
-from .backends import tile_worker, wsi_reader
+from .backends import tile_worker, wsi_reader, backend_formats
 
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
@@ -258,13 +257,18 @@ class _BaseLoader:
             raise errors.SlideLoadError(
                 f"{self.name}: unsupported filetype '{self.filetype}'"
             )
+        if self.filetype.lower() not in backend_formats():
+            raise errors.IncompatibleBackendError(
+                f"{self.name}: filetype '{self.filetype}' is not supported "
+                f"by the current backend, {sf.slide_backend()}"
+            )
 
         # Collect basic slide information
         try:
             self.mpp = float(self.slide.mpp)
         except Exception as e:
             raise errors.SlideMissingMPPError(
-                f"Slide [green]{self.name}[/] missing MPP ({OPS_MPP_X})"
+                f"Slide {self.name} missing MPP ({OPS_MPP_X})"
             )
 
         # Calculate downsample by magnification
@@ -315,8 +319,8 @@ class _BaseLoader:
         # Calculate shape and stride
         self.downsample_level = ds_level
         self.downsample_dimensions = self.slide.level_dimensions[ds_level]
-        self.stride = int(self.extract_px // stride_div)
-        self.full_stride = int(self.full_extract_px // stride_div)
+        self.stride = int(np.round(self.extract_px / stride_div))
+        self.full_stride = int(np.round(self.full_extract_px / stride_div))
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -437,7 +441,8 @@ class _BaseLoader:
         blur_radius: int = 3,
         blur_threshold: float = 0.02,
         filter_threshold: float = 0.6,
-        blur_mpp: Optional[float] = None
+        blur_mpp: Optional[float] = None,
+        pool: Optional["mp.Pool"] = None
     ) -> Optional[Image.Image]:
         """Applies quality control to a slide, performing filtering based on
         a whole-slide image thumbnail.
@@ -482,9 +487,9 @@ class _BaseLoader:
         if 'blur' in method:
             idx = method.index('blur')  # type: ignore
             method.remove('blur')       # type: ignore
-            method.insert(idx, sf.slide.qc.Gaussian(mpp=blur_mpp,
-                                                    sigma=blur_radius,
-                                                    threshold=blur_threshold))
+            method.insert(idx, sf.slide.qc.GaussianV2(mpp=blur_mpp,
+                                                      sigma=blur_radius,
+                                                      threshold=blur_threshold))
         if 'otsu' in method:
             idx = method.index('otsu')  # type: ignore
             method.remove('otsu')       # type: ignore
@@ -496,6 +501,11 @@ class _BaseLoader:
         for qc in method:
             if isinstance(method, str):
                 raise errors.QCError(f"Unknown QC method {method}")
+            if pool is not None:
+                try:
+                    qc.pool = pool
+                except Exception as e:
+                    log.debug(f"Unable to set pool for QC method {qc}")
             mask = qc(self)
             if mask is not None:
                 img = self.apply_qc_mask(mask, filter_threshold=filter_threshold)
@@ -950,6 +960,7 @@ class WSI(_BaseLoader):
         randomize_origin: bool = False,
         pb: Optional[Progress] = None,
         verbose: bool = True,
+        use_edge_tiles: bool = False,
         **kwargs
     ) -> None:
         """Loads slide and ROI(s).
@@ -1027,6 +1038,7 @@ class WSI(_BaseLoader):
         self.verbose = verbose
         self.segmentation = None
         self.grid = None
+        self.use_edge_tiles = use_edge_tiles
 
         if (not isinstance(roi_filter_method, (int, float))
            and roi_filter_method != 'center'):
@@ -1177,8 +1189,6 @@ class WSI(_BaseLoader):
     def _build_coord(self) -> None:
         '''Set up coordinate grid.'''
 
-        log.debug("Setting up coordinate grid.")
-
         # Calculate window sizes, strides, and coordinates for windows
         self.extracted_x_size = self.dimensions[0] - self.full_extract_px
         self.extracted_y_size = self.dimensions[1] - self.full_extract_px
@@ -1194,14 +1204,15 @@ class WSI(_BaseLoader):
         # Coordinates must be in level 0 (full) format
         # for the read_region function
         self.coord = []  # type: Union[List, np.ndarray]
+        edge_buffer = 0 if self.use_edge_tiles else self.full_extract_px
         y_range = np.arange(
             start_y,
-            (self.dimensions[1]+1) - self.full_extract_px,
+            (self.dimensions[1]+1) - edge_buffer,
             self.full_stride
         )
         x_range = np.arange(
             start_x,
-            (self.dimensions[0]+1) - self.full_extract_px,
+            (self.dimensions[0]+1) - edge_buffer,
             self.full_stride
         )
         self.grid = np.ones((len(x_range), len(y_range)), dtype=bool)
@@ -1277,6 +1288,7 @@ class WSI(_BaseLoader):
 
         self.coord = np.array(self.coord)
         self.estimated_num_tiles = int(self.grid.sum())
+        log.debug(f"Set up coordinate grid, shape={self.grid.shape}")
 
     @property
     def shape(self):
@@ -1707,7 +1719,7 @@ class WSI(_BaseLoader):
                     # to reduce memory utilization.
                     # In the Libvips backend, a multiprocessing pool is default
                     # to significantly improve performance.
-                    n_cores = os.cpu_count() if os.cpu_count() else 8
+                    n_cores = sf.util.num_cpu(default=8)
                     if sf.slide_backend() == 'libvips':
                         num_processes = max(int(n_cores/2), 1)
                     else:
@@ -1950,7 +1962,7 @@ class WSI(_BaseLoader):
                 "Applying Otsu's thresholding & Gaussian blur filter "
                 "to stain norm context"
             )
-            _blur_mask = Gaussian()(image)
+            _blur_mask = GaussianV2()(image)
             qc_mask = Otsu()(image, mask=_blur_mask)
         # Mask by ROI and QC, if applied.
         # Use white as background for masked areas.
@@ -2268,7 +2280,7 @@ class TMA(_BaseLoader):
         path: str,
         tile_px: int,
         tile_um: Union[str, int],
-        stride_div: int = 1,
+        stride_div: float = 1,
         enable_downsample: bool = True,
         report_dir: Optional[str] = None,
         pb: Optional[Progress] = None,
@@ -2281,7 +2293,7 @@ class TMA(_BaseLoader):
             tile_px (int): Size of tiles to extract, in pixels.
             tile_um (int or str): Size of tiles to extract, in microns (int) or
                 magnification (str, e.g. "20x").
-            stride_div (int, optional): Stride divisor for tile extraction
+            stride_div (float, optional): Stride divisor for tile extraction
                 (1 = no tile overlap; 2 = 50% overlap, etc). Defaults to 1.
             enable_downsample (bool, optional): Allow use of downsampled
                 layers in the slide image pyramid, which greatly improves
@@ -2600,9 +2612,7 @@ class TMA(_BaseLoader):
         )
         # Detect CPU cores if num_threads not specified
         if num_threads is None:
-            num_threads = os.cpu_count()
-            if num_threads is None:
-                num_threads = 8
+            num_threads = sf.util.num_cpu(default=8)
 
         # Shuffle TMAs
         if shuffle:

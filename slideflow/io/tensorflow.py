@@ -267,6 +267,13 @@ def decode_image(
     return image
 
 
+def _decode_image(img_string: bytes, *, img_type: Optional[str] = None):
+    if img_type is None:
+        import imghdr
+        img_type = imghdr.what('', img_string)
+    return decode_image(img_string, img_type)
+
+
 def get_tfrecord_parser(
     tfrecord_path: str,
     features_to_return: Optional[Iterable[str]] = None,
@@ -507,11 +514,11 @@ def interleave(
             # Load slides and apply Otsu's thresholding
             if pool is None and sf.slide_backend() == 'cucim':
                 pool = mp.Pool(
-                    8 if os.cpu_count is None else os.cpu_count(),
+                    sf.util.num_cpu(default=8),
                     initializer=sf.util.set_ignore_sigint
                 )
             elif pool is None:
-                pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
+                pool = mp.dummy.Pool(sf.util.num_cpu(default=16))
             wsi_list = []
             to_remove = []
             otsu_list = []
@@ -610,10 +617,6 @@ def interleave(
             )
             if normalizer.vectorized:
                 dataset = dataset.unbatch()
-            if normalizer.method == 'macenko':
-                # Drop the images that causes an error, e.g. if eigen
-                # decomposition is unsuccessful.
-                dataset = dataset.apply(tf.data.experimental.ignore_errors())
 
         # ------- Standardize and augment images ------------------------------
         dataset = dataset.map(

@@ -120,11 +120,12 @@ class _TorchImagenetLayerExtractor(BaseFeatureExtractor):
     def __init__(self, model_name, tile_px, device=None, **kwargs):
         super().__init__(backend='torch')
 
-        import torch
         from ..torch import ModelParams, Features
+        from .. import torch_utils
         from torchvision import transforms
+        
 
-        self.device = device if device is not None else torch.device('cuda')
+        self.device = torch_utils.get_device(device)
         _hp = ModelParams(tile_px=tile_px, model=model_name, include_top=False, hidden_layers=0)
         model = _hp.build_model(num_classes=1, pretrain='imagenet').to(self.device)
         self.model_name = model_name

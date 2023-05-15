@@ -11,6 +11,17 @@ from .utils import clip_size, standardize_brightness
 # -----------------------------------------------------------------------------
 
 @tf.function
+def is_self_adjoint(matrix):
+    return tf.reduce_all(tf.math.equal(matrix, tf.linalg.adjoint(matrix)))
+
+@tf.function
+def normalize_c(C):
+    return tf.stack([
+        tfp.stats.percentile(C[0, :], 99),
+        tfp.stats.percentile(C[1, :], 99)]
+    )
+
+@tf.function
 def _matrix_and_concentrations(
     img: tf.Tensor,
     Io: int = 255,
@@ -132,7 +143,7 @@ def matrix_and_concentrations(
     )
 
     # normalize stain concentrations
-    maxC = tf.stack([tfp.stats.percentile(C[0, :], 99), tfp.stats.percentile(C[1, :], 99)])
+    maxC = normalize_c(C)
 
     return HE, maxC, C
 
@@ -190,6 +201,7 @@ def transform(
     beta: float = 0.15,
     ctx_maxC: Optional[tf.Tensor] = None,
     standardize: bool = True,
+    original_on_error: bool = True
 ) -> tf.Tensor:
     """Normalize an image.
 
@@ -213,7 +225,7 @@ def transform(
     Returns:
         tf.Tensor: Transformed image.
     """
-
+    original_image = img
     h, w, c = img.shape
 
     Io = tf.cast(Io, tf.float32)
@@ -221,15 +233,59 @@ def transform(
     HERef = stain_matrix_target
     maxCRef = target_concentrations
 
+    # reshape image
+    img = tf.reshape(img, (-1, 3))
+
+    # -------------------------------------------------------------------------
+
+    if standardize:
+        img = standardize_brightness(img)
+
+    # calculate optical density
+    OD = -tf.math.log((tf.cast(img, tf.float32) + 1) / Io)
+
+    # remove transparent pixels
+    ODhat = OD[~ tf.math.reduce_any(OD < beta, axis=1)]
+
+    # compute eigenvectors
+    covar = tfp.stats.covariance(ODhat)
+    if original_on_error and not is_self_adjoint(covar):
+        return original_image
+    eigvals, eigvecs = tf.linalg.eigh(covar)
+
+    # project on the plane spanned by the eigenvectors corresponding to the two
+    # largest eigenvalues
+    That = dot(ODhat, eigvecs[:, 1:3])
+
+    phi = tf.math.atan2(That[:, 1],That[:,0])
+
+    minPhi = tfp.stats.percentile(phi, alpha)
+    maxPhi = tfp.stats.percentile(phi, 100-alpha)
+
+    vMin = dot(eigvecs[:, 1:3], tf.transpose(tf.stack((tf.math.cos(minPhi), tf.math.sin(minPhi)))[tf.newaxis, :]))
+    vMax = dot(eigvecs[:, 1:3], tf.transpose(tf.stack((tf.math.cos(maxPhi), tf.math.sin(maxPhi)))[tf.newaxis, :]))
+
+    # a heuristic to make the vector corresponding to hematoxylin first and the
+    # one corresponding to eosin second
+    if vMin[0] > vMax[0]:
+        HE = tf.transpose(tf.stack((vMin[:, 0], vMax[:, 0])))
+    else:
+        HE = tf.transpose(tf.stack((vMax[:, 0], vMin[:, 0])))
+
+    # rows correspond to channels (RGB), columns to OD values
+    OD = tf.reshape(OD, (-1, 3))
+
+    Y = tf.transpose(OD)
+
+    # determine concentrations of the individual stains
+    C = tf.linalg.lstsq(HE, Y)
+
+    # -------------------------------------------------------------------------
+
     if ctx_maxC is not None:
-        HE, C = _matrix_and_concentrations(
-            img, Io, alpha, beta, standardize=standardize
-        )
         maxC = ctx_maxC
     else:
-        HE, maxC, C = matrix_and_concentrations(
-            img, Io, alpha, beta, standardize=standardize
-        )
+        maxC = normalize_c(C)
 
     tmp = tf.math.divide(maxC, maxCRef)
     C2 = tf.math.divide(C, tmp[:, tf.newaxis])
@@ -320,7 +376,8 @@ class MacenkoNormalizer:
         self,
         I: tf.Tensor,
         *,
-        augment: bool = False
+        augment: bool = False,
+        original_on_error: bool = True
     ) -> tf.Tensor:
         """Normalize an image."""
         if augment and not any(m in self._augment_params
@@ -334,6 +391,7 @@ class MacenkoNormalizer:
             self.stain_matrix_target,
             self.target_concentrations,
             ctx_maxC=self._ctx_maxC,
+            original_on_error=original_on_error,
             **aug_kw
         )
 
@@ -544,7 +602,8 @@ class MacenkoFastNormalizer(MacenkoNormalizer):
         self,
         I: tf.Tensor,
         *,
-        augment: bool = False
+        augment: bool = False,
+        original_on_error: bool = True
     ) -> tf.Tensor:
         """Normalize an image."""
         if augment and not any(m in self._augment_params
@@ -559,6 +618,7 @@ class MacenkoFastNormalizer(MacenkoNormalizer):
             self.target_concentrations,
             ctx_maxC=self._ctx_maxC,
             standardize=False,
+            original_on_error=original_on_error,
             **aug_kw
         )
 

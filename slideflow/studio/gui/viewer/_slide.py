@@ -587,12 +587,26 @@ class SlideViewer(Viewer):
         Args:
             cx (int): Zoom focus location, X coordinate, without offset.
             cy (int): Zoom focus location, Y coordinate, without offset.
-            dz (float): Amount to zoom.
+            dz (float): Amount to zoom (relative).
         """
-        wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy, offset=False)
         new_zoom = min(self.view_zoom * dz,
                         max(self.dimensions[0] / self.width,
                             self.dimensions[1] / self.height))
+        
+        self.zoom_to(cx, cy, new_zoom)
+
+    def zoom_to(self, cx: int, cy: int, z: float) -> None:
+        """Zoom the slide display.
+
+        Args:
+            cx (int): Zoom focus location, X coordinate, without offset.
+            cy (int): Zoom focus location, Y coordinate, without offset.
+            z (float): Amount to zoom (absolute).
+        """
+        wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy, offset=False)
+        new_zoom = min(z,
+                       max(self.dimensions[0] / self.width,
+                           self.dimensions[1] / self.height))
 
         # Limit maximum zoom level
         if new_zoom * self.wsi.mpp < 0.01:
@@ -605,6 +619,9 @@ class SlideViewer(Viewer):
         view_params = self._calculate_view_params(new_origin)
         if view_params != self.view_params:
             self._refresh_view_full(view_params=view_params)
+
+    def zoom_to_mpp(self, cx: int, cy: int, mpp: float) -> None:
+        self.zoom_to(cx, cy, mpp / self.wsi.mpp)
 
 # -----------------------------------------------------------------------------
 

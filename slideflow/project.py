@@ -1551,19 +1551,18 @@ class Project:
         Keyword Args:
             save_tiles (bool, optional): Save tile images in loose format.
                 Defaults to False.
-            save_tfrecords (bool): Save compressed image data from
-                extracted tiles into TFRecords in the corresponding TFRecord
-                directory. Defaults to True.
-            source (str, optional): Name of dataset source from which to select
-                slides for extraction. Defaults to None. If not provided, will
-                default to all sources in project.
-            stride_div (int): Stride divisor for tile extraction.
+            save_tfrecords (bool, optional): Save tile images as TFRecords.
+                Defaults to True.
+            source (str, optional): Process slides only from this source.
+                Defaults to None (all slides in project).
+            stride_div (int, optional): Stride divisor. Defaults to 1.
                 A stride of 1 will extract non-overlapping tiles.
-                A stride_div of 2 will extract overlapping tiles, with a stride
-                equal to 50% of the tile width. Defaults to 1.
-            enable_downsample (bool): Enable downsampling for slides.
-                This may result in corrupted image tiles if downsampled slide
-                layers are corrupted or incomplete. Defaults to True.
+                A stride_div of 2 will extract overlapping tiles with a stride
+                equal to 50% of the tile width.
+            enable_downsample (bool, optional): Enable downsampling when
+                reading slides. Defaults to True. This may result in corrupted
+                image tiles if downsampled slide layers are corrupted or
+                incomplete. Recommend manual confirmation of tile integrity.
             roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
                 Determines how ROIs are used to extract tiles.
                 If 'inside' or 'outside', will extract tiles in/out of an ROI,
@@ -1573,73 +1572,57 @@ class Project:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
-            roi_filter_method (str or float): Method of filtering tiles with
-                ROIs. Either 'center' or float (0-1). If 'center', tiles are
-                filtered with ROIs based on the center of the tile. If float,
-                tiles are filtered based on the proportion of the tile inside
-                the ROI, and ``roi_filter_method`` is interpreted as a
-                threshold. If the proportion of a tile inside the ROI is
-                greater than this number, the tile is included. For example,
-                if ``roi_filter_method=0.7``, a tile that is 80% inside of an
-                ROI will be included, and a tile that is 50% inside of an ROI
-                will be excluded. Defaults to 'center'.
-            skip_extracted (bool): Skip slides that have already
-                been extracted. Defaults to True.
-            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),
+            skip_extracted (bool, optional): Skip already extracted slides.
+                Defaults to True.
+            tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs),
                 detecting and extracting tumor cores. Defaults to False.
-                Experimental function with limited testing.
-            randomize_origin (bool): Randomize pixel starting
+            randomize_origin (bool, optional): Randomize pixel starting
                 position during extraction. Defaults to False.
-            buffer (str, optional): Slides will be copied to this directory
-                before extraction. Defaults to None. Using an SSD or ramdisk
-                buffer vastly improves tile extraction speed.
-            q_size (int): Size of queue when using a buffer.
-                Defaults to 2.
+            buffer (str, optional): Copy slides here before extraction.
+                Improves processing speed if using an SSD/ramdisk buffer.
+                Defaults to None.
+            num_workers (int, optional): Extract tiles from this many slides
+                simultaneously. Defaults to 1.
+            q_size (int, optional): Queue size for buffer. Defaults to 2.
             qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur
                 detection quality control - discarding tiles with detected
                 out-of-focus regions or artifact - and/or otsu's method.
-                Increases tile extraction time. Defaults to None.
-            report (bool): Save a PDF report of tile extraction.
+                Defaults to None.
+            report (bool, optional): Save a PDF report of tile extraction.
                 Defaults to True.
             normalizer (str, optional): Normalization strategy.
                 Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image.
-                If None, will use slideflow.slide.norm_tile.jpg.
-                Defaults to None.
-            whitespace_fraction (float, optional): Range 0-1. Discard tiles
-                with this fraction of whitespace. If 1, will not perform
-                whitespace filtering. Defaults to 1.
-            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
-                Threshold above which a pixel (RGB average) is whitespace.
-            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
-                Discard tiles with this fraction of grayspace.
-                If 1, will not perform grayspace filtering.
-            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
-                Pixels in HSV format with saturation below this threshold are
-                considered grayspace.
+                Defaults to None (use internal image at slide.norm_tile.jpg).
+            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
+                Discard tiles with this fraction of whitespace. If 1, will not
+                perform whitespace filtering.
+            whitespace_threshold (int, optional): Range 0-255. Threshold above
+                which a pixel (RGB average) is considered whitespace.
+                Defaults to 230.
+            grayspace_fraction (float, optional): Range 0-1. Discard tiles with
+                this fraction of grayspace. If 1, will not perform grayspace
+                filtering. Defaults to 0.6.
+            grayspace_threshold (float, optional): Range 0-1. Pixels in HSV
+                format with saturation below this are considered grayspace.
+                Defaults to 0.05.
             img_format (str, optional): 'png' or 'jpg'. Defaults to 'jpg'.
-                Image format to use in tfrecords. PNG (lossless) for fidelity,
-                JPG (lossy) for efficiency.
-            full_core (bool, optional): Only used if extracting from TMA.
-                If True, will save entire TMA core as image.
-                Otherwise, will extract sub-images from each core using the
-                given tile micron size. Defaults to False.
-            shuffle (bool, optional): Shuffle tiles prior to storage in
-                tfrecords. Defaults to True.
-            num_threads (int, optional): Number of worker processes for each
-                tile extractor. When using cuCIM slide reading backend,
-                defaults to the total number of available CPU cores, using the
-                'fork' multiprocessing method. With Libvips, this defaults to
-                the total number of available CPU cores or 32, whichever is
-                lower, using 'spawn' multiprocessing.
-            qc_blur_radius (int, optional): Quality control blur radius for
-                out-of-focus area detection. Used if qc=True. Defaults to 3.
-            qc_blur_threshold (float, optional): Quality control blur threshold
-                for detecting out-of-focus areas. Only used if qc=True.
-                Defaults to 0.1
-            qc_filter_threshold (float, optional): Float between 0-1. Tiles
-                with more than this proportion of blur will be discarded.
-                Only used if qc=True. Defaults to 0.6.
+                Image format to use in tfrecords. PNG (lossless) for
+                fidelity, JPG (lossy) for efficiency.
+            full_core (bool, optional): Only used if extracting from TMA. Save
+                entire TMA core as image. Otherwise, will extract sub-images
+                from each core at the tile micron size. Defaults to False.
+            shuffle (bool, optional): Shuffle tiles before tfrecords storage.
+                Defaults to True.
+            num_threads (int, optional): Threads for each tile extractor.
+                Defaults to 4.
+            qc_blur_radius (int, optional): Blur radius for out-of-focus area
+                detection. Used if qc=True. Defaults to 3.
+            qc_blur_threshold (float, optional): Blur threshold for detecting
+                out-of-focus areas. Used if qc=True. Defaults to 0.1.
+            qc_filter_threshold (float, optional): Float between 0-1.
+                Tiles with more than this proportion of blur will be discarded.
+                Used if qc=True. Defaults to 0.6.
             qc_mpp (float, optional): Microns-per-pixel indicating image
                 magnification level at which quality control is performed.
                 Defaults to mpp=4 (effective magnification 2.5 X)
@@ -1945,7 +1928,16 @@ class Project:
         return df
 
     @auto_dataset_allow_none
-    def generate_features_for_clam(
+    def generate_features_for_clam(self, *args, **kwargs):
+        warnings.warn(
+            "Project.generate_features_for_clam() is deprecated. "
+            "Please use .generate_feature_bags()",
+            DeprecationWarning
+        )
+        self.generate_feature_bags(*args, **kwargs)
+
+    @auto_dataset_allow_none
+    def generate_feature_bags(
         self,
         model: str,
         outdir: str = 'auto',
@@ -2070,15 +2062,22 @@ class Project:
             log.info(f'Skipping {len(done)} files already done.')
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
 
-        # Set up activations interface
-        df = sf.DatasetFeatures(
-            model=model,
-            dataset=dataset,
-            layers=layers,
-            include_preds=False,
-            batch_size=batch_size
-        )
-        df.to_torch(outdir)
+        # Set up activations interface.
+        # Calculate features one slide at a time to reduce memory consumption.
+        for slide in dataset.slides():
+            try:
+                _dataset = dataset.remove_filter(filters='slide')
+            except errors.DatasetFilterError:
+                _dataset = dataset
+            _dataset = _dataset.filter(filters={'slide': slide})
+            df = sf.DatasetFeatures(
+                model=model,
+                dataset=_dataset,
+                layers=layers,
+                include_preds=False,
+                batch_size=batch_size
+            )
+            df.to_torch(outdir)
         return outdir
 
     @auto_dataset
@@ -2445,7 +2444,7 @@ class Project:
 
         Keyword Args:
             dataset (:class:`slideflow.Dataset`): Dataset object.
-            model (str, optional): Path to Tensorflow model to use when
+            model (str, optional): Path to model to use when
                 generating layer activations.
             Defaults to None.
                 If not provided, mosaic will not be calculated or saved.
@@ -3301,8 +3300,8 @@ class Project:
                 model from which to load weights. Defaults to 'imagenet'.
             multi_gpu (bool): Train using multiple GPUs when available.
                 Defaults to False.
-            resume_training (str, optional): Path to Tensorflow model to
-                continue training. Defaults to None.
+            resume_training (str, optional): Path to model to continue training.
+                Only valid in Tensorflow backend. Defaults to None.
             starting_epoch (int): Start training at the specified epoch.
                 Defaults to 0.
             steps_per_epoch_override (int): If provided, will manually set the
@@ -3319,7 +3318,7 @@ class Project:
             validation_batch_size (int): Validation dataset batch size.
                 Defaults to 32.
             use_tensorboard (bool): Add tensorboard callback for realtime
-                training monitoring. Defaults to False.
+                training monitoring. Defaults to True.
             validation_steps (int): Number of steps of validation to perform
                 each time doing a mid-epoch validation check. Defaults to 200.
 
@@ -3591,6 +3590,8 @@ class Project:
         exp_label: Optional[str] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
         dataset_kwargs: Optional[Dict[str, Any]] = None,
+        normalizer: Optional[Union[str, "sf.norm.StainNormalizer"]] = None,
+        normalizer_source: Optional[str] = None,
         **kwargs
     ) -> None:
         """Train SimCLR model.
@@ -3639,7 +3640,9 @@ class Project:
             train_dts=train_dataset,
             val_dts=val_dataset,
             labels=outcomes,
-            dataset_kwargs=dataset_kwargs
+            dataset_kwargs=dataset_kwargs,
+            normalizer=normalizer,
+            normalizer_source=normalizer_source
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
@@ -3907,13 +3910,8 @@ def create(
     # Set up project at the given directory.
     log.info(f"Setting up project at {root}")
     if 'annotations' in cfg:
-        if root.startswith('.'):
-            proj_kwargs['annotations'] = join('.', basename(cfg.annotations))
-        else:
-            proj_kwargs['annotations'] = join(root, basename(cfg.annotations))
-
+        proj_kwargs['annotations'] = join(root, basename(cfg.annotations))
     P = sf.Project(root, **proj_kwargs, create=True)
-
     # Download annotations, if a URL.
     if 'annotations' in cfg and cfg.annotations.startswith('http'):
         log.info(f"Downloading {cfg.annotations}")
