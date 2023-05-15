@@ -368,6 +368,7 @@ class Mosaic:
         num_tiles_x: int = 50,
         tile_meta: Optional[Dict] = None,
         tile_select: str = 'first',
+        max_dist: Optional[float] = None,
     ):
         """Generate the mosaic map grid.
 
@@ -411,10 +412,10 @@ class Mosaic:
         self.grid_coords = (self.grid_idx * self.tile_size) + _grid_offset
 
         points_added = 0
-        x_bins = np.arange(min_x, max_x, ((max_x - min_x) / self.num_tiles_x))
-        y_bins = np.arange(min_y, max_y, ((max_y - min_y) / self.num_tiles_y))
-        self.points['grid_x'] = np.digitize(self.points.x.values, x_bins, right=True)
-        self.points['grid_y'] = np.digitize(self.points.y.values, y_bins, right=True)
+        x_bins = np.arange(min_x, max_x, ((max_x - min_x) / self.num_tiles_x))[1:]
+        y_bins = np.arange(min_y, max_y, ((max_y - min_y) / self.num_tiles_y))[1:]
+        self.points['grid_x'] = np.digitize(self.points.x.values, x_bins, right=False)
+        self.points['grid_y'] = np.digitize(self.points.y.values, y_bins, right=False)
         self.points['selected'] = False
         log.debug(f'{points_added} points added to grid')
 
@@ -433,7 +434,12 @@ class Mosaic:
                         ord=2,
                         axis=1.
                     )
-                    self.points.loc[_points.index[np.argmin(dist)], 'selected'] = True
+                    if max_dist is not None:
+                        masked_dist = np.ma.masked_array(dist, (dist >= (max_dist * self.tile_size)))
+                        if masked_dist.count():
+                            self.points.loc[_points.index[np.argmin(masked_dist)], 'selected'] = True
+                    else:
+                        self.points.loc[_points.index[np.argmin(dist)], 'selected'] = True
                 elif not tile_meta:
                     raise errors.MosaicError(
                         'Mosaic centroid option requires tile_meta.'
@@ -449,7 +455,7 @@ class Mosaic:
             grid_group = self.points.groupby(['grid_x', 'grid_y'])
             first_indices = grid_group.nth(0).points_index.values
             self.points.loc[first_indices, 'selected'] = True
-        elif tile_select == 'nearest':
+        elif tile_select in ('nearest', 'centroid'):
             self.points['selected'] = False
             dist_fn = partial(select_nearest_points)
             pool = DPool(os.cpu_count())
