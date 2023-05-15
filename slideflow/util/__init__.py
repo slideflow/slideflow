@@ -230,12 +230,24 @@ def about(console=None) -> None:
     if console is None:
         console = Console()
     col1 = 'yellow' if sf.backend() == 'tensorflow' else 'purple'
-    col2 = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
+    if sf.slide_backend() == 'libvips':
+        try:
+            import pyvips
+            _version = '{}.{}.{}'.format(
+                pyvips.major, pyvips.minor, pyvips.micro
+            )
+        except Exception:
+            _version = 'unknown'
+        col2 = 'cyan'
+        slide_backend = 'libvips ({})'.format(_version)
+    else:
+        slide_backend = sf.slide_backend()
+        col2 = 'green'
     console.print(
         Panel(f"[white bold]Slideflow[/]"
               f"\nVersion: {sf.__version__}"
               f"\nBackend: [{col1}]{sf.backend()}[/]"
-              f"\nSlide Backend: [{col2}]{sf.slide_backend()}[/]"
+              f"\nSlide Backend: [{col2}]{slide_backend}[/]"
               "\n[blue]https://slideflow.dev[/]",
               border_style='purple'),
         justify='left')
