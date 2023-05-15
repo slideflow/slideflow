@@ -3890,8 +3890,13 @@ def create(
     # Set up project at the given directory.
     log.info(f"Setting up project at {root}")
     if 'annotations' in cfg:
-        proj_kwargs['annotations'] = join(root, basename(cfg.annotations))
+        if root.startswith('.'):
+            proj_kwargs['annotations'] = join('.', basename(cfg.annotations))
+        else:
+            proj_kwargs['annotations'] = join(root, basename(cfg.annotations))
+
     P = sf.Project(root, **proj_kwargs, create=True)
+
     # Download annotations, if a URL.
     if 'annotations' in cfg and cfg.annotations.startswith('http'):
         log.info(f"Downloading {cfg.annotations}")
