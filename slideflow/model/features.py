@@ -940,19 +940,21 @@ class DatasetFeatures:
         self.slides = list(self.activations.keys())
 
     def remove_slide(self, slide: str) -> None:
-        """Removes slide from internally cached activations."""
-        del self.activations[slide]
-        del self.predictions[slide]
-        del self.uncertainty[slide]
-        del self.locations[slide]
+        """Removes slide from calculated features."""
+        if slide in self.activations:
+            del self.activations[slide]
+        if slide in self.predictions:
+            del self.predictions[slide]
+        if slide in self.uncertainty:
+            del self.uncertainty[slide]
+        if slide in self.locations:
+            del self.locations[slide]
         self.tfrecords = np.array([
             t for t in self.tfrecords
             if sf.util.path_to_name(t) != slide
         ])
-        try:
+        if slide in self.slides:
             self.slides.remove(slide)
-        except ValueError:
-            pass
 
     def save_example_tiles(
         self,
