@@ -1373,8 +1373,8 @@ class Dataset:
         :class:`slideflow.Dataset`.
 
         Keyword Args:
-            save_tiles (bool): Save images of extracted tiles to
-                project tile directory. Defaults to False.
+            save_tiles (bool, optional): Save tile images in loose format.
+                Defaults to False.
             save_tfrecords (bool): Save compressed image data from
                 extracted tiles into TFRecords in the corresponding TFRecord
                 directory. Defaults to True.
@@ -1469,6 +1469,8 @@ class Dataset:
                 Defaults to mpp=4 (effective magnification 2.5 X)
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
+            max_tiles (int, optional): Only extract this many tiles per slide.
+                Defaults to None.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
