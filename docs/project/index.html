@@ -691,18 +691,19 @@ magnification (str, e.g. “20x”).</p></li>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile images in loose format.
 Defaults to False.</p></li>
-<li><p><strong>save_tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile images as TFRecords.
-Defaults to True.</p></li>
-<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Process slides only from this source.
-Defaults to None (all slides in project).</p></li>
-<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Stride divisor. Defaults to 1.
+<li><p><strong>save_tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Save compressed image data from
+extracted tiles into TFRecords in the corresponding TFRecord
+directory. Defaults to True.</p></li>
+<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Name of dataset source from which to select
+slides for extraction. Defaults to None. If not provided, will
+default to all sources in project.</p></li>
+<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Stride divisor for tile extraction.
 A stride of 1 will extract non-overlapping tiles.
-A stride_div of 2 will extract overlapping tiles with a stride
-equal to 50% of the tile width.</p></li>
-<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable downsampling when
-reading slides. Defaults to True. This may result in corrupted
-image tiles if downsampled slide layers are corrupted or
-incomplete. Recommend manual confirmation of tile integrity.</p></li>
+A stride_div of 2 will extract overlapping tiles, with a stride
+equal to 50% of the tile width. Defaults to 1.</p></li>
+<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Enable downsampling for slides.
+This may result in corrupted image tiles if downsampled slide
+layers are corrupted or incomplete. Defaults to True.</p></li>
 <li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Either ‘inside’, ‘outside’, ‘auto’, or ‘ignore’.
 Determines how ROIs are used to extract tiles.
 If ‘inside’ or ‘outside’, will extract tiles in/out of an ROI,
@@ -712,57 +713,73 @@ and across the whole-slide if no ROI is found.
 If ‘ignore’, will extract tiles across the whole-slide
 regardless of whether an ROI is available.
 Defaults to ‘auto’.</p></li>
-<li><p><strong>skip_extracted</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip already extracted slides.
-Defaults to True.</p></li>
-<li><p><strong>tma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Reads slides as Tumor Micro-Arrays (TMAs),
-detecting and extracting tumor cores. Defaults to False.</p></li>
-<li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Randomize pixel starting
+<li><p><strong>roi_filter_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Method of filtering tiles with
+ROIs. Either ‘center’ or float (0-1). If ‘center’, tiles are
+filtered with ROIs based on the center of the tile. If float,
+tiles are filtered based on the proportion of the tile inside
+the ROI, and <code class="docutils literal notranslate"><span class="pre">roi_filter_method</span></code> is interpreted as a
+threshold. If the proportion of a tile inside the ROI is
+greater than this number, the tile is included. For example,
+if <code class="docutils literal notranslate"><span class="pre">roi_filter_method=0.7</span></code>, a tile that is 80% inside of an
+ROI will be included, and a tile that is 50% inside of an ROI
+will be excluded. Defaults to ‘center’.</p></li>
+<li><p><strong>skip_extracted</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Skip slides that have already
+been extracted. Defaults to True.</p></li>
+<li><p><strong>tma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Reads slides as Tumor Micro-Arrays (TMAs),
+detecting and extracting tumor cores. Defaults to False.
+Experimental function with limited testing.</p></li>
+<li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Randomize pixel starting
 position during extraction. Defaults to False.</p></li>
-<li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Copy slides here before extraction.
-Improves processing speed if using an SSD/ramdisk buffer.
-Defaults to None.</p></li>
-<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Extract tiles from this many slides
-simultaneously. Defaults to 1.</p></li>
-<li><p><strong>q_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Queue size for buffer. Defaults to 2.</p></li>
+<li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Slides will be copied to this directory
+before extraction. Defaults to None. Using an SSD or ramdisk
+buffer vastly improves tile extraction speed.</p></li>
+<li><p><strong>q_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Size of queue when using a buffer.
+Defaults to 2.</p></li>
 <li><p><strong>qc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – ‘otsu’, ‘blur’, ‘both’, or None. Perform blur
 detection quality control - discarding tiles with detected
 out-of-focus regions or artifact - and/or otsu’s method.
-Defaults to None.</p></li>
-<li><p><strong>report</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save a PDF report of tile extraction.
+Increases tile extraction time. Defaults to None.</p></li>
+<li><p><strong>report</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Save a PDF report of tile extraction.
 Defaults to True.</p></li>
 <li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy.
 Defaults to None.</p></li>
 <li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image.
-Defaults to None (use internal image at slide.norm_tile.jpg).</p></li>
-<li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
-Discard tiles with this fraction of whitespace. If 1, will not
-perform whitespace filtering.</p></li>
-<li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Threshold above
-which a pixel (RGB average) is considered whitespace.
-Defaults to 230.</p></li>
-<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Discard tiles with
-this fraction of grayspace. If 1, will not perform grayspace
-filtering. Defaults to 0.6.</p></li>
-<li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Pixels in HSV
-format with saturation below this are considered grayspace.
-Defaults to 0.05.</p></li>
+If None, will use slideflow.slide.norm_tile.jpg.
+Defaults to None.</p></li>
+<li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Discard tiles
+with this fraction of whitespace. If 1, will not perform
+whitespace filtering. Defaults to 1.</p></li>
+<li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
+Threshold above which a pixel (RGB average) is whitespace.</p></li>
+<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
+Discard tiles with this fraction of grayspace.
+If 1, will not perform grayspace filtering.</p></li>
+<li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
+Pixels in HSV format with saturation below this threshold are
+considered grayspace.</p></li>
 <li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – ‘png’ or ‘jpg’. Defaults to ‘jpg’.
-Image format to use in tfrecords. PNG (lossless) for
-fidelity, JPG (lossy) for efficiency.</p></li>
-<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Only used if extracting from TMA. Save
-entire TMA core as image. Otherwise, will extract sub-images
-from each core at the tile micron size. Defaults to False.</p></li>
-<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Shuffle tiles before tfrecords storage.
-Defaults to True.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Threads for each tile extractor.
-Defaults to 4.</p></li>
-<li><p><strong>qc_blur_radius</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Blur radius for out-of-focus area
-detection. Used if qc=True. Defaults to 3.</p></li>
-<li><p><strong>qc_blur_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Blur threshold for detecting
-out-of-focus areas. Used if qc=True. Defaults to 0.1.</p></li>
-<li><p><strong>qc_filter_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Float between 0-1.
-Tiles with more than this proportion of blur will be discarded.
-Used if qc=True. Defaults to 0.6.</p></li>
+Image format to use in tfrecords. PNG (lossless) for fidelity,
+JPG (lossy) for efficiency.</p></li>
+<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Only used if extracting from TMA.
+If True, will save entire TMA core as image.
+Otherwise, will extract sub-images from each core using the
+given tile micron size. Defaults to False.</p></li>
+<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Shuffle tiles prior to storage in
+tfrecords. Defaults to True.</p></li>
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of worker processes for each
+tile extractor. When using cuCIM slide reading backend,
+defaults to the total number of available CPU cores, using the
+‘fork’ multiprocessing method. With Libvips, this defaults to
+the total number of available CPU cores or 32, whichever is
+lower, using ‘spawn’ multiprocessing.</p></li>
+<li><p><strong>qc_blur_radius</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Quality control blur radius for
+out-of-focus area detection. Used if qc=True. Defaults to 3.</p></li>
+<li><p><strong>qc_blur_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Quality control blur threshold
+for detecting out-of-focus areas. Only used if qc=True.
+Defaults to 0.1</p></li>
+<li><p><strong>qc_filter_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Float between 0-1. Tiles
+with more than this proportion of blur will be discarded.
+Only used if qc=True. Defaults to 0.6.</p></li>
 <li><p><strong>qc_mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel indicating image
 magnification level at which quality control is performed.
 Defaults to mpp=4 (effective magnification 2.5 X)</p></li>

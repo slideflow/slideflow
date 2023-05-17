@@ -442,7 +442,7 @@ header appears to be a float.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Dataset.build_index">
 <span class="sig-name descname"><span class="pre">build_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.build_index" title="Permalink to this definition">¶</a></dt>
-<dd><p>Build index files for TFRecords. Required for PyTorch.</p>
+<dd><p>Build index files for TFRecords.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>force</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Force re-build existing indices.</p>
@@ -611,8 +611,8 @@ the tfrecord and tile directories configured by
 <dl class="field-list simple">
 <dt class="field-odd">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Save images of extracted tiles to
-project tile directory. Defaults to False.</p></li>
+<li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile images in loose format.
+Defaults to False.</p></li>
 <li><p><strong>save_tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Save compressed image data from
 extracted tiles into TFRecords in the corresponding TFRecord
 directory. Defaults to True.</p></li>
@@ -688,11 +688,12 @@ Otherwise, will extract sub-images from each core using the
 given tile micron size. Defaults to False.</p></li>
 <li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Shuffle tiles prior to storage in
 tfrecords. Defaults to True.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of workers threads for each
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of worker processes for each
 tile extractor. When using cuCIM slide reading backend,
-defaults to the total number of available CPU threads.
-With Libvips, this defaults to the total number of available
-CPU threads or 32, whichever is lower.</p></li>
+defaults to the total number of available CPU cores, using the
+‘fork’ multiprocessing method. With Libvips, this defaults to
+the total number of available CPU cores or 32, whichever is
+lower, using ‘spawn’ multiprocessing.</p></li>
 <li><p><strong>qc_blur_radius</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Quality control blur radius for
 out-of-focus area detection. Used if qc=True. Defaults to 3.</p></li>
 <li><p><strong>qc_blur_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Quality control blur threshold
@@ -706,6 +707,8 @@ magnification level at which quality control is performed.
 Defaults to mpp=4 (effective magnification 2.5 X)</p></li>
 <li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted,
 but do not export any images. Defaults to None.</p></li>
+<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only extract this many tiles per slide.
+Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
