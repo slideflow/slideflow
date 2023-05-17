@@ -754,7 +754,7 @@ class SlideMap:
         loc: Optional[str] = 'center right',
         ncol: Optional[int] = 1,
         categorical: Union[str, bool] = 'auto',
-        legend_kwargs: Optional[Dict] = {},
+        legend_kwargs: Optional[Dict] = None,
         **scatter_kwargs: Any,
     ) -> None:
         """Plots calculated map.
@@ -773,20 +773,23 @@ class SlideMap:
             legend (str, optional): Title for legend. Defaults to None.
             ax (matplotlib.axes.Axes, optional): Figure axis. If not supplied,
                 will prepare a new figure axis.
-            loc (str, optional): Location for legend, as defined by 
+            loc (str, optional): Location for legend, as defined by
                 matplotlib.axes.Axes.legend(). Defaults to 'center right'.
             ncol (int, optional): Number of columns in legend, as defined
-                by matplotlib.axes.Axes.legend(). Defaults to 1. 
+                by matplotlib.axes.Axes.legend(). Defaults to 1.
             categorical (str, optional): Specify whether labels are categorical.
                 Determines the colormap.  Defaults to 'auto' (will attempt to
                 automatically determine from the labels).
-            legend_kwargs (dict, optional): Dictionary of additional keyword 
+            legend_kwargs (dict, optional): Dictionary of additional keyword
                 arguments to the matplotlib.axes.Axes.legend() function.
-            **scatter_kwargs (optional): Additional keyword arguments to the 
-                 seaborn scatterplot function. 
+            **scatter_kwargs (optional): Additional keyword arguments to the
+                 seaborn scatterplot function.
         """
         import seaborn as sns
         import matplotlib.pyplot as plt
+
+        if legend_kwargs is None:
+            legend_kwargs = dict()
 
         # Make plot
         if ax is None:
