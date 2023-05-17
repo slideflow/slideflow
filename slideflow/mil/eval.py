@@ -89,9 +89,8 @@ def eval_mil(
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
 
-    # Handle the case where some bags are missing.
-    if len(bags) != len(slides):
-        slides = [path_to_name(b) for b in bags]
+    # Ensure slide names are sorted according to the bags.
+    slides = [path_to_name(b) for b in bags]
 
     y_true = np.array([labels[s] for s in slides])
 
@@ -217,9 +216,8 @@ def predict_from_model(
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
 
-    # Handle the case where some bags are missing.
-    if len(bags) != len(slides):
-        slides = [path_to_name(b) for b in bags]
+    # Ensure slide names are sorted according to the bags.
+    slides = [path_to_name(b) for b in bags]
 
     y_true = np.array([labels[s] for s in slides])
 
