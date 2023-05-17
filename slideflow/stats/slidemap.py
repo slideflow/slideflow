@@ -751,8 +751,11 @@ class SlideMap:
         ylabel: Optional[str] = None,
         legend: Optional[str] = None,
         ax: Optional["Axes"] = None,
+        loc: Optional[str] = 'center right',
+        ncol: Optional[int] = 1,
         categorical: Union[str, bool] = 'auto',
-        **scatter_kwargs: Any
+        legend_kwargs: Optional[Dict] = None,
+        **scatter_kwargs: Any,
     ) -> None:
         """Plots calculated map.
 
@@ -770,14 +773,23 @@ class SlideMap:
             legend (str, optional): Title for legend. Defaults to None.
             ax (matplotlib.axes.Axes, optional): Figure axis. If not supplied,
                 will prepare a new figure axis.
+            loc (str, optional): Location for legend, as defined by
+                matplotlib.axes.Axes.legend(). Defaults to 'center right'.
+            ncol (int, optional): Number of columns in legend, as defined
+                by matplotlib.axes.Axes.legend(). Defaults to 1.
             categorical (str, optional): Specify whether labels are categorical.
                 Determines the colormap.  Defaults to 'auto' (will attempt to
                 automatically determine from the labels).
+            legend_kwargs (dict, optional): Dictionary of additional keyword
+                arguments to the matplotlib.axes.Axes.legend() function.
             **scatter_kwargs (optional): Additional keyword arguments to the
-                seaborn scatterplot function.
+                 seaborn scatterplot function.
         """
         import seaborn as sns
         import matplotlib.pyplot as plt
+
+        if legend_kwargs is None:
+            legend_kwargs = dict()
 
         # Make plot
         if ax is None:
@@ -832,9 +844,10 @@ class SlideMap:
         ax.set_xlim(*((None, None) if not xlim else xlim))
         if 'hue' in scatter_kwargs:
             ax.legend(
-                loc='center right',
-                ncol=1,
-                title=legend
+                loc=loc,
+                ncol=ncol,
+                title=legend,
+                **legend_kwargs
             )
         umap_2d.set(xlabel=xlabel, ylabel=ylabel)
         if title:
