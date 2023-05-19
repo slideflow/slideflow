@@ -19,6 +19,21 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
     from slideflow.model import DatasetFeatures
 
+class DimensionReducer:
+    """Organizes the selection and usage of dimensionality reduction methods.
+    
+    """
+    _allowed_methods=["pca", "mds", "sammon", "lle", "hlle", "isomap", "kpca"
+                    "leim", "umap", "tsne", "phate"]
+    def __init__(
+        self,
+        dr_method = "umap"
+    ) -> None:
+        """ Dimensionality reduction method selector.
+        
+        """
+        self.dr_method = dr_method # type: str
+        self.slidemap = None    # type: sf.SlideMap
 
 class SlideMap:
     """Two-dimensional slide map for visualization & backend for mosaic maps.
@@ -313,6 +328,7 @@ class SlideMap:
         self.map_meta['num_features'] = self.ftrs.num_features
         log.info("Calculating UMAP...")
 
+        #TODO Abstract the umap transform here
         coordinates = self.umap_transform(node_activations, **umap_kwargs)
 
         # Assemble dataframe
