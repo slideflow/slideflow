@@ -1661,8 +1661,8 @@ class Trainer:
                 Defaults to 'parquet'.
             save_model (bool, optional): Save models when evaluating at
                 specified epochs. Defaults to True.
-            resume_training (str, optional): Path to Tensorflow model to
-                continue training. Defaults to None.
+            resume_training (str, optional): Path to model to continue training.
+                Only valid in Tensorflow backend. Defaults to None.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow
                 model from which to load weights. Defaults to 'imagenet'.
             checkpoint (str, optional): Path to cp.ckpt from which to load
@@ -1719,7 +1719,7 @@ class Trainer:
         # Prepare multiprocessing pool if from_wsi=True
         if from_wsi:
             pool = mp.Pool(
-                8 if os.cpu_count is None else os.cpu_count(),
+                sf.util.num_cpu(default=8),
                 initializer=sf.util.set_ignore_sigint
             )
         else:

@@ -104,7 +104,7 @@ setuptools.setup(
         'shapely',
         'umap-learn',
         'seaborn<0.12',
-        'pandas',
+        'pandas<2',
         'pyvips',
         'fpdf2',
         'lifelines',
@@ -143,7 +143,7 @@ setuptools.setup(
             'torch',
             'torchvision',
             'pretrainedmodels',
-            'cellpose',
+            'cellpose<2.2',
             'fastai'
         ],
         'dev': [
@@ -155,10 +155,10 @@ setuptools.setup(
             'cucim'
         ],
         'cellpose': [
-            'cellpose',
+            'cellpose<2.2',
         ],
         'all': [
-            'cellpose',
+            'cellpose<2.2',
             'cucim',
             'sphinx',
             'sphinx-markdown-tables',

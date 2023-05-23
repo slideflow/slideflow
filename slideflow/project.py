@@ -1928,7 +1928,16 @@ class Project:
         return df
 
     @auto_dataset_allow_none
-    def generate_features_for_clam(
+    def generate_features_for_clam(self, *args, **kwargs):
+        warnings.warn(
+            "Project.generate_features_for_clam() is deprecated. "
+            "Please use .generate_feature_bags()",
+            DeprecationWarning
+        )
+        self.generate_feature_bags(*args, **kwargs)
+
+    @auto_dataset_allow_none
+    def generate_feature_bags(
         self,
         model: str,
         outdir: str = 'auto',
@@ -2053,15 +2062,22 @@ class Project:
             log.info(f'Skipping {len(done)} files already done.')
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
 
-        # Set up activations interface
-        df = sf.DatasetFeatures(
-            model=model,
-            dataset=dataset,
-            layers=layers,
-            include_preds=False,
-            batch_size=batch_size
-        )
-        df.to_torch(outdir)
+        # Set up activations interface.
+        # Calculate features one slide at a time to reduce memory consumption.
+        for slide in dataset.slides():
+            try:
+                _dataset = dataset.remove_filter(filters='slide')
+            except errors.DatasetFilterError:
+                _dataset = dataset
+            _dataset = _dataset.filter(filters={'slide': slide})
+            df = sf.DatasetFeatures(
+                model=model,
+                dataset=_dataset,
+                layers=layers,
+                include_preds=False,
+                batch_size=batch_size
+            )
+            df.to_torch(outdir)
         return outdir
 
     @auto_dataset
@@ -2428,7 +2444,7 @@ class Project:
 
         Keyword Args:
             dataset (:class:`slideflow.Dataset`): Dataset object.
-            model (str, optional): Path to Tensorflow model to use when
+            model (str, optional): Path to model to use when
                 generating layer activations.
             Defaults to None.
                 If not provided, mosaic will not be calculated or saved.
@@ -3284,8 +3300,8 @@ class Project:
                 model from which to load weights. Defaults to 'imagenet'.
             multi_gpu (bool): Train using multiple GPUs when available.
                 Defaults to False.
-            resume_training (str, optional): Path to Tensorflow model to
-                continue training. Defaults to None.
+            resume_training (str, optional): Path to model to continue training.
+                Only valid in Tensorflow backend. Defaults to None.
             starting_epoch (int): Start training at the specified epoch.
                 Defaults to 0.
             steps_per_epoch_override (int): If provided, will manually set the
@@ -3302,7 +3318,7 @@ class Project:
             validation_batch_size (int): Validation dataset batch size.
                 Defaults to 32.
             use_tensorboard (bool): Add tensorboard callback for realtime
-                training monitoring. Defaults to False.
+                training monitoring. Defaults to True.
             validation_steps (int): Number of steps of validation to perform
                 each time doing a mid-epoch validation check. Defaults to 200.
 
@@ -3574,6 +3590,8 @@ class Project:
         exp_label: Optional[str] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
         dataset_kwargs: Optional[Dict[str, Any]] = None,
+        normalizer: Optional[Union[str, "sf.norm.StainNormalizer"]] = None,
+        normalizer_source: Optional[str] = None,
         **kwargs
     ) -> None:
         """Train SimCLR model.
@@ -3621,7 +3639,9 @@ class Project:
             train_dts=train_dataset,
             val_dts=val_dataset,
             labels=outcomes,
-            dataset_kwargs=dataset_kwargs
+            dataset_kwargs=dataset_kwargs,
+            normalizer=normalizer,
+            normalizer_source=normalizer_source
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
@@ -4002,8 +4022,13 @@ def create(
     # Set up project at the given directory.
     log.info(f"Setting up project at {root}")
     if 'annotations' in cfg:
-        proj_kwargs['annotations'] = join(root, basename(cfg.annotations))
+        if root.startswith('.'):
+            proj_kwargs['annotations'] = join('.', basename(cfg.annotations))
+        else:
+            proj_kwargs['annotations'] = join(root, basename(cfg.annotations))
+
     P = sf.Project(root, **proj_kwargs, create=True)
+
     # Download annotations, if a URL.
     if 'annotations' in cfg and cfg.annotations.startswith('http'):
         log.info(f"Downloading {cfg.annotations}")

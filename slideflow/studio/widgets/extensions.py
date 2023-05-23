@@ -1,3 +1,4 @@
+import traceback
 import numpy as np
 import imgui
 import textwrap
@@ -73,9 +74,13 @@ class ExtensionsWidget:
         imgui.end_child()
         return result
 
-    def show_extension_error(self, message):
+    def show_extension_error(self, message, full_trace=None):
         self._show_err_popup = True
         self._err_msg = message
+        if full_trace:
+            print(full_trace)
+        else:
+            print(message)
 
     def draw_error_popup(self):
         """Show an error message that an extension failed to load."""
@@ -122,7 +127,7 @@ class ExtensionsWidget:
                 try:
                     self.update_stylegan()
                 except Exception as e:
-                    self.show_extension_error(str(e))
+                    self.show_extension_error(str(e), traceback.format_exc())
                     self.stylegan = False
             imgui.separator()
 
@@ -142,7 +147,7 @@ class ExtensionsWidget:
                     )
                     self.segment = False
                 except Exception as e:
-                    self.show_extension_error(str(e))
+                    self.show_extension_error(str(e), traceback.format_exc())
                     self.segment = False
 
         if self._show_err_popup:

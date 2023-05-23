@@ -191,7 +191,7 @@ class StainNormalizer:
         if isinstance(arg1, Dataset):
             # Set up thread pool
             if num_threads == 'auto':
-                num_threads = os.cpu_count()  # type: ignore
+                num_threads = sf.util.num_cpu(default=8)  # type: ignore
             log.debug(f"Setting up pool (size={num_threads}) for norm fitting")
             log.debug(f"Using normalizer batch size of {batch_size}")
             pool = mp.dummy.Pool(num_threads)  # type: ignore

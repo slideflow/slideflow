@@ -63,6 +63,8 @@ def decode_image(
                 return normalizer.jpeg_to_rgb(image)
             elif img_format == 'png':
                 return normalizer.png_to_rgb(image)
+            else:
+                return normalizer.transform(image)
         except Exception as e:
             log.error("Error encountered during image normalization, "
                         f"displaying image tile non-normalized. {e}")
@@ -368,6 +370,7 @@ class Mosaic:
         num_tiles_x: int = 50,
         tile_meta: Optional[Dict] = None,
         tile_select: str = 'first',
+        max_dist: Optional[float] = None,
     ):
         """Generate the mosaic map grid.
 
@@ -405,16 +408,15 @@ class Mosaic:
         self.tile_size = (max_x - min_x) / self.num_tiles_x
         self.num_tiles_y = int((max_y - min_y) / self.tile_size)
 
-        log.info("Building grid...")
         self.grid_idx = np.reshape(np.dstack(np.indices((self.num_tiles_x, self.num_tiles_y))), (self.num_tiles_x * self.num_tiles_y, 2))
         _grid_offset = np.array([(self.tile_size/2) + min_x, (self.tile_size/2) + min_y])
         self.grid_coords = (self.grid_idx * self.tile_size) + _grid_offset
 
         points_added = 0
-        x_bins = np.arange(min_x, max_x, ((max_x - min_x) / self.num_tiles_x))
-        y_bins = np.arange(min_y, max_y, ((max_y - min_y) / self.num_tiles_y))
-        self.points['grid_x'] = np.digitize(self.points.x.values, x_bins, right=True)
-        self.points['grid_y'] = np.digitize(self.points.y.values, y_bins, right=True)
+        x_bins = np.arange(min_x, max_x, ((max_x - min_x) / self.num_tiles_x))[1:]
+        y_bins = np.arange(min_y, max_y, ((max_y - min_y) / self.num_tiles_y))[1:]
+        self.points['grid_x'] = np.digitize(self.points.x.values, x_bins, right=False)
+        self.points['grid_y'] = np.digitize(self.points.y.values, y_bins, right=False)
         self.points['selected'] = False
         log.debug(f'{points_added} points added to grid')
 
@@ -433,7 +435,12 @@ class Mosaic:
                         ord=2,
                         axis=1.
                     )
-                    self.points.loc[_points.index[np.argmin(dist)], 'selected'] = True
+                    if max_dist is not None:
+                        masked_dist = np.ma.masked_array(dist, (dist >= (max_dist * self.tile_size)))
+                        if masked_dist.count():
+                            self.points.loc[_points.index[np.argmin(masked_dist)], 'selected'] = True
+                    else:
+                        self.points.loc[_points.index[np.argmin(dist)], 'selected'] = True
                 elif not tile_meta:
                     raise errors.MosaicError(
                         'Mosaic centroid option requires tile_meta.'
@@ -442,17 +449,16 @@ class Mosaic:
                     centroid_index = get_centroid_index(_points.meta.values)
                     self.points.loc[_points.index[centroid_index], 'selected'] = True
 
-        log.info('Selecting tile images...')
         start = time.time()
 
         if tile_select == 'first':
             grid_group = self.points.groupby(['grid_x', 'grid_y'])
             first_indices = grid_group.nth(0).points_index.values
             self.points.loc[first_indices, 'selected'] = True
-        elif tile_select == 'nearest':
+        elif tile_select in ('nearest', 'centroid'):
             self.points['selected'] = False
             dist_fn = partial(select_nearest_points)
-            pool = DPool(os.cpu_count())
+            pool = DPool(sf.util.num_cpu())
             for i, _ in track(enumerate(pool.imap_unordered(dist_fn, range(len(self.grid_idx))), 1), total=len(self.grid_idx)):
                 pass
             pool.close()
@@ -522,9 +528,6 @@ class Mosaic:
         log.debug("Initializing figure...")
         self._initialize_figure(figsize=figsize, background=background)
 
-        # Next, prepare mosaic grid by placing tile outlines
-        log.info('Placing tile outlines...')
-
         # Reset alpha and display size
         if focus_slide:
             self.points['alpha'] = 1.
@@ -560,7 +563,7 @@ class Mosaic:
             to_map.append((idx, point.grid_x * self.tile_size, point.grid_y * self.tile_size, point.display_size, point.alpha, image))
 
         if pool is None:
-            pool = DPool(os.cpu_count())
+            pool = DPool(sf.util.num_cpu())
             should_close_pool = True
         for i, (point_idx, image, extent, alpha) in track(enumerate(pool.imap(partial(process_tile_image, decode_kwargs=self.decode_kwargs), to_map)), total=len(selected_points)):
             if point_idx is not None:
@@ -634,5 +637,10 @@ class Mosaic:
 
         studio = Studio(widgets=[MosaicWidget])
         mosaic = studio.get_widget('MosaicWidget')
-        mosaic.load(self.slide_map, tfrecords=self.tfrecords, slides=slides)
+        mosaic.load(
+            self.slide_map,
+            tfrecords=self.tfrecords,
+            slides=slides,
+            normalizer=self.normalizer
+        )
         studio.run()

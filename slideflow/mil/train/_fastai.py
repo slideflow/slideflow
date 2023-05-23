@@ -11,6 +11,7 @@ from fastai.vision.all import (
 
 from slideflow import log
 from slideflow.mil.data import build_clam_dataset, build_dataset
+from slideflow.model import torch_utils
 from .._params import TrainerConfigFastAI, ModelConfigCLAM
 
 # -----------------------------------------------------------------------------
@@ -84,7 +85,7 @@ def _build_clam_learner(
     val_idx: npt.NDArray[np.int_],
     unique_categories: npt.NDArray,
     outdir: Optional[str] = None,
-    device: Union[str, torch.device] = 'cuda',
+    device: Optional[Union[str, torch.device]] = None,
 ) -> Learner:
     """Build a FastAI learner for a CLAM model.
 
@@ -105,8 +106,7 @@ def _build_clam_learner(
     from ..clam.utils import loss_utils
 
     # Prepare device.
-    if isinstance(device, str):
-        device = torch.device('cuda')
+    device = torch_utils.get_device(device)
 
     # Prepare data.
     encoder = OneHotEncoder(sparse=False).fit(unique_categories.reshape(-1, 1))
@@ -163,7 +163,7 @@ def _build_fastai_learner(
     val_idx: npt.NDArray[np.int_],
     unique_categories: npt.NDArray,
     outdir: Optional[str] = None,
-    device: Union[str, torch.device] = 'cuda',
+    device: Optional[Union[str, torch.device]] = None,
 ) -> Learner:
     """Build a FastAI learner for an MIL model.
 
@@ -182,8 +182,7 @@ def _build_fastai_learner(
         device (torch.device or str): PyTorch device.
     """
     # Prepare device.
-    if isinstance(device, str):
-        device = torch.device('cuda')
+    device = torch_utils.get_device(device)
 
     # Prepare data.
     encoder = OneHotEncoder(sparse=False).fit(unique_categories.reshape(-1, 1))
