@@ -181,7 +181,10 @@ def _setup_input_labels(
             feature_len[inpt] = 1
             inpt_classes[inpt] = 'float'
             for slide in slides:
-                model_inputs[slide] += [labels[slide]]
+                _label = labels[slide]
+                if isinstance(_label, list) and len(_label) == 1:
+                    _label = _label[0]
+                model_inputs[slide] += [_label]
         else:
             feature_len[inpt] = len(unique)
             inpt_classes[inpt] = dict(zip(range(len(unique)), unique))

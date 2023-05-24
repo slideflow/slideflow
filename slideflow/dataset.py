@@ -2066,9 +2066,10 @@ class Dataset:
                     f"({','.join(filtered_labels)})."
                 )
             elif header_is_float:
+                log.debug(f'Interpreting column "{header}" as continuous')
                 filtered_labels = filtered_labels.astype(float)
             else:
-                log.debug(f'Interpreting column "{header}" as continuous')
+                log.debug(f'Interpreting column "{header}" as categorical')
                 unique_labels_for_this_header = list(set(filtered_labels))
                 unique_labels_for_this_header.sort()
                 for i, ul in enumerate(unique_labels_for_this_header):
