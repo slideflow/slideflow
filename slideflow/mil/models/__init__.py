@@ -4,3 +4,4 @@ from .att_mil import Attention_MIL
 from .clam import CLAM_MB, CLAM_SB
 from .mil_fc import MIL_fc, MIL_fc_mc
 from .transmil import TransMIL
+from .porpoise import MIL_Attention_FC_surv

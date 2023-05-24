@@ -320,6 +320,87 @@ def build_fastai_learner(
     )
     return learner
 
+def build_survival_learner(
+    config: TrainerConfigFastAI,
+    train_dataset: Dataset,
+    val_dataset: Dataset,
+    outcomes: Union[str, List[str]],
+    bags: Union[str, np.ndarray, List[str]],
+    event: str ,
+    *,
+    outdir: str = 'mil',
+) -> "Learner":
+    """Build a FastAI Learner for training a survival aMIL model.
+
+    Args:
+        train_dataset (:class:`slideflow.Dataset`): Training dataset.
+        val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+        outcomes (str): Outcome column (annotation header) from which to
+            derive category labels.
+        bags (str): Either a path to directory with \*.pt files, or a list
+            of paths to individual \*.pt files. Each file should contain
+            exported feature vectors, with each file containing all tile
+            features for one patient.
+        event (str): Outcome column (annotation header) for event occurrence.
+
+    Keyword args:
+        outdir (str): Directory in which to save model and results.
+        exp_label (str): Experiment label, used for naming the subdirectory
+            in the ``outdir`` folder, where training history
+            and the model will be saved.
+        lr (float): Learning rate, or maximum learning rate if
+            ``fit_one_cycle=True``.
+        epochs (int): Maximum epochs.
+        
+    Returns:
+        fastai.learner.Learner
+    """
+    from . import _fastai
+
+    # Prepare labels and slides
+    labels, unique_train = train_dataset.labels(outcomes, format='name')
+    val_labels, unique_val = val_dataset.labels(outcomes, format='name')
+    labels.update(val_labels)
+    unique_categories = np.unique(unique_train + unique_val)
+
+
+    _event, _ = train_dataset.labels(event, use_float=True)
+    _val_event, _ = val_dataset.labels(event, use_float=True)
+    _event.update(_val_event)
+
+    # Prepare bags and targets
+    if isinstance(bags, str):
+        train_bags = train_dataset.pt_files(bags)
+        val_bags = val_dataset.pt_files(bags)
+        bags = np.concatenate((train_bags, val_bags))
+    else:
+        bags = np.array(bags)
+    targets = np.array([labels[path_to_name(f)] for f in bags])
+
+    # Prepare training/validation indices
+    train_slides = train_dataset.slides()
+    train_idx = np.array([i for i, bag in enumerate(bags)
+                            if path_to_name(bag) in train_slides])
+    val_slides = val_dataset.slides()
+    val_idx = np.array([i for i, bag in enumerate(bags)
+                            if path_to_name(bag) in val_slides])
+
+    log.info("Training dataset: {} bags (from {} slides)".format(len(train_idx), len(train_slides)))
+    log.info("Validation dataset: {} bags (from {} slides)".format(len(val_idx), len(val_slides)))
+
+    _event_arr = np.array([_event[path_to_name(f)] for f in bags])
+    learner = _fastai._build_survival_learner(
+        config,
+        bags=bags,
+        targets=targets,
+        event=_event_arr,
+        train_idx=train_idx,
+        val_idx=val_idx,
+        unique_categories=unique_categories,
+        outdir=outdir,
+    )
+    return learner
+
 
 def train_fastai(
     config: TrainerConfigFastAI,

@@ -11,7 +11,7 @@ from slideflow import Dataset, log, errors
 from slideflow.util import path_to_name
 from slideflow.stats.metrics import ClassifierMetrics
 from ._params import (
-    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
+    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM, ModelConfigSurv
 )
 
 # -----------------------------------------------------------------------------
@@ -418,3 +418,201 @@ def _predict_mil(
             y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att
+
+def _predict_amil_surv(
+    model: Callable,
+    bags: Union[np.ndarray, List[str]],
+    device: Optional[Any] = None
+) -> np.ndarray:
+    import torch
+    
+    # Auto-detect device.
+    if device is None:
+        if next(model.parameters()).is_cuda:
+            log.debug("Auto device detection: using CUDA")
+            device = torch.device('cuda')
+        else:
+            log.debug("Auto device detection: using CPU")
+            device = torch.device('cpu')
+    elif isinstance(device, str):
+        log.debug(f"Using {device}")
+        device = torch.device(device)
+
+    y_pred = []
+    log.info("Generating predictions...")
+
+    for bag in bags:
+        loaded = torch.load(bag).to(device)
+        with torch.no_grad():
+            h = model(loaded)[2]
+            if h.shape[1] > 1:
+                hazards = torch.sigmoid(h)
+                survival = torch.cumprod(1 - hazards, dim=1)
+                preds = -torch.sum(survival, dim=1)
+            else:
+                preds = h.squeeze()
+            y_pred.append(preds.detach().cpu().numpy())
+
+    return np.asarray(y_pred)
+
+def predict_surv(
+    model: Callable,
+    config: _TrainerConfig,
+    dataset: "sf.Dataset",
+    outcomes: Union[str, List[str]],
+    bags: Union[str, np.ndarray, List[str]],
+) -> pd.DataFrame:
+    """Generate predictions from a MIL survival model.
+    Args:
+        model (torch.nn.Module): Model from which to generate predictions.
+        config (TrainerConfig): Configuration for the MIL model.
+        dataset (sf.Dataset): Dataset from which to generation predictions.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+    Returns:
+        pd.DataFrame: Dataframe of predictions.
+    """
+
+    # Prepare labels.
+    labels, unique = dataset.labels(outcomes, format='id')
+    slides = list(labels.keys())
+    
+    # Prepare bags and targets.
+    if isinstance(bags, str):
+        bags = dataset.pt_files(bags)
+    else:
+        bags = np.array(bags)
+    
+    if len(bags) != len(slides):
+        slides = [path_to_name(b) for b in bags]
+    
+    y_true = np.array([labels[s] for s in slides])
+
+    assert isinstance(config.model_config, ModelConfigSurv)
+    y_pred = _predict_amil_surv(model, bags)
+
+    # Create dataframe.
+    df_dict = dict(slide=slides, y_true=y_true)
+    df_dict['y_pred0'] = y_pred
+    df = pd.DataFrame(df_dict)
+
+    return df
+
+def eval_mil_surv(
+    weights: str,
+    dataset: Dataset,
+    outcomes: Union[str, List[str]],
+    bags: Union[str, List[str]],
+    config: Optional[_TrainerConfig] = None,
+    event: str = None,
+    *,
+    outdir: str = 'mil',
+) -> pd.DataFrame:
+    """Evaluate an MIL survival model.
+
+    Saves results for the evaluation in the target folder, including
+    predictions (parquet format), attention (Numpy format for each slide),
+    and attention heatmaps (if ``attention_heatmaps=True``).
+
+    Logs classifier metrics (AUROC and AP) to the console.
+
+    Args:
+        weights (str): Path to model weights to load.
+        dataset (sf.Dataset): Dataset to evaluation.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+        config (TrainerConfig): Configuration for building model.
+            If ``weights`` is a path to a model directory, will attempt to
+            read ``mil_params.json`` from this location and auto-load
+            saved configuration. Defaults to None.
+        event (str): Outcome column (annotation header) for event occurrence.
+
+    Keyword arguments:
+        outdir (str): Path at which to save results.
+
+    """
+    import torch
+    from sksurv.metrics import concordance_index_censored
+
+    if config:
+        assert isinstance(config.model_config, ModelConfigSurv)
+
+    # Read configuration from saved model, if available
+    if config is None:
+        if not exists(join(weights, 'mil_params.json')):
+            raise errors.ModelError(
+                f"Could not find `mil_params.json` at {weights}. Check the "
+                "provided model/weights path, or provide a configuration "
+                "with 'config'."
+            )
+        else:
+            p = sf.util.load_json(join(weights, 'mil_params.json'))
+            config = sf.mil.mil_config(trainer=p['trainer'], **p['params'])
+
+    # Prepare ground-truth labels
+    labels, unique = dataset.labels(outcomes, format='id')
+    slides = list(labels.keys())
+    
+    # Prepare bags and targets
+    if isinstance(bags, str):
+        bags = dataset.pt_files(bags)
+    else:
+        bags = np.array(bags)
+    
+    if len(bags) != len(slides):
+        slides = [path_to_name(b) for b in bags]
+    
+    y_true = np.array([labels[s] for s in slides])
+    _event, _ = dataset.labels(event, use_float=True)
+    _event_arr = np.array([_event[path_to_name(f)] for f in bags])
+    
+    # Detect feature size from bags
+    n_features = torch.load(bags[0]).shape[-1]
+    n_out = len(unique)
+
+    model = config.model_fn(size_arg=[n_features, 256, 128])
+        
+    if isdir(weights):
+        if exists(join(weights, 'models', 'best_valid.pth')):
+            weights = join(weights, 'models', 'best_valid.pth')
+        elif exists(join(weights, 'results', 's_0_checkpoint.pt')):
+            weights = join(weights, 'results', 's_0_checkpoint.pt')
+        else:
+            raise errors.ModelError(
+                f"Could not find model weights at path {weights}"
+            )
+    log.info(f"Loading model weights from [green]{weights}[/]")
+    model.load_state_dict(torch.load(weights), strict=False)
+
+    # Prepare device.
+    device = torch.device('cuda')
+    model.relocate()
+    model.eval()
+
+    # Inference.
+    y_pred = _predict_amil_surv(model, bags)
+
+    # Generate metrics
+    cindex = concordance_index_censored(
+                _event_arr.astype(bool).reshape(-1), 
+                y_true, 
+                np.asarray(y_pred),
+            )[0]
+    log.info(f"cindex: {cindex:.4f}")
+
+    # Save results
+    if not exists(outdir):
+        os.makedirs(outdir)
+
+    df_dict = dict(slide=slides, y_true=y_true)
+    df_dict['y_pred0'] = y_pred
+    df = pd.DataFrame(df_dict)
+    pred_out = join(outdir, 'predictions.parquet')
+    df.to_parquet(pred_out, index=False)
+    log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    return df

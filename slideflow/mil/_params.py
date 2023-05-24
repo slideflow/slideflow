@@ -148,6 +148,8 @@ class TrainerConfigFastAI(_TrainerConfig):
         self.batch_size = batch_size
         if model in ModelConfigCLAM.valid_models:
             self.model_config = ModelConfigCLAM(model=model, **kwargs)
+        elif model in ModelConfigSurv.valid_models:
+            self.model_config = ModelConfigSurv(model=model, **kwargs)
         else:
             self.model_config = ModelConfigFastAI(model=model, **kwargs)
 
@@ -344,7 +346,7 @@ class ModelConfigCLAM(DictConfig):
 
 class ModelConfigFastAI(DictConfig):
 
-    valid_models = ['attention_mil', 'transmil']
+    valid_models = ['attention_mil', 'transmil', 'amil_surv']
 
     def __init__(
         self,
@@ -385,6 +387,9 @@ class ModelConfigFastAI(DictConfig):
         elif self.model.lower() == 'transmil':
             from .models import TransMIL
             return TransMIL
+        elif self.model.lower() == 'amil_surv':
+            from .models import MIL_Attention_FC_surv
+            return MIL_Attention_FC_surv
         else:
             raise ValueError(f"Unrecognized model {self.model}")
 
@@ -397,3 +402,30 @@ class ModelConfigFastAI(DictConfig):
         if not isinstance(d['model'], str):
             d['model'] = d['model'].__name__
         return d
+
+class ModelConfigSurv(DictConfig):
+    valid_models = ['amil_surv']
+    
+    def __init__(
+        self,
+        model='amil_surv',
+        bag_weight=0.7,
+        dropout=True,
+        opt='adam',
+        label_frac=1.0,
+        gc=1,
+        reg=1e-5,
+        alpha=0.0,
+    ):
+        for argname, argval in dict(locals()).items():
+            setattr(self, argname, argval)
+
+    @property
+    def model_fn(self):
+        from .models import MIL_Attention_FC_surv
+        return MIL_Attention_FC_surv
+    
+    @property
+    def loss_fn(self):
+        from .clam.utils.loss_utils import NLLSurvLoss
+        return NLLSurvLoss
