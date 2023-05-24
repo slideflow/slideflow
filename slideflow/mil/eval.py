@@ -477,7 +477,6 @@ def predict_surv(
 
     # Prepare labels.
     labels, unique = dataset.labels(outcomes, format='id')
-    slides = list(labels.keys())
     
     # Prepare bags and targets.
     if isinstance(bags, str):
@@ -485,8 +484,8 @@ def predict_surv(
     else:
         bags = np.array(bags)
     
-    if len(bags) != len(slides):
-        slides = [path_to_name(b) for b in bags]
+
+    slides = [path_to_name(b) for b in bags]
     
     y_true = np.array([labels[s] for s in slides])
 
@@ -555,7 +554,6 @@ def eval_mil_surv(
 
     # Prepare ground-truth labels
     labels, unique = dataset.labels(outcomes, format='id')
-    slides = list(labels.keys())
     
     # Prepare bags and targets
     if isinstance(bags, str):
@@ -563,8 +561,7 @@ def eval_mil_surv(
     else:
         bags = np.array(bags)
     
-    if len(bags) != len(slides):
-        slides = [path_to_name(b) for b in bags]
+    slides = [path_to_name(b) for b in bags]
     
     y_true = np.array([labels[s] for s in slides])
     _event, _ = dataset.labels(event, use_float=True)
