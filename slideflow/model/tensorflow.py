@@ -387,9 +387,8 @@ class ModelParams(_base._ModelParams):
             log.info('Generating model with only slide-level input - no images')
             merged_model = slide_feature_input_tensor
             model_inputs += [slide_feature_input_tensor]
-        elif num_slide_features and num_slide_features > 1:
-            # Add slide feature input tensors, if there are more slide features
-            #    than just the event input tensor for CPH models
+        elif num_slide_features:
+            # Add slide feature input tensors
             merged_model = tf.keras.layers.Concatenate(name='input_merge')(
                 [slide_feature_input_tensor, tile_image_model.output]
             )
@@ -1224,8 +1223,8 @@ class Trainer:
             try:
                 if self.num_slide_features:
                     log.info(f'Training with both images and '
-                             f'{self.num_slide_features} categories of slide-'
-                             'level input')
+                             f'{self.num_slide_features} slide-level input'
+                             'features')
             except KeyError:
                 raise errors.ModelError("Unable to find slide-level input at "
                                         "'input' key in annotations")
