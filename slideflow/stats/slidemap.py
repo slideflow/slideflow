@@ -25,16 +25,118 @@ class DimensionReducer:
     """
     _allowed_methods=["pca", "mds", "sammon", "lle", "hlle", "isomap", "kpca"
                     "leim", "umap", "tsne", "phate"]
+    
     def __init__(
         self,
-        dr_method = "umap"
+        method = "umap"
     ) -> None:
-        """ Dimensionality reduction method selector.
+        """ Configures a selected dimensionality reduction method.
+        Contains utilities for all dimensionality reuction methods and 
+        instantiates a separate class object for the chosen method. 
+        Default method is UMAP. 
+        
+        Args:
+        method (str): Dimensionality reduction method that will be applied
+        to a given set of features. Default is "umap". Available methods 
+        can be viewed with `Slidemap.list_dr_methods`
+        """
+        self.dr_method = method # type: str
+        self.slidemap = None    # type: sf.SlideMap
+        if method == 'umap':
+            self.reducer=UMAPReducer()
+        if method == 'pca':
+            self.reducer=PCAReducer()
+        if method == 'mds':
+            self.reducer=MDSReducer()
+        if method == 'sammon':
+            self.reducer=SammonReducer()
+        if method == 'lle':
+            self.reducer=LLEReducer()
+        if method == 'hlle':
+            self.reducer=HLLEReducer()
+        if method == 'isomap':
+            self.reducer=IsomapReducer()
+        if method == 'kpca':
+            self.reducer=KPCAReducer()
+        if method == 'leim':
+            self.reducer=LEIMReducer()
+        if method == 'tsne':
+            self.reducer=TSNEReducer()
+        if method == 'phate':
+            self.reducer=PHATEReducer()
+class UMAPReducer:
+    def __init__(self) -> None:
+        """ Class for UMAP functionality.
         
         """
-        self.dr_method = dr_method # type: str
-        self.slidemap = None    # type: sf.SlideMap
+        self.umap_kwargs = None
+class PCAReducer:
+    def __init__(self) -> None:
+        """ Class for PCA functionality.
+        
+        """
+        self.pca_kwargs = None
+class MDSReducer:
+    def __init__(self) -> None:
+        """ Class for MDS functionality.
+        
+        """
+        self.mds_kwargs = None
+class SammonReducer:
+    def __init__(self) -> None:
+        """ Class for Sammon functionality.
+        
+        """
+        self.sammon_kwargs = None
+class LLEReducer:
+    def __init__(self) -> None:
+        """ Class for LLE functionality.
+        
+        """
+        self.lle_kwargs = None
+        
+class HLLEReducer:
+    def __init__(self) -> None:
+        """ Class for HLLE functionality.
+        
+        """
+        self.hlle_kwargs = None
 
+class IsomapReducer:
+    def __init__(self) -> None:
+        """ Class for isomap functionality.
+        
+        """
+        self.isomap_kwargs = None
+
+class KPCAReducer:
+    def __init__(self) -> None:
+        """ Class for kPCA functionality.
+        
+        """
+        self.kpca_kwargs = None
+
+class LEIMReducer:
+    def __init__(self) -> None:
+        """ Class for LEIM functionality.
+        
+        """
+        self.leim_kwargs = None
+
+class TSNEReducer:
+    def __init__(self) -> None:
+        """ Class for tSNE functionality.
+        
+        """
+        self.tSNE_kwargs = None
+
+class PHATEReducer:
+    def __init__(self) -> None:
+        """ Class for PHATE functionality.
+        
+        """
+        self.phate_kwargs = None
+        
 class SlideMap:
     """Two-dimensional slide map for visualization & backend for mosaic maps.
 
@@ -46,7 +148,8 @@ class SlideMap:
     def __init__(
         self,
         *,
-        parametric_umap: bool = False
+        parametric_umap: bool = False,
+        dimred_method: str = 'umap'
     ) -> None:
         """Backend for mapping slides into two dimensional space. Can use a
         DatasetFeatures object to map slides according to UMAP of features, or
@@ -82,6 +185,8 @@ class SlideMap:
 
         Args:
             slides (list(str)): List of slide names
+            dimred_method (str): Dimensionality reduction method to be applied. View
+            all available dimensionality reductio methods with `Slidemap.list_dr_methods`
         """
         assert isinstance(parametric_umap, bool), "Expected <bool> for argument 'parametric_umap'"
         self.data = None    # type: DataFrame
@@ -91,6 +196,9 @@ class SlideMap:
         self.parametric_umap = parametric_umap
         self._umap_normalized_range = None
         self.map_meta = {}  # type: Dict[str, Any]
+        self.reducer = DimensionReducer(dimred_method) # type: DimensionReducer
+        self.list_dr_methods = ["pca", "mds", "sammon", "lle", "hlle", "isomap", "kpca"
+                                "leim", "umap", "tsne", "phate"]
 
     @classmethod
     def load(cls, path: str):
