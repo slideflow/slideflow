@@ -808,6 +808,30 @@ class SlideMap:
 
         return normalized
 
+    def meta_visualization(
+        self, 
+        dim_red_methods: Optional[Dict[str, Dict[str, Union[int, str, bool]]]]):
+        """ Creates a spectral meta-visualization by combining
+        chosen dimensionality reduction methods into one two-dimensional
+        latent space. 
+        
+        Args:
+            dim_red_methods (Dict): This is a dictionary of dictionaries
+            that specifies the dimensionality reduction methods to use
+            in the visualization as well as the kwargs for each 
+            method to be used. 
+            
+            Examples
+            To create a meta visualization from two UMAPs with different
+            tuning parameters, two PCAs with different tuning parameters
+            and one tSNE, the dim_red_methods would follow this format:
+                dim_red_methods = {"umap":{"n_neighbors":30, "min_dist"=0.2},
+                                   "umap":{"n_neighbors":15, "min_dist":0.1},
+                                   "pca":{"n_components":2, "svd_solver"="full"},
+                                   "pca":{"whiten"=True, "svd_solver"="arpack"},
+                                   "tsne":{"perplexity"=15, "early_exaggeration"=10}}
+        """
+
     def label_by_uncertainty(self, index: int = 0) -> None:
         """Labels each point with the tile-level uncertainty, if available.
 
