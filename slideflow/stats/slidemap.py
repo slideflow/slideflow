@@ -32,7 +32,8 @@ class DimensionReducer:
     
     def __init__(
         self,
-        method = "umap"
+        dimred_method: str = "umap",
+        kwargs: Dict = None
     ) -> None:
         """ Configures a selected dimensionality reduction method.
         Contains utilities for all dimensionality reuction methods and 
@@ -43,37 +44,40 @@ class DimensionReducer:
         method (str): Dimensionality reduction method that will be applied
         to a given set of features. Default is "umap". Available methods 
         can be viewed with `Slidemap.list_dr_methods`
+        kwargs (Dict): kwargs for the selected dimensionality reduction method
         """
-        self.dr_method = method # type: str
-        self.slidemap = None    # type: sf.SlideMap
-        if method == 'umap':
-            self.reducer=UMAPReducer()
-        if method == 'pca':
-            self.reducer=PCAReducer()
-        if method == 'mds':
-            self.reducer=MDSReducer()
-        if method == 'sammon':
-            self.reducer=SammonReducer()
-        if method == 'lle':
-            self.reducer=LLEReducer()
-        if method == 'hlle':
-            self.reducer=HLLEReducer()
-        if method == 'isomap':
-            self.reducer=IsomapReducer()
-        if method == 'kpca':
-            self.reducer=KPCAReducer()
-        if method == 'leim':
-            self.reducer=LEIMReducer()
-        if method == 'tsne':
-            self.reducer=TSNEReducer()
-        if method == 'phate':
-            self.reducer=PHATEReducer()
+        self.dimred_method = dimred_method # type: str
+        if dimred_method == 'umap':
+            self.reducer_instance=UMAPReducer(kwargs)
+        if dimred_method == 'pca':
+            self.reducer_instance=PCAReducer()
+        if dimred_method == 'mds':
+            self.reducer_instance=MDSReducer()
+        if dimred_method == 'sammon':
+            self.reducer_instance=SammonReducer()
+        if dimred_method == 'lle':
+            self.reducer_instance=LLEReducer()
+        if dimred_method == 'hlle':
+            self.reducer_instance=HLLEReducer()
+        if dimred_method == 'isomap':
+            self.reducer_instance=IsomapReducer()
+        if dimred_method == 'kpca':
+            self.reducer_instance=KPCAReducer()
+        if dimred_method == 'leim':
+            self.reducer_instance=LEIMReducer()
+        if dimred_method == 'tsne':
+            self.reducer_instance=TSNEReducer()
+        if dimred_method == 'phate':
+            self.reducer_instance=PHATEReducer()
 class UMAPReducer:
-    def __init__(self) -> None:
+    def __init__(self,
+                 umap_kwargs: Dict = None) -> None:
         """ Class for UMAP functionality.
         
         """
-        self.umap_kwargs = None
+        import umap
+        self.reducer = umap.UMAP(**umap_kwargs)
+
 class PCAReducer:
     def __init__(self) -> None:
         """ Class for PCA functionality.
@@ -160,7 +164,8 @@ class SlideMap:
         self,
         *,
         parametric_umap: bool = False,
-        dimred_method: str = 'umap'
+        dimred_method: str = 'umap',
+        dimred_kwargs: Dict[Union[str, int, bool]] = None
     ) -> None:
         """Backend for mapping slides into two dimensional space. Can use a
         DatasetFeatures object to map slides according to UMAP of features, or
@@ -207,7 +212,7 @@ class SlideMap:
         self.parametric_umap = parametric_umap
         self._umap_normalized_range = None
         self.map_meta = {}  # type: Dict[str, Any]
-        self.reducer = DimensionReducer(dimred_method) # type: DimensionReducer
+        self.reducer = DimensionReducer(dimred_method, dimred_kwargs) # type: DimensionReducer
         self.list_dr_methods = ["pca", "mds", "sammon", "lle", "hlle", "isomap", "kpca"
                                 "leim", "umap", "tsne", "phate"]
 
@@ -842,6 +847,8 @@ class SlideMap:
         """
 
         self.data = self.data.loc[self.data.slide.isin(slides)]
+
+    #TODO Create transform() that accepts any dimensionality reduction method
 
     def umap_transform(
         self,
