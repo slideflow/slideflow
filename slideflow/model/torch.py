@@ -1128,7 +1128,7 @@ class Trainer:
             self.scheduler = None  # type: ignore
         self.loss_fn = self.hp.get_loss()
         if self.mixed_precision and self.device.type == 'cuda':
-            self.scaler = torch.cuda.amp.GradScaler(self.device.type)
+            self.scaler = torch.cuda.amp.GradScaler()
 
     def _prepare_neptune_run(self, dataset: "sf.Dataset", label: str) -> None:
         if self.use_neptune:
@@ -1291,7 +1291,7 @@ class Trainer:
                 loss = self._calculate_loss(outputs, labels, self.loss_fn)
 
             # Update weights
-            if self.mixed_precision:
+            if self.mixed_precision and self.device.type == 'cuda':
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
