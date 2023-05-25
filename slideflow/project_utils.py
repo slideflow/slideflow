@@ -225,6 +225,7 @@ def get_validation_settings(**kwargs: Any) -> SimpleNamespace:
         annotations (str): Path to annotations file for validation dataset.
             Defaults to None (same as training).
         filters (dict): Filters dictionary to use for validation dataset.
+            See :meth:`slideflow.Dataset.filter` for more information.
             Defaults to None (same as training).
 
     """
