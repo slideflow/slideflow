@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.model &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.model &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -710,6 +710,8 @@ individual tile datasets via __call__. Defaults to None.</p></li>
 <span class="sig-name descname"><span class="pre">__call__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="../slide/#slideflow.slide.WSI" title="slideflow.slide.WSI"><span class="pre">WSI</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.model.Features.__call__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Process a given input and return features and/or predictions.
 Expects either a batch of images or a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code>.</p>
+<p>When calling on a <cite>WSI</cite> object, keyword arguments are passed to
+<a class="reference internal" href="../slide/#slideflow.WSI.build_generator" title="slideflow.WSI.build_generator"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.WSI.build_generator()</span></code></a>.</p>
 </dd></dl>
 
 </section>

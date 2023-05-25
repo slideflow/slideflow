@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.cellseg &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.cellseg &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -406,22 +406,29 @@
 <span class="sd">                polygons, as available in ``slideflow.WSI.annPolys``.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">roi_seg_scale</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_ratio</span>
-        <span class="n">scaled_polys</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">sa</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span>
-                <span class="n">poly</span><span class="p">,</span>
-                <span class="n">xfact</span><span class="o">=</span><span class="n">roi_seg_scale</span><span class="p">,</span>
-                <span class="n">yfact</span><span class="o">=</span><span class="n">roi_seg_scale</span><span class="p">,</span>
-                <span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-            <span class="p">)</span> <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="n">annpolys</span>
-        <span class="p">]</span>
-        <span class="n">roi_seg_mask</span> <span class="o">=</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">rasterize</span><span class="p">(</span>
-            <span class="n">scaled_polys</span><span class="p">,</span>
-            <span class="n">out_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
-            <span class="n">all_touched</span><span class="o">=</span><span class="kc">False</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">masks</span> <span class="o">*=</span> <span class="n">roi_seg_mask</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">calculate_centroids</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_ratio</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">annpolys</span><span class="p">):</span>
+            <span class="n">roi_seg_scale</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_ratio</span>
+            <span class="n">scaled_polys</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">sa</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span>
+                    <span class="n">poly</span><span class="p">,</span>
+                    <span class="n">xfact</span><span class="o">=</span><span class="n">roi_seg_scale</span><span class="p">,</span>
+                    <span class="n">yfact</span><span class="o">=</span><span class="n">roi_seg_scale</span><span class="p">,</span>
+                    <span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="p">)</span> <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="n">annpolys</span>
+            <span class="p">]</span>
+            <span class="n">roi_seg_mask</span> <span class="o">=</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">rasterize</span><span class="p">(</span>
+                <span class="n">scaled_polys</span><span class="p">,</span>
+                <span class="n">out_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                <span class="n">all_touched</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">masks</span> <span class="o">*=</span> <span class="n">roi_seg_mask</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calculate_centroids</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_ratio</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Unable to apply ROIs; WSI dimensions not set.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># No ROIs to apply</span>
+            <span class="k">return</span>
 
     <span class="k">def</span> <span class="nf">centroids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wsi_dim</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate and return mask centroids.</span>

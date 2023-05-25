@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.Project &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.Project &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -512,9 +512,11 @@ header specifying the outcome label(s).</p></li>
 to evaluate. If not supplied, will evaluate all project
 tfrecords at the tile_px/tile_um matching the supplied model,
 optionally using provided filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting
-tfrecords. Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum number of tiles a slide must
 have to be included in evaluation. Defaults to 0.</p></li>
@@ -626,9 +628,11 @@ separately. Defaults to None.</p></li>
 the model saved as s_{k}_checkpoint.pt. Defaults to 0.</p></li>
 <li><p><strong>eval_tag</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Unique identifier for this evaluation.
 Defaults to None</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>attention_heatmaps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save attention heatmaps of
 validation dataset. Defaults to True.</p></li>
@@ -689,6 +693,12 @@ magnification (str, e.g. “20x”).</p></li>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
+Defaults to None.</p></li>
 <li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile images in loose format.
 Defaults to False.</p></li>
 <li><p><strong>save_tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Save compressed image data from
@@ -962,10 +972,12 @@ size. Defaults to None.</p></li>
 from which to generate activations. If not supplied, calculate
 activations for all tfrecords compatible with the model,
 optionally using provided filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will
-be excluded. Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only include slides with this minimum
 number of tiles. Defaults to 0.</p></li>
 <li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only include maximum of this many tiles
@@ -1011,10 +1023,12 @@ Defaults to ‘auto’ (project directory).</p></li>
 from which to generate activations. If not supplied, calculate
 activations for all tfrecords compatible with the model,
 optionally using provided filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will
-be excluded. Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only include slides with this minimum
 number of tiles. Defaults to 16.</p></li>
 <li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only include maximum of this many tiles
@@ -1052,9 +1066,11 @@ from which to generate predictions. If not supplied, will
 generate predictions for all project tfrecords at the
 tile_px/tile_um matching the model, optionally using provided
 filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum tiles per slide. Skip slides
 not meeting this threshold. Defaults to 8.</p></li>
@@ -1127,10 +1143,12 @@ the supplied model, optionally using filters/filter_blank.</p></li>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting
-tfrecords. Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will
-be excluded. Defaults to None.</p></li>
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
+Defaults to None.</p></li>
 <li><p><strong>outcomes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Column name in annotations file from
 which to read category labels.</p></li>
 <li><p><strong>map_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – None (default), ‘centroid’ or ‘average’.
@@ -1253,9 +1271,11 @@ tile-level value for display in heatmap format</p></li>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters for selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Min tiles a slide must have.
 Defaults to 0.</p></li>
@@ -1287,9 +1307,11 @@ from which to generate predictions. If not supplied, will
 generate predictions for all project tfrecords at the
 tile_px/tile_um matching the model, optionally using provided
 filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Min tiles a slide must have
 to be included. Defaults to 0.</p></li>
@@ -1372,9 +1394,11 @@ present in the selected k-fold folder.</p></li>
 from which to generate activations. If not supplied, will
 calculate activations for all tfrecords at the tile_px/tile_um
 matching the supplied model.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Min tiles a slide must have
 to be included. Defaults to 0.</p></li>
@@ -1513,9 +1537,11 @@ examples below for use.</p></li>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>exp_label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Experiment label to add model names.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>input_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – List of annotation column headers to
 use as additional slide-level model input. Defaults to None.</p></li>
@@ -1561,6 +1587,7 @@ None (same as training).</p></li>
 <li><p><strong>val_annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to annotations file for validation
 dataset. Defaults to None (same as training).</p></li>
 <li><p><strong>val_filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a>) – Filters to use for validation dataset.
+See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for more information.
 Defaults to None (same as training).</p></li>
 <li><p><strong>checkpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to cp.ckpt from which to load
 weights. Defaults to None.</p></li>

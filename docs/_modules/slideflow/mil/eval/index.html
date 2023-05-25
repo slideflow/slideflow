@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.mil.eval &mdash; slideflow 2.0.4 documentation</title>
+  
 
-  <title>slideflow.mil.eval &mdash; slideflow 2.0.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../../genindex/" />
     <link rel="search" title="Search" href="../../../../search/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
                   2.0
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../installation/">Installation</a></li>
@@ -206,8 +206,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -215,7 +215,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -234,28 +234,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../../../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../../../">Module code</a> &gt;</li>
-
+        
       <li>slideflow.mil.eval</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -267,13 +267,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.mil.eval</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Tools for evaluation MIL models.&quot;&quot;&quot;</span>
 
@@ -366,9 +366,8 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">bags</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span> <span class="k">if</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">slides</span><span class="p">])</span>
 
-    <span class="c1"># Handle the case where some bags are missing.</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">slides</span><span class="p">):</span>
-        <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span><span class="p">]</span>
+    <span class="c1"># Ensure slide names are sorted according to the bags.</span>
+    <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span><span class="p">]</span>
 
     <span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">labels</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">slides</span><span class="p">])</span>
 
@@ -434,8 +433,13 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">att_path</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">att_path</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">slide</span><span class="p">,</span> <span class="n">att</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">slides</span><span class="p">,</span> <span class="n">y_att</span><span class="p">):</span>
-            <span class="n">np</span><span class="o">.</span><span class="n">savez</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">att_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">_att.npz&#39;</span><span class="p">),</span> <span class="n">att</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attention scores exported to [green]</span><span class="si">{</span><span class="n">att_path</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;SF_ALLOW_ZIP&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SF_ALLOW_ZIP&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="n">out_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">att_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">_att.npy&#39;</span><span class="p">)</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span> <span class="n">att</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">out_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">att_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">_att.npz&#39;</span><span class="p">)</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">savez</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span> <span class="n">att</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attention scores exported to [green]</span><span class="si">{</span><span class="n">out_path</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
 
     <span class="c1"># Attention heatmaps</span>
     <span class="k">if</span> <span class="n">y_att</span> <span class="ow">and</span> <span class="n">attention_heatmaps</span><span class="p">:</span>
@@ -489,9 +493,8 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">bags</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span> <span class="k">if</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">slides</span><span class="p">])</span>
 
-    <span class="c1"># Handle the case where some bags are missing.</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">slides</span><span class="p">):</span>
-        <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span><span class="p">]</span>
+    <span class="c1"># Ensure slide names are sorted according to the bags.</span>
+    <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span><span class="p">]</span>
 
     <span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">labels</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">slides</span><span class="p">])</span>
 
@@ -559,16 +562,21 @@
             <span class="n">slidename</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">bag</span><span class="p">)</span>
             <span class="n">slide_path</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">find_slide</span><span class="p">(</span><span class="n">slide</span><span class="o">=</span><span class="n">slidename</span><span class="p">)</span>
             <span class="n">locations_file</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">bag</span><span class="p">),</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slidename</span><span class="si">}</span><span class="s1">.index.npz&#39;</span><span class="p">)</span>
+            <span class="n">npy_loc_file</span> <span class="o">=</span> <span class="n">locations_file</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;y&#39;</span>
             <span class="k">if</span> <span class="n">slide_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to find slide </span><span class="si">{</span><span class="n">slidename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="k">continue</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">locations_file</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">locations_file</span><span class="p">):</span>
+                <span class="n">locations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">locations_file</span><span class="p">)[</span><span class="s1">&#39;arr_0&#39;</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">exists</span><span class="p">(</span><span class="n">npy_loc_file</span><span class="p">):</span>
+                <span class="n">locations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">npy_loc_file</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Unable to find locations index file for </span><span class="si">{</span><span class="n">slidename</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
                 <span class="k">continue</span>
             <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">location_heatmap</span><span class="p">(</span>
-                <span class="n">locations</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">locations_file</span><span class="p">)[</span><span class="s1">&#39;arr_0&#39;</span><span class="p">],</span>
+                <span class="n">locations</span><span class="o">=</span><span class="n">locations</span><span class="p">,</span>
                 <span class="n">values</span><span class="o">=</span><span class="n">attention</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
                 <span class="n">slide</span><span class="o">=</span><span class="n">slide_path</span><span class="p">,</span>
                 <span class="n">tile_px</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
@@ -664,7 +672,7 @@
         <span class="n">loaded</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="n">loaded</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">use_lens</span><span class="p">:</span>
-                <span class="n">lens</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">loaded</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]]))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+                <span class="n">lens</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">loaded</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]]))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
                 <span class="n">model_args</span> <span class="o">=</span> <span class="p">(</span><span class="n">loaded</span><span class="p">,</span> <span class="n">lens</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">model_args</span> <span class="o">=</span> <span class="p">(</span><span class="n">loaded</span><span class="p">,)</span>
@@ -690,16 +698,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -707,11 +715,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -721,26 +729,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
          <script src="../../../../_static/doctools.js"></script>
          <script src="../../../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -751,7 +759,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

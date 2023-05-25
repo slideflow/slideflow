@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.util &mdash; slideflow 2.0.4 documentation</title>
+  
 
-  <title>slideflow.util &mdash; slideflow 2.0.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../genindex/" />
     <link rel="search" title="Search" href="../../../search/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
                   2.0
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation/">Installation</a></li>
@@ -206,8 +206,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -215,7 +215,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -234,28 +234,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../../">Module code</a> &gt;</li>
-
+        
       <li>slideflow.util</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -267,13 +267,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.util</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">atexit</span>
 <span class="kn">import</span> <span class="nn">csv</span>
@@ -494,12 +494,24 @@
     <span class="k">if</span> <span class="n">console</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">()</span>
     <span class="n">col1</span> <span class="o">=</span> <span class="s1">&#39;yellow&#39;</span> <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span> <span class="k">else</span> <span class="s1">&#39;purple&#39;</span>
-    <span class="n">col2</span> <span class="o">=</span> <span class="s1">&#39;green&#39;</span> <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cucim&#39;</span> <span class="k">else</span> <span class="s1">&#39;cyan&#39;</span>
+    <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;libvips&#39;</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">pyvips</span>
+            <span class="n">_version</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">pyvips</span><span class="o">.</span><span class="n">major</span><span class="p">,</span> <span class="n">pyvips</span><span class="o">.</span><span class="n">minor</span><span class="p">,</span> <span class="n">pyvips</span><span class="o">.</span><span class="n">micro</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">_version</span> <span class="o">=</span> <span class="s1">&#39;unknown&#39;</span>
+        <span class="n">col2</span> <span class="o">=</span> <span class="s1">&#39;cyan&#39;</span>
+        <span class="n">slide_backend</span> <span class="o">=</span> <span class="s1">&#39;libvips (</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_version</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">slide_backend</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span>
+        <span class="n">col2</span> <span class="o">=</span> <span class="s1">&#39;green&#39;</span>
     <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span>
         <span class="n">Panel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[white bold]Slideflow[/]&quot;</span>
               <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Version: </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="s2">&quot;</span>
               <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Backend: [</span><span class="si">{</span><span class="n">col1</span><span class="si">}</span><span class="s2">]</span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span><span class="si">}</span><span class="s2">[/]&quot;</span>
-              <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Slide Backend: [</span><span class="si">{</span><span class="n">col2</span><span class="si">}</span><span class="s2">]</span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span><span class="si">}</span><span class="s2">[/]&quot;</span>
+              <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Slide Backend: [</span><span class="si">{</span><span class="n">col2</span><span class="si">}</span><span class="s2">]</span><span class="si">{</span><span class="n">slide_backend</span><span class="si">}</span><span class="s2">[/]&quot;</span>
               <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[blue]https://slideflow.dev[/]&quot;</span><span class="p">,</span>
               <span class="n">border_style</span><span class="o">=</span><span class="s1">&#39;purple&#39;</span><span class="p">),</span>
         <span class="n">justify</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">)</span></div>
@@ -1187,12 +1199,14 @@
     <span class="n">interpolation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;bicubic&#39;</span><span class="p">,</span>
     <span class="n">cmap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;inferno&#39;</span><span class="p">,</span>
     <span class="n">norm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">background</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;min&#39;</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate a heatmap for a slide.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        locations (np.ndarray): Array of shape ``(n_tiles, 2)`` containing x, y</span>
-<span class="sd">            coordinates for all image tiles.</span>
+<span class="sd">            coordinates for all image tiles. Coordinates represent the center</span>
+<span class="sd">            for an associated tile, and must be in a grid.</span>
 <span class="sd">        values (np.ndarray): Array of shape ``(n_tiles,)`` containing heatmap</span>
 <span class="sd">            values for each tile.</span>
 <span class="sd">        slide (str): Path to corresponding slide.</span>
@@ -1217,62 +1231,67 @@
 
     <span class="n">slide_name</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generating heatmap for [green]</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">[/]...&#39;</span><span class="p">)</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Plotting </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span><span class="si">}</span><span class="s2"> values&quot;</span><span class="p">)</span>
     <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_um</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">no_interpolation</span> <span class="o">=</span> <span class="p">(</span><span class="n">interpolation</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">interpolation</span> <span class="o">==</span> <span class="s1">&#39;nearest&#39;</span><span class="p">)</span>
 
-    <span class="n">stats</span> <span class="o">=</span> <span class="p">{}</span>
-
-    <span class="c1"># Loaded CSV coordinates:</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="n">locations</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
-    <span class="n">y</span> <span class="o">=</span> <span class="n">locations</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
-
-    <span class="n">stats</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+    <span class="n">stats</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">slide_name</span><span class="p">:</span> <span class="p">{</span>
             <span class="s1">&#39;mean&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">values</span><span class="p">),</span>
             <span class="s1">&#39;median&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
         <span class="p">}</span>
-    <span class="p">})</span>
-
-    <span class="n">roi_scaling</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="n">scale</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">roi_scale</span> <span class="k">if</span> <span class="n">roi_scaling</span> <span class="k">else</span> <span class="mi">1</span>
-    <span class="n">scaled_x</span> <span class="o">=</span> <span class="p">[(</span><span class="n">xi</span> <span class="o">*</span> <span class="n">scale</span><span class="p">)</span> <span class="o">-</span> <span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span> <span class="k">for</span> <span class="n">xi</span> <span class="ow">in</span> <span class="n">x</span><span class="p">]</span>
-    <span class="n">scaled_y</span> <span class="o">=</span> <span class="p">[(</span><span class="n">yi</span> <span class="o">*</span> <span class="n">scale</span><span class="p">)</span> <span class="o">-</span> <span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span> <span class="k">for</span> <span class="n">yi</span> <span class="ow">in</span> <span class="n">y</span><span class="p">]</span>
+    <span class="p">}</span>
 
     <span class="c1"># Slide coordinate information</span>
-    <span class="n">max_coord_x</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">coord</span><span class="p">])</span>
-    <span class="n">max_coord_y</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">coord</span><span class="p">])</span>
-    <span class="n">num_x</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">coord</span><span class="p">]))</span>
-    <span class="n">num_y</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">coord</span><span class="p">]))</span>
+    <span class="n">loc_grid_dict</span> <span class="o">=</span> <span class="p">{(</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span> <span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">coord</span><span class="p">}</span>
 
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Slide tile grid:&#39;</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Number of tiles (x): </span><span class="si">{</span><span class="n">num_x</span><span class="si">}</span><span class="se">\t</span><span class="s1"> Max coord (x): </span><span class="si">{</span><span class="n">max_coord_x</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Number of tiles (y): </span><span class="si">{</span><span class="n">num_y</span><span class="si">}</span><span class="se">\t</span><span class="s1"> Max coord (y): </span><span class="si">{</span><span class="n">max_coord_y</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="c1"># Determine the heatmap background</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">wsi</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">wsi</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">if</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">no_interpolation</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;&#39;mask&#39; background is not compatible with interpolation method &quot;</span>
+            <span class="s2">&quot;&#39;</span><span class="si">{}</span><span class="s2">&#39;. Expected: None or &#39;nearest&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">interpolation</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span><span class="p">:</span>
+        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;min&#39;</span><span class="p">:</span>
+        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mean&#39;</span><span class="p">:</span> 
+        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;median&#39;</span><span class="p">:</span>
+        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span>
+        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized value for background: </span><span class="si">{</span><span class="n">background</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-    <span class="c1"># Calculate dead space (un-extracted tiles) in x and y axes</span>
-    <span class="n">dead_x</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">max_coord_x</span>
-    <span class="n">dead_y</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">max_coord_y</span>
-    <span class="n">fraction_dead_x</span> <span class="o">=</span> <span class="n">dead_x</span> <span class="o">/</span> <span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">fraction_dead_y</span> <span class="o">=</span> <span class="n">dead_y</span> <span class="o">/</span> <span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">locations</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="n">locations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">locations</span><span class="p">)</span>
+    
+    <span class="c1"># Transform from coordinates as center locations to top-left locations.</span>
+    <span class="n">locations</span> <span class="o">=</span> <span class="n">locations</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
+    
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">wsi_dim</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">locations</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">loc_grid_dict</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">wsi_dim</span><span class="p">)]</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">CoordinateAlignmentError</span><span class="p">(</span>
+                <span class="s2">&quot;Error plotting value at location </span><span class="si">{}</span><span class="s2"> for slide </span><span class="si">{}</span><span class="s2">. The heatmap &quot;</span>
+                <span class="s2">&quot;grid is not aligned to the slide coordinate grid. Ensure &quot;</span>
+                <span class="s2">&quot;that tile_px (got: </span><span class="si">{}</span><span class="s2">) and tile_um (got: </span><span class="si">{}</span><span class="s2">) match the given &quot;</span>
+                <span class="s2">&quot;location values. If you are using data stored in TFRecords, &quot;</span>
+                <span class="s2">&quot;verify that the TFRecord was generated using the same &quot;</span>
+                <span class="s2">&quot;tile_px and tile_um.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">tuple</span><span class="p">(</span><span class="n">wsi_dim</span><span class="p">),</span> <span class="n">slide</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_um</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">grid</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">1</span><span class="p">]][</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
 
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Slide dead space&#39;</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;x: </span><span class="si">{</span><span class="n">dead_x</span><span class="si">}</span><span class="se">\t</span><span class="s1"> y:</span><span class="si">{</span><span class="n">dead_y</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-
-    <span class="c1"># Work on grid</span>
-    <span class="n">x_grid_scale</span> <span class="o">=</span> <span class="n">max_coord_x</span> <span class="o">/</span> <span class="p">(</span><span class="n">num_x</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">y_grid_scale</span> <span class="o">=</span> <span class="n">max_coord_y</span> <span class="o">/</span> <span class="p">(</span><span class="n">num_y</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Coordinate grid scale:&#39;</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;x: </span><span class="si">{</span><span class="n">x_grid_scale</span><span class="si">}</span><span class="se">\t</span><span class="s1"> y: </span><span class="si">{</span><span class="n">y_grid_scale</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-
-    <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">num_y</span><span class="p">,</span> <span class="n">num_x</span><span class="p">))</span>
-    <span class="n">grid</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">99</span>
-    <span class="n">indexed_x</span> <span class="o">=</span> <span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">xi</span> <span class="o">/</span> <span class="n">x_grid_scale</span><span class="p">)</span> <span class="k">for</span> <span class="n">xi</span> <span class="ow">in</span> <span class="n">scaled_x</span><span class="p">]</span>
-    <span class="n">indexed_y</span> <span class="o">=</span> <span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">yi</span> <span class="o">/</span> <span class="n">y_grid_scale</span><span class="p">)</span> <span class="k">for</span> <span class="n">yi</span> <span class="ow">in</span> <span class="n">scaled_y</span><span class="p">]</span>
-
-    <span class="k">for</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">indexed_x</span><span class="p">,</span> <span class="n">indexed_y</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
-        <span class="n">grid</span><span class="p">[</span><span class="n">yi</span><span class="p">][</span><span class="n">xi</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
-
-    <span class="c1"># Mask out background</span>
-    <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">grid</span> <span class="o">==</span> <span class="o">-</span><span class="mi">99</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span>
+    <span class="c1"># Mask out background, if interpolation is not used and background == &#39;mask&#39;</span>
+    <span class="k">if</span> <span class="n">no_interpolation</span> <span class="ow">and</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span><span class="p">:</span>
+        <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_invalid</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">grid</span>
 
     <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
     <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">)</span>
@@ -1285,19 +1304,13 @@
         <span class="n">bottom</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">labelbottom</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Generating thumbnail...&#39;</span><span class="p">)</span>
     <span class="n">thumb</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Generating figure...&#39;</span><span class="p">)</span>
-    <span class="n">implot</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">thumb</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">extent</span> <span class="o">=</span> <span class="n">implot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">()</span>
-    <span class="n">extent_x</span> <span class="o">=</span> <span class="n">extent</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">fraction_dead_x</span><span class="p">)</span>
-    <span class="n">extent_y</span> <span class="o">=</span> <span class="n">extent</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">fraction_dead_y</span><span class="p">)</span>
-    <span class="n">grid_extent</span> <span class="o">=</span> <span class="p">(</span><span class="n">extent</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">extent_x</span><span class="p">,</span> <span class="n">extent_y</span><span class="p">,</span> <span class="n">extent</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Image extent:&#39;</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">extent</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Grid extent:&#39;</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">grid_extent</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">thumb</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
+    <span class="c1"># Calculate overlay offset</span>
+    <span class="n">extent</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">heatmap</span><span class="o">.</span><span class="n">calculate_heatmap_extent</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">thumb</span><span class="p">,</span> <span class="n">masked_grid</span><span class="p">)</span>
+
+    <span class="c1"># Plot</span>
     <span class="k">if</span> <span class="n">norm</span> <span class="o">==</span> <span class="s1">&#39;two_slope&#39;</span><span class="p">:</span>
         <span class="n">norm</span> <span class="o">=</span> <span class="n">mcol</span><span class="o">.</span><span class="n">TwoSlopeNorm</span><span class="p">(</span>
             <span class="n">vmin</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="o">-</span><span class="mf">0.01</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">values</span><span class="p">)),</span>
@@ -1308,11 +1321,13 @@
         <span class="n">masked_grid</span><span class="p">,</span>
         <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
         <span class="n">alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
-        <span class="n">extent</span><span class="o">=</span><span class="n">grid_extent</span><span class="p">,</span>
+        <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span>
         <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
         <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span>
         <span class="n">norm</span><span class="o">=</span><span class="n">norm</span>
     <span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Saving figure...&#39;</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide_name</span><span class="si">}</span><span class="s1">_attn.png&#39;</span><span class="p">),</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
@@ -1347,7 +1362,7 @@
 <span class="sd">        Dictionary mapping slide names to dict of statistics</span>
 <span class="sd">        (mean, median)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">loc_dict</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_locations_from_tfrecord</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
+    <span class="n">loc_dict</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_locations_from_tfrecord</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">,</span> <span class="n">as_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">tile_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">!=</span> <span class="n">loc_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
         <span class="n">td_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">tile_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
         <span class="n">loc_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">loc_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
@@ -1518,16 +1533,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -1535,11 +1550,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -1549,26 +1564,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
          <script src="../../../_static/doctools.js"></script>
          <script src="../../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -1579,7 +1594,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

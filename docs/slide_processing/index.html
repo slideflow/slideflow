@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Slide Processing &mdash; slideflow 2.0.0 documentation</title>
+  <title>Slide Processing &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -289,11 +289,11 @@
 <p>Most tools in Slideflow work with image tiles - extracted sub-regions of a whole-slide image - as the primary data source. For efficiency, image tiles are first buffered into <span class="xref std std-ref">TFRecords</span> , a binary file format that greatly improves IO throughput. Although training can be performed without using TFRecords (see <a class="reference internal" href="../training/#from-wsi"><span class="std std-ref">Training without TFRecords</span></a>), we recommend tile extraction as the first step for most projects.</p>
 <section id="tile-extraction">
 <h2>Tile extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this heading">¶</a></h2>
-<p>Image tiles are extracted from whole-slide images using either <code class="xref py py-meth docutils literal notranslate"><span class="pre">Project.extract_tiles()</span></code> or <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.extract_tiles()</span></code>. When using the Project interface, the only arguments required are <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> and <code class="docutils literal notranslate"><span class="pre">tile_um</span></code>, which determine the size of the extracted image tiles in pixels and microns:</p>
+<p>Image tiles are extracted from whole-slide images using either <a class="reference internal" href="../project/#slideflow.Project.extract_tiles" title="slideflow.Project.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.extract_tiles()</span></code></a> or <a class="reference internal" href="../dataset/#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>. When using the Project interface, the only arguments required are <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> and <code class="docutils literal notranslate"><span class="pre">tile_um</span></code>, which determine the size of the extracted image tiles in pixels and microns:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>and when using a <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code>, no arguments are required.</p>
+<p>and when using a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>, no arguments are required.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">()</span>
 </pre></div>
 </div>

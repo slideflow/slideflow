@@ -1761,8 +1761,8 @@ class Dataset:
                 states to be included in the dataset. For example,
                 ``filters={'HPV_status': ['negative', 'positive']}``
                 would filter the dataset by the column ``HPV_status`` and only
-                include slides with values of either `'negative'` or
-                `'positive`' in this column.
+                include slides with values of either ``'negative'`` or
+                ``'positive'`` in this column.
                 See `Filtering <https://slideflow.dev/datasets_and_val/#filtering>`_
                 for further discussion. Defaults to None.
             filter_blank (list(str) or str, optional): Skip slides that have

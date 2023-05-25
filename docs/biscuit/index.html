@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.biscuit &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.biscuit &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -429,7 +429,9 @@ thresholds from nested cross-validation.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>hp</strong> (<a class="reference internal" href="../model_params/#slideflow.ModelParams" title="slideflow.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code></a>) – Hyperparameters object.</p></li>
 <li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a>) – Patient-level annotations filter.</p></li>
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
 <li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save validation predictions to
 model folder. Defaults to ‘csv’.</p></li>
 </ul>
