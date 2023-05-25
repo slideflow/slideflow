@@ -574,8 +574,12 @@ class Project:
             val_settings (:class:`types.SimpleNamspace`): Validation settings.
             ctx (multiprocessing.Context): Multiprocessing context for sharing
                 results from isolated training processes.
-            filters (dict): Dataset filters.
-            filter_blank (list): Excludes slides blank in this annotation col.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
+                Defaults to None.
             input_header (str or list(str)): Annotation col of additional
                 slide-level input.
             min_tiles (int): Only includes tfrecords with >= min_tiles
@@ -1185,9 +1189,11 @@ class Project:
                 to evaluate. If not supplied, will evaluate all project
                 tfrecords at the tile_px/tile_um matching the supplied model,
                 optionally using provided filters and filter_blank.
-            filters (dict, optional): Filters dict to use when selecting
-                tfrecords. Defaults to None.
-            filter_blank (list, optional): Exclude slides blank in these cols.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
                 Defaults to None.
             min_tiles (int, optional): Minimum number of tiles a slide must
                 have to be included in evaluation. Defaults to 0.
@@ -1290,9 +1296,11 @@ class Project:
                 the model saved as s_{k}_checkpoint.pt. Defaults to 0.
             eval_tag (str, optional): Unique identifier for this evaluation.
                 Defaults to None
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
-            filter_blank (list, optional): Exclude slides blank in these cols.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
                 Defaults to None.
             attention_heatmaps (bool, optional): Save attention heatmaps of
                 validation dataset. Defaults to True.
@@ -1549,6 +1557,12 @@ class Project:
                 magnification (str, e.g. "20x").
 
         Keyword Args:
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
+                Defaults to None.
             save_tiles (bool, optional): Save tile images in loose format.
                 Defaults to False.
             save_tfrecords (bool): Save compressed image data from
@@ -1900,10 +1914,12 @@ class Project:
                 from which to generate activations. If not supplied, calculate
                 activations for all tfrecords compatible with the model,
                 optionally using provided filters and filter_blank.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                 Defaults to None.
-            filter_blank (list, optional): Slides blank in these columns will
-                be excluded. Defaults to None.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
+                Defaults to None.
             min_tiles (int, optional): Only include slides with this minimum
                 number of tiles. Defaults to 0.
             max_tiles (int, optional): Only include maximum of this many tiles
@@ -1975,10 +1991,12 @@ class Project:
                 from which to generate activations. If not supplied, calculate
                 activations for all tfrecords compatible with the model,
                 optionally using provided filters and filter_blank.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                 Defaults to None.
-            filter_blank (list, optional): Slides blank in these columns will
-                be excluded. Defaults to None.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
+                Defaults to None.
             min_tiles (int, optional): Only include slides with this minimum
                 number of tiles. Defaults to 16.
             max_tiles (int, optional): Only include maximum of this many tiles
@@ -2114,9 +2132,11 @@ class Project:
                 generate predictions for all project tfrecords at the
                 tile_px/tile_um matching the model, optionally using provided
                 filters and filter_blank.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
-            filter_blank (list, optional): Exclude slides blank in these cols.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
                 Defaults to None.
             min_tiles (int, optional): Minimum tiles per slide. Skip slides
                 not meeting this threshold. Defaults to 8.
@@ -2255,10 +2275,12 @@ class Project:
                 the supplied model, optionally using filters/filter_blank.
 
         Keyword Args:
-            filters (dict, optional): Filters dict to use when selecting
-                tfrecords. Defaults to None.
-            filter_blank (list, optional): Slides blank in these columns will
-                be excluded. Defaults to None.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
+                Defaults to None.
             outcomes (list, optional): Column name in annotations file from
                 which to read category labels.
             map_slide (str, optional): None (default), 'centroid' or 'average'.
@@ -2593,9 +2615,11 @@ class Project:
                 (str, e.g. "20x").
 
         Keyword Args:
-            filters (dict, optional): Filters for selecting tfrecords.
-                Defaults to None.
-            filter_blank (list, optional): Exclude slides blank in these cols.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
                 Defaults to None.
             min_tiles (int, optional): Min tiles a slide must have.
                 Defaults to 0.
@@ -2667,9 +2691,11 @@ class Project:
                 generate predictions for all project tfrecords at the
                 tile_px/tile_um matching the model, optionally using provided
                 filters and filter_blank.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
-            filter_blank (list, optional): Exclude slides blank in these cols.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
                 Defaults to None.
             min_tiles (int, optional): Min tiles a slide must have
                 to be included. Defaults to 0.
@@ -2866,9 +2892,11 @@ class Project:
                 from which to generate activations. If not supplied, will
                 calculate activations for all tfrecords at the tile_px/tile_um
                 matching the supplied model.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
-            filter_blank (list, optional): Exclude slides blank in these cols.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
                 Defaults to None.
             min_tiles (int, optional): Min tiles a slide must have
                 to be included. Defaults to 0.
@@ -3246,9 +3274,11 @@ class Project:
 
         Keyword Args:
             exp_label (str, optional): Experiment label to add model names.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
-            filter_blank (list, optional): Exclude slides blank in these cols.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
                 Defaults to None.
             input_header (list, optional): List of annotation column headers to
                 use as additional slide-level model input. Defaults to None.
@@ -3294,6 +3324,7 @@ class Project:
             val_annotations (str): Path to annotations file for validation
                 dataset. Defaults to None (same as training).
             val_filters (dict): Filters to use for validation dataset.
+                See :meth:`slideflow.Dataset.filter` for more information.
                 Defaults to None (same as training).
             checkpoint (str, optional): Path to cp.ckpt from which to load
                 weights. Defaults to None.

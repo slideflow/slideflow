@@ -505,16 +505,17 @@ class Dataset:
                 (str, e.g. "20x").
 
         Keyword args:
-            filters (Optional[Dict], optional): Filters for selecting slides
-                from annotations. Defaults to None.
-            filter_blank (Optional[Union[List[str], str]], optional): Omit
-                slides that are blank in these annotation columns.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
                 Defaults to None.
-            annotations (Optional[Union[str, pd.DataFrame]], optional): Path
-                to annotations file or pandas DataFrame with slide-level
-                annotations. Defaults to None.
             min_tiles (int, optional): Only include slides with this
                 many tiles at minimum. Defaults to 0.
+            annotations (str or pd.DataFrame, optional): Path
+                to annotations file or pandas DataFrame with slide-level
+                annotations. Defaults to None.
 
         Raises:
             errors.SourceNotFoundError: If provided source does not exist
@@ -1749,14 +1750,26 @@ class Dataset:
     def filter(self, *args: Any, **kwargs: Any) -> "Dataset":
         """Return a filtered dataset.
 
+        This method can either accept a single argument (``filters``) or any
+        combination of keyword arguments (``filters``, ``filter_blank``, or
+        ``min_tiles``).
+
         Keyword Args:
-            filters (dict): Filters dict to use when selecting tfrecords.
-                See :meth:`get_dataset` documentation for more information
-                on filtering. Defaults to None.
-            filter_blank (list): Exclude slides blank in these columns.
+            filters (dict, optional): Dictionary used for filtering
+                the dataset. Dictionary keys should be column headers in the
+                patient annotations, and the values should be the variable
+                states to be included in the dataset. For example,
+                ``filters={'HPV_status': ['negative', 'positive']}``
+                would filter the dataset by the column ``HPV_status`` and only
+                include slides with values of either `'negative'` or
+                `'positive`' in this column.
+                See `Filtering <https://slideflow.dev/datasets_and_val/#filtering>`_
+                for further discussion. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
                 Defaults to None.
             min_tiles (int): Filter out tfrecords that have less than this
-                minimum number of tiles.
+                minimum number of tiles. Defaults to 0.
 
         Returns:
             :class:`slideflow.Dataset`: Dataset with filter added.
@@ -3459,9 +3472,11 @@ class Dataset:
                 calculate activations for all tfrecords at the tile_px/tile_um
                 matching the supplied model, optionally using provided filters
                 and filter_blank.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
-            filter_blank (list, optional): Exclude slides blank in these cols.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
+            filter_blank (list(str) or str, optional): Skip slides that have
+                blank values in these patient annotation columns.
                 Defaults to None.
             roi (bool, optional): Include ROI in the thumbnail images.
                 Defaults to False.
