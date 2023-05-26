@@ -42,32 +42,34 @@ class DimensionReducer:
         
         Args:
         method (str): Dimensionality reduction method that will be applied
-        to a given set of features. Default is "umap". Available methods 
-        can be viewed with `Slidemap.list_dr_methods`
+            to a given set of features. Default is "umap". Available methods 
+            can be viewed with `Slidemap.list_dr_methods`
         kwargs (Dict): kwargs for the selected dimensionality reduction method
         """
         self.dimred_method = dimred_method # type: str
-        if dimred_method == 'umap':
+        if self.dimred_method is None:
+            self.dired_method = 'umap'
+        if self.dimred_method == 'umap':
             self.reducer_instance=UMAPReducer(kwargs)
-        if dimred_method == 'pca':
+        if self.dimred_method == 'pca':
             self.reducer_instance=PCAReducer()
-        if dimred_method == 'mds':
+        if self.dimred_method == 'mds':
             self.reducer_instance=MDSReducer()
-        if dimred_method == 'sammon':
+        if self.dimred_method == 'sammon':
             self.reducer_instance=SammonReducer()
-        if dimred_method == 'lle':
+        if self.dimred_method == 'lle':
             self.reducer_instance=LLEReducer()
-        if dimred_method == 'hlle':
+        if self.dimred_method == 'hlle':
             self.reducer_instance=HLLEReducer()
-        if dimred_method == 'isomap':
+        if self.dimred_method == 'isomap':
             self.reducer_instance=IsomapReducer()
-        if dimred_method == 'kpca':
+        if self.dimred_method == 'kpca':
             self.reducer_instance=KPCAReducer()
-        if dimred_method == 'leim':
+        if self.dimred_method == 'leim':
             self.reducer_instance=LEIMReducer()
-        if dimred_method == 'tsne':
+        if self.dimred_method == 'tsne':
             self.reducer_instance=TSNEReducer()
-        if dimred_method == 'phate':
+        if self.dimred_method == 'phate':
             self.reducer_instance=PHATEReducer()
 class UMAPReducer:
     def __init__(self,
@@ -76,14 +78,20 @@ class UMAPReducer:
         
         """
         import umap
+        if umap_kwargs is None:
+            umap_kwargs = dict()
         self.reducer = umap.UMAP(**umap_kwargs)
 
 class PCAReducer:
-    def __init__(self) -> None:
+    def __init__(self,
+                 pca_kwargs: Dict = None) -> None:
         """ Class for PCA functionality.
         
         """
-        self.pca_kwargs = None
+        from sklearn.decomposition import PCA
+        if pca_kwargs is None:
+            pca_kwargs = dict()
+        self.reducer = PCA(pca_kwargs)
 class MDSReducer:
     def __init__(self) -> None:
         """ Class for MDS functionality.
@@ -165,7 +173,7 @@ class SlideMap:
         *,
         parametric_umap: bool = False,
         dimred_method: str = 'umap',
-        dimred_kwargs: Dict[Union[str, int, bool]] = None
+        dimred_kwargs: Dict = None
     ) -> None:
         """Backend for mapping slides into two dimensional space. Can use a
         DatasetFeatures object to map slides according to UMAP of features, or
@@ -601,23 +609,23 @@ class SlideMap:
         
         Args: 
             vizualizations (list(np.ndarray)): list of numpy arrays of size n x 2 
-            (columns being the two-dimensional coordinates of visualization). Each row 
-            should be matched to the same observation/sample across all elements in the list
-            projection_method (Union[str, None]): options are "tSNE" or "MDS" for 
-            reprojecting the meta-distance matrix into a meta-visualization
+            (   columns being the two-dimensional coordinates of visualization). Each row 
+                should be matched to the same observation/sample across all elements in the list
+                projection_method (Union[str, None]): options are "tSNE" or "MDS" for 
+                reprojecting the meta-distance matrix into a meta-visualization
         
         Returns:
             meta_visualization (np.ndarray): size nx2 two-dimensional visualization 
-            genereated using the meta-visualization approach. Returned only if 
-            projection_method is not None
+                genereated using the meta-visualization approach. Returned only if 
+                projection_method is not None
             meta_distances (np.ndarray): size nxn pairwise euclidean distance matrix
-            generated using meta-visualization approach
+                generated using meta-visualization approach
         
         Approach:
             1. Computes euclidean distance matrices from 2D embeddings
             2. Ensembles the euclidean distance according to eigenvector with largest eigenvalue
             3. Uses projection_method ["MDS", "tSNE"] to transform euclidean 
-            distance matrix to 2D embeddings
+                distance matrix to 2D embeddings
         
         This method was written by Kevin Sun and is based
         on the following paper: Ma, R., Sun, E., and Zou, J. (2022) A Spectral 
@@ -849,6 +857,35 @@ class SlideMap:
         self.data = self.data.loc[self.data.slide.isin(slides)]
 
     #TODO Create transform() that accepts any dimensionality reduction method
+    def transform(
+        self,
+        ftrs: DatasetFeatures = None,
+        dimred_method: str = None,
+        **kwargs: Any) -> np.ndarray:
+        """Transforms a given array using the user-specified dimensionality
+        reduction method. Default method is UMAP. If a dimensionality reduction
+        method has not yet been fit, this will fit a new dimensionality
+        reduction method on the given data. 
+        
+        Args:
+            array (np.ndarray): Array to transform with UMAP dimensionality
+                reduction.
+        
+        """
+        if self.ftrs is None and ftrs is None:
+            raise errors.SlideMapError(
+                "Unable perform neighbor search; no DatasetFeatures provided"
+            )
+        if ftrs is not None:
+            self.ftrs = ftrs
+        log.info(f"Calculating feature activations)...") 
+        features = self.activations()
+        log.info(f"Initializing dimensionality reduction (method={dimred_method})...")
+        reducer = DimensionReducer(dimred_method, **kwargs)
+        reducer.reducer.fit(features)
+        X = reducer.reducer.transform(features)
+        
+        
 
     def umap_transform(
         self,
@@ -918,9 +955,9 @@ class SlideMap:
         
         Args:
             dim_red_methods (Dict): This is a dictionary of dictionaries
-            that specifies the dimensionality reduction methods to use
-            in the visualization as well as the kwargs for each 
-            method to be used. 
+                that specifies the dimensionality reduction methods to use
+                in the visualization as well as the kwargs for each 
+                method to be used. 
             
             Examples
             To create a meta visualization from two UMAPs with different
