@@ -178,7 +178,7 @@ Slideflow has been used by:
 - [Storozuk et al](https://www.nature.com/articles/s41379-022-01039-1.pdf), _Modern Pathology_ [abstract], 2022
 - [Partin et al](https://doi.org/10.3389/fmed.2023.1058919) _Front Med_, 2022
 - [Dolezal et al](https://ascopubs.org/doi/abs/10.1200/JCO.2022.40.16_suppl.8549) [abstract], 2022
-- [Dolezal et al](https://arxiv.org/abs/2211.06522) [arXiv], 2022
+- [Dolezal et al](https://www.nature.com/articles/s41698-023-00399-4) _npj Precision Oncology_, 2023
 - [Howard et al](https://www.nature.com/articles/s41523-023-00530-5) _npj Breast Cancer_, 2023
 - [Hieromnimon et al](https://doi.org/10.1101/2023.03.22.533810) [bioRxiv], 2023
 
