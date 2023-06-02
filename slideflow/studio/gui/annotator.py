@@ -87,10 +87,13 @@ class AnnotationCapture:
                 self._keyboard_focus = True
                 self._name_prompting = True
                 return self.annotation_points, False
-            else:
+            elif len(self.annotation_points) >= 3:
                 to_return = self.annotation_points
                 self.annotation_points = []
                 return to_return, True
+            else:
+                # Discard capture if there are less than 3 points
+                return None, False
         elif not self.clicking and not in_range:
             return None, False
         else:
@@ -98,4 +101,7 @@ class AnnotationCapture:
             adj_x = min(max(mouse_x - min_x, 0), max_x - min_x)
             adj_y = min(max(mouse_y - min_y, 0), max_y - min_y)
             self.annotation_points.append((adj_x, adj_y))
-            return self.annotation_points, False
+            if len(self.annotation_points) >= 3:
+                return self.annotation_points, False
+            else:
+                return None, False
