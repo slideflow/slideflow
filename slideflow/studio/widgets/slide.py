@@ -227,6 +227,7 @@ class SlideWidget:
             new_annotation, annotation_name = self.annotator.capture(
                 x_range=(viz.viewer.x_offset, viz.viewer.x_offset + viz.viewer.width),
                 y_range=(viz.viewer.y_offset, viz.viewer.y_offset + viz.viewer.height),
+                pixel_ratio=viz.pixel_ratio
             )
 
             # Render in-progress annotations

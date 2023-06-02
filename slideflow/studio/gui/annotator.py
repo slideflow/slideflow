@@ -27,7 +27,8 @@ class AnnotationCapture:
     def capture(
         self,
         x_range: Tuple[int, int],
-        y_range: Tuple[int, int]
+        y_range: Tuple[int, int],
+        pixel_ratio: float = 1
     ) -> Tuple[Optional[List[Tuple[int, int]]], Union[bool, str]]:
         """Captures a mouse annotation in the given range.
 
@@ -36,6 +37,8 @@ class AnnotationCapture:
                 in the horizontal dimension.
             y_range (tuple(int, int)): Range of pixels to capture an annotation,
                 in the horizontal dimension.
+            pixel_ratio (float, optional): Ratio of points to pixels.
+                Defaults to 1.
 
         Returns:
             A list of tuple with (x, y) coordinates for the annotation.
@@ -49,6 +52,11 @@ class AnnotationCapture:
         min_y, max_y = y_range[0], y_range[1]
         mouse_down = imgui.is_mouse_down(self.mouse_idx)
         mouse_x, mouse_y = imgui.get_mouse_pos()
+
+        if pixel_ratio != 1:
+            mouse_x *= pixel_ratio
+            mouse_y *= pixel_ratio
+
         in_range = (max_x >= mouse_x) and (mouse_x >= min_x) and (max_y >= mouse_y) and (mouse_y >= min_y)
 
         # First, check if the annotation is finished and we are simply

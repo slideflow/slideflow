@@ -251,6 +251,7 @@ class MosaicWidget(Widget):
             new_annotation, annotation_name = self.annotator.capture(
                 x_range=(tx+left_x, tx+right_x),
                 y_range=(ty+top_y, ty+bottom_y),
+                pixel_ratio=viz.pixel_ratio
             )
             imgui.end()
 
