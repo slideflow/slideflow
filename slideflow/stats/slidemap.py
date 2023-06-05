@@ -16,6 +16,7 @@ from scipy.linalg import eigh
 from slideflow import errors
 from slideflow.stats import stats_utils
 from slideflow.util import log
+from slideflow.stats.stats_utils import SAMMON
 
 if TYPE_CHECKING:
     import umap
@@ -72,38 +73,45 @@ class DimensionReducer:
         if self.dimred_method == 'phate':
             self.reducer_instance=PHATEReducer()
 class UMAPReducer:
+    """ Class for UMAP functionality.
+        
+    """
     def __init__(self,
                  umap_kwargs: Dict = None) -> None:
-        """ Class for UMAP functionality.
-        
-        """
         import umap
         if umap_kwargs is None:
-            umap_kwargs = dict()
+            umap_kwargs = {}
         self.reducer = umap.UMAP(**umap_kwargs)
 
 class PCAReducer:
+    """ Class for PCA functionality.
+        
+    """
     def __init__(self,
                  pca_kwargs: Dict = None) -> None:
-        """ Class for PCA functionality.
-        
-        """
         from sklearn.decomposition import PCA
         if pca_kwargs is None:
-            pca_kwargs = dict()
+            pca_kwargs = {}
         self.reducer = PCA(pca_kwargs)
 class MDSReducer:
-    def __init__(self) -> None:
-        """ Class for MDS functionality.
+    """ Class for MDS functionality.
         
-        """
-        self.mds_kwargs = None
+    """
+    def __init__(self,
+                 mds_kwargs: Dict = None) -> None:
+        if mds_kwargs is None:
+            mds_kwargs = {}
+        self.reducer = MDS(mds_kwargs)       
 class SammonReducer:
-    def __init__(self) -> None:
-        """ Class for Sammon functionality.
+    """ Class for Sammon functionality.
+    
+    """
+    def __init__(self,
+                 sammon_kwargs: Dict = None) -> None:
+        if sammon_kwargs is None:
+            sammon_kwargs = {}
+        self.reducer = SAMMON(sammon_kwargs)
         
-        """
-        self.sammon_kwargs = None
 class LLEReducer:
     def __init__(self) -> None:
         """ Class for LLE functionality.
@@ -859,7 +867,7 @@ class SlideMap:
     #TODO Create transform() that accepts any dimensionality reduction method
     def transform(
         self,
-        ftrs: DatasetFeatures = None,
+        ftrs: "DatasetFeatures" = None,
         dimred_method: str = None,
         **kwargs: Any) -> np.ndarray:
         """Transforms a given array using the user-specified dimensionality
@@ -868,7 +876,7 @@ class SlideMap:
         reduction method on the given data. 
         
         Args:
-            array (np.ndarray): Array to transform with UMAP dimensionality
+            array (np.ndarray): Array to transform with dimensionality
                 reduction.
         
         """
@@ -881,11 +889,11 @@ class SlideMap:
         log.info(f"Calculating feature activations)...") 
         features = self.activations()
         log.info(f"Initializing dimensionality reduction (method={dimred_method})...")
-        reducer = DimensionReducer(dimred_method, **kwargs)
-        reducer.reducer.fit(features)
-        X = reducer.reducer.transform(features)
-        
-        
+        create_reducer = DimensionReducer(dimred_method, **kwargs)
+        embedding = create_reducer.reducer_instance
+        embedding.reducer.fit(features)
+        X = embedding.reducer.transform(features)
+        return X        
 
     def umap_transform(
         self,
