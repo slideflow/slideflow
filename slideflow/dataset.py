@@ -3868,3 +3868,44 @@ class Dataset:
                 return None
         else:
             return None
+
+    def verify_slide_names(self, allow_errors: bool = False) -> bool:
+        """Verify that slide names inside TFRecords match the file names.
+
+        Args:
+            allow_errors (bool): Do not raise an error if there is a mismatch.
+                Defaults to False.
+
+        Returns:
+            bool: If all slide names inside TFRecords match the TFRecord
+                file names.
+
+        Raises:
+            sf.errors.MismatchedSlideNamesError: If any slide names inside
+                TFRecords do not match the TFRecord file names,
+                and allow_errors=False.
+
+        """
+        tfrecords = self.tfrecords()
+        if len(tfrecords):
+            pb = track(
+                tfrecords,
+                description="Verifying tfrecord slide names...",
+                transient=True
+            )
+            for tfr in pb:
+                first_record = sf.io.get_tfrecord_by_index(tfr, 0)
+                if first_record['slide'] == sf.util.path_to_name(tfr):
+                    continue
+                elif allow_errors:
+                    return False
+                else:
+                    raise errors.MismatchedSlideNamesError(
+                        "Mismatched slide name in TFRecord {}: expected slide "
+                        "name {} based on filename, but found {}. ".format(
+                            tfr,
+                            sf.util.path_to_name(tfr),
+                            first_record['slide']
+                        )
+                )
+        return True
