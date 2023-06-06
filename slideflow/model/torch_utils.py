@@ -7,6 +7,8 @@ from typing import Dict, Generator, Iterable, List, Tuple, Union, Optional
 import torch
 import numpy as np
 import slideflow as sf
+import contextlib
+from packaging import version
 from pandas.core.frame import DataFrame
 from scipy.special import softmax
 from slideflow.stats import df_from_pred
@@ -32,6 +34,25 @@ def get_module_by_name(module: Union[torch.Tensor, torch.nn.Module],
     """
     names = access_string.split(sep='.')
     return reduce(getattr, names, module)
+
+
+@contextlib.contextmanager
+def autocast(device_type: Optional[str] = None, mixed_precision: bool = True):
+    """Autocast with mixed precision."""
+    if not mixed_precision:
+        with no_scope():
+            yield
+    elif version.parse(torch.__version__) >= version.parse("1.12"):
+        with torch.amp.autocast(device_type):
+            yield
+    elif device_type == 'cuda':
+        with torch.cuda.amp.autocast():
+            yield
+    elif device_type == 'cpu':
+        with torch.cpu.amp.autocast():
+            yield
+    else:
+        raise ValueError("Unrecognized device type: {}".format(device_type))
 
 
 def print_module_summary(
@@ -287,7 +308,7 @@ def eval_from_model(
 
             img = img.to(device, non_blocking=True)
             img = img.to(memory_format=torch.channels_last)
-            with torch.amp.autocast(device.type) if _mp else no_scope():
+            with autocast(device.type, mixed_precision=_mp):
                 with torch.no_grad():
                     # GPU normalization
                     if torch_args is not None and torch_args.normalizer:
@@ -447,8 +468,8 @@ def predict_from_model(
 def get_device(device: Optional[str] = None):
     if device is None and torch.cuda.is_available():
         return torch.device('cuda')
-    elif (device is None 
-          and hasattr(torch.backends, 'mps') 
+    elif (device is None
+          and hasattr(torch.backends, 'mps')
           and torch.backends.mps.is_available()):
         return torch.device('mps')
     elif device is None:

@@ -23,6 +23,7 @@ import slideflow.util.neptune_utils
 from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
+from slideflow.model.torch_utils import autocast
 from slideflow.model.base import log_manifest, no_scope, BaseFeatureExtractor
 from slideflow.util import log, NormFit, ImgBatchSpeedColumn
 
@@ -1053,8 +1054,7 @@ class Trainer:
 
             with torch.no_grad():
                 _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
-                _ns = no_scope()
-                with torch.amp.autocast(self.device.type) if _mp else _ns:  # type: ignore
+                with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
 
                     # GPU normalization, if specified.
                     if self._has_gpu_normalizer():
@@ -1270,8 +1270,7 @@ class Trainer:
         self.optimizer.zero_grad()
         with torch.set_grad_enabled(True):
             _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
-            _ns = no_scope()
-            with torch.amp.autocast(self.device.type) if _mp else _ns:  # type: ignore
+            with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
 
                 # GPU normalization, if specified.
                 if self._has_gpu_normalizer():
@@ -2203,7 +2202,7 @@ class Features(BaseFeatureExtractor):
         """Return activations for a single batch of images."""
         assert torch.is_floating_point(inp), "Input tensor must be float"
         _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
-        with torch.amp.autocast(self.device.type) if _mp else no_scope():  # type: ignore
+        with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
             with torch.no_grad() if no_grad else no_scope():
                 inp = inp.to(self.device).to(memory_format=torch.channels_last)
                 logits = self._model(inp)
@@ -2387,7 +2386,7 @@ class UncertaintyInterface(Features):
         if self.layers:
             out_act_drop = [[] for _ in range(len(self.layers))]
         for _ in range(30):
-            with torch.amp.autocast(self.device.type) if _mp else no_scope():  # type: ignore
+            with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
                 with torch.no_grad() if no_grad else no_scope():
                     inp = inp.to(self.device)
                     inp = inp.to(memory_format=torch.channels_last)
