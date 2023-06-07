@@ -979,7 +979,7 @@ def location_heatmap(
         grid[:] = np.nan
     elif background == 'min':
         grid[:] = np.min(values)
-    elif background == 'mean': 
+    elif background == 'mean':
         grid[:] = np.mean(values)
     elif background == 'median':
         grid[:] = np.median(values)
@@ -990,10 +990,10 @@ def location_heatmap(
 
     if not isinstance(locations, np.ndarray):
         locations = np.array(locations)
-    
+
     # Transform from coordinates as center locations to top-left locations.
     locations = locations - int(wsi.full_extract_px/2)
-    
+
     for i, wsi_dim in enumerate(locations):
         try:
             idx = loc_grid_dict[tuple(wsi_dim)]
@@ -1085,12 +1085,13 @@ def tfrecord_heatmap(
         Dictionary mapping slide names to dict of statistics
         (mean, median)
     """
-    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord, as_dict=False)
-    if tile_dict.keys() != loc_dict.keys():
+    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord, as_dict=True)
+    if sorted(list(tile_dict.keys())) != sorted(list(loc_dict.keys())):
         td_len = len(list(tile_dict.keys()))
         loc_len = len(list(loc_dict.keys()))
         raise errors.TFRecordsError(
-            f'tile_dict length ({td_len}) != TFRecord length ({loc_len}).'
+            f'tile_dict (length={td_len}) does not match TFRecord locations '
+            f'(length={loc_len}).'
         )
 
     return location_heatmap(
