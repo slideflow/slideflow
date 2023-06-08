@@ -1031,7 +1031,9 @@ class Experiment:
         Args:
             hp (:class:`slideflow.ModelParams`): Hyperparameters object.
             label (str): Experimental label.
-            filters (dict): Patient-level annotations filter.
+            filters (dict, optional): Dataset filters to use for
+                selecting slides. See :meth:`slideflow.Dataset.filter` for
+                more information. Defaults to None.
             save_predictions (bool, optional): Save validation predictions to
                 model folder. Defaults to 'csv'.
 

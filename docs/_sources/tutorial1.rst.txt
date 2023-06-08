@@ -42,7 +42,7 @@ With our project initialized, we can set up our annotations file. Use the downlo
 CSV file, with a column "patient" indicating patient name (in the case of TCGA, these are in the format
 TCGA-SS-XXXX, where SS indicates site of origin and XXXX is the patient identifier), and a column "er_status_by_ihc"
 containing our outcome of interest. Add a third column "slide" containing the name of the slide associated with the
-patient. If there are multiple slides per patient, list each slide on a separate row. Finally, add a column "dataset"
+patient (without the file extension). If there are multiple slides per patient, list each slide on a separate row. Finally, add a column "dataset"
 to indicate whether the slide should be used for training or evaluation. Set aside somewhere around 10-30% of the
 dataset for evaluation.
 

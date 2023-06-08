@@ -59,6 +59,10 @@ class MismatchedImageFormatsError(DatasetError):
     pass
 
 
+class MismatchedSlideNamesError(DatasetError):
+    pass
+
+
 # --- Mosaic & Heatmap Errors -------------------------------------------------
 class HeatmapError(Exception):
     pass
