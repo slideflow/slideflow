@@ -142,9 +142,13 @@ def _build_clam_learner(
     )
 
     # Prepare model.
-    log.info(f"Training model {config.model_fn.__name__}, loss={config.loss_fn.__name__}")
     batch = train_dl.one_batch()
-    model = config.model_fn(size=[batch[0][0].shape[-1], 256, 128], n_classes=batch[-1].shape[-1])
+    n_features = batch[0][0].shape[-1]
+    config_size = config.model_fn.sizes[config.model_config.model_size]
+    model_size = [n_features] + config_size[1:]
+    log.info(f"Training model {config.model_fn.__name__} "
+             f"(size={model_size}, loss={config.loss_fn.__name__})")
+    model = config.model_fn(size=model_size, n_classes=batch[-1].shape[-1])
     model.relocate()
 
     # Loss should weigh inversely to class occurences.
@@ -221,9 +225,12 @@ def _build_fastai_learner(
     )
 
     # Prepare model.
-    log.info(f"Training model {config.model_fn.__name__}, loss={config.loss_fn.__name__}")
+
     batch = train_dl.one_batch()
-    model = config.model_fn(batch[0].shape[-1], batch[-1].shape[-1]).to(device)
+    n_in, n_out = batch[0].shape[-1], batch[-1].shape[-1]
+    log.info(f"Training model {config.model_fn.__name__} "
+             f"(in={n_in}, out={n_out}, loss={config.loss_fn.__name__})")
+    model = config.model_fn(n_in, n_out).to(device)
     if hasattr(model, 'relocate'):
         model.relocate()
 

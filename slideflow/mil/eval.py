@@ -98,14 +98,21 @@ def eval_mil(
     n_features = torch.load(bags[0]).shape[-1]
     n_out = len(unique)
 
-    log.info(f"Building model {config.model_fn.__name__}")
+    # Build the model
     if isinstance(config, TrainerConfigCLAM):
         config_size = config.model_fn.sizes[config.model_config.model_size]
-        model = config.model_fn(size=[n_features] + config_size[1:])
+        _size = [n_features] + config_size[1:]
+        model = config.model_fn(size=_size)
+        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
     elif isinstance(config.model_config, ModelConfigCLAM):
-        model = config.model_fn(size=[n_features, 256, 128])
+        config_size = config.model_fn.sizes[config.model_config.model_size]
+        _size = [n_features] + config_size[1:]
+        model = config.model_fn(size=_size)
+        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
     else:
         model = config.model_fn(n_features, n_out)
+        log.info(f"Building model {config.model_fn.__name__} "
+                 f"(in={n_features}, out={n_out})")
     if isdir(weights):
         if exists(join(weights, 'models', 'best_valid.pth')):
             weights = join(weights, 'models', 'best_valid.pth')
