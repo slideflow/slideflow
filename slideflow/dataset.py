@@ -234,6 +234,34 @@ def _tile_extractor(
         raise e
 
 
+def _buffer_slide(path: str, dest: str) -> str:
+    """Buffer a slide to a path."""
+    buffered = join(dest, basename(path))
+    shutil.copy(path, buffered)
+
+    # If this is an MRXS file, copy the associated folder.
+    if path.lower().endswith('mrxs'):
+        folder_path = join(dirname(path), path_to_name(path))
+        if exists(folder_path):
+            shutil.copytree(folder_path, join(dest, path_to_name(path)))
+        else:
+            log.debug("Could not find associated MRXS folder for slide buffer")
+
+    return buffered
+
+
+def _debuffer_slide(path: str) -> None:
+    """De-buffer a slide."""
+    os.remove(path)
+    # If this is an MRXS file, remove the associated folder.
+    if path.lower().endswith('mrxs'):
+        folder_path = join(dirname(path), path_to_name(path))
+        if exists(folder_path):
+            shutil.rmtree(folder_path)
+        else:
+            log.debug("Could not find MRXS folder for slide debuffer")
+
+
 def _fill_queue(
     slide_list: Sequence[str],
     q: Queue,
@@ -247,9 +275,7 @@ def _fill_queue(
             while True:
                 if q.qsize() < q_size:
                     try:
-                        buffered = join(buffer, basename(path))
-                        shutil.copy(path, buffered)
-                        q.put(buffered)
+                        q.put(_buffer_slide(path, buffer))
                         break
                     except OSError:
                         if not warned:
@@ -1096,7 +1122,7 @@ class Dataset:
                 pb.remove_task(segment_task)
 
                 if buffer:
-                    os.remove(slide_path)
+                    _debuffer_slide(slide_path)
                 q.task_done()
         if buffer:
             thread.join()
@@ -1651,7 +1677,7 @@ class Dataset:
                                 break
                             _tile_extractor(path, **extraction_kwargs)
                             pb.advance(slide_task)
-                            os.remove(path)
+                            _debuffer_slide(path)
                             q.task_done()
                         thread.join()
                     else:
