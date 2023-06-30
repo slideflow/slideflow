@@ -18,6 +18,21 @@ def _apply_mask(image, mask):
     return cv2.bitwise_or(image, image, mask=resized_mask)
 
 
+def _get_level_for_otsu(wsi: "sf.WSI", min_size: int = 500) -> int:
+    """Find the smallest downsample level of a minimum size."""
+    smallest_dim = np.array([min(L['dimensions']) for L in wsi.levels])
+    level_ids = np.array([L['level'] for L in wsi.levels])
+    sorted_idx = np.argsort(smallest_dim)
+    try:
+        best_idx = np.where(smallest_dim[sorted_idx] > min_size)[0][0]
+    except IndexError:
+        # If the slide is smaller than the target minimum dimension,
+        # use the full slide image
+        best_idx = sorted_idx[-1]
+    return level_ids[sorted_idx][best_idx]
+
+# -----------------------------------------------------------------------------
+
 class Otsu:
 
     def __init__(self, slide_level: Optional[int] = None):
@@ -87,8 +102,9 @@ class Otsu:
             np.ndarray: RGB thumbnail of the whole-slide image.
         """
         if self.level is None:
-            # Otsu's thresholding can be done on the lowest downsample level
-            level = wsi.slide.level_count - 1
+            # Otsu's thresholding can be done on the smallest downsample level,
+            # with the smallest dimension being at least 500 pixels
+            level = _get_level_for_otsu(wsi, min_size=500)
         else:
             level = self.level
 
