@@ -111,7 +111,7 @@ setuptools.setup(
         'scikit-image',
         'tqdm',
         'click',
-        'protobuf<=3.20.2',
+        'protobuf<3.21',
         'tensorboard',
         'crc32c',
         'h5py',
@@ -137,7 +137,7 @@ setuptools.setup(
         'tf': [
             'tensorflow>=2.7,<2.12',
             'tensorflow_probability<0.20',
-            'tensorflow_datasets'
+            'tensorflow_datasets<4.9.0'
         ],
         'torch': [
             'torch',
