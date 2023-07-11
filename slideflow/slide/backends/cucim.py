@@ -238,7 +238,8 @@ class _cuCIMReader:
                 'dimensions': self.level_dimensions[lev],
                 'width': self.level_dimensions[lev][0],
                 'height': self.level_dimensions[lev][1],
-                'downsample': self.level_downsamples[lev]
+                'downsample': self.level_downsamples[lev],
+                'level': lev
             })
 
     @property
