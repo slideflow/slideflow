@@ -1311,6 +1311,19 @@ class WSI(_BaseLoader):
         self.seg_coord[:, 0:2][nonzero] -= int(self.full_extract_px/2)
         self.estimated_num_tiles = centroids.shape[0]
 
+    def area(self) -> float:
+        """Calculate area (mm^2) of slide that passes QC masking."""
+        dim_x, dim_y = self.dimensions[0], self.dimensions[1]
+        total_area_in_sq_microns = (dim_x * self.mpp) * (dim_y * self.mpp)
+        if self.qc_mask is not None:
+            s = self.qc_mask.shape
+            p = 1 - (self.qc_mask.sum() / (s[0] * s[1]))
+            area_in_sq_microns = p * total_area_in_sq_microns
+        else:
+            area_in_sq_microns = total_area_in_sq_microns
+        area_in_sq_mm = area_in_sq_microns * 1e-6
+        return area_in_sq_mm
+
     def get_tile_mask(self, index, sparse_mask):
 
         # Get the corresponding segmentation mask, reading from the sparse matrix
