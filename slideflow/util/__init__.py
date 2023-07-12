@@ -626,6 +626,51 @@ def write_json(data: Any, filename: str) -> None:
         json.dump(data, data_file, indent=1)
 
 
+def log_manifest(
+    train_tfrecords: Optional[List[str]] = None,
+    val_tfrecords: Optional[List[str]] = None,
+    *,
+    labels: Optional[Dict[str, Any]] = None,
+    filename: Optional[str] = None
+) -> str:
+    """Saves the training manifest in CSV format and returns as a string.
+
+    Args:
+        train_tfrecords (list(str)], optional): List of training TFRecords.
+            Defaults to None.
+        val_tfrecords (list(str)], optional): List of validation TFRecords.
+            Defaults to None.
+        labels (dict, optional): TFRecord outcome labels. Defaults to None.
+        filename (str, optional): Path to CSV file to save. Defaults to None.
+
+    Returns:
+        str: Saved manifest in str format.
+    """
+    out = ''
+    if filename:
+        save_file = open(os.path.join(filename), 'w')
+        writer = csv.writer(save_file)
+        writer.writerow(['slide', 'dataset', 'outcome_label'])
+    if train_tfrecords or val_tfrecords:
+        if train_tfrecords:
+            for tfrecord in train_tfrecords:
+                slide = sf.util.path_to_name(tfrecord)
+                outcome_label = labels[slide] if labels else 'NA'
+                out += ' '.join([slide, 'training', str(outcome_label)])
+                if filename:
+                    writer.writerow([slide, 'training', outcome_label])
+        if val_tfrecords:
+            for tfrecord in val_tfrecords:
+                slide = sf.util.path_to_name(tfrecord)
+                outcome_label = labels[slide] if labels else 'NA'
+                out += ' '.join([slide, 'validation', str(outcome_label)])
+                if filename:
+                    writer.writerow([slide, 'validation', outcome_label])
+    if filename:
+        save_file.close()
+    return out
+
+
 def get_slides_from_model_manifest(
     model_path: str,
     dataset: Optional[str] = None

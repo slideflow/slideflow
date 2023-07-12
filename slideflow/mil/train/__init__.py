@@ -177,6 +177,14 @@ def train_clam(
     else:
         train_bags = val_bags = bags
 
+    # Write slide/bag manifest
+    sf.util.log_manifest(
+        train_bags,
+        val_bags,
+        labels=label_dict,
+        filename=join(outdir, 'slide_manifest.csv')
+    )
+
     # Set up datasets.
     train_mil_dataset = CLAM_Dataset(
         train_bags,
@@ -308,6 +316,14 @@ def build_fastai_learner(
     log.info("Training dataset: {} bags (from {} slides)".format(len(train_idx), len(train_slides)))
     log.info("Validation dataset: {} bags (from {} slides)".format(len(val_idx), len(val_slides)))
 
+    # Write slide/bag manifest
+    sf.util.log_manifest(
+        train_bags,
+        val_bags,
+        labels=labels,
+        filename=join(outdir, 'slide_manifest.csv')
+    )
+
     # Build FastAI Learner
     learner = _fastai.build_learner(
         config,
@@ -403,6 +419,10 @@ def train_fastai(
     pred_out = join(outdir, 'predictions.parquet')
     df.to_parquet(pred_out)
     log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    # TODO: use `sf.stats.metrics` to generate categorical metrics
+    # or linear metrics, which will include per-category accuracy
+    sf.stats.metrics.categorical_metrics(df, level='slide')
 
     # Attention heatmaps.
     if attention and attention_heatmaps:
