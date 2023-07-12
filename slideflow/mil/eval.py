@@ -248,6 +248,101 @@ def predict_from_model(
     else:
         return df
 
+def generate_mil_features(model, weights, config, dataset, outcomes, bags, att_path):
+    # check transMIL model
+    import torch
+
+    if isinstance(config, TrainerConfigCLAM):
+        raise NotImplementedError
+
+    # Read configuration from saved model, if available
+    if config is None:
+        if not exists(join(weights, 'mil_params.json')):
+            raise errors.ModelError(
+                f"Could not find `mil_params.json` at {weights}. Check the "
+                "provided model/weights path, or provide a configuration "
+                "with 'config'."
+            )
+        else:
+            p = sf.util.load_json(join(weights, 'mil_params.json'))
+            config = sf.mil.mil_config(trainer=p['trainer'], **p['params'])
+
+    # Prepare ground-truth labels
+    labels, unique = dataset.labels(outcomes, format='id')
+
+    # Prepare bags and targets
+    slides = list(labels.keys())
+    if isinstance(bags, str):
+        bags = dataset.pt_files(bags)
+    else:
+        bags = np.array([b for b in bags if path_to_name(b) in slides])
+
+    # Ensure slide names are sorted according to the bags.
+    slides = [path_to_name(b) for b in bags]
+
+    y_true = np.array([labels[s] for s in slides])
+
+    # Detect feature size from bags
+    n_features = torch.load(bags[0]).shape[-1]
+    n_out = len(unique)
+
+    # Build the model
+    if isinstance(config, TrainerConfigCLAM):
+        config_size = config.model_fn.sizes[config.model_config.model_size]
+        _size = [n_features] + config_size[1:]
+        model = config.model_fn(size=_size)
+        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
+    elif isinstance(config.model_config, ModelConfigCLAM):
+        config_size = config.model_fn.sizes[config.model_config.model_size]
+        _size = [n_features] + config_size[1:]
+        model = config.model_fn(size=_size)
+        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
+    else:
+        model = config.model_fn(n_features, n_out)
+        log.info(f"Building model {config.model_fn.__name__} "
+                 f"(in={n_features}, out={n_out})")
+    if isdir(weights):
+        if exists(join(weights, 'models', 'best_valid.pth')):
+            weights = join(weights, 'models', 'best_valid.pth')
+        elif exists(join(weights, 'results', 's_0_checkpoint.pt')):
+            weights = join(weights, 'results', 's_0_checkpoint.pt')
+        else:
+            raise errors.ModelError(
+                f"Could not find model weights at path {weights}"
+            )
+    log.info(f"Loading model weights from [green]{weights}[/]")
+    model.load_state_dict(torch.load(weights))
+
+    # Inference.
+    if (isinstance(config, TrainerConfigCLAM)
+       or isinstance(config.model_config, ModelConfigCLAM)):
+        y_pred, y_att = _predict_clam(model, bags, attention=True)
+    else:
+        y_pred, y_att = _predict_mil(
+            model, bags, attention=True, use_lens=config.model_config.use_lens
+        )
+    
+    # Export attention
+    if not exists(att_path):
+        os.makedirs(att_path)
+    for slide, att in zip(slides, y_att):
+        if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
+            out_path = join(att_path, f'{slide}_att.npy')
+            np.save(out_path, att)
+        else:
+            out_path = join(att_path, f'{slide}_att.npz')
+            np.savez(out_path, att)
+    log.info(f"Attention scores exported to [green]{out_path}[/]")
+    
+    df_dict = dict(slide=slides, y_att=y_att)
+    for i in range(len(y_att)):
+        print(len(y_att[i]))
+        df_dict[f'y_att{i}'] = y_att[i]
+    df = pd.DataFrame(df_dict)
+    att_out = join(att_path, 'predictions.parquet')
+    df.to_parquet(att_out)
+    log.info(f"Predictions saved to [green]{att_out}[/]")
+    
 
 def generate_attention_heatmaps(
     outdir: str,

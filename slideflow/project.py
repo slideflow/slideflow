@@ -2243,6 +2243,19 @@ class Project:
             process.start()
             process.join()
 
+    def generate_mil_features(
+        model,
+        model_path,
+        config, 
+        dataset, 
+        outcomes, 
+        bags, 
+        att_path
+    ):
+        from .mil import generate_mil_features
+
+        return generate_mil_features(model, model_path, config, dataset, outcomes, bags, att_path)
+
     def generate_mosaic(
         self,
         df: "DatasetFeatures",

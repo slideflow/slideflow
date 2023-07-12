@@ -16,7 +16,7 @@ class TransMIL(nn.Module):
         self.layer2 = TransLayer(dim=512)
         self.norm = nn.LayerNorm(512)
         self._fc2 = nn.Linear(512, self.n_classes)
-
+        
     def calculate_attention(self, h):
         h = self._fc1(h) #[B, n, 1024] -> [B, n, 512]
 
