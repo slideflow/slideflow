@@ -318,8 +318,8 @@ def build_fastai_learner(
 
     # Write slide/bag manifest
     sf.util.log_manifest(
-        train_slides,
-        val_slides,
+        [bag for bag in bags if path_to_name(bag) in train_slides],
+        [bag for bag in bags if path_to_name(bag) in val_slides],
         labels=labels,
         filename=join(outdir, 'slide_manifest.csv')
     )
