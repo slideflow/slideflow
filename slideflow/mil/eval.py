@@ -13,6 +13,7 @@ from slideflow.stats.metrics import ClassifierMetrics
 from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
+from .models.model_activation import TransMILActivation
 
 # -----------------------------------------------------------------------------
 
@@ -248,7 +249,7 @@ def predict_from_model(
     else:
         return df
 
-def generate_mil_features(model, weights, config, dataset, outcomes, bags, att_path):
+def generate_mil_features(model, weights, config, dataset, outcomes, bags, act_path, out):
     # check transMIL model
     import torch
 
@@ -316,32 +317,33 @@ def generate_mil_features(model, weights, config, dataset, outcomes, bags, att_p
     # Inference.
     if (isinstance(config, TrainerConfigCLAM)
        or isinstance(config.model_config, ModelConfigCLAM)):
-        y_pred, y_att = _predict_clam(model, bags, attention=True)
+        y_pred, y_att= _predict_clam(model, bags, attention=True)
     else:
-        y_pred, y_att = _predict_mil(
+        y_pred, y_att, hs = _predict_mil_activations(
             model, bags, attention=True, use_lens=config.model_config.use_lens
         )
     
-    # Export attention
-    if not exists(att_path):
-        os.makedirs(att_path)
-    for slide, att in zip(slides, y_att):
-        if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
-            out_path = join(att_path, f'{slide}_att.npy')
-            np.save(out_path, att)
-        else:
-            out_path = join(att_path, f'{slide}_att.npz')
-            np.savez(out_path, att)
-    log.info(f"Attention scores exported to [green]{out_path}[/]")
+    # Export activations
+    if not exists(act_path):
+        os.makedirs(act_path)
     
-    df_dict = dict(slide=slides, y_att=y_att)
-    for i in range(len(y_att)):
-        print(len(y_att[i]))
-        df_dict[f'y_att{i}'] = y_att[i]
-    df = pd.DataFrame(df_dict)
-    att_out = join(att_path, 'predictions.parquet')
-    df.to_parquet(att_out)
-    log.info(f"Predictions saved to [green]{att_out}[/]")
+    df_dict = {}
+    for i in range(len(hs)):
+        df_dict[f'y_act{i}'] = [hs[i]]
+        print(hs[i].shape)
+    df = pd.DataFrame.from_dict(df_dict, orient= 'index', columns= ['activation'])
+    print(df)
+    
+    if out=='parquet':
+        act_out = join(act_path, 'activations.parquet')
+        df.to_parquet(act_out)
+    elif out=='csv':
+        act_out = join(act_path, 'activations.csv')
+        df.to_csv(act_out)
+    else:
+        raise NotImplementedError
+    log.info(f"Activations saved to [green]{act_out}[/]")
+    
     
 
 def generate_attention_heatmaps(
@@ -520,3 +522,76 @@ def _predict_mil(
             y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att
+
+def _predict_mil_activations(
+    model: Callable,
+    bags: Union[np.ndarray, List[str]],
+    attention: bool = False,
+    attention_pooling: str = 'avg',
+    use_lens: bool = False,
+    device: Optional[Any] = None
+) -> Tuple[np.ndarray, List[np.ndarray]]:
+
+#Same as _predict_mil(), except it also returns activations (hs)
+
+
+    import torch
+
+    # Auto-detect device.
+    if device is None:
+        if next(model.parameters()).is_cuda:
+            log.debug("Auto device detection: using CUDA")
+            device = torch.device('cuda')
+        else:
+            log.debug("Auto device detection: using CPU")
+            device = torch.device('cpu')
+    elif isinstance(device, str):
+        log.debug(f"Using {device}")
+        device = torch.device(device)
+    
+    #TO DO get general ACTIVATION superclass
+    activator= TransMILActivation(model)
+    #activator= Activator(model)
+    y_pred = []
+    y_att  = []
+    hs= []
+    log.info("Generating predictions...")
+    if attention and not hasattr(model, 'calculate_attention'):
+        log.warning(
+            "Model '{}' does not have a method 'calculate_attention'. "
+            "Unable to calculate or display attention heatmaps.".format(
+                model.__class__.__name__
+            )
+        )
+        attention = False
+    for bag in bags:
+        loaded = torch.load(bag).to(device)
+        loaded = torch.unsqueeze(loaded, dim=0)
+        with torch.no_grad():
+            if use_lens:
+                lens = torch.from_numpy(np.array([loaded.shape[1]])).to(device)
+                model_args = (loaded, lens)
+            else:
+                model_args = (loaded,)
+
+            model_out = model(*model_args)           
+            h= activator(*model_args)
+            hs.append(h)
+            if attention:
+                att = torch.squeeze(model.calculate_attention(*model_args))
+                if len(att.shape) == 2:
+                    # Attention needs to be pooled
+                    if attention_pooling == 'avg':
+                        att = torch.mean(att, dim=-1)
+                    elif attention_pooling == 'max':
+                        att = torch.amax(att, dim=-1)
+                    else:
+                        raise ValueError(
+                            "Unrecognized attention pooling strategy '{}'".format(
+                                attention_pooling
+                            )
+                        )
+                y_att.append(att.cpu().numpy())
+            y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
+    yp = np.concatenate(y_pred, axis=0)
+    return yp, y_att, hs

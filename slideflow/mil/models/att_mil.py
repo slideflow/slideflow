@@ -25,6 +25,8 @@ class Attention_MIL(nn.Module):
             encoder:  A network transforming bag instances into feature vectors.
         """
         super().__init__()
+        self.n_feats= n_feats
+        self.n_classes= n_out
         self.encoder = encoder or nn.Sequential(nn.Linear(n_feats, 256), nn.ReLU())
         self.attention = attention or Attention(256)
         self.head = head or nn.Sequential(

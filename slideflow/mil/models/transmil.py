@@ -8,6 +8,8 @@ import numpy as np
 class TransMIL(nn.Module):
     def __init__(self, n_feats: int, n_out: int,):
         super(TransMIL, self).__init__()
+        self.n_feats= n_feats
+        self.n_out= n_out
         self.pos_layer = PPEG(dim=512)
         self._fc1 = nn.Sequential(nn.Linear(n_feats, 512), nn.ReLU())
         self.cls_token = nn.Parameter(torch.randn(1, 1, 512))
@@ -45,6 +47,7 @@ class TransMIL(nn.Module):
         self.to(device)
 
     def forward(self, h):
+        print("forward transmil")
         h = self._fc1(h) #[B, n, 1024] -> [B, n, 512]
 
         #---->pad
@@ -73,6 +76,8 @@ class TransMIL(nn.Module):
         #---->predict
         logits = self._fc2(h) #[B, n_classes]
         return logits
+    
+
 
 # -----------------------------------------------------------------------------
 
