@@ -38,6 +38,7 @@ from .project_utils import (  # noqa: F401
     get_first_nested_directory, get_matching_directory, BreastER, ThyroidBRS,
     LungAdenoSquam
 )
+from .mil._params import _TrainerConfig
 
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
@@ -2244,18 +2245,15 @@ class Project:
             process.join()
 
     def generate_mil_features(
-        model,
-        model_path,
-        config, 
-        dataset, 
-        outcomes, 
-        bags, 
-        act_path,
-        out: str = 'parquet'
+        weights: str,
+        config: _TrainerConfig,
+        dataset: "sf.Dataset",
+        outcomes: Union[str, List[str]], 
+        bags: Union[str, np.ndarray, List[str]]
     ):
         from .mil import generate_mil_features
 
-        return generate_mil_features(model, model_path, config, dataset, outcomes, bags, act_path, out)
+        return generate_mil_features(weights, config, dataset, outcomes, bags)
 
     def generate_mosaic(
         self,

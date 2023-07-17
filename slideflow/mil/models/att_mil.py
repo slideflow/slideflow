@@ -40,11 +40,23 @@ class Attention_MIL(nn.Module):
         embeddings = self.encoder(bags)
 
         masked_attention_scores = self._masked_attention_scores(embeddings, lens)
+
         weighted_embedding_sums = (masked_attention_scores * embeddings).sum(-2)
 
         scores = self.head(weighted_embedding_sums)
 
         return scores
+
+    def get_last_layer_activations(self, bags, lens):
+        assert bags.ndim == 3
+        assert bags.shape[0] == lens.shape[0]
+
+        embeddings = self.encoder(bags)
+        masked_attention_scores = self._masked_attention_scores(embeddings, lens)
+
+        weighted_embedding_sums = (masked_attention_scores * embeddings).sum(-2)
+        
+        return weighted_embedding_sums
 
     def calculate_attention(self, bags, lens):
         embeddings = self.encoder(bags)

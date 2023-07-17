@@ -10,10 +10,11 @@ from typing import Union, List, Optional, Callable, Tuple, Any
 from slideflow import Dataset, log, errors
 from slideflow.util import path_to_name
 from slideflow.stats.metrics import ClassifierMetrics
+from .features import MILActivations
 from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
-from .models.model_activation import TransMILActivation
+
 
 # -----------------------------------------------------------------------------
 
@@ -249,8 +250,30 @@ def predict_from_model(
     else:
         return df
 
-def generate_mil_features(model, weights, config, dataset, outcomes, bags, act_path, out):
-    # check transMIL model
+def generate_mil_features(
+    weights: str, 
+    config: _TrainerConfig,
+    dataset: "sf.Dataset",
+    outcomes: Union[str, List[str]], 
+    bags: Union[str, np.ndarray, List[str]]
+):
+    """Generate activations weights from the last layer of an MIL model.
+
+    Returns MILActivations object.
+
+    Args:
+        weights (str): Path to model weights to load.
+        dataset (sf.Dataset): Dataset to evaluation.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for building model. If ``weights`` is a path to a
+            model directory, will attempt to read ``mil_params.json`` from this
+            location and load saved configuration. Defaults to None.
+    """
+
     import torch
 
     if isinstance(config, TrainerConfigCLAM):
@@ -314,36 +337,23 @@ def generate_mil_features(model, weights, config, dataset, outcomes, bags, act_p
     log.info(f"Loading model weights from [green]{weights}[/]")
     model.load_state_dict(torch.load(weights))
 
+    # Prepare device.
+    if hasattr(model, 'relocate'):
+        model.relocate()  # type: ignore
+    model.eval()
+
     # Inference.
     if (isinstance(config, TrainerConfigCLAM)
        or isinstance(config.model_config, ModelConfigCLAM)):
-        y_pred, y_att= _predict_clam(model, bags, attention=True)
+        y_pred, y_att = _predict_clam(model, bags, attention=True)
     else:
         y_pred, y_att, hs = _predict_mil_activations(
             model, bags, attention=True, use_lens=config.model_config.use_lens
         )
-    
-    # Export activations
-    if not exists(act_path):
-        os.makedirs(act_path)
-    
-    df_dict = {}
-    for i in range(len(hs)):
-        df_dict[f'y_act{i}'] = [hs[i]]
-        print(hs[i].shape)
-    df = pd.DataFrame.from_dict(df_dict, orient= 'index', columns= ['activation'])
-    print(df)
-    
-    if out=='parquet':
-        act_out = join(act_path, 'activations.parquet')
-        df.to_parquet(act_out)
-    elif out=='csv':
-        act_out = join(act_path, 'activations.csv')
-        df.to_csv(act_out)
-    else:
-        raise NotImplementedError
-    log.info(f"Activations saved to [green]{act_out}[/]")
-    
+    annotations= dataset.annotations
+    print(type(annotations))
+    activations= MILActivations(model, config, hs, slides, annotations)
+    return activations   
     
 
 def generate_attention_heatmaps(
@@ -523,6 +533,7 @@ def _predict_mil(
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att
 
+
 def _predict_mil_activations(
     model: Callable,
     bags: Union[np.ndarray, List[str]],
@@ -531,9 +542,6 @@ def _predict_mil_activations(
     use_lens: bool = False,
     device: Optional[Any] = None
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
-
-#Same as _predict_mil(), except it also returns activations (hs)
-
 
     import torch
 
@@ -548,10 +556,7 @@ def _predict_mil_activations(
     elif isinstance(device, str):
         log.debug(f"Using {device}")
         device = torch.device(device)
-    
-    #TO DO get general ACTIVATION superclass
-    activator= TransMILActivation(model)
-    #activator= Activator(model)
+
     y_pred = []
     y_att  = []
     hs= []
@@ -573,10 +578,12 @@ def _predict_mil_activations(
                 model_args = (loaded, lens)
             else:
                 model_args = (loaded,)
-
-            model_out = model(*model_args)           
-            h= activator(*model_args)
+            model_out = model(*model_args)
+            h = model.get_last_layer_activations(*model_args)#added
+            if device == torch.device('cuda'):
+                h= h.to(torch.device("cpu"))
             hs.append(h)
+
             if attention:
                 att = torch.squeeze(model.calculate_attention(*model_args))
                 if len(att.shape) == 2:
