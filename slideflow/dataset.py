@@ -707,7 +707,7 @@ class Dataset:
             str: Image format of tfrecords (PNG or JPG), or None if no
             tfrecords have been extracted.
         """
-        return self.verify_img_format()
+        return self.verify_img_format(progress=False)
 
     def _tfrecords_set(self, source: str):
         if source not in self.sources:
@@ -2412,7 +2412,9 @@ class Dataset:
                 raise ValueError(f'Unknown filtering argument {kwarg}')
         ret = copy.deepcopy(self)
         if 'filters' in kwargs:
-            if not isinstance(kwargs['filters'], list):
+            if isinstance(kwargs['filters'], str):
+                kwargs['filters'] = [kwargs['filters']]
+            elif not isinstance(kwargs['filters'], list):
                 raise TypeError("'filters' must be a list.")
             for f in kwargs['filters']:
                 if f not in ret._filters:
@@ -3225,7 +3227,7 @@ class Dataset:
             clip = self._clip
             if not tfrecords:
                 raise errors.TFRecordsNotFoundError
-            self.verify_img_format()
+            self.verify_img_format(progress=False)
 
         return interleave(paths=tfrecords,
                           labels=labels,
@@ -3485,7 +3487,7 @@ class Dataset:
 
     def tfrecords_have_locations(self) -> bool:
         """Check if TFRecords have associated tile location information."""
-        for tfr in tqdm(self.tfrecords(), leave=False, desc="Working..."):
+        for tfr in self.tfrecords():
             try:
                 tfr_has_loc = sf.io.tfrecord_has_locations(tfr)
             except errors.TFRecordsError:
@@ -3674,7 +3676,7 @@ class Dataset:
             tfrecords = self.tfrecords()
             if not tfrecords:
                 raise errors.TFRecordsNotFoundError
-            self.verify_img_format()
+            self.verify_img_format(progress=False)
             _idx_dict = self.load_indices()
             indices = [_idx_dict[path_to_name(tfr)] for tfr in tfrecords]
             clip = self._clip
@@ -3862,7 +3864,7 @@ class Dataset:
         if n_missing > 1:
             log.warn(f"{n_missing} patients do not have a slide assigned.")
 
-    def verify_img_format(self) -> Optional[str]:
+    def verify_img_format(self, *, progress: bool = True) -> Optional[str]:
         """Verify that all tfrecords have the same image format (PNG/JPG).
 
         Returns:
@@ -3871,11 +3873,14 @@ class Dataset:
         tfrecords = self.tfrecords()
         if len(tfrecords):
             img_formats = []
-            pb = track(
-                tfrecords,
-                description="Verifying tfrecord formats...",
-                transient=True
-            )
+            if progress:
+                pb = track(
+                    tfrecords,
+                    description="Verifying tfrecord formats...",
+                    transient=True
+                )
+            else:
+                pb = tfrecords
             for tfr in pb:
                 fmt = sf.io.detect_tfrecord_format(tfr)[-1]
                 if fmt is not None:
