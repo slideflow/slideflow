@@ -15,7 +15,6 @@ from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
 
-
 # -----------------------------------------------------------------------------
 
 def eval_mil(
@@ -341,18 +340,22 @@ def generate_mil_features(
     if hasattr(model, 'relocate'):
         model.relocate()  # type: ignore
     model.eval()
+    
+    #Check for correct model
+    if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
+        raise NotImplementedError
 
     # Inference.
     if (isinstance(config, TrainerConfigCLAM)
        or isinstance(config.model_config, ModelConfigCLAM)):
         y_pred, y_att = _predict_clam(model, bags, attention=True)
     else:
-        y_pred, y_att, hs = _predict_mil_activations(
+        y_pred, y_att, hs = _get_mil_activations(
             model, bags, attention=True, use_lens=config.model_config.use_lens
         )
     annotations= dataset.annotations
     print(type(annotations))
-    activations= MILActivations(model, config, hs, slides, annotations)
+    activations= MILActivations(hs, slides, annotations)
     return activations   
     
 
@@ -534,7 +537,7 @@ def _predict_mil(
     return yp, y_att
 
 
-def _predict_mil_activations(
+def _get_mil_activations(
     model: Callable,
     bags: Union[np.ndarray, List[str]],
     attention: bool = False,
@@ -579,7 +582,7 @@ def _predict_mil_activations(
             else:
                 model_args = (loaded,)
             model_out = model(*model_args)
-            h = model.get_last_layer_activations(*model_args)#added
+            h = model.get_last_layer_activations(*model_args)
             if device == torch.device('cuda'):
                 h= h.to(torch.device("cpu"))
             hs.append(h)

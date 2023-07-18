@@ -43,7 +43,7 @@ from .mil._params import _TrainerConfig
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
     from slideflow.slide import SlideReport
-    from slideflow import simclr, swav, mil
+    from slideflow import simclr, mil
     from ConfigSpace import ConfigurationSpace, Configuration
     from smac.facade.smac_bb_facade import SMAC4BB  # noqa: F401
 
@@ -2251,6 +2251,22 @@ class Project:
         outcomes: Union[str, List[str]], 
         bags: Union[str, np.ndarray, List[str]]
     ):
+        """Generate activations weights from the last layer of an MIL model.
+
+        Returns MILActivations object.
+
+        Args:
+            weights (str): Path to model weights to load.
+            dataset (sf.Dataset): Dataset to evaluation.
+            outcomes (str, list(str)): Outcomes.
+            bags (str, list(str)): Path to bags, or list of bag file paths.
+                Each bag should contain PyTorch array of features from all tiles in
+                a slide, with the shape ``(n_tiles, n_features)``.
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+                Configuration for building model. If ``weights`` is a path to a
+                model directory, will attempt to read ``mil_params.json`` from this
+                location and load saved configuration. Defaults to None.
+        """
         from .mil import generate_mil_features
 
         return generate_mil_features(weights, config, dataset, outcomes, bags)
@@ -3687,61 +3703,6 @@ class Project:
             normalizer_source=normalizer_source
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
-
-    def train_swav_old(
-        self,
-        swav_args: "swav.SwAV_Args",
-        train_dataset: Dataset,
-        *,
-        exp_label: Optional[str] = None,
-        # outcomes: Optional[Union[str, List[str]]] = None,
-        # FIXME: outcomes
-        dataset_kwargs: Optional[Dict[str, Any]] = dict(),
-    ) -> None:
-        from slideflow import swav
-
-        # making sure user does not specify two different batch sizes
-        if 'batch_size' in dataset_kwargs:
-            raise ValueError(
-                f"specify batch_size in swav_args not dataset_kwargs")
-        dataset_kwargs['batch_size'] = swav_args.batch_size
-
-        # get base SwAV args/settings if not provided
-        if not swav_args:
-            swav_args = swav.get_args()
-        assert isinstance(swav_args, swav.SwAV_Args)
-
-        # Set up SwAV experiment data directory
-        if exp_label is None:
-            exp_label = 'swav'
-        if not exists(join(self.root, 'swav')):
-            os.makedirs(join(self.root, 'swav'))
-        dump_path = sf.util.create_new_model_dir(
-            join(self.root, 'swav'), exp_label
-        )
-        swav_args.dump_path = dump_path
-
-        # add crops 'c' and its arguments to augment string
-        if 'augment' not in dataset_kwargs:
-            dataset_kwargs['augment'] = 'xydbn'
-        dataset_kwargs['augment'] += 'c'
-        assert len(swav_args.nmb_crops) == len(swav_args.size_crops) == \
-               len(swav_args.min_scale_crops) == len(swav_args.max_scale_crops)
-        lists = [swav_args.nmb_crops, swav_args.size_crops, \
-                 swav_args.min_scale_crops, swav_args.max_scale_crops]
-        for lst in lists:
-            dataset_kwargs['augment'] += "-"
-            for el in lst:
-                dataset_kwargs['augment'] += f"{el},"
-            dataset_kwargs['augment'] = dataset_kwargs['augment'].rstrip(',')
-
-        # create dataloader
-        train_loader = train_dataset.torch(
-            interleave_iter='MulitCropInterleaveIterator',
-            **dataset_kwargs 
-        )
-
-        swav.run_swav(swav_args, train_loader)
 
     def train_swav(
         self,
