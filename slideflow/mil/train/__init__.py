@@ -422,7 +422,7 @@ def train_fastai(
 
     # TODO: use `sf.stats.metrics` to generate categorical metrics
     # or linear metrics, which will include per-category accuracy
-    sf.stats.metrics.categorical_metrics(df, level='slide')
+    # sf.stats.metrics.categorical_metrics(df, level='slide')
 
     # Attention heatmaps.
     if attention and attention_heatmaps:
