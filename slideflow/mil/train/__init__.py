@@ -237,6 +237,14 @@ def train_clam(
     df.to_parquet(pred_out)
     log.info(f"Predictions saved to [green]{pred_out}[/]")
 
+    # Print categorical metrics, including per-category accuracy
+    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
+    df.rename(
+        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'},
+        inplace=True
+    )
+    sf.stats.metrics.categorical_metrics(df, level='slide')
+
     # Attention heatmaps
     if isinstance(bags, str):
         val_bags = val_dataset.pt_files(bags)
@@ -420,8 +428,12 @@ def train_fastai(
     df.to_parquet(pred_out)
     log.info(f"Predictions saved to [green]{pred_out}[/]")
 
-    # TODO: use `sf.stats.metrics` to generate categorical metrics
-    # or linear metrics, which will include per-category accuracy
+    # Print categorical metrics, including per-category accuracy
+    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
+    df.rename(
+        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'},
+        inplace=True
+    )
     sf.stats.metrics.categorical_metrics(df, level='slide')
 
     # Attention heatmaps.

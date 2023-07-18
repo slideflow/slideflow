@@ -157,6 +157,13 @@ def eval_mil(
     df.to_parquet(pred_out)
     log.info(f"Predictions saved to [green]{pred_out}[/]")
 
+    # Print categorical metrics, including per-category accuracy
+    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
+    metrics_df = df.rename(
+        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
+    )
+    sf.stats.metrics.categorical_metrics(metrics_df, level='slide')
+
     # Export attention
     if y_att:
         att_path = join(model_dir, 'attention')
