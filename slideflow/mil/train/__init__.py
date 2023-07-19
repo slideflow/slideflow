@@ -79,7 +79,10 @@ def train_mil(
     # Set up experiment label
     if exp_label is None:
         try:
-            exp_label = config.model_config.model
+            exp_label = '{}-{}'.format(
+                config.model_config.model,
+                "-".join(outcomes if isinstance(outcomes, list) else [outcomes])
+            )
         except Exception:
             exp_label = 'no_label'
 
@@ -87,7 +90,18 @@ def train_mil(
     if not exists(outdir):
         os.makedirs(outdir)
     outdir = sf.util.create_new_model_dir(outdir, exp_label)
-    sf.util.write_json(config.json_dump(), join(outdir, 'mil_params.json'))
+
+    # Log MIL training parameters
+    mil_params = config.json_dump()
+    mil_params['outcomes'] = outcomes
+    mil_params['bags'] = bags
+    if isinstance(bags, str) and exists(join(bags, 'bags_config.json')):
+        mil_params['bags_encoder'] = sf.util.load_json(
+            join(bags, 'bags_config.json')
+        )
+    else:
+        mil_params['bags_encoder'] = None
+    sf.util.write_json(mil_params, join(outdir, 'mil_params.json'))
 
     return train_fn(
         config,

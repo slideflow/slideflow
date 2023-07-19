@@ -29,7 +29,7 @@ def features_from_slide_torch(
         device = torch_utils.get_device(device)
 
         log.debug(f"Slide prediction (batch_size={batch_size})")
-        if 'normalizer' in kwargs:
+        if 'normalizer' in kwargs and kwargs['normalizer']:
             n = kwargs['normalizer']
             if isinstance(n, str):
                 log.debug(f"Using stain normalizer: {n}")

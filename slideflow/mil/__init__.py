@@ -5,3 +5,4 @@ from ._params import (
     mil_config, _TrainerConfig, TrainerConfigFastAI, TrainerConfigCLAM,
     ModelConfigCLAM, ModelConfigFastAI
 )
+from .utils import build_bag_encoder
