@@ -17,6 +17,7 @@ from ._params import (
 
 # -----------------------------------------------------------------------------
 
+
 def eval_mil(
     weights: str,
     dataset: Dataset,
@@ -142,7 +143,8 @@ def eval_mil(
 
     # Generate metrics
     for idx in range(y_pred.shape[-1]):
-        m = ClassifierMetrics(y_true=(y_true == idx).astype(int), y_pred=y_pred[:, idx])
+        m = ClassifierMetrics(
+            y_true=(y_true == idx).astype(int), y_pred=y_pred[:, idx])
         log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
         log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
 
@@ -249,11 +251,12 @@ def predict_from_model(
     else:
         return df
 
+
 def generate_mil_features(
-    weights: str, 
+    weights: str,
     config: _TrainerConfig,
     dataset: "sf.Dataset",
-    outcomes: Union[str, List[str]], 
+    outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]]
 ):
     """Generate activations weights from the last layer of an MIL model.
@@ -277,7 +280,7 @@ def generate_mil_features(
 
     if isinstance(config, TrainerConfigCLAM):
         raise NotImplementedError
-    #Check for correct model
+    # Check for correct model
     if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
         raise NotImplementedError
 
@@ -343,11 +346,12 @@ def generate_mil_features(
     if hasattr(model, 'relocate'):
         model.relocate()  # type: ignore
     model.eval()
-    
-    annotations= dataset.annotations
-    activations= MILFeatures(model, bags, slides, annotations, use_lens=config.model_config.use_lens)
-    return activations   
-    
+
+    annotations = dataset.annotations
+    activations = MILFeatures(
+        model, bags, slides, annotations, use_lens=config.model_config.use_lens)
+    return activations
+
 
 def generate_attention_heatmaps(
     outdir: str,
@@ -418,6 +422,7 @@ def generate_attention_heatmaps(
 
 # -----------------------------------------------------------------------------
 
+
 def _predict_clam(
     model: Callable,
     bags: Union[np.ndarray, List[str]],
@@ -447,7 +452,7 @@ def _predict_clam(
         device = torch.device(device)
 
     y_pred = []
-    y_att  = []
+    y_att = []
     log.info("Generating predictions...")
     for bag in bags:
         loaded = torch.load(bag).to(device)
@@ -458,7 +463,8 @@ def _predict_clam(
                 logits, att = model(loaded, **clam_kw)
             if attention:
                 y_att.append(np.squeeze(att.cpu().numpy()))
-            y_pred.append(torch.nn.functional.softmax(logits, dim=1).cpu().numpy())
+            y_pred.append(torch.nn.functional.softmax(
+                logits, dim=1).cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att
 
@@ -487,7 +493,7 @@ def _predict_mil(
         device = torch.device(device)
 
     y_pred = []
-    y_att  = []
+    y_att = []
     log.info("Generating predictions...")
     if attention and not hasattr(model, 'calculate_attention'):
         log.warning(
@@ -522,6 +528,7 @@ def _predict_mil(
                             )
                         )
                 y_att.append(att.cpu().numpy())
-            y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
+            y_pred.append(torch.nn.functional.softmax(
+                model_out, dim=1).cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att

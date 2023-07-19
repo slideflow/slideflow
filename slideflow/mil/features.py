@@ -15,23 +15,24 @@ import slideflow as sf
 import torch
 import tensorflow as tf
 
+
 class MILFeatures():
     """Loads annotations, saved layer activations / features, predictions, 
     and prepares output pandas DataFrame."""
+
     def __init__(
-        self, 
+        self,
         model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
         bags: Union[np.ndarray, List[str], str],
-        slides: list, 
+        slides: list,
         annotations: Union[str, "pd.core.frame.DataFrame"],
         use_lens: bool,
         config: Optional[_TrainerConfig] = None,
-        dataset: Optional["sf.Dataset"]= None,
-        outcomes: Optional[Union[str, List[str]]]= None, 
+        dataset: Optional["sf.Dataset"] = None,
+        outcomes: Optional[Union[str, List[str]]] = None,
         attention_pooling: Optional[str] = 'avg',
         device: Optional[Any] = None
-        ):
-
+    ):
         """Loads in model from Callable or path to model weights and config.
         Saves activations from hidden layer weights, predictions, and attention weight, 
         storing to internal parameters ``self.activations``, ``self.predictions``, ``self.attentions`` dictionaries 
@@ -53,28 +54,31 @@ class MILFeatures():
             device (Any): device backend for torch tensors
         """
         if type(model) is not str:
-            self.model= model
+            self.model = model
             self.slides = slides
             self.annotations = self._get_annotations(annotations)
         elif (config is not None) and (outcomes is not None) and (dataset is not None):
             log.info(f"Building model {config.model_fn.__name__} from path")
-            self.slides, self.model = self.generate_model(model, config, dataset, outcomes, bags)
-            self.annotations= dataset.annotations
+            self.slides, self.model = self.generate_model(
+                model, config, dataset, outcomes, bags)
+            self.annotations = dataset.annotations
             if isinstance(bags, str):
                 bags = dataset.pt_files(bags)
             else:
                 bags = np.array([b for b in bags if path_to_name(b) in slides])
         else:
-            raise RuntimeError('Model path detected without config, dataset, bags, or outcomes')
-        
-        self.num_features, self.predictions, self.attentions, self.activations= self._get_mil_activations(self.model, bags, attention_pooling, use_lens, device)
+            raise RuntimeError(
+                'Model path detected without config, dataset, bags, or outcomes')
+
+        self.num_features, self.predictions, self.attentions, self.activations = self._get_mil_activations(
+            self.model, bags, attention_pooling, use_lens, device)
 
     def generate_model(
         self,
-        weights: str, 
+        weights: str,
         config: _TrainerConfig,
         dataset: "sf.Dataset",
-        outcomes: Union[str, List[str]], 
+        outcomes: Union[str, List[str]],
         bags: Union[str, np.ndarray, List[str]]
     ):
         """Generate model from model path and config.
@@ -98,7 +102,7 @@ class MILFeatures():
 
         if isinstance(config, TrainerConfigCLAM):
             raise NotImplementedError
-        #Check for correct model
+        # Check for correct model
         if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
             raise NotImplementedError
 
@@ -136,16 +140,18 @@ class MILFeatures():
             config_size = config.model_fn.sizes[config.model_config.model_size]
             _size = [n_features] + config_size[1:]
             model = config.model_fn(size=_size)
-            log.info(f"Building model {config.model_fn.__name__} (size={_size})")
+            log.info(
+                f"Building model {config.model_fn.__name__} (size={_size})")
         elif isinstance(config.model_config, ModelConfigCLAM):
             config_size = config.model_fn.sizes[config.model_config.model_size]
             _size = [n_features] + config_size[1:]
             model = config.model_fn(size=_size)
-            log.info(f"Building model {config.model_fn.__name__} (size={_size})")
+            log.info(
+                f"Building model {config.model_fn.__name__} (size={_size})")
         else:
             model = config.model_fn(n_features, n_out)
             log.info(f"Building model {config.model_fn.__name__} "
-                    f"(in={n_features}, out={n_out})")
+                     f"(in={n_features}, out={n_out})")
         if isdir(weights):
             if exists(join(weights, 'models', 'best_valid.pth')):
                 weights = join(weights, 'models', 'best_valid.pth')
@@ -162,7 +168,7 @@ class MILFeatures():
         if hasattr(model, 'relocate'):
             model.relocate()  # type: ignore
         model.eval()
-        return slides, model   
+        return slides, model
 
     def _get_mil_activations(
         self,
@@ -196,8 +202,8 @@ class MILFeatures():
             device = torch.device(device)
 
         y_pred = []
-        y_att  = []
-        hs= []
+        y_att = []
+        hs = []
         log.info("Generating predictions...")
 
         if not hasattr(model, 'calculate_attention'):
@@ -207,20 +213,21 @@ class MILFeatures():
                     model.__class__.__name__
                 )
             )
-        
+
         for bag in bags:
             loaded = torch.load(bag).to(device)
             loaded = torch.unsqueeze(loaded, dim=0)
             with torch.no_grad():
                 if use_lens:
-                    lens = torch.from_numpy(np.array([loaded.shape[1]])).to(device)
+                    lens = torch.from_numpy(
+                        np.array([loaded.shape[1]])).to(device)
                     model_args = (loaded, lens)
                 else:
                     model_args = (loaded,)
                 model_out = model(*model_args)
                 h = model.get_last_layer_activations(*model_args)
                 if device == torch.device('cuda'):
-                    h= h.to(torch.device("cpu"))
+                    h = h.to(torch.device("cpu"))
                 hs.append(h)
 
                 att = torch.squeeze(model.calculate_attention(*model_args))
@@ -237,12 +244,13 @@ class MILFeatures():
                             )
                         )
                 y_att.append(att.cpu().numpy())
-                y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
+                y_pred.append(torch.nn.functional.softmax(
+                    model_out, dim=1).cpu().numpy())
         yp = np.concatenate(y_pred, axis=0)
 
-        num_features, acts= self._get_activations(hs)
-        atts= self._get_attentions(y_att)
-        preds= self._get_predictions(yp)
+        num_features, acts = self._get_activations(hs)
+        atts = self._get_attentions(y_att)
+        preds = self._get_predictions(yp)
 
         return num_features, preds, atts, acts
 
@@ -255,7 +263,7 @@ class MILFeatures():
         for slide, h in zip(self.slides, hlw):
             activations[slide] = h.numpy()[0]
 
-        num_features= hlw[0].shape[1]
+        num_features = hlw[0].shape[1]
         return num_features, activations
 
     def _get_annotations(self, annotations):
@@ -267,7 +275,7 @@ class MILFeatures():
             return pd.read_csv(annotations)
         else:
             return annotations
-    
+
     def _get_attentions(self, atts):
         """Formats list of attention weights into dictionary of lists, matched by slide.
         Returns the dictionary."""
@@ -275,7 +283,7 @@ class MILFeatures():
             return None
         attentions = {}
         for slide, att in zip(self.slides, atts):
-            attentions[slide]= att
+            attentions[slide] = att
         return attentions
 
     def _get_predictions(self, preds):
@@ -285,41 +293,41 @@ class MILFeatures():
             return None
         predictions = {}
         for slide, pred in zip(self.slides, preds):
-            predictions[slide]= pred
+            predictions[slide] = pred
         return predictions
 
     @classmethod
-    def from_df(cls, df: "pd.core.frame.DataFrame", *, annotations= Union[str, "pd.core.frame.DataFrame"]):
+    def from_df(cls, df: "pd.core.frame.DataFrame", *, annotations=Union[str, "pd.core.frame.DataFrame"]):
         """Load MILFeatures of activations, as exported by :meth:`MILFeatures.to_df()`"""
-        obj= cls(None, None, None, None, None)
+        obj = cls(None, None, None, None, None)
         if 'slide' in df.columns:
             obj.slides = df['slide'].values
-        elif df.index.name=='slide':
-            obj.slides= df.index.values
-            df['slide']= df.index
+        elif df.index.name == 'slide':
+            obj.slides = df.index.values
+            df['slide'] = df.index
         else:
             raise ValueError("No slides in DataFrame columns")
-        
+
         if 'activations' in df.columns:
             obj.activations = {
-                s: df.loc[df.slide==s].activations.values.tolist()[0]
+                s: df.loc[df.slide == s].activations.values.tolist()[0]
                 for s in obj.slides
             }
-            #obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
+            # obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
         if 'predictions' in df.columns:
             obj.predictions = {
-                s: np.stack(df.loc[df.slide==s].predictions.values[0])
+                s: np.stack(df.loc[df.slide == s].predictions.values[0])
                 for s in obj.slides
             }
-            #obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
+            # obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
         if 'attentions' in df.columns:
-            obj.attentions= {
-                s: np.stack(df.loc[df.slide==s].attentions.values[0])
+            obj.attentions = {
+                s: np.stack(df.loc[df.slide == s].attentions.values[0])
                 for s in obj.slides
             }
         if annotations:
-            obj.annotations= obj._get_annotations(annotations)
-        
+            obj.annotations = obj._get_annotations(annotations)
+
         return obj
 
     def to_df(self) -> pd.core.frame.DataFrame:
@@ -366,12 +374,13 @@ class MILFeatures():
             patients.set_index('slide'), how='inner')
         if self.predictions:
             if self.attentions:
-                df2= df2[['patient', 'activations', 'predictions', 'activations']]
+                df2 = df2[['patient', 'activations',
+                           'predictions', 'activations']]
             else:
-                df2= df2[['patient', 'activations', 'predictions']]
+                df2 = df2[['patient', 'activations', 'predictions']]
         elif self.attentions:
-            df2= df2[['patient', 'activations', 'activations']]
+            df2 = df2[['patient', 'activations', 'activations']]
         else:
-            df2= df2[['patient', 'activations']]
+            df2 = df2[['patient', 'activations']]
 
         return df2
