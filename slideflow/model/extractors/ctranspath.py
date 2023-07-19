@@ -605,6 +605,7 @@ class CTransPathFeatures(BaseFeatureExtractor):
         ]
         self.transform = transforms.Compose(all_transforms)
         self.preprocess_kwargs = dict(standardize=False)
+        self._center_crop = center_crop
         # ---------------------------------------------------------------------
 
     def __call__(self, obj, **kwargs):
@@ -616,7 +617,23 @@ class CTransPathFeatures(BaseFeatureExtractor):
                 device=self.device,
                 **kwargs
             )
+        elif kwargs:
+            raise ValueError(
+                f"{self.__class__.__name__} does not accept keyword arguments "
+                "when extracting features from a batch of images."
+            )
         assert obj.dtype == torch.uint8
         obj = self.transform(obj)
         return self.model(obj)
 
+    def dump_config(self):
+        """Return a dictionary of configuration parameters.
+
+        These configuration parameters can be used to reconstruct the
+        feature extractor, using ``slideflow.model.build_feature_extractor()``.
+
+        """
+        return {
+            'class': 'slideflow.model.extractors.ctranspath.CTransPathFeatures',
+            'kwargs': {'center_crop': self._center_crop}
+        }

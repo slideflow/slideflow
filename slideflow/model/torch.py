@@ -1977,6 +1977,8 @@ class Features(BaseFeatureExtractor):
         self.apply_softmax = apply_softmax
         self.mixed_precision = mixed_precision
         self._model = None
+        self._pooling = None
+        self._include_preds = None
         # Hook for storing layer activations during model inference
         self.activation = {}  # type: Dict[Any, Tensor]
 
@@ -2091,6 +2093,15 @@ class Features(BaseFeatureExtractor):
         else:
             return self._predict(inp, **kwargs)
 
+    def __repr__(self):
+        return ("{}(\n".format(self.__class__.__name__) +
+                "    path={!r},\n".format(self.path) +
+                "    layers={!r},\n".format(self.layers) +
+                "    include_preds={!r},\n".format(self.include_preds) +
+                "    apply_softmax={!r},\n".format(self.apply_softmax) +
+                "    pooling={!r},\n".format(self._pooling) +
+                ")")
+
     def _predict_slide(
         self,
         slide: "sf.WSI",
@@ -2102,6 +2113,8 @@ class Features(BaseFeatureExtractor):
         shuffle: bool = False,
         show_progress: bool = True,
         callback: Optional[Callable] = None,
+        normalizer: Optional[Union[str, "StainNormalizer"]] = None,
+        normalizer_source: Optional[str] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -2139,12 +2152,24 @@ class Features(BaseFeatureExtractor):
             log.error(f"No tiles extracted from slide [green]{slide.name}")
             return None
 
+        # Establish stain normalization
+        if isinstance(normalizer, str):
+            norm = sf.norm.autoselect(normalizer, source=normalizer_source)
+        elif normalizer:
+            norm = normalizer
+        else:
+            norm = self.wsi_normalizer
+        if norm:
+            log.debug(f"Using stain normalizer: {norm.method}")
+
         class SlideIterator(torch.utils.data.IterableDataset):
-            def __init__(self, parent, *args, **kwargs):
+            def __init__(self, parent, normalizer, *args, **kwargs):
                 super(SlideIterator).__init__(*args, **kwargs)
+                self.normalizer = normalizer
                 self.parent = parent
 
             def __iter__(self):
+                nonlocal norm
                 for image_dict in generator():
                     img = image_dict['image']
                     if img_format not in ('numpy', 'png'):
@@ -2154,10 +2179,10 @@ class Features(BaseFeatureExtractor):
                     else:
                         img = torch.from_numpy(img).permute(2, 0, 1)
 
-                    if self.parent.wsi_normalizer:
+                    if self.normalizer:
                         img = img.permute(1, 2, 0)  # CWH => WHC
                         img = torch.from_numpy(
-                            self.parent.wsi_normalizer.rgb_to_rgb(
+                            self.normalizer.rgb_to_rgb(
                                 img.cpu().float().detach().numpy()
                             )
                         )
@@ -2168,6 +2193,7 @@ class Features(BaseFeatureExtractor):
 
         tile_dataset = torch.utils.data.DataLoader(
             SlideIterator(self),
+            normalizer=norm,
             batch_size=batch_size)
 
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
@@ -2276,6 +2302,8 @@ class Features(BaseFeatureExtractor):
                 callable PyTorch function.
         """
 
+        self._pooling = pooling
+
         if isinstance(pooling, str):
             if pooling == 'avg':
                 pooling = lambda x: torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
@@ -2333,6 +2361,20 @@ class Features(BaseFeatureExtractor):
             log.debug(f'Number of classes: {self.num_classes}')
         log.debug(f'Number of activation features: {self.num_features}')
 
+    def dump_config(self):
+        return {
+            'class': 'slideflow.model.torch.Features',
+            'kwargs': {
+                'path': self.path,
+                'layers': self.layers,
+                'include_preds': self.include_preds,
+                'apply_softmax': self.apply_softmax,
+                'pooling': self._pooling
+            }
+        }
+
+
+
 
 class UncertaintyInterface(Features):
 
@@ -2374,6 +2416,14 @@ class UncertaintyInterface(Features):
         obj = super().from_model(*args, **kwargs)
         torch_utils.enable_dropout(obj._model)
         return obj
+
+    def __repr__(self):
+        return ("{}(\n".format(self.__class__.__name__) +
+                "    path={!r},\n".format(self.path) +
+                "    layers={!r},\n".format(self.layers) +
+                "    apply_softmax={!r},\n".format(self.apply_softmax) +
+                "    pooling={!r},\n".format(self._pooling) +
+                ")")
 
     def _predict(self, inp: Tensor, no_grad: bool = True) -> List[Tensor]:
         """Return activations (mean), predictions (mean), and uncertainty
@@ -2432,6 +2482,17 @@ class UncertaintyInterface(Features):
             return reduced_activations + [predictions, uncertainty]
         else:
             return predictions, uncertainty
+
+    def dump_config(self):
+        return {
+            'class': 'slideflow.model.torch.UncertaintyInterface',
+            'kwargs': {
+                'path': self.path,
+                'layers': self.layers,
+                'apply_softmax': self.apply_softmax,
+                'pooling': self._pooling
+            }
+        }
 
 # -----------------------------------------------------------------------------
 

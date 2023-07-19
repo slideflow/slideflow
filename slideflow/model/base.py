@@ -496,6 +496,19 @@ class BaseFeatureExtractor:
     def is_tensorflow(self):
         return self.backend == 'tensorflow'
 
+    def __call__(self, obj, **kwargs):
+        raise NotImplementedError
+
+    def dump_config(self):
+        """Dump the configuration of this feature extractor.
+
+        The configuration should be a dictionary of all parameters needed to
+        re-instantiate this feature extractor. The dictionary should have the
+        keys 'class' and 'kwargs', where 'class' is the name of the class, and
+        'kwargs' is a dictionary of keyword arguments.
+        """
+        raise NotImplementedError
+
 
 class HyperParameterError(Exception):
     pass

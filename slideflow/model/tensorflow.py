@@ -2175,6 +2175,8 @@ class Features(BaseFeatureExtractor):
             layers = [layers]
         self.layers = layers
         self.path = path
+        self._pooling = None
+        self._include_preds = None
         if path is not None:
             self._model = load(self.path, method=load_method)  # type: ignore
             config = sf.util.get_model_config(path)
@@ -2216,7 +2218,7 @@ class Features(BaseFeatureExtractor):
             include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             wsi_normalizer (:class:`slideflow.norm.StainNormalizer`): Stain
-                normalizer to use on whole-slide images. Is not used on
+                normalizer to use on whole-slide images. Not used on
                 individual tile datasets via __call__. Defaults to None.
         """
         obj = cls(None, layers, include_preds)
@@ -2230,6 +2232,14 @@ class Features(BaseFeatureExtractor):
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj
+
+    def __repr__(self):
+        return ("{}(\n".format(self.__class__.__name__) +
+                "    path={!r},\n".format(self.path) +
+                "    layers={!r},\n".format(self.layers) +
+                "    include_preds={!r},\n".format(self._include_preds) +
+                "    pooling={!r},\n".format(self._pooling) +
+                ")")
 
     def __call__(
         self,
@@ -2259,6 +2269,8 @@ class Features(BaseFeatureExtractor):
         shuffle: bool = False,
         show_progress: bool = True,
         callback: Optional[Callable] = None,
+        normalizer: Optional[Union[str, "sf.norm.StainNormalizer"]] = None,
+        normalizer_source: Optional[str] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -2343,21 +2355,30 @@ class Features(BaseFeatureExtractor):
                 num_parallel_calls=tf.data.AUTOTUNE,
                 deterministic=True
             )
-            if self.wsi_normalizer:
-                if self.wsi_normalizer.vectorized:
+
+            # Establish stain normalization
+            if isinstance(normalizer, str):
+                norm = sf.norm.autoselect(normalizer, source=normalizer_source)
+            elif normalizer:
+                norm = normalizer
+            else:
+                norm = self.wsi_normalizer
+            if norm:
+                log.debug(f"Using stain normalizer: {norm.method}")
+                if norm.vectorized:
                     log.debug("Using vectorized normalization")
                     norm_batch_size = 32 if not batch_size else batch_size
                     tile_dataset = tile_dataset.batch(norm_batch_size, drop_remainder=False)
                 else:
                     log.debug("Using per-image normalization")
                 tile_dataset = tile_dataset.map(
-                    self.wsi_normalizer.tf_to_tf,
+                    norm.tf_to_tf,
                     num_parallel_calls=tf.data.AUTOTUNE,
                     deterministic=True
                 )
-                if self.wsi_normalizer.vectorized:
+                if norm.vectorized:
                     tile_dataset = tile_dataset.unbatch()
-                if self.wsi_normalizer.method == 'macenko':
+                if norm.method == 'macenko':
                     # Drop the images that causes an error, e.g. if eigen
                     # decomposition is unsuccessful.
                     tile_dataset = tile_dataset.apply(tf.data.experimental.ignore_errors())
@@ -2414,6 +2435,9 @@ class Features(BaseFeatureExtractor):
         """Builds the interface model that outputs feature activations at the
         designated layers and/or predictions. Intermediate layers are returned in
         the order of layers. predictions are returned last."""
+
+        self._pooling = pooling
+        self._include_preds = include_preds
 
         if isinstance(pooling, str):
             if pooling == 'avg':
@@ -2491,6 +2515,16 @@ class Features(BaseFeatureExtractor):
             log.debug(f'Number of classes: {self.num_classes}')
         log.debug(f'Number of activation features: {self.num_features}')
 
+    def dump_config(self):
+        return {
+            'class': 'slideflow.model.tensorflow.Features',
+            'kwargs': {
+                'path': self.path,
+                'layers': self.layers,
+                'include_preds': self._include_preds,
+                'pooling': self._pooling
+            }
+        }
 
 class UncertaintyInterface(Features):
     def __init__(
@@ -2534,6 +2568,12 @@ class UncertaintyInterface(Features):
         obj.wsi_normalizer = wsi_normalizer
         return obj
 
+    def __repr__(self):
+        return ("{}(\n".format(self.__class__.__name__) +
+                "    path={!r},\n".format(self.path) +
+                "    layers={!r},\n".format(self.layers) +
+                "    pooling={!r},\n".format(self._pooling) +
+                ")")
 
     @tf.function
     def _predict(self, inp):
@@ -2564,6 +2604,15 @@ class UncertaintyInterface(Features):
         else:
             return predictions, uncertainty
 
+    def dump_config(self):
+        return {
+            'class': 'slideflow.model.tensorflow.UncertaintyInterface',
+            'kwargs': {
+                'path': self.path,
+                'layers': self.layers,
+                'pooling': self._pooling
+            }
+        }
 
 def load(
     path: str,

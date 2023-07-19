@@ -90,7 +90,7 @@ class DatasetFeatures:
         self.num_classes = 0
         self.model = model
         self.dataset = dataset
-        self.generator = None
+        self.feature_generator = None
         if dataset is not None:
             self.tile_px = dataset.tile_px
             self.manifest = dataset.manifest()
@@ -476,6 +476,22 @@ class DatasetFeatures:
             plt.gcf().canvas.start_event_loop(sys.float_info.min)
             plt.savefig(boxplot_filename, bbox_inches='tight')
 
+    def dump_config(self):
+        """Return a dictionary of the feature extraction configuration."""
+        if self.normalizer:
+            norm_dict = dict(
+                method=self.normalizer.method,
+                fit=self.normalizer.get_fit(as_list=True),
+            )
+        else:
+            norm_dict = None
+        config = dict(
+            extractor=self.feature_generator.generator.dump_config(),
+            normalizer=norm_dict,
+            num_features=self.num_features,
+        )
+        return config
+
     def export_to_torch(self, *args, **kwargs):
         """Deprecated function; please use `.to_torch()`"""
         warnings.warn(
@@ -577,7 +593,7 @@ class DatasetFeatures:
         if not exists(outdir):
             os.makedirs(outdir)
         slides = self.slides if not slides else slides
-        for slide in (slides):# if not verbose else track(slides)):
+        for slide in (slides if not verbose else track(slides)):
             if self.activations[slide] == []:
                 log.info(f'Skipping empty slide [green]{slide}')
                 continue
@@ -589,11 +605,20 @@ class DatasetFeatures:
                 self.locations[slide],
                 join(outdir, f'{slide}.index')
             )
-        args = {
-            'model': self.model if isinstance(self.model, str) else '<NA>',
-            'num_features': self.num_features
-        }
-        sf.util.write_json(args, join(outdir, 'settings.json'))
+
+        # Log the feature extraction configuration
+        config = self.dump_config()
+        if exists(join(outdir, 'bags_config.json')):
+            old_config = sf.util.load_json(join(outdir, 'bags_config.json'))
+            if old_config != config:
+                log.warning(
+                    "Feature extraction configuration does not match the "
+                    "configuration used to generate the existing bags at "
+                    f"{outdir}. Current configuration will not be saved."
+                )
+        else:
+            sf.util.write_json(config, join(outdir, 'bags_config.json'))
+
         log_fn = log.info if verbose else log.debug
         log_fn(f'Activations exported in Torch format to {outdir}')
 
@@ -1180,7 +1205,8 @@ class _FeatureGenerator:
             else:
                 loc = None
 
-        # Final processing
+        # Final processing.
+        # Order of return is features, predictions, uncertainty.
         if self.is_simclr():
             model_out = model_out[0]
         if self.uq and self.include_uncertainty:
@@ -1195,8 +1221,8 @@ class _FeatureGenerator:
             predictions = None
             features = model_out
 
-        # Concatenate features if we have features from >`` layer
-        if self.layers:
+        # Concatenate features if we have features from >1 layer
+        if isinstance(features, list):
             features = np.concatenate(features)
 
         return features, predictions, uncertainty, slides, loc
@@ -1292,6 +1318,10 @@ class _FeatureGenerator:
 
         # Generator is a model, and we're using UQ
         elif self.uq and self.include_uncertainty:
+            if self.include_preds is False:
+                raise ValueError(
+                    "include_preds must be True if include_uncertainty is True"
+                )
             return sf.model.UncertaintyInterface(
                 self.model,
                 layers=self.layers,

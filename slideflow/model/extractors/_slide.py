@@ -1,12 +1,15 @@
 import slideflow as sf
 import numpy as np
-from typing import Optional, Callable
+from typing import Optional, TYPE_CHECKING
 from slideflow import log
+
+if TYPE_CHECKING:
+    from slideflow.model.base import BaseFeatureExtractor
 
 # -----------------------------------------------------------------------------
 
 def features_from_slide_torch(
-    extractor: Callable,
+    extractor: "BaseFeatureExtractor",
     slide: "sf.WSI",
     *,
     img_format: str = 'auto',
@@ -26,6 +29,14 @@ def features_from_slide_torch(
         device = torch_utils.get_device(device)
 
         log.debug(f"Slide prediction (batch_size={batch_size})")
+        if 'normalizer' in kwargs:
+            n = kwargs['normalizer']
+            if isinstance(n, str):
+                log.debug(f"Using stain normalizer: {n}")
+            else:
+                log.debug(f"Using stain normalizer: {n.method}")
+        else:
+            log.debug("Not using stain normalization")
         total_out = extractor.num_features + extractor.num_classes
         if grid is None:
             features_grid = np.ones((
@@ -47,8 +58,8 @@ def features_from_slide_torch(
             return None
 
         class SlideIterator(torch.utils.data.IterableDataset):
-            def __init__(self, extractor, *args, **kwargs):
-                super(SlideIterator).__init__(*args, **kwargs)
+            def __init__(self, extractor, *args, **kw):
+                super(SlideIterator).__init__(*args, **kw)
                 self.extractor = extractor
 
             def __iter__(self):

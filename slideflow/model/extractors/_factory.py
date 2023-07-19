@@ -2,6 +2,7 @@
 
 import slideflow as sf
 from slideflow import errors
+from typing import Optional
 
 from ._registry import (is_tensorflow_extractor, is_torch_extractor,
                         _tf_extractors, _torch_extractors)
@@ -9,7 +10,7 @@ from ._factory_tensorflow import build_tensorflow_feature_extractor
 from ._factory_torch import build_torch_feature_extractor
 
 
-def build_feature_extractor(name, **kwargs):
+def build_feature_extractor(name, backend: Optional[str] = None, **kwargs):
     """Build a feature extractor.
 
     The returned feature extractor is a callable object, which returns
@@ -87,6 +88,21 @@ def build_feature_extractor(name, **kwargs):
                 )
 
     """
+    # Build feature extractor according to manually specified backend
+    if backend is not None and backend not in ('tensorflow', 'torch'):
+        raise ValueError(f"Invalid backend: {backend}")
+    elif backend == 'tensorflow':
+        if not is_tensorflow_extractor(name):
+            raise errors.InvalidFeatureExtractor(
+                f"Feature extractor {name} not available in Tensorflow backend")
+        return build_tensorflow_feature_extractor(name, **kwargs)
+    elif backend == 'torch':
+        if not is_torch_extractor(name):
+            raise errors.InvalidFeatureExtractor(
+                f"Feature extractor {name} not available in PyTorch backend")
+        return build_torch_feature_extractor(name, **kwargs)
+
+    # Auto-build feature extractor according to available backends
     if is_tensorflow_extractor(name) and is_torch_extractor(name):
         sf.log.info(
             f"Feature extractor {name} available in both Tensorflow and "
