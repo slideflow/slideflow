@@ -209,7 +209,7 @@ class DatasetFeatures:
                 for s in obj.slides
             }
         if 'predictions' in df.columns:
-            obj.uncertainty = {
+            obj.predictions = {
                 s: np.stack(df.loc[df.slide==s].predictions.values)
                 for s in obj.slides
             }

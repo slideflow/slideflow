@@ -355,7 +355,7 @@ def generate_mil_features(
         )
     annotations= dataset.annotations
     print(type(annotations))
-    activations= MILActivations(hs, slides, annotations)
+    activations= MILActivations(hs, y_pred, y_att, slides, annotations)
     return activations   
     
 
