@@ -2253,7 +2253,7 @@ class Project:
     ):
         """Generate activations weights from the last layer of an MIL model.
 
-        Returns MILActivations object.
+        Returns MILFeatures object.
 
         Args:
             weights (str): Path to model weights to load.

@@ -10,7 +10,7 @@ from typing import Union, List, Optional, Callable, Tuple, Any
 from slideflow import Dataset, log, errors
 from slideflow.util import path_to_name
 from slideflow.stats.metrics import ClassifierMetrics
-from .features import MILActivations
+from .features import MILFeatures
 from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
@@ -258,13 +258,13 @@ def generate_mil_features(
 ):
     """Generate activations weights from the last layer of an MIL model.
 
-    Returns MILActivations object.
+    Returns MILFeatures object.
 
     Args:
         weights (str): Path to model weights to load.
         dataset (sf.Dataset): Dataset to evaluation.
         outcomes (str, list(str)): Outcomes.
-        bags (str, list(str)): Path to bags, or list of bag file paths.
+        bags (str, list(str)): fPath to bags, or list of bag file paths.
             Each bag should contain PyTorch array of features from all tiles in
             a slide, with the shape ``(n_tiles, n_features)``.
         config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
@@ -276,6 +276,9 @@ def generate_mil_features(
     import torch
 
     if isinstance(config, TrainerConfigCLAM):
+        raise NotImplementedError
+    #Check for correct model
+    if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
         raise NotImplementedError
 
     # Read configuration from saved model, if available
@@ -341,21 +344,8 @@ def generate_mil_features(
         model.relocate()  # type: ignore
     model.eval()
     
-    #Check for correct model
-    if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
-        raise NotImplementedError
-
-    # Inference.
-    if (isinstance(config, TrainerConfigCLAM)
-       or isinstance(config.model_config, ModelConfigCLAM)):
-        y_pred, y_att = _predict_clam(model, bags, attention=True)
-    else:
-        y_pred, y_att, hs = _get_mil_activations(
-            model, bags, attention=True, use_lens=config.model_config.use_lens
-        )
     annotations= dataset.annotations
-    print(type(annotations))
-    activations= MILActivations(hs, y_pred, y_att, slides, annotations)
+    activations= MILFeatures(model, bags, slides, annotations, use_lens=config.model_config.use_lens)
     return activations   
     
 
@@ -535,73 +525,3 @@ def _predict_mil(
             y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att
-
-
-def _get_mil_activations(
-    model: Callable,
-    bags: Union[np.ndarray, List[str]],
-    attention: bool = False,
-    attention_pooling: str = 'avg',
-    use_lens: bool = False,
-    device: Optional[Any] = None
-) -> Tuple[np.ndarray, List[np.ndarray]]:
-
-    import torch
-
-    # Auto-detect device.
-    if device is None:
-        if next(model.parameters()).is_cuda:
-            log.debug("Auto device detection: using CUDA")
-            device = torch.device('cuda')
-        else:
-            log.debug("Auto device detection: using CPU")
-            device = torch.device('cpu')
-    elif isinstance(device, str):
-        log.debug(f"Using {device}")
-        device = torch.device(device)
-
-    y_pred = []
-    y_att  = []
-    hs= []
-    log.info("Generating predictions...")
-    if attention and not hasattr(model, 'calculate_attention'):
-        log.warning(
-            "Model '{}' does not have a method 'calculate_attention'. "
-            "Unable to calculate or display attention heatmaps.".format(
-                model.__class__.__name__
-            )
-        )
-        attention = False
-    for bag in bags:
-        loaded = torch.load(bag).to(device)
-        loaded = torch.unsqueeze(loaded, dim=0)
-        with torch.no_grad():
-            if use_lens:
-                lens = torch.from_numpy(np.array([loaded.shape[1]])).to(device)
-                model_args = (loaded, lens)
-            else:
-                model_args = (loaded,)
-            model_out = model(*model_args)
-            h = model.get_last_layer_activations(*model_args)
-            if device == torch.device('cuda'):
-                h= h.to(torch.device("cpu"))
-            hs.append(h)
-
-            if attention:
-                att = torch.squeeze(model.calculate_attention(*model_args))
-                if len(att.shape) == 2:
-                    # Attention needs to be pooled
-                    if attention_pooling == 'avg':
-                        att = torch.mean(att, dim=-1)
-                    elif attention_pooling == 'max':
-                        att = torch.amax(att, dim=-1)
-                    else:
-                        raise ValueError(
-                            "Unrecognized attention pooling strategy '{}'".format(
-                                attention_pooling
-                            )
-                        )
-                y_att.append(att.cpu().numpy())
-            y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
-    yp = np.concatenate(y_pred, axis=0)
-    return yp, y_att, hs
