@@ -7,3 +7,4 @@ from ._factory import (build_feature_extractor, build_torch_feature_extractor,
                        build_tensorflow_feature_extractor)
 from ._factory_tensorflow import TensorflowImagenetLayerExtractor
 from ._factory_torch import TorchImagenetLayerExtractor
+from ._slide import features_from_slide

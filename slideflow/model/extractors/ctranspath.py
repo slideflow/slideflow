@@ -12,6 +12,7 @@ import torch.nn as nn
 import math
 import torch.utils.checkpoint as checkpoint
 import slideflow as sf
+import numpy as np
 from typing import Optional
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
@@ -25,7 +26,7 @@ from timm.models.swin_transformer import window_partition, window_reverse
 from timm.models.vision_transformer import checkpoint_filter_fn
 
 from ..base import BaseFeatureExtractor
-from ._slide import features_from_slide_torch
+from ._slide import features_from_slide
 
 # -----------------------------------------------------------------------------
 
@@ -611,12 +612,8 @@ class CTransPathFeatures(BaseFeatureExtractor):
     def __call__(self, obj, **kwargs):
         """Generate features for a batch of images or a WSI."""
         if isinstance(obj, sf.WSI):
-            return features_from_slide_torch(
-                self,
-                obj,
-                device=self.device,
-                **kwargs
-            )
+            grid = features_from_slide(self, obj, **kwargs)
+            return np.ma.masked_where(grid == -99, grid)
         elif kwargs:
             raise ValueError(
                 f"{self.__class__.__name__} does not accept keyword arguments "

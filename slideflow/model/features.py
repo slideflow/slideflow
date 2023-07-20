@@ -1167,8 +1167,6 @@ class _FeatureGenerator:
                         standardize=self.standardize
                     )
                 return self.generator(batch_img)
-        elif self.is_simclr():
-            return self.generator(batch_img, training=False)
         else:
             return self.generator(batch_img)
 
@@ -1207,8 +1205,6 @@ class _FeatureGenerator:
 
         # Final processing.
         # Order of return is features, predictions, uncertainty.
-        if self.is_simclr():
-            model_out = model_out[0]
         if self.uq and self.include_uncertainty:
             uncertainty = model_out[-1]
             model_out = model_out[:-1]
@@ -1264,9 +1260,6 @@ class _FeatureGenerator:
         if isinstance(self.model, BaseFeatureExtractor):
             self.uq = self.model.num_uncertainty > 0
             self.normalizer = self.model.normalizer
-        elif isinstance(self.model, str) and sf.util.is_simclr_model_path(self.model):
-            self.uq = False
-            self.normalizer = None
         elif isinstance(self.model, str):
             model_config = sf.util.get_model_config(self.model)
             hp = sf.ModelParams.from_dict(model_config['hp'])
@@ -1328,21 +1321,6 @@ class _FeatureGenerator:
                 **kwargs
             )
 
-        # Generator is a SimCLR path
-        elif self.is_simclr():
-            from slideflow import simclr
-            self.simclr_args = simclr.load_model_args(self.model)
-            model = simclr.load(self.model)
-            generator = sf.simclr.SimCLR_Generator(model)
-            generator.num_features = self.simclr_args.proj_out_dim  # type: ignore
-            generator.num_classes = self.simclr_args.num_classes  # type: ignore
-            self.normalizer, kwargs = self._norm_from_kwargs(kwargs)
-            if kwargs:
-                raise ValueError(
-                    f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
-                )
-            return generator
-
         # Generator is a path to a trained Slideflow model
         elif self.is_model_path():
             return sf.model.Features(
@@ -1381,9 +1359,6 @@ class _FeatureGenerator:
     def is_extractor(self):
         return isinstance(self.model, BaseFeatureExtractor)
 
-    def is_simclr(self):
-        return sf.util.is_simclr_model_path(self.model)
-
     def is_torch(self):
         if self.is_extractor():
             return self.model.is_torch()
@@ -1391,8 +1366,6 @@ class _FeatureGenerator:
             return sf.model.is_torch_model(self.model)
 
     def is_tf(self):
-        if self.is_simclr():
-            return True
         if self.is_extractor():
             return self.model.is_tensorflow()
         else:
@@ -1408,34 +1381,22 @@ class _FeatureGenerator:
     def build_dataset(self):
         """Build a dataloader."""
 
-        # Generator is a SimCLR model.
-        if self.is_simclr():
-            log.debug("Setting up Tensorflow/SimCLR dataset iterator")
-            from slideflow import simclr
-            builder = simclr.DatasetBuilder(
-                val_dts=self.dataset,
-                normalizer=self.normalizer,
-                dataset_kwargs=dict(
-                    incl_slidenames=True,
-                    incl_loc=True,
-                )
-            )
-            return builder.build_dataset(
-                self.batch_size,
-                is_training=False,
-                simclr_args=self.simclr_args
-            )
-
         # Generator is a Tensorflow model.
-        elif self.is_tf():
+        if self.is_tf():
             log.debug(
                 "Setting up Tensorflow dataset iterator (num_parallel_reads="
                 f"None, deterministic={not self.tfrecords_have_loc})"
             )
+            # Disable parallel reads if we're using tfrecords without location
+            # information, as we would need to read and receive data in order.
+            if not self.tfrecords_have_loc:
+                par_kw = dict(num_parallel_reads=None)
+            else:
+                par_kw = dict()
             return self.dataset.tensorflow(
                 None,
-                num_parallel_reads=None,
                 deterministic=(not self.tfrecords_have_loc),
+                **par_kw,
                 **self.dts_kw  # type: ignore
             )
 

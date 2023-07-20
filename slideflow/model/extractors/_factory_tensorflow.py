@@ -19,6 +19,11 @@ def build_tensorflow_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_tf
+def simclr(ckpt, **kwargs):
+    from .simclr import SimCLR_Features
+    return SimCLR_Features(ckpt, **kwargs)
+
+@register_tf
 def xception_imagenet(tile_px, **kwargs):
     return TensorflowImagenetLayerExtractor('xception', tile_px, **kwargs)
 
