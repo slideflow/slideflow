@@ -280,9 +280,9 @@ def generate_mil_features(
 
     if isinstance(config, TrainerConfigCLAM):
         raise NotImplementedError
-    # Check for correct model
-    if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
-        raise NotImplementedError
+    # Check for correct model -- removing for dev purposes
+    # if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
+    #     raise NotImplementedError
 
     # Read configuration from saved model, if available
     if config is None:

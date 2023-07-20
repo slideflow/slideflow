@@ -9,6 +9,8 @@ import pandas as pd
 from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
+from .models.clam import CLAM_SB, CLAM_MB
+from .models.att_mil import Attention_MIL
 from slideflow import Dataset, log, errors
 from slideflow.util import log, path_to_name
 import slideflow as sf
@@ -26,7 +28,6 @@ class MILFeatures():
         bags: Union[np.ndarray, List[str], str],
         slides: list,
         annotations: Union[str, "pd.core.frame.DataFrame"],
-        use_lens: bool,
         config: Optional[_TrainerConfig] = None,
         dataset: Optional["sf.Dataset"] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
@@ -57,9 +58,13 @@ class MILFeatures():
             self.model = model
             self.slides = slides
             self.annotations = self._get_annotations(annotations)
+            if type(model) is Attention_MIL:
+                use_lens= True
+            else:
+                use_lens= False
         elif (config is not None) and (outcomes is not None) and (dataset is not None):
             log.info(f"Building model {config.model_fn.__name__} from path")
-            self.slides, self.model = self.generate_model(
+            self.slides, self.model, use_lens = self.generate_model(
                 model, config, dataset, outcomes, bags)
             self.annotations = dataset.annotations
             if isinstance(bags, str):
@@ -102,9 +107,9 @@ class MILFeatures():
 
         if isinstance(config, TrainerConfigCLAM):
             raise NotImplementedError
-        # Check for correct model
-        if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
-            raise NotImplementedError
+        # Check for correct model -- removing for dev purposes
+        # if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
+        #     raise NotImplementedError
 
         # Read configuration from saved model, if available
         if config is None:
@@ -168,7 +173,13 @@ class MILFeatures():
         if hasattr(model, 'relocate'):
             model.relocate()  # type: ignore
         model.eval()
-        return slides, model
+
+        try:
+            use_lens=config.model_config.use_lens
+        except AttributeError:
+            use_lens= False
+
+        return slides, model, use_lens
 
     def _get_mil_activations(
         self,
@@ -206,13 +217,13 @@ class MILFeatures():
         hs = []
         log.info("Generating predictions...")
 
-        if not hasattr(model, 'calculate_attention'):
-            log.warning(
-                "Model '{}' does not have a method 'calculate_attention'. "
-                "Unable to calculate or display attention heatmaps.".format(
-                    model.__class__.__name__
-                )
-            )
+        # if not hasattr(model, 'calculate_attention'):
+        #     log.warning(
+        #         "Model '{}' does not have a method 'calculate_attention'. "
+        #         "Unable to calculate or display attention heatmaps.".format(
+        #             model.__class__.__name__
+        #         )
+        #     )
 
         for bag in bags:
             loaded = torch.load(bag).to(device)
@@ -224,26 +235,37 @@ class MILFeatures():
                     model_args = (loaded, lens)
                 else:
                     model_args = (loaded,)
-                model_out = model(*model_args)
-                h = model.get_last_layer_activations(*model_args)
+                
+                if type(model) is not CLAM_SB and type(model) is not CLAM_MB:
+                    model_out = model(*model_args)
+                    h = model.get_last_layer_activations(*model_args)
+                    att = torch.squeeze(model.calculate_attention(*model_args))
+                    if len(att.shape) == 2:
+                        # Attention needs to be pooled
+                        if attention_pooling == 'avg':
+                            att = torch.mean(att, dim=-1)
+                        elif attention_pooling == 'max':
+                            att = torch.amax(att, dim=-1)
+                        else:
+                            raise ValueError(
+                                "Unrecognized attention pooling strategy '{}'".format(
+                                    attention_pooling
+                                )
+                            )
+                    y_att.append(att.cpu().numpy())
+                else:
+                    model_out = model(*model_args)[0]
+                    h, A = model.get_last_layer_activations(*model_args)
+                    
+                    if A.shape[0]==1:
+                        y_att.append(A.cpu().numpy()[0])
+                    else:
+                        y_att.append(A.cpu().numpy())
+
                 if device == torch.device('cuda'):
                     h = h.to(torch.device("cpu"))
                 hs.append(h)
 
-                att = torch.squeeze(model.calculate_attention(*model_args))
-                if len(att.shape) == 2:
-                    # Attention needs to be pooled
-                    if attention_pooling == 'avg':
-                        att = torch.mean(att, dim=-1)
-                    elif attention_pooling == 'max':
-                        att = torch.amax(att, dim=-1)
-                    else:
-                        raise ValueError(
-                            "Unrecognized attention pooling strategy '{}'".format(
-                                attention_pooling
-                            )
-                        )
-                y_att.append(att.cpu().numpy())
                 y_pred.append(torch.nn.functional.softmax(
                     model_out, dim=1).cpu().numpy())
         yp = np.concatenate(y_pred, axis=0)
@@ -261,9 +283,11 @@ class MILFeatures():
             return None, {}
         activations = {}
         for slide, h in zip(self.slides, hlw):
-            activations[slide] = h.numpy()[0]
+            activations[slide] = h.numpy()
 
         num_features = hlw[0].shape[1]
+        print(num_features)
+        print(hlw[0].shape)
         return num_features, activations
 
     def _get_annotations(self, annotations):
@@ -313,13 +337,13 @@ class MILFeatures():
                 s: df.loc[df.slide == s].activations.values.tolist()[0]
                 for s in obj.slides
             }
-            # obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
+        
+
         if 'predictions' in df.columns:
             obj.predictions = {
                 s: np.stack(df.loc[df.slide == s].predictions.values[0])
                 for s in obj.slides
             }
-            # obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
         if 'attentions' in df.columns:
             obj.attentions = {
                 s: np.stack(df.loc[df.slide == s].attentions.values[0])
@@ -343,11 +367,25 @@ class MILFeatures():
 
         index = [s for s in self.slides]
         df_dict = {}
-        df_dict.update({
-            'activations': pd.Series([
-                self.activations[s]
-                for s in self.slides], index=index)
-        })
+
+        branches= list(self.activations.values())[0].shape[0]
+        print("Branches: ", branches)
+
+        if branches==1:
+            df_dict.update({
+                'activations': pd.Series([
+                    self.activations[s][0]
+                    for s in self.slides], index=index)
+            })
+        else:
+            for b in range(branches):
+                name= 'activations_{}'.format(b)
+                df_dict.update({
+                    name: pd.Series([
+                        self.activations[s][b]
+                        for s in self.slides], index=index)
+                })
+
         if self.predictions:
             df_dict.update({
                 'predictions': pd.Series([
@@ -355,11 +393,20 @@ class MILFeatures():
                     for s in self.slides], index=index)
             })
         if self.attentions:
-            df_dict.update({
-                'attentions': pd.Series([
-                    self.attentions[s]
-                    for s in self.slides], index=index)
-            })
+            if branches==1:
+                df_dict.update({
+                    'attentions': pd.Series([
+                        self.attentions[s][0]
+                        for s in self.slides], index=index)
+                })
+            else:
+                for b in range(branches):
+                    name= 'attentions_{}'.format(b)
+                    df_dict.update({
+                        name: pd.Series([
+                            self.attentions[s][b]
+                            for s in self.slides], index=index)
+                    })
 
         df = pd.DataFrame.from_dict(df_dict)
         df['slide'] = df.index
@@ -372,15 +419,6 @@ class MILFeatures():
         patients = self.annotations[['slide', 'patient']]
         df2 = df.set_index('slide').join(
             patients.set_index('slide'), how='inner')
-        if self.predictions:
-            if self.attentions:
-                df2 = df2[['patient', 'activations',
-                           'predictions', 'activations']]
-            else:
-                df2 = df2[['patient', 'activations', 'predictions']]
-        elif self.attentions:
-            df2 = df2[['patient', 'activations', 'activations']]
-        else:
-            df2 = df2[['patient', 'activations']]
-
+        p= df2.pop('patient')
+        df2.insert(0, 'patient', p)
         return df2

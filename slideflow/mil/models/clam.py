@@ -297,6 +297,65 @@ class CLAM_SB(_CLAM_Base):
 
         # Initialize weights.
         initialize_weights(self)
+    
+    def get_last_layer_activations(
+        self,
+        h,
+        label=None,
+        instance_eval=False,
+        return_attention=False,
+        attention_only=False
+    ):
+        if isinstance(h, tuple) and len(h) == 2:
+            h, label = h
+        elif isinstance(h, tuple) and len(h) == 3:
+            h, label, instance_eval = h
+
+        if h.ndim == 3:
+            h = h.squeeze()
+        try:
+            A, h = self.attention_net(h)  # NxK
+        except RuntimeError as e:
+            raise RuntimeError(
+                f"Input feature size ({h.shape[1]}) does not match size of "
+                f"model first linear layer ({self.size[0]}). "
+                f"Error raised: {e}"
+            )
+        A = torch.transpose(A, 1, 0)  # KxN
+        if attention_only:
+            return A
+        A_raw = A
+        A = F.softmax(A, dim=1)  # softmax over N
+
+        if instance_eval:
+            total_inst_loss = 0.0
+            all_preds = []
+            all_targets = []
+            if label.ndim < 2 or label.shape[1] != self.n_classes:
+                inst_labels = F.one_hot(label, num_classes=self.n_classes).squeeze() #binarize label
+            else:
+                inst_labels = label[0]
+            for i in range(len(self.instance_classifiers)):
+                inst_label = inst_labels[i].item()
+                classifier = self.instance_classifiers[i]
+                if inst_label == 1: #in-the-class:
+                    instance_loss, preds, targets = self._inst_eval(A, h, classifier, i)
+                    all_preds.extend(preds.cpu().numpy())
+                    all_targets.extend(targets.cpu().numpy())
+                else: #out-of-the-class
+                    if self.subtyping:
+                        instance_loss, preds, targets = self._inst_eval_out(A, h, classifier, i)
+                        all_preds.extend(preds.cpu().numpy())
+                        all_targets.extend(targets.cpu().numpy())
+                    else:
+                        continue
+                total_inst_loss += instance_loss
+
+            if self.subtyping:
+                total_inst_loss /= len(self.instance_classifiers)
+
+        M = torch.mm(A, h)
+        return M, A_raw
 
 
 # -----------------------------------------------------------------------------
@@ -359,3 +418,62 @@ class CLAM_MB(_CLAM_Base):
         for c in range(self.n_classes):
             logits[0, c] = self.classifiers[c](M[c])
         return logits
+
+    def get_last_layer_activations(
+        self,
+        h,
+        label=None,
+        instance_eval=False,
+        return_attention=False,
+        attention_only=False
+    ):
+        if isinstance(h, tuple) and len(h) == 2:
+            h, label = h
+        elif isinstance(h, tuple) and len(h) == 3:
+            h, label, instance_eval = h
+
+        if h.ndim == 3:
+            h = h.squeeze()
+        try:
+            A, h = self.attention_net(h)  # NxK
+        except RuntimeError as e:
+            raise RuntimeError(
+                f"Input feature size ({h.shape[1]}) does not match size of "
+                f"model first linear layer ({self.size[0]}). "
+                f"Error raised: {e}"
+            )
+        A = torch.transpose(A, 1, 0)  # KxN
+        if attention_only:
+            return A
+        A_raw = A
+        A = F.softmax(A, dim=1)  # softmax over N
+
+        if instance_eval:
+            total_inst_loss = 0.0
+            all_preds = []
+            all_targets = []
+            if label.ndim < 2 or label.shape[1] != self.n_classes:
+                inst_labels = F.one_hot(label, num_classes=self.n_classes).squeeze() #binarize label
+            else:
+                inst_labels = label[0]
+            for i in range(len(self.instance_classifiers)):
+                inst_label = inst_labels[i].item()
+                classifier = self.instance_classifiers[i]
+                if inst_label == 1: #in-the-class:
+                    instance_loss, preds, targets = self._inst_eval(A, h, classifier, i)
+                    all_preds.extend(preds.cpu().numpy())
+                    all_targets.extend(targets.cpu().numpy())
+                else: #out-of-the-class
+                    if self.subtyping:
+                        instance_loss, preds, targets = self._inst_eval_out(A, h, classifier, i)
+                        all_preds.extend(preds.cpu().numpy())
+                        all_targets.extend(targets.cpu().numpy())
+                    else:
+                        continue
+                total_inst_loss += instance_loss
+
+            if self.subtyping:
+                total_inst_loss /= len(self.instance_classifiers)
+
+        M = torch.mm(A, h)
+        return M, A_raw
