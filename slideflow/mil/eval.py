@@ -194,7 +194,7 @@ def predict_slide(
     """
     # Try to auto-determine the encoder
     if encoder is None:
-        encoder = build_bag_encoder(model, allow_errors=True)
+        encoder, detected_normalizer = build_bag_encoder(model, allow_errors=True)
         if encoder is None:
             raise ValueError(
                 "Unable to auto-detect feature encoder used for model {}. "
@@ -202,15 +202,14 @@ def predict_slide(
             )
 
     # Determine stain normalization
-    if hasattr(encoder, 'normalizer') and encoder.normalizer is not None:
-        if normalizer is not None:
-            log.warning(
-                "Encoder has a stain normalizer, but a stain normalizer was "
-                "provided to this function. Using the provided stain "
-                "normalizer."
-            )
-        else:
-            normalizer = encoder.normalizer
+    if detected_normalizer is not None and normalizer is not None:
+        log.warning(
+            "Bags were generated with a stain normalizer, but a different stain "
+            "normalizer was provided to this function. Overriding with provided "
+            "stain normalizer."
+        )
+    elif detected_normalizer is not None:
+        normalizer = detected_normalizer
 
     # Convert slide to bags
     masked_bags = encoder(slide, normalizer=normalizer)
