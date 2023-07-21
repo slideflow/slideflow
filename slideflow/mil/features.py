@@ -1,11 +1,10 @@
 import csv
 import os
-import multiprocessing as mp
-from collections import defaultdict
 from typing import Union, List, Optional, Callable, Tuple, Any
 from os.path import join, exists, isdir, dirname
 import numpy as np
 import pandas as pd
+import re
 from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
@@ -59,9 +58,9 @@ class MILFeatures():
             self.slides = slides
             self.annotations = self._get_annotations(annotations)
             if type(model) is Attention_MIL:
-                use_lens= True
+                use_lens = True
             else:
-                use_lens= False
+                use_lens = False
         elif (config is not None) and (outcomes is not None) and (dataset is not None):
             log.info(f"Building model {config.model_fn.__name__} from path")
             self.slides, self.model, use_lens = self.generate_model(
@@ -74,9 +73,9 @@ class MILFeatures():
         else:
             raise RuntimeError(
                 'Model path detected without config, dataset, bags, or outcomes')
-
-        self.num_features, self.predictions, self.attentions, self.activations = self._get_mil_activations(
-            self.model, bags, attention_pooling, use_lens, device)
+        if self.model:
+            self.num_features, self.predictions, self.attentions, self.activations = self._get_mil_activations(
+                self.model, bags, attention_pooling, use_lens, device)
 
     def generate_model(
         self,
@@ -107,9 +106,10 @@ class MILFeatures():
 
         if isinstance(config, TrainerConfigCLAM):
             raise NotImplementedError
-        # Check for correct model -- removing for dev purposes
-        # if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
-        #     raise NotImplementedError
+        # Check for correct model
+        acceptable_models= ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
+        if config.model_config.model.lower() not in acceptable_models:
+            raise NotImplementedError
 
         # Read configuration from saved model, if available
         if config is None:
@@ -175,9 +175,9 @@ class MILFeatures():
         model.eval()
 
         try:
-            use_lens=config.model_config.use_lens
+            use_lens = config.model_config.use_lens
         except AttributeError:
-            use_lens= False
+            use_lens = False
 
         return slides, model, use_lens
 
@@ -217,14 +217,6 @@ class MILFeatures():
         hs = []
         log.info("Generating predictions...")
 
-        # if not hasattr(model, 'calculate_attention'):
-        #     log.warning(
-        #         "Model '{}' does not have a method 'calculate_attention'. "
-        #         "Unable to calculate or display attention heatmaps.".format(
-        #             model.__class__.__name__
-        #         )
-        #     )
-
         for bag in bags:
             loaded = torch.load(bag).to(device)
             loaded = torch.unsqueeze(loaded, dim=0)
@@ -235,7 +227,7 @@ class MILFeatures():
                     model_args = (loaded, lens)
                 else:
                     model_args = (loaded,)
-                
+
                 if type(model) is not CLAM_SB and type(model) is not CLAM_MB:
                     model_out = model(*model_args)
                     h = model.get_last_layer_activations(*model_args)
@@ -256,8 +248,8 @@ class MILFeatures():
                 else:
                     model_out = model(*model_args)[0]
                     h, A = model.get_last_layer_activations(*model_args)
-                    
-                    if A.shape[0]==1:
+
+                    if A.shape[0] == 1:
                         y_att.append(A.cpu().numpy()[0])
                     else:
                         y_att.append(A.cpu().numpy())
@@ -286,8 +278,7 @@ class MILFeatures():
             activations[slide] = h.numpy()
 
         num_features = hlw[0].shape[1]
-        print(num_features)
-        print(hlw[0].shape)
+
         return num_features, activations
 
     def _get_annotations(self, annotations):
@@ -320,10 +311,16 @@ class MILFeatures():
             predictions[slide] = pred
         return predictions
 
+    def _format(self, column):
+        """Formats dataframe columns to numpy arrays of floats"""
+        numbers = re.findall(r'-?\d+\.\d+', column)
+        # Convert numbers to floats
+        return np.array([float(num) for num in numbers])
+
     @classmethod
-    def from_df(cls, df: "pd.core.frame.DataFrame", *, annotations=Union[str, "pd.core.frame.DataFrame"]):
+    def from_df(cls, df: "pd.core.frame.DataFrame", *, annotations: Union[str, "pd.core.frame.DataFrame"] = None):
         """Load MILFeatures of activations, as exported by :meth:`MILFeatures.to_df()`"""
-        obj = cls(None, None, None, None, None)
+        obj = cls(None, None, None, None)
         if 'slide' in df.columns:
             obj.slides = df['slide'].values
         elif df.index.name == 'slide':
@@ -333,22 +330,52 @@ class MILFeatures():
             raise ValueError("No slides in DataFrame columns")
 
         if 'activations' in df.columns:
+            df['activations'] = df['activations'].apply(obj._format)
             obj.activations = {
-                s: df.loc[df.slide == s].activations.values.tolist()[0]
+                s: np.stack(df.loc[df.slide == s].activations.values)
                 for s in obj.slides
             }
-        
+        else:
+            act_cols = [col for col in df.columns if 'activations_' in col]
+            if act_cols:
+                obj.activations = {}
+                for c in act_cols:
+                    df[c] = df[c].apply(obj._format)
+                for s in obj.slides:
+                    r = [df.loc[df.slide == s][act_cols].values.tolist()[0]]
+                    if len(r[0]) > 2:
+                        raise NotImplementedError(
+                            "More than 1 attention branches not implemented")
+                    obj.activations[s] = np.vstack((r[0][0], r[0][1]))
+            else:
+                raise ValueError("No activations in DataFrame columns")
 
         if 'predictions' in df.columns:
+            df['predictions'] = df['predictions'].apply(obj._format)
             obj.predictions = {
                 s: np.stack(df.loc[df.slide == s].predictions.values[0])
                 for s in obj.slides
             }
+
         if 'attentions' in df.columns:
+            df['attentions'] = df['attentions'].apply(obj._format)
             obj.attentions = {
                 s: np.stack(df.loc[df.slide == s].attentions.values[0])
                 for s in obj.slides
             }
+        else:
+            att_cols = [col for col in df.columns if 'attentions_' in col]
+            if att_cols:
+                obj.attentions = {}
+                for c in att_cols:
+                    df[c] = df[c].apply(obj._format)
+                for s in obj.slides:
+                    r = [df.loc[df.slide == s][att_cols].values.tolist()[0]]
+                    if len(r[0]) > 2:
+                        raise NotImplementedError(
+                            "More than 1 attention branches not implemented")
+                    obj.attentions[s] = np.vstack((r[0][0], r[0][1]))
+
         if annotations:
             obj.annotations = obj._get_annotations(annotations)
 
@@ -368,10 +395,14 @@ class MILFeatures():
         index = [s for s in self.slides]
         df_dict = {}
 
-        branches= list(self.activations.values())[0].shape[0]
-        print("Branches: ", branches)
+        branches = list(self.activations.values())[0].shape
 
-        if branches==1:
+        if len(branches) == 1:
+            branches = 1
+        else:
+            branches = branches[0]
+
+        if branches == 1:
             df_dict.update({
                 'activations': pd.Series([
                     self.activations[s][0]
@@ -379,7 +410,7 @@ class MILFeatures():
             })
         else:
             for b in range(branches):
-                name= 'activations_{}'.format(b)
+                name = 'activations_{}'.format(b)
                 df_dict.update({
                     name: pd.Series([
                         self.activations[s][b]
@@ -393,15 +424,17 @@ class MILFeatures():
                     for s in self.slides], index=index)
             })
         if self.attentions:
-            if branches==1:
+            if branches == 1:
                 df_dict.update({
                     'attentions': pd.Series([
-                        self.attentions[s][0]
+                        list(self.attentions[s])
+                        if len(self.attentions[s]) == 1
+                        else self.attentions[s]
                         for s in self.slides], index=index)
                 })
             else:
                 for b in range(branches):
-                    name= 'attentions_{}'.format(b)
+                    name = 'attentions_{}'.format(b)
                     df_dict.update({
                         name: pd.Series([
                             self.attentions[s][b]
@@ -416,9 +449,10 @@ class MILFeatures():
                 "No annotation file was given, so patients will not be extracted."
             )
             return df
+
         patients = self.annotations[['slide', 'patient']]
         df2 = df.set_index('slide').join(
             patients.set_index('slide'), how='inner')
-        p= df2.pop('patient')
+        p = df2.pop('patient')
         df2.insert(0, 'patient', p)
         return df2

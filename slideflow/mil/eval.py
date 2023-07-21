@@ -280,9 +280,10 @@ def generate_mil_features(
 
     if isinstance(config, TrainerConfigCLAM):
         raise NotImplementedError
-    # Check for correct model -- removing for dev purposes
-    # if config.model_config.model.lower() != 'transmil' and config.model_config.model.lower() != 'attention_mil':
-    #     raise NotImplementedError
+    # Check for correct model
+    acceptable_models = ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
+    if config.model_config.model.lower() not in acceptable_models:
+        raise NotImplementedError
 
     # Read configuration from saved model, if available
     if config is None:
@@ -309,8 +310,6 @@ def generate_mil_features(
     # Ensure slide names are sorted according to the bags.
     slides = [path_to_name(b) for b in bags]
 
-    y_true = np.array([labels[s] for s in slides])
-
     # Detect feature size from bags
     n_features = torch.load(bags[0]).shape[-1]
     n_out = len(unique)
@@ -320,12 +319,14 @@ def generate_mil_features(
         config_size = config.model_fn.sizes[config.model_config.model_size]
         _size = [n_features] + config_size[1:]
         model = config.model_fn(size=_size)
-        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
+        log.info(
+            f"Building model {config.model_fn.__name__} (size={_size})")
     elif isinstance(config.model_config, ModelConfigCLAM):
         config_size = config.model_fn.sizes[config.model_config.model_size]
         _size = [n_features] + config_size[1:]
         model = config.model_fn(size=_size)
-        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
+        log.info(
+            f"Building model {config.model_fn.__name__} (size={_size})")
     else:
         model = config.model_fn(n_features, n_out)
         log.info(f"Building model {config.model_fn.__name__} "
@@ -348,9 +349,7 @@ def generate_mil_features(
     model.eval()
 
     annotations = dataset.annotations
-    activations = MILFeatures(
-        model, bags, slides, annotations, use_lens=config.model_config.use_lens)
-    return activations
+    return MILFeatures(model, bags, slides, annotations)
 
 
 def generate_attention_heatmaps(

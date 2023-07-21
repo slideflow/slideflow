@@ -38,7 +38,6 @@ from .project_utils import (  # noqa: F401
     get_first_nested_directory, get_matching_directory, BreastER, ThyroidBRS,
     LungAdenoSquam
 )
-from .mil._params import _TrainerConfig
 
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
@@ -2246,9 +2245,9 @@ class Project:
 
     def generate_mil_features(
         weights: str,
-        config: _TrainerConfig,
+        config: "mil._TrainerConfig",
         dataset: "sf.Dataset",
-        outcomes: Union[str, List[str]], 
+        outcomes: Union[str, List[str]],
         bags: Union[str, np.ndarray, List[str]]
     ):
         """Generate activations weights from the last layer of an MIL model.
@@ -3103,9 +3102,11 @@ class Project:
 
                 # Interpret results.
                 model_name = list(results.keys())[0]
-                last_epoch = sorted(list(results[model_name]['epochs'].keys()))[-1]
+                last_epoch = sorted(
+                    list(results[model_name]['epochs'].keys()))[-1]
                 if len(results[model_name]['epochs']) > 1:
-                    log.warning(f"Ambiguous epoch for SMAC. Using '{last_epoch}'.")
+                    log.warning(
+                        f"Ambiguous epoch for SMAC. Using '{last_epoch}'.")
                 epoch_results = results[model_name]['epochs'][last_epoch]
 
                 # Determine metric for optimization.
@@ -3113,7 +3114,7 @@ class Project:
                     result = metric(epoch_results)
                 elif metric not in epoch_results:
                     raise errors.SMACError(f"Metric '{metric}' not returned from "
-                                        "training, unable to optimize.")
+                                           "training, unable to optimize.")
                 else:
                     if outcomes not in epoch_results[metric]:
                         raise errors.SMACError(
@@ -3703,64 +3704,6 @@ class Project:
             normalizer_source=normalizer_source
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
-
-    def train_swav(
-        self,
-        swav_args: "swav.SwAV_Args",
-        train_dataset: Dataset,
-        *,
-        exp_label: Optional[str] = None,
-        # outcomes: Optional[Union[str, List[str]]] = None,
-        # FIXME: outcomes
-        dataset_kwargs: Optional[Dict[str, Any]] = dict(),
-    ) -> None:
-        """
-        Train SwAV model.
-
-        Models are saved in ``swav`` folder in the project root directory.
-
-        See :ref:`swav_ssl` for more information. # TODO
-
-        Args:
-            swav_args (slideflow.swav.SwAV_Args, optional): SwAV
-                arguments, as provided by :func:`slideflow.swav.get_args()`.
-            train_dataset (:class:`slideflow.Dataset`): Training dataset.
-
-        Keyword Args:
-            exp_label (str, optional): Experiment label to add model names.
-            dataset_kwargs: All other keyword arguments for
-                :meth:`slideflow.Dataset.torch`.
-        """
-        from slideflow import swav
-
-        # making sure user does not specify two different batch sizes
-        if 'batch_size' in dataset_kwargs:
-            raise ValueError(
-                f"specify batch_size in swav_args not dataset_kwargs")
-        dataset_kwargs['batch_size'] = swav_args.batch_size
-
-        # get base SwAV args/settings if not provided
-        if not swav_args:
-            swav_args = swav.get_args()
-        assert isinstance(swav_args, swav.SwAV_Args)
-
-        # Set up SwAV experiment data directory
-        if exp_label is None:
-            exp_label = 'swav'
-        if not exists(join(self.root, 'swav')):
-            os.makedirs(join(self.root, 'swav'))
-        dump_path = sf.util.create_new_model_dir(
-            join(self.root, 'swav'), exp_label
-        )
-        swav_args.dump_path = dump_path
-
-        # create dataloader
-        iterator = train_dataset.torch_iterator(
-            interleave_iter='MulitCropInterleaveIterator',
-            **dataset_kwargs 
-        )
-
-        swav.run_swav(swav_args, iterator)
 
     def train_clam(self, *args, splits: str = 'splits.json', **kwargs):
         """Deprecated function.
