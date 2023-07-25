@@ -34,7 +34,7 @@ class MILFeatures():
         device: Optional[Any] = None
     ):
         """Loads in model from Callable or path to model weights and config.
-        Saves activations from hidden layer weights, predictions, and attention weight, 
+        Saves activations from last hidden layer weights, predictions, and attention weight, 
         storing to internal parameters ``self.activations``, ``self.predictions``, ``self.attentions`` dictionaries 
         mapping slides to arrays of weights.
         Converts annotations to DataFrame if necessary.
@@ -381,7 +381,7 @@ class MILFeatures():
 
         return obj
 
-    def to_df(self) -> pd.core.frame.DataFrame:
+    def to_df(self, predictions = True, attentions = True) -> pd.core.frame.DataFrame:
         """Export activations to
         a pandas DataFrame.
 
@@ -417,13 +417,13 @@ class MILFeatures():
                         for s in self.slides], index=index)
                 })
 
-        if self.predictions:
+        if predictions and self.predictions:
             df_dict.update({
                 'predictions': pd.Series([
                     self.predictions[s]
                     for s in self.slides], index=index)
             })
-        if self.attentions:
+        if attentions and self.attentions:
             if branches == 1:
                 df_dict.update({
                     'attentions': pd.Series([

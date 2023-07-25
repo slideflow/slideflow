@@ -2256,7 +2256,7 @@ class Project:
 
         Args:
             weights (str): Path to model weights to load.
-            dataset (sf.Dataset): Dataset to evaluation.
+            dataset (:class:`slideflow.Dataset`): Dataset.
             outcomes (str, list(str)): Outcomes.
             bags (str, list(str)): Path to bags, or list of bag file paths.
                 Each bag should contain PyTorch array of features from all tiles in

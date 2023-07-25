@@ -47,9 +47,9 @@ class MIL_fc(nn.Module):
             h, label, instance_eval = h
         if h.ndim == 3:
             h = h.squeeze()
-        print(h.shape)
+
         logits  = self.classifier(h) # K x 1
-        print(logits.shape)
+
         y_probs = F.softmax(logits, dim = 1)
         top_instance_idx = torch.topk(y_probs[:, 1], self.top_k, dim=0)[1].view(1,)
         top_instance = torch.index_select(logits, dim=0, index=top_instance_idx)
