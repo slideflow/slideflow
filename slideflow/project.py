@@ -1963,10 +1963,10 @@ class Project:
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 16,
         max_tiles: int = 0,
-        layers: Union[str, List[str]] = 'postconv',
         force_regenerate: bool = False,
         batch_size: int = 32,
         slide_batch_size: int = 16,
+        **kwargs: Any
     ) -> str:
         """Generate tile-level features for slides for use with CLAM.
 
@@ -1995,7 +1995,8 @@ class Project:
             max_tiles (int, optional): Only include maximum of this many tiles
                 per slide. Defaults to 0 (all tiles).
             layers (list): Which model layer(s) generate activations.
-                Defaults to 'postconv'.
+                If ``model`` is a saved model, this defaults to 'postconv'.
+                Defaults to None.
             force_regenerate (bool): Forcibly regenerate activations
                 for all slides even if .pt file exists. Defaults to False.
             min_tiles (int, optional): Minimum tiles per slide. Skip slides
@@ -2005,6 +2006,8 @@ class Project:
             slide_batch_size (int): Interleave feature calculation across
                 this many slides. Higher values may improve performance
                 but require more memory. Defaults to 16.
+            **kwargs: Additional keyword arguments are passed to
+                ``sf.DatasetFeatures``.
 
         Returns:
             Path to directory containing exported .pt files
@@ -2041,12 +2044,13 @@ class Project:
         # Ensure min_tiles is applied to the dataset.
         dataset = dataset.filter(min_tiles=min_tiles)
 
-        # If the model does not exist, check if it is an architecture name
+        # Check if the model is an architecture name
         # (for using an Imagenet pretrained model)
         if isinstance(model, str) and sf.model.is_extractor(model):
-            log.info(f"Building feature extractor {model}.")
+            log.info(f"Building feature extractor: [green]{model}[/]")
+            layer_kw = dict(layers=kwargs['layers']) if 'layers' in kwargs else dict()
             model = sf.model.build_feature_extractor(
-                model, tile_px=dataset.tile_px
+                model, tile_px=dataset.tile_px, **layer_kw
             )
 
             # Set the pt_files directory if not provided
@@ -2059,7 +2063,7 @@ class Project:
                 "of a valid feature extractor (use sf.model.list_extractors() "
                 "for a list of all available feature extractors).")
 
-        else:
+        elif not isinstance(model, str):
             from slideflow.model.base import BaseFeatureExtractor
             if not isinstance(model, BaseFeatureExtractor):
                 raise ValueError(
@@ -2067,7 +2071,7 @@ class Project:
                     "of a valid feature extractor (use sf.model.list_extractors() "
                     "for a list of all available feature extractors).")
 
-            log.info(f"Using feature extractor {model.tag}.")
+            log.info(f"Using feature extractor: [green]{model.tag}[/]")
             # Set the pt_files directory if not provided
             if outdir.lower() == 'auto':
                 outdir = join(self.root, 'pt_files', model.tag)
@@ -2090,7 +2094,7 @@ class Project:
                 skip_p = f'{to_skip}/{len(all_slides)}'
                 log.info(f"Skipping {skip_p} finished slides.")
             if not slides_to_generate:
-                log.warn("No slides to generate CLAM features.")
+                log.warn("No slides for which to generate features.")
                 return outdir
             dataset = dataset.filter(filters={'slide': slides_to_generate})
             filtered_slides_to_generate = dataset.slides()
@@ -2109,14 +2113,16 @@ class Project:
             df = sf.DatasetFeatures(
                 model=model,
                 dataset=_dataset,
-                layers=layers,
                 include_preds=False,
+                include_uncertainty=False,
                 batch_size=batch_size,
                 verbose=False,
                 progress=False,
-                pool_sort=False
+                pool_sort=False,
+                **kwargs
             )
             df.to_torch(outdir, verbose=False)
+
         return outdir
 
     @auto_dataset

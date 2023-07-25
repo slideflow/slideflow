@@ -140,10 +140,17 @@ def process_image(
     *args: Any,
     standardize: bool = False,
     augment: Union[bool, str] = False,
+    transform: Optional[Callable] = None,
     size: Optional[int] = None
 ) -> Tuple[Union[Dict, tf.Tensor], ...]:
-    """Applies augmentations and/or standardization to an image Tensor."""
+    """Applies augmentations and/or standardization to an image Tensor.
 
+    Keyword Args:
+        transform (Callable, optional): Arbitrary transform function.
+            Performs transformation after augmentations but before standardization.
+            Defaults to None.
+
+    """
     if isinstance(record, dict):
         image = record['tile_image']
     else:
@@ -205,6 +212,8 @@ def process_image(
         )
     if augment is True or (isinstance(augment, str) and 'i' in augment):
         ...
+    if transform is not None:
+        image = transform(image)
     if standardize:
         image = tf.image.per_image_standardization(image)
 
@@ -402,6 +411,7 @@ def interleave(
     infinite: bool = True,
     augment: bool = False,
     standardize: bool = True,
+    transform: Optional[Callable] = None,
     normalizer: Optional["StainNormalizer"] = None,
     num_shards: Optional[int] = None,
     shard_idx: Optional[int] = None,
@@ -452,6 +462,9 @@ def interleave(
             augmentations.
         standardize (bool, optional): Standardize images to (0,1).
             Defaults to True.
+        transform (Callable, optional): Arbitrary transform function.
+            Performs transformation after augmentations but before standardization.
+            Defaults to None.
         normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
             Normalizer to use on images. Defaults to None.
         num_shards (int, optional): Shard the tfrecord datasets, used for
@@ -624,6 +637,7 @@ def interleave(
                 process_image,
                 standardize=standardize,
                 augment=augment,
+                transform=transform,
                 size=img_size
             ),
             num_parallel_calls=tf.data.AUTOTUNE,

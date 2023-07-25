@@ -29,68 +29,68 @@ def retccl(tile_px, **kwargs):
 
 @register_torch
 def resnet18_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('resnet18', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('resnet18', tile_px, **kwargs)
 
 @register_torch
 def resnet50_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('resnet50', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('resnet50', tile_px, **kwargs)
 
 @register_torch
 def alexnet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('alexnet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('alexnet', tile_px, **kwargs)
 
 @register_torch
 def squeezenet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('squeezenet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('squeezenet', tile_px, **kwargs)
 
 @register_torch
 def densenet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('densenet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('densenet', tile_px, **kwargs)
 
 @register_torch
 def inception_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('inception', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('inception', tile_px, **kwargs)
 
 @register_torch
 def googlenet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('googlenet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('googlenet', tile_px, **kwargs)
 
 @register_torch
 def shufflenet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('shufflenet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('shufflenet', tile_px, **kwargs)
 
 @register_torch
 def resnext50_32x4d_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('resnext50_32x4d', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('resnext50_32x4d', tile_px, **kwargs)
 
 @register_torch
 def vgg16_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('vgg16', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('vgg16', tile_px, **kwargs)
 
 @register_torch
 def mobilenet_v2_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('mobilenet_v2', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('mobilenet_v2', tile_px, **kwargs)
 
 @register_torch
 def mobilenet_v3_small_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('mobilenet_v3_small', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('mobilenet_v3_small', tile_px, **kwargs)
 
 @register_torch
 def mobilenet_v3_large_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('mobilenet_v3_large', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('mobilenet_v3_large', tile_px, **kwargs)
 
 @register_torch
 def wide_resnet50_2_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('wide_resnet50_2', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('wide_resnet50_2', tile_px, **kwargs)
 
 @register_torch
 def mnasnet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('mnasnet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('mnasnet', tile_px, **kwargs)
 
 @register_torch
 def xception_imagenet(tile_px, **kwargs):
     from torchvision import transforms
-    extractor = _TorchImagenetLayerExtractor('xception', tile_px, **kwargs)
+    extractor = TorchImagenetLayerExtractor('xception', tile_px, **kwargs)
     extractor.transform = transforms.Compose([
         transforms.Lambda(lambda x: x / 255.),
         transforms.Normalize(
@@ -102,7 +102,7 @@ def xception_imagenet(tile_px, **kwargs):
 @register_torch
 def nasnet_large_imagenet(tile_px, **kwargs):
     from torchvision import transforms
-    extractor = _TorchImagenetLayerExtractor('nasnet_large', tile_px, **kwargs)
+    extractor = TorchImagenetLayerExtractor('nasnet_large', tile_px, **kwargs)
     extractor.transform = transforms.Compose([
         transforms.Lambda(lambda x: x / 255.),
         transforms.Normalize(
@@ -113,7 +113,7 @@ def nasnet_large_imagenet(tile_px, **kwargs):
 
 # -----------------------------------------------------------------------------
 
-class _TorchImagenetLayerExtractor(BaseFeatureExtractor):
+class TorchImagenetLayerExtractor(BaseFeatureExtractor):
     """Feature extractor that calculates layer activations for
     imagenet-pretrained PyTorch models."""
 
@@ -123,7 +123,7 @@ class _TorchImagenetLayerExtractor(BaseFeatureExtractor):
         from ..torch import ModelParams, Features
         from .. import torch_utils
         from torchvision import transforms
-        
+
 
         self.device = torch_utils.get_device(device)
         _hp = ModelParams(tile_px=tile_px, model=model_name, include_top=False, hidden_layers=0)
@@ -133,6 +133,7 @@ class _TorchImagenetLayerExtractor(BaseFeatureExtractor):
         self.tag = model_name + "_" + '-'.join(self.ftrs.layers)
         self.num_features = self.ftrs.num_features
         self.num_classes = 0
+        self._tile_px = tile_px
 
         # Normalization for Imagenet pretrained models
         # as described here: https://pytorch.org/vision/0.11/models.html
@@ -160,3 +161,20 @@ class _TorchImagenetLayerExtractor(BaseFeatureExtractor):
         assert batch_images.dtype == torch.uint8
         batch_images = self.transform(batch_images).to(self.device)
         return self.ftrs._predict(batch_images)
+
+    def dump_config(self):
+        """Return a dictionary of configuration parameters.
+
+        These configuration parameters can be used to reconstruct the
+        feature extractor, using ``slideflow.model.build_feature_extractor()``.
+
+        """
+        return {
+            'class': 'slideflow.model.extractors.TorchImagenetLayerExtractor',
+            'kwargs': {
+                'model_name': self.model_name,
+                'tile_px': self._tile_px,
+                'layers': self.ftrs.layers,
+                'pooling': self.ftrs._pooling,
+            }
+        }

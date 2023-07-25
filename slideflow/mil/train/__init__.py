@@ -79,7 +79,10 @@ def train_mil(
     # Set up experiment label
     if exp_label is None:
         try:
-            exp_label = config.model_config.model
+            exp_label = '{}-{}'.format(
+                config.model_config.model,
+                "-".join(outcomes if isinstance(outcomes, list) else [outcomes])
+            )
         except Exception:
             exp_label = 'no_label'
 
@@ -87,7 +90,18 @@ def train_mil(
     if not exists(outdir):
         os.makedirs(outdir)
     outdir = sf.util.create_new_model_dir(outdir, exp_label)
-    sf.util.write_json(config.json_dump(), join(outdir, 'mil_params.json'))
+
+    # Log MIL training parameters
+    mil_params = config.json_dump()
+    mil_params['outcomes'] = outcomes
+    mil_params['bags'] = bags
+    if isinstance(bags, str) and exists(join(bags, 'bags_config.json')):
+        mil_params['bags_encoder'] = sf.util.load_json(
+            join(bags, 'bags_config.json')
+        )
+    else:
+        mil_params['bags_encoder'] = None
+    sf.util.write_json(mil_params, join(outdir, 'mil_params.json'))
 
     return train_fn(
         config,
@@ -236,6 +250,14 @@ def train_clam(
     pred_out = join(outdir, 'results', 'predictions.parquet')
     df.to_parquet(pred_out)
     log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    # Print categorical metrics, including per-category accuracy
+    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
+    df.rename(
+        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'},
+        inplace=True
+    )
+    sf.stats.metrics.categorical_metrics(df, level='slide')
 
     # Attention heatmaps
     if isinstance(bags, str):
@@ -420,9 +442,13 @@ def train_fastai(
     df.to_parquet(pred_out)
     log.info(f"Predictions saved to [green]{pred_out}[/]")
 
-    # TODO: use `sf.stats.metrics` to generate categorical metrics
-    # or linear metrics, which will include per-category accuracy
-    # sf.stats.metrics.categorical_metrics(df, level='slide')
+    # Print categorical metrics, including per-category accuracy
+    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
+    df.rename(
+        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'},
+        inplace=True
+    )
+    sf.stats.metrics.categorical_metrics(df, level='slide')
 
     # Attention heatmaps.
     if attention and attention_heatmaps:
