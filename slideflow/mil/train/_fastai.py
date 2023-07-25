@@ -5,6 +5,8 @@ import numpy.typing as npt
 from typing import List, Optional, Union
 from torch import nn
 from sklearn.preprocessing import OneHotEncoder
+from sklearn import __version__ as sklearn_version
+from packaging import version
 from fastai.vision.all import (
     DataLoader, DataLoaders, Learner, RocAuc, SaveModelCallback, CSVLogger, FetchPredsCallback
 )
@@ -109,7 +111,14 @@ def _build_clam_learner(
     device = torch_utils.get_device(device)
 
     # Prepare data.
-    encoder = OneHotEncoder(sparse=False).fit(unique_categories.reshape(-1, 1))
+    # Set oh_kw to a dictionary of keyword arguments for OneHotEncoder,
+    # using the argument sparse=False if the sklearn version is <1.2
+    # and sparse_output=False if the sklearn version is >=1.2.
+    if version.parse(sklearn_version) < version.parse("1.2"):
+        oh_kw = {"sparse": False}
+    else:
+        oh_kw = {"sparse_output": False}
+    encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
 
     # Build dataloaders.
     train_dataset = build_clam_dataset(
@@ -189,7 +198,14 @@ def _build_fastai_learner(
     device = torch_utils.get_device(device)
 
     # Prepare data.
-    encoder = OneHotEncoder(sparse=False).fit(unique_categories.reshape(-1, 1))
+    # Set oh_kw to a dictionary of keyword arguments for OneHotEncoder,
+    # using the argument sparse=False if the sklearn version is <1.2
+    # and sparse_output=False if the sklearn version is >=1.2.
+    if version.parse(sklearn_version) < version.parse("1.2"):
+        oh_kw = {"sparse": False}
+    else:
+        oh_kw = {"sparse_output": False}
+    encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
 
     # Build dataloaders.
     train_dataset = build_dataset(

@@ -12,6 +12,7 @@ import torch.nn as nn
 import math
 import torch.utils.checkpoint as checkpoint
 import slideflow as sf
+import numpy as np
 from typing import Optional
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
@@ -25,7 +26,7 @@ from timm.models.swin_transformer import window_partition, window_reverse
 from timm.models.vision_transformer import checkpoint_filter_fn
 
 from ..base import BaseFeatureExtractor
-from ._slide import features_from_slide_torch
+from ._slide import features_from_slide
 
 # -----------------------------------------------------------------------------
 
@@ -605,18 +606,31 @@ class CTransPathFeatures(BaseFeatureExtractor):
         ]
         self.transform = transforms.Compose(all_transforms)
         self.preprocess_kwargs = dict(standardize=False)
+        self._center_crop = center_crop
         # ---------------------------------------------------------------------
 
     def __call__(self, obj, **kwargs):
         """Generate features for a batch of images or a WSI."""
         if isinstance(obj, sf.WSI):
-            return features_from_slide_torch(
-                self,
-                obj,
-                device=self.device,
-                **kwargs
+            grid = features_from_slide(self, obj, **kwargs)
+            return np.ma.masked_where(grid == -99, grid)
+        elif kwargs:
+            raise ValueError(
+                f"{self.__class__.__name__} does not accept keyword arguments "
+                "when extracting features from a batch of images."
             )
         assert obj.dtype == torch.uint8
         obj = self.transform(obj)
         return self.model(obj)
 
+    def dump_config(self):
+        """Return a dictionary of configuration parameters.
+
+        These configuration parameters can be used to reconstruct the
+        feature extractor, using ``slideflow.model.build_feature_extractor()``.
+
+        """
+        return {
+            'class': 'slideflow.model.extractors.ctranspath.CTransPathFeatures',
+            'kwargs': {'center_crop': self._center_crop}
+        }

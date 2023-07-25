@@ -1506,7 +1506,7 @@ class WSI(_BaseLoader):
         whitespace_threshold: float = None,
         grayspace_fraction: float = None,
         grayspace_threshold: float = None,
-        normalizer: str = None,
+        normalizer: Optional[Union[str, "slideflow.norm.StainNormalizer"]] = None,
         normalizer_source: str = None,
         context_normalize: bool = False,
         num_threads: Optional[int] = None,

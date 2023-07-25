@@ -723,7 +723,7 @@ def get_model_config(model_path: str) -> Dict:
 
     if exists(join(model_path, 'params.json')):
         config = load_json(join(model_path, 'params.json'))
-    elif exists(join(dirname(model_path), 'params.json')):
+    elif exists(model_path) and exists(join(dirname(model_path), 'params.json')):
         if not (sf.util.torch_available
                 and sf.util.path_to_ext(model_path) == 'zip'):
             log.warning(

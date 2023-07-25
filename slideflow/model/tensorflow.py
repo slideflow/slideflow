@@ -2175,6 +2175,8 @@ class Features(BaseFeatureExtractor):
             layers = [layers]
         self.layers = layers
         self.path = path
+        self._pooling = None
+        self._include_preds = None
         if path is not None:
             self._model = load(self.path, method=load_method)  # type: ignore
             config = sf.util.get_model_config(path)
@@ -2216,7 +2218,7 @@ class Features(BaseFeatureExtractor):
             include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             wsi_normalizer (:class:`slideflow.norm.StainNormalizer`): Stain
-                normalizer to use on whole-slide images. Is not used on
+                normalizer to use on whole-slide images. Not used on
                 individual tile datasets via __call__. Defaults to None.
         """
         obj = cls(None, layers, include_preds)
@@ -2230,6 +2232,14 @@ class Features(BaseFeatureExtractor):
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj
+
+    def __repr__(self):
+        return ("{}(\n".format(self.__class__.__name__) +
+                "    path={!r},\n".format(self.path) +
+                "    layers={!r},\n".format(self.layers) +
+                "    include_preds={!r},\n".format(self._include_preds) +
+                "    pooling={!r},\n".format(self._pooling) +
+                ")")
 
     def __call__(
         self,
@@ -2259,12 +2269,13 @@ class Features(BaseFeatureExtractor):
         shuffle: bool = False,
         show_progress: bool = True,
         callback: Optional[Callable] = None,
+        normalizer: Optional[Union[str, "sf.norm.StainNormalizer"]] = None,
+        normalizer_source: Optional[str] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
 
-        log.debug(f"Slide prediction (batch_size={batch_size}, "
-                  f"img_format={img_format})")
+        # Check image format
         if img_format == 'auto' and self.img_format is None:
             raise ValueError(
                 'Unable to auto-detect image format (png or jpg). Set the '
@@ -2273,132 +2284,21 @@ class Features(BaseFeatureExtractor):
         elif img_format == 'auto':
             assert self.img_format is not None
             img_format = self.img_format
-        if img_format == 'png':  # PNG is lossless; this is equivalent but faster
-            log.debug("Using numpy image format instead of PNG")
-            img_format = 'numpy'
-        total_out = self.num_features + self.num_classes + self.num_uncertainty
-        if grid is None:
-            features_grid = np.ones((
-                    slide.grid.shape[1],
-                    slide.grid.shape[0],
-                    total_out),
-                dtype=dtype)
-            features_grid *= -99
-        else:
-            assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
-            features_grid = grid
-        generator = slide.build_generator(
+
+        return sf.model.extractors.features_from_slide(
+            self,
+            slide,
             img_format=img_format,
+            batch_size=batch_size,
+            dtype=dtype,
+            grid=grid,
             shuffle=shuffle,
             show_progress=show_progress,
+            callback=callback,
+            normalizer=(normalizer if normalizer else self.wsi_normalizer),
+            normalizer_source=normalizer_source,
             **kwargs
         )
-        if not generator:
-            log.error(f"No tiles extracted from slide [green]{slide.name}")
-            return None
-
-        def tile_generator():
-            for image_dict in generator():
-                yield {
-                    'grid': image_dict['grid'],
-                    'image': image_dict['image']
-                }
-
-        @tf.function
-        def _parse(record):
-            image = record['image']
-            if img_format.lower() in ('jpg', 'jpeg'):
-                image = tf.image.decode_jpeg(image, channels=3)
-            image.set_shape([slide.tile_px, slide.tile_px, 3])
-            loc = record['grid']
-            return image, loc
-
-        @tf.function
-        def _standardize(image, loc):
-            parsed_image = tf.image.per_image_standardization(image)
-            return parsed_image, loc
-
-        # Generate dataset from the generator
-        with tf.name_scope('dataset_input'):
-            output_signature = {
-                'grid': tf.TensorSpec(shape=(2), dtype=tf.uint32)
-            }
-            if img_format.lower() in ('jpg', 'jpeg'):
-                output_signature.update({
-                    'image': tf.TensorSpec(shape=(), dtype=tf.string)
-                })
-            else:
-                output_signature.update({
-                    'image': tf.TensorSpec(shape=(slide.tile_px,
-                                                  slide.tile_px,
-                                                  3),
-                                           dtype=tf.uint8)
-                })
-            tile_dataset = tf.data.Dataset.from_generator(
-                tile_generator,
-                output_signature=output_signature
-            )
-            tile_dataset = tile_dataset.map(
-                _parse,
-                num_parallel_calls=tf.data.AUTOTUNE,
-                deterministic=True
-            )
-            if self.wsi_normalizer:
-                if self.wsi_normalizer.vectorized:
-                    log.debug("Using vectorized normalization")
-                    norm_batch_size = 32 if not batch_size else batch_size
-                    tile_dataset = tile_dataset.batch(norm_batch_size, drop_remainder=False)
-                else:
-                    log.debug("Using per-image normalization")
-                tile_dataset = tile_dataset.map(
-                    self.wsi_normalizer.tf_to_tf,
-                    num_parallel_calls=tf.data.AUTOTUNE,
-                    deterministic=True
-                )
-                if self.wsi_normalizer.vectorized:
-                    tile_dataset = tile_dataset.unbatch()
-                if self.wsi_normalizer.method == 'macenko':
-                    # Drop the images that causes an error, e.g. if eigen
-                    # decomposition is unsuccessful.
-                    tile_dataset = tile_dataset.apply(tf.data.experimental.ignore_errors())
-            tile_dataset = tile_dataset.map(
-                _standardize,
-                num_parallel_calls=tf.data.AUTOTUNE,
-                deterministic=True
-            )
-            tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
-            tile_dataset = tile_dataset.prefetch(8)
-
-        for i, (batch_images, batch_loc) in enumerate(tile_dataset):
-            model_out = self._predict(batch_images)
-            if not isinstance(model_out, (list, tuple)):
-                model_out = [model_out]
-
-            # Flatten the output, relevant when
-            # there are multiple outcomes / classifier heads
-            _act_batch = []
-            for m in model_out:
-                if isinstance(m, list):
-                    _act_batch += [_m.numpy() for _m in m]
-                else:
-                    _act_batch.append(m.numpy())
-            _act_batch = np.concatenate(_act_batch, axis=-1)
-
-            _loc_batch = batch_loc.numpy()
-            grid_idx_updated = []
-            for i, act in enumerate(_act_batch):
-                xi = _loc_batch[i][0]
-                yi = _loc_batch[i][1]
-                if callback:
-                    grid_idx_updated.append((yi, xi))
-                features_grid[yi][xi] = act
-
-            # Trigger a callback signifying that the grid has been updated.
-            # Useful for progress tracking.
-            if callback:
-                callback(grid_idx_updated)
-
-        return features_grid
 
     @tf.function
     def _predict(self, inp: tf.Tensor) -> tf.Tensor:
@@ -2414,6 +2314,9 @@ class Features(BaseFeatureExtractor):
         """Builds the interface model that outputs feature activations at the
         designated layers and/or predictions. Intermediate layers are returned in
         the order of layers. predictions are returned last."""
+
+        self._pooling = pooling
+        self._include_preds = include_preds
 
         if isinstance(pooling, str):
             if pooling == 'avg':
@@ -2491,6 +2394,16 @@ class Features(BaseFeatureExtractor):
             log.debug(f'Number of classes: {self.num_classes}')
         log.debug(f'Number of activation features: {self.num_features}')
 
+    def dump_config(self):
+        return {
+            'class': 'slideflow.model.tensorflow.Features',
+            'kwargs': {
+                'path': self.path,
+                'layers': self.layers,
+                'include_preds': self._include_preds,
+                'pooling': self._pooling
+            }
+        }
 
 class UncertaintyInterface(Features):
     def __init__(
@@ -2534,6 +2447,12 @@ class UncertaintyInterface(Features):
         obj.wsi_normalizer = wsi_normalizer
         return obj
 
+    def __repr__(self):
+        return ("{}(\n".format(self.__class__.__name__) +
+                "    path={!r},\n".format(self.path) +
+                "    layers={!r},\n".format(self.layers) +
+                "    pooling={!r},\n".format(self._pooling) +
+                ")")
 
     @tf.function
     def _predict(self, inp):
@@ -2564,6 +2483,15 @@ class UncertaintyInterface(Features):
         else:
             return predictions, uncertainty
 
+    def dump_config(self):
+        return {
+            'class': 'slideflow.model.tensorflow.UncertaintyInterface',
+            'kwargs': {
+                'path': self.path,
+                'layers': self.layers,
+                'pooling': self._pooling
+            }
+        }
 
 def load(
     path: str,
