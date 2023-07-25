@@ -291,7 +291,14 @@ class DatasetFeatures:
         else:
             return self.feature_generator.normalizer
 
-    def _generate_features(self, cache: Optional[str] = None, **kwargs) -> None:
+    def _generate_features(
+        self,
+        cache: Optional[str] = None,
+        progress: bool = True,
+        verbose: bool = True,
+        pool_sort: bool = True,
+        **kwargs
+    ) -> None:
 
         """Calculates activations from a given model, saving to self.activations
 
@@ -306,6 +313,11 @@ class DatasetFeatures:
                 estimation if UQ enabled. Defaults to True.
             batch_size (int, optional): Batch size to use during activations
                 calculations. Defaults to 32.
+            progress (bool): Show a progress bar during feature calculation.
+                Defaults to True.
+            verbose (bool): Show verbose logging output. Defaults to True.
+            pool_sort (bool): Use multiprocessing pools to perform final
+                sorting. Defaults to True.
             cache (str, optional): File in which to store PKL cache.
         """
 
@@ -320,7 +332,9 @@ class DatasetFeatures:
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()
 
-        activations, predictions, locations, uncertainty = fg.generate()
+        activations, predictions, locations, uncertainty = fg.generate(
+            progress=progress, verbose=verbose
+        )
 
         self.activations = {s: np.stack(v) for s, v in activations.items()}
         self.predictions = {s: np.stack(v) for s, v in predictions.items()}
@@ -337,11 +351,26 @@ class DatasetFeatures:
                     or not self.locations[s].size
                     or not self.uncertainty[s].size)
             ]
-            pool = mp.Pool(sf.util.num_cpu())
-            for i, true_locs in enumerate(track(pool.imap(self.dataset.get_tfrecord_locations, slides_to_sort),
-                                                transient=False,
-                                                total=len(slides_to_sort),
-                                                description="Sorting...")):
+            if pool_sort and len(slides_to_sort) > 1:
+                pool = mp.Pool(sf.util.num_cpu())
+                imap_iterable = pool.imap(
+                    self.dataset.get_tfrecord_locations, slides_to_sort
+                )
+            else:
+                pool = None
+                imap_iterable = map(
+                    self.dataset.get_tfrecord_locations, slides_to_sort
+                )
+            if progress:
+                iterable = track(
+                    imap_iterable,
+                    transient=False,
+                    total=len(slides_to_sort),
+                    description="Sorting...")
+            else:
+                iterable = imap_iterable
+
+            for i, true_locs in enumerate(iterable):
                 slide = slides_to_sort[i]
                 # Get the order of locations stored in TFRecords,
                 # and the corresponding indices for sorting
@@ -361,7 +390,8 @@ class DatasetFeatures:
                 if slide in self.uncertainty:
                     self.uncertainty[slide] = self.uncertainty[slide][sorted_idx]
                 self.locations[slide] = self.locations[slide][sorted_idx]
-            pool.close()
+            if pool is not None:
+                pool.close()
 
         fla_calc_time = time.time()
         log.debug(f'Calculation time: {fla_calc_time-fla_start_time:.0f} sec')
@@ -530,7 +560,8 @@ class DatasetFeatures:
     def to_torch(
         self,
         outdir: str,
-        slides: Optional[List[str]] = None
+        slides: Optional[List[str]] = None,
+        verbose: bool = True
     ) -> None:
         """Export activations in torch format to .pt files in the directory.
 
@@ -538,6 +569,7 @@ class DatasetFeatures:
 
         Args:
             outdir (str): Path to directory in which to save .pt files.
+            verbose (bool): Verbose logging output. Defaults to True.
 
         """
         import torch
@@ -545,7 +577,7 @@ class DatasetFeatures:
         if not exists(outdir):
             os.makedirs(outdir)
         slides = self.slides if not slides else slides
-        for slide in track(slides):
+        for slide in (slides):# if not verbose else track(slides)):
             if self.activations[slide] == []:
                 log.info(f'Skipping empty slide [green]{slide}')
                 continue
@@ -562,7 +594,8 @@ class DatasetFeatures:
             'num_features': self.num_features
         }
         sf.util.write_json(args, join(outdir, 'settings.json'))
-        log.info(f'Activations exported in Torch format to {outdir}')
+        log_fn = log.info if verbose else log.debug
+        log_fn(f'Activations exported in Torch format to {outdir}')
 
     def to_df(
         self
@@ -1058,6 +1091,7 @@ class _FeatureGenerator:
         batch_size: int = 32,
         device: Optional[str] = None,
         num_workers: Optional[int] = None,
+        augment: bool = False,
         **kwargs
     ) -> None:
         self.model = model
@@ -1066,6 +1100,7 @@ class _FeatureGenerator:
         self.batch_size = batch_size
         self.simclr_args = None
         self.num_workers = num_workers
+        self.augment = augment
 
         # Check if location information is stored in TFRecords
         self.tfrecords_have_loc = self.dataset.tfrecords_have_locations()
@@ -1172,7 +1207,7 @@ class _FeatureGenerator:
         dts_kw = {
             'infinite': False,
             'batch_size': self.batch_size,
-            'augment': False,
+            'augment': self.augment,
             'incl_slidenames': True,
             'incl_loc': True,
         }
@@ -1395,15 +1430,16 @@ class _FeatureGenerator:
         else:
             raise ValueError(f"Unrecognized model type: {type(self.model)}")
 
-    def generate(self):
+    def generate(self, *, verbose: bool = True, progress: bool = True):
 
         # Get the dataloader for iterating through tfrecords
         dataset = self.build_dataset()
 
         # Rename tfrecord_array to tfrecords
-        log.info(f'Calculating activations for {len(self.dataset.tfrecords())} '
+        log_fn = log.info if verbose else log.debug
+        log_fn(f'Calculating activations for {len(self.dataset.tfrecords())} '
                  f'tfrecords (layers={self.layers})')
-        log.info(f'Generating from [green]{self.model}')
+        log_fn(f'Generating from [green]{self.model}')
 
         # Interleave tfrecord datasets
         estimated_tiles = self.dataset.num_tiles
@@ -1438,16 +1474,20 @@ class _FeatureGenerator:
         batch_proc_thread = threading.Thread(target=batch_worker, daemon=True)
         batch_proc_thread.start()
 
-        pb = Progress(*Progress.get_default_columns(),
-                      ImgBatchSpeedColumn(),
-                      transient=sf.getLoggingLevel()>20)
-        task = pb.add_task("Generating...", total=estimated_tiles)
-        pb.start()
+        if progress:
+            pb = Progress(*Progress.get_default_columns(),
+                        ImgBatchSpeedColumn(),
+                        transient=sf.getLoggingLevel()>20)
+            task = pb.add_task("Generating...", total=estimated_tiles)
+            pb.start()
+        else:
+            pb = None
         with sf.util.cleanup_progress(pb):
             for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataset:
                 model_output = self._calculate_feature_batch(batch_img)
                 q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
-                pb.advance(task, self.batch_size)
+                if progress:
+                    pb.advance(task, self.batch_size)
         q.put((None, None, None))
         batch_proc_thread.join()
         if hasattr(dataset, 'close'):

@@ -1965,7 +1965,8 @@ class Project:
         max_tiles: int = 0,
         layers: Union[str, List[str]] = 'postconv',
         force_regenerate: bool = False,
-        batch_size: int = 32
+        batch_size: int = 32,
+        slide_batch_size: int = 16,
     ) -> str:
         """Generate tile-level features for slides for use with CLAM.
 
@@ -2001,13 +2002,16 @@ class Project:
                 not meeting this threshold. Defaults to 16.
             batch_size (int): Batch size during feature calculation.
                 Defaults to 32.
+            slide_batch_size (int): Interleave feature calculation across
+                this many slides. Higher values may improve performance
+                but require more memory. Defaults to 16.
 
         Returns:
             Path to directory containing exported .pt files
 
         """
         # Check if the model exists and has a valid parameters file
-        if exists(model):
+        if isinstance(model, str) and exists(model):
             config = sf.util.get_model_config(model)
 
             if dataset is None:
@@ -2039,7 +2043,7 @@ class Project:
 
         # If the model does not exist, check if it is an architecture name
         # (for using an Imagenet pretrained model)
-        if sf.model.is_extractor(model):
+        if isinstance(model, str) and sf.model.is_extractor(model):
             log.info(f"Building feature extractor {model}.")
             model = sf.model.build_feature_extractor(
                 model, tile_px=dataset.tile_px
@@ -2049,11 +2053,24 @@ class Project:
             if outdir.lower() == 'auto':
                 outdir = join(self.root, 'pt_files', model.tag)
 
-        elif not exists(model):
+        elif isinstance(model, str) and not exists(model):
             raise ValueError(
                 f"'{model}' is neither a path to a saved model nor the name "
                 "of a valid feature extractor (use sf.model.list_extractors() "
                 "for a list of all available feature extractors).")
+
+        else:
+            from slideflow.model.base import BaseFeatureExtractor
+            if not isinstance(model, BaseFeatureExtractor):
+                raise ValueError(
+                    f"'{model}' is neither a path to a saved model nor the name "
+                    "of a valid feature extractor (use sf.model.list_extractors() "
+                    "for a list of all available feature extractors).")
+
+            log.info(f"Using feature extractor {model.tag}.")
+            # Set the pt_files directory if not provided
+            if outdir.lower() == 'auto':
+                outdir = join(self.root, 'pt_files', model.tag)
 
         # Create the pt_files directory
         if not exists(outdir):
@@ -2082,20 +2099,24 @@ class Project:
 
         # Set up activations interface.
         # Calculate features one slide at a time to reduce memory consumption.
-        for slide in dataset.slides():
+        for slide_batch in tqdm(sf.util.batch(dataset.slides(), slide_batch_size),
+                                total=len(dataset.slides()) // slide_batch_size):
             try:
                 _dataset = dataset.remove_filter(filters='slide')
             except errors.DatasetFilterError:
                 _dataset = dataset
-            _dataset = _dataset.filter(filters={'slide': slide})
+            _dataset = _dataset.filter(filters={'slide': slide_batch})
             df = sf.DatasetFeatures(
                 model=model,
                 dataset=_dataset,
                 layers=layers,
                 include_preds=False,
-                batch_size=batch_size
+                batch_size=batch_size,
+                verbose=False,
+                progress=False,
+                pool_sort=False
             )
-            df.to_torch(outdir)
+            df.to_torch(outdir, verbose=False)
         return outdir
 
     @auto_dataset
