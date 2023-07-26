@@ -50,7 +50,7 @@ class MILFeatures():
             use_lens (bool): Spec used for generating model args in 
             _get_mil_activations,
         Keyword Args:
-            config (:class: `TrainerConfig`]: Trainer for MIL model,
+            config (:class:`TrainerConfig`]: Trainer for MIL model,
             dataset (:class:`slideflow.Dataset`): Dataset from which to
                 generate activations.
             outcomes (str, List[str]): Outcome(s) of the model, 
@@ -98,16 +98,16 @@ class MILFeatures():
 
         Args:
             weights (str): Path to model weights to load.
-            dataset (sf.Dataset): Dataset to evaluation.
-            outcomes (str, list(str)): Outcomes.
-            bags (str, list(str)): fPath to bags, or list of bag file paths.
-                Each bag should contain PyTorch array of features from all tiles
-                in a slide, with the shape ``(n_tiles, n_features)``.
             config (:class:`slideflow.mil.TrainerConfigFastAI` or 
             :class:`slideflow.mil.TrainerConfigCLAM`):
                 Configuration for building model. If ``weights`` is a path to a
                 model directory, will attempt to read ``mil_params.json`` from 
                 this location and load saved configuration. Defaults to None.
+            dataset (:class:`slideflow.Dataset`): Dataset to evaluation.
+            outcomes (str, list(str)): Outcomes.
+            bags (str, list(str)): Path to bags, or list of bag file paths.
+                Each bag should contain PyTorch array of features from all tiles
+                in a slide, with the shape ``(n_tiles, n_features)``.
         """
 
         import torch
@@ -198,16 +198,16 @@ class MILFeatures():
         use_lens: bool,
         device: Optional[Any]
     ):
-        """Loads in model from Callable and calculates activations, predictions,
-        and attention weights.
+        """Loads in model from Callable and calculates predictions,
+        attentions, and activations weights.
 
-        Args:
-            model (Callable): Model from which to calculate activations.
-            bags (list): List of feature bags,
-            use_lens (bool): Spec used for generating model args in 
-            _get_mil_activations, generate activations.
-            attention_pooling (str): pooling strategy for MIL model layers,
-            device (Any): device backend for torch tensors
+            Args:
+                model (Callable): Model from which to calculate activations.
+                bags (list): List of feature bags,
+                use_lens (bool): Spec used for generating model args in 
+                    _get_mil_activations, generate activations.
+                attention_pooling (str): pooling strategy for MIL model layers,
+                device (Any): device backend for torch tensors
         """
 
         # Auto-detect device.
@@ -285,8 +285,7 @@ class MILFeatures():
 
     def _get_activations(self, hlw):
         """Formats list of activation weights into dictionary of lists, 
-        matched by slide.
-        Returns the dictionary."""
+        matched by slide."""
         if hlw is None or self.slides is None:
             return None, {}
         activations = {}
@@ -309,8 +308,7 @@ class MILFeatures():
 
     def _get_attentions(self, atts):
         """Formats list of attention weights into dictionary of lists, 
-        matched by slide.
-        Returns the dictionary."""
+        matched by slide."""
         if atts is None or self.slides is None:
             return None
         attentions = {}
@@ -320,8 +318,7 @@ class MILFeatures():
 
     def _get_predictions(self, preds):
         """Formats list of prediction weights into dictionary of lists, 
-        matched by slide.
-        Returns the dictionary."""
+        matched by slide."""
         if preds is None or self.slides is None:
             return None
         predictions = {}
