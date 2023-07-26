@@ -125,7 +125,8 @@ def eval_mil(
     log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print categorical metrics, including per-category accuracy
-    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
+    outcome_name = outcomes if isinstance(
+        outcomes, str) else '-'.join(outcomes)
     metrics_df = df.rename(
         columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
     )
@@ -158,6 +159,7 @@ def eval_mil(
     return df
 
 # -----------------------------------------------------------------------------
+
 
 def predict_slide(
     model: str,
@@ -197,7 +199,8 @@ def predict_slide(
     """
     # Try to auto-determine the encoder
     if encoder is None:
-        encoder, detected_normalizer = build_bag_encoder(model, allow_errors=True)
+        encoder, detected_normalizer = build_bag_encoder(
+            model, allow_errors=True)
         if encoder is None:
             raise ValueError(
                 "Unable to auto-detect feature encoder used for model {}. "
@@ -328,7 +331,8 @@ def generate_mil_features(
     # Check for correct model
     acceptable_models = ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
     if config.model_config.model.lower() not in acceptable_models:
-        raise NotImplementedError
+        raise errors.ModelError(
+            f"Model {config.model_config.model} is not supported.")
 
     # Read configuration from saved model, if available
     if config is None:

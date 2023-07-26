@@ -9,6 +9,7 @@ from ._utils import initialize_weights
 
 # -----------------------------------------------------------------------------
 
+
 class MIL_fc(nn.Module):
 
     sizes = {
@@ -34,7 +35,7 @@ class MIL_fc(nn.Module):
         fc.append(nn.Linear(self.size[1], n_classes))
         self.classifier = nn.Sequential(*fc)
         initialize_weights(self)
-        self.top_k=top_k
+        self.top_k = top_k
 
     def relocate(self):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -48,11 +49,13 @@ class MIL_fc(nn.Module):
         if h.ndim == 3:
             h = h.squeeze()
 
-        logits  = self.classifier(h) # K x 1
+        logits = self.classifier(h)  # K x 1
 
-        y_probs = F.softmax(logits, dim = 1)
-        top_instance_idx = torch.topk(y_probs[:, 1], self.top_k, dim=0)[1].view(1,)
-        top_instance = torch.index_select(logits, dim=0, index=top_instance_idx)
+        y_probs = F.softmax(logits, dim=1)
+        top_instance_idx = torch.topk(
+            y_probs[:, 1], self.top_k, dim=0)[1].view(1,)
+        top_instance = torch.index_select(
+            logits, dim=0, index=top_instance_idx)
         results_dict = {}
         return top_instance, results_dict
 
@@ -86,9 +89,10 @@ class MIL_fc_mc(nn.Module):
             fc.append(nn.Dropout(0.25))
         self.fc = nn.Sequential(*fc)
 
-        self.classifiers = nn.ModuleList([nn.Linear(self.size[1], 1) for i in range(n_classes)])
+        self.classifiers = nn.ModuleList(
+            [nn.Linear(self.size[1], 1) for i in range(n_classes)])
         initialize_weights(self)
-        self.top_k=top_k
+        self.top_k = top_k
         self.n_classes = n_classes
         assert self.top_k == 1
 
@@ -115,12 +119,10 @@ class MIL_fc_mc(nn.Module):
             else:
                 logits[:, c] = self.classifiers[c](h).squeeze(1)
 
-        y_probs = F.softmax(logits, dim = 1)
+        y_probs = F.softmax(logits, dim=1)
         m = y_probs.view(1, -1).argmax(1)
-        top_indices = torch.cat(((m // self.n_classes).view(-1, 1), (m % self.n_classes).view(-1, 1)), dim=1).view(-1, 1)
+        top_indices = torch.cat(((m // self.n_classes).view(-1, 1),
+                                (m % self.n_classes).view(-1, 1)), dim=1).view(-1, 1)
         top_instance = logits[top_indices[0]]
         results_dict = {}
         return top_instance, results_dict
-
-
-

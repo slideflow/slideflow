@@ -9,7 +9,9 @@ from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
 from .models.clam import CLAM_SB, CLAM_MB
+from .models.mil_fc import MIL_fc, MIL_fc_mc
 from .models.att_mil import Attention_MIL
+from .models.transmil import TransMIL
 from slideflow import Dataset, log, errors
 from slideflow.util import log, path_to_name
 import slideflow as sf
@@ -107,9 +109,10 @@ class MILFeatures():
         if isinstance(config, TrainerConfigCLAM):
             raise NotImplementedError
         # Check for correct model
-        acceptable_models= ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
+        acceptable_models = ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
         if config.model_config.model.lower() not in acceptable_models:
-            raise NotImplementedError
+            raise errors.ModelErrors(
+                f"Model {config.model_config.model} is not supported.")
 
         # Read configuration from saved model, if available
         if config is None:
@@ -228,7 +231,7 @@ class MILFeatures():
                 else:
                     model_args = (loaded,)
 
-                if type(model) is not CLAM_SB and type(model) is not CLAM_MB:
+                if type(model) is Attention_MIL or type(model) is TransMIL:
                     model_out = model(*model_args)
                     h = model.get_last_layer_activations(*model_args)
                     att = torch.squeeze(model.calculate_attention(*model_args))
@@ -245,6 +248,11 @@ class MILFeatures():
                                 )
                             )
                     y_att.append(att.cpu().numpy())
+                elif type(model) is MIL_fc or type(model) is MIL_fc_mc:
+                    model_out = model(*model_args)
+                    h = model.get_last_layer_activations(*model_args)
+                    print(h.shape)
+                    y_att = None
                 else:
                     model_out = model(*model_args)[0]
                     h, A = model.get_last_layer_activations(*model_args)
@@ -381,7 +389,7 @@ class MILFeatures():
 
         return obj
 
-    def to_df(self, predictions = True, attentions = True) -> pd.core.frame.DataFrame:
+    def to_df(self, predictions=True, attentions=True) -> pd.core.frame.DataFrame:
         """Export activations to
         a pandas DataFrame.
 
@@ -396,7 +404,7 @@ class MILFeatures():
         df_dict = {}
 
         branches = list(self.activations.values())[0].shape
-
+        print(list(self.activations.values())[0])
         if len(branches) == 1:
             branches = 1
         else:
