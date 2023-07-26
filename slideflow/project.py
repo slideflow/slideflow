@@ -1452,7 +1452,8 @@ class Project:
         Logs classifier metrics (AUROC and AP) to the console.
 
         Args:
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or 
+            :class:`slideflow.mil.TrainerConfigCLAM`):
                 Training configuration, as obtained by
                 :func:`slideflow.mil.mil_config()`.
             train_dataset (:class:`slideflow.Dataset`): Training dataset.
@@ -2288,8 +2289,8 @@ class Project:
             dataset (:class:`slideflow.Dataset`): Dataset.
             outcomes (str, list(str)): Outcomes.
             bags (str, list(str)): Path to bags, or list of bag file paths.
-                Each bag should contain PyTorch array of features from all tiles in
-                a slide, with the shape ``(n_tiles, n_features)``.
+                Each bag should contain PyTorch array of features from all tiles
+                in a slide, with the shape ``(n_tiles, n_features)``.
             config (:class:`slideflow.mil.TrainerConfigFastAI` or 
                 :class:`slideflow.mil.TrainerConfigCLAM`): Configuration for
                 building model. If ``weights`` is a path to a model directory,

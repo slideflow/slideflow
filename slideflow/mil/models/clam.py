@@ -338,7 +338,7 @@ class CLAM_SB(_CLAM_Base):
             all_targets = []
             if label.ndim < 2 or label.shape[1] != self.n_classes:
                 inst_labels = F.one_hot(
-                    label, num_classes=self.n_classes).squeeze()  # binarize label
+                    label, num_classes=self.n_classes).squeeze() 
             else:
                 inst_labels = label[0]
             for i in range(len(self.instance_classifiers)):
@@ -462,7 +462,7 @@ class CLAM_MB(_CLAM_Base):
             all_targets = []
             if label.ndim < 2 or label.shape[1] != self.n_classes:
                 inst_labels = F.one_hot(
-                    label, num_classes=self.n_classes).squeeze()  # binarize label
+                    label, num_classes=self.n_classes).squeeze()  
             else:
                 inst_labels = label[0]
             for i in range(len(self.instance_classifiers)):

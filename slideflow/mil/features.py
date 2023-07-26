@@ -36,8 +36,9 @@ class MILFeatures():
         device: Optional[Any] = None
     ):
         """Loads in model from Callable or path to model weights and config.
-        Saves activations from last hidden layer weights, predictions, and attention weight, 
-        storing to internal parameters ``self.activations``, ``self.predictions``, ``self.attentions`` dictionaries 
+        Saves activations from last hidden layer weights, predictions, and 
+        attention weight, storing to internal parameters ``self.activations``,
+         ``self.predictions``, ``self.attentions`` dictionaries 
         mapping slides to arrays of weights.
         Converts annotations to DataFrame if necessary.
 
@@ -46,7 +47,8 @@ class MILFeatures():
             bags (str, list): Path or list of feature bags,
             slides (list): List of slides, 
             annotations: Union[str, "pd.core.frame.DataFrame"],
-            use_lens (bool): Spec used for generating model args in _get_mil_activations,
+            use_lens (bool): Spec used for generating model args in 
+            _get_mil_activations,
         Keyword Args:
             config (:class: `TrainerConfig`]: Trainer for MIL model,
             dataset (:class:`slideflow.Dataset`): Dataset from which to
@@ -63,7 +65,8 @@ class MILFeatures():
                 use_lens = True
             else:
                 use_lens = False
-        elif (config is not None) and (outcomes is not None) and (dataset is not None):
+        elif (config is not None) and (outcomes is not None) and \
+                (dataset is not None):
             log.info(f"Building model {config.model_fn.__name__} from path")
             self.slides, self.model, use_lens = self.generate_model(
                 model, config, dataset, outcomes, bags)
@@ -74,10 +77,12 @@ class MILFeatures():
                 bags = np.array([b for b in bags if path_to_name(b) in slides])
         else:
             raise RuntimeError(
-                'Model path detected without config, dataset, bags, or outcomes')
+                'Model path detected without config, dataset, bags, or \
+                    outcomes')
         if self.model:
-            self.num_features, self.predictions, self.attentions, self.activations = self._get_mil_activations(
-                self.model, bags, attention_pooling, use_lens, device)
+            self.num_features, self.predictions, self.attentions, \
+                self.activations = self._get_mil_activations(
+                    self.model, bags, attention_pooling, use_lens, device)
 
     def generate_model(
         self,
@@ -96,12 +101,13 @@ class MILFeatures():
             dataset (sf.Dataset): Dataset to evaluation.
             outcomes (str, list(str)): Outcomes.
             bags (str, list(str)): fPath to bags, or list of bag file paths.
-                Each bag should contain PyTorch array of features from all tiles in
-                a slide, with the shape ``(n_tiles, n_features)``.
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+                Each bag should contain PyTorch array of features from all tiles
+                in a slide, with the shape ``(n_tiles, n_features)``.
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or 
+            :class:`slideflow.mil.TrainerConfigCLAM`):
                 Configuration for building model. If ``weights`` is a path to a
-                model directory, will attempt to read ``mil_params.json`` from this
-                location and load saved configuration. Defaults to None.
+                model directory, will attempt to read ``mil_params.json`` from 
+                this location and load saved configuration. Defaults to None.
         """
 
         import torch
@@ -192,13 +198,14 @@ class MILFeatures():
         use_lens: bool,
         device: Optional[Any]
     ):
-        """Loads in model from Callable and calculates activations, predictions, and attention weights.
+        """Loads in model from Callable and calculates activations, predictions,
+        and attention weights.
 
         Args:
             model (Callable): Model from which to calculate activations.
             bags (list): List of feature bags,
-            use_lens (bool): Spec used for generating model args in _get_mil_activations,
-                generate activations.
+            use_lens (bool): Spec used for generating model args in 
+            _get_mil_activations, generate activations.
             attention_pooling (str): pooling strategy for MIL model layers,
             device (Any): device backend for torch tensors
         """
@@ -243,7 +250,8 @@ class MILFeatures():
                             att = torch.amax(att, dim=-1)
                         else:
                             raise ValueError(
-                                "Unrecognized attention pooling strategy '{}'".format(
+                                "Unrecognized attention pooling strategy \
+                                    '{}'".format(
                                     attention_pooling
                                 )
                             )
@@ -276,7 +284,8 @@ class MILFeatures():
         return num_features, preds, atts, acts
 
     def _get_activations(self, hlw):
-        """Formats list of activation weights into dictionary of lists, matched by slide.
+        """Formats list of activation weights into dictionary of lists, 
+        matched by slide.
         Returns the dictionary."""
         if hlw is None or self.slides is None:
             return None, {}
@@ -299,7 +308,8 @@ class MILFeatures():
             return annotations
 
     def _get_attentions(self, atts):
-        """Formats list of attention weights into dictionary of lists, matched by slide.
+        """Formats list of attention weights into dictionary of lists, 
+        matched by slide.
         Returns the dictionary."""
         if atts is None or self.slides is None:
             return None
@@ -309,7 +319,8 @@ class MILFeatures():
         return attentions
 
     def _get_predictions(self, preds):
-        """Formats list of prediction weights into dictionary of lists, matched by slide.
+        """Formats list of prediction weights into dictionary of lists, 
+        matched by slide.
         Returns the dictionary."""
         if preds is None or self.slides is None:
             return None
@@ -325,8 +336,10 @@ class MILFeatures():
         return np.array([float(num) for num in numbers])
 
     @classmethod
-    def from_df(cls, df: "pd.core.frame.DataFrame", *, annotations: Union[str, "pd.core.frame.DataFrame"] = None):
-        """Load MILFeatures of activations, as exported by :meth:`MILFeatures.to_df()`"""
+    def from_df(cls, df: "pd.core.frame.DataFrame", *,
+                annotations: Union[str, "pd.core.frame.DataFrame"] = None):
+        """Load MILFeatures of activations, as exported by 
+        :meth:`MILFeatures.to_df()`"""
         obj = cls(None, None, None, None)
         if 'slide' in df.columns:
             obj.slides = df['slide'].values
@@ -388,7 +401,8 @@ class MILFeatures():
 
         return obj
 
-    def to_df(self, predictions=True, attentions=True) -> pd.core.frame.DataFrame:
+    def to_df(self, predictions=True, attentions=True
+              ) -> pd.core.frame.DataFrame:
         """Export activations to
         a pandas DataFrame.
 
@@ -452,7 +466,7 @@ class MILFeatures():
 
         if self.annotations is None:
             log.warning(
-                "No annotation file was given, so patients will not be extracted."
+                "No annotation file was given. Patients will not be extracted."
             )
             return df
 
