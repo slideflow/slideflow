@@ -251,7 +251,6 @@ class MILFeatures():
                 elif type(model) is MIL_fc or type(model) is MIL_fc_mc:
                     model_out = model(*model_args)
                     h = model.get_last_layer_activations(*model_args)
-                    print(h.shape)
                     y_att = None
                 else:
                     model_out = model(*model_args)[0]
@@ -404,7 +403,6 @@ class MILFeatures():
         df_dict = {}
 
         branches = list(self.activations.values())[0].shape
-        print(list(self.activations.values())[0])
         if len(branches) == 1:
             branches = 1
         else:

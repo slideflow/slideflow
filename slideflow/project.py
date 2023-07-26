@@ -28,6 +28,7 @@ from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
                     Union)
 
+
 import slideflow as sf
 from . import errors, project_utils
 from .util import log, path_to_name, path_to_ext
@@ -2048,7 +2049,8 @@ class Project:
         # (for using an Imagenet pretrained model)
         if isinstance(model, str) and sf.model.is_extractor(model):
             log.info(f"Building feature extractor: [green]{model}[/]")
-            layer_kw = dict(layers=kwargs['layers']) if 'layers' in kwargs else dict()
+            layer_kw = dict(layers=kwargs['layers']
+                            ) if 'layers' in kwargs else dict()
             model = sf.model.build_feature_extractor(
                 model, tile_px=dataset.tile_px, **layer_kw
             )
