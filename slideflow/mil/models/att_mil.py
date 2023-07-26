@@ -25,7 +25,6 @@ class Attention_MIL(nn.Module):
             encoder:  A network transforming bag instances into feature vectors.
         """
         super().__init__()
-
         self.encoder = encoder or nn.Sequential(nn.Linear(n_feats, 256), nn.ReLU())
         self.attention = attention or Attention(256)
         self.head = head or nn.Sequential(
@@ -39,7 +38,6 @@ class Attention_MIL(nn.Module):
         embeddings = self.encoder(bags)
 
         masked_attention_scores = self._masked_attention_scores(embeddings, lens)
-
         weighted_embedding_sums = (masked_attention_scores * embeddings).sum(-2)
 
         scores = self.head(weighted_embedding_sums)

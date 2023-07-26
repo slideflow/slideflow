@@ -316,16 +316,16 @@ def generate_mil_features(
 
     Args:
         weights (str): Path to model weights to load.
-        dataset (:class:`slideflow.Dataset`): Dataset.
-        outcomes (str, list(str)): Outcomes.
-        bags (str, list(str)): fPath to bags, or list of bag file paths.
-            Each bag should contain PyTorch array of features from all tiles in
-            a slide, with the shape ``(n_tiles, n_features)``.
         config (:class:`slideflow.mil.TrainerConfigFastAI` or 
         :class:`slideflow.mil.TrainerConfigCLAM`):
             Configuration for building model. If ``weights`` is a path to a
             model directory, will attempt to read ``mil_params.json`` from this
             location and load saved configuration. Defaults to None.
+        dataset (:class:`slideflow.Dataset`): Dataset.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): fPath to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
     """
 
     import torch

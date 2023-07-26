@@ -47,8 +47,6 @@ class MILFeatures():
             bags (str, list): Path or list of feature bags,
             slides (list): List of slides, 
             annotations: Union[str, "pd.core.frame.DataFrame"],
-            use_lens (bool): Spec used for generating model args in 
-            _get_mil_activations,
         Keyword Args:
             config (:class:`TrainerConfig`]: Trainer for MIL model,
             dataset (:class:`slideflow.Dataset`): Dataset from which to
@@ -84,7 +82,7 @@ class MILFeatures():
                 self.activations = self._get_mil_activations(
                     self.model, bags, attention_pooling, use_lens, device)
 
-    def generate_model(
+    def _generate_model(
         self,
         weights: str,
         config: _TrainerConfig,
@@ -201,13 +199,13 @@ class MILFeatures():
         """Loads in model from Callable and calculates predictions,
         attentions, and activations weights.
 
-            Args:
-                model (Callable): Model from which to calculate activations.
-                bags (list): List of feature bags,
-                use_lens (bool): Spec used for generating model args in 
-                    _get_mil_activations, generate activations.
-                attention_pooling (str): pooling strategy for MIL model layers,
-                device (Any): device backend for torch tensors
+        Args:
+            model (Callable): Model from which to calculate activations.
+            bags (list): List of feature bags,
+            attention_pooling (str): pooling strategy for MIL model layers,
+            use_lens (bool): Spec used for generating model args in 
+                _get_mil_activations, generate activations.
+            device (Any): device backend for torch tensors
         """
 
         # Auto-detect device.
