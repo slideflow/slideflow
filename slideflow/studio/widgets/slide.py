@@ -56,6 +56,13 @@ class SlideWidget:
         self._mouse_down            = False
         self._late_render           = []
 
+        # Tile extraction preview
+        self.preview_tiles          = False
+        self.tile_color             = 0
+        self._tile_box_coords       = []
+        self._vbo                   = None
+        self._scaled_rois           = None
+
         self._all_normalizer_methods = [
             'reinhard',
             'reinhard_fast',
@@ -77,7 +84,12 @@ class SlideWidget:
         self._normalizer_methods = self._all_normalizer_methods
         self._normalizer_methods_str = self._all_normalizer_methods_str
         self._qc_methods_str    = ["Otsu threshold", "Blur filter", "Blur + Otsu"]
-        self._qc_methods        = ['otsu', 'blur', 'both']
+        self._tile_colors       = ['Black', 'White', 'Red', 'Green', 'Blue']
+
+        self._tile_colors_rgb   = [0, 1, (1, 0, 0), (0, 1, 0), (0, 0, 1)]
+        _gaussian = sf.slide.qc.GaussianV2()
+        _otsu = sf.slide.qc.Otsu()
+        self._qc_methods        = [_otsu, _gaussian, [_otsu, _gaussian]]
         self.load('', ignore_errors=True)
 
     @property
@@ -169,7 +181,39 @@ class SlideWidget:
             if self.show_tile_filter:
                 self.render_overlay(self._filter_grid, correct_wsi_dim=True)
 
+    def _render_tile_boxes(self):
+        if self.viz.wsi is None:
+            return
+        scaled_rois = self.viz.viewer._scale_rois_to_view(self._tile_box_coords).astype(np.float32)
+        if self._scaled_rois is None or not np.all(self._scaled_rois == scaled_rois):
+            self._scaled_rois = scaled_rois
+            self._vbo = gl_utils.create_buffer(scaled_rois.flatten())
+        c = self._tile_colors_rgb[self.tile_color]
+        gl_utils.draw_rois(scaled_rois, color=c, linewidth=1, alpha=1, vbo=self._vbo)
+
+    def update_tile_coords(self):
+        viz = self.viz
+        self._tile_box_coords = []
+        indices = viz.wsi.coord[:, 2:4]
+        mask = viz.wsi.grid[indices[:, 0], indices[:, 1]]
+        filtered_coords = viz.wsi.coord[mask]
+        for i in range(filtered_coords.shape[0]):
+            _c = filtered_coords[i]
+            _coords = np.array([
+                [_c[0], _c[1]],
+                [_c[0] + viz.wsi.full_extract_px, _c[1]],
+                [_c[0] + viz.wsi.full_extract_px, _c[1] + viz.wsi.full_extract_px],
+                [_c[0], _c[1] + viz.wsi.full_extract_px],
+            ])
+            self._tile_box_coords.append(_coords)
+        self._tile_box_coords = np.stack(self._tile_box_coords)
+
     # --- ROI annotation functions --------------------------------------------
+
+    def early_render(self):
+        """Draw after the slide has been rendered, but before other UI elements are drawn."""
+        if self.preview_tiles:
+            self._render_tile_boxes()
 
     def late_render(self):
         for _ in range(len(self._late_render)):
@@ -197,7 +241,6 @@ class SlideWidget:
                     self.viz.wsi.remove_roi(idx)
                 self.viz.viewer.deselect_roi()
                 self.viz.viewer.refresh_view()
-
 
     def check_for_selected_roi(self):
         mouse_down = imgui.is_mouse_down(0)
@@ -332,6 +375,9 @@ class SlideWidget:
                 viz.sidebar.selected = 'slide'
                 viz.sidebar.expanded = True
 
+            # Load tile coordinates.
+            self.update_tile_coords()
+
         except Exception as e:
             self.cur_slide = None
             self.user_slide = slide
@@ -415,6 +461,8 @@ class SlideWidget:
         # Render the slide filter
         if self.show_slide_filter and not self.show_tile_filter:
             self.render_slide_filter()
+
+        self.update_tile_coords()
 
     def update_tile_filter(self):
         if self.show_tile_filter:
@@ -546,7 +594,7 @@ class SlideWidget:
         viz = self.viz
 
         # Stride
-        imgui.text_colored('Stride', *viz.theme.dim)
+        imgui.text('Stride')
         imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
         with imgui_utils.item_width(viz.font_size * 7):
             _stride_changed, _stride = imgui.slider_int('##stride',
@@ -565,12 +613,14 @@ class SlideWidget:
                 self._reset_tile_filter_and_join_thread()
                 self.viz.clear_overlay()
                 self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
+                self.update_tile_coords()
 
         # Tile filtering
-        with viz.dim_text():
-            _filter_clicked, self.show_tile_filter = imgui.checkbox('Tile filter', self.show_tile_filter)
-            if _filter_clicked:
-                self.update_tile_filter()
+        _filter_clicked, self.show_tile_filter = imgui.checkbox('Tile filter', self.show_tile_filter)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Set tile-level filtering strategy")
+        if _filter_clicked:
+            self.update_tile_filter()
         imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
         if viz.sidebar.small_button('ellipsis'):
             self._show_filter_controls = not self._show_filter_controls
@@ -578,17 +628,32 @@ class SlideWidget:
             self.draw_filtering_popup()
 
         # Slide filtering
-        with viz.dim_text():
-            _qc_clicked, self.show_slide_filter = imgui.checkbox('Slide filter', self.show_slide_filter)
+        _qc_clicked, self.show_slide_filter = imgui.checkbox('Slide filter (QC)', self.show_slide_filter)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Set slide-level filtering strategy (quality control)")
         imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
         with imgui_utils.item_width(viz.font_size * 7):
             _qc_method_clicked, self.qc_idx = imgui.combo("##qc_method", self.qc_idx, self._qc_methods_str)
         if _qc_clicked or _qc_method_clicked:
             self.update_slide_filter(method=self._qc_methods[self.qc_idx])
 
+        imgui_utils.vertical_break()
+
+    def draw_display_options(self):
+        viz = self.viz
+
+        # Preview tile extraction
+        _preview_clicked, self.preview_tiles = imgui.checkbox("Tile outlines", self.preview_tiles)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Show tile outlines")
+        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+        with imgui_utils.item_width(viz.font_size * 7):
+            _color_clicked, self.tile_color = imgui.combo("##tile_color", self.tile_color, self._tile_colors)
+
         # Normalizing
-        with viz.dim_text():
-            _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
+        _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalizer', self.normalize_wsi)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Preview stain normalization (does not affect model predictions)")
         viz._normalize_wsi = self.normalize_wsi
         if self.normalize_wsi and viz.viewer:
             viz.viewer.set_normalizer(viz._normalizer)
@@ -606,6 +671,14 @@ class SlideWidget:
             else:
                 self.viz._normalizer = sf.norm.autoselect(method, source='v3')
             viz._refresh_view = True
+
+        # Show slide-level filtering
+        _, self.show_slide_filter = imgui.checkbox("Show QC", self.show_slide_filter)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Show slide filter (quality control) mask")
+        #imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+
+        viz.sidebar.full_button("Preview tile extraction")
 
     def draw_mpp_popup(self):
         """Prompt the user to specify microns-per-pixel for a slide."""
@@ -707,6 +780,8 @@ class SlideWidget:
                 imgui_utils.vertical_break()
             if viz.collapsing_header('Slide Processing', default=False):
                 self.draw_slide_processing()
+            if viz.collapsing_header('Display', default=False):
+                self.draw_display_options()
             self._process_roi_capture()
         else:
             self.capturing = False

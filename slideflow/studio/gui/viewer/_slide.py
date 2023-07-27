@@ -422,7 +422,7 @@ class SlideViewer(Viewer):
         for roi_idx, roi in enumerate(self.wsi.rois):
             c = self._scale_roi_to_view(roi.coordinates)
             if c is not None:
-                self.rois == [(roi_idx, c)]
+                self.rois += [(roi_idx, c)]
 
     def _render_rois(self) -> None:
         """Render the ROIs with OpenGL."""
