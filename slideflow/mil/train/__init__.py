@@ -195,7 +195,7 @@ def train_clam(
     sf.util.log_manifest(
         train_bags.tolist(),
         val_bags.tolist(),
-        labels=label_dict,
+        labels=labels,
         filename=join(outdir, 'slide_manifest.csv')
     )
 
