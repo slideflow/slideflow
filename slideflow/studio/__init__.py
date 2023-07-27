@@ -325,7 +325,7 @@ class Studio(ImguiWindow):
         """Show a dialog that prompts the user to specify microns-per-pixel."""
         if not self._show_mpp_zoom_popup:
             return
-        
+
         window_size = (self.font_size * 18, self.font_size * 7)
         self.center_next_window(*window_size)
         imgui.set_next_window_size(*window_size)
@@ -1258,10 +1258,6 @@ class Studio(ImguiWindow):
         # Render control pane contents.
         self._render_control_pane_contents()
 
-        # Render user widgets.
-        for widget in self.widgets:
-            if hasattr(widget, 'render'):
-                widget.render()
 
         if self.is_skipping_frames():
             pass
@@ -1304,6 +1300,14 @@ class Studio(ImguiWindow):
             _msg = self.message if 'message' not in self.result else self.result['message']
             tex = text_utils.get_texture(_msg, size=self.gl_font_size, max_width=max_w, max_height=max_h, outline=2)
             tex.draw(pos=middle_pos, align=0.5, rint=True, color=1)
+
+        # Render user widgets.
+        for widget in self.widgets:
+            if hasattr(widget, 'render'):
+                widget.render()
+
+        # Render slide widget tile boxes (for tile extraction preview)
+        self.slide_widget.early_render()
 
         # Render the tile view and status bar.
         self._draw_tile_view()

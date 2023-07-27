@@ -420,17 +420,9 @@ class SlideViewer(Viewer):
         """Refresh the ROIs for the given location and zoom."""
         self.rois = []
         for roi_idx, roi in enumerate(self.wsi.rois):
-            c = np.copy(roi.coordinates)
-            c[:, 0] = c[:, 0] - int(self.origin[0])
-            c[:, 0] = c[:, 0] / self.view_zoom
-            c[:, 0] = c[:, 0] + self.view_offset[0] + self.x_offset
-            c[:, 1] = c[:, 1] - int(self.origin[1])
-            c[:, 1] = c[:, 1] / self.view_zoom
-            c[:, 1] = c[:, 1] + self.view_offset[1] + self.y_offset
-            out_of_view_max = np.any(np.amax(c, axis=0) < 0)
-            out_of_view_min = np.any(np.amin(c, axis=0) > np.array([self.width+self.x_offset, self.height+self.y_offset]))
-            if not (out_of_view_min or out_of_view_max):
-                self.rois += [(roi_idx, c)]
+            c = self._scale_roi_to_view(roi.coordinates)
+            if c is not None:
+                self.rois == [(roi_idx, c)]
 
     def _render_rois(self) -> None:
         """Render the ROIs with OpenGL."""
@@ -438,6 +430,33 @@ class SlideViewer(Viewer):
             c = [1, 0, 0] if roi_idx in self.selected_rois else 0
             gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
             gl_utils.draw_roi(roi, color=c, alpha=1, linewidth=3)
+
+    def _scale_roi_to_view(self, roi: np.ndarray) -> Optional[np.ndarray]:
+        roi = np.copy(roi)
+        roi[:, 0] = roi[:, 0] - int(self.origin[0])
+        roi[:, 0] = roi[:, 0] / self.view_zoom
+        roi[:, 0] = roi[:, 0] + self.view_offset[0] + self.x_offset
+        roi[:, 1] = roi[:, 1] - int(self.origin[1])
+        roi[:, 1] = roi[:, 1] / self.view_zoom
+        roi[:, 1] = roi[:, 1] + self.view_offset[1] + self.y_offset
+        out_of_view_max = np.any(np.amax(roi, axis=0) < 0)
+        out_of_view_min = np.any(np.amin(roi, axis=0) > np.array([self.width+self.x_offset, self.height+self.y_offset]))
+        if not (out_of_view_min or out_of_view_max):
+            return roi
+        else:
+            return None
+
+    def _scale_rois_to_view(self, rois):
+        rois = np.copy(rois)
+        rois[:, :, 0] = rois[:, :, 0] - int(self.origin[0])
+        rois[:, :, 0] = rois[:, :, 0] / self.view_zoom
+        rois[:, :, 0] = rois[:, :, 0] + self.view_offset[0] + self.x_offset
+        rois[:, :, 1] = rois[:, :, 1] - int(self.origin[1])
+        rois[:, :, 1] = rois[:, :, 1] / self.view_zoom
+        rois[:, :, 1] = rois[:, :, 1] + self.view_offset[1] + self.y_offset
+        out_of_view_max = np.any(np.amax(rois, axis=1) < 0, axis=1)
+        out_of_view_min = np.any(np.amin(rois, axis=1) > np.array([self.width+self.x_offset, self.height+self.y_offset]), axis=1)
+        return rois[~(out_of_view_min | out_of_view_max)]
 
     def grid_in_view(self, wsi=None):
         """Returns coordinates of WSI grid currently in view."""
@@ -592,7 +611,7 @@ class SlideViewer(Viewer):
         new_zoom = min(self.view_zoom * dz,
                         max(self.dimensions[0] / self.width,
                             self.dimensions[1] / self.height))
-        
+
         self.zoom_to(cx, cy, new_zoom)
 
     def zoom_to(self, cx: int, cy: int, z: float) -> None:
