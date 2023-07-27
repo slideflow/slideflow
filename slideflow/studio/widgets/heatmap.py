@@ -94,12 +94,9 @@ class HeatmapWidget:
         self._generating = True
         self._heatmap_grid, self._heatmap_thread = self.viz.heatmap.generate(
             asynchronous=True,
-            grayspace_fraction=sw.gs_fraction,
-            grayspace_threshold=sw.gs_threshold,
-            whitespace_fraction=sw.ws_fraction,
-            whitespace_threshold=sw.ws_threshold,
             lazy_iter=self.viz.low_memory,
             callback=self.refresh_heatmap_grid,
+            **sw.get_grid_params(),
         )
 
     def load(self, obj: Union[str, "sf.Heatmap"]):

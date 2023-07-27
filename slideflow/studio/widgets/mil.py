@@ -94,7 +94,7 @@ class MILWidget(Widget):
         self._triggered = True
 
         # Generate features with the loaded encoder.
-        masked_bags = self.encoder(viz.wsi, normalizer=self.normalizer)
+        masked_bags = self.encoder(viz.wsi, normalizer=self.normalizer, **viz.slide_widget.get_grid_params())
         bags = np.ma.getdata(masked_bags[~masked_bags.mask.any(axis=2)])
         bags = np.expand_dims(bags, axis=0).astype(np.float32)
 

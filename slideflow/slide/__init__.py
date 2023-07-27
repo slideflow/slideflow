@@ -1273,7 +1273,7 @@ class WSI(_BaseLoader):
                     point_in_roi = self.roi_mask[yi, xi]
                     # If the extraction method is 'inside',
                     # skip the tile if it's not in an ROI
-                    if (((self.roi_method == 'inside') and not point_in_roi)
+                    if (((self.roi_method in ('inside', 'auto')) and not point_in_roi)
                        or ((self.roi_method == 'outside') and point_in_roi)):
                         self.grid[xi, yi] = 0
 
@@ -1896,6 +1896,8 @@ class WSI(_BaseLoader):
         ]
         roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
         self.rois.append(ROI(f'ROI_{roi_id}', array))
+        if self.roi_method == 'auto':
+            self.roi_method = 'inside'
         if process:
             self.process_rois()
 
@@ -1953,6 +1955,8 @@ class WSI(_BaseLoader):
             self.rois[-1].add_shape(area_reduced)
         if process:
             self.process_rois()
+        if self.roi_method == 'auto':
+            self.roi_method = 'inside'
         return len(self.rois)
 
     def masked_thumb(self, background: str = 'white', **kwargs) -> np.ndarray:
