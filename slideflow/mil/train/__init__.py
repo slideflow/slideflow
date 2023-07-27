@@ -193,8 +193,8 @@ def train_clam(
 
     # Write slide/bag manifest
     sf.util.log_manifest(
-        train_bags,
-        val_bags,
+        train_bags.tolist(),
+        val_bags.tolist(),
         labels=label_dict,
         filename=join(outdir, 'slide_manifest.csv')
     )
