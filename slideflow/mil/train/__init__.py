@@ -91,18 +91,7 @@ def train_mil(
         os.makedirs(outdir)
     outdir = sf.util.create_new_model_dir(outdir, exp_label)
 
-    # Log MIL training parameters
-    mil_params = config.json_dump()
-    mil_params['outcomes'] = outcomes
-    mil_params['bags'] = bags
-    if isinstance(bags, str) and exists(join(bags, 'bags_config.json')):
-        mil_params['bags_encoder'] = sf.util.load_json(
-            join(bags, 'bags_config.json')
-        )
-    else:
-        mil_params['bags_encoder'] = None
-    sf.util.write_json(mil_params, join(outdir, 'mil_params.json'))
-
+    # Execute training.
     return train_fn(
         config,
         train_dataset,
@@ -232,6 +221,9 @@ def train_clam(
     # Save clam settings
     sf.util.write_json(clam_args.to_dict(), join(outdir, 'experiment.json'))
 
+    # Save MIL settings
+    _log_mil_params(config, outcomes, bags, num_features, clam_args.n_classes, outdir)
+
     # Run CLAM
     datasets = (train_mil_dataset, val_mil_dataset, val_mil_dataset)
     model, results, test_auc, val_auc, test_acc, val_acc = clam.train(
@@ -285,6 +277,7 @@ def build_fastai_learner(
     bags: Union[str, np.ndarray, List[str]],
     *,
     outdir: str = 'mil',
+    return_shape: bool = False,
 ) -> "Learner":
     """Build a FastAI Learner for training an aMIL model.
 
@@ -347,7 +340,7 @@ def build_fastai_learner(
     )
 
     # Build FastAI Learner
-    learner = _fastai.build_learner(
+    learner, (n_in, n_out) = _fastai.build_learner(
         config,
         bags=bags,
         targets=targets,
@@ -356,7 +349,10 @@ def build_fastai_learner(
         unique_categories=unique_categories,
         outdir=outdir,
     )
-    return learner
+    if return_shape:
+        return learner, (n_in, n_out)
+    else:
+        return learner
 
 
 def train_fastai(
@@ -417,14 +413,18 @@ def train_fastai(
         all_bags = np.array(bags)
 
     # Build learner.
-    learner = build_fastai_learner(
+    learner, (n_in, n_out) = build_fastai_learner(
         config,
         train_dataset,
         val_dataset,
         outcomes,
         bags=all_bags,
         outdir=outdir,
+        return_shape=True
     )
+
+    # Save MIL settings.
+    _log_mil_params(config, outcomes, bags, n_in, n_out, outdir)
 
     # Train.
     _fastai.train(learner, config)
@@ -461,3 +461,21 @@ def train_fastai(
         )
 
     return learner
+
+# ------------------------------------------------------------------------------
+
+def _log_mil_params(config, outcomes, bags, n_in, n_out, outdir):
+    """Log MIL parameters to JSON."""
+    mil_params = config.json_dump()
+    mil_params['outcomes'] = outcomes
+    mil_params['bags'] = bags
+    mil_params['input_shape'] = n_in
+    mil_params['output_shape'] = n_out
+    if isinstance(bags, str) and exists(join(bags, 'bags_config.json')):
+        mil_params['bags_encoder'] = sf.util.load_json(
+            join(bags, 'bags_config.json')
+        )
+    else:
+        mil_params['bags_encoder'] = None
+    sf.util.write_json(mil_params, join(outdir, 'mil_params.json'))
+    return mil_params

@@ -489,6 +489,8 @@ class DatasetFeatures:
             extractor=self.feature_generator.generator.dump_config(),
             normalizer=norm_dict,
             num_features=self.num_features,
+            tile_px=self.dataset.tile_px,
+            tile_um=self.dataset.tile_um
         )
         return config
 

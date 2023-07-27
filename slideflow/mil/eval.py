@@ -5,15 +5,15 @@ import pandas as pd
 import slideflow as sf
 import numpy as np
 from rich.progress import Progress
-from os.path import join, exists, isdir, dirname
+from os.path import join, exists, dirname
 from typing import Union, List, Optional, Callable, Tuple, Any, TYPE_CHECKING
-from slideflow import Dataset, log, errors
+from slideflow import Dataset, log
 from slideflow.util import path_to_name
 from slideflow.stats.metrics import ClassifierMetrics
 from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
-from .utils import build_bag_encoder
+from .utils import build_bag_encoder, load_model_weights, _load_bag
 
 if TYPE_CHECKING:
     import torch
@@ -90,9 +90,7 @@ def eval_mil(
     n_out = len(unique)
 
     # Load model
-    model, config = _load_model_weights(
-        weights, config, n_features=n_features, n_out=n_out
-    )
+    model, config = load_model_weights(weights, config)
 
     # Inference.
     if (isinstance(config, TrainerConfigCLAM)
@@ -217,7 +215,7 @@ def predict_slide(
     bags = np.expand_dims(bags, axis=0).astype(np.float32)
 
     # Load model
-    model_fn, config = _load_model_weights(model, config, bags.shape[2], 2)
+    model_fn, config = load_model_weights(model, config)
 
     # Generate predictions.
     if (isinstance(config, TrainerConfigCLAM)
@@ -362,93 +360,6 @@ def generate_attention_heatmaps(
     log.info(f"Attention heatmaps saved to [green]{outdir}[/]")
 
 # -----------------------------------------------------------------------------
-
-def _load_model_weights(
-    weights: str,
-    config: Optional[_TrainerConfig],
-    n_features: int,
-    n_out: int
-) -> Tuple["torch.nn.Module", _TrainerConfig]:
-    """Load weights and build model.
-
-    Args:
-        weights (str): Path to model weights.
-        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
-            Configuration for building model. If ``weights`` is a path to a
-            model directory, will attempt to read ``mil_params.json`` from this
-            location and load saved configuration. Defaults to None.
-        n_features (int): Number of features in the input data.
-        n_out (int): Number of output classes.
-
-    Returns:
-        :class:`torch.nn.Module`: Loaded model.
-    """
-    import torch
-
-    if isinstance(config, TrainerConfigCLAM):
-        raise NotImplementedError
-
-    # Read configuration from saved model, if available
-    if config is None:
-        if not exists(join(weights, 'mil_params.json')):
-            raise errors.ModelError(
-                f"Could not find `mil_params.json` at {weights}. Check the "
-                "provided model/weights path, or provide a configuration "
-                "with 'config'."
-            )
-        else:
-            p = sf.util.load_json(join(weights, 'mil_params.json'))
-            config = sf.mil.mil_config(trainer=p['trainer'], **p['params'])
-
-    # Build the model
-    if isinstance(config, TrainerConfigCLAM):
-        config_size = config.model_fn.sizes[config.model_config.model_size]
-        _size = [n_features] + config_size[1:]
-        model = config.model_fn(size=_size)
-        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
-    elif isinstance(config.model_config, ModelConfigCLAM):
-        config_size = config.model_fn.sizes[config.model_config.model_size]
-        _size = [n_features] + config_size[1:]
-        model = config.model_fn(size=_size)
-        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
-    else:
-        model = config.model_fn(n_features, n_out)
-        log.info(f"Building model {config.model_fn.__name__} "
-                 f"(in={n_features}, out={n_out})")
-    if isdir(weights):
-        if exists(join(weights, 'models', 'best_valid.pth')):
-            weights = join(weights, 'models', 'best_valid.pth')
-        elif exists(join(weights, 'results', 's_0_checkpoint.pt')):
-            weights = join(weights, 'results', 's_0_checkpoint.pt')
-        else:
-            raise errors.ModelError(
-                f"Could not find model weights at path {weights}"
-            )
-    log.info(f"Loading model weights from [green]{weights}[/]")
-    model.load_state_dict(torch.load(weights))
-
-    # Prepare device.
-    if hasattr(model, 'relocate'):
-        model.relocate()  # type: ignore
-    model.eval()
-    return model, config
-
-
-def _load_bag(bag: Union[str, np.ndarray, "torch.Tensor"]) -> "torch.Tensor":
-    """Load bag from file or convert to torch.Tensor."""
-    import torch
-
-    if isinstance(bag, str):
-        return torch.load(bag)
-    elif isinstance(bag, np.ndarray):
-        return torch.from_numpy(bag)
-    elif isinstance(bag, torch.Tensor):
-        return bag
-    else:
-        raise ValueError(
-            "Unrecognized bag type '{}'".format(type(bag))
-        )
-
 
 def _predict_clam(
     model: Callable,
