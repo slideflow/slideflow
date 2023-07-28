@@ -55,7 +55,7 @@ class MILWidget(Widget):
         self.mil_params = None
         self.encoder_params = None
         self.normalizer = None
-        self.calculate_attention = False
+        self.calculate_attention = True
 
         # Predictions and attention.
         self.predictions = None
@@ -78,14 +78,25 @@ class MILWidget(Widget):
 
     def drag_and_drop_hook(self, path: str) -> bool:
         if _is_mil_model(path):
-            self.viz.create_toast('MIL model loaded', icon='success')
+            return self.load(path)
+        return False
+
+    def load(self, path: str, allow_errors: bool = True) -> bool:
+        try:
             self.encoder, self.normalizer = sf.mil.utils.build_bag_encoder(path)
             self.mil_params = _get_mil_params(path)
             self.encoder_params = self.mil_params['bags_encoder']
             self._reload_wsi()
             self.model, self.mil_config = sf.mil.utils.load_model_weights(path)
-            return True
-        return False
+            self.viz.tile_um = self.encoder_params['tile_um']
+            self.viz.tile_px = self.encoder_params['tile_px']
+            self.viz.create_toast('MIL model loaded', icon='success')
+        except Exception as e:
+            if allow_errors:
+                self.viz.create_toast('Error loading MIL model', icon='error')
+                return False
+            raise e
+        return True
 
     def _predict_slide(self):
         viz = self.viz
@@ -94,9 +105,16 @@ class MILWidget(Widget):
         self._triggered = True
 
         # Generate features with the loaded encoder.
-        masked_bags = self.encoder(viz.wsi, normalizer=self.normalizer, **viz.slide_widget.get_grid_params())
-        bags = np.ma.getdata(masked_bags[~masked_bags.mask.any(axis=2)])
+        masked_bags = self.encoder(
+            viz.wsi,
+            normalizer=self.normalizer,
+            **viz.slide_widget.get_tile_filter_params(),
+        )
+        mask = masked_bags.mask.any(axis=2)
+        bags = np.ma.getdata(masked_bags[~mask])
         bags = np.expand_dims(bags, axis=0).astype(np.float32)
+
+        sf.log.info("Generated feature bags for {} tiles".format(bags.shape[1]))
 
         # Generate predictions.
         if (isinstance(self.mil_config, TrainerConfigCLAM)
@@ -113,9 +131,26 @@ class MILWidget(Widget):
                 attention=self.calculate_attention,
                 use_lens=self.mil_config.model_config.use_lens
             )
+        if self.attention:
+            self.attention = self.attention[0]
+        else:
+            self.attention = None
 
         print("Prediction:", self.predictions)
-        print("Attention: ", self.attention)
+
+        # Create a heatmap from the attention values
+        if self.attention is not None:
+
+            # Create a fully masked array of shape (X, Y)
+            attention_heatmap = np.ma.masked_all(mask.shape, dtype=self.attention.dtype)
+
+            # Unmask and fill the transformed data into the corresponding positions
+            attention_heatmap[~mask] = self.attention
+
+            print("Attention heatmap shape: ", attention_heatmap.shape)
+
+            # Render the heatmap
+            self.render_attention_heatmap(attention_heatmap)
 
     def predict_slide(self):
         """Initiate a whole-slide prediction."""
@@ -128,6 +163,15 @@ class MILWidget(Widget):
         )
         self._thread = threading.Thread(target=self._predict_slide)
         self._thread.start()
+
+    def render_attention_heatmap(self, array):
+        self.alpha = 0.5
+        self.viz.rendered_heatmap = sf.studio.widgets.heatmap._apply_cmap(array, 'magma')[:, :, 0:3]
+        alpha_channel = np.full(self.viz.rendered_heatmap.shape[0:2],
+                                int(self.alpha * 255),
+                                dtype=np.uint8)
+        overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
+        self.viz.set_overlay(overlay, method=sf.studio.OVERLAY_GRID)
 
     def refresh_generating_prediction(self):
         """Refresh render of asynchronous MIL prediction / attention heatmap."""
@@ -222,8 +266,11 @@ class MILWidget(Widget):
                 self.draw_encoder_info()
             if viz.collapsing_header('MIL Model', default=True):
                 self.draw_mil_info()
-                predict_enabled = viz.wsi is not None and self.model is not None
-                if viz.sidebar.full_button("Predict Slide", enabled=predict_enabled):
+                predict_enabled = (viz.wsi is not None
+                                   and self.model is not None
+                                   and not self._triggered)
+                predict_text = "Predict Slide" if not self._triggered else f"Calculating{imgui_utils.spinner_text()}"
+                if viz.sidebar.full_button(predict_text, enabled=predict_enabled):
                     self.predict_slide()
         elif show:
             imgui_utils.padded_text('No MIL model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])

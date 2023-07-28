@@ -172,7 +172,7 @@ def _build_clam_learner(
     dls = DataLoaders(train_dl, val_dl)
     learner = Learner(dls, model, loss_func=loss_func, metrics=[loss_utils.RocAuc()], path=outdir)
 
-    return learner (n_features, n_classes)
+    return learner, (n_features, n_classes)
 
 
 def _build_fastai_learner(

@@ -1,3 +1,4 @@
+import os
 import cv2
 import imgui
 import numpy as np
@@ -121,12 +122,17 @@ class SlideWidget:
         if self.viz.wsi is not None:
             self.viz.set_message(self._rendering_message)
 
-            # Lazy iteration reduces memory consumption, but is slower
-            # when using the Libvips backend.
-            if self.viz.low_memory or sf.slide_backend() == 'cucim':
-                mp_kw = dict(lazy_iter=True)
+            # Optimize the multiprocessing/multithreading method
+            # based on the slide reading backend and whether we are operating
+            # in low memory mode.
+            if self.viz.low_memory and sf.slide_backend() == 'cucim':
+                mp_kw = dict(lazy_iter=True, num_threads=os.cpu_count())
+            elif self.viz.low_memory:
+                mp_kw = dict(lazy_iter=True, num_processes=1)
+            elif sf.slide_backend() == 'cucim':
+                mp_kw = dict(num_processes=os.cpu_count())
             else:
-                mp_kw = dict()
+                mp_kw = dict(num_processes=min(32, os.cpu_count()))
 
             # Build a tile generator that will yield tiles along with their
             # whitespace and grayspace fractions.
@@ -240,23 +246,17 @@ class SlideWidget:
 
         """
         viz = self.viz
-        _box_coords = []
+        width = viz.wsi.full_extract_px
         indices = viz.wsi.coord[:, 2:4]
         mask = viz.wsi.grid[indices[:, 0], indices[:, 1]]
         if self._filter_grid is not None:
             mask = (mask & self._filter_grid[indices[:, 1], indices[:, 0]])
         filtered_coords = viz.wsi.coord[mask]
-        for i in range(filtered_coords.shape[0]):
-            _c = filtered_coords[i]
-            _coords = np.array([
-                [_c[0], _c[1]],
-                [_c[0] + viz.wsi.full_extract_px, _c[1]],
-                [_c[0] + viz.wsi.full_extract_px, _c[1] + viz.wsi.full_extract_px],
-                [_c[0], _c[1] + viz.wsi.full_extract_px],
-            ])
-            _box_coords.append(_coords)
-        if len(_box_coords):
-            self._tile_box_coords = np.stack(_box_coords)
+        _coords = np.zeros((filtered_coords.shape[0], 4, 2))  # Preallocate space for coordinates
+        _coords[:, :, 0] = filtered_coords[:, np.newaxis, 0] + np.array([0, width, width, 0])
+        _coords[:, :, 1] = filtered_coords[:, np.newaxis, 1] + np.array([0, 0, width, width])
+        if _coords.size:
+            self._tile_box_coords = _coords
         else:
             self._tile_box_coords = np.array()
 
