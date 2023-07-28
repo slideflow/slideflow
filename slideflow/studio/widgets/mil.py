@@ -5,7 +5,7 @@ import slideflow.mil
 import threading
 
 from os.path import join, exists, dirname
-from typing import Dict
+from typing import Dict, Optional
 from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
 from slideflow.mil.eval import _predict_clam, _predict_mil
 
@@ -37,6 +37,34 @@ def _draw_imgui_info(rows, viz):
             else:
                 with imgui_utils.clipped_with_tooltip(col, 22):
                     imgui.text(imgui_utils.ellipsis_clip(col, 22))
+
+class _AttentionHeatmapWrapper:
+
+    def __init__(self, attention: np.ndarray, slide: "sf.WSI"):
+        self.attention = attention
+        self.slide = slide
+
+    def save_npz(self, path: Optional[str] = None) -> str:
+        """Save heatmap predictions and uncertainty in .npz format.
+
+        Saves heatmap predictions to ``'predictions'`` in the .npz file. If uncertainty
+        was calculated, this is saved to ``'uncertainty'``. A Heatmap instance can
+        load a saved .npz file with :meth:`slideflow.Heatmap.load()`.
+
+        Args:
+            path (str, optional): Destination filename for .npz file. Defaults
+                to {slidename}.npz
+
+        Returns:
+            str: Path to .npz file.
+        """
+        if path is None:
+            path = f'{self.slide.name}.npz'
+        np.savez(path, predictions=self.attention)
+        return path
+
+    def load(self):
+        raise NotImplementedError("Not yet implemented.")
 
 # -----------------------------------------------------------------------------
 
@@ -91,6 +119,7 @@ class MILWidget(Widget):
             self.viz.tile_um = self.encoder_params['tile_um']
             self.viz.tile_px = self.encoder_params['tile_px']
             self.viz.create_toast('MIL model loaded', icon='success')
+            self.viz.close_model(True)
         except Exception as e:
             if allow_errors:
                 self.viz.create_toast('Error loading MIL model', icon='error')
@@ -165,13 +194,9 @@ class MILWidget(Widget):
         self._thread.start()
 
     def render_attention_heatmap(self, array):
-        self.alpha = 0.5
-        self.viz.rendered_heatmap = sf.studio.widgets.heatmap._apply_cmap(array, 'magma')[:, :, 0:3]
-        alpha_channel = np.full(self.viz.rendered_heatmap.shape[0:2],
-                                int(self.alpha * 255),
-                                dtype=np.uint8)
-        overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
-        self.viz.set_overlay(overlay, method=sf.studio.OVERLAY_GRID)
+        self.viz.heatmap = _AttentionHeatmapWrapper(array, self.viz.wsi)
+        self.viz.heatmap_widget.predictions = array[:, :, np.newaxis]
+        self.viz.heatmap_widget.render_heatmap()
 
     def refresh_generating_prediction(self):
         """Refresh render of asynchronous MIL prediction / attention heatmap."""
@@ -266,6 +291,7 @@ class MILWidget(Widget):
                 self.draw_encoder_info()
             if viz.collapsing_header('MIL Model', default=True):
                 self.draw_mil_info()
+            if viz.collapsing_header('Prediction', default=True):
                 predict_enabled = (viz.wsi is not None
                                    and self.model is not None
                                    and not self._triggered)
