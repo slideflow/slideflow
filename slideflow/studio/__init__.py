@@ -737,7 +737,7 @@ class Studio(ImguiWindow):
         stride: Optional[int] = None,
         use_rois: bool = True,
         **kwargs
-    ) -> None:
+    ) -> bool:
         """Reload the currently loaded Whole-Slide Image.
 
         Args:
@@ -747,6 +747,10 @@ class Studio(ImguiWindow):
                 provided, will use the stride value from the currently loaded
                 slide.
             use_rois (bool): Use ROIs from the loaded project, if available.
+
+        Returns:
+            bool: True if slide loaded successfully, False otherwise.
+
         """
         if self.wsi is None and path is None:
             return
@@ -762,24 +766,34 @@ class Studio(ImguiWindow):
             rois = None
         if sf.slide_backend() == 'cucim':
             kwargs['num_workers'] = sf.util.num_cpu(default=4)
-        self.wsi = sf.WSI(
-            path,
-            tile_px=(self.tile_px if self.tile_px else 256),
-            tile_um=(self.tile_um if self.tile_um else 512),
-            stride_div=stride,
-            rois=rois,
-            cache_kw=dict(
-                tile_width=512,
-                tile_height=512,
-                max_tiles=-1,
-                threaded=True,
-                persistent=True
-            ),
-            verbose=False,
-            mpp=self.slide_widget.manual_mpp,
-            **kwargs)
-        self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
-        self.set_title(os.path.basename(self.wsi.path))
+        try:
+            self.wsi = sf.WSI(
+                path,
+                tile_px=(self.tile_px if self.tile_px else 256),
+                tile_um=(self.tile_um if self.tile_um else 512),
+                stride_div=stride,
+                rois=rois,
+                cache_kw=dict(
+                    tile_width=512,
+                    tile_height=512,
+                    max_tiles=-1,
+                    threaded=True,
+                    persistent=True
+                ),
+                verbose=False,
+                mpp=self.slide_widget.manual_mpp,
+                **kwargs)
+        except sf.errors.IncompatibleBackendError:
+            self.create_toast(
+                title="Incompatbile slide",
+                message='Slide type "{}" is incompatible with the {} backend.'.format(sf.util.path_to_ext(path), sf.slide_backend()),
+                icon='error'
+            )
+            return False
+        else:
+            self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
+            self.set_title(os.path.basename(self.wsi.path))
+            return True
 
     def _render_prediction_message(self, message: str) -> None:
         """Render a prediction string to below the tile bounding box.

@@ -524,13 +524,15 @@ class SlideWidget:
             if stride is not None:
                 self.stride = stride
             try:
-                viz._reload_wsi(
+                success = viz._reload_wsi(
                     slide,
                     stride=self.stride,
                     use_rois=self._use_rois,
                     ignore_missing_mpp=False,
                     **kwargs
                 )
+                if not success:
+                    return
             except sf.errors.SlideMissingMPPError:
                 self.cur_slide = None
                 self.user_slide = slide
