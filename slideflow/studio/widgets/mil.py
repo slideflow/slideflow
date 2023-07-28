@@ -165,8 +165,6 @@ class MILWidget(Widget):
         else:
             self.attention = None
 
-        print("Prediction:", self.predictions)
-
         # Create a heatmap from the attention values
         if self.attention is not None:
 
@@ -175,8 +173,6 @@ class MILWidget(Widget):
 
             # Unmask and fill the transformed data into the corresponding positions
             attention_heatmap[~mask] = self.attention
-
-            print("Attention heatmap shape: ", attention_heatmap.shape)
 
             # Render the heatmap
             self.render_attention_heatmap(attention_heatmap)
@@ -276,6 +272,33 @@ class MILWidget(Widget):
                     imgui.text(col)
         imgui.end()
 
+    def draw_prediction(self):
+        """Draw the final prediction."""
+        if self.predictions is None:
+            return
+        assert len(self.predictions) == 1
+        prediction = self.predictions[0]
+
+        # Assemble outcome category labels.
+        outcome_labels = [
+            f"Outcome {i}" if 'outcome_labels' not in self.mil_params or str(i) not in self.mil_params['outcome_labels']
+                           else self.mil_params['outcome_labels'][str(i)]
+            for i in range(len(prediction))
+        ]
+
+        # Show prediction for each category.
+        imgui.text(self.mil_params['outcomes'])
+        imgui.separator()
+        for i, pred_val in enumerate(prediction):
+            imgui.text_colored(outcome_labels[i], *self.viz.theme.dim)
+            imgui.same_line(self.viz.font_size * 12)
+            imgui_utils.right_aligned_text(f"{pred_val:.3f}")
+        imgui.separator()
+        # Show final prediction based on which category has the highest probability.
+        imgui.text("Final prediction")
+        imgui.same_line(self.viz.font_size * 12)
+        imgui_utils.right_aligned_text(f"{outcome_labels[np.argmax(prediction)]}")
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
@@ -292,6 +315,7 @@ class MILWidget(Widget):
             if viz.collapsing_header('MIL Model', default=True):
                 self.draw_mil_info()
             if viz.collapsing_header('Prediction', default=True):
+                self.draw_prediction()
                 predict_enabled = (viz.wsi is not None
                                    and self.model is not None
                                    and not self._triggered)
