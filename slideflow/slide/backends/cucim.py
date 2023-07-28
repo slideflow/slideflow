@@ -326,8 +326,8 @@ class _cuCIMReader:
             num_workers=self.num_workers,
         )
         if resize_factor:
-            target_size = (int(extract_size[0] * resize_factor),
-                           int(extract_size[1] * resize_factor))
+            target_size = (int(np.round(extract_size[0] * resize_factor)),
+                           int(np.round(extract_size[1] * resize_factor)))
             if not __cv2_resize__:
                 region = resize(np.asarray(region), target_size)
         # Final conversions
