@@ -222,7 +222,7 @@ def train_clam(
     sf.util.write_json(clam_args.to_dict(), join(outdir, 'experiment.json'))
 
     # Save MIL settings
-    _log_mil_params(config, outcomes, bags, num_features, clam_args.n_classes, outdir)
+    _log_mil_params(config, outcomes, unique_labels, bags, num_features, clam_args.n_classes, outdir)
 
     # Run CLAM
     datasets = (train_mil_dataset, val_mil_dataset, val_mil_dataset)
@@ -424,7 +424,16 @@ def train_fastai(
     )
 
     # Save MIL settings.
-    _log_mil_params(config, outcomes, bags, n_in, n_out, outdir)
+    # Attempt to read the unique categories from the learner.
+    if not hasattr(learner.dls.train_ds, 'encoder'):
+        unique = None
+    else:
+        encoder = learner.dls.train_ds.encoder
+        if encoder is not None:
+            unique = encoder.categories_[0].tolist()
+        else:
+            unique = None
+    _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir)
 
     # Train.
     _fastai.train(learner, config)
@@ -464,10 +473,14 @@ def train_fastai(
 
 # ------------------------------------------------------------------------------
 
-def _log_mil_params(config, outcomes, bags, n_in, n_out, outdir):
+def _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir):
     """Log MIL parameters to JSON."""
     mil_params = config.json_dump()
     mil_params['outcomes'] = outcomes
+    if unique is not None:
+        mil_params['outcome_labels'] = dict(zip(range(len(unique)), unique))
+    else:
+        mil_params['outcome_labels'] = None
     mil_params['bags'] = bags
     mil_params['input_shape'] = n_in
     mil_params['output_shape'] = n_out
