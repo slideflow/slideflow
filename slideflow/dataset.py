@@ -1610,10 +1610,10 @@ class Dataset:
                 # Use a single shared multiprocessing pool
                 if 'num_threads' not in kwargs:
                     num_threads = sf.util.num_cpu()
-                    if sf.slide_backend() == 'libvips':
-                        num_threads = min(num_threads, 32)
                     if num_threads is None:
                         num_threads = 8
+                    if sf.slide_backend() == 'libvips':
+                        num_threads = min(num_threads, 32)
                 else:
                     num_threads = kwargs['num_threads']
                 if num_threads != 1:

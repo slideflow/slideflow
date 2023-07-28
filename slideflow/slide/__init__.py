@@ -1729,9 +1729,9 @@ class WSI(_BaseLoader):
                 if num_threads is None and num_processes is None:
                     # Libvips is extremely slow with ThreadPools.
                     # In the cuCIM backend, ThreadPools are used by default
-                    # to reduce memory utilization.
+                    #   to reduce memory utilization.
                     # In the Libvips backend, a multiprocessing pool is default
-                    # to significantly improve performance.
+                    #   to significantly improve performance.
                     n_cores = sf.util.num_cpu(default=8)
                     if sf.slide_backend() == 'libvips':
                         num_processes = max(int(n_cores/2), 1)
@@ -1742,8 +1742,10 @@ class WSI(_BaseLoader):
                     pool = mp.dummy.Pool(processes=num_threads)
                     should_close = True
                 elif num_processes is not None and num_processes > 1:
-                    log.debug(f"Building generator with Pool({num_processes})")
-                    ctx = mp.get_context('spawn')
+                    ptype = 'spawn' if sf.slide_backend() == 'libvips' else 'fork'
+                    log.debug(f"Building generator with Pool({num_processes}), "
+                              f"type={ptype}")
+                    ctx = mp.get_context(ptype)
                     pool = ctx.Pool(
                         processes=num_processes,
                         initializer=sf.util.set_ignore_sigint,
