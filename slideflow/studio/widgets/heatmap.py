@@ -96,7 +96,7 @@ class HeatmapWidget:
             asynchronous=True,
             lazy_iter=self.viz.low_memory,
             callback=self.refresh_heatmap_grid,
-            **sw.get_grid_params(),
+            **sw.get_tile_filter_params(),
         )
 
     def load(self, obj: Union[str, "sf.Heatmap"]):

@@ -867,6 +867,28 @@ class Studio(ImguiWindow):
         yield
         imgui.pop_style_color(1)
 
+    @contextmanager
+    def highlighted(self, enable: bool = True):
+        """Render highlighted text.
+
+        Args:
+            enable (bool): Whether to enable highlighting.
+
+        Examples
+            Render highlighted text.
+
+                .. code-block:: python
+
+                    with studio.highlighted(True):
+                        imgui.text('This is highlighted')
+
+        """
+        if enable:
+            imgui.push_style_color(imgui.COLOR_BUTTON, *self.theme.button_active)
+        yield
+        if enable:
+            imgui.pop_style_color(1)
+
     def collapsing_header(self, text, **kwargs):
         """Render a collapsing header using the active theme.
 
@@ -1472,7 +1494,7 @@ class Studio(ImguiWindow):
             self.model_widget.use_model = True
             self.model_widget.use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
             if normalizer is not None and hasattr(self, 'slide_widget'):
-                self.slide_widget.show_model_normalizer()
+                self.slide_widget.add_model_normalizer_option()
                 self.slide_widget.norm_idx = len(self.slide_widget._normalizer_methods)-1
             if self.wsi:
                 log.debug(f"Loading slide... tile_px={self.tile_px}, tile_um={self.tile_um}")

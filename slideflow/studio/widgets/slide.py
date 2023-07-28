@@ -2,11 +2,11 @@ import cv2
 import imgui
 import numpy as np
 import threading
-import contextlib
 import glfw
 from shapely.geometry import Point
 from shapely.geometry import Polygon
 from tkinter.filedialog import askopenfilename
+from typing import Optional
 
 from .._renderer import CapturedException
 from ..utils import EasyDict
@@ -18,7 +18,14 @@ import slideflow as sf
 #----------------------------------------------------------------------------
 
 class SlideWidget:
-    def __init__(self, viz):
+    def __init__(self, viz: "sf.studio.Studio") -> None:
+        """Widget for slide processing control and information display.
+
+        Args:
+            viz (:class:`slideflow.studio.Studio`): The parent Slideflow Studio
+                object.
+
+        """
         self.viz                    = viz
         self.cur_slide              = None
         self.user_slide             = ''
@@ -98,22 +105,31 @@ class SlideWidget:
         self.load('', ignore_errors=True)
 
     @property
-    def show_overlay(self):
+    def show_overlay(self) -> bool:
+        """Whether any overlay is currently being shown."""
         return self.show_slide_filter or self.show_tile_filter
 
     @property
-    def _thread_is_running(self):
+    def _thread_is_running(self) -> bool:
+        """Whether a thread is currently running."""
         return self._filter_thread is not None and self._filter_thread.is_alive()
 
     # --- Internal ------------------------------------------------------------
 
-    def _filter_thread_worker(self):
+    def _filter_thread_worker(self) -> None:
+        """Worker thread for calculating tile filter."""
         if self.viz.wsi is not None:
             self.viz.set_message(self._rendering_message)
+
+            # Lazy iteration reduces memory consumption, but is slower
+            # when using the Libvips backend.
             if self.viz.low_memory or sf.slide_backend() == 'cucim':
                 mp_kw = dict(lazy_iter=True)
             else:
                 mp_kw = dict()
+
+            # Build a tile generator that will yield tiles along with their
+            # whitespace and grayspace fractions.
             generator = self.viz.wsi.build_generator(
                 img_format='numpy',
                 grayspace_fraction=sf.slide.FORCE_CALCULATE_GRAYSPACE,
@@ -123,17 +139,23 @@ class SlideWidget:
                 shuffle=False,
                 dry_run=True,
                 **mp_kw)
+            # If the generator is None, then the slide has no tiles.
             if not generator:
                 self.viz.clear_message(self._rendering_message)
                 return
+
             # Returns boolean grid, where:
             #   True = tile will be extracted
             #   False = tile will be discarded (failed QC)
             self._filter_grid = np.transpose(self.viz.wsi.grid).astype(bool)
             self._ws_grid = np.zeros_like(self._filter_grid, dtype=np.float)
             self._gs_grid = np.zeros_like(self._filter_grid, dtype=np.float)
+
+            # Render the tile filter grid as an overlay.
             if self.show_tile_filter:
                 self.render_overlay(self._filter_grid, correct_wsi_dim=True)
+
+            # Iterate over the tiles and update the filter grid.
             for tile in generator():
                 x = tile['grid'][0]
                 y = tile['grid'][1]
@@ -146,7 +168,7 @@ class SlideWidget:
                         self._filter_grid[y][x] = False
                         if self.show_tile_filter:
                             self.render_overlay(self._filter_grid, correct_wsi_dim=True)
-                        self.update_tile_coords()
+                        self._update_tile_coords()
                 except TypeError:
                     # Occurs when the _ws_grid is reset, e.g. the slide was re-loaded.
                     sf.log.debug("Aborting tile filter calculation")
@@ -154,12 +176,14 @@ class SlideWidget:
                     return
             self.viz.clear_message(self._rendering_message)
 
-    def _join_filter_thread(self):
+    def _join_filter_thread(self) -> None:
+        """Join the filter thread if it is running."""
         if self._filter_thread is not None:
             self._filter_thread.join()
         self._filter_thread = None
 
-    def _reset_tile_filter_and_join_thread(self):
+    def _reset_tile_filter_and_join_thread(self) -> None:
+        """Reset the tile filter and join the filter thread if it is running."""
         self._join_filter_thread()
         if self.viz.viewer is not None:
             self.viz.viewer.clear_overlay_object()
@@ -168,12 +192,14 @@ class SlideWidget:
         self._ws_grid = None
         self._gs_grid = None
 
-    def _start_filter_thread(self):
+    def _start_filter_thread(self) -> None:
+        """Start the filter thread."""
         self._join_filter_thread()
         self._filter_thread = threading.Thread(target=self._filter_thread_worker)
         self._filter_thread.start()
 
-    def _refresh_gs_ws(self):
+    def _refresh_gs_ws(self) -> None:
+        """Refresh the grayspace and whitespace grids."""
         self._join_filter_thread()
         if self._ws_grid is not None:
             # Returns boolean grid, where:
@@ -188,10 +214,11 @@ class SlideWidget:
                         self._filter_grid[y][x] = False
             self.update_tile_filter()
             self.update_tile_filter_display()
-            self.update_tile_coords()
+            self._update_tile_coords()
             self.update_params()
 
-    def _render_tile_boxes(self):
+    def _render_tile_boxes(self) -> None:
+        """Render boxes around where tiles would be extracted."""
         if self.viz.wsi is None:
             return
         if not len(self._tile_box_coords):
@@ -203,7 +230,15 @@ class SlideWidget:
         c = self._tile_colors_rgb[self.tile_color]
         gl_utils.draw_rois(scaled_rois, color=c, linewidth=2, alpha=1, vbo=self._vbo)
 
-    def update_tile_coords(self):
+    def _update_tile_coords(self) -> None:
+        """Update the expected coordinates for tiles that will be extracted.
+
+        Expected tile coordinates are based on the slide grid (which is filtered
+        by ROIs and slide-level filters / QC) and the current tile filter grid
+        (which may be asynchronously updating). Bounding box coordinates for
+        each tile are calculated and stored in self._tile_box_coords.
+
+        """
         viz = self.viz
         _box_coords = []
         indices = viz.wsi.coord[:, 2:4]
@@ -225,25 +260,24 @@ class SlideWidget:
         else:
             self._tile_box_coords = np.array()
 
-    def update_params(self):
-        self._last_processing_params = self.get_all_params()
-        if self.viz.wsi is not None:
-            self._last_rois = len(self.viz.wsi.rois)
-        else:
-            self._last_rois = None
+    # --- Callbacks and render triggers ---------------------------------------
 
-    def params_changed(self):
-        return (self.get_all_params() != self._last_processing_params
-                or (self.viz.wsi is not None and len(self.viz.wsi.rois) != self._last_rois))
+    def early_render(self) -> None:
+        """Render elements with OpenGL (before other UI elements are drawn).
 
-    # --- ROI annotation functions --------------------------------------------
+        Triggers after the slide has been rendered, but before other UI elements are drawn.
 
-    def early_render(self):
-        """Draw after the slide has been rendered, but before other UI elements are drawn."""
+        """
         if self.preview_tiles:
             self._render_tile_boxes()
 
-    def late_render(self):
+    def late_render(self) -> None:
+        """Render elements with OpenGL (after other UI elements are drawn).
+
+        Triggers after the slide has been rendered and all other UI elements
+        are drawn.
+
+        """
         for _ in range(len(self._late_render)):
             annotation, name, kwargs = self._late_render.pop()
             gl_utils.draw_roi(annotation, **kwargs)
@@ -258,31 +292,74 @@ class SlideWidget:
                 text_pos = (annotation.mean(axis=0))
                 tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 
-    def render_annotation(self, annotation, origin, name=None, color=1, alpha=1, linewidth=3):
-        kwargs = dict(color=color, linewidth=linewidth, alpha=alpha)
-        self._late_render.append((np.array(annotation) + origin, name, kwargs))
+    def keyboard_callback(self, key: int, action: int) -> None:
+        """Handle keyboard events.
 
-    def keyboard_callback(self, key, action):
+        Args:
+            key (int): The key that was pressed. See ``glfw.KEY_*``.
+            action (int): The action that was performed (e.g. ``glfw.PRESS``,
+                ``glfw.RELEASE``, ``glfw.REPEAT``).
+
+        """
         if (key == glfw.KEY_DELETE and action == glfw.PRESS):
-            if self.editing and hasattr(self.viz.viewer, 'selected_rois'):
+            if (self.editing
+               and self.viz.viewer is not None
+               and hasattr(self.viz.viewer, 'selected_rois')):
                 for idx in self.viz.viewer.selected_rois:
                     self.viz.wsi.remove_roi(idx)
                 self.viz.viewer.deselect_roi()
                 self.viz.viewer.refresh_view()
                 self.num_total_rois = len(self.viz.wsi.rois)
 
-    def check_for_selected_roi(self):
-        mouse_down = imgui.is_mouse_down(0)
+    # --- ROI annotation functions --------------------------------------------
 
-        # Mouse is newly up
-        if not mouse_down:
+    def render_annotation(
+        self,
+        annotation: np.ndarray,
+        origin: np.ndarray,
+        name: Optional[str] = None,
+        color: float = 1,
+        alpha: float = 1,
+        linewidth: int = 3
+    ):
+        """Render an annotation with OpenGL.
+
+        Annotation is prepared and appended to a list of annotations to be
+        rendered at the end of frame generation.
+
+        Args:
+            annotation (np.ndarray): An array of shape (N, 2) containing the
+                coordinates of the vertices of the annotation.
+            origin (np.ndarray): An array of shape (2,) containing the
+                coordinates of the origin of the annotation.
+            name (str): A name to display with the annotation.
+            color (float, tuple[float, float, float]): The color of the
+                annotation. Defaults to 1 (white).
+            alpha (float): The opacity of the annotation. Defaults to 1.
+            linewidth (int): The width of the annotation. Defaults to 3.
+
+        """
+        kwargs = dict(color=color, linewidth=linewidth, alpha=alpha)
+        self._late_render.append((np.array(annotation) + origin, name, kwargs))
+
+    def _check_for_selected_roi(self) -> Optional[int]:
+        """Check if a ROI is selected and return its index.
+
+        Returns:
+            int: The index of the selected ROI, or None if no ROI is selected.
+
+        """
+        if self.viz.viewer is None:
+            return None
+        elif not imgui.is_mouse_down(0):
+            # Mouse is newly up
             self._mouse_down = False
-            return
-        # Mouse is already down
+            return None
         elif self._mouse_down:
-            return
-        # Mouse is newly down
+            # Mouse is already down
+            return None
         else:
+            # Mouse is newly down
             self._mouse_down = True
             mouse_point = Point(imgui.get_mouse_pos())
             for roi_idx, roi_array in self.viz.viewer.rois:
@@ -292,8 +369,14 @@ class SlideWidget:
                     continue
                 if roi_poly.contains(mouse_point):
                     return roi_idx
+            return None
 
-    def _process_roi_capture(self):
+    def _process_roi_capture(self) -> None:
+        """Process a newly captured ROI.
+
+        If the ROI is valid, it is added to the slide and rendered.
+
+        """
         viz = self.viz
         if self.capturing:
             new_annotation, annotation_name = self.annotator.capture(
@@ -319,32 +402,33 @@ class SlideWidget:
 
         # Edit ROIs
         if self.editing:
-            selected_roi = self.check_for_selected_roi()
+            selected_roi = self._check_for_selected_roi()
             if imgui.is_mouse_down(1):
                 viz.viewer.deselect_roi()
             elif selected_roi is not None:
                 viz.viewer.deselect_roi()
                 viz.viewer.select_roi(selected_roi)
 
-    def _set_roi_button_style(self):
+    def _set_roi_button_style(self) -> None:
+        """Set the style for the ROI buttons."""
         imgui.push_style_color(imgui.COLOR_BUTTON, 0, 0, 0, 0)
         imgui.push_style_var(imgui.STYLE_ITEM_SPACING, [0, 0])
 
-    def _end_roi_button_style(self):
+    def _end_roi_button_style(self) -> None:
+        """End the style for the ROI buttons."""
         imgui.pop_style_color(1)
         imgui.pop_style_var(1)
 
-    @contextlib.contextmanager
-    def highlighted(self, boolean):
-        if boolean:
-            imgui.push_style_color(imgui.COLOR_BUTTON, *self.viz.theme.button_active)
-        yield
-        if boolean:
-            imgui.pop_style_color(1)
-
     # --- Public interface ----------------------------------------------------
 
-    def get_grid_params(self):
+    def get_tile_filter_params(self) -> dict:
+        """Return the current tile filter (whitespace/grayspace) parameters.
+
+        Returns:
+            dict: A dictionary containing the tile extraction parameters,
+                including the whitespace/grayspace thresholds and fractions.
+
+        """
         return dict(
             grayspace_fraction=(self.gs_fraction if self.apply_tile_filter else 1),
             grayspace_threshold=self.gs_threshold,
@@ -352,7 +436,15 @@ class SlideWidget:
             whitespace_threshold=self.ws_threshold,
         )
 
-    def get_all_params(self):
+    def get_slide_processing_params(self) -> dict:
+        """Return the current slide processing parameters.
+
+        Returns:
+            dict: A dictionary containing the slide processing parameters,
+                including the tile extraction parameters, the QC method, and
+                the stride.
+
+        """
         return dict(
             grayspace_fraction=(self.gs_fraction if self.apply_tile_filter else 1),
             grayspace_threshold=self.gs_threshold,
@@ -362,9 +454,48 @@ class SlideWidget:
             stride=self.stride
         )
 
-    def load(self, slide, stride=None, ignore_errors=False, mpp=None, **kwargs):
-        """Load a slide."""
+    def update_params(self) -> None:
+        """Log the current slide processing parameters."""
+        self._last_processing_params = self.get_slide_processing_params()
+        if self.viz.wsi is not None:
+            self._last_rois = len(self.viz.wsi.rois)
+        else:
+            self._last_rois = None
 
+    def params_changed(self) -> bool:
+        """Check if the slide processing parameters have changed.
+
+        Returns:
+            bool: True if the slide processing parameters have changed,
+                False otherwise.
+
+        """
+        return (self.get_slide_processing_params() != self._last_processing_params
+                or (self.viz.wsi is not None and len(self.viz.wsi.rois) != self._last_rois))
+
+    def load(
+        self,
+        slide: str,
+        stride: Optional[int] = None,
+        ignore_errors: bool = False,
+        mpp: Optional[float] = None,
+        **kwargs: Optional[dict]
+    ) -> None:
+        """Load a slide.
+
+        Args:
+            slide (str): The path to the slide to load.
+            stride (int, optional): The stride to use when extracting tiles.
+                If a slide is currently loaded and this value is not None, this
+                will override the current stride. Defaults to None.
+            ignore_errors (bool, optional): Whether to ignore errors when
+                loading the slide. Defaults to False.
+            mpp (float, optional): The microns per pixel of the slide. Used
+                if the slide does not contain microns per pixel metadata
+                (e.g. JPG/PNG images). Defaults to None.
+            **kwargs: Additional keyword arguments to pass to the slide loader.
+
+        """
         viz = self.viz
         if slide == '':
             viz.result = EasyDict(message='No slide loaded')
@@ -424,7 +555,7 @@ class SlideWidget:
                 viz.sidebar.expanded = True
 
             # Load tile coordinates.
-            self.update_tile_coords()
+            self._update_tile_coords()
 
         except Exception as e:
             self.cur_slide = None
@@ -436,16 +567,25 @@ class SlideWidget:
             if not ignore_errors:
                 raise
 
-    def preview_qc_mask(self, mask):
-        assert isinstance(mask, np.ndarray)
-        assert mask.dtype == bool
-        assert len(mask.shape) == 2
+    def preview_qc_mask(self, mask: np.ndarray) -> None:
+        """Preview a slide filter (QC) mask.
+
+        Args:
+            mask (np.ndarray): The slide filter mask.
+
+        """
+        if not isinstance(mask, np.ndarray):
+            raise ValueError("mask must be a numpy array")
+        if not mask.dtype == bool:
+            raise ValueError("mask must have dtype bool")
+        if not len(mask.shape) == 2:
+            raise ValueError("mask must be 2D")
         self.qc_mask = ~mask
         self.show_slide_filter = True
         self.update_slide_filter()
         self.update_slide_filter_display()
 
-    def render_slide_filter(self):
+    def render_slide_filter(self) -> None:
         """Render the slide filter (QC) to screen."""
         if self.qc_mask is None:
             return
@@ -455,13 +595,26 @@ class SlideWidget:
         self.viz._overlay_wsi_dim = None
         self.render_overlay(self.qc_mask, correct_wsi_dim=False)
 
-    def render_overlay(self, mask, correct_wsi_dim=False):
+    def render_overlay(
+        self,
+        mask: np.ndarray,
+        correct_wsi_dim: bool = False
+    ) -> None:
         """Renders boolean mask as an overlay, where:
 
             True = show tile from slide
             False = show black box
+
+        Args:
+            mask (np.ndarray): The boolean mask to render.
+            correct_wsi_dim (bool, optional): Whether to correct the overlay
+                dimensions to match the WSI dimensions. Defaults to False.
+
         """
-        assert mask.dtype == bool
+        if not isinstance(mask, np.ndarray):
+            raise ValueError("mask must be a numpy array")
+        if not mask.dtype == bool:
+            raise ValueError("mask must have dtype bool")
         alpha = (~mask).astype(np.uint8) * 255
         black = np.zeros(list(mask.shape) + [3], dtype=np.uint8)
         overlay = np.dstack((black, alpha))
@@ -486,11 +639,22 @@ class SlideWidget:
             self.viz._overlay_wsi_dim = None
             self.viz._overlay_offset_wsi_dim = (0, 0)
 
-    def show_model_normalizer(self):
+    def add_model_normalizer_option(self) -> None:
+        """Add the model normalizer option to the dropdown."""
         self._normalizer_methods = self._all_normalizer_methods + ['model']
         self._normalizer_methods_str = self._all_normalizer_methods_str + ['<Model>']
 
-    def update_slide_filter(self, method=None):
+    def update_slide_filter(self, method: Optional[str] = None) -> None:
+        """Update the slide filter (QC) mask.
+
+        This will update the slide filter mask and the tile filter mask (if
+        applicable), but will not render the slide filter to screen.
+
+        Args:
+            method (str, optional): The slide filter method to use.
+                Defaults to None.
+
+        """
         if not self.viz.wsi:
             return
         self._join_filter_thread()
@@ -508,12 +672,16 @@ class SlideWidget:
         if self.apply_tile_filter:
             self.update_tile_filter()
 
-        self.update_tile_coords()
+        self._update_tile_coords()
 
-    def update_slide_filter_display(self):
+    def update_slide_filter_display(self) -> None:
+        """Update the slide filter (QC) display.
+
+        This will render the slide filter to screen.
+
+        """
         if not self.viz.wsi:
             return
-        #self._join_filter_thread()
 
         if self.show_slide_filter and self.viz.wsi is not None:
             self.viz.heatmap_widget.show = False
@@ -522,7 +690,13 @@ class SlideWidget:
         if self.show_slide_filter and not self.show_tile_filter:
             self.render_slide_filter()
 
-    def update_tile_filter(self):
+    def update_tile_filter(self) -> None:
+        """Update the tile filter mask.
+
+        This will update the tile filter mask, but will not render the tile
+        filter to screen.
+
+        """
         # If there is an existing tile filter update thread,
         # let that finish before executing a new tile filter update.
         self._join_filter_thread()
@@ -533,7 +707,12 @@ class SlideWidget:
         else:
             self._filter_grid = None
 
-    def update_tile_filter_display(self):
+    def update_tile_filter_display(self) -> None:
+        """Update the tile filter display.
+
+        This will render the tile filter to screen.
+
+        """
         if self.show_tile_filter:
             # Hide the heatmap overlay, if one exists.
             self.viz.heatmap_widget.show = False
@@ -553,7 +732,8 @@ class SlideWidget:
 
     # --- Widget --------------------------------------------------------------
 
-    def draw_info(self):
+    def draw_info(self) -> None:
+        """Draw the info section."""
         viz = self.viz
         height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing
         if viz.wsi is not None:
@@ -605,7 +785,14 @@ class SlideWidget:
 
         imgui_utils.vertical_break()
 
-    def draw_filtering_popup(self):
+    def draw_filtering_popup(self) -> None:
+        """Draw the tile filtering popup.
+
+        This will render the tile filtering popup to screen, which allows the
+        user to select the tile filtering method and parameters (grayspace
+        and whitespace fraction/thresholds).
+
+        """
         viz = self.viz
         cx, cy = imgui.get_cursor_pos()
         imgui.set_next_window_position(viz.sidebar.full_width, cy - viz.font_size)
@@ -666,12 +853,20 @@ class SlideWidget:
                 self._reset_tile_filter_and_join_thread()
                 self.update_tile_filter()
                 self.update_tile_filter_display()
-                self.update_tile_coords()
+                self._update_tile_coords()
                 self.update_params()
         imgui.end()
         imgui.pop_style_color(2)
 
-    def draw_slide_processing(self):
+    def draw_slide_processing(self) -> None:
+        """Draw the slide processing section.
+
+        This will render the slide processing section to screen, which allows
+        the user to select the tile-level processing and slide-level processing
+        (QC) methods. It also allows the user to select the stride, which
+        controls the overlap between tiles during extraction.
+
+        """
         viz = self.viz
 
         # Stride
@@ -696,7 +891,7 @@ class SlideWidget:
                 self._reset_tile_filter_and_join_thread()
                 self.viz.clear_overlay()
                 self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
-                self.update_tile_coords()
+                self._update_tile_coords()
 
         # Tile filtering
         _filter_clicked, self.apply_tile_filter = imgui.checkbox('Tile filter', self.apply_tile_filter)
@@ -726,7 +921,14 @@ class SlideWidget:
 
         imgui_utils.vertical_break()
 
-    def draw_display_options(self):
+    def draw_display_options(self) -> None:
+        """Draw the display options section.
+
+        This will render the display options section to screen, which allows
+        the user to preivew tile extraction (as bounding box outlines), stain
+        normalization, tile filtering, and slide filtering (QC) masks.
+
+        """
         viz = self.viz
 
         # Show tile outlines
@@ -787,10 +989,10 @@ class SlideWidget:
             self.preview_tiles = True
             self.update_tile_filter()
             self.update_tile_filter_display()
-            self.update_tile_coords()
+            self._update_tile_coords()
             self.update_params()
 
-    def draw_mpp_popup(self):
+    def draw_mpp_popup(self) -> None:
         """Prompt the user to specify microns-per-pixel for a slide."""
         window_size = (self.viz.font_size * 18, self.viz.font_size * 8.25)
         self.viz.center_next_window(*window_size)
@@ -817,9 +1019,14 @@ class SlideWidget:
             self._show_mpp_popup = False
         imgui.end()
 
-
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
+        """Draw the widget in a sidebar.
+
+        Args:
+            show (bool): Whether to draw the widget. Defaults to True.
+
+        """
         viz = self.viz
 
         if show:
@@ -842,7 +1049,7 @@ class SlideWidget:
                 self._set_roi_button_style()
 
                 # Add button.
-                with self.highlighted(self.capturing):
+                with viz.highlighted(self.capturing):
                     if viz.sidebar.large_image_button('circle_plus', size=viz.font_size*3):
                         self.capturing = not self.capturing
                         self.editing = False
@@ -853,7 +1060,7 @@ class SlideWidget:
                 imgui.same_line()
 
                 # Edit button.
-                with self.highlighted(self.editing):
+                with viz.highlighted(self.editing):
                     if viz.sidebar.large_image_button('pencil', size=viz.font_size*3):
                         self.editing = not self.editing
                         if self.editing:
