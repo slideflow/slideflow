@@ -66,7 +66,7 @@ class MILFeatures():
         elif (config is not None) and (outcomes is not None) and \
                 (dataset is not None):
             log.info(f"Building model {config.model_fn.__name__} from path")
-            self.slides, self.model, use_lens = self.generate_model(
+            self.slides, self.model, use_lens = self._generate_model(
                 model, config, dataset, outcomes, bags)
             self.annotations = dataset.annotations
             if isinstance(bags, str):
