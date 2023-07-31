@@ -91,7 +91,17 @@ def build_feature_extractor(name, backend: Optional[str] = None, **kwargs):
     # Build feature extractor according to manually specified backend
     if backend is not None and backend not in ('tensorflow', 'torch'):
         raise ValueError(f"Invalid backend: {backend}")
-    elif backend == 'tensorflow':
+
+    # Build a feature extractor from a finetuned model
+    if sf.util.is_tensorflow_model_path(name):
+        from slideflow.model.tensorflow import Features
+        return Features(name, **kwargs)
+    elif sf.util.is_torch_model_path(name):
+        from slideflow.model.torch import Features  # noqa: F401
+        return Features(name, **kwargs)
+
+    # Build feature extractor with a specific backend
+    if backend == 'tensorflow':
         if not is_tensorflow_extractor(name):
             raise errors.InvalidFeatureExtractor(
                 f"Feature extractor {name} not available in Tensorflow backend")
