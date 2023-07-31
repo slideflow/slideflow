@@ -6,6 +6,7 @@ import threading
 
 from os.path import join, exists, dirname
 from typing import Dict, Optional
+from slideflow.model.extractors import rebuild_extractor
 from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
 from slideflow.mil.eval import _predict_clam, _predict_mil
 
@@ -76,12 +77,12 @@ class MILWidget(Widget):
     def __init__(self, viz):
         self.viz = viz
 
-        # Encoder, model, and config.
+        # Extractor, model, and config.
         self.model = None
         self.mil_config = None
-        self.encoder = None
+        self.extractor = None
         self.mil_params = None
-        self.encoder_params = None
+        self.extractor_params = None
         self.normalizer = None
         self.calculate_attention = True
 
@@ -100,8 +101,8 @@ class MILWidget(Widget):
     def _reload_wsi(self):
         viz = self.viz
         if viz.wsi:
-            viz.tile_px = self.encoder_params['tile_px']
-            viz.tile_um = self.encoder_params['tile_um']
+            viz.tile_px = self.extractor_params['tile_px']
+            viz.tile_um = self.extractor_params['tile_um']
             viz.slide_widget.load(viz.wsi.path, mpp=viz.slide_widget.manual_mpp)
 
     def drag_and_drop_hook(self, path: str) -> bool:
@@ -111,13 +112,13 @@ class MILWidget(Widget):
 
     def load(self, path: str, allow_errors: bool = True) -> bool:
         try:
-            self.encoder, self.normalizer = sf.mil.utils.build_bag_encoder(path)
+            self.extractor, self.normalizer = rebuild_extractor(path)
             self.mil_params = _get_mil_params(path)
-            self.encoder_params = self.mil_params['bags_encoder']
+            self.extractor_params = self.mil_params['bags_extractor']
             self._reload_wsi()
             self.model, self.mil_config = sf.mil.utils.load_model_weights(path)
-            self.viz.tile_um = self.encoder_params['tile_um']
-            self.viz.tile_px = self.encoder_params['tile_px']
+            self.viz.tile_um = self.extractor_params['tile_um']
+            self.viz.tile_px = self.extractor_params['tile_px']
             self.viz.create_toast('MIL model loaded', icon='success')
             self.viz.close_model(True)
         except Exception as e:
@@ -133,8 +134,8 @@ class MILWidget(Widget):
         self._generating = True
         self._triggered = True
 
-        # Generate features with the loaded encoder.
-        masked_bags = self.encoder(
+        # Generate features with the loaded extractor.
+        masked_bags = self.extractor(
             viz.wsi,
             normalizer=self.normalizer,
             **viz.slide_widget.get_tile_filter_params(),
@@ -206,14 +207,14 @@ class MILWidget(Widget):
                 self._toast = None
             self.viz.create_toast("Prediction complete.", icon='success')
 
-    def draw_encoder_info(self):
-        """Draw a description of the encoder information."""
+    def draw_extractor_info(self):
+        """Draw a description of the extractor information."""
 
         viz = self.viz
-        if self.encoder_params is None:
-            imgui.text("No encoder loaded.")
+        if self.extractor_params is None:
+            imgui.text("No extractor loaded.")
             return
-        c = self.encoder_params
+        c = self.extractor_params
 
         if 'normalizer' in c and c['normalizer']:
             normalizer = c['normalizer']['method']
@@ -221,8 +222,8 @@ class MILWidget(Widget):
             normalizer = "-"
 
         rows = [
-            ['Encoder',         c['extractor']['class'].split('.')[-1]],
-            ['Encoder Args',    c['extractor']['kwargs']],
+            ['extractor',         c['extractor']['class'].split('.')[-1]],
+            ['extractor Args',    c['extractor']['kwargs']],
             ['Normalizer',      normalizer],
             ['Num features',    c['num_features']],
             ['Tile size (px)',  c['tile_px']],
@@ -310,8 +311,8 @@ class MILWidget(Widget):
             viz.header("Multiple-instance Learning")
 
         if show and self.model:
-            if viz.collapsing_header('Encoder', default=True):
-                self.draw_encoder_info()
+            if viz.collapsing_header('Feature Extractor', default=True):
+                self.draw_extractor_info()
             if viz.collapsing_header('MIL Model', default=True):
                 self.draw_mil_info()
             if viz.collapsing_header('Prediction', default=True):

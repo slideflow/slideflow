@@ -9,11 +9,12 @@ from os.path import join, exists, dirname
 from typing import Union, List, Optional, Callable, Tuple, Any, TYPE_CHECKING
 from slideflow import Dataset, log
 from slideflow.util import path_to_name
+from slideflow.model.extractors import rebuild_extractor
 from slideflow.stats.metrics import ClassifierMetrics
 from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
-from .utils import build_bag_encoder, load_model_weights, _load_bag
+from .utils import load_model_weights, _load_bag
 
 if TYPE_CHECKING:
     import torch
@@ -157,7 +158,7 @@ def eval_mil(
 def predict_slide(
     model: str,
     slide: sf.WSI,
-    encoder: Optional["BaseFeatureExtractor"] = None,
+    extractor: Optional["BaseFeatureExtractor"] = None,
     *,
     normalizer: Optional["StainNormalizer"] = None,
     config: Optional[_TrainerConfig] = None,
@@ -168,18 +169,18 @@ def predict_slide(
     Args:
         model (str): Path to MIL model.
         slide (str): Path to slide.
-        encoder (:class:`slideflow.mil.BaseFeatureExtractor`, optional):
-            Feature encoder. If not provided, will attempt to auto-detect
-            encoder from model.
+        extractor (:class:`slideflow.mil.BaseFeatureExtractor`, optional):
+            Feature extractor. If not provided, will attempt to auto-detect
+            extractor from model.
 
             .. note::
-                If the encoder has a stain normalizer, this will be used to
+                If the extractor has a stain normalizer, this will be used to
                 normalize the slide before extracting features.
 
     Keyword Args:
         normalizer (:class:`slideflow.stain.StainNormalizer`, optional):
             Stain normalizer. If not provided, will attempt to use stain
-            normalizer from encoder.
+            normalizer from extractor.
         config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
             Configuration for building model. If None, will attempt to read
             ``mil_params.json`` from the model directory and load saved
@@ -190,13 +191,13 @@ def predict_slide(
     Returns:
         Tuple[np.ndarray, Optional[np.ndarray]]: Predictions and attention scores.
     """
-    # Try to auto-determine the encoder
-    if encoder is None:
-        encoder, detected_normalizer = build_bag_encoder(model, allow_errors=True)
-        if encoder is None:
+    # Try to auto-determine the extractor
+    if extractor is None:
+        extractor, detected_normalizer = rebuild_extractor(model, allow_errors=True)
+        if extractor is None:
             raise ValueError(
-                "Unable to auto-detect feature encoder used for model {}. "
-                "Please specify an encoder.".format(model)
+                "Unable to auto-detect feature extractor used for model {}. "
+                "Please specify an extractor.".format(model)
             )
 
     # Determine stain normalization
@@ -210,7 +211,7 @@ def predict_slide(
         normalizer = detected_normalizer
 
     # Convert slide to bags
-    masked_bags = encoder(slide, normalizer=normalizer)
+    masked_bags = extractor(slide, normalizer=normalizer)
     bags = np.ma.getdata(masked_bags[~masked_bags.mask.any(axis=2)])
     bags = np.expand_dims(bags, axis=0).astype(np.float32)
 

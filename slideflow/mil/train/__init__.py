@@ -485,10 +485,10 @@ def _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir):
     mil_params['input_shape'] = n_in
     mil_params['output_shape'] = n_out
     if isinstance(bags, str) and exists(join(bags, 'bags_config.json')):
-        mil_params['bags_encoder'] = sf.util.load_json(
+        mil_params['bags_extractor'] = sf.util.load_json(
             join(bags, 'bags_config.json')
         )
     else:
-        mil_params['bags_encoder'] = None
+        mil_params['bags_extractor'] = None
     sf.util.write_json(mil_params, join(outdir, 'mil_params.json'))
     return mil_params

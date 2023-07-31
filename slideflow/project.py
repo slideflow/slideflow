@@ -40,7 +40,7 @@ from .project_utils import (  # noqa: F401
 )
 
 if TYPE_CHECKING:
-    from slideflow.model import DatasetFeatures, Trainer
+    from slideflow.model import DatasetFeatures, Trainer, BaseFeatureExtractor
     from slideflow.slide import SlideReport
     from slideflow import simclr, mil
     from ConfigSpace import ConfigurationSpace, Configuration
@@ -1955,7 +1955,7 @@ class Project:
     @auto_dataset_allow_none
     def generate_feature_bags(
         self,
-        model: str,
+        model: Union[str, "BaseFeatureExtractor"],
         outdir: str = 'auto',
         *,
         dataset: Optional[Dataset] = None,
