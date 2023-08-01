@@ -163,6 +163,7 @@ def _build_clam_learner(
     log.info(f"Training model {config.model_fn.__name__} "
              f"(size={model_size}, loss={config.loss_fn.__name__})")
     model = config.model_fn(size=model_size, n_classes=n_classes)
+
     model.relocate()
 
     # Loss should weigh inversely to class occurences.

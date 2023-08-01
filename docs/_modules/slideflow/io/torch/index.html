@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.io.torch &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.io.torch &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>
@@ -285,6 +285,7 @@
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">torchvision</span>
 <span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">from</span> <span class="nn">torchvision</span> <span class="kn">import</span> <span class="n">transforms</span>
 <span class="kn">from</span> <span class="nn">os</span> <span class="kn">import</span> <span class="n">listdir</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">isfile</span><span class="p">,</span> <span class="n">join</span>
@@ -347,7 +348,8 @@
         <span class="n">rois</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="n">pool</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">interleave_kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Pytorch IterableDataset that interleaves tfrecords with</span>
 <span class="sd">        :func:`slideflow.io.torch.interleave`.</span>
@@ -424,6 +426,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">=</span> <span class="n">roi_method</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pool</span> <span class="o">=</span> <span class="n">pool</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interleave_kwargs</span> <span class="o">=</span> <span class="n">interleave_kwargs</span>
 
         <span class="c1"># Values for random label generation, for GAN</span>
         <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -565,7 +568,8 @@
             <span class="n">rois</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">,</span>
             <span class="n">roi_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span><span class="p">,</span>
             <span class="n">pool</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pool</span><span class="p">,</span>
-            <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span>
+            <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">interleave_kwargs</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">close</span> <span class="o">=</span> <span class="n">queue_retriever</span><span class="o">.</span><span class="n">close</span>
         <span class="k">try</span><span class="p">:</span>
@@ -1287,6 +1291,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">n_threads</span> <span class="o">=</span> <span class="n">num_threads</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">n_closed</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">il_closed</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_close_complete</span> <span class="o">=</span> <span class="kc">False</span>
 
             <span class="k">def</span> <span class="nf">interleaver</span><span class="p">():</span>
                 <span class="n">msg</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1340,7 +1345,12 @@
                     <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">record</span><span class="p">:</span>
                         <span class="k">yield</span> <span class="n">item</span>
 
+        <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
         <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_close_complete</span><span class="p">:</span>
+                <span class="k">return</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Closing QueueRetriever&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">closed</span> <span class="o">=</span> <span class="kc">True</span>
 
@@ -1354,6 +1364,7 @@
                 <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">sampler</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_close_complete</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="k">return</span> <span class="n">QueueRetriever</span><span class="p">(</span><span class="n">random_sampler</span><span class="p">,</span> <span class="n">num_threads</span><span class="p">)</span></div>
 
@@ -1446,6 +1457,9 @@
     <span class="k">elif</span> <span class="n">num_workers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">num_workers</span> <span class="o">=</span> <span class="mi">8</span>
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using num_workers=</span><span class="si">{</span><span class="n">num_workers</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;num_threads&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">():</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;num_threads&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_workers</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Threads per worker=</span><span class="si">{</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;num_threads&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="n">iterator</span> <span class="o">=</span> <span class="n">InterleaveIterator</span><span class="p">(</span>
         <span class="n">tfrecords</span><span class="o">=</span><span class="n">tfrecords</span><span class="p">,</span>
@@ -1563,7 +1577,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>

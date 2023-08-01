@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.Dataset &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.Dataset &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>
@@ -347,16 +347,17 @@ provided configuration. Defaults to None.</p></li>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>filters</strong> (<em>Optional</em><em>[</em><em>Dict</em><em>]</em><em>, </em><em>optional</em>) – Filters for selecting slides
-from annotations. Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<em>Optional</em><em>[</em><em>Union</em><em>[</em><em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>]</em><em>]</em><em>, </em><em>optional</em>) – Omit
-slides that are blank in these annotation columns.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
-<li><p><strong>annotations</strong> (<em>Optional</em><em>[</em><em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>pd.DataFrame</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Path
-to annotations file or pandas DataFrame with slide-level
-annotations. Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only include slides with this
 many tiles at minimum. Defaults to 0.</p></li>
+<li><p><strong>annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><em>pd.DataFrame</em><em>, </em><em>optional</em>) – Path
+to annotations file or pandas DataFrame with slide-level
+annotations. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
@@ -442,7 +443,7 @@ header appears to be a float.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Dataset.build_index">
 <span class="sig-name descname"><span class="pre">build_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.build_index" title="Permalink to this definition">¶</a></dt>
-<dd><p>Build index files for TFRecords. Required for PyTorch.</p>
+<dd><p>Build index files for TFRecords.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>force</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Force re-build existing indices.</p>
@@ -611,8 +612,8 @@ the tfrecord and tile directories configured by
 <dl class="field-list simple">
 <dt class="field-odd">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Save images of extracted tiles to
-project tile directory. Defaults to False.</p></li>
+<li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile images in loose format.
+Defaults to False.</p></li>
 <li><p><strong>save_tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Save compressed image data from
 extracted tiles into TFRecords in the corresponding TFRecord
 directory. Defaults to True.</p></li>
@@ -688,11 +689,12 @@ Otherwise, will extract sub-images from each core using the
 given tile micron size. Defaults to False.</p></li>
 <li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Shuffle tiles prior to storage in
 tfrecords. Defaults to True.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of workers threads for each
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of worker processes for each
 tile extractor. When using cuCIM slide reading backend,
-defaults to the total number of available CPU threads.
-With Libvips, this defaults to the total number of available
-CPU threads or 32, whichever is lower.</p></li>
+defaults to the total number of available CPU cores, using the
+‘fork’ multiprocessing method. With Libvips, this defaults to
+the total number of available CPU cores or 32, whichever is
+lower, using ‘spawn’ multiprocessing.</p></li>
 <li><p><strong>qc_blur_radius</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Quality control blur radius for
 out-of-focus area detection. Used if qc=True. Defaults to 3.</p></li>
 <li><p><strong>qc_blur_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Quality control blur threshold
@@ -706,6 +708,8 @@ magnification level at which quality control is performed.
 Defaults to mpp=4 (effective magnification 2.5 X)</p></li>
 <li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted,
 but do not export any images. Defaults to None.</p></li>
+<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only extract this many tiles per slide.
+Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -731,16 +735,27 @@ If None, uses dataset default. Defaults to None.</p>
 <dt class="sig sig-object py" id="slideflow.Dataset.filter">
 <span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.filter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return a filtered dataset.</p>
+<p>This method can either accept a single argument (<code class="docutils literal notranslate"><span class="pre">filters</span></code>) or any
+combination of keyword arguments (<code class="docutils literal notranslate"><span class="pre">filters</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_blank</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">min_tiles</span></code>).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a>) – Filters dict to use when selecting tfrecords.
-See <code class="xref py py-meth docutils literal notranslate"><span class="pre">get_dataset()</span></code> documentation for more information
-on filtering. Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a>) – Exclude slides blank in these columns.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dictionary used for filtering
+the dataset. Dictionary keys should be column headers in the
+patient annotations, and the values should be the variable
+states to be included in the dataset. For example,
+<code class="docutils literal notranslate"><span class="pre">filters={'HPV_status':</span> <span class="pre">['negative',</span> <span class="pre">'positive']}</span></code>
+would filter the dataset by the column <code class="docutils literal notranslate"><span class="pre">HPV_status</span></code> and only
+include slides with values of either <code class="docutils literal notranslate"><span class="pre">'negative'</span></code> or
+<code class="docutils literal notranslate"><span class="pre">'positive'</span></code> in this column.
+See <a class="reference external" href="https://slideflow.dev/datasets_and_val/#filtering">Filtering</a>
+for further discussion. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Filter out tfrecords that have less than this
-minimum number of tiles.</p></li>
+minimum number of tiles. Defaults to 0.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1395,9 +1410,11 @@ from which to generate activations. If not supplied, will
 calculate activations for all tfrecords at the tile_px/tile_um
 matching the supplied model, optionally using provided filters
 and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Include ROI in the thumbnail images.
 Defaults to False.</p></li>
@@ -1685,7 +1702,7 @@ that are already present in the annotations file.</p>
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>

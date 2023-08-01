@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.biscuit.experiment &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.biscuit.experiment &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>
@@ -1308,7 +1308,9 @@
 <span class="sd">        Args:</span>
 <span class="sd">            hp (:class:`slideflow.ModelParams`): Hyperparameters object.</span>
 <span class="sd">            label (str): Experimental label.</span>
-<span class="sd">            filters (dict): Patient-level annotations filter.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
 <span class="sd">            save_predictions (bool, optional): Save validation predictions to</span>
 <span class="sd">                model folder. Defaults to &#39;csv&#39;.</span>
 
@@ -1468,7 +1470,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>

@@ -197,7 +197,7 @@ Time-to-event outcomes
 Models can also be trained to a time series outcome using Cox Proportional Hazards (CPH) and negative log likelihood loss. For CPH models, use ``'negative_log_likelihood'`` loss and set ``outcomes`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type. CPH models are not compatible with multiple outcomes.
 
 .. note::
-    CPH models are currently unavailable with the PyTorch backend. PyTorch support for CPH outcomes is in development.
+    CPH models are currently only available with the Tensorflow backend. PyTorch support for CPH outcomes is in development.
 
 Multimodal models
 *****************

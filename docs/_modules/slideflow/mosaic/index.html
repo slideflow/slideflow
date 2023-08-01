@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.mosaic &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.mosaic &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>
@@ -645,6 +645,7 @@
         <span class="n">num_tiles_x</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
         <span class="n">tile_meta</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">tile_select</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;first&#39;</span><span class="p">,</span>
+        <span class="n">max_dist</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate the mosaic map grid.</span>
 
@@ -688,10 +689,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">grid_coords</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid_idx</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">)</span> <span class="o">+</span> <span class="n">_grid_offset</span>
 
         <span class="n">points_added</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">x_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">min_x</span><span class="p">,</span> <span class="n">max_x</span><span class="p">,</span> <span class="p">((</span><span class="n">max_x</span> <span class="o">-</span> <span class="n">min_x</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_x</span><span class="p">))</span>
-        <span class="n">y_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">min_y</span><span class="p">,</span> <span class="n">max_y</span><span class="p">,</span> <span class="p">((</span><span class="n">max_y</span> <span class="o">-</span> <span class="n">min_y</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_y</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="s1">&#39;grid_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">x_bins</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="s1">&#39;grid_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">y_bins</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">x_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">min_x</span><span class="p">,</span> <span class="n">max_x</span><span class="p">,</span> <span class="p">((</span><span class="n">max_x</span> <span class="o">-</span> <span class="n">min_x</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_x</span><span class="p">))[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="n">y_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">min_y</span><span class="p">,</span> <span class="n">max_y</span><span class="p">,</span> <span class="p">((</span><span class="n">max_y</span> <span class="o">-</span> <span class="n">min_y</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_tiles_y</span><span class="p">))[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="s1">&#39;grid_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">x_bins</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="s1">&#39;grid_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">y_bins</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="s1">&#39;selected&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">points_added</span><span class="si">}</span><span class="s1"> points added to grid&#39;</span><span class="p">)</span>
 
@@ -710,7 +711,12 @@
                         <span class="nb">ord</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
                         <span class="n">axis</span><span class="o">=</span><span class="mf">1.</span>
                     <span class="p">)</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">_points</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">dist</span><span class="p">)],</span> <span class="s1">&#39;selected&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">if</span> <span class="n">max_dist</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">masked_dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="p">(</span><span class="n">dist</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">max_dist</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">)))</span>
+                        <span class="k">if</span> <span class="n">masked_dist</span><span class="o">.</span><span class="n">count</span><span class="p">():</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">_points</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">masked_dist</span><span class="p">)],</span> <span class="s1">&#39;selected&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">_points</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">dist</span><span class="p">)],</span> <span class="s1">&#39;selected&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
                 <span class="k">elif</span> <span class="ow">not</span> <span class="n">tile_meta</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">MosaicError</span><span class="p">(</span>
                         <span class="s1">&#39;Mosaic centroid option requires tile_meta.&#39;</span>
@@ -726,7 +732,7 @@
             <span class="n">grid_group</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;grid_x&#39;</span><span class="p">,</span> <span class="s1">&#39;grid_y&#39;</span><span class="p">])</span>
             <span class="n">first_indices</span> <span class="o">=</span> <span class="n">grid_group</span><span class="o">.</span><span class="n">nth</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">points_index</span><span class="o">.</span><span class="n">values</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">first_indices</span><span class="p">,</span> <span class="s1">&#39;selected&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">elif</span> <span class="n">tile_select</span> <span class="o">==</span> <span class="s1">&#39;nearest&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">tile_select</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;nearest&#39;</span><span class="p">,</span> <span class="s1">&#39;centroid&#39;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="s1">&#39;selected&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="n">dist_fn</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">select_nearest_points</span><span class="p">)</span>
             <span class="n">pool</span> <span class="o">=</span> <span class="n">DPool</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">())</span>
@@ -1003,7 +1009,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>

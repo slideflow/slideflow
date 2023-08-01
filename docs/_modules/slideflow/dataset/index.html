@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.dataset &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.dataset &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>
@@ -430,6 +430,16 @@
     <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">MissingROIError</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Missing ROI for slide </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">; skipping&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">IncompatibleBackendError</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Slide </span><span class="si">{}</span><span class="s1"> has type </span><span class="si">{}</span><span class="s1">, which is incompatible with the active &#39;</span>
+                  <span class="s1">&#39;slide reading backend, </span><span class="si">{}</span><span class="s1">. Consider using a different &#39;</span>
+                  <span class="s1">&#39;backend, which can be set with the environmental variable &#39;</span>
+                  <span class="s1">&#39;SF_SLIDE_BACKEND. See https://slideflow.dev/installation/#cucim-vs-libvips &#39;</span>
+                  <span class="s1">&#39;for more information.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">path</span><span class="p">,</span>
+                    <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
+                    <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span>
+                  <span class="p">))</span>
     <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error loading slide </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">. Skipping&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
@@ -772,16 +782,17 @@
 <span class="sd">                (str, e.g. &quot;20x&quot;).</span>
 
 <span class="sd">        Keyword args:</span>
-<span class="sd">            filters (Optional[Dict], optional): Filters for selecting slides</span>
-<span class="sd">                from annotations. Defaults to None.</span>
-<span class="sd">            filter_blank (Optional[Union[List[str], str]], optional): Omit</span>
-<span class="sd">                slides that are blank in these annotation columns.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            annotations (Optional[Union[str, pd.DataFrame]], optional): Path</span>
-<span class="sd">                to annotations file or pandas DataFrame with slide-level</span>
-<span class="sd">                annotations. Defaults to None.</span>
 <span class="sd">            min_tiles (int, optional): Only include slides with this</span>
 <span class="sd">                many tiles at minimum. Defaults to 0.</span>
+<span class="sd">            annotations (str or pd.DataFrame, optional): Path</span>
+<span class="sd">                to annotations file or pandas DataFrame with slide-level</span>
+<span class="sd">                annotations. Defaults to None.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            errors.SourceNotFoundError: If provided source does not exist</span>
@@ -1182,7 +1193,7 @@
         <span class="k">return</span> <span class="n">ret</span>
 
     <span class="k">def</span> <span class="nf">build_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build index files for TFRecords. Required for PyTorch.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build index files for TFRecords.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            force (bool): Force re-build existing indices.</span>
@@ -1190,12 +1201,21 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            None</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
+            <span class="n">missing_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">missing_index</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">find_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">missing_index</span><span class="p">:</span>
+                <span class="k">return</span>
+        <span class="n">index_fn</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">_create_index</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
         <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
             <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(),</span>
             <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span>
         <span class="p">)</span>
-        <span class="n">index_fn</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">_create_index</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap_unordered</span><span class="p">(</span><span class="n">index_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()),</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap_unordered</span><span class="p">(</span><span class="n">index_fn</span><span class="p">,</span> <span class="n">missing_index</span><span class="p">),</span>
                        <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Creating index files...&#39;</span><span class="p">,</span>
                        <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()),</span>
                        <span class="n">transient</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -1555,6 +1575,7 @@
     <span class="k">def</span> <span class="nf">convert_xml_rois</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert ImageScope XML ROI files to QuPath format CSV ROI files.&quot;&quot;&quot;</span>
         <span class="n">n_converted</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">xml_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">source</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roi_set</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
                 <span class="n">xml_list</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">[</span><span class="n">source</span><span class="p">][</span><span class="s1">&#39;roi&#39;</span><span class="p">],</span> <span class="s2">&quot;*.xml&quot;</span><span class="p">))</span>
@@ -1640,8 +1661,8 @@
 <span class="sd">        :class:`slideflow.Dataset`.</span>
 
 <span class="sd">        Keyword Args:</span>
-<span class="sd">            save_tiles (bool): Save images of extracted tiles to</span>
-<span class="sd">                project tile directory. Defaults to False.</span>
+<span class="sd">            save_tiles (bool, optional): Save tile images in loose format.</span>
+<span class="sd">                Defaults to False.</span>
 <span class="sd">            save_tfrecords (bool): Save compressed image data from</span>
 <span class="sd">                extracted tiles into TFRecords in the corresponding TFRecord</span>
 <span class="sd">                directory. Defaults to True.</span>
@@ -1717,11 +1738,12 @@
 <span class="sd">                given tile micron size. Defaults to False.</span>
 <span class="sd">            shuffle (bool, optional): Shuffle tiles prior to storage in</span>
 <span class="sd">                tfrecords. Defaults to True.</span>
-<span class="sd">            num_threads (int, optional): Number of workers threads for each</span>
+<span class="sd">            num_threads (int, optional): Number of worker processes for each</span>
 <span class="sd">                tile extractor. When using cuCIM slide reading backend,</span>
-<span class="sd">                defaults to the total number of available CPU threads.</span>
-<span class="sd">                With Libvips, this defaults to the total number of available</span>
-<span class="sd">                CPU threads or 32, whichever is lower.</span>
+<span class="sd">                defaults to the total number of available CPU cores, using the</span>
+<span class="sd">                &#39;fork&#39; multiprocessing method. With Libvips, this defaults to</span>
+<span class="sd">                the total number of available CPU cores or 32, whichever is</span>
+<span class="sd">                lower, using &#39;spawn&#39; multiprocessing.</span>
 <span class="sd">            qc_blur_radius (int, optional): Quality control blur radius for</span>
 <span class="sd">                out-of-focus area detection. Used if qc=True. Defaults to 3.</span>
 <span class="sd">            qc_blur_threshold (float, optional): Quality control blur threshold</span>
@@ -1735,6 +1757,8 @@
 <span class="sd">                Defaults to mpp=4 (effective magnification 2.5 X)</span>
 <span class="sd">            dry_run (bool, optional): Determine tiles that would be extracted,</span>
 <span class="sd">                but do not export any images. Defaults to None.</span>
+<span class="sd">            max_tiles (int, optional): Only extract this many tiles per slide.</span>
+<span class="sd">                Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Dictionary mapping slide paths to each slide&#39;s SlideReport</span>
@@ -2003,14 +2027,26 @@
     <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Dataset&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a filtered dataset.</span>
 
+<span class="sd">        This method can either accept a single argument (``filters``) or any</span>
+<span class="sd">        combination of keyword arguments (``filters``, ``filter_blank``, or</span>
+<span class="sd">        ``min_tiles``).</span>
+
 <span class="sd">        Keyword Args:</span>
-<span class="sd">            filters (dict): Filters dict to use when selecting tfrecords.</span>
-<span class="sd">                See :meth:`get_dataset` documentation for more information</span>
-<span class="sd">                on filtering. Defaults to None.</span>
-<span class="sd">            filter_blank (list): Exclude slides blank in these columns.</span>
+<span class="sd">            filters (dict, optional): Dictionary used for filtering</span>
+<span class="sd">                the dataset. Dictionary keys should be column headers in the</span>
+<span class="sd">                patient annotations, and the values should be the variable</span>
+<span class="sd">                states to be included in the dataset. For example,</span>
+<span class="sd">                ``filters={&#39;HPV_status&#39;: [&#39;negative&#39;, &#39;positive&#39;]}``</span>
+<span class="sd">                would filter the dataset by the column ``HPV_status`` and only</span>
+<span class="sd">                include slides with values of either ``&#39;negative&#39;`` or</span>
+<span class="sd">                ``&#39;positive&#39;`` in this column.</span>
+<span class="sd">                See `Filtering &lt;https://slideflow.dev/datasets_and_val/#filtering&gt;`_</span>
+<span class="sd">                for further discussion. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            min_tiles (int): Filter out tfrecords that have less than this</span>
-<span class="sd">                minimum number of tiles.</span>
+<span class="sd">                minimum number of tiles. Defaults to 0.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            :class:`slideflow.Dataset`: Dataset with filter added.</span>
@@ -2212,7 +2248,7 @@
             <span class="n">temp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span>
             <span class="n">splits</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;_splits.json&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">temp_file</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">temp_dir</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">crossval_splits</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">k_fold_iter</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
             <span class="n">split_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
@@ -2320,9 +2356,10 @@
                     <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filtered_labels</span><span class="p">)</span><span class="si">}</span><span class="s2">).&quot;</span>
                 <span class="p">)</span>
             <span class="k">elif</span> <span class="n">header_is_float</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Interpreting column &quot;</span><span class="si">{</span><span class="n">header</span><span class="si">}</span><span class="s1">&quot; as continuous&#39;</span><span class="p">)</span>
                 <span class="n">filtered_labels</span> <span class="o">=</span> <span class="n">filtered_labels</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Interpreting column &quot;</span><span class="si">{</span><span class="n">header</span><span class="si">}</span><span class="s1">&quot; as continuous&#39;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Interpreting column &quot;</span><span class="si">{</span><span class="n">header</span><span class="si">}</span><span class="s1">&quot; as categorical&#39;</span><span class="p">)</span>
                 <span class="n">unique_labels_for_this_header</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">filtered_labels</span><span class="p">))</span>
                 <span class="n">unique_labels_for_this_header</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
                 <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ul</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">unique_labels_for_this_header</span><span class="p">):</span>
@@ -3712,9 +3749,11 @@
 <span class="sd">                calculate activations for all tfrecords at the tile_px/tile_um</span>
 <span class="sd">                matching the supplied model, optionally using provided filters</span>
 <span class="sd">                and filter_blank.</span>
-<span class="sd">            filters (dict, optional): Filters to use when selecting tfrecords.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Exclude slides blank in these cols.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            roi (bool, optional): Include ROI in the thumbnail images.</span>
 <span class="sd">                Defaults to False.</span>
@@ -4179,7 +4218,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>

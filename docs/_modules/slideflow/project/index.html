@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.project &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.project &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>
@@ -851,8 +851,12 @@
 <span class="sd">            val_settings (:class:`types.SimpleNamspace`): Validation settings.</span>
 <span class="sd">            ctx (multiprocessing.Context): Multiprocessing context for sharing</span>
 <span class="sd">                results from isolated training processes.</span>
-<span class="sd">            filters (dict): Dataset filters.</span>
-<span class="sd">            filter_blank (list): Excludes slides blank in this annotation col.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
+<span class="sd">                Defaults to None.</span>
 <span class="sd">            input_header (str or list(str)): Annotation col of additional</span>
 <span class="sd">                slide-level input.</span>
 <span class="sd">            min_tiles (int): Only includes tfrecords with &gt;= min_tiles</span>
@@ -1462,9 +1466,11 @@
 <span class="sd">                to evaluate. If not supplied, will evaluate all project</span>
 <span class="sd">                tfrecords at the tile_px/tile_um matching the supplied model,</span>
 <span class="sd">                optionally using provided filters and filter_blank.</span>
-<span class="sd">            filters (dict, optional): Filters dict to use when selecting</span>
-<span class="sd">                tfrecords. Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Exclude slides blank in these cols.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            min_tiles (int, optional): Minimum number of tiles a slide must</span>
 <span class="sd">                have to be included in evaluation. Defaults to 0.</span>
@@ -1567,9 +1573,11 @@
 <span class="sd">                the model saved as s_{k}_checkpoint.pt. Defaults to 0.</span>
 <span class="sd">            eval_tag (str, optional): Unique identifier for this evaluation.</span>
 <span class="sd">                Defaults to None</span>
-<span class="sd">            filters (dict, optional): Filters to use when selecting tfrecords.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Exclude slides blank in these cols.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            attention_heatmaps (bool, optional): Save attention heatmaps of</span>
 <span class="sd">                validation dataset. Defaults to True.</span>
@@ -1826,20 +1834,27 @@
 <span class="sd">                magnification (str, e.g. &quot;20x&quot;).</span>
 
 <span class="sd">        Keyword Args:</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
+<span class="sd">                Defaults to None.</span>
 <span class="sd">            save_tiles (bool, optional): Save tile images in loose format.</span>
 <span class="sd">                Defaults to False.</span>
-<span class="sd">            save_tfrecords (bool, optional): Save tile images as TFRecords.</span>
-<span class="sd">                Defaults to True.</span>
-<span class="sd">            source (str, optional): Process slides only from this source.</span>
-<span class="sd">                Defaults to None (all slides in project).</span>
-<span class="sd">            stride_div (int, optional): Stride divisor. Defaults to 1.</span>
+<span class="sd">            save_tfrecords (bool): Save compressed image data from</span>
+<span class="sd">                extracted tiles into TFRecords in the corresponding TFRecord</span>
+<span class="sd">                directory. Defaults to True.</span>
+<span class="sd">            source (str, optional): Name of dataset source from which to select</span>
+<span class="sd">                slides for extraction. Defaults to None. If not provided, will</span>
+<span class="sd">                default to all sources in project.</span>
+<span class="sd">            stride_div (int): Stride divisor for tile extraction.</span>
 <span class="sd">                A stride of 1 will extract non-overlapping tiles.</span>
-<span class="sd">                A stride_div of 2 will extract overlapping tiles with a stride</span>
-<span class="sd">                equal to 50% of the tile width.</span>
-<span class="sd">            enable_downsample (bool, optional): Enable downsampling when</span>
-<span class="sd">                reading slides. Defaults to True. This may result in corrupted</span>
-<span class="sd">                image tiles if downsampled slide layers are corrupted or</span>
-<span class="sd">                incomplete. Recommend manual confirmation of tile integrity.</span>
+<span class="sd">                A stride_div of 2 will extract overlapping tiles, with a stride</span>
+<span class="sd">                equal to 50% of the tile width. Defaults to 1.</span>
+<span class="sd">            enable_downsample (bool): Enable downsampling for slides.</span>
+<span class="sd">                This may result in corrupted image tiles if downsampled slide</span>
+<span class="sd">                layers are corrupted or incomplete. Defaults to True.</span>
 <span class="sd">            roi_method (str): Either &#39;inside&#39;, &#39;outside&#39;, &#39;auto&#39;, or &#39;ignore&#39;.</span>
 <span class="sd">                Determines how ROIs are used to extract tiles.</span>
 <span class="sd">                If &#39;inside&#39; or &#39;outside&#39;, will extract tiles in/out of an ROI,</span>
@@ -1849,57 +1864,73 @@
 <span class="sd">                If &#39;ignore&#39;, will extract tiles across the whole-slide</span>
 <span class="sd">                regardless of whether an ROI is available.</span>
 <span class="sd">                Defaults to &#39;auto&#39;.</span>
-<span class="sd">            skip_extracted (bool, optional): Skip already extracted slides.</span>
-<span class="sd">                Defaults to True.</span>
-<span class="sd">            tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs),</span>
+<span class="sd">            roi_filter_method (str or float): Method of filtering tiles with</span>
+<span class="sd">                ROIs. Either &#39;center&#39; or float (0-1). If &#39;center&#39;, tiles are</span>
+<span class="sd">                filtered with ROIs based on the center of the tile. If float,</span>
+<span class="sd">                tiles are filtered based on the proportion of the tile inside</span>
+<span class="sd">                the ROI, and ``roi_filter_method`` is interpreted as a</span>
+<span class="sd">                threshold. If the proportion of a tile inside the ROI is</span>
+<span class="sd">                greater than this number, the tile is included. For example,</span>
+<span class="sd">                if ``roi_filter_method=0.7``, a tile that is 80% inside of an</span>
+<span class="sd">                ROI will be included, and a tile that is 50% inside of an ROI</span>
+<span class="sd">                will be excluded. Defaults to &#39;center&#39;.</span>
+<span class="sd">            skip_extracted (bool): Skip slides that have already</span>
+<span class="sd">                been extracted. Defaults to True.</span>
+<span class="sd">            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),</span>
 <span class="sd">                detecting and extracting tumor cores. Defaults to False.</span>
-<span class="sd">            randomize_origin (bool, optional): Randomize pixel starting</span>
+<span class="sd">                Experimental function with limited testing.</span>
+<span class="sd">            randomize_origin (bool): Randomize pixel starting</span>
 <span class="sd">                position during extraction. Defaults to False.</span>
-<span class="sd">            buffer (str, optional): Copy slides here before extraction.</span>
-<span class="sd">                Improves processing speed if using an SSD/ramdisk buffer.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            num_workers (int, optional): Extract tiles from this many slides</span>
-<span class="sd">                simultaneously. Defaults to 1.</span>
-<span class="sd">            q_size (int, optional): Queue size for buffer. Defaults to 2.</span>
+<span class="sd">            buffer (str, optional): Slides will be copied to this directory</span>
+<span class="sd">                before extraction. Defaults to None. Using an SSD or ramdisk</span>
+<span class="sd">                buffer vastly improves tile extraction speed.</span>
+<span class="sd">            q_size (int): Size of queue when using a buffer.</span>
+<span class="sd">                Defaults to 2.</span>
 <span class="sd">            qc (str, optional): &#39;otsu&#39;, &#39;blur&#39;, &#39;both&#39;, or None. Perform blur</span>
 <span class="sd">                detection quality control - discarding tiles with detected</span>
 <span class="sd">                out-of-focus regions or artifact - and/or otsu&#39;s method.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            report (bool, optional): Save a PDF report of tile extraction.</span>
+<span class="sd">                Increases tile extraction time. Defaults to None.</span>
+<span class="sd">            report (bool): Save a PDF report of tile extraction.</span>
 <span class="sd">                Defaults to True.</span>
 <span class="sd">            normalizer (str, optional): Normalization strategy.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
-<span class="sd">                Defaults to None (use internal image at slide.norm_tile.jpg).</span>
-<span class="sd">            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.</span>
-<span class="sd">                Discard tiles with this fraction of whitespace. If 1, will not</span>
-<span class="sd">                perform whitespace filtering.</span>
-<span class="sd">            whitespace_threshold (int, optional): Range 0-255. Threshold above</span>
-<span class="sd">                which a pixel (RGB average) is considered whitespace.</span>
-<span class="sd">                Defaults to 230.</span>
-<span class="sd">            grayspace_fraction (float, optional): Range 0-1. Discard tiles with</span>
-<span class="sd">                this fraction of grayspace. If 1, will not perform grayspace</span>
-<span class="sd">                filtering. Defaults to 0.6.</span>
-<span class="sd">            grayspace_threshold (float, optional): Range 0-1. Pixels in HSV</span>
-<span class="sd">                format with saturation below this are considered grayspace.</span>
-<span class="sd">                Defaults to 0.05.</span>
+<span class="sd">                If None, will use slideflow.slide.norm_tile.jpg.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            whitespace_fraction (float, optional): Range 0-1. Discard tiles</span>
+<span class="sd">                with this fraction of whitespace. If 1, will not perform</span>
+<span class="sd">                whitespace filtering. Defaults to 1.</span>
+<span class="sd">            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.</span>
+<span class="sd">                Threshold above which a pixel (RGB average) is whitespace.</span>
+<span class="sd">            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.</span>
+<span class="sd">                Discard tiles with this fraction of grayspace.</span>
+<span class="sd">                If 1, will not perform grayspace filtering.</span>
+<span class="sd">            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.</span>
+<span class="sd">                Pixels in HSV format with saturation below this threshold are</span>
+<span class="sd">                considered grayspace.</span>
 <span class="sd">            img_format (str, optional): &#39;png&#39; or &#39;jpg&#39;. Defaults to &#39;jpg&#39;.</span>
-<span class="sd">                Image format to use in tfrecords. PNG (lossless) for</span>
-<span class="sd">                fidelity, JPG (lossy) for efficiency.</span>
-<span class="sd">            full_core (bool, optional): Only used if extracting from TMA. Save</span>
-<span class="sd">                entire TMA core as image. Otherwise, will extract sub-images</span>
-<span class="sd">                from each core at the tile micron size. Defaults to False.</span>
-<span class="sd">            shuffle (bool, optional): Shuffle tiles before tfrecords storage.</span>
-<span class="sd">                Defaults to True.</span>
-<span class="sd">            num_threads (int, optional): Threads for each tile extractor.</span>
-<span class="sd">                Defaults to 4.</span>
-<span class="sd">            qc_blur_radius (int, optional): Blur radius for out-of-focus area</span>
-<span class="sd">                detection. Used if qc=True. Defaults to 3.</span>
-<span class="sd">            qc_blur_threshold (float, optional): Blur threshold for detecting</span>
-<span class="sd">                out-of-focus areas. Used if qc=True. Defaults to 0.1.</span>
-<span class="sd">            qc_filter_threshold (float, optional): Float between 0-1.</span>
-<span class="sd">                Tiles with more than this proportion of blur will be discarded.</span>
-<span class="sd">                Used if qc=True. Defaults to 0.6.</span>
+<span class="sd">                Image format to use in tfrecords. PNG (lossless) for fidelity,</span>
+<span class="sd">                JPG (lossy) for efficiency.</span>
+<span class="sd">            full_core (bool, optional): Only used if extracting from TMA.</span>
+<span class="sd">                If True, will save entire TMA core as image.</span>
+<span class="sd">                Otherwise, will extract sub-images from each core using the</span>
+<span class="sd">                given tile micron size. Defaults to False.</span>
+<span class="sd">            shuffle (bool, optional): Shuffle tiles prior to storage in</span>
+<span class="sd">                tfrecords. Defaults to True.</span>
+<span class="sd">            num_threads (int, optional): Number of worker processes for each</span>
+<span class="sd">                tile extractor. When using cuCIM slide reading backend,</span>
+<span class="sd">                defaults to the total number of available CPU cores, using the</span>
+<span class="sd">                &#39;fork&#39; multiprocessing method. With Libvips, this defaults to</span>
+<span class="sd">                the total number of available CPU cores or 32, whichever is</span>
+<span class="sd">                lower, using &#39;spawn&#39; multiprocessing.</span>
+<span class="sd">            qc_blur_radius (int, optional): Quality control blur radius for</span>
+<span class="sd">                out-of-focus area detection. Used if qc=True. Defaults to 3.</span>
+<span class="sd">            qc_blur_threshold (float, optional): Quality control blur threshold</span>
+<span class="sd">                for detecting out-of-focus areas. Only used if qc=True.</span>
+<span class="sd">                Defaults to 0.1</span>
+<span class="sd">            qc_filter_threshold (float, optional): Float between 0-1. Tiles</span>
+<span class="sd">                with more than this proportion of blur will be discarded.</span>
+<span class="sd">                Only used if qc=True. Defaults to 0.6.</span>
 <span class="sd">            qc_mpp (float, optional): Microns-per-pixel indicating image</span>
 <span class="sd">                magnification level at which quality control is performed.</span>
 <span class="sd">                Defaults to mpp=4 (effective magnification 2.5 X)</span>
@@ -2160,10 +2191,12 @@
 <span class="sd">                from which to generate activations. If not supplied, calculate</span>
 <span class="sd">                activations for all tfrecords compatible with the model,</span>
 <span class="sd">                optionally using provided filters and filter_blank.</span>
-<span class="sd">            filters (dict, optional): Filters to use when selecting tfrecords.</span>
-<span class="sd">                 Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Slides blank in these columns will</span>
-<span class="sd">                be excluded. Defaults to None.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
+<span class="sd">                Defaults to None.</span>
 <span class="sd">            min_tiles (int, optional): Only include slides with this minimum</span>
 <span class="sd">                number of tiles. Defaults to 0.</span>
 <span class="sd">            max_tiles (int, optional): Only include maximum of this many tiles</span>
@@ -2235,10 +2268,12 @@
 <span class="sd">                from which to generate activations. If not supplied, calculate</span>
 <span class="sd">                activations for all tfrecords compatible with the model,</span>
 <span class="sd">                optionally using provided filters and filter_blank.</span>
-<span class="sd">            filters (dict, optional): Filters to use when selecting tfrecords.</span>
-<span class="sd">                 Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Slides blank in these columns will</span>
-<span class="sd">                be excluded. Defaults to None.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
+<span class="sd">                Defaults to None.</span>
 <span class="sd">            min_tiles (int, optional): Only include slides with this minimum</span>
 <span class="sd">                number of tiles. Defaults to 16.</span>
 <span class="sd">            max_tiles (int, optional): Only include maximum of this many tiles</span>
@@ -2374,9 +2409,11 @@
 <span class="sd">                generate predictions for all project tfrecords at the</span>
 <span class="sd">                tile_px/tile_um matching the model, optionally using provided</span>
 <span class="sd">                filters and filter_blank.</span>
-<span class="sd">            filters (dict, optional): Filters to use when selecting tfrecords.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Exclude slides blank in these cols.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            min_tiles (int, optional): Minimum tiles per slide. Skip slides</span>
 <span class="sd">                not meeting this threshold. Defaults to 8.</span>
@@ -2515,10 +2552,12 @@
 <span class="sd">                the supplied model, optionally using filters/filter_blank.</span>
 
 <span class="sd">        Keyword Args:</span>
-<span class="sd">            filters (dict, optional): Filters dict to use when selecting</span>
-<span class="sd">                tfrecords. Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Slides blank in these columns will</span>
-<span class="sd">                be excluded. Defaults to None.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
+<span class="sd">                Defaults to None.</span>
 <span class="sd">            outcomes (list, optional): Column name in annotations file from</span>
 <span class="sd">                which to read category labels.</span>
 <span class="sd">            map_slide (str, optional): None (default), &#39;centroid&#39; or &#39;average&#39;.</span>
@@ -2853,9 +2892,11 @@
 <span class="sd">                (str, e.g. &quot;20x&quot;).</span>
 
 <span class="sd">        Keyword Args:</span>
-<span class="sd">            filters (dict, optional): Filters for selecting tfrecords.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Exclude slides blank in these cols.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            min_tiles (int, optional): Min tiles a slide must have.</span>
 <span class="sd">                Defaults to 0.</span>
@@ -2927,9 +2968,11 @@
 <span class="sd">                generate predictions for all project tfrecords at the</span>
 <span class="sd">                tile_px/tile_um matching the model, optionally using provided</span>
 <span class="sd">                filters and filter_blank.</span>
-<span class="sd">            filters (dict, optional): Filters to use when selecting tfrecords.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Exclude slides blank in these cols.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            min_tiles (int, optional): Min tiles a slide must have</span>
 <span class="sd">                to be included. Defaults to 0.</span>
@@ -3126,9 +3169,11 @@
 <span class="sd">                from which to generate activations. If not supplied, will</span>
 <span class="sd">                calculate activations for all tfrecords at the tile_px/tile_um</span>
 <span class="sd">                matching the supplied model.</span>
-<span class="sd">            filters (dict, optional): Filters to use when selecting tfrecords.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Exclude slides blank in these cols.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            min_tiles (int, optional): Min tiles a slide must have</span>
 <span class="sd">                to be included. Defaults to 0.</span>
@@ -3506,9 +3551,11 @@
 
 <span class="sd">        Keyword Args:</span>
 <span class="sd">            exp_label (str, optional): Experiment label to add model names.</span>
-<span class="sd">            filters (dict, optional): Filters to use when selecting tfrecords.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Exclude slides blank in these cols.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            input_header (list, optional): List of annotation column headers to</span>
 <span class="sd">                use as additional slide-level model input. Defaults to None.</span>
@@ -3554,6 +3601,7 @@
 <span class="sd">            val_annotations (str): Path to annotations file for validation</span>
 <span class="sd">                dataset. Defaults to None (same as training).</span>
 <span class="sd">            val_filters (dict): Filters to use for validation dataset.</span>
+<span class="sd">                See :meth:`slideflow.Dataset.filter` for more information.</span>
 <span class="sd">                Defaults to None (same as training).</span>
 <span class="sd">            checkpoint (str, optional): Path to cp.ckpt from which to load</span>
 <span class="sd">                weights. Defaults to None.</span>
@@ -4167,8 +4215,13 @@
     <span class="c1"># Set up project at the given directory.</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setting up project at </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="s1">&#39;annotations&#39;</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">:</span>
-        <span class="n">proj_kwargs</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">basename</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">annotations</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">root</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">):</span>
+            <span class="n">proj_kwargs</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">basename</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">annotations</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">proj_kwargs</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">basename</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">annotations</span><span class="p">))</span>
+
     <span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="o">**</span><span class="n">proj_kwargs</span><span class="p">,</span> <span class="n">create</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
     <span class="c1"># Download annotations, if a URL.</span>
     <span class="k">if</span> <span class="s1">&#39;annotations&#39;</span> <span class="ow">in</span> <span class="n">cfg</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;http&#39;</span><span class="p">):</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloading </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">annotations</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -4345,7 +4398,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>
