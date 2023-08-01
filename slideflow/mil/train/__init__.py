@@ -9,7 +9,7 @@ from slideflow import Dataset, log
 from slideflow.util import path_to_name
 from os.path import join
 
-from ..eval import predict_from_model, generate_attention_heatmaps
+from ..eval import predict_from_model, generate_attention_heatmaps, _export_attention
 from .._params import (
     _TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
 )
@@ -257,6 +257,15 @@ def train_clam(
     else:
         val_bags = np.array(bags)
 
+    # Export attention to numpy arrays
+    if attention:
+        _export_attention(
+            join(outdir, 'attention'),
+            attention,
+            [path_to_name(b) for b in val_bags]
+        )
+
+    # Save attention heatmaps
     if attention and attention_heatmaps:
         assert len(val_bags) == len(attention)
         generate_attention_heatmaps(
@@ -458,6 +467,14 @@ def train_fastai(
         inplace=True
     )
     sf.stats.metrics.categorical_metrics(df, level='slide')
+
+    # Export attention to numpy arrays
+    if attention:
+        _export_attention(
+            join(outdir, 'attention'),
+            attention,
+            [path_to_name(b) for b in val_bags]
+        )
 
     # Attention heatmaps.
     if attention and attention_heatmaps:

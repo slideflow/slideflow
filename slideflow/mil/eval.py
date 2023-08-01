@@ -129,17 +129,7 @@ def eval_mil(
 
     # Export attention
     if y_att:
-        att_path = join(model_dir, 'attention')
-        if not exists(att_path):
-            os.makedirs(att_path)
-        for slide, att in zip(slides, y_att):
-            if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
-                out_path = join(att_path, f'{slide}_att.npy')
-                np.save(out_path, att)
-            else:
-                out_path = join(att_path, f'{slide}_att.npz')
-                np.savez(out_path, att)
-        log.info(f"Attention scores exported to [green]{out_path}[/]")
+        _export_attention(join(model_dir, 'attention'), y_att, slides)
 
     # Attention heatmaps
     if y_att and attention_heatmaps:
@@ -213,13 +203,25 @@ def predict_slide(
     # Load model
     model_fn, config = load_model_weights(model, config)
     mil_params = sf.util.load_json(join(model, 'mil_params.json'))
+    if 'bags_extractor' not in mil_params:
+        raise ValueError(
+            "Unable to determine extractor used for model {}. "
+            "Please specify an extractor.".format(model)
+        )
+    bags_params = mil_params['bags_extractor']
 
     # Load slide
     if isinstance(slide, str):
+        if not all(k in bags_params for k in ('tile_px', 'tile_um')):
+            raise ValueError(
+                "Unable to determine tile size for slide {}. "
+                "Either slide must be a slideflow.WSI object, or tile_px and "
+                "tile_um must be specified in mil_params.json.".format(slide)
+            )
         slide = sf.WSI(
             slide,
-            tile_px=mil_params['tile_px'],
-            tile_um=mil_params['tile_um']
+            tile_px=bags_params['tile_px'],
+            tile_um=bags_params['tile_um']
         )
 
     # Convert slide to bags
@@ -371,6 +373,24 @@ def generate_attention_heatmaps(
 
 # -----------------------------------------------------------------------------
 
+def _export_attention(
+    dest: str,
+    y_att: List[np.ndarray],
+    slides: List[str]
+) -> None:
+    """Export attention scores to a directory."""
+    if not exists(dest):
+        os.makedirs(dest)
+    for slide, att in zip(slides, y_att):
+        if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
+            out_path = join(dest, f'{slide}_att.npy')
+            np.save(out_path, att)
+        else:
+            out_path = join(dest, f'{slide}_att.npz')
+            np.savez(out_path, att)
+    log.info(f"Attention scores exported to [green]{out_path}[/]")
+
+
 def _predict_clam(
     model: Callable,
     bags: Union[np.ndarray, List[str]],
@@ -462,6 +482,7 @@ def _predict_mil(
             if attention:
                 att = torch.squeeze(model.calculate_attention(*model_args))
                 if len(att.shape) == 2:
+                    log.warning("Pooling attention scores from 2D to 1D")
                     # Attention needs to be pooled
                     if attention_pooling == 'avg':
                         att = torch.mean(att, dim=-1)
