@@ -1956,9 +1956,9 @@ class Project:
     def generate_feature_bags(
         self,
         model: Union[str, "BaseFeatureExtractor"],
+        dataset: Optional[Dataset] = None,
         outdir: str = 'auto',
         *,
-        dataset: Optional[Dataset] = None,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 16,

@@ -180,6 +180,10 @@ def predict_slide(
 
     Returns:
         Tuple[np.ndarray, Optional[np.ndarray]]: Predictions and attention scores.
+            Attention scores are None if ``attention`` is False, otherwise
+            a masked 2D array with the same shape as the slide grid (arranged as a
+            heatmap, with unused tiles masked).
+
     """
     # Try to auto-determine the extractor
     if extractor is None:
@@ -226,17 +230,36 @@ def predict_slide(
 
     # Convert slide to bags
     masked_bags = extractor(slide, normalizer=normalizer)
-    bags = np.ma.getdata(masked_bags[~masked_bags.mask.any(axis=2)])
+    original_shape = masked_bags.shape
+    masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
+    mask = masked_bags.mask.any(axis=1)
+    valid_indices = np.where(~mask)
+    bags = masked_bags[valid_indices]
     bags = np.expand_dims(bags, axis=0).astype(np.float32)
+
+    sf.log.info("Generated feature bags for {} tiles".format(bags.shape[1]))
 
     # Generate predictions.
     if (isinstance(config, TrainerConfigCLAM)
        or isinstance(config.model_config, ModelConfigCLAM)):
-        y_pred, y_att = _predict_clam(model_fn, bags, attention=attention)
+        y_pred, raw_att = _predict_clam(model_fn, bags, attention=attention)
     else:
-        y_pred, y_att = _predict_mil(
+        y_pred, raw_att = _predict_mil(
             model_fn, bags, attention=attention, use_lens=config.model_config.use_lens
         )
+
+    # Reshape attention to match original shape
+    if attention and raw_att is not None and len(raw_att):
+        y_att = raw_att[0]
+
+        # Create a fully masked array of shape (X, Y)
+        att_heatmap = np.ma.masked_all(masked_bags.shape[0], dtype=y_att.dtype)
+
+        # Unmask and fill the transformed data into the corresponding positions
+        att_heatmap[valid_indices] = y_att
+        y_att = np.reshape(att_heatmap, original_shape[0:2])
+    else:
+        y_att = None
 
     return y_pred, y_att
 
