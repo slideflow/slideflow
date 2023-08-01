@@ -144,7 +144,8 @@ setuptools.setup(
             'torchvision',
             'pretrainedmodels',
             'cellpose<2.2',
-            'fastai'
+            'fastai',
+            'timm<0.9'
         ],
         'dev': [
             'sphinx',
