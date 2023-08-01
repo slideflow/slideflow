@@ -208,7 +208,7 @@ def rebuild_extractor(
             return None
         else:
             raise ValueError(
-                f'Could not rebuild extractor from configuration at {bags}.'
+                f'Could not rebuild extractor from configuration at {bags_or_model}.'
             )
 
     # Rebuild stain normalizer
