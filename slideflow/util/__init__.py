@@ -969,6 +969,71 @@ def update_results_log(
         os.remove(f"{results_log_path}.temp")
 
 
+def map_values_to_slide_grid(
+    locations: np.ndarray,
+    values: np.ndarray,
+    wsi: "sf.WSI",
+    background: str = 'min',
+    *,
+    interpolation: Optional[str] = 'bicubic',
+):
+    """Map heatmap values to a slide grid, using tile location information."""
+
+    no_interpolation = (interpolation is None or interpolation == 'nearest')
+
+    # Slide coordinate information
+    loc_grid_dict = {(c[0], c[1]): (c[2], c[3]) for c in wsi.coord}
+
+    # Determine the heatmap background
+    grid = np.empty((wsi.grid.shape[1], wsi.grid.shape[0]))
+    if background == 'mask' and not no_interpolation:
+        raise ValueError(
+            "'mask' background is not compatible with interpolation method "
+            "'{}'. Expected: None or 'nearest'".format(interpolation)
+        )
+    elif background == 'mask':
+        grid[:] = np.nan
+    elif background == 'min':
+        grid[:] = np.min(values)
+    elif background == 'mean':
+        grid[:] = np.mean(values)
+    elif background == 'median':
+        grid[:] = np.median(values)
+    elif background == 'max':
+        grid[:] = np.max(values)
+    else:
+        raise ValueError(f"Unrecognized value for background: {background}")
+
+    if not isinstance(locations, np.ndarray):
+        locations = np.array(locations)
+
+    # Transform from coordinates as center locations to top-left locations.
+    locations = locations - int(wsi.full_extract_px/2)
+
+    for i, wsi_dim in enumerate(locations):
+        try:
+            idx = loc_grid_dict[tuple(wsi_dim)]
+        except (IndexError, KeyError):
+            raise errors.CoordinateAlignmentError(
+                "Error plotting value at location {} for slide {}. The heatmap "
+                "grid is not aligned to the slide coordinate grid. Ensure "
+                "that tile_px (got: {}) and tile_um (got: {}) match the given "
+                "location values. If you are using data stored in TFRecords, "
+                "verify that the TFRecord was generated using the same "
+                "tile_px and tile_um.".format(
+                    tuple(wsi_dim), wsi.path, wsi.tile_px, wsi.tile_um
+                )
+            )
+        grid[idx[1]][idx[0]] = values[i]
+
+    # Mask out background, if interpolation is not used and background == 'mask'
+    if no_interpolation and background == 'mask':
+        masked_grid = np.ma.masked_invalid(grid)
+    else:
+        masked_grid = grid
+    return masked_grid
+
+
 def location_heatmap(
     locations: np.ndarray,
     values: np.ndarray,
@@ -1014,7 +1079,6 @@ def location_heatmap(
     log.info(f'Generating heatmap for [green]{slide}[/]...')
     log.debug(f"Plotting {len(values)} values")
     wsi = sf.slide.WSI(slide, tile_px, tile_um, verbose=False)
-    no_interpolation = (interpolation is None or interpolation == 'nearest')
 
     stats = {
         slide_name: {
@@ -1023,56 +1087,9 @@ def location_heatmap(
         }
     }
 
-    # Slide coordinate information
-    loc_grid_dict = {(c[0], c[1]): (c[2], c[3]) for c in wsi.coord}
-
-    # Determine the heatmap background
-    grid = np.empty((wsi.grid.shape[1], wsi.grid.shape[0]))
-    if background == 'mask' and not no_interpolation:
-        raise ValueError(
-            "'mask' background is not compatible with interpolation method "
-            "'{}'. Expected: None or 'nearest'".format(interpolation)
-        )
-    elif background == 'mask':
-        grid[:] = np.nan
-    elif background == 'min':
-        grid[:] = np.min(values)
-    elif background == 'mean':
-        grid[:] = np.mean(values)
-    elif background == 'median':
-        grid[:] = np.median(values)
-    elif background == 'max':
-        grid[:] = np.max(values)
-    else:
-        raise ValueError(f"Unrecognized value for background: {background}")
-
-    if not isinstance(locations, np.ndarray):
-        locations = np.array(locations)
-
-    # Transform from coordinates as center locations to top-left locations.
-    locations = locations - int(wsi.full_extract_px/2)
-
-    for i, wsi_dim in enumerate(locations):
-        try:
-            idx = loc_grid_dict[tuple(wsi_dim)]
-        except (IndexError, KeyError):
-            raise errors.CoordinateAlignmentError(
-                "Error plotting value at location {} for slide {}. The heatmap "
-                "grid is not aligned to the slide coordinate grid. Ensure "
-                "that tile_px (got: {}) and tile_um (got: {}) match the given "
-                "location values. If you are using data stored in TFRecords, "
-                "verify that the TFRecord was generated using the same "
-                "tile_px and tile_um.".format(
-                    tuple(wsi_dim), slide, tile_px, tile_um
-                )
-            )
-        grid[idx[1]][idx[0]] = values[i]
-
-    # Mask out background, if interpolation is not used and background == 'mask'
-    if no_interpolation and background == 'mask':
-        masked_grid = np.ma.masked_invalid(grid)
-    else:
-        masked_grid = grid
+    masked_grid = map_values_to_slide_grid(
+        locations, values, wsi, background=background, interpolation=interpolation
+    )
 
     fig = plt.figure(figsize=(18, 16))
     ax = fig.add_subplot(111)
