@@ -358,7 +358,7 @@ class Renderer:
 
 class AsyncRenderer:
 
-    """Renderer to assist with tile-evel model predictions."""
+    """Renderer to assist with tile-level model predictions."""
 
     def __init__(self):
         self._closed        = False

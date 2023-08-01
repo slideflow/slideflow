@@ -79,7 +79,12 @@ class MILWidget(Widget):
 
     def __init__(self, viz):
         self.viz = viz
+        self._clicking      = None
+        self._initialize_variables()
 
+    # --- Hooks, triggers, and internal functions -----------------------------
+
+    def _initialize_variables(self):
         # Extractor, model, and config.
         self.model = None
         self.mil_config = None
@@ -100,15 +105,34 @@ class MILWidget(Widget):
         self._triggered = False
         self._thread = None
         self._toast = None
+        self._show_popup = False
 
     def _reload_wsi(self):
+        """Reload a slide."""
         viz = self.viz
         if viz.wsi:
             viz.tile_px = self.extractor_params['tile_px']
             viz.tile_um = self.extractor_params['tile_um']
             viz.slide_widget.load(viz.wsi.path, mpp=viz.slide_widget.manual_mpp)
 
+    def _refresh_generating_prediction(self):
+        """Refresh render of asynchronous MIL prediction / attention heatmap."""
+        if self._thread is not None and not self._thread.is_alive():
+            self._generating = False
+            self._triggered = False
+            self._thread = None
+            self.viz.clear_message(self._rendering_message)
+            if self._toast is not None:
+                self._toast.done()
+                self._toast = None
+            self.viz.create_toast("Prediction complete.", icon='success')
+
+    def _on_model_load(self):
+        """Trigger for when the user loads a tile-based model."""
+        self.close()
+
     def drag_and_drop_hook(self, path: str) -> bool:
+        """Drag-and-drop hook for loading an MIL model."""
         if _is_mil_model(path):
             return self.load(path)
         return False
@@ -118,6 +142,18 @@ class MILWidget(Widget):
         if imgui.menu_item('Load MIL Model...')[1]:
             self.ask_load_model()
 
+    # --- Public API ----------------------------------------------------------
+
+    def close(self):
+        """Close the loaded MIL model."""
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join()
+        del self.model
+        del self.extractor
+        del self.normalizer
+        self.viz.heatmap_widget.reset()
+        self._initialize_variables()
+
     def ask_load_model(self) -> None:
         """Prompt the user to open an MIL model."""
         mil_path = askdirectory(title="Load MIL Model (directory)...")
@@ -126,15 +162,16 @@ class MILWidget(Widget):
 
     def load(self, path: str, allow_errors: bool = True) -> bool:
         try:
+            self.close()
             self.extractor, self.normalizer = rebuild_extractor(path)
             self.mil_params = _get_mil_params(path)
             self.extractor_params = self.mil_params['bags_extractor']
             self._reload_wsi()
             self.model, self.mil_config = sf.mil.utils.load_model_weights(path)
+            self.viz.close_model(True)  # Close a tile-based model, if one is loaded
             self.viz.tile_um = self.extractor_params['tile_um']
             self.viz.tile_px = self.extractor_params['tile_px']
             self.viz.create_toast('MIL model loaded', icon='success')
-            self.viz.close_model(True)
         except Exception as e:
             if allow_errors:
                 self.viz.create_toast('Error loading MIL model', icon='error')
@@ -235,18 +272,6 @@ class MILWidget(Widget):
         self.viz.heatmap_widget.predictions = array[:, :, np.newaxis]
         self.viz.heatmap_widget.render_heatmap()
 
-    def refresh_generating_prediction(self):
-        """Refresh render of asynchronous MIL prediction / attention heatmap."""
-        if self._thread is not None and not self._thread.is_alive():
-            self._generating = False
-            self._triggered = False
-            self._thread = None
-            self.viz.clear_message(self._rendering_message)
-            if self._toast is not None:
-                self._toast.done()
-                self._toast = None
-            self.viz.create_toast("Prediction complete.", icon='success')
-
     def draw_extractor_info(self):
         """Draw a description of the extractor information."""
 
@@ -262,8 +287,8 @@ class MILWidget(Widget):
             normalizer = "-"
 
         rows = [
-            ['extractor',         c['extractor']['class'].split('.')[-1]],
-            ['extractor Args',    c['extractor']['kwargs']],
+            ['Extractor',         c['extractor']['class'].split('.')[-1]],
+            ['Extractor Args',    c['extractor']['kwargs']],
             ['Normalizer',      normalizer],
             ['Num features',    c['num_features']],
             ['Tile size (px)',  c['tile_px']],
@@ -340,15 +365,46 @@ class MILWidget(Widget):
         imgui.same_line(self.viz.font_size * 12)
         imgui_utils.right_aligned_text(f"{outcome_labels[np.argmax(prediction)]}")
 
+    def draw_config_popup(self):
+        viz = self.viz
+
+        if self._show_popup:
+            cx, cy = imgui.get_cursor_pos()
+            imgui.set_next_window_position(viz.sidebar.full_width, cy)
+            imgui.begin(
+                '##mil_popup',
+                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+            )
+            if imgui.menu_item('Load MIL model')[0]:
+                self.ask_load_model()
+            if imgui.menu_item('Close MIL model')[0]:
+                self.close()
+
+            # Hide menu if we click elsewhere
+            if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
+                self._clicking = True
+            if self._clicking and imgui.is_mouse_released(0):
+                self._clicking = False
+                self._show_popup = False
+
+            imgui.end()
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
 
         if self._generating:
-            self.refresh_generating_prediction()
+            self._refresh_generating_prediction()
 
         if show:
-            viz.header("Multiple-Instance Learning")
+            with viz.header_with_buttons("Multiple-Instance Learning"):
+                imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size*1.5)
+                cx, cy = imgui.get_cursor_pos()
+                imgui.set_cursor_position((cx, cy-int(viz.font_size*0.25)))
+                if viz.sidebar.small_button('gear'):
+                    self._clicking = False
+                    self._show_popup = not self._show_popup
+                self.draw_config_popup()
 
         if show and self.model:
             if viz.collapsing_header('Feature Extractor', default=True):

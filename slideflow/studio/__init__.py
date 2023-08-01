@@ -1531,6 +1531,11 @@ class Studio(ImguiWindow):
                 self.viewer.set_tile_px(self.tile_px)
                 self.viewer.set_tile_um(self.tile_um)
 
+            # Trigger user widgets
+            for widget in self.widgets:
+                if hasattr(widget, '_on_model_load'):
+                    widget._on_model_load()
+
             self.create_toast(f"Loaded model at {model}", icon="success")
 
         except Exception as e:
@@ -1567,6 +1572,11 @@ class Studio(ImguiWindow):
                 Defaults to False.
         """
         self.slide_widget.load(slide, **kwargs)
+
+        # Trigger user widgets
+        for widget in self.widgets:
+            if hasattr(widget, '_on_slide_load'):
+                widget._on_slide_load()
 
     def print_error(self, error: str) -> None:
         """Print the given error message."""
