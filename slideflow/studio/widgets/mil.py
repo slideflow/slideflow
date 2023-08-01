@@ -155,8 +155,11 @@ class MILWidget(Widget):
             normalizer=self.normalizer,
             **viz.slide_widget.get_tile_filter_params(),
         )
-        mask = masked_bags.mask.any(axis=2)
-        bags = np.ma.getdata(masked_bags[~mask])
+        original_shape = masked_bags.shape
+        masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
+        mask = masked_bags.mask.any(axis=1)
+        valid_indices = np.where(~mask)
+        bags = masked_bags[valid_indices]
         bags = np.expand_dims(bags, axis=0).astype(np.float32)
 
         sf.log.info("Generated feature bags for {} tiles".format(bags.shape[1]))
@@ -185,16 +188,22 @@ class MILWidget(Widget):
         if self.attention is not None:
 
             # Create a fully masked array of shape (X, Y)
-            attention_heatmap = np.ma.masked_all(mask.shape, dtype=self.attention.dtype)
+            att_heatmap = np.ma.masked_all(masked_bags.shape[0], dtype=self.attention.dtype)
 
             # Unmask and fill the transformed data into the corresponding positions
-            attention_heatmap[~mask] = self.attention
+            att_heatmap[valid_indices] = self.attention
+            att_heatmap = np.reshape(att_heatmap, original_shape[0:2])
+
+            # Normalize the heatmap
+            att_heatmap = (att_heatmap - att_heatmap.min()) / (att_heatmap.max() - att_heatmap.min())
 
             # Render the heatmap
-            self.render_attention_heatmap(attention_heatmap)
+            self.render_attention_heatmap(att_heatmap)
 
     def predict_slide(self):
         """Initiate a whole-slide prediction."""
+        if not self.verify_tile_size():
+            return
         self.viz.set_message(self._rendering_message)
         self._toast = self.viz.create_toast(
             title="Generating prediction",
@@ -204,6 +213,22 @@ class MILWidget(Widget):
         )
         self._thread = threading.Thread(target=self._predict_slide)
         self._thread.start()
+
+    def verify_tile_size(self) -> bool:
+        """Verify that the current slide matches the MIL model's tile size."""
+        viz = self.viz
+        mil_tile_um = self.extractor_params['tile_um']
+        mil_tile_px = self.extractor_params['tile_px']
+        if viz.wsi.tile_px != mil_tile_px or viz.wsi.tile_um != mil_tile_um:
+            viz.create_toast(
+                "MIL model tile size (tile_px={}, tile_um={}) does not match "
+                "the currently loaded slide (tile_px={}, tile_um={}).".format(
+                    mil_tile_px, mil_tile_um, viz.wsi.tile_px, viz.wsi.tile_um
+                ),
+                icon='error'
+            )
+            return False
+        return True
 
     def render_attention_heatmap(self, array):
         self.viz.heatmap = _AttentionHeatmapWrapper(array, self.viz.wsi)
