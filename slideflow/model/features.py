@@ -188,8 +188,23 @@ class DatasetFeatures:
         log.debug(f'Number of activation features: {self.num_features}')
 
     @classmethod
-    def from_df(cls, df: "pd.core.frame.DataFrame"):
-        """Load DataFrame of features, as exported by :meth:`DatasetFeatures.to_df()`"""
+    def from_df(cls, df: "pd.core.frame.DataFrame") -> "DatasetFeatures":
+        """Load DataFrame of features, as exported by :meth:`DatasetFeatures.to_df()`
+
+        Args:
+            df (:class:`pandas.DataFrame`): DataFrame of features, as exported by
+                :meth:`DatasetFeatures.to_df()`
+
+        Returns:
+            :class:`DatasetFeatures`: DatasetFeatures object
+
+        Examples
+            Recreate DatasetFeatures after export to a DataFrame.
+
+                >>> df = features.to_df()
+                >>> new_features = DatasetFeatures.from_df(df)
+
+        """
         obj = cls(None, None)  # type: ignore
         obj.slides = df.slide.unique().tolist()
         if 'activations' in df.columns:
@@ -220,8 +235,8 @@ class DatasetFeatures:
     def concat(
         cls,
         args: Iterable["DatasetFeatures"],
-    ):
-        """Concatenates activations from multiple DatasetFeatures together.
+    ) -> "DatasetFeatures":
+        """Concatenate activations from multiple DatasetFeatures together.
 
         For example, if ``df1`` is a DatasetFeatures object with 2048 features
         and ``df2`` is a DatasetFeatures object with 1024 features,
@@ -233,6 +248,22 @@ class DatasetFeatures:
 
         If there are any tiles that do not have calculated features in both
         dataframes, these will be dropped.
+
+        Args:
+            args (Iterable[:class:`DatasetFeatures`]): DatasetFeatures objects
+                to concatenate.
+
+        Returns:
+            :class:`DatasetFeatures`: DatasetFeatures object with concatenated
+            features.
+
+        Examples
+            Concatenate two DatasetFeatures objects.
+
+                >>> df1 = DatasetFeatures(model, dataset, layers='postconv')
+                >>> df2 = DatasetFeatures(model, dataset, layers='sepconv_3')
+                >>> df = DatasetFeatures.concat([df1, df2])
+
         """
         assert len(args) > 1
         dfs = []

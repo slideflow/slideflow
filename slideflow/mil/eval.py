@@ -180,9 +180,9 @@ def predict_slide(
 
     Returns:
         Tuple[np.ndarray, Optional[np.ndarray]]: Predictions and attention scores.
-            Attention scores are None if ``attention`` is False, otherwise
-            a masked 2D array with the same shape as the slide grid (arranged as a
-            heatmap, with unused tiles masked).
+        Attention scores are None if ``attention`` is False, otherwise
+        a masked 2D array with the same shape as the slide grid (arranged as a
+        heatmap, with unused tiles masked).
 
     """
     # Try to auto-determine the extractor

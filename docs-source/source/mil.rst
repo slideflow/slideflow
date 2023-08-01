@@ -73,7 +73,7 @@ Finally, you can also generate features from a :ref:`self-supervised learning <s
 
     from slideflow.model import build_feature_extractor
 
-    ctranspath = build_feature_extractor(
+    simclr = build_feature_extractor(
         'simclr',
         ckpt='/path/to/simclr.ckpt'
     )

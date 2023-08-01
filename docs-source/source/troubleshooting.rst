@@ -33,4 +33,21 @@ To view a list of all tests that will be run (and thus can be skipped), pass the
 Issue Reporting
 ***************
 
-If the issue is still unclear, please submit an Issue on the `project Github page <https://github.com/jamesdolezal/slideflow/issues>`_.
+If the issue is still unclear, please submit an Issue on the `project Github page <https://github.com/jamesdolezal/slideflow/issues>`_. Be sure to include the following information:
+
+* The version of Slideflow you are using, which can be displayed with ``sf.about()``:
+
+.. code-block:: bash
+
+    $ python3 -c "import slideflow; slideflow.about()"
+    ╭=======================╮
+    │       Slideflow       │
+    │    Version: 2.1.0     │
+    │  Backend: tensorflow  │
+    │ Slide Backend: cucim  │
+    │ https://slideflow.dev │
+    ╰=======================╯
+
+* The active deep learning backend (``sf.backend()``) and slide backend (``sf.slide_backend()``)
+* The version of Python you are using (``python3 --version``)
+* The operating system you are using (``uname -a``)

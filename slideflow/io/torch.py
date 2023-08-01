@@ -437,21 +437,24 @@ def multi_slide_loader(
 ) -> Iterable[Union[Dict[str, np.ndarray],
                     Tuple[Dict[str, np.ndarray],
                     Dict[str, List[np.ndarray]]]]]:
-    """Create an iterator by reading and merging multiple tfrecord datasets.
+    """Create an iterator by reading and merging multiple slide dataloaders.
 
     Args:
-        paths (list of str): List of tfrecord paths.
-        indices (dict): dict mapping tfrecord names to index paths.
-            Input index path pattern.
+        slides (list of str): List of slide paths.
         splits (dict):  Dictionary of (key, value) pairs, where the key is used
             to construct the data and index path(s) and the value determines
             the contribution of each split to the batch.
+        shard (tuple(int, int), optional): If provided, will only extract
+            tiles from the shard with index `shard[0]` out of `shard[1]`
+            shards. Defaults to None.
         infinite (bool, optional): Whether the returned iterator should be
             infinite or not. Defaults to True.
 
     Returns:
 
-        it (iterator): A repeating iterator that generates batches of data.
+        it (iterator): A repeating iterator that generates batches of data,
+        interleaving from the provided slides.
+
     """
     if splits is not None:
         splits_list = splits

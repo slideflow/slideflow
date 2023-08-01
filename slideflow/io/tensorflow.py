@@ -368,9 +368,16 @@ def get_tfrecord_parser(
 
 
 def parser_from_labels(labels: Labels) -> Callable:
-    '''Returns a label parsing function used for parsing slides into single
+    """Create a label parsing function used for parsing slides into single
     or multi-outcome labels.
-    '''
+
+    Args:
+        labels (dict): Dictionary mapping slide names to outcome labels.
+
+    Returns:
+        Callable: Label parsing function.
+
+    """
     outcome_labels = np.array(list(labels.values()))
     slides = list(labels.keys())
     if len(outcome_labels.shape) == 1:
@@ -708,7 +715,18 @@ def tfrecord_example(
     loc_x: Optional[int] = 0,
     loc_y: Optional[int] = 0
 ) -> "Example":
-    '''Returns a Tensorflow Data example for TFRecord storage.'''
+    """Return a Tensorflow Data example for TFRecord storage.
+
+    Args:
+        slide (bytes): Slide name.
+        image_raw (bytes): Image bytes.
+        loc_x (Optional[int], optional): X coordinate of image. Defaults to 0.
+        loc_y (Optional[int], optional): Y coordinate of image. Defaults to 0.
+
+    Returns:
+        Example: Tensorflow Data example.
+
+    """
     feature = {
         'slide': _bytes_feature(slide),
         'image_raw': _bytes_feature(image_raw),
@@ -726,13 +744,35 @@ def serialized_record(
     loc_x: int = 0,
     loc_y: int = 0
 ) -> bytes:
-    '''Returns a serialized example for TFRecord storage, ready to be written
-    by a TFRecordWriter.'''
+    """Serialize a record for TFRecord storage.
+
+    The serialized record will be in a data format ready to be written
+    by a TFRecordWriter.
+
+    Args:
+        slide (bytes): Slide name.
+        image_raw (bytes): Image bytes.
+        loc_x (int, optional): X coordinate of image. Defaults to 0.
+        loc_y (int, optional): Y coordinate of image. Defaults to 0.
+
+    Returns:
+        bytes: Serialized record.
+
+    """
     return tfrecord_example(slide, image_raw, loc_x, loc_y).SerializeToString()
 
 
 def multi_image_example(slide: bytes, image_dict: Dict) -> "Example":
-    '''Returns a Tensorflow Data example for storage with multiple images.'''
+    """Returns a Tensorflow Data example for storage with multiple images.
+
+    Args:
+        slide (bytes): Slide name.
+        image_dict (Dict): Dictionary of image names and image bytes.
+
+    Returns:
+        Example: Tensorflow Data example.
+
+    """
     feature = {
         'slide': _bytes_feature(slide)
     }
@@ -748,8 +788,16 @@ def join_tfrecord(
     output_file: str,
     assign_slide: str = None
 ) -> None:
-    '''Randomly samples from tfrecords in the input folder with shuffling,
-    and combines into a single tfrecord file.'''
+    """Randomly sample from tfrecords in the input folder with shuffling,
+    and combine into a single tfrecord file.
+
+    Args:
+        input_folder (str): Folder containing tfrecord files.
+        output_file (str): Output tfrecord file.
+        assign_slide (str, optional): Assign a slide name to all images.
+            Defaults to None.
+
+    """
     writer = tf.io.TFRecordWriter(output_file)
     tfrecord_files = glob(join(input_folder, "*.tfrecords"))
     datasets = []
@@ -784,9 +832,14 @@ def join_tfrecord(
 
 
 def split_tfrecord(tfrecord_file: str, output_folder: str) -> None:
-    '''Splits records from a single tfrecord file into individual tfrecord
-    files by slide.
-    '''
+    """Split records from a single tfrecord into individual tfrecord
+    files, stratified by slide.
+
+    Args:
+        tfrecord_file (str): Path to tfrecord file.
+        output_folder (str): Path to output folder.
+
+    """
     dataset = tf.data.TFRecordDataset(tfrecord_file)
     parser = get_tfrecord_parser(tfrecord_file, ['slide'], to_numpy=True)
     full_parser = get_tfrecord_parser(
@@ -812,9 +865,13 @@ def split_tfrecord(tfrecord_file: str, output_folder: str) -> None:
 
 
 def print_tfrecord(target: str) -> None:
-    '''Prints the slide names (and locations, if present) for records
+    """Print the slide names (and locations, if present) for records
     in the given tfrecord file.
-    '''
+
+    Args:
+        target: Path to the tfrecord file or folder containing tfrecord files.
+
+    """
     if isfile(target):
         _print_record(target)
     else:
@@ -824,8 +881,13 @@ def print_tfrecord(target: str) -> None:
 
 
 def checkpoint_to_tf_model(models_dir: str, model_name: str) -> None:
-    '''Converts a checkpoint file into a saved model.'''
+    """Convert a checkpoint file into a saved model.
 
+    Args:
+        models_dir: Directory containing the model.
+        model_name: Name of the model to convert.
+
+    """
     checkpoint = join(models_dir, model_name, "cp.ckpt")
     tf_model = join(models_dir, model_name, "untrained_model")
     updated_tf_model = join(models_dir, model_name, "checkpoint_model")
@@ -846,9 +908,20 @@ def transform_tfrecord(
     hue_shift: Optional[float] = None,
     resize: Optional[float] = None,
 ) -> None:
-    '''Transforms images in a single tfrecord. Can perform hue shifting,
-    resizing, or re-assigning slide label.
-    '''
+    """Transform images in a single tfrecord.
+
+    Can perform hue shifting, resizing, or re-assigning slide label.
+
+    Args:
+        origin: Path to the original tfrecord file.
+        target: Path to the new tfrecord file.
+        assign_slide: If provided, will assign this slide name to all
+            records in the new tfrecord.
+        hue_shift: If provided, will shift the hue of all images by
+            this amount.
+        resize: If provided, will resize all images to this size.
+
+    """
     log.info(f"Transforming tiles in tfrecord [green]{origin}")
     log.info(f"Saving to new tfrecord at [green]{target}")
     if assign_slide:
@@ -905,7 +978,12 @@ def transform_tfrecord(
 
 
 def shuffle_tfrecord(target: str) -> None:
-    '''Shuffles records in a TFRecord, saving the original to a .old file.'''
+    """Shuffle records in a TFRecord, saving the original to a .old file.
+
+    Args:
+        target: Path to the tfrecord file.
+
+    """
 
     old_tfrecord = target+".old"
     shutil.move(target, old_tfrecord)
@@ -921,9 +999,13 @@ def shuffle_tfrecord(target: str) -> None:
 
 
 def shuffle_tfrecords_by_dir(directory: str) -> None:
-    '''For each TFRecord in a directory, shuffles records in the TFRecord,
+    """For each TFRecord in a directory, shuffle records in the TFRecord,
     saving the original to a .old file.
-    '''
+
+    Args:
+        directory: Path to the directory containing tfrecord files.
+
+    """
     records = [tfr for tfr in listdir(directory) if tfr[-10:] == ".tfrecords"]
     for record in records:
         log.info(f'Working on {record}')

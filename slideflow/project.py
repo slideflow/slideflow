@@ -1281,7 +1281,9 @@ class Project:
         filter_blank: Optional[Union[str, List[str]]] = None,
         attention_heatmaps: bool = True
     ) -> None:
-        """Evaluate CLAM model on activations and export attention heatmaps.
+        """Deprecated function.
+
+        Evaluate CLAM model on activations and export attention heatmaps.
 
         Args:
             exp_name (str): Name of experiment to evaluate (subfolder in clam/)
@@ -1309,6 +1311,10 @@ class Project:
             None
 
         """
+        warnings.warn("Project.evaluate_clam() is deprecated. Please use "
+                      "Project.evaluate_mil()",
+                      DeprecationWarning)
+
         import slideflow.clam as clam
         from slideflow.clam import export_attention
         from slideflow.clam import Generic_MIL_Dataset
@@ -1968,9 +1974,9 @@ class Project:
         slide_batch_size: int = 16,
         **kwargs: Any
     ) -> str:
-        """Generate tile-level features for slides for use with CLAM.
+        """Generate tile-level features for slides for use with MIL models.
 
-        By default, CLAM features are saved in the ``pt_files`` folder
+        By default, features are exported to the ``pt_files`` folder
         within the project root directory.
 
         Args:

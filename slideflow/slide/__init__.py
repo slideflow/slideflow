@@ -1581,6 +1581,9 @@ class WSI(_BaseLoader):
             deterministic (bool): Return tile images in reproducible,
                 deterministic order. May slightly decrease iteration time.
                 Defaults to True.
+            shard (tuple(int, int), optional): If provided, will only extract
+                tiles from the shard with index `shard[0]` out of `shard[1]`
+                shards. Defaults to None.
 
         Returns:
             dict: Dict with keys 'image' (image data), 'yolo' (optional

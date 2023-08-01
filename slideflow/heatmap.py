@@ -32,7 +32,14 @@ Inset = namedtuple("Inset", "x y zoom loc mark1 mark2 axes")
 # -----------------------------------------------------------------------------
 
 class Heatmap:
-    """Generates a heatmap of predictions across a whole-slide image."""
+    """Generate a heatmap of predictions across a whole-slide image.
+
+    This interface is designed to be used with tile-based models, and
+    does not support multiple-instance learning models. Attention heatmaps
+    of multiple-instance learning models can be generated using
+    :func:`slideflow.mil.predict_slide`.
+
+    """
 
     def __init__(
         self,
@@ -49,7 +56,7 @@ class Heatmap:
         load_method: Optional[str] = None,
         **wsi_kwargs
     ) -> None:
-        """Initialize a heatmap from a path to a slide or a :class:``slideflow.WSI``.
+        """Initialize a heatmap from a path to a slide or a :class:`slideflow.WSI`.
 
         Examples
             Create a heatmap from a path to a slide.
@@ -996,12 +1003,12 @@ class ModelHeatmap(Heatmap):
 
     def view(self):
         raise NotImplementedError
-    
+
 # -----------------------------------------------------------------------------
 
 def calculate_heatmap_extent(
-        wsi: "sf.WSI", 
-        thumbnail: "Image", 
+        wsi: "sf.WSI",
+        thumbnail: "Image",
         grid: np.ndarray
 ) -> Tuple[float, float, float, float]:
     """Calculate implot extent for a heatmap grid."""
@@ -1010,11 +1017,11 @@ def calculate_heatmap_extent(
     _overlay_wsi_dim = (wsi_stride * (grid.shape[1]),
                         wsi_stride * (grid.shape[0]))
     _overlay_offset_wsi_dim = (
-        full_extract/2 - wsi_stride/2, 
+        full_extract/2 - wsi_stride/2,
         full_extract/2 - wsi_stride/2
     )
     thumb_ratio = (
-        wsi.dimensions[0] / thumbnail.size[0], 
+        wsi.dimensions[0] / thumbnail.size[0],
         wsi.dimensions[1] / thumbnail.size[1]
     )
     return (
