@@ -110,8 +110,8 @@ class MILFeatures():
 
         import torch
 
-        if isinstance(config, TrainerConfigCLAM):
-            raise NotImplementedError
+        # if isinstance(config, TrainerConfigCLAM):
+        #     raise NotImplementedError
         # Check for correct model
         acceptable_models = ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
         if config.model_config.model.lower() not in acceptable_models:
