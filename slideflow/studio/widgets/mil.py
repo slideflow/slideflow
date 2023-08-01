@@ -4,7 +4,8 @@ import slideflow as sf
 import slideflow.mil
 import threading
 
-from os.path import join, exists, dirname
+from tkinter.filedialog import askdirectory
+from os.path import join, exists, dirname, abspath
 from typing import Dict, Optional
 from slideflow.model.extractors import rebuild_extractor
 from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
@@ -72,7 +73,9 @@ class _AttentionHeatmapWrapper:
 class MILWidget(Widget):
 
     tag = 'mil'
-    description='Multiple-instance Learning'
+    description = 'Multiple-Instance Learning'
+    icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_mil.png')
+    icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_mil_highlighted.png')
 
     def __init__(self, viz):
         self.viz = viz
@@ -110,6 +113,17 @@ class MILWidget(Widget):
             return self.load(path)
         return False
 
+    def open_menu_options(self) -> None:
+        """Show a 'Load MIL Model' option in the File menu."""
+        if imgui.menu_item('Load MIL Model...')[1]:
+            self.ask_load_model()
+
+    def ask_load_model(self) -> None:
+        """Prompt the user to open an MIL model."""
+        mil_path = askdirectory(title="Load MIL Model (directory)...")
+        if mil_path:
+            self.load(mil_path)
+
     def load(self, path: str, allow_errors: bool = True) -> bool:
         try:
             self.extractor, self.normalizer = rebuild_extractor(path)
@@ -124,6 +138,7 @@ class MILWidget(Widget):
         except Exception as e:
             if allow_errors:
                 self.viz.create_toast('Error loading MIL model', icon='error')
+                sf.log.error(e)
                 return False
             raise e
         return True
@@ -308,7 +323,7 @@ class MILWidget(Widget):
             self.refresh_generating_prediction()
 
         if show:
-            viz.header("Multiple-instance Learning")
+            viz.header("Multiple-Instance Learning")
 
         if show and self.model:
             if viz.collapsing_header('Feature Extractor', default=True):
@@ -325,6 +340,8 @@ class MILWidget(Widget):
                     self.predict_slide()
         elif show:
             imgui_utils.padded_text('No MIL model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
+            if viz.sidebar.full_button("Load an MIL Model"):
+                self.ask_load_model()
 
         if self._show_mil_params and self.mil_params:
             self.draw_mil_params_popup()

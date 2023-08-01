@@ -160,7 +160,7 @@ class ExtensionsWidget:
                     self.segment = False
 
             _c4, self.mil = self.extension_checkbox(
-                'Multiple-instance Learning',
+                'Multiple-Instance Learning',
                 description='MIL support with attention heatmaps.',
                 check_value=self.mil,
                 official=True

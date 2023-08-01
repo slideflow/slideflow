@@ -180,7 +180,8 @@ def rebuild_extractor(
             else:
                 raise ValueError(
                     'Could not rebuild extractor from configuration at '
-                    f'{bags_or_model}.'
+                    f'{bags_or_model}; missing "bags_extractor" key in '
+                    'mil_params.json.'
                 )
         bags_config = mil_config['bags_extractor']
     else:
@@ -192,7 +193,7 @@ def rebuild_extractor(
         else:
             raise ValueError(
                 'Could not rebuild extractor from configuration at '
-                f'{bags_or_model}.'
+                f'{bags_or_model}; missing "extractor" class or kwargs.'
             )
 
     # Rebuild extractor

@@ -157,7 +157,7 @@ def eval_mil(
 
 def predict_slide(
     model: str,
-    slide: sf.WSI,
+    slide: Union[str, sf.WSI],
     extractor: Optional["BaseFeatureExtractor"] = None,
     *,
     normalizer: Optional["StainNormalizer"] = None,
@@ -210,13 +210,22 @@ def predict_slide(
     elif detected_normalizer is not None:
         normalizer = detected_normalizer
 
+    # Load model
+    model_fn, config = load_model_weights(model, config)
+    mil_params = sf.util.load_json(join(model, 'mil_params.json'))
+
+    # Load slide
+    if isinstance(slide, str):
+        slide = sf.WSI(
+            slide,
+            tile_px=mil_params['tile_px'],
+            tile_um=mil_params['tile_um']
+        )
+
     # Convert slide to bags
     masked_bags = extractor(slide, normalizer=normalizer)
     bags = np.ma.getdata(masked_bags[~masked_bags.mask.any(axis=2)])
     bags = np.expand_dims(bags, axis=0).astype(np.float32)
-
-    # Load model
-    model_fn, config = load_model_weights(model, config)
 
     # Generate predictions.
     if (isinstance(config, TrainerConfigCLAM)
