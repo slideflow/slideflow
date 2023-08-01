@@ -225,7 +225,7 @@ To enable stain augmentation, add the letter 'n' to the ``augment`` parameter wh
     project = sf.Project(...)
 
     # Add stain augmentation to augmentation pipeline
-    params = sf.ModelParams(..., augment='xryjs')
+    params = sf.ModelParams(..., augment='xryjn')
 
     # Train a model
     project.train(..., params=params)

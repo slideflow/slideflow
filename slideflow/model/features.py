@@ -1399,6 +1399,8 @@ class _FeatureGenerator:
             return sf.model.is_torch_model(self.model)
 
     def is_tf(self):
+        if self.is_simclr():
+            return True
         if self.is_extractor():
             return self.model.is_tensorflow()
         else:

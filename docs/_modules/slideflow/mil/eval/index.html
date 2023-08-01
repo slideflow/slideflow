@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.mil.eval &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.mil.eval &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>
@@ -366,9 +366,8 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">bags</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span> <span class="k">if</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">slides</span><span class="p">])</span>
 
-    <span class="c1"># Handle the case where some bags are missing.</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">slides</span><span class="p">):</span>
-        <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span><span class="p">]</span>
+    <span class="c1"># Ensure slide names are sorted according to the bags.</span>
+    <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span><span class="p">]</span>
 
     <span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">labels</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">slides</span><span class="p">])</span>
 
@@ -434,8 +433,13 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">att_path</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">att_path</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">slide</span><span class="p">,</span> <span class="n">att</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">slides</span><span class="p">,</span> <span class="n">y_att</span><span class="p">):</span>
-            <span class="n">np</span><span class="o">.</span><span class="n">savez</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">att_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">_att.npz&#39;</span><span class="p">),</span> <span class="n">att</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attention scores exported to [green]</span><span class="si">{</span><span class="n">att_path</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;SF_ALLOW_ZIP&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SF_ALLOW_ZIP&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="n">out_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">att_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">_att.npy&#39;</span><span class="p">)</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span> <span class="n">att</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">out_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">att_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">_att.npz&#39;</span><span class="p">)</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">savez</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span> <span class="n">att</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attention scores exported to [green]</span><span class="si">{</span><span class="n">out_path</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
 
     <span class="c1"># Attention heatmaps</span>
     <span class="k">if</span> <span class="n">y_att</span> <span class="ow">and</span> <span class="n">attention_heatmaps</span><span class="p">:</span>
@@ -489,9 +493,8 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">bags</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span> <span class="k">if</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">slides</span><span class="p">])</span>
 
-    <span class="c1"># Handle the case where some bags are missing.</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">slides</span><span class="p">):</span>
-        <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span><span class="p">]</span>
+    <span class="c1"># Ensure slide names are sorted according to the bags.</span>
+    <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span><span class="p">]</span>
 
     <span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">labels</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">slides</span><span class="p">])</span>
 
@@ -559,16 +562,21 @@
             <span class="n">slidename</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">bag</span><span class="p">)</span>
             <span class="n">slide_path</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">find_slide</span><span class="p">(</span><span class="n">slide</span><span class="o">=</span><span class="n">slidename</span><span class="p">)</span>
             <span class="n">locations_file</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">bag</span><span class="p">),</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slidename</span><span class="si">}</span><span class="s1">.index.npz&#39;</span><span class="p">)</span>
+            <span class="n">npy_loc_file</span> <span class="o">=</span> <span class="n">locations_file</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;y&#39;</span>
             <span class="k">if</span> <span class="n">slide_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to find slide </span><span class="si">{</span><span class="n">slidename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="k">continue</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">locations_file</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">locations_file</span><span class="p">):</span>
+                <span class="n">locations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">locations_file</span><span class="p">)[</span><span class="s1">&#39;arr_0&#39;</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">exists</span><span class="p">(</span><span class="n">npy_loc_file</span><span class="p">):</span>
+                <span class="n">locations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">npy_loc_file</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Unable to find locations index file for </span><span class="si">{</span><span class="n">slidename</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
                 <span class="k">continue</span>
             <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">location_heatmap</span><span class="p">(</span>
-                <span class="n">locations</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">locations_file</span><span class="p">)[</span><span class="s1">&#39;arr_0&#39;</span><span class="p">],</span>
+                <span class="n">locations</span><span class="o">=</span><span class="n">locations</span><span class="p">,</span>
                 <span class="n">values</span><span class="o">=</span><span class="n">attention</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
                 <span class="n">slide</span><span class="o">=</span><span class="n">slide_path</span><span class="p">,</span>
                 <span class="n">tile_px</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
@@ -664,7 +672,7 @@
         <span class="n">loaded</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="n">loaded</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">use_lens</span><span class="p">:</span>
-                <span class="n">lens</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">loaded</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]]))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+                <span class="n">lens</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">loaded</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]]))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
                 <span class="n">model_args</span> <span class="o">=</span> <span class="p">(</span><span class="n">loaded</span><span class="p">,</span> <span class="n">lens</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">model_args</span> <span class="o">=</span> <span class="p">(</span><span class="n">loaded</span><span class="p">,)</span>
@@ -777,7 +785,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>

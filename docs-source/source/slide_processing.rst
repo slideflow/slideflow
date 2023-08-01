@@ -14,13 +14,13 @@ Most tools in Slideflow work with image tiles - extracted sub-regions of a whole
 Tile extraction
 ***************
 
-Image tiles are extracted from whole-slide images using either :meth:`Project.extract_tiles` or :meth:`Dataset.extract_tiles`. When using the Project interface, the only arguments required are ``tile_px`` and ``tile_um``, which determine the size of the extracted image tiles in pixels and microns:
+Image tiles are extracted from whole-slide images using either :meth:`slideflow.Project.extract_tiles` or :meth:`slideflow.Dataset.extract_tiles`. When using the Project interface, the only arguments required are ``tile_px`` and ``tile_um``, which determine the size of the extracted image tiles in pixels and microns:
 
 .. code-block:: python
 
     P.extract_tiles(tile_px=299, tile_um=302)
 
-and when using a :class:`Dataset`, no arguments are required.
+and when using a :class:`slideflow.Dataset`, no arguments are required.
 
 .. code-block:: python
 

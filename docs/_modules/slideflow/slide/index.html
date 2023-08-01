@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.slide &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.slide &mdash; slideflow 2.0.4 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>
@@ -304,8 +304,7 @@
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">exists</span><span class="p">,</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span>
-                    <span class="n">TYPE_CHECKING</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">import</span> <span class="nn">slideflow.slide.qc</span>
@@ -314,7 +313,7 @@
 <span class="kn">from</span> <span class="nn">.report</span> <span class="kn">import</span> <span class="n">ExtractionPDF</span>  <span class="c1"># noqa F401</span>
 <span class="kn">from</span> <span class="nn">.report</span> <span class="kn">import</span> <span class="n">ExtractionReport</span><span class="p">,</span> <span class="n">SlideReport</span>
 <span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="kn">from</span> <span class="nn">.backends</span> <span class="kn">import</span> <span class="n">tile_worker</span><span class="p">,</span> <span class="n">wsi_reader</span>
+<span class="kn">from</span> <span class="nn">.backends</span> <span class="kn">import</span> <span class="n">tile_worker</span><span class="p">,</span> <span class="n">wsi_reader</span><span class="p">,</span> <span class="n">backend_formats</span>
 
 
 <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">Image</span><span class="o">.</span><span class="n">DecompressionBombWarning</span><span class="p">)</span>
@@ -535,12 +534,17 @@
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: unsupported filetype &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">filetype</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
             <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">filetype</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">backend_formats</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">IncompatibleBackendError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: filetype &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">filetype</span><span class="si">}</span><span class="s2">&#39; is not supported &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;by the current backend, </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
 
         <span class="c1"># Collect basic slide information</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">mpp</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span><span class="p">(</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideMissingMPPError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Slide [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[/] missing MPP (</span><span class="si">{</span><span class="n">OPS_MPP_X</span><span class="si">}</span><span class="s2">)&quot;</span>
             <span class="p">)</span>
 
@@ -849,7 +853,7 @@
         <span class="n">use_associated_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">low_res</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&#39;&#39;&#39;Returns PIL thumbnail of the slide.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns PIL thumbnail of the slide.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            mpp (float, optional): Microns-per-pixel, used to determine</span>
@@ -861,11 +865,13 @@
 <span class="sd">                y_center), ...] format. Defaults to None.</span>
 <span class="sd">            use_associated_image (bool): Use the associated thumbnail image</span>
 <span class="sd">                in the slide, rather than reading from a pyramid layer.</span>
+<span class="sd">            low_res (bool): Create thumbnail from the lowest-mangnification</span>
+<span class="sd">                pyramid layer. Defaults to False.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            PIL image</span>
-<span class="sd">        &#39;&#39;&#39;</span>
 
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># If no values provided, create thumbnail of width 1024</span>
         <span class="k">if</span> <span class="n">mpp</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">width</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">width</span> <span class="o">=</span> <span class="mi">1024</span>
@@ -887,12 +893,19 @@
         <span class="n">height</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">mpp</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">mpp</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">use_associated_image</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Requesting thumbnail using associated image&quot;</span><span class="p">)</span>
             <span class="n">thumb_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">associated</span><span class="o">=</span><span class="s1">&#39;thumbnail&#39;</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">low_res</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Requesting thumbnail at level=</span><span class="si">{}</span><span class="s2">, width=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_count</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">width</span>
+            <span class="p">))</span>
             <span class="n">thumb_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_count</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">width</span>
             <span class="n">level</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">best_level_for_downsample</span><span class="p">(</span><span class="n">ds</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Requesting thumbnail at level=</span><span class="si">{}</span><span class="s2">, width=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">level</span><span class="p">,</span> <span class="n">width</span>
+            <span class="p">))</span>
             <span class="n">thumb_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
 
         <span class="n">np_thumb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">thumbnail</span><span class="p">(</span><span class="o">**</span><span class="n">thumb_kw</span><span class="p">)</span>
@@ -929,6 +942,7 @@
         <span class="n">pool</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;mp.pool.Pool&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">dry_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a tile generator.&quot;&quot;&quot;</span>
         <span class="n">lead_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Extracting </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span><span class="si">}</span><span class="s1">um tiles&#39;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_px</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">:</span>
             <span class="n">resize_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;(resizing </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">extract_px</span><span class="si">}</span><span class="s1">px -&gt; </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="si">}</span><span class="s1">px)&#39;</span>
@@ -991,6 +1005,16 @@
 <span class="sd">                Defaults to False.</span>
 <span class="sd">            dry_run (bool, optional): Determine tiles that would be extracted,</span>
 <span class="sd">                but do not export any images. Defaults to None.</span>
+<span class="sd">            num_threads (int): If specified, will extract tiles with a</span>
+<span class="sd">                ThreadPool using the specified number of threads. Cannot</span>
+<span class="sd">                supply both `num_threads` and `num_processes`. Libvips is</span>
+<span class="sd">                particularly slow with ThreadPools. Defaults to None in the</span>
+<span class="sd">                Libvips backend, and the number of CPU cores when using cuCIM.</span>
+<span class="sd">            num_processes (int): If specified, will extract tiles with a</span>
+<span class="sd">                multiprocessing pool using the specified number of processes.</span>
+<span class="sd">                Cannot supply both `num_threads` and `num_processes`.</span>
+<span class="sd">                With the libvips backend, this defaults to half the number of</span>
+<span class="sd">                CPU cores, and with cuCIM, this defaults to None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">img_format</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;png&#39;</span><span class="p">,</span> <span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid image format </span><span class="si">{</span><span class="n">img_format</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -1136,7 +1160,12 @@
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Skipping slide report&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="nf">preview</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rois</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">preview</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">rois</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">thumb_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Performs a dry run of tile extraction without saving any images,</span>
 <span class="sd">        returning a PIL image of the slide thumbnail annotated with a grid of</span>
 <span class="sd">        tiles that were marked for extraction.</span>
@@ -1169,15 +1198,20 @@
             <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;show_progress&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pb</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">generator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_generator</span><span class="p">(</span>
             <span class="n">dry_run</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">deterministic</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
+        <span class="k">if</span> <span class="n">thumb_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">thumb_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">generator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span> <span class="n">low_res</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span> <span class="n">low_res</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">thumb_kwargs</span><span class="p">)</span>
         <span class="n">locations</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">tile_dict</span> <span class="ow">in</span> <span class="n">generator</span><span class="p">():</span>
             <span class="n">locations</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tile_dict</span><span class="p">[</span><span class="s1">&#39;loc&#39;</span><span class="p">]]</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Previewing with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">)</span><span class="si">}</span><span class="s2"> extracted tile locations.&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">coords</span><span class="o">=</span><span class="n">locations</span><span class="p">,</span> <span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span> <span class="n">low_res</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span>
+            <span class="n">coords</span><span class="o">=</span><span class="n">locations</span><span class="p">,</span> <span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span> <span class="n">low_res</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">thumb_kwargs</span>
+        <span class="p">)</span>
 
 
 <div class="viewcode-block" id="WSI"><a class="viewcode-back" href="../../../slide/#slideflow.slide.WSI">[docs]</a><span class="k">class</span> <span class="nc">WSI</span><span class="p">(</span><span class="n">_BaseLoader</span><span class="p">):</span>
@@ -1745,10 +1779,11 @@
         <span class="n">max_tiles</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">from_centroids</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">apply_masks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">deterministic</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Builds tile generator to extract tiles from this slide.</span>
 
-<span class="sd">        Args:</span>
+<span class="sd">        Keyword args:</span>
 <span class="sd">            shuffle (bool): Shuffle images during extraction.</span>
 <span class="sd">            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.</span>
 <span class="sd">                Discard tiles with this fraction of whitespace. If 1, will not</span>
@@ -1770,6 +1805,16 @@
 <span class="sd">                the rest of the slide when calculating stain matrix</span>
 <span class="sd">                concentrations. Defaults to False (normalize each image tile</span>
 <span class="sd">                as separate images).</span>
+<span class="sd">            num_threads (int): If specified, will extract tiles with a</span>
+<span class="sd">                ThreadPool using the specified number of threads. Cannot</span>
+<span class="sd">                supply both `num_threads` and `num_processes`. Libvips is</span>
+<span class="sd">                particularly slow with ThreadPools. Defaults to None in the</span>
+<span class="sd">                Libvips backend, and the number of CPU cores when using cuCIM.</span>
+<span class="sd">            num_processes (int): If specified, will extract tiles with a</span>
+<span class="sd">                multiprocessing pool using the specified number of processes.</span>
+<span class="sd">                Cannot supply both `num_threads` and `num_processes`.</span>
+<span class="sd">                With the libvips backend, this defaults to half the number of</span>
+<span class="sd">                CPU cores, and with cuCIM, this defaults to None.</span>
 <span class="sd">            show_progress (bool, optional): Show a progress bar.</span>
 <span class="sd">            img_format (str, optional): Image format. Either &#39;numpy&#39;, &#39;jpg&#39;,</span>
 <span class="sd">                or &#39;png&#39;. Defaults to &#39;numpy&#39;.</span>
@@ -1788,6 +1833,9 @@
 <span class="sd">                `WSI.apply_segmentation()`. Defaults to False.</span>
 <span class="sd">            apply_masks (bool): Apply cell segmentation masks to tiles. Ignored</span>
 <span class="sd">                if cell segmentation has been applied to the slide.</span>
+<span class="sd">                Defaults to True.</span>
+<span class="sd">            deterministic (bool): Return tile images in reproducible,</span>
+<span class="sd">                deterministic order. May slightly decrease iteration time.</span>
 <span class="sd">                Defaults to True.</span>
 
 <span class="sd">        Returns:</span>
@@ -1889,7 +1937,7 @@
         <span class="p">})</span>
 
         <span class="k">def</span> <span class="nf">generator</span><span class="p">():</span>
-            <span class="k">nonlocal</span> <span class="n">pool</span>
+            <span class="k">nonlocal</span> <span class="n">pool</span><span class="p">,</span> <span class="n">num_threads</span><span class="p">,</span> <span class="n">num_processes</span>
             <span class="n">should_close</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="n">n_extracted</span> <span class="o">=</span> <span class="mi">0</span>
 
@@ -1935,15 +1983,18 @@
             <span class="c1"># Set up worker pool</span>
             <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">num_threads</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_processes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="c1"># ThreadPool used by default due to escalating memory</span>
-                    <span class="c1"># requirements when using multiprocessing</span>
+                    <span class="c1"># Libvips is extremely slow with ThreadPools.</span>
+                    <span class="c1"># In the cuCIM backend, ThreadPools are used by default</span>
+                    <span class="c1"># to reduce memory utilization.</span>
+                    <span class="c1"># In the Libvips backend, a multiprocessing pool is default</span>
+                    <span class="c1"># to significantly improve performance.</span>
+                    <span class="n">n_cores</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="k">else</span> <span class="mi">8</span>
+                    <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;libvips&#39;</span><span class="p">:</span>
+                        <span class="n">num_processes</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">n_cores</span><span class="o">/</span><span class="mi">2</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">num_threads</span> <span class="o">=</span> <span class="n">n_cores</span>
+                <span class="k">if</span> <span class="n">num_threads</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_threads</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building generator ThreadPool(</span><span class="si">{</span><span class="n">num_threads</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-                    <span class="n">_threads</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="k">else</span> <span class="mi">8</span>
-                    <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">_threads</span><span class="p">)</span>
-                    <span class="n">should_close</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="k">elif</span> <span class="n">num_threads</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_threads</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building generator ThreadPool(</span><span class="si">{</span><span class="n">num_threads</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-                    <span class="n">_threads</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="k">else</span> <span class="mi">8</span>
                     <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">num_threads</span><span class="p">)</span>
                     <span class="n">should_close</span> <span class="o">=</span> <span class="kc">True</span>
                 <span class="k">elif</span> <span class="n">num_processes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_processes</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
@@ -1966,8 +2017,11 @@
                 <span class="n">pbar</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">(</span><span class="n">transient</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="p">)</span>
                 <span class="n">task</span> <span class="o">=</span> <span class="n">pbar</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s1">&#39;Extracting...&#39;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span><span class="p">)</span>
                 <span class="n">pbar</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pbar</span> <span class="o">=</span> <span class="kc">None</span>
 
             <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">map_fn</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span> <span class="k">if</span> <span class="n">deterministic</span> <span class="k">else</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap_unordered</span>
                 <span class="k">if</span> <span class="n">lazy_iter</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">max_tiles</span><span class="p">:</span>
                         <span class="n">batch_size</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">_processes</span><span class="p">,</span> <span class="n">max_tiles</span><span class="p">)</span>
@@ -1976,7 +2030,7 @@
                     <span class="n">batched_coord</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">non_roi_coord</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
                     <span class="k">def</span> <span class="nf">_generator</span><span class="p">():</span>
                         <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batched_coord</span><span class="p">:</span>
-                            <span class="k">yield from</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span>
+                            <span class="k">yield from</span> <span class="n">map_fn</span><span class="p">(</span>
                                 <span class="n">partial</span><span class="p">(</span><span class="n">tile_worker</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">w_args</span><span class="p">),</span>
                                 <span class="n">batch</span>
                             <span class="p">)</span>
@@ -1985,26 +2039,26 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">csize</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span><span class="o">/</span><span class="n">pool</span><span class="o">.</span><span class="n">_processes</span><span class="p">),</span> <span class="mi">64</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using imap chunksize=</span><span class="si">{</span><span class="n">csize</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                    <span class="n">i_mapped</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span>
+                    <span class="n">i_mapped</span> <span class="o">=</span> <span class="n">map_fn</span><span class="p">(</span>
                         <span class="n">partial</span><span class="p">(</span><span class="n">tile_worker</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">w_args</span><span class="p">),</span>
                         <span class="n">non_roi_coord</span><span class="p">,</span>
                         <span class="n">chunksize</span><span class="o">=</span><span class="n">csize</span>
                     <span class="p">)</span>
 
-            <span class="k">for</span> <span class="n">e</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">i_mapped</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
-                    <span class="n">pbar</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">pb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="k">continue</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">yield</span> <span class="n">result</span>
-                    <span class="n">n_extracted</span> <span class="o">+=</span> <span class="mi">1</span>
-                    <span class="k">if</span> <span class="n">max_tiles</span> <span class="ow">and</span> <span class="n">n_extracted</span> <span class="o">&gt;=</span> <span class="n">max_tiles</span><span class="p">:</span>
-                        <span class="k">break</span>
-            <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
-                <span class="n">pbar</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+            <span class="k">with</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">cleanup_progress</span><span class="p">(</span><span class="n">pbar</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">e</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">i_mapped</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
+                        <span class="n">pbar</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">pb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">yield</span> <span class="n">result</span>
+                        <span class="n">n_extracted</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">if</span> <span class="n">max_tiles</span> <span class="ow">and</span> <span class="n">n_extracted</span> <span class="o">&gt;=</span> <span class="n">max_tiles</span><span class="p">:</span>
+                            <span class="k">break</span>
+
             <span class="k">if</span> <span class="n">should_close</span><span class="p">:</span>
                 <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
@@ -2029,7 +2083,8 @@
         <span class="n">linewidth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
         <span class="n">color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;black&#39;</span><span class="p">,</span>
         <span class="n">use_associated_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">low_res</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">low_res</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns PIL Image of thumbnail with ROI overlay.</span>
 
@@ -2043,11 +2098,15 @@
 <span class="sd">            rois (bool, optional): Draw ROIs onto thumbnail. Defaults to False.</span>
 <span class="sd">            linewidth (int, optional): Width of ROI line. Defaults to 2.</span>
 <span class="sd">            color (str, optional): Color of ROI. Defaults to black.</span>
+<span class="sd">            use_associated_image (bool): Use the associated thumbnail image</span>
+<span class="sd">                in the slide, rather than reading from a pyramid layer.</span>
+<span class="sd">            low_res (bool): Create thumbnail from the lowest-mangnification</span>
+<span class="sd">                pyramid layer. Defaults to False.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            PIL image</span>
-<span class="sd">        &quot;&quot;&quot;</span>
 
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">rois</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
             <span class="k">if</span> <span class="p">(</span><span class="n">mpp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">width</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -2068,7 +2127,8 @@
             <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
             <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span>
             <span class="n">use_associated_image</span><span class="o">=</span><span class="n">use_associated_image</span><span class="p">,</span>
-            <span class="n">low_res</span><span class="o">=</span><span class="n">low_res</span>
+            <span class="n">low_res</span><span class="o">=</span><span class="n">low_res</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">rois</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
@@ -2861,84 +2921,84 @@
                     <span class="n">total</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span>
                 <span class="p">)</span>
                 <span class="n">pbar</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-            <span class="n">ctx</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>
-            <span class="n">extraction_pool</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
-                <span class="n">num_threads</span><span class="p">,</span>
-                <span class="n">section_extraction_worker</span><span class="p">,</span>
-                <span class="p">(</span><span class="n">rectangle_queue</span><span class="p">,</span> <span class="n">extraction_queue</span><span class="p">,)</span>
-            <span class="p">)</span>
-            <span class="k">for</span> <span class="n">rect</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">object_rects</span><span class="p">:</span>
-                <span class="n">rectangle_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">rect</span><span class="p">)</span>
-            <span class="n">rectangle_queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;DONE&quot;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pbar</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">with</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">cleanup_progress</span><span class="p">(</span><span class="n">pbar</span><span class="p">):</span>
+                <span class="n">ctx</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>
+                <span class="n">extraction_pool</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
+                    <span class="n">num_threads</span><span class="p">,</span>
+                    <span class="n">section_extraction_worker</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">rectangle_queue</span><span class="p">,</span> <span class="n">extraction_queue</span><span class="p">,)</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">rect</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">object_rects</span><span class="p">:</span>
+                    <span class="n">rectangle_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">rect</span><span class="p">)</span>
+                <span class="n">rectangle_queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;DONE&quot;</span><span class="p">))</span>
 
-            <span class="n">queue_progress</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-                <span class="n">queue_progress</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="n">tile_id</span><span class="p">,</span> <span class="n">image_core</span> <span class="o">=</span> <span class="n">extraction_queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">image_core</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span> <span class="ow">and</span> <span class="n">image_core</span> <span class="o">==</span> <span class="s2">&quot;DONE&quot;</span><span class="p">:</span>
-                    <span class="k">break</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pb</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
-                        <span class="n">pbar</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-
-                    <span class="n">resized_core</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resize_to_target</span><span class="p">(</span><span class="n">image_core</span><span class="p">)</span>
-
-                    <span class="k">if</span> <span class="n">full_core</span><span class="p">:</span>
-                        <span class="n">resized</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
-                            <span class="n">image_core</span><span class="p">,</span>
-                            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
-                        <span class="p">)</span>
-                        <span class="c1"># Convert to final image format</span>
-                        <span class="k">if</span> <span class="n">img_format</span> <span class="o">!=</span> <span class="s1">&#39;numpy&#39;</span><span class="p">:</span>
-                            <span class="n">resized</span> <span class="o">=</span> <span class="n">_convert_img_to_format</span><span class="p">(</span>
-                                <span class="n">resized</span><span class="p">,</span>
-                                <span class="n">img_format</span>
-                            <span class="p">)</span>
-
-                        <span class="k">yield</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">resized</span><span class="p">,</span> <span class="s1">&#39;loc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]}</span>
+                <span class="n">queue_progress</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="n">queue_progress</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">tile_id</span><span class="p">,</span> <span class="n">image_core</span> <span class="o">=</span> <span class="n">extraction_queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">image_core</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span> <span class="ow">and</span> <span class="n">image_core</span> <span class="o">==</span> <span class="s2">&quot;DONE&quot;</span><span class="p">:</span>
+                        <span class="k">break</span>
                     <span class="k">else</span><span class="p">:</span>
-                        <span class="n">subtiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_core</span><span class="p">(</span><span class="n">resized_core</span><span class="p">)</span>
-                        <span class="k">for</span> <span class="n">subtile</span> <span class="ow">in</span> <span class="n">subtiles</span><span class="p">:</span>
-                            <span class="c1"># Perform whitespace filtering</span>
-                            <span class="k">if</span> <span class="n">whitespace_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-                                <span class="n">frac</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">subtile</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-                                        <span class="o">&gt;</span> <span class="n">whitespace_threshold</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-                                <span class="n">frac</span> <span class="o">=</span> <span class="n">frac</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-                                <span class="k">if</span> <span class="n">frac</span> <span class="o">&gt;</span> <span class="n">whitespace_fraction</span><span class="p">:</span>
-                                    <span class="k">continue</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pb</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
+                            <span class="n">pbar</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
-                            <span class="c1"># Perform grayspace filtering</span>
-                            <span class="k">if</span> <span class="n">grayspace_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-                                <span class="n">hsv_image</span> <span class="o">=</span> <span class="n">mcol</span><span class="o">.</span><span class="n">rgb_to_hsv</span><span class="p">(</span><span class="n">subtile</span><span class="p">)</span>
-                                <span class="n">frac</span> <span class="o">=</span> <span class="p">(</span><span class="n">hsv_image</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span>
-                                        <span class="o">&lt;</span> <span class="n">grayspace_threshold</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-                                <span class="n">frac</span> <span class="o">=</span> <span class="n">frac</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-                                <span class="k">if</span> <span class="n">frac</span> <span class="o">&gt;</span> <span class="n">grayspace_fraction</span><span class="p">:</span>
-                                    <span class="k">continue</span>
+                        <span class="n">resized_core</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resize_to_target</span><span class="p">(</span><span class="n">image_core</span><span class="p">)</span>
 
-                            <span class="c1"># Apply normalization</span>
-                            <span class="k">if</span> <span class="n">norm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                                <span class="k">try</span><span class="p">:</span>
-                                    <span class="n">subtile</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">subtile</span><span class="p">)</span>
-                                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                                    <span class="c1"># The image could not be normalized, which</span>
-                                    <span class="c1"># happens when a tile is primarily one</span>
-                                    <span class="c1"># solid color (background)</span>
-                                    <span class="k">continue</span>
-
+                        <span class="k">if</span> <span class="n">full_core</span><span class="p">:</span>
+                            <span class="n">resized</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
+                                <span class="n">image_core</span><span class="p">,</span>
+                                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
+                            <span class="p">)</span>
                             <span class="c1"># Convert to final image format</span>
                             <span class="k">if</span> <span class="n">img_format</span> <span class="o">!=</span> <span class="s1">&#39;numpy&#39;</span><span class="p">:</span>
-                                <span class="n">subtile</span> <span class="o">=</span> <span class="n">_convert_img_to_format</span><span class="p">(</span>
-                                    <span class="n">subtile</span><span class="p">,</span>
+                                <span class="n">resized</span> <span class="o">=</span> <span class="n">_convert_img_to_format</span><span class="p">(</span>
+                                    <span class="n">resized</span><span class="p">,</span>
                                     <span class="n">img_format</span>
                                 <span class="p">)</span>
-                            <span class="k">yield</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">subtile</span><span class="p">,</span> <span class="s1">&#39;loc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]}</span>
 
-            <span class="n">extraction_pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
-                <span class="n">pbar</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+                            <span class="k">yield</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">resized</span><span class="p">,</span> <span class="s1">&#39;loc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]}</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">subtiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_core</span><span class="p">(</span><span class="n">resized_core</span><span class="p">)</span>
+                            <span class="k">for</span> <span class="n">subtile</span> <span class="ow">in</span> <span class="n">subtiles</span><span class="p">:</span>
+                                <span class="c1"># Perform whitespace filtering</span>
+                                <span class="k">if</span> <span class="n">whitespace_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                                    <span class="n">frac</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">subtile</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                                            <span class="o">&gt;</span> <span class="n">whitespace_threshold</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                                    <span class="n">frac</span> <span class="o">=</span> <span class="n">frac</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+                                    <span class="k">if</span> <span class="n">frac</span> <span class="o">&gt;</span> <span class="n">whitespace_fraction</span><span class="p">:</span>
+                                        <span class="k">continue</span>
+
+                                <span class="c1"># Perform grayspace filtering</span>
+                                <span class="k">if</span> <span class="n">grayspace_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                                    <span class="n">hsv_image</span> <span class="o">=</span> <span class="n">mcol</span><span class="o">.</span><span class="n">rgb_to_hsv</span><span class="p">(</span><span class="n">subtile</span><span class="p">)</span>
+                                    <span class="n">frac</span> <span class="o">=</span> <span class="p">(</span><span class="n">hsv_image</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span>
+                                            <span class="o">&lt;</span> <span class="n">grayspace_threshold</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                                    <span class="n">frac</span> <span class="o">=</span> <span class="n">frac</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+                                    <span class="k">if</span> <span class="n">frac</span> <span class="o">&gt;</span> <span class="n">grayspace_fraction</span><span class="p">:</span>
+                                        <span class="k">continue</span>
+
+                                <span class="c1"># Apply normalization</span>
+                                <span class="k">if</span> <span class="n">norm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                                    <span class="k">try</span><span class="p">:</span>
+                                        <span class="n">subtile</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">subtile</span><span class="p">)</span>
+                                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                                        <span class="c1"># The image could not be normalized, which</span>
+                                        <span class="c1"># happens when a tile is primarily one</span>
+                                        <span class="c1"># solid color (background)</span>
+                                        <span class="k">continue</span>
+
+                                <span class="c1"># Convert to final image format</span>
+                                <span class="k">if</span> <span class="n">img_format</span> <span class="o">!=</span> <span class="s1">&#39;numpy&#39;</span><span class="p">:</span>
+                                    <span class="n">subtile</span> <span class="o">=</span> <span class="n">_convert_img_to_format</span><span class="p">(</span>
+                                        <span class="n">subtile</span><span class="p">,</span>
+                                        <span class="n">img_format</span>
+                                    <span class="p">)</span>
+                                <span class="k">yield</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">subtile</span><span class="p">,</span> <span class="s1">&#39;loc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]}</span>
+                <span class="n">extraction_pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
         <span class="k">return</span> <span class="n">generator</span></div>
 </pre></div>
@@ -3031,7 +3091,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
           </li>
 
           <li>
