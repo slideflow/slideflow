@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Slideflow Studio: Live Visualization &mdash; slideflow 2.0.4 documentation</title>
+  <title>Slideflow Studio: Live Visualization &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -282,7 +282,7 @@
   <section id="slideflow-studio-live-visualization">
 <span id="studio"></span><h1>Slideflow Studio: Live Visualization<a class="headerlink" href="#slideflow-studio-live-visualization" title="Permalink to this heading">¶</a></h1>
 
-    <video width="100%"  controls autoplay loop muted>
+    <video width="100%"  controls autoplay>
     <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/studio_preview.webm" type="video/webm">
     Video
     </video>
@@ -378,6 +378,14 @@
 <h3>Preview slide normalization<a class="headerlink" href="#preview-slide-normalization" title="Permalink to this heading">¶</a></h3>
 <p>Stain normalization strategies can be quickly previewed by checking “Normalize”, which will apply the associated normalization strategy to the main view. If a model is loaded, the model’s normalizer will be used by default. The normalizer can be changed with the corresponding dropdown menu, allowing you to preview any normalization method. All normalizer methods shown except for the model normalizer will use the “v3” fit (see <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code> for more information).</p>
 </section>
+<section id="preview-tile-extraction">
+<h3>Preview tile extraction<a class="headerlink" href="#preview-tile-extraction" title="Permalink to this heading">¶</a></h3>
+<img alt="https://github-production-user-asset-6210df.s3.amazonaws.com/48372806/257349240-a4911b16-9b5a-4289-9d46-41c95f31acda.png" src="https://github-production-user-asset-6210df.s3.amazonaws.com/48372806/257349240-a4911b16-9b5a-4289-9d46-41c95f31acda.png" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>The “Display” subsection of the slide widget allows users to preview tile extraction, displaying outlines around tiles. Model predictions generated from the slide will only utilize the shown tiles.</p>
+</section>
 </section>
 <section id="models-predictions">
 <h2>Models &amp; predictions<a class="headerlink" href="#models-predictions" title="Permalink to this heading">¶</a></h2>
@@ -451,7 +459,7 @@
 <section id="stylegan">
 <h3>StyleGAN<a class="headerlink" href="#stylegan" title="Permalink to this heading">¶</a></h3>
 
-    <video width="100%"  controls autoplay loop muted>
+    <video width="100%"  controls autoplay>
     <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm" type="video/webm">
     Video
     </video>
@@ -480,6 +488,16 @@
 <p>Once loaded,the mosaic map can be navigated using the same controls as WSI navigation - click and drag to pan, and use the mouse wheel to zoom. The UMAP used to generate the mosaic map will be shown in a window in the bottom-right corner, with a red box indicating the section of the UMAP currently in view. If a Project is loaded, hovering over an image tile will reveal a popup containing a larger corresponding section from the associated whole-slide image. This popup also contains the name of the slide and tile location coordinates.</p>
 <p>Use the control panel to increase or decrease the mosaic grid size, or to change the background color.</p>
 </section>
+<section id="multiple-instance-learning">
+<h3>Multiple-Instance Learning<a class="headerlink" href="#multiple-instance-learning" title="Permalink to this heading">¶</a></h3>
+<p>Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see <a class="reference internal" href="../mil/#clam-mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information.</p>
+<p>Start by navigating to the Extensions tab in the bottom-left corner, and enable the “Multiple-instance Learning” extension. A new icon will appear in the left-hand toolbar, which can be used to open the MIL widget. Models are loaded by either clicking the “Load MIL model” button, selecting “File -&gt; Load MIL Model…”, or by dragging-and-dropping an MIL model folder onto the window.</p>
+<p>Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the “HP” button. Click “Predict Slide” to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.</p>
+<img alt="https://github-production-user-asset-6210df.s3.amazonaws.com/48372806/257356236-d5a838df-a654-4538-bd94-1aa6a63de32d.png" src="https://github-production-user-asset-6210df.s3.amazonaws.com/48372806/257356236-d5a838df-a654-4538-bd94-1aa6a63de32d.png" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+</section>
 </section>
 </section>
 
@@ -507,7 +525,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -539,6 +557,7 @@
 <li><a class="reference internal" href="#preview-tile-filter">Preview tile filter</a></li>
 <li><a class="reference internal" href="#preview-slide-filter">Preview slide filter</a></li>
 <li><a class="reference internal" href="#preview-slide-normalization">Preview slide normalization</a></li>
+<li><a class="reference internal" href="#preview-tile-extraction">Preview tile extraction</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#models-predictions">Models &amp; predictions</a><ul>
@@ -554,6 +573,7 @@
 <li><a class="reference internal" href="#cell-segmentation">Cell segmentation</a></li>
 <li><a class="reference internal" href="#stylegan">StyleGAN</a></li>
 <li><a class="reference internal" href="#mosaic-maps">Mosaic maps</a></li>
+<li><a class="reference internal" href="#multiple-instance-learning">Multiple-Instance Learning</a></li>
 </ul>
 </li>
 </ul>
@@ -615,7 +635,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

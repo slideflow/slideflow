@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.model.extractors._factory &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.model.extractors._factory &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -279,23 +279,42 @@
   <h1>Source code for slideflow.model.extractors._factory</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Factory for building feature extractors.&quot;&quot;&quot;</span>
 
+<span class="kn">import</span> <span class="nn">importlib</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">exists</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
+<span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">BaseFeatureExtractor</span>
 
 <span class="kn">from</span> <span class="nn">._registry</span> <span class="kn">import</span> <span class="p">(</span><span class="n">is_tensorflow_extractor</span><span class="p">,</span> <span class="n">is_torch_extractor</span><span class="p">,</span>
                         <span class="n">_tf_extractors</span><span class="p">,</span> <span class="n">_torch_extractors</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">._factory_tensorflow</span> <span class="kn">import</span> <span class="n">build_tensorflow_feature_extractor</span>
 <span class="kn">from</span> <span class="nn">._factory_torch</span> <span class="kn">import</span> <span class="n">build_torch_feature_extractor</span>
 
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">slideflow.norm</span> <span class="kn">import</span> <span class="n">StainNormalizer</span>
 
-<div class="viewcode-block" id="build_feature_extractor"><a class="viewcode-back" href="../../../../../model/#slideflow.model.build_feature_extractor">[docs]</a><span class="k">def</span> <span class="nf">build_feature_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="build_feature_extractor"><a class="viewcode-back" href="../../../../../model/#slideflow.model.build_feature_extractor">[docs]</a><span class="k">def</span> <span class="nf">build_feature_extractor</span><span class="p">(</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">backend</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseFeatureExtractor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a feature extractor.</span>
 
 <span class="sd">    The returned feature extractor is a callable object, which returns</span>
-<span class="sd">    features (often layer activations) for a batch of images.</span>
-<span class="sd">    Images are expected to be in (B, W, H, C) format and non-standardized</span>
-<span class="sd">    (scaled 0-255) with dtype uint8. The feature extractors perform</span>
-<span class="sd">    all needed preprocessing on the fly.</span>
+<span class="sd">    features (often layer activations) for either a batch of images or a</span>
+<span class="sd">    :class:`slideflow.WSI` object.</span>
+
+<span class="sd">    If generating features for a batch of images, images are expected to be in</span>
+<span class="sd">    (B, W, H, C) format and non-standardized (scaled 0-255) with dtype uint8.</span>
+<span class="sd">    The feature extractors perform all needed preprocessing on the fly.</span>
+
+<span class="sd">    If generating features for a slide, the slide is expected to be a</span>
+<span class="sd">    :class:`slideflow.WSI` object. The feature extractor will generate features</span>
+<span class="sd">    for each tile in the slide, returning a numpy array of shape (W, H, F),</span>
+<span class="sd">    where F is the number of features.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        name (str): Name of the feature extractor to build. Available</span>
@@ -365,7 +384,62 @@
 <span class="sd">                    dataset=dataset</span>
 <span class="sd">                )</span>
 
+<span class="sd">        Generate a map of features across a slide.</span>
+
+<span class="sd">            .. code-block:: python</span>
+
+<span class="sd">                import slideflow as sf</span>
+<span class="sd">                from slideflow.model import build_feature_extractor</span>
+
+<span class="sd">                # Load a slide</span>
+<span class="sd">                wsi = sf.WSI(...)</span>
+
+<span class="sd">                # Create a feature extractor</span>
+<span class="sd">                retccl = build_feature_extractor(</span>
+<span class="sd">                    &#39;retccl&#39;,</span>
+<span class="sd">                    tile_px=299</span>
+<span class="sd">                )</span>
+
+<span class="sd">                # Create a feature map, a 2D array of shape</span>
+<span class="sd">                # (W, H, F), where F is the number of features.</span>
+<span class="sd">                features = retccl(wsi)</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Build feature extractor according to manually specified backend</span>
+    <span class="k">if</span> <span class="n">backend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">backend</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;tensorflow&#39;</span><span class="p">,</span> <span class="s1">&#39;torch&#39;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid backend: </span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Build a feature extractor from a finetuned model</span>
+    <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_tensorflow_model_path</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+        <span class="n">model_config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">model_config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">][</span><span class="s1">&#39;uq&#39;</span><span class="p">]:</span>
+            <span class="kn">from</span> <span class="nn">slideflow.model.tensorflow</span> <span class="kn">import</span> <span class="n">UncertaintyInterface</span>
+            <span class="k">return</span> <span class="n">UncertaintyInterface</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">slideflow.model.tensorflow</span> <span class="kn">import</span> <span class="n">Features</span>
+            <span class="k">return</span> <span class="n">Features</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_torch_model_path</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+        <span class="n">model_config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">model_config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">][</span><span class="s1">&#39;uq&#39;</span><span class="p">]:</span>
+            <span class="kn">from</span> <span class="nn">slideflow.model.torch</span> <span class="kn">import</span> <span class="n">UncertaintyInterface</span>
+            <span class="k">return</span> <span class="n">UncertaintyInterface</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">slideflow.model.torch</span> <span class="kn">import</span> <span class="n">Features</span>  <span class="c1"># noqa: F401</span>
+            <span class="k">return</span> <span class="n">Features</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="c1"># Build feature extractor with a specific backend</span>
+    <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_tensorflow_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">InvalidFeatureExtractor</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Feature extractor </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> not available in Tensorflow backend&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">build_tensorflow_feature_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_torch_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">InvalidFeatureExtractor</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Feature extractor </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> not available in PyTorch backend&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">build_torch_feature_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="c1"># Auto-build feature extractor according to available backends</span>
     <span class="k">if</span> <span class="n">is_tensorflow_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">and</span> <span class="n">is_torch_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
         <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;Feature extractor </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> available in both Tensorflow and &quot;</span>
@@ -380,6 +454,103 @@
         <span class="k">return</span> <span class="n">build_torch_feature_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">InvalidFeatureExtractor</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized feature extractor: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="rebuild_extractor"><a class="viewcode-back" href="../../../../../model/#slideflow.model.rebuild_extractor">[docs]</a><span class="k">def</span> <span class="nf">rebuild_extractor</span><span class="p">(</span>
+    <span class="n">bags_or_model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">allow_errors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;BaseFeatureExtractor&quot;</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Recreate the extractor used to generate features stored in bags.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        bags_or_model (str): Either a path to directory containing feature bags,</span>
+<span class="sd">            or a path to a trained MIL model. If a path to a trained MIL model,</span>
+<span class="sd">            the extractor used to generate features will be recreated.</span>
+<span class="sd">        allow_errors (bool): If True, return None if the extractor</span>
+<span class="sd">            cannot be rebuilt. If False, raise an error. Defaults to False.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Optional[BaseFeatureExtractor]: Extractor function, or None if ``allow_errors`` is</span>
+<span class="sd">            True and the extractor cannot be rebuilt.</span>
+
+<span class="sd">        Optional[StainNormalizer]: Stain normalizer used when generating</span>
+<span class="sd">            feature bags, or None if no stain normalization was used.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Load bags configuration</span>
+    <span class="n">is_bag_config</span> <span class="o">=</span> <span class="n">bags_or_model</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;bags_config.json&#39;</span><span class="p">)</span>
+    <span class="n">is_bag_dir</span> <span class="o">=</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">bags_or_model</span><span class="p">,</span> <span class="s1">&#39;bags_config.json&#39;</span><span class="p">))</span>
+    <span class="n">is_model_dir</span> <span class="o">=</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">bags_or_model</span><span class="p">,</span> <span class="s1">&#39;mil_params.json&#39;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">is_bag_dir</span> <span class="ow">or</span> <span class="n">is_model_dir</span> <span class="ow">or</span> <span class="n">is_bag_config</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">allow_errors</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Could not find bags or MIL model configuration at &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bags_or_model</span><span class="si">}</span><span class="s1">.&#39;</span>
+            <span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_bag_config</span><span class="p">:</span>
+        <span class="n">bags_config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">bags_or_model</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">is_model_dir</span><span class="p">:</span>
+        <span class="n">mil_config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">bags_or_model</span><span class="p">,</span> <span class="s1">&#39;mil_params.json&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s1">&#39;bags_extractor&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mil_config</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">allow_errors</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s1">&#39;Could not rebuild extractor from configuration at &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bags_or_model</span><span class="si">}</span><span class="s1">; missing &quot;bags_extractor&quot; key in &#39;</span>
+                    <span class="s1">&#39;mil_params.json.&#39;</span>
+                <span class="p">)</span>
+        <span class="n">bags_config</span> <span class="o">=</span> <span class="n">mil_config</span><span class="p">[</span><span class="s1">&#39;bags_extractor&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">bags_config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">bags_or_model</span><span class="p">,</span> <span class="s1">&#39;bags_config.json&#39;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;extractor&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bags_config</span>
+       <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">n</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bags_config</span><span class="p">[</span><span class="s1">&#39;extractor&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;class&#39;</span><span class="p">,</span> <span class="s1">&#39;kwargs&#39;</span><span class="p">])):</span>
+        <span class="k">if</span> <span class="n">allow_errors</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Could not rebuild extractor from configuration at &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bags_or_model</span><span class="si">}</span><span class="s1">; missing &quot;extractor&quot; class or kwargs.&#39;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># Rebuild extractor</span>
+    <span class="n">extractor_name</span> <span class="o">=</span> <span class="n">bags_config</span><span class="p">[</span><span class="s1">&#39;extractor&#39;</span><span class="p">][</span><span class="s1">&#39;class&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+    <span class="n">extractor_class</span> <span class="o">=</span> <span class="n">extractor_name</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">extractor_kwargs</span> <span class="o">=</span> <span class="n">bags_config</span><span class="p">[</span><span class="s1">&#39;extractor&#39;</span><span class="p">][</span><span class="s1">&#39;kwargs&#39;</span><span class="p">]</span>
+    <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">extractor_name</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">extractor</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">extractor_class</span><span class="p">)(</span><span class="o">**</span><span class="n">extractor_kwargs</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">allow_errors</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Could not rebuild extractor from configuration at </span><span class="si">{</span><span class="n">bags_or_model</span><span class="si">}</span><span class="s1">.&#39;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># Rebuild stain normalizer</span>
+    <span class="k">if</span> <span class="n">bags_config</span><span class="p">[</span><span class="s1">&#39;normalizer&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">normalizer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">autoselect</span><span class="p">(</span>
+            <span class="n">bags_config</span><span class="p">[</span><span class="s1">&#39;normalizer&#39;</span><span class="p">][</span><span class="s1">&#39;method&#39;</span><span class="p">],</span>
+            <span class="n">backend</span><span class="o">=</span><span class="n">extractor</span><span class="o">.</span><span class="n">backend</span>
+        <span class="p">)</span>
+        <span class="n">normalizer</span><span class="o">.</span><span class="n">set_fit</span><span class="p">(</span><span class="o">**</span><span class="n">bags_config</span><span class="p">[</span><span class="s1">&#39;normalizer&#39;</span><span class="p">][</span><span class="s1">&#39;fit&#39;</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">normalizer</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">extractor</span><span class="p">,</span> <span class="s1">&#39;normalizer&#39;</span><span class="p">)</span>
+       <span class="ow">and</span> <span class="n">extractor</span><span class="o">.</span><span class="n">normalizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+       <span class="ow">and</span> <span class="n">normalizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s1">&#39;Extractor already has a stain normalizer. Overwriting with &#39;</span>
+            <span class="s1">&#39;normalizer from bags configuration.&#39;</span>
+        <span class="p">)</span>
+        <span class="n">extractor</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="n">normalizer</span>
+    <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">extractor</span><span class="p">,</span> <span class="s1">&#39;normalizer&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">extractor</span><span class="o">.</span><span class="n">normalizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">normalizer</span> <span class="o">=</span> <span class="n">extractor</span><span class="o">.</span><span class="n">normalizer</span>
+
+    <span class="k">return</span> <span class="n">extractor</span><span class="p">,</span> <span class="n">normalizer</span></div>
 </pre></div>
 
              </article>
@@ -396,7 +567,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -470,7 +641,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

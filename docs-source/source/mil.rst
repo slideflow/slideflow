@@ -109,6 +109,11 @@ Once you have prepared a feature extractor, features can be generated for a data
     # Calculate & export feature bags.
     P.generate_feature_bags(retccl, dataset)
 
+.. note::
+
+    If you are generating features from a SimCLR model trained with stain normalization,
+    you should specify the stain normalizer using the ``normalizer`` argument to :meth:`slideflow.Project.generate_feature_bags` or :class:`slideflow.DatasetFeatures`.
+
 Features are calculated for slides in batches, keeping memory usage low. By default, features are saved to disk in a directory named ``pt_files`` within the project directory, but you can override the destination directory using the ``outdir`` argument.
 
 Alternatively, you can calculate features for a dataset using :class:`slideflow.DatasetFeatures` and the ``.to_torch()`` method.  This will calculate features for your entire dataset at once, which may require a large amount of memory. The first argument should be the feature extractor, and the second argument should be a :class:`slideflow.Dataset`.

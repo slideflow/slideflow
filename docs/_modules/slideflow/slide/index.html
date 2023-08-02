@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.slide &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.slide &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -596,8 +596,8 @@
         <span class="c1"># Calculate shape and stride</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">downsample_level</span> <span class="o">=</span> <span class="n">ds_level</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">downsample_dimensions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_dimensions</span><span class="p">[</span><span class="n">ds_level</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extract_px</span> <span class="o">//</span> <span class="n">stride_div</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">full_stride</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span> <span class="o">//</span> <span class="n">stride_div</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extract_px</span> <span class="o">/</span> <span class="n">stride_div</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">full_stride</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span> <span class="o">/</span> <span class="n">stride_div</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
@@ -718,7 +718,8 @@
         <span class="n">blur_radius</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
         <span class="n">blur_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.02</span><span class="p">,</span>
         <span class="n">filter_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">,</span>
-        <span class="n">blur_mpp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">blur_mpp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">pool</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;mp.Pool&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Applies quality control to a slide, performing filtering based on</span>
 <span class="sd">        a whole-slide image thumbnail.</span>
@@ -763,9 +764,9 @@
         <span class="k">if</span> <span class="s1">&#39;blur&#39;</span> <span class="ow">in</span> <span class="n">method</span><span class="p">:</span>
             <span class="n">idx</span> <span class="o">=</span> <span class="n">method</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;blur&#39;</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
             <span class="n">method</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;blur&#39;</span><span class="p">)</span>       <span class="c1"># type: ignore</span>
-            <span class="n">method</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="n">blur_mpp</span><span class="p">,</span>
-                                                    <span class="n">sigma</span><span class="o">=</span><span class="n">blur_radius</span><span class="p">,</span>
-                                                    <span class="n">threshold</span><span class="o">=</span><span class="n">blur_threshold</span><span class="p">))</span>
+            <span class="n">method</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">qc</span><span class="o">.</span><span class="n">GaussianV2</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="n">blur_mpp</span><span class="p">,</span>
+                                                      <span class="n">sigma</span><span class="o">=</span><span class="n">blur_radius</span><span class="p">,</span>
+                                                      <span class="n">threshold</span><span class="o">=</span><span class="n">blur_threshold</span><span class="p">))</span>
         <span class="k">if</span> <span class="s1">&#39;otsu&#39;</span> <span class="ow">in</span> <span class="n">method</span><span class="p">:</span>
             <span class="n">idx</span> <span class="o">=</span> <span class="n">method</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;otsu&#39;</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
             <span class="n">method</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;otsu&#39;</span><span class="p">)</span>       <span class="c1"># type: ignore</span>
@@ -777,6 +778,11 @@
         <span class="k">for</span> <span class="n">qc</span> <span class="ow">in</span> <span class="n">method</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">QCError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown QC method </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">qc</span><span class="o">.</span><span class="n">pool</span> <span class="o">=</span> <span class="n">pool</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to set pool for QC method </span><span class="si">{</span><span class="n">qc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="n">mask</span> <span class="o">=</span> <span class="n">qc</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_qc_mask</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">filter_threshold</span><span class="o">=</span><span class="n">filter_threshold</span><span class="p">)</span>
@@ -991,8 +997,9 @@
 <span class="sd">                considered grayspace.</span>
 <span class="sd">            normalizer (str, optional): Normalization to use on image tiles.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
-<span class="sd">                If None, will use slideflow.slide.norm_tile.jpg.</span>
+<span class="sd">            normalizer_source (str, optional): Stain normalization preset or</span>
+<span class="sd">                path to a source image. Valid presets include &#39;v1&#39;, &#39;v2&#39;, and</span>
+<span class="sd">                &#39;v3&#39;. If None, will use the default present (&#39;v3&#39;).</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            full_core (bool, optional): Extract an entire detected core, rather</span>
 <span class="sd">                than subdividing into image tiles. Defaults to False.</span>
@@ -1231,6 +1238,7 @@
         <span class="n">randomize_origin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Progress</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">use_edge_tiles</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Loads slide and ROI(s).</span>
@@ -1308,6 +1316,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">segmentation</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">grid</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_edge_tiles</span> <span class="o">=</span> <span class="n">use_edge_tiles</span>
 
         <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">roi_filter_method</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span>
            <span class="ow">and</span> <span class="n">roi_filter_method</span> <span class="o">!=</span> <span class="s1">&#39;center&#39;</span><span class="p">):</span>
@@ -1458,8 +1467,6 @@
     <span class="k">def</span> <span class="nf">_build_coord</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Set up coordinate grid.&#39;&#39;&#39;</span>
 
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting up coordinate grid.&quot;</span><span class="p">)</span>
-
         <span class="c1"># Calculate window sizes, strides, and coordinates for windows</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">extracted_x_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">extracted_y_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span>
@@ -1475,14 +1482,15 @@
         <span class="c1"># Coordinates must be in level 0 (full) format</span>
         <span class="c1"># for the read_region function</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: Union[List, np.ndarray]</span>
+        <span class="n">edge_buffer</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_edge_tiles</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span>
         <span class="n">y_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span>
             <span class="n">start_y</span><span class="p">,</span>
-            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">,</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">edge_buffer</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">full_stride</span>
         <span class="p">)</span>
         <span class="n">x_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span>
             <span class="n">start_x</span><span class="p">,</span>
-            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">,</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">edge_buffer</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">full_stride</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">x_range</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_range</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
@@ -1543,7 +1551,7 @@
                     <span class="n">point_in_roi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_mask</span><span class="p">[</span><span class="n">yi</span><span class="p">,</span> <span class="n">xi</span><span class="p">]</span>
                     <span class="c1"># If the extraction method is &#39;inside&#39;,</span>
                     <span class="c1"># skip the tile if it&#39;s not in an ROI</span>
-                    <span class="k">if</span> <span class="p">(((</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;inside&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">point_in_roi</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="p">(((</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;inside&#39;</span><span class="p">,</span> <span class="s1">&#39;auto&#39;</span><span class="p">))</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">point_in_roi</span><span class="p">)</span>
                        <span class="ow">or</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;outside&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">point_in_roi</span><span class="p">)):</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
 
@@ -1558,6 +1566,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Set up coordinate grid, shape=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">shape</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1579,6 +1588,19 @@
         <span class="n">nonzero</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">seg_coord</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">seg_coord</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">][</span><span class="n">nonzero</span><span class="p">]</span> <span class="o">-=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span> <span class="o">=</span> <span class="n">centroids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">area</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate area (mm^2) of slide that passes QC masking.&quot;&quot;&quot;</span>
+        <span class="n">dim_x</span><span class="p">,</span> <span class="n">dim_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">total_area_in_sq_microns</span> <span class="o">=</span> <span class="p">(</span><span class="n">dim_x</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">dim_y</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span><span class="o">.</span><span class="n">shape</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+            <span class="n">area_in_sq_microns</span> <span class="o">=</span> <span class="n">p</span> <span class="o">*</span> <span class="n">total_area_in_sq_microns</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">area_in_sq_microns</span> <span class="o">=</span> <span class="n">total_area_in_sq_microns</span>
+        <span class="n">area_in_sq_mm</span> <span class="o">=</span> <span class="n">area_in_sq_microns</span> <span class="o">*</span> <span class="mf">1e-6</span>
+        <span class="k">return</span> <span class="n">area_in_sq_mm</span>
 
     <span class="k">def</span> <span class="nf">get_tile_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">sparse_mask</span><span class="p">):</span>
 
@@ -1684,8 +1706,9 @@
 <span class="sd">                considered grayspace.</span>
 <span class="sd">            normalizer (str, optional): Normalization for image tiles.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
-<span class="sd">                If None, will use slideflow.slide.norm_tile.jpg.</span>
+<span class="sd">            normalizer_source (str, optional): Stain normalization preset or</span>
+<span class="sd">                path to a source image. Valid presets include &#39;v1&#39;, &#39;v2&#39;, and</span>
+<span class="sd">                &#39;v3&#39;. If None, will use the default present (&#39;v3&#39;).</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            full_core (bool, optional): Extract an entire detected core, rather</span>
 <span class="sd">                than subdividing into image tiles. Defaults to False.</span>
@@ -1762,7 +1785,7 @@
         <span class="n">whitespace_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">grayspace_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">grayspace_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">normalizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;slideflow.norm.StainNormalizer&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">normalizer_source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">context_normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">num_threads</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1798,8 +1821,9 @@
 <span class="sd">                considered grayspace.</span>
 <span class="sd">            normalizer (str, optional): Normalization strategy to use on image</span>
 <span class="sd">                tiles. Defaults to None.</span>
-<span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
-<span class="sd">                If None, will use slideflow.slide.norm_tile.jpg.</span>
+<span class="sd">            normalizer_source (str, optional): Stain normalization preset or</span>
+<span class="sd">                path to a source image. Valid presets include &#39;v1&#39;, &#39;v2&#39;, and</span>
+<span class="sd">                &#39;v3&#39;. If None, will use the default present (&#39;v3&#39;).</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            context_normalize (bool): If normalizing, use context from</span>
 <span class="sd">                the rest of the slide when calculating stain matrix</span>
@@ -1837,6 +1861,9 @@
 <span class="sd">            deterministic (bool): Return tile images in reproducible,</span>
 <span class="sd">                deterministic order. May slightly decrease iteration time.</span>
 <span class="sd">                Defaults to True.</span>
+<span class="sd">            shard (tuple(int, int), optional): If provided, will only extract</span>
+<span class="sd">                tiles from the shard with index `shard[0]` out of `shard[1]`</span>
+<span class="sd">                shards. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            dict: Dict with keys &#39;image&#39; (image data), &#39;yolo&#39; (optional</span>
@@ -1985,10 +2012,10 @@
                 <span class="k">if</span> <span class="n">num_threads</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_processes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="c1"># Libvips is extremely slow with ThreadPools.</span>
                     <span class="c1"># In the cuCIM backend, ThreadPools are used by default</span>
-                    <span class="c1"># to reduce memory utilization.</span>
+                    <span class="c1">#   to reduce memory utilization.</span>
                     <span class="c1"># In the Libvips backend, a multiprocessing pool is default</span>
-                    <span class="c1"># to significantly improve performance.</span>
-                    <span class="n">n_cores</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="k">else</span> <span class="mi">8</span>
+                    <span class="c1">#   to significantly improve performance.</span>
+                    <span class="n">n_cores</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
                     <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;libvips&#39;</span><span class="p">:</span>
                         <span class="n">num_processes</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">n_cores</span><span class="o">/</span><span class="mi">2</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
@@ -1998,8 +2025,10 @@
                     <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">num_threads</span><span class="p">)</span>
                     <span class="n">should_close</span> <span class="o">=</span> <span class="kc">True</span>
                 <span class="k">elif</span> <span class="n">num_processes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_processes</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building generator with Pool(</span><span class="si">{</span><span class="n">num_processes</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-                    <span class="n">ctx</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>
+                    <span class="n">ptype</span> <span class="o">=</span> <span class="s1">&#39;spawn&#39;</span> <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;libvips&#39;</span> <span class="k">else</span> <span class="s1">&#39;fork&#39;</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building generator with Pool(</span><span class="si">{</span><span class="n">num_processes</span><span class="si">}</span><span class="s2">), &quot;</span>
+                              <span class="sa">f</span><span class="s2">&quot;type=</span><span class="si">{</span><span class="n">ptype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">ctx</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="n">ptype</span><span class="p">)</span>
                     <span class="n">pool</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
                         <span class="n">processes</span><span class="o">=</span><span class="n">num_processes</span><span class="p">,</span>
                         <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span><span class="p">,</span>
@@ -2152,6 +2181,8 @@
         <span class="p">]</span>
         <span class="n">roi_id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">existing</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)))</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">existing</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ROI</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;ROI_</span><span class="si">{</span><span class="n">roi_id</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">array</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">=</span> <span class="s1">&#39;inside&#39;</span>
         <span class="k">if</span> <span class="n">process</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">process_rois</span><span class="p">()</span>
 
@@ -2209,6 +2240,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">add_shape</span><span class="p">(</span><span class="n">area_reduced</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">process</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">process_rois</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">=</span> <span class="s1">&#39;inside&#39;</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">masked_thumb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">background</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;white&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
@@ -2231,7 +2264,7 @@
                 <span class="s2">&quot;Applying Otsu&#39;s thresholding &amp; Gaussian blur filter &quot;</span>
                 <span class="s2">&quot;to stain norm context&quot;</span>
             <span class="p">)</span>
-            <span class="n">_blur_mask</span> <span class="o">=</span> <span class="n">Gaussian</span><span class="p">()(</span><span class="n">image</span><span class="p">)</span>
+            <span class="n">_blur_mask</span> <span class="o">=</span> <span class="n">GaussianV2</span><span class="p">()(</span><span class="n">image</span><span class="p">)</span>
             <span class="n">qc_mask</span> <span class="o">=</span> <span class="n">Otsu</span><span class="p">()(</span><span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">_blur_mask</span><span class="p">)</span>
         <span class="c1"># Mask by ROI and QC, if applied.</span>
         <span class="c1"># Use white as background for masked areas.</span>
@@ -2549,7 +2582,7 @@
         <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">tile_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">tile_um</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
-        <span class="n">stride_div</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">stride_div</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">enable_downsample</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">report_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Progress</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2562,7 +2595,7 @@
 <span class="sd">            tile_px (int): Size of tiles to extract, in pixels.</span>
 <span class="sd">            tile_um (int or str): Size of tiles to extract, in microns (int) or</span>
 <span class="sd">                magnification (str, e.g. &quot;20x&quot;).</span>
-<span class="sd">            stride_div (int, optional): Stride divisor for tile extraction</span>
+<span class="sd">            stride_div (float, optional): Stride divisor for tile extraction</span>
 <span class="sd">                (1 = no tile overlap; 2 = 50% overlap, etc). Defaults to 1.</span>
 <span class="sd">            enable_downsample (bool, optional): Allow use of downsampled</span>
 <span class="sd">                layers in the slide image pyramid, which greatly improves</span>
@@ -2784,8 +2817,9 @@
 <span class="sd">                considered grayspace.</span>
 <span class="sd">            normalizer (str, optional): Normalization for image tiles.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
-<span class="sd">                If None, will use slideflow.slide.norm_tile.jpg.</span>
+<span class="sd">            normalizer_source (str, optional): Stain normalization preset or</span>
+<span class="sd">                path to a source image. Valid presets include &#39;v1&#39;, &#39;v2&#39;, and</span>
+<span class="sd">                &#39;v3&#39;. If None, will use the default present (&#39;v3&#39;).</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            full_core (bool, optional): Extract an entire detected core, rather</span>
 <span class="sd">                than subdividing into image tiles. Defaults to False.</span>
@@ -2843,8 +2877,9 @@
 <span class="sd">                considered grayspace.</span>
 <span class="sd">            normalizer (str, optional): Normalization to use on image tiles.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
-<span class="sd">                If None, will use slideflow.slide.norm_tile.jpg</span>
+<span class="sd">            normalizer_source (str, optional): Stain normalization preset or</span>
+<span class="sd">                path to a source image. Valid presets include &#39;v1&#39;, &#39;v2&#39;, and</span>
+<span class="sd">                &#39;v3&#39;. If None, will use the default present (&#39;v3&#39;).</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            num_threads (int, optional): Number of threads for pool. Unused if</span>
 <span class="sd">                `pool` is specified.</span>
@@ -2881,9 +2916,7 @@
         <span class="p">)</span>
         <span class="c1"># Detect CPU cores if num_threads not specified</span>
         <span class="k">if</span> <span class="n">num_threads</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">num_threads</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">num_threads</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">num_threads</span> <span class="o">=</span> <span class="mi">8</span>
+            <span class="n">num_threads</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
 
         <span class="c1"># Shuffle TMAs</span>
         <span class="k">if</span> <span class="n">shuffle</span><span class="p">:</span>
@@ -3017,7 +3050,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -3091,7 +3124,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.studio &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.studio &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -389,13 +389,14 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">low_memory</span>         <span class="o">=</span> <span class="n">low_memory</span>
 
         <span class="c1"># Interface.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_show_about</span>        <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span>  <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_tile_preview_is_new</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_show_about</span>                <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span>         <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tile_preview_is_new</span>       <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_tile_preview_image_is_new</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_show_overlays</span>     <span class="o">=</span> <span class="kc">True</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">theme</span>              <span class="o">=</span> <span class="n">theme</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_show_overlays</span>             <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_show_mpp_zoom_popup</span>       <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_input_mpp</span>                 <span class="o">=</span> <span class="mf">1.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">theme</span>                      <span class="o">=</span> <span class="n">theme</span>
 
         <span class="c1"># Widget interface.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span>                <span class="o">=</span> <span class="kc">None</span>
@@ -597,6 +598,35 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">_show_about</span> <span class="o">=</span> <span class="kc">False</span>
                 <span class="n">imgui</span><span class="o">.</span><span class="n">end_popup</span><span class="p">()</span>
 
+    <span class="k">def</span> <span class="nf">_draw_mpp_zoom_dialog</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Show a dialog that prompts the user to specify microns-per-pixel.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_mpp_zoom_popup</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">window_size</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">*</span> <span class="mi">18</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">*</span> <span class="mi">7</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">center_next_window</span><span class="p">(</span><span class="o">*</span><span class="n">window_size</span><span class="p">)</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">set_next_window_size</span><span class="p">(</span><span class="o">*</span><span class="n">window_size</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">opened</span> <span class="o">=</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span><span class="s1">&#39;Zoom to Microns-Per-Pixel (MPP)&#39;</span><span class="p">,</span> <span class="n">closable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">imgui</span><span class="o">.</span><span class="n">WINDOW_NO_RESIZE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">opened</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_show_mpp_zoom_popup</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="n">imgui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;Zoom the current view to a given MPP.&quot;</span><span class="p">)</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">separator</span><span class="p">()</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">same_line</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">font_size</span><span class="o">*</span><span class="mi">4</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">item_width</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">font_size</span><span class="o">*</span><span class="mi">4</span><span class="p">):</span>
+            <span class="n">_changed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_mpp</span> <span class="o">=</span> <span class="n">imgui</span><span class="o">.</span><span class="n">input_float</span><span class="p">(</span><span class="s1">&#39;MPP##input_mpp&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_mpp</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%.3f</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">same_line</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_mpp</span><span class="p">:</span>
+            <span class="n">mag</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="mi">10</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">_input_mpp</span><span class="si">:</span><span class="s1">.1f</span><span class="si">}</span><span class="s1">x&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mag</span> <span class="o">=</span> <span class="s1">&#39;-&#39;</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">mag</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sidebar</span><span class="o">.</span><span class="n">full_button</span><span class="p">(</span><span class="s2">&quot;Zoom&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">zoom_to_mpp</span><span class="p">(</span><span class="n">window_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">window_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_mpp</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_show_mpp_zoom_popup</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+
     <span class="k">def</span> <span class="nf">_draw_control_pane</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Draw the control pane and widgets.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sidebar</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
@@ -741,8 +771,6 @@
 
                 <span class="c1"># --- Show sub-menu -------------------------------------------</span>
                 <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin_menu</span><span class="p">(</span><span class="s1">&#39;Show&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Performance&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+Shift+P&#39;</span><span class="p">,</span> <span class="n">selected</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span>
                     <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Tile Preview&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+Shift+T&#39;</span><span class="p">,</span> <span class="n">selected</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span>
                     <span class="n">imgui</span><span class="o">.</span><span class="n">separator</span><span class="p">()</span>
@@ -771,6 +799,8 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">increase_tile_zoom</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Decrease Tile Zoom&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+[&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">decrease_tile_zoom</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Zoom to MPP&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+/&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ask_zoom_to_mpp</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Reset Tile Zoom&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">reset_tile_zoom</span><span class="p">()</span>
 
@@ -818,7 +848,7 @@
         <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_ratio</span>
         <span class="n">y_pos</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">content_frame_height</span> <span class="o">-</span> <span class="p">(</span><span class="n">h</span> <span class="o">*</span> <span class="n">r</span><span class="p">))</span> <span class="o">/</span> <span class="n">r</span><span class="p">)</span>
         <span class="n">imgui</span><span class="o">.</span><span class="n">set_next_window_position</span><span class="p">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">y_pos</span><span class="p">)</span>
-        <span class="n">imgui</span><span class="o">.</span><span class="n">set_next_window_size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">content_frame_width</span><span class="o">+</span><span class="mi">4</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">set_next_window_size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">content_width</span><span class="o">+</span><span class="mi">4</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
         <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_WINDOW_BACKGROUND</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="o">.</span><span class="n">main_background</span><span class="p">)</span>
         <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_var</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">STYLE_WINDOW_PADDING</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
 
@@ -920,8 +950,6 @@
     <span class="k">def</span> <span class="nf">_glfw_key_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_window</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">_scancode</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">_mods</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Callback for handling keyboard input.&quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_glfw_key_callback</span><span class="p">(</span><span class="n">_window</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">_scancode</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">_mods</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shift_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_P</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shift_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_T</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_Q</span><span class="p">:</span>
@@ -942,6 +970,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">decrease_tile_zoom</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_RIGHT_BRACKET</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">increase_tile_zoom</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_SLASH</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ask_zoom_to_mpp</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_BACKSLASH</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">reset_tile_zoom</span><span class="p">()</span>
 
@@ -984,7 +1014,7 @@
         <span class="n">stride</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">use_rois</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Reload the currently loaded Whole-Slide Image.</span>
 
 <span class="sd">        Args:</span>
@@ -994,6 +1024,10 @@
 <span class="sd">                provided, will use the stride value from the currently loaded</span>
 <span class="sd">                slide.</span>
 <span class="sd">            use_rois (bool): Use ROIs from the loaded project, if available.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if slide loaded successfully, False otherwise.</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span>
@@ -1008,25 +1042,35 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">rois</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cucim&#39;</span><span class="p">:</span>
-            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;num_workers&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span>
-            <span class="n">path</span><span class="p">,</span>
-            <span class="n">tile_px</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span> <span class="k">else</span> <span class="mi">256</span><span class="p">),</span>
-            <span class="n">tile_um</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="k">else</span> <span class="mi">512</span><span class="p">),</span>
-            <span class="n">stride_div</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span>
-            <span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span>
-            <span class="n">cache_kw</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
-                <span class="n">tile_width</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
-                <span class="n">tile_height</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
-                <span class="n">max_tiles</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
-                <span class="n">threaded</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">persistent</span><span class="o">=</span><span class="kc">True</span>
-            <span class="p">),</span>
-            <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">mpp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">manual_mpp</span><span class="p">,</span>
-            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">set_viewer</span><span class="p">(</span><span class="n">SlideViewer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_viewer_kwargs</span><span class="p">()))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="o">.</span><span class="n">path</span><span class="p">))</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;num_workers&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span>
+                <span class="n">path</span><span class="p">,</span>
+                <span class="n">tile_px</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span> <span class="k">else</span> <span class="mi">256</span><span class="p">),</span>
+                <span class="n">tile_um</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="k">else</span> <span class="mi">512</span><span class="p">),</span>
+                <span class="n">stride_div</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span>
+                <span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span>
+                <span class="n">cache_kw</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">tile_width</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                    <span class="n">tile_height</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                    <span class="n">max_tiles</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+                    <span class="n">threaded</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">persistent</span><span class="o">=</span><span class="kc">True</span>
+                <span class="p">),</span>
+                <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">mpp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">manual_mpp</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">sf</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">IncompatibleBackendError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">create_toast</span><span class="p">(</span>
+                <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Incompatbile slide&quot;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Slide type &quot;</span><span class="si">{}</span><span class="s1">&quot; is incompatible with the </span><span class="si">{}</span><span class="s1"> backend.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()),</span>
+                <span class="n">icon</span><span class="o">=</span><span class="s1">&#39;error&#39;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_viewer</span><span class="p">(</span><span class="n">SlideViewer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_viewer_kwargs</span><span class="p">()))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="o">.</span><span class="n">path</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">True</span>
 
     <span class="k">def</span> <span class="nf">_render_prediction_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Render a prediction string to below the tile bounding box.</span>
@@ -1113,6 +1157,28 @@
         <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_TEXT</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
         <span class="k">yield</span>
         <span class="n">imgui</span><span class="o">.</span><span class="n">pop_style_color</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Studio.highlighted"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.highlighted">[docs]</a>    <span class="nd">@contextmanager</span>
+    <span class="k">def</span> <span class="nf">highlighted</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Render highlighted text.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            enable (bool): Whether to enable highlighting.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">            Render highlighted text.</span>
+
+<span class="sd">                .. code-block:: python</span>
+
+<span class="sd">                    with studio.highlighted(True):</span>
+<span class="sd">                        imgui.text(&#39;This is highlighted&#39;)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">enable</span><span class="p">:</span>
+            <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_BUTTON</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="o">.</span><span class="n">button_active</span><span class="p">)</span>
+        <span class="k">yield</span>
+        <span class="k">if</span> <span class="n">enable</span><span class="p">:</span>
+            <span class="n">imgui</span><span class="o">.</span><span class="n">pop_style_color</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Studio.collapsing_header"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.collapsing_header">[docs]</a>    <span class="k">def</span> <span class="nf">collapsing_header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Render a collapsing header using the active theme.</span>
@@ -1443,6 +1509,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_draw_control_pane</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_draw_menu_bar</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_draw_about_dialog</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_draw_mpp_zoom_dialog</span><span class="p">()</span>
 
         <span class="n">user_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle_user_input</span><span class="p">()</span>
 
@@ -1504,10 +1571,6 @@
         <span class="c1"># Render control pane contents.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_render_control_pane_contents</span><span class="p">()</span>
 
-        <span class="c1"># Render user widgets.</span>
-        <span class="k">for</span> <span class="n">widget</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="s1">&#39;render&#39;</span><span class="p">):</span>
-                <span class="n">widget</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_skipping_frames</span><span class="p">():</span>
             <span class="k">pass</span>
@@ -1550,6 +1613,14 @@
             <span class="n">_msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="k">if</span> <span class="s1">&#39;message&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]</span>
             <span class="n">tex</span> <span class="o">=</span> <span class="n">text_utils</span><span class="o">.</span><span class="n">get_texture</span><span class="p">(</span><span class="n">_msg</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gl_font_size</span><span class="p">,</span> <span class="n">max_width</span><span class="o">=</span><span class="n">max_w</span><span class="p">,</span> <span class="n">max_height</span><span class="o">=</span><span class="n">max_h</span><span class="p">,</span> <span class="n">outline</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">tex</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">pos</span><span class="o">=</span><span class="n">middle_pos</span><span class="p">,</span> <span class="n">align</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">rint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Render user widgets.</span>
+        <span class="k">for</span> <span class="n">widget</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="s1">&#39;render&#39;</span><span class="p">):</span>
+                <span class="n">widget</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+
+        <span class="c1"># Render slide widget tile boxes (for tile extraction preview)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">early_render</span><span class="p">()</span>
 
         <span class="c1"># Render the tile view and status bar.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_draw_tile_view</span><span class="p">()</span>
@@ -1626,6 +1697,11 @@
                 <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
                 <span class="ow">and</span> <span class="s1">&#39;uq&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">]</span>
                 <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">][</span><span class="s1">&#39;uq&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Studio.ask_zoom_to_mpp"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.ask_zoom_to_mpp">[docs]</a>    <span class="k">def</span> <span class="nf">ask_zoom_to_mpp</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prompt the user to zoom to a specific microns-per-pixel (MPP).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="p">,</span> <span class="n">SlideViewer</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_show_mpp_zoom_popup</span> <span class="o">=</span> <span class="kc">True</span></div>
 
 <div class="viewcode-block" id="Studio.increase_tile_zoom"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.increase_tile_zoom">[docs]</a>    <span class="k">def</span> <span class="nf">increase_tile_zoom</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Increase zoom of tile view two-fold.&quot;&quot;&quot;</span>
@@ -1709,7 +1785,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">model_widget</span><span class="o">.</span><span class="n">use_model</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">model_widget</span><span class="o">.</span><span class="n">use_uncertainty</span> <span class="o">=</span> <span class="s1">&#39;uq&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">][</span><span class="s1">&#39;uq&#39;</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">normalizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;slide_widget&#39;</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">show_model_normalizer</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">add_model_normalizer_option</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">norm_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">_normalizer_methods</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading slide... tile_px=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="si">}</span><span class="s2">, tile_um=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -1731,6 +1807,11 @@
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="p">,</span> <span class="n">SlideViewer</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">set_tile_px</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">set_tile_um</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span><span class="p">)</span>
+
+            <span class="c1"># Trigger user widgets</span>
+            <span class="k">for</span> <span class="n">widget</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="s1">&#39;_on_model_load&#39;</span><span class="p">):</span>
+                    <span class="n">widget</span><span class="o">.</span><span class="n">_on_model_load</span><span class="p">()</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">create_toast</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded model at </span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">icon</span><span class="o">=</span><span class="s2">&quot;success&quot;</span><span class="p">)</span>
 
@@ -1767,7 +1848,12 @@
 <span class="sd">            ignore_errors (bool): Do not fail if an error is encountered.</span>
 <span class="sd">                Defaults to False.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Trigger user widgets</span>
+        <span class="k">for</span> <span class="n">widget</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="s1">&#39;_on_slide_load&#39;</span><span class="p">):</span>
+                <span class="n">widget</span><span class="o">.</span><span class="n">_on_slide_load</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="Studio.print_error"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.print_error">[docs]</a>    <span class="k">def</span> <span class="nf">print_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Print the given error message.&quot;&quot;&quot;</span>
@@ -1867,6 +1953,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">selected</span>           <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">buttonbar_width</span>    <span class="o">=</span> <span class="mi">72</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">navbutton_width</span>    <span class="o">=</span> <span class="mi">70</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">imagebutton_width</span>  <span class="o">=</span> <span class="mi">64</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span>        <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_pane_w_div</span>        <span class="o">=</span> <span class="mi">15</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">navbuttons</span>         <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;project&#39;</span><span class="p">,</span> <span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;heatmap&#39;</span><span class="p">]</span>
@@ -1959,7 +2046,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">tex</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tex_name</span><span class="si">}</span><span class="s1">_highlighted&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">gl_id</span>
         <span class="n">imgui</span><span class="o">.</span><span class="n">set_cursor_position</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">start_px</span><span class="p">))</span>
-        <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">image_button</span><span class="p">(</span><span class="n">tex</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">image_button</span><span class="p">(</span><span class="n">tex</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagebutton_width</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagebutton_width</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">expanded</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">expanded</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">expanded</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="n">name</span>
@@ -2087,7 +2174,7 @@
         <span class="n">imgui</span><span class="o">.</span><span class="n">pop_style_color</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span></div>
 
-<div class="viewcode-block" id="Sidebar.large_image_button"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Sidebar.large_image_button">[docs]</a>    <span class="k">def</span> <span class="nf">large_image_button</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_name</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">64</span><span class="p">):</span>
+<div class="viewcode-block" id="Sidebar.large_image_button"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Sidebar.large_image_button">[docs]</a>    <span class="k">def</span> <span class="nf">large_image_button</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_name</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Render a small button for the sidebar.</span>
 
 <span class="sd">        Args:</span>
@@ -2101,6 +2188,8 @@
 <span class="sd">            bool: If the button was clicked.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagebutton_width</span>
         <span class="n">tex</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">image_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">gl_id</span>
         <span class="k">return</span> <span class="n">imgui</span><span class="o">.</span><span class="n">image_button</span><span class="p">(</span><span class="n">tex</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span></div>
 
@@ -2181,7 +2270,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -2255,7 +2344,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

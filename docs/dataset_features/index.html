@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.DatasetFeatures &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.DatasetFeatures &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -298,7 +298,7 @@ dataset with 1000 categorical outcomes would require:</p>
 * 10000 slides
 ~= 112 GB</p>
 </div>
-<p>Calculates features / layer activations from model, storing to
+<p>Calculate features / layer activations from model, storing to
 internal parameters <code class="docutils literal notranslate"><span class="pre">self.activations</span></code>, and <code class="docutils literal notranslate"><span class="pre">self.predictions</span></code>,
 <code class="docutils literal notranslate"><span class="pre">self.locations</span></code>, dictionaries mapping slides to arrays of activations,
 predictions, and locations for each tiles’ constituent tiles.</p>
@@ -311,18 +311,109 @@ generate activations.</p></li>
 <li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slide names to outcome
 categories.</p></li>
 <li><p><strong>cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – File for PKL cache.</p></li>
-<li><p><strong>annotations</strong> – Deprecated.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Model layer(s) from which to calculate activations.
-Defaults to ‘postconv’.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Whether to use data augmentation
+during feature extraction. If True, will use default
+augmentation. If str, will use augmentation specified by the
+string. Defaults to None.</p></li>
 <li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Batch size for activations calculations.
 Defaults to 32.</p></li>
+<li><p><strong>device</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Device to use for feature extraction.
+Only used for PyTorch feature extractors. Defaults to None.</p></li>
 <li><p><strong>include_preds</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Calculate and store predictions.
 Defaults to True.</p></li>
+<li><p><strong>include_uncertainty</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to include model
+uncertainty in the output. Only used if the feature generator
+is a UQ-enabled model. Defaults to True.</p></li>
+<li><p><strong>layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>)</em>) – Layers to extract features from. May be
+the name of a single layer (str) or a list of layers (list).
+Only used if model is a str. Defaults to ‘postconv’.</p></li>
+<li><p><strong>normalizer</strong> ((str or <a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>), optional) – Stain normalization strategy to use on image tiles prior to
+feature extraction. This argument is invalid if <code class="docutils literal notranslate"><span class="pre">model</span></code> is a
+feature extractor built from a trained model, as stain
+normalization will be specified by the model configuration.
+Defaults to None.</p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Stain normalization preset
+or path to a source image. Valid presets include ‘v1’, ‘v2’,
+and ‘v3’. If None, will use the default present (‘v3’).
+This argument is invalid if <code class="docutils literal notranslate"><span class="pre">model</span></code> is a feature extractor
+built from a trained model. Defaults to None.</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of workers to use for feature
+extraction. Only used for PyTorch feature extractors. Defaults
+to None.</p></li>
+<li><p><strong>pool_sort</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Use multiprocessing pools to perform final
+sorting. Defaults to True.</p></li>
+<li><p><strong>progress</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Show a progress bar during feature calculation.
+Defaults to True.</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Show verbose logging output. Defaults to True.</p></li>
 </ul>
+</dd>
+</dl>
+<dl>
+<dt>Examples</dt><dd><p>Calculate features using a feature extractor.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
+
+<span class="c1"># Create a feature extractor</span>
+<span class="n">retccl</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;retccl&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">)</span>
+
+<span class="c1"># Load a dataset</span>
+<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Calculate features</span>
+<span class="n">dts_ftrs</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span><span class="n">retccl</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Calculate features using a trained model (preferred).</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
+
+<span class="c1"># Create a feature extractor from the saved model.</span>
+<span class="n">extractor</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
+    <span class="s1">&#39;/path/to/trained_model.zip&#39;</span><span class="p">,</span>
+    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;postconv&#39;</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Calculate features across the dataset</span>
+<span class="n">dts_ftrs</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span><span class="n">extractor</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Calculate features using a trained model (legacy).</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># This method is deprecated, and will be removed in a</span>
+<span class="c1"># future release. Please use the method above instead.</span>
+<span class="n">dts_ftrs</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span>
+    <span class="s1">&#39;/path/to/trained_model.zip&#39;</span><span class="p">,</span>
+    <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span>
+    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;postconv&#39;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Calculate features from a loaded model.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+<span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Load a model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="s1">&#39;/path/to/model.h5&#39;</span><span class="p">)</span>
+
+<span class="c1"># Calculate features</span>
+<span class="n">dts_ftrs</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">,</span>
+    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;postconv&#39;</span><span class="p">],</span>
+    <span class="n">dataset</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
 </dd>
 </dl>
 </dd></dl>
@@ -361,6 +452,68 @@ tiles in the category.</p>
 generate box plots.</p></li>
 <li><p><strong>outdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to directory in which to save box plots.</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.DatasetFeatures.concat">
+<span class="sig-name descname"><span class="pre">concat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.11)"><span class="pre">Iterable</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#slideflow.DatasetFeatures" title="slideflow.model.features.DatasetFeatures"><span class="pre">DatasetFeatures</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#slideflow.DatasetFeatures" title="slideflow.model.features.DatasetFeatures"><span class="pre">DatasetFeatures</span></a></span></span><a class="headerlink" href="#slideflow.DatasetFeatures.concat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Concatenate activations from multiple DatasetFeatures together.</p>
+<p>For example, if <code class="docutils literal notranslate"><span class="pre">df1</span></code> is a DatasetFeatures object with 2048 features
+and <code class="docutils literal notranslate"><span class="pre">df2</span></code> is a DatasetFeatures object with 1024 features,
+then <code class="docutils literal notranslate"><span class="pre">sf.DatasetFeatures.concat([df1,</span> <span class="pre">df2])</span></code> would return an object
+with 3072.</p>
+<p>Vectors from DatasetFeatures objects are concatenated in the given order.
+During concatenation, predictions and uncertainty are dropped.</p>
+<p>If there are any tiles that do not have calculated features in both
+dataframes, these will be dropped.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>args</strong> (Iterable[<code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetFeatures</span></code>]) – DatasetFeatures objects
+to concatenate.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>DatasetFeatures object with concatenated
+features.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetFeatures</span></code></p>
+</dd>
+</dl>
+<dl>
+<dt>Examples</dt><dd><p>Concatenate two DatasetFeatures objects.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">df1</span> <span class="o">=</span> <span class="n">DatasetFeatures</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">layers</span><span class="o">=</span><span class="s1">&#39;postconv&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">df2</span> <span class="o">=</span> <span class="n">DatasetFeatures</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">layers</span><span class="o">=</span><span class="s1">&#39;sepconv_3&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">df</span> <span class="o">=</span> <span class="n">DatasetFeatures</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df1</span><span class="p">,</span> <span class="n">df2</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.DatasetFeatures.from_df">
+<span class="sig-name descname"><span class="pre">from_df</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#slideflow.DatasetFeatures" title="slideflow.model.features.DatasetFeatures"><span class="pre">DatasetFeatures</span></a></span></span><a class="headerlink" href="#slideflow.DatasetFeatures.from_df" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load DataFrame of features, as exported by <code class="xref py py-meth docutils literal notranslate"><span class="pre">DatasetFeatures.to_df()</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>df</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code>) – DataFrame of features, as exported by
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">DatasetFeatures.to_df()</span></code></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>DatasetFeatures object</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetFeatures</span></code></p>
+</dd>
+</dl>
+<dl>
+<dt>Examples</dt><dd><p>Recreate DatasetFeatures after export to a DataFrame.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">df</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">to_df</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">new_features</span> <span class="o">=</span> <span class="n">DatasetFeatures</span><span class="o">.</span><span class="n">from_df</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</pre></div>
+</div>
 </dd>
 </dl>
 </dd></dl>
@@ -597,12 +750,15 @@ a pandas DataFrame.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.DatasetFeatures.to_torch">
-<span class="sig-name descname"><span class="pre">to_torch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">slides</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.DatasetFeatures.to_torch" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">to_torch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">slides</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.DatasetFeatures.to_torch" title="Permalink to this definition">¶</a></dt>
 <dd><p>Export activations in torch format to .pt files in the directory.</p>
 <p>Used for training MIL models.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>outdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to directory in which to save .pt files.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to directory in which to save .pt files.</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Verbose logging output. Defaults to True.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -634,7 +790,7 @@ a pandas DataFrame.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -658,6 +814,8 @@ a pandas DataFrame.</p>
 <li><a class="reference internal" href="#methods">Methods</a><ul>
 <li><a class="reference internal" href="#slideflow.DatasetFeatures.activations_by_category"><code class="docutils literal notranslate"><span class="pre">activations_by_category()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.DatasetFeatures.box_plots"><code class="docutils literal notranslate"><span class="pre">box_plots()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.DatasetFeatures.concat"><code class="docutils literal notranslate"><span class="pre">concat()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.DatasetFeatures.from_df"><code class="docutils literal notranslate"><span class="pre">from_df()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.DatasetFeatures.load_cache"><code class="docutils literal notranslate"><span class="pre">load_cache()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.DatasetFeatures.map_activations"><code class="docutils literal notranslate"><span class="pre">map_activations()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.DatasetFeatures.map_predictions"><code class="docutils literal notranslate"><span class="pre">map_predictions()</span></code></a></li>
@@ -733,7 +891,7 @@ a pandas DataFrame.</p>
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.slide.qc.strided_dl &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.slide.qc.strided_dl &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -278,13 +278,16 @@
 
   <h1>Source code for slideflow.slide.qc.strided_dl</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Union</span>
-<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
+<span class="kn">from</span> <span class="nn">.strided_qc</span> <span class="kn">import</span> <span class="n">_StridedQC</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 
 
-<div class="viewcode-block" id="StridedDL"><a class="viewcode-back" href="../../../../../slide_qc/#slideflow.slide.qc.StridedDL">[docs]</a><span class="k">class</span> <span class="nc">StridedDL</span><span class="p">:</span>
+<div class="viewcode-block" id="StridedDL"><a class="viewcode-back" href="../../../../../slide_qc/#slideflow.slide.qc.StridedDL">[docs]</a><span class="k">class</span> <span class="nc">StridedDL</span><span class="p">(</span><span class="n">_StridedQC</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -292,6 +295,7 @@
         <span class="n">pred_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">tile_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">tile_um</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
         <span class="n">buffer</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
         <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">pred_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
@@ -350,65 +354,82 @@
 
 
 <span class="sd">        Args:</span>
-<span class="sd">            dest (str, optional): Path in which to save the qc mask.</span>
-<span class="sd">                If None, will save in the same directory as the slide.</span>
-<span class="sd">                Defaults to None.</span>
+<span class="sd">            model (callable): Deep learning model.</span>
+<span class="sd">            pred_idx (int): Index of the model output to interpret as the</span>
+<span class="sd">                final prediction.</span>
+<span class="sd">            tile_px (int): Tile size.</span>
+<span class="sd">            tile_um (str or float): Tile size, in microns (int) or</span>
+<span class="sd">                magnification (str).</span>
+
+<span class="sd">        Keyword arguments:</span>
+<span class="sd">            verbose (bool): Show a progress bar during calculation.</span>
+<span class="sd">            buffer (int): Number of tiles (width and height) to extract and</span>
+<span class="sd">                process simultaneously. Extracted tile size (width/height)</span>
+<span class="sd">                will be  ``tile_px * buffer``. Defaults to 8.</span>
+<span class="sd">            grayspace_fraction (float): Grayspace fraction when extracting</span>
+<span class="sd">                tiles from slides. Defaults to 1 (disables).</span>
+<span class="sd">            pred_threshold (float): Predictions below this value are masked.</span>
+<span class="sd">            kwargs (Any): All remaining keyword arguments are passed to</span>
+<span class="sd">                :meth:`slideflow.WSI.build_generator()`.</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="n">buffer</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">tile_px</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="o">=</span> <span class="n">tile_um</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wsi_kwargs</span> <span class="o">=</span> <span class="n">wsi_kwargs</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">tile_px</span><span class="o">=</span><span class="n">tile_px</span><span class="p">,</span>
+            <span class="n">tile_um</span><span class="o">=</span><span class="n">tile_um</span><span class="p">,</span>
+            <span class="n">buffer</span><span class="o">=</span><span class="n">buffer</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="n">lazy_iter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">deterministic</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">wsi_kwargs</span>
+        <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pred_idx</span> <span class="o">=</span> <span class="n">pred_idx</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pred_threshold</span> <span class="o">=</span> <span class="n">pred_threshold</span>
 
+    <span class="k">def</span> <span class="nf">build_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the base, empty QC mask.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Predict focus value of an image tile using DeepFocus model.&quot;&quot;&quot;</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">False</span><span class="p">)[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pred_idx</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">y_pred</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">collate_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert the mask from predictions to bool using a threshold.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pred_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">mask</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">pred_threshold</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">mask</span>
+
+    <span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply preprocessing to an image.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">/</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span> <span class="nf">_set_threshold</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Temporariliy set or disable the prediction threshold.&quot;&quot;&quot;</span>
+        <span class="n">_orig_threshold</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pred_threshold</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">threshold</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+            <span class="c1"># Set the threshold to a given threshold</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pred_threshold</span> <span class="o">=</span> <span class="n">threshold</span>
+        <span class="k">elif</span> <span class="n">threshold</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="c1"># Disable thresholding (return raw values)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pred_threshold</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">yield</span>
+
+        <span class="c1"># Return the threshold to irs original value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pred_threshold</span> <span class="o">=</span> <span class="n">_orig_threshold</span>
+
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">wsi</span><span class="p">:</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
 
-        <span class="c1"># Initialize whole-slide reader.</span>
-        <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span>
-        <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span>
-        <span class="n">qc_wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">wsi</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="p">(</span><span class="n">k</span> <span class="o">*</span> <span class="n">b</span><span class="p">),</span> <span class="n">tile_um</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="n">existing_mask</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">qc_mask</span>
-        <span class="k">if</span> <span class="n">existing_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">qc_wsi</span><span class="o">.</span><span class="n">apply_qc_mask</span><span class="p">(</span><span class="n">existing_mask</span><span class="p">)</span>
-
-        <span class="c1"># Build tile generator.</span>
-        <span class="n">dts</span> <span class="o">=</span> <span class="n">qc_wsi</span><span class="o">.</span><span class="n">build_generator</span><span class="p">(</span>
-            <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">show_progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">img_format</span><span class="o">=</span><span class="s1">&#39;numpy&#39;</span><span class="p">,</span>
-            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">wsi_kwargs</span><span class="p">)()</span>
-
-        <span class="c1"># Generate prediction for slide.</span>
-        <span class="n">focus_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">qc_wsi</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">b</span><span class="p">,</span>
-                              <span class="n">qc_wsi</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">b</span><span class="p">),</span>
-                             <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
-            <span class="n">pb</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">dts</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Generating...&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">qc_wsi</span><span class="o">.</span><span class="n">estimated_num_tiles</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">pb</span> <span class="o">=</span> <span class="n">dts</span>
-        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">pb</span><span class="p">:</span>
-            <span class="n">img</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">/</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="n">sz</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">itemsize</span>
-            <span class="n">grid_i</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">grid_j</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">batch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">lib</span><span class="o">.</span><span class="n">stride_tricks</span><span class="o">.</span><span class="n">as_strided</span><span class="p">(</span><span class="n">img</span><span class="p">,</span>
-                                                    <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
-                                                    <span class="n">strides</span><span class="o">=</span><span class="p">(</span><span class="n">k</span> <span class="o">*</span> <span class="n">sz</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">k</span> <span class="o">*</span> <span class="n">b</span><span class="p">,</span>
-                                                            <span class="n">k</span> <span class="o">*</span> <span class="n">sz</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
-                                                            <span class="n">sz</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">k</span> <span class="o">*</span> <span class="n">b</span><span class="p">,</span>
-                                                            <span class="n">sz</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
-                                                            <span class="n">sz</span><span class="p">))</span>
-            <span class="n">batch</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">batch</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="o">*</span><span class="n">batch</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
-            <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">batch</span><span class="p">)[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pred_idx</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-            <span class="n">predictions</span> <span class="o">=</span> <span class="n">y_pred</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
-            <span class="n">focus_mask</span><span class="p">[</span><span class="n">grid_i</span> <span class="o">*</span> <span class="n">b</span><span class="p">:</span> <span class="n">grid_i</span> <span class="o">*</span> <span class="n">b</span> <span class="o">+</span> <span class="n">b</span><span class="p">,</span> <span class="n">grid_j</span> <span class="o">*</span> <span class="n">b</span><span class="p">:</span> <span class="n">grid_j</span> <span class="o">*</span> <span class="n">b</span> <span class="o">+</span> <span class="n">b</span><span class="p">]</span> <span class="o">=</span> <span class="n">predictions</span>
-
-        <span class="k">return</span> <span class="n">focus_mask</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">pred_threshold</span></div>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_threshold</span><span class="p">(</span><span class="n">threshold</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">wsi</span><span class="p">)</span></div>
 </pre></div>
 
              </article>
@@ -425,7 +446,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -499,7 +520,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

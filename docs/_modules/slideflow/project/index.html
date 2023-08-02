@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.project &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.project &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -317,7 +317,7 @@
 <span class="p">)</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">DatasetFeatures</span><span class="p">,</span> <span class="n">Trainer</span>
+    <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">DatasetFeatures</span><span class="p">,</span> <span class="n">Trainer</span><span class="p">,</span> <span class="n">BaseFeatureExtractor</span>
     <span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">SlideReport</span>
     <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">simclr</span><span class="p">,</span> <span class="n">mil</span>
     <span class="kn">from</span> <span class="nn">ConfigSpace</span> <span class="kn">import</span> <span class="n">ConfigurationSpace</span><span class="p">,</span> <span class="n">Configuration</span>
@@ -1558,7 +1558,9 @@
         <span class="n">filter_blank</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">attention_heatmaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate CLAM model on activations and export attention heatmaps.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deprecated function.</span>
+
+<span class="sd">        Evaluate CLAM model on activations and export attention heatmaps.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            exp_name (str): Name of experiment to evaluate (subfolder in clam/)</span>
@@ -1586,6 +1588,10 @@
 <span class="sd">            None</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Project.evaluate_clam() is deprecated. Please use &quot;</span>
+                      <span class="s2">&quot;Project.evaluate_mil()&quot;</span><span class="p">,</span>
+                      <span class="ne">DeprecationWarning</span><span class="p">)</span>
+
         <span class="kn">import</span> <span class="nn">slideflow.clam</span> <span class="k">as</span> <span class="nn">clam</span>
         <span class="kn">from</span> <span class="nn">slideflow.clam</span> <span class="kn">import</span> <span class="n">export_attention</span>
         <span class="kn">from</span> <span class="nn">slideflow.clam</span> <span class="kn">import</span> <span class="n">Generic_MIL_Dataset</span>
@@ -1894,8 +1900,9 @@
 <span class="sd">                Defaults to True.</span>
 <span class="sd">            normalizer (str, optional): Normalization strategy.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
-<span class="sd">                If None, will use slideflow.slide.norm_tile.jpg.</span>
+<span class="sd">            normalizer_source (str, optional): Stain normalization preset or</span>
+<span class="sd">                path to a source image. Valid presets include &#39;v1&#39;, &#39;v2&#39;, and</span>
+<span class="sd">                &#39;v3&#39;. If None, will use the default present (&#39;v3&#39;).</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            whitespace_fraction (float, optional): Range 0-1. Discard tiles</span>
 <span class="sd">                with this fraction of whitespace. If 1, will not perform</span>
@@ -2238,23 +2245,33 @@
         <span class="k">return</span> <span class="n">df</span>
 
     <span class="nd">@auto_dataset_allow_none</span>
-    <span class="k">def</span> <span class="nf">generate_features_for_clam</span><span class="p">(</span>
+    <span class="k">def</span> <span class="nf">generate_features_for_clam</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;Project.generate_features_for_clam() is deprecated. &quot;</span>
+            <span class="s2">&quot;Please use .generate_feature_bags()&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generate_feature_bags</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@auto_dataset_allow_none</span>
+    <span class="k">def</span> <span class="nf">generate_feature_bags</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;BaseFeatureExtractor&quot;</span><span class="p">],</span>
+        <span class="n">dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dataset</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dataset</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">filters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">filter_blank</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">min_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
         <span class="n">max_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-        <span class="n">layers</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="s1">&#39;postconv&#39;</span><span class="p">,</span>
         <span class="n">force_regenerate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="n">slide_batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate tile-level features for slides for use with CLAM.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate tile-level features for slides for use with MIL models.</span>
 
-<span class="sd">        By default, CLAM features are saved in the ``pt_files`` folder</span>
+<span class="sd">        By default, features are exported to the ``pt_files`` folder</span>
 <span class="sd">        within the project root directory.</span>
 
 <span class="sd">        Args:</span>
@@ -2279,20 +2296,26 @@
 <span class="sd">            max_tiles (int, optional): Only include maximum of this many tiles</span>
 <span class="sd">                per slide. Defaults to 0 (all tiles).</span>
 <span class="sd">            layers (list): Which model layer(s) generate activations.</span>
-<span class="sd">                Defaults to &#39;postconv&#39;.</span>
+<span class="sd">                If ``model`` is a saved model, this defaults to &#39;postconv&#39;.</span>
+<span class="sd">                Defaults to None.</span>
 <span class="sd">            force_regenerate (bool): Forcibly regenerate activations</span>
 <span class="sd">                for all slides even if .pt file exists. Defaults to False.</span>
 <span class="sd">            min_tiles (int, optional): Minimum tiles per slide. Skip slides</span>
 <span class="sd">                not meeting this threshold. Defaults to 16.</span>
 <span class="sd">            batch_size (int): Batch size during feature calculation.</span>
 <span class="sd">                Defaults to 32.</span>
+<span class="sd">            slide_batch_size (int): Interleave feature calculation across</span>
+<span class="sd">                this many slides. Higher values may improve performance</span>
+<span class="sd">                but require more memory. Defaults to 16.</span>
+<span class="sd">            **kwargs: Additional keyword arguments are passed to</span>
+<span class="sd">                :class:`slideflow.DatasetFeatures`.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Path to directory containing exported .pt files</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Check if the model exists and has a valid parameters file</span>
-        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
             <span class="n">config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">dataset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -2322,23 +2345,37 @@
         <span class="c1"># Ensure min_tiles is applied to the dataset.</span>
         <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">min_tiles</span><span class="o">=</span><span class="n">min_tiles</span><span class="p">)</span>
 
-        <span class="c1"># If the model does not exist, check if it is an architecture name</span>
+        <span class="c1"># Check if the model is an architecture name</span>
         <span class="c1"># (for using an Imagenet pretrained model)</span>
-        <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">is_extractor</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building feature extractor </span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">is_extractor</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building feature extractor: [green]</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
+            <span class="n">layer_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">layers</span><span class="o">=</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;layers&#39;</span><span class="p">])</span> <span class="k">if</span> <span class="s1">&#39;layers&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="k">else</span> <span class="nb">dict</span><span class="p">()</span>
             <span class="n">model</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">build_feature_extractor</span><span class="p">(</span>
-                <span class="n">model</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">tile_px</span>
+                <span class="n">model</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="o">**</span><span class="n">layer_kw</span>
             <span class="p">)</span>
 
             <span class="c1"># Set the pt_files directory if not provided</span>
             <span class="k">if</span> <span class="n">outdir</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
                 <span class="n">outdir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s1">&#39;pt_files&#39;</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span>
 
-        <span class="k">elif</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2">&#39; is neither a path to a saved model nor the name &quot;</span>
                 <span class="s2">&quot;of a valid feature extractor (use sf.model.list_extractors() &quot;</span>
                 <span class="s2">&quot;for a list of all available feature extractors).&quot;</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="kn">from</span> <span class="nn">slideflow.model.base</span> <span class="kn">import</span> <span class="n">BaseFeatureExtractor</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">BaseFeatureExtractor</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2">&#39; is neither a path to a saved model nor the name &quot;</span>
+                    <span class="s2">&quot;of a valid feature extractor (use sf.model.list_extractors() &quot;</span>
+                    <span class="s2">&quot;for a list of all available feature extractors).&quot;</span><span class="p">)</span>
+
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using feature extractor: [green]</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">tag</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
+            <span class="c1"># Set the pt_files directory if not provided</span>
+            <span class="k">if</span> <span class="n">outdir</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
+                <span class="n">outdir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s1">&#39;pt_files&#39;</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span>
 
         <span class="c1"># Create the pt_files directory</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
@@ -2365,15 +2402,28 @@
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Skipping </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">done</span><span class="p">)</span><span class="si">}</span><span class="s1"> files already done.&#39;</span><span class="p">)</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">filtered_slides_to_generate</span><span class="p">)</span><span class="si">}</span><span class="s1"> slides&#39;</span><span class="p">)</span>
 
-        <span class="c1"># Set up activations interface</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span>
-            <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
-            <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span>
-            <span class="n">layers</span><span class="o">=</span><span class="n">layers</span><span class="p">,</span>
-            <span class="n">include_preds</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span>
-        <span class="p">)</span>
-        <span class="n">df</span><span class="o">.</span><span class="n">to_torch</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
+        <span class="c1"># Set up activations interface.</span>
+        <span class="c1"># Calculate features one slide at a time to reduce memory consumption.</span>
+        <span class="k">for</span> <span class="n">slide_batch</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">slides</span><span class="p">(),</span> <span class="n">slide_batch_size</span><span class="p">),</span>
+                                <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">slides</span><span class="p">())</span> <span class="o">//</span> <span class="n">slide_batch_size</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">remove_filter</span><span class="p">(</span><span class="n">filters</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">DatasetFilterError</span><span class="p">:</span>
+                <span class="n">_dataset</span> <span class="o">=</span> <span class="n">dataset</span>
+            <span class="n">_dataset</span> <span class="o">=</span> <span class="n">_dataset</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="n">slide_batch</span><span class="p">})</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span>
+                <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+                <span class="n">dataset</span><span class="o">=</span><span class="n">_dataset</span><span class="p">,</span>
+                <span class="n">include_preds</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">include_uncertainty</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+                <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">pool_sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">to_torch</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">outdir</span>
 
     <span class="nd">@auto_dataset</span>
@@ -2744,7 +2794,7 @@
 
 <span class="sd">        Keyword Args:</span>
 <span class="sd">            dataset (:class:`slideflow.Dataset`): Dataset object.</span>
-<span class="sd">            model (str, optional): Path to Tensorflow model to use when</span>
+<span class="sd">            model (str, optional): Path to model to use when</span>
 <span class="sd">                generating layer activations.</span>
 <span class="sd">            Defaults to None.</span>
 <span class="sd">                If not provided, mosaic will not be calculated or saved.</span>
@@ -3609,8 +3659,8 @@
 <span class="sd">                model from which to load weights. Defaults to &#39;imagenet&#39;.</span>
 <span class="sd">            multi_gpu (bool): Train using multiple GPUs when available.</span>
 <span class="sd">                Defaults to False.</span>
-<span class="sd">            resume_training (str, optional): Path to Tensorflow model to</span>
-<span class="sd">                continue training. Defaults to None.</span>
+<span class="sd">            resume_training (str, optional): Path to model to continue training.</span>
+<span class="sd">                Only valid in Tensorflow backend. Defaults to None.</span>
 <span class="sd">            starting_epoch (int): Start training at the specified epoch.</span>
 <span class="sd">                Defaults to 0.</span>
 <span class="sd">            steps_per_epoch_override (int): If provided, will manually set the</span>
@@ -3627,7 +3677,7 @@
 <span class="sd">            validation_batch_size (int): Validation dataset batch size.</span>
 <span class="sd">                Defaults to 32.</span>
 <span class="sd">            use_tensorboard (bool): Add tensorboard callback for realtime</span>
-<span class="sd">                training monitoring. Defaults to False.</span>
+<span class="sd">                training monitoring. Defaults to True.</span>
 <span class="sd">            validation_steps (int): Number of steps of validation to perform</span>
 <span class="sd">                each time doing a mid-epoch validation check. Defaults to 200.</span>
 
@@ -3899,6 +3949,8 @@
         <span class="n">exp_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">dataset_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;sf.norm.StainNormalizer&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">normalizer_source</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Train SimCLR model.</span>
@@ -3936,7 +3988,7 @@
             <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s1">&#39;simclr&#39;</span><span class="p">),</span> <span class="n">exp_label</span>
         <span class="p">)</span>
 
-        <span class="c1"># get base SimCLR args/settings if not provided</span>
+        <span class="c1"># Get base SimCLR args/settings if not provided</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">simclr_args</span><span class="p">:</span>
             <span class="n">simclr_args</span> <span class="o">=</span> <span class="n">simclr</span><span class="o">.</span><span class="n">get_args</span><span class="p">()</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">simclr_args</span><span class="p">,</span> <span class="n">simclr</span><span class="o">.</span><span class="n">SimCLR_Args</span><span class="p">)</span>
@@ -3947,7 +3999,9 @@
             <span class="n">train_dts</span><span class="o">=</span><span class="n">train_dataset</span><span class="p">,</span>
             <span class="n">val_dts</span><span class="o">=</span><span class="n">val_dataset</span><span class="p">,</span>
             <span class="n">labels</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
-            <span class="n">dataset_kwargs</span><span class="o">=</span><span class="n">dataset_kwargs</span>
+            <span class="n">dataset_kwargs</span><span class="o">=</span><span class="n">dataset_kwargs</span><span class="p">,</span>
+            <span class="n">normalizer</span><span class="o">=</span><span class="n">normalizer</span><span class="p">,</span>
+            <span class="n">normalizer_source</span><span class="o">=</span><span class="n">normalizer_source</span>
         <span class="p">)</span>
         <span class="n">simclr</span><span class="o">.</span><span class="n">run_simclr</span><span class="p">(</span><span class="n">simclr_args</span><span class="p">,</span> <span class="n">builder</span><span class="p">,</span> <span class="n">model_dir</span><span class="o">=</span><span class="n">outdir</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -4324,7 +4378,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -4398,7 +4452,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

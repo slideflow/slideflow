@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.simclr.simclr.tf2.data &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.simclr.simclr.tf2.data &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -295,6 +295,7 @@
 <span class="sd">&quot;&quot;&quot;Data pipeline.&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logging</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">data_util</span>
@@ -305,8 +306,8 @@
 <div class="viewcode-block" id="DatasetBuilder"><a class="viewcode-back" href="../../../../../../simclr/#slideflow.simclr.DatasetBuilder">[docs]</a><span class="k">class</span> <span class="nc">DatasetBuilder</span><span class="p">:</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">train_dts</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">val_dts</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">test_dts</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">val_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">steps_per_epoch_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">dataset_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                 <span class="n">val_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">steps_per_epoch_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">normalizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">normalizer_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a training/validation dataset pipeline for SimCLR.</span>
 
 <span class="sd">        Args:</span>
@@ -373,6 +374,13 @@
             <span class="n">train_tiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_dts</span><span class="o">.</span><span class="n">num_tiles</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">train_tiles</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">normalizer</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">autoselect</span><span class="p">(</span><span class="n">normalizer</span><span class="p">,</span>
+                                                 <span class="n">source</span><span class="o">=</span><span class="n">normalizer_source</span><span class="p">,</span>
+                                                 <span class="n">backend</span><span class="o">=</span><span class="s1">&#39;tensorflow&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="n">normalizer</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dataset_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span> <span class="k">if</span> <span class="n">dataset_kwargs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dataset_kwargs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">info</span> <span class="o">=</span> <span class="n">data_util</span><span class="o">.</span><span class="n">EasyDict</span><span class="p">(</span>
@@ -385,7 +393,7 @@
                 <span class="n">test</span><span class="o">=</span><span class="n">data_util</span><span class="o">.</span><span class="n">EasyDict</span><span class="p">(</span><span class="n">num_examples</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_dts</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_dts</span><span class="o">.</span><span class="n">num_tiles</span><span class="p">))</span>
             <span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">as_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">split</span><span class="p">,</span> <span class="n">read_config</span><span class="p">,</span> <span class="n">shuffle_files</span><span class="p">,</span> <span class="n">as_supervised</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">as_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">split</span><span class="p">,</span> <span class="n">read_config</span><span class="p">,</span> <span class="n">shuffle_files</span><span class="p">,</span> <span class="n">as_supervised</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dataset split requested: </span><span class="si">{</span><span class="n">split</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">split</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span><span class="p">:</span>
             <span class="n">dts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_dts</span>
@@ -406,7 +414,8 @@
             <span class="n">deterministic</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">standardize</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">infinite</span><span class="o">=</span><span class="p">(</span><span class="n">split</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span><span class="p">),</span>
-            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_kwargs</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_kwargs</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">build_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -446,11 +455,19 @@
     <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Global batch size: </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">global_batch_size</span><span class="p">)</span>
     <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Per-replica batch size: </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
     <span class="n">preprocess_fn_pretrain</span> <span class="o">=</span> <span class="n">get_preprocess_fn</span><span class="p">(</span>
-      <span class="n">is_training</span><span class="p">,</span> <span class="n">is_pretrain</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">image_size</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">image_size</span><span class="p">,</span>
-      <span class="n">color_jitter_strength</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">color_jitter_strength</span><span class="p">)</span>
+      <span class="n">is_training</span><span class="p">,</span>
+      <span class="n">is_pretrain</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+      <span class="n">image_size</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">image_size</span><span class="p">,</span>
+      <span class="n">color_jitter_strength</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">color_jitter_strength</span><span class="p">,</span>
+      <span class="n">normalizer</span><span class="o">=</span><span class="p">(</span><span class="n">builder</span><span class="o">.</span><span class="n">normalizer</span> <span class="k">if</span> <span class="n">is_training</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
+      <span class="n">normalizer_augment</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">stain_augment</span><span class="p">)</span>
     <span class="n">preprocess_fn_finetune</span> <span class="o">=</span> <span class="n">get_preprocess_fn</span><span class="p">(</span>
-      <span class="n">is_training</span><span class="p">,</span> <span class="n">is_pretrain</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">image_size</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">image_size</span><span class="p">,</span>
-      <span class="n">color_jitter_strength</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">color_jitter_strength</span><span class="p">)</span>
+      <span class="n">is_training</span><span class="p">,</span>
+      <span class="n">is_pretrain</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+      <span class="n">image_size</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">image_size</span><span class="p">,</span>
+      <span class="n">color_jitter_strength</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">color_jitter_strength</span><span class="p">,</span>
+      <span class="n">normalizer</span><span class="o">=</span><span class="p">(</span><span class="n">builder</span><span class="o">.</span><span class="n">normalizer</span> <span class="k">if</span> <span class="n">is_training</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
+      <span class="n">normalizer_augment</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">stain_augment</span><span class="p">)</span>
     <span class="n">num_classes</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">num_classes</span>
 
     <span class="k">def</span> <span class="nf">map_fn</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
@@ -467,6 +484,13 @@
       <span class="k">return</span> <span class="n">detuple</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
 
     <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;num_input_pipelines: </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">input_context</span><span class="o">.</span><span class="n">num_input_pipelines</span><span class="p">)</span>
+
+    <span class="c1"># Perform stain normalization within sf.Dataset.tensorflow()</span>
+    <span class="c1"># If this is for inference.</span>
+    <span class="k">if</span> <span class="n">builder</span><span class="o">.</span><span class="n">normalizer</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_training</span><span class="p">:</span>
+      <span class="n">dts_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">normalizer</span><span class="o">=</span><span class="n">builder</span><span class="o">.</span><span class="n">normalizer</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">dts_kw</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="n">dataset</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">as_dataset</span><span class="p">(</span>
         <span class="n">split</span><span class="o">=</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">train_split</span> <span class="k">if</span> <span class="n">is_training</span> <span class="k">else</span> <span class="n">simclr_args</span><span class="o">.</span><span class="n">eval_split</span><span class="p">,</span>
         <span class="n">shuffle_files</span><span class="o">=</span><span class="n">is_training</span><span class="p">,</span>
@@ -477,7 +501,8 @@
         <span class="n">read_config</span><span class="o">=</span><span class="n">tfds</span><span class="o">.</span><span class="n">ReadConfig</span><span class="p">(</span>
             <span class="n">interleave_cycle_length</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
             <span class="n">interleave_block_length</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-            <span class="n">input_context</span><span class="o">=</span><span class="n">input_context</span><span class="p">))</span>
+            <span class="n">input_context</span><span class="o">=</span><span class="n">input_context</span><span class="p">),</span>
+        <span class="o">**</span><span class="n">dts_kw</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">cache_dataset</span><span class="p">:</span>
       <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">cache</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">is_training</span><span class="p">:</span>
@@ -507,21 +532,25 @@
   <span class="k">return</span> <span class="n">strategy</span><span class="o">.</span><span class="n">distribute_datasets_from_function</span><span class="p">(</span><span class="n">input_fn</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">get_preprocess_fn</span><span class="p">(</span><span class="n">is_training</span><span class="p">,</span> <span class="n">is_pretrain</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span> <span class="n">color_jitter_strength</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">get_preprocess_fn</span><span class="p">(</span><span class="n">is_training</span><span class="p">,</span> <span class="n">is_pretrain</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span>
+                      <span class="n">color_jitter_strength</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">normalizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                      <span class="n">normalizer_augment</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">center_crop</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">  </span><span class="sd">&quot;&quot;&quot;Get function that accepts an image and returns a preprocessed image.&quot;&quot;&quot;</span>
   <span class="c1"># Disable test cropping for small images (e.g. CIFAR)</span>
-  <span class="k">if</span> <span class="n">image_size</span> <span class="o">&lt;=</span> <span class="mi">32</span><span class="p">:</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">center_crop</span> <span class="ow">or</span> <span class="n">image_size</span> <span class="o">&lt;=</span> <span class="mi">32</span><span class="p">:</span>
     <span class="n">test_crop</span> <span class="o">=</span> <span class="kc">False</span>
   <span class="k">else</span><span class="p">:</span>
     <span class="n">test_crop</span> <span class="o">=</span> <span class="kc">True</span>
   <span class="k">return</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span>
-      <span class="n">data_util</span><span class="o">.</span><span class="n">preprocess_image</span><span class="p">,</span>
-      <span class="n">height</span><span class="o">=</span><span class="n">image_size</span><span class="p">,</span>
-      <span class="n">width</span><span class="o">=</span><span class="n">image_size</span><span class="p">,</span>
-      <span class="n">color_jitter_strength</span><span class="o">=</span><span class="n">color_jitter_strength</span><span class="p">,</span>
-      <span class="n">is_training</span><span class="o">=</span><span class="n">is_training</span><span class="p">,</span>
-      <span class="n">color_distort</span><span class="o">=</span><span class="n">is_pretrain</span><span class="p">,</span>
-      <span class="n">test_crop</span><span class="o">=</span><span class="n">test_crop</span><span class="p">)</span>
+    <span class="n">data_util</span><span class="o">.</span><span class="n">preprocess_image</span><span class="p">,</span>
+    <span class="n">height</span><span class="o">=</span><span class="n">image_size</span><span class="p">,</span>
+    <span class="n">width</span><span class="o">=</span><span class="n">image_size</span><span class="p">,</span>
+    <span class="n">color_jitter_strength</span><span class="o">=</span><span class="n">color_jitter_strength</span><span class="p">,</span>
+    <span class="n">is_training</span><span class="o">=</span><span class="n">is_training</span><span class="p">,</span>
+    <span class="n">color_distort</span><span class="o">=</span><span class="n">is_pretrain</span><span class="p">,</span>
+    <span class="n">test_crop</span><span class="o">=</span><span class="n">test_crop</span><span class="p">,</span>
+    <span class="n">normalizer</span><span class="o">=</span><span class="n">normalizer</span><span class="p">,</span>
+    <span class="n">normalizer_augment</span><span class="o">=</span><span class="n">normalizer_augment</span><span class="p">)</span>
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
@@ -561,7 +590,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -635,7 +664,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

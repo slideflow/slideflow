@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.slide.qc.gaussian &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.slide.qc.gaussian &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -285,6 +285,8 @@
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
 
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
 <div class="viewcode-block" id="Gaussian"><a class="viewcode-back" href="../../../../../slide_qc/#slideflow.slide.qc.Gaussian">[docs]</a><span class="k">class</span> <span class="nc">Gaussian</span><span class="p">:</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
@@ -311,8 +313,8 @@
 <span class="sd">                    from slideflow.slide import qc</span>
 
 <span class="sd">                    wsi = sf.WSI(...)</span>
-<span class="sd">                    otsu = qc.Otsu()</span>
-<span class="sd">                    wsi.qc(otsu)</span>
+<span class="sd">                    gaussian = qc.Gaussian()</span>
+<span class="sd">                    wsi.qc(gaussian)</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            mpp (float): Microns-per-pixel at which to perform filtering.</span>
@@ -389,20 +391,24 @@
         <span class="n">existing_qc_mask</span> <span class="o">=</span> <span class="n">mask</span>
         <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">):</span>
             <span class="n">existing_qc_mask</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">qc_mask</span>
-        <span class="k">if</span> <span class="n">existing_qc_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">blur_mask</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">existing_qc_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-            <span class="n">blur_mask</span> <span class="o">=</span> <span class="n">blur_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
-            <span class="n">blur</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span>
-                <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
-                    <span class="n">blur_mask</span><span class="p">,</span>
-                    <span class="n">np</span><span class="o">.</span><span class="n">logical_xor</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">existing_qc_mask</span><span class="p">)</span>
-                <span class="p">)</span>
-            <span class="p">)</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">):</span>
-                <span class="n">wsi</span><span class="o">.</span><span class="n">blur_burden</span> <span class="o">=</span> <span class="n">blur</span> <span class="o">/</span> <span class="p">(</span><span class="n">blur_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">blur_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-                <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Blur burden: </span><span class="si">{</span><span class="n">wsi</span><span class="o">.</span><span class="n">blur_burden</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">existing_qc_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">):</span>
+            <span class="n">wsi</span><span class="o">.</span><span class="n">blur_burden</span> <span class="o">=</span> <span class="n">blur_burden</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">existing_qc_mask</span><span class="p">)</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Blur burden: </span><span class="si">{</span><span class="n">wsi</span><span class="o">.</span><span class="n">blur_burden</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">blur_mask</span></div>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<span class="k">def</span> <span class="nf">blur_burden</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">existing_mask</span><span class="p">):</span>
+    <span class="n">blur_mask</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">existing_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">blur_mask</span> <span class="o">=</span> <span class="n">blur_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="n">blur</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+            <span class="n">blur_mask</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">logical_xor</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">existing_mask</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">blur</span> <span class="o">/</span> <span class="p">(</span><span class="n">blur_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">blur_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 </pre></div>
 
              </article>
@@ -419,7 +425,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -493,7 +499,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

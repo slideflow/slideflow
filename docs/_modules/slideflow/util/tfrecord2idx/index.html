@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.util.tfrecord2idx &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.util.tfrecord2idx &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -321,35 +321,75 @@
 <span class="sd">        Path where to store the index file.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">infile</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span>
-    <span class="n">out_array</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">start_bytes_array</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">loc_array</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">datum_bytes</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">(</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
 
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">cur</span> <span class="o">=</span> <span class="n">infile</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">byte_len</span> <span class="o">=</span> <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">byte_len</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">break</span>
-            <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
-            <span class="n">proto_len</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span> <span class="n">byte_len</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">proto_len</span><span class="p">)</span>
-            <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
-            <span class="n">out_array</span> <span class="o">+=</span> <span class="p">[[</span><span class="n">cur</span><span class="p">,</span> <span class="n">infile</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">-</span> <span class="n">cur</span><span class="p">]]</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Failed to parse TFRecord.&quot;</span><span class="p">)</span>
+        <span class="n">byte_len</span> <span class="o">=</span> <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">byte_len</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">break</span>
+        <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+        <span class="n">proto_len</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span> <span class="n">byte_len</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">proto_len</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">datum_bytes</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">_fill</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">proto_len</span> <span class="o">*</span> <span class="mf">1.5</span><span class="p">)</span>
+                <span class="n">datum_bytes</span> <span class="o">=</span> <span class="n">datum_bytes</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">_fill</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OverflowError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;Error reading tfrecord </span><span class="si">{</span><span class="n">tfrecord_file</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="p">)</span>
+        <span class="n">datum_bytes_view</span> <span class="o">=</span> <span class="nb">memoryview</span><span class="p">(</span><span class="n">datum_bytes</span><span class="p">)[:</span><span class="n">proto_len</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">infile</span><span class="o">.</span><span class="n">readinto</span><span class="p">(</span><span class="n">datum_bytes_view</span><span class="p">)</span> <span class="o">!=</span> <span class="n">proto_len</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Failed to read record </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2"> of file </span><span class="si">{</span><span class="n">tfrecord_file</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+        <span class="n">start_bytes_array</span> <span class="o">+=</span> <span class="p">[[</span><span class="n">cur</span><span class="p">,</span> <span class="n">infile</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">-</span> <span class="n">cur</span><span class="p">]]</span>
+
+        <span class="c1"># Process record bytes, to read location information.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">record</span> <span class="o">=</span> <span class="n">process_record_from_bytes</span><span class="p">(</span><span class="n">datum_bytes_view</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Unable to detect TFRecord format: </span><span class="si">{</span><span class="n">tfrecord_file</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;loc_x&#39;</span> <span class="ow">in</span> <span class="n">record</span> <span class="ow">and</span> <span class="s1">&#39;loc_y&#39;</span> <span class="ow">in</span> <span class="n">record</span><span class="p">:</span>
+            <span class="n">loc_array</span> <span class="o">+=</span> <span class="p">[[</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">],</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]]]</span>
+        <span class="k">elif</span> <span class="s1">&#39;loc_x&#39;</span> <span class="ow">in</span> <span class="n">record</span><span class="p">:</span>
+            <span class="n">loc_array</span> <span class="o">+=</span> <span class="p">[[</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">]]]</span>
+        <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+
     <span class="n">infile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-    <span class="n">save_index</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">out_array</span><span class="p">),</span> <span class="n">index_file</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">loc_array</span><span class="p">:</span>
+        <span class="n">loc_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">loc_array</span><span class="p">)</span>
+    <span class="n">save_index</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">start_bytes_array</span><span class="p">),</span> <span class="n">index_file</span><span class="p">,</span> <span class="n">locations</span><span class="o">=</span><span class="n">loc_array</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">save_index</span><span class="p">(</span><span class="n">index_array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">index_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="k">def</span> <span class="nf">save_index</span><span class="p">(</span>
+    <span class="n">index_array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">index_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">locations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Save an array as an index file.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="s1">&#39;SF_ALLOW_ZIP&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SF_ALLOW_ZIP&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
         <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">index_file</span> <span class="o">+</span> <span class="s1">&#39;.npy&#39;</span><span class="p">,</span> <span class="n">index_array</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">np</span><span class="o">.</span><span class="n">savez</span><span class="p">(</span><span class="n">index_file</span><span class="p">,</span> <span class="n">index_array</span><span class="p">)</span>
+        <span class="n">loc_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">locations</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">loc_kw</span><span class="p">[</span><span class="s1">&#39;locations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">locations</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">savez</span><span class="p">(</span>
+            <span class="n">index_file</span><span class="p">,</span>
+            <span class="n">arr_0</span><span class="o">=</span><span class="n">index_array</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">loc_kw</span>
+        <span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">find_index</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Find the index file for a TFRecord.&quot;&quot;&quot;</span>
     <span class="n">name</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">),</span> <span class="n">name</span><span class="o">+</span><span class="s1">&#39;.index&#39;</span><span class="p">)):</span>
         <span class="k">return</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">),</span> <span class="n">name</span><span class="o">+</span><span class="s1">&#39;.index&#39;</span><span class="p">)</span>
@@ -362,6 +402,7 @@
 
 
 <span class="k">def</span> <span class="nf">load_index</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Find and load the index associated with a TFRecord.&quot;&quot;&quot;</span>
     <span class="n">index_path</span> <span class="o">=</span> <span class="n">find_index</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">index_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find index path for TFRecord </span><span class="si">{</span><span class="n">tfrecord</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -373,6 +414,26 @@
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">index_path</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">index_path</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">index_has_locations</span><span class="p">(</span><span class="n">index</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if an index file has tile location information stored.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;npy&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;locations&#39;</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">index</span><span class="p">)</span><span class="o">.</span><span class="n">files</span>
+
+<span class="k">def</span> <span class="nf">get_locations_from_index</span><span class="p">(</span><span class="n">index</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;npy&#39;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsIndexError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Index file </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> does not contain location information.&quot;</span>
+        <span class="p">)</span>
+    <span class="n">loaded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;locations&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">loaded</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsIndexError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Index file </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> does not contain location information.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">loaded</span><span class="p">[</span><span class="s1">&#39;locations&#39;</span><span class="p">]]</span>
 
 
 <div class="viewcode-block" id="get_tfrecord_length"><a class="viewcode-back" href="../../../../io/#slideflow.io.get_tfrecord_length">[docs]</a><span class="k">def</span> <span class="nf">get_tfrecord_length</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
@@ -496,18 +557,28 @@
 
     <span class="c1"># Process record bytes.</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">record</span> <span class="o">=</span> <span class="n">process_record</span><span class="p">(</span><span class="n">datum_bytes_view</span><span class="p">)</span>
+        <span class="n">record</span> <span class="o">=</span> <span class="n">process_record_from_bytes</span><span class="p">(</span><span class="n">datum_bytes_view</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Unable to detect TFRecord format: </span><span class="si">{</span><span class="n">tfrecord</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+
+    <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">record</span></div>
+
+
+<span class="k">def</span> <span class="nf">process_record_from_bytes</span><span class="p">(</span><span class="n">bytes_view</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">record</span> <span class="o">=</span> <span class="n">process_record</span><span class="p">(</span><span class="n">bytes_view</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
         <span class="n">feature_description</span> <span class="o">=</span> <span class="p">{</span>
             <span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">FEATURE_DESCRIPTION</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;image_raw&#39;</span><span class="p">)</span>
         <span class="p">}</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">record</span> <span class="o">=</span> <span class="n">process_record</span><span class="p">(</span><span class="n">datum_bytes_view</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="n">feature_description</span><span class="p">)</span>
+            <span class="n">record</span> <span class="o">=</span> <span class="n">process_record</span><span class="p">(</span><span class="n">bytes_view</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="n">feature_description</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Unable to detect TFRecord format: </span><span class="si">{</span><span class="n">tfrecord</span><span class="si">}</span><span class="s1">&#39;</span>
-            <span class="p">)</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span>
 
     <span class="c1"># Final parsing.</span>
     <span class="k">if</span> <span class="s1">&#39;slide&#39;</span> <span class="ow">in</span> <span class="n">record</span><span class="p">:</span>
@@ -518,9 +589,7 @@
         <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">if</span> <span class="s1">&#39;loc_y&#39;</span> <span class="ow">in</span> <span class="n">record</span><span class="p">:</span>
         <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-
-    <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">record</span></div>
+    <span class="k">return</span> <span class="n">record</span>
 
 
 <span class="k">def</span> <span class="nf">process_record</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -560,7 +629,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -634,7 +703,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.studio &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.studio &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -357,7 +357,7 @@ uses a width that spans the width of the sidebar.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.studio.Sidebar.large_image_button">
-<span class="sig-name descname"><span class="pre">large_image_button</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">64</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Sidebar.large_image_button"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Sidebar.large_image_button" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">large_image_button</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Sidebar.large_image_button"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Sidebar.large_image_button" title="Permalink to this definition">¶</a></dt>
 <dd><p>Render a small button for the sidebar.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -509,6 +509,12 @@ instantiated objects.</p>
 <dt class="sig sig-object py" id="slideflow.studio.Studio.ask_load_slide">
 <span class="sig-name descname"><span class="pre">ask_load_slide</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.ask_load_slide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.ask_load_slide" title="Permalink to this definition">¶</a></dt>
 <dd><p>Prompt user for location of a slide and load.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.ask_zoom_to_mpp">
+<span class="sig-name descname"><span class="pre">ask_zoom_to_mpp</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.ask_zoom_to_mpp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.ask_zoom_to_mpp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompt the user to zoom to a specific microns-per-pixel (MPP).</p>
 </dd></dl>
 
 <dl class="py method">
@@ -753,6 +759,27 @@ uppercase.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="slideflow.studio.Studio.highlighted">
+<span class="sig-name descname"><span class="pre">highlighted</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">enable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.highlighted"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.highlighted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Render highlighted text.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>enable</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Whether to enable highlighting.</p>
+</dd>
+</dl>
+<dl>
+<dt>Examples</dt><dd><p>Render highlighted text.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">studio</span><span class="o">.</span><span class="n">highlighted</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">imgui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s1">&#39;This is highlighted&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="slideflow.studio.Studio.increase_tile_zoom">
 <span class="sig-name descname"><span class="pre">increase_tile_zoom</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/slideflow/studio/#Studio.increase_tile_zoom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.studio.Studio.increase_tile_zoom" title="Permalink to this definition">¶</a></dt>
 <dd><p>Increase zoom of tile view two-fold.</p>
@@ -978,7 +1005,7 @@ over the main view.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1020,6 +1047,7 @@ over the main view.</p>
 <li><a class="reference internal" href="#slideflow.studio.Studio.ask_load_model"><code class="docutils literal notranslate"><span class="pre">Studio.ask_load_model()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.studio.Studio.ask_load_project"><code class="docutils literal notranslate"><span class="pre">Studio.ask_load_project()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.studio.Studio.ask_load_slide"><code class="docutils literal notranslate"><span class="pre">Studio.ask_load_slide()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.ask_zoom_to_mpp"><code class="docutils literal notranslate"><span class="pre">Studio.ask_zoom_to_mpp()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.studio.Studio.autoload"><code class="docutils literal notranslate"><span class="pre">Studio.autoload()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.studio.Studio.center_next_window"><code class="docutils literal notranslate"><span class="pre">Studio.center_next_window()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.studio.Studio.clear_message"><code class="docutils literal notranslate"><span class="pre">Studio.clear_message()</span></code></a></li>
@@ -1041,6 +1069,7 @@ over the main view.</p>
 <li><a class="reference internal" href="#slideflow.studio.Studio.has_uq"><code class="docutils literal notranslate"><span class="pre">Studio.has_uq()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.studio.Studio.header"><code class="docutils literal notranslate"><span class="pre">Studio.header()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.studio.Studio.header_with_buttons"><code class="docutils literal notranslate"><span class="pre">Studio.header_with_buttons()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.studio.Studio.highlighted"><code class="docutils literal notranslate"><span class="pre">Studio.highlighted()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.studio.Studio.increase_tile_zoom"><code class="docutils literal notranslate"><span class="pre">Studio.increase_tile_zoom()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.studio.Studio.load_heatmap"><code class="docutils literal notranslate"><span class="pre">Studio.load_heatmap()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.studio.Studio.load_model"><code class="docutils literal notranslate"><span class="pre">Studio.load_model()</span></code></a></li>
@@ -1123,7 +1152,7 @@ over the main view.</p>
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

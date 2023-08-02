@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.slide.qc &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.slide.qc &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -321,7 +321,7 @@ before Otsu’s thresholding.</p>
 <span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
 
 <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
-<span class="n">gaussian</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">()</span>
+<span class="n">gaussian</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">GaussianV2</span><span class="p">()</span>
 <span class="n">otsu</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Otsu</span><span class="p">()</span>
 <span class="n">wsi</span><span class="o">.</span><span class="n">qc</span><span class="p">([</span><span class="n">gaussian</span><span class="p">,</span> <span class="n">otsu</span><span class="p">])</span>
 </pre></div>
@@ -365,8 +365,8 @@ the given threshold (default=0.02) are filtered out.</p>
 <span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
 
 <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
-<span class="n">otsu</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Otsu</span><span class="p">()</span>
-<span class="n">wsi</span><span class="o">.</span><span class="n">qc</span><span class="p">(</span><span class="n">otsu</span><span class="p">)</span>
+<span class="n">gaussian</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">()</span>
+<span class="n">wsi</span><span class="o">.</span><span class="n">qc</span><span class="p">(</span><span class="n">gaussian</span><span class="p">)</span>
 </pre></div>
 </div>
 </div></blockquote>
@@ -440,7 +440,7 @@ Defaults to None.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.slide.qc.StridedDL">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">StridedDL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.11)"><span class="pre">Callable</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">pred_idx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pred_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">wsi_kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/slide/qc/strided_dl/#StridedDL"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.slide.qc.StridedDL" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">StridedDL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.11)"><span class="pre">Callable</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">pred_idx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pred_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">wsi_kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/slide/qc/strided_dl/#StridedDL"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.slide.qc.StridedDL" title="Permalink to this definition">¶</a></dt>
 <dd><p>QC function which uses a deep learning model to generate a QC mask.</p>
 <p>When this QC method is applied to a slide, the given deep learning model
 generates predictions across the whole-slide image (using the class index
@@ -493,9 +493,27 @@ specified by <code class="docutils literal notranslate"><span class="pre">pred_i
 </dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>dest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path in which to save the qc mask.
-If None, will save in the same directory as the slide.
-Defaults to None.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>callable</em>) – Deep learning model.</p></li>
+<li><p><strong>pred_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Index of the model output to interpret as the
+final prediction.</p></li>
+<li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Tile size.</p></li>
+<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Tile size, in microns (int) or
+magnification (str).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Show a progress bar during calculation.</p></li>
+<li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of tiles (width and height) to extract and
+process simultaneously. Extracted tile size (width/height)
+will be  <code class="docutils literal notranslate"><span class="pre">tile_px</span> <span class="pre">*</span> <span class="pre">buffer</span></code>. Defaults to 8.</p></li>
+<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Grayspace fraction when extracting
+tiles from slides. Defaults to 1 (disables).</p></li>
+<li><p><strong>pred_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Predictions below this value are masked.</p></li>
+<li><p><strong>kwargs</strong> (<em>Any</em>) – All remaining keyword arguments are passed to
+<a class="reference internal" href="../slide/#slideflow.WSI.build_generator" title="slideflow.WSI.build_generator"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.WSI.build_generator()</span></code></a>.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -526,7 +544,7 @@ Defaults to None.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -610,7 +628,7 @@ Defaults to None.</p>
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

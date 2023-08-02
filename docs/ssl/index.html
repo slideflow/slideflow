@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Self-Supervised Learning (SSL) &mdash; slideflow 2.0.4 documentation</title>
+  <title>Self-Supervised Learning (SSL) &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -342,8 +342,17 @@
 </section>
 <section id="generating-features">
 <h2>Generating features<a class="headerlink" href="#generating-features" title="Permalink to this heading">¶</a></h2>
-<p>Generating SimCLR features is straightforward - use the same <a class="reference internal" href="../project/#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a> and <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> interfaces as <a class="reference internal" href="../posthoc/#dataset-features"><span class="std std-ref">previously described</span></a>, providing a path to a saved SimCLR model or checkpoint. When generating SimCLR features, the <code class="docutils literal notranslate"><span class="pre">layers</span></code> argument is not used, but the API is otherwise the same.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">simclr_ftrs</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="s1">&#39;/simclr/saved_model&#39;</span><span class="p">)</span>
+<p>Generating SimCLR features is straightforward - use the same <a class="reference internal" href="../project/#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a> and <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> interfaces as <a class="reference internal" href="../posthoc/#dataset-features"><span class="std std-ref">previously described</span></a>, providing a path to a saved SimCLR model or checkpoint.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
+
+<span class="c1"># Create the SimCLR feature extractor</span>
+<span class="n">simclr</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
+    <span class="s1">&#39;simclr&#39;</span><span class="p">,</span>
+    <span class="n">ckpt</span><span class="o">=</span><span class="s1">&#39;/path/to/simclr.ckpt&#39;</span>
+<span class="p">)</span>
+
+<span class="c1"># Calculate SimCLR features for a dataset</span>
+<span class="n">features</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">simclr</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -373,7 +382,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -454,7 +463,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

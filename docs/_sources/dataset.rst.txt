@@ -30,6 +30,7 @@ Methods
 .. autofunction:: slideflow.Dataset.check_duplicates
 .. autofunction:: slideflow.Dataset.clear_filters
 .. autofunction:: slideflow.Dataset.clip
+.. autofunction:: slideflow.Dataset.convert_xml_rois
 .. autofunction:: slideflow.Dataset.extract_cells
 .. autofunction:: slideflow.Dataset.extract_tiles
 .. autofunction:: slideflow.Dataset.extract_tiles_from_tfrecords
@@ -65,6 +66,8 @@ Methods
 .. autofunction:: slideflow.Dataset.tfrecords_by_subfolder
 .. autofunction:: slideflow.Dataset.tfrecords_folders
 .. autofunction:: slideflow.Dataset.tfrecords_from_tiles
+.. autofunction:: slideflow.Dataset.tfrecords_have_locations
+.. autofunction:: slideflow.Dataset.transform_tfrecords
 .. autofunction:: slideflow.Dataset.thumbnails
 .. autofunction:: slideflow.Dataset.torch
 .. autofunction:: slideflow.Dataset.unclip
@@ -72,3 +75,4 @@ Methods
 .. autofunction:: slideflow.Dataset.update_annotations_with_slidenames
 .. autofunction:: slideflow.Dataset.verify_annotations_slides
 .. autofunction:: slideflow.Dataset.verify_img_format
+.. autofunction:: slideflow.Dataset.verify_slide_names

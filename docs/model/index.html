@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.model &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.model &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -472,8 +472,8 @@ patient-level predictions at each evaluation. May be ‘csv’,
 Defaults to ‘parquet’.</p></li>
 <li><p><strong>save_model</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save models when evaluating at
 specified epochs. Defaults to True.</p></li>
-<li><p><strong>resume_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to Tensorflow model to
-continue training. Defaults to None.</p></li>
+<li><p><strong>resume_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to model to continue training.
+Only valid in Tensorflow backend. Defaults to None.</p></li>
 <li><p><strong>pretrain</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘imagenet’ or path to Tensorflow
 model from which to load weights. Defaults to ‘imagenet’.</p></li>
 <li><p><strong>checkpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to cp.ckpt from which to load
@@ -698,7 +698,7 @@ via ‘postconv’. Defaults to ‘postconv’.</p></li>
 <li><p><strong>include_preds</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Include predictions in output. Will be
 returned last. Defaults to False.</p></li>
 <li><p><strong>wsi_normalizer</strong> (<a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>) – Stain
-normalizer to use on whole-slide images. Is not used on
+normalizer to use on whole-slide images. Not used on
 individual tile datasets via __call__. Defaults to None.</p></li>
 </ul>
 </dd>
@@ -773,13 +773,18 @@ may improve compatibility across hardware &amp; environments.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.model.build_feature_extractor">
-<span class="sig-name descname"><span class="pre">build_feature_extractor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/model/extractors/_factory/#build_feature_extractor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.model.build_feature_extractor" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">build_feature_extractor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">backend</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">BaseFeatureExtractor</span></span></span><a class="reference internal" href="../_modules/slideflow/model/extractors/_factory/#build_feature_extractor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.model.build_feature_extractor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Build a feature extractor.</p>
 <p>The returned feature extractor is a callable object, which returns
-features (often layer activations) for a batch of images.
-Images are expected to be in (B, W, H, C) format and non-standardized
-(scaled 0-255) with dtype uint8. The feature extractors perform
-all needed preprocessing on the fly.</p>
+features (often layer activations) for either a batch of images or a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code> object.</p>
+<p>If generating features for a batch of images, images are expected to be in
+(B, W, H, C) format and non-standardized (scaled 0-255) with dtype uint8.
+The feature extractors perform all needed preprocessing on the fly.</p>
+<p>If generating features for a slide, the slide is expected to be a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code> object. The feature extractor will generate features
+for each tile in the slide, returning a numpy array of shape (W, H, F),
+where F is the number of features.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Name of the feature extractor to build. Available
@@ -849,6 +854,26 @@ from an imagenet-pretrained Resnet50 model.</p>
     <span class="n">resnet</span><span class="p">,</span>
     <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span>
 <span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Generate a map of features across a slide.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
+
+<span class="c1"># Load a slide</span>
+<span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Create a feature extractor</span>
+<span class="n">retccl</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
+    <span class="s1">&#39;retccl&#39;</span><span class="p">,</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span>
+<span class="p">)</span>
+
+<span class="c1"># Create a feature map, a 2D array of shape</span>
+<span class="c1"># (W, H, F), where F is the number of features.</span>
+<span class="n">features</span> <span class="o">=</span> <span class="n">retccl</span><span class="p">(</span><span class="n">wsi</span><span class="p">)</span>
 </pre></div>
 </div>
 </div></blockquote>
@@ -933,6 +958,35 @@ If not supplied, returns all valid models from batch file.</p></li>
 </dl>
 </dd></dl>
 
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.model.rebuild_extractor">
+<span class="sig-name descname"><span class="pre">rebuild_extractor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bags_or_model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.11)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><span class="pre">BaseFeatureExtractor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><span class="pre">StainNormalizer</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/slideflow/model/extractors/_factory/#rebuild_extractor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.model.rebuild_extractor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recreate the extractor used to generate features stored in bags.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bags_or_model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Either a path to directory containing feature bags,
+or a path to a trained MIL model. If a path to a trained MIL model,
+the extractor used to generate features will be recreated.</p></li>
+<li><p><strong>allow_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – If True, return None if the extractor
+cannot be rebuilt. If False, raise an error. Defaults to False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Extractor function, or None if <code class="docutils literal notranslate"><span class="pre">allow_errors</span></code> is</dt><dd><p>True and the extractor cannot be rebuilt.</p>
+</dd>
+<dt>Optional[StainNormalizer]: Stain normalizer used when generating</dt><dd><p>feature bags, or None if no stain normalization was used.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[BaseFeatureExtractor]</p>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 </section>
 
@@ -960,7 +1014,7 @@ If not supplied, returns all valid models from batch file.</p></li>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1012,6 +1066,7 @@ If not supplied, returns all valid models from batch file.</p></li>
 <li><a class="reference internal" href="#slideflow.model.is_torch_model"><code class="docutils literal notranslate"><span class="pre">is_torch_model()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.model.is_torch_tensor"><code class="docutils literal notranslate"><span class="pre">is_torch_tensor()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.model.read_hp_sweep"><code class="docutils literal notranslate"><span class="pre">read_hp_sweep()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.model.rebuild_extractor"><code class="docutils literal notranslate"><span class="pre">rebuild_extractor()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -1073,7 +1128,7 @@ If not supplied, returns all valid models from batch file.</p></li>
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

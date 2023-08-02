@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.stats.stats_utils &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.stats.stats_utils &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -366,12 +366,23 @@
     <span class="n">norm_range</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
     <span class="n">norm_clip</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize and clip an array.&quot;&quot;&quot;</span>
     <span class="n">_min</span><span class="p">,</span> <span class="n">_max</span> <span class="o">=</span> <span class="n">norm_range</span>
     <span class="n">mins</span><span class="p">,</span> <span class="n">maxs</span> <span class="o">=</span> <span class="n">norm_clip</span>
     <span class="n">clipped</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">mins</span><span class="p">,</span> <span class="n">maxs</span><span class="p">)</span>
     <span class="n">clipped</span> <span class="o">-=</span> <span class="n">_min</span>
     <span class="n">clipped</span> <span class="o">/=</span> <span class="p">(</span><span class="n">_max</span> <span class="o">-</span> <span class="n">_min</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">clipped</span>
+
+<span class="k">def</span> <span class="nf">denormalize</span><span class="p">(</span>
+    <span class="n">array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">norm_range</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;De-normalize an array.&quot;&quot;&quot;</span>
+    <span class="n">_min</span><span class="p">,</span> <span class="n">_max</span> <span class="o">=</span> <span class="n">norm_range</span>
+    <span class="n">transformed</span> <span class="o">=</span> <span class="n">array</span> <span class="o">*</span> <span class="p">(</span><span class="n">_max</span> <span class="o">-</span> <span class="n">_min</span><span class="p">)</span>
+    <span class="n">transformed</span> <span class="o">+=</span> <span class="n">_min</span>
+    <span class="k">return</span> <span class="n">transformed</span>
 </pre></div>
 
              </article>
@@ -388,7 +399,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -462,7 +473,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

@@ -1470,8 +1470,9 @@ class Dataset:
                 Defaults to True.
             normalizer (str, optional): Normalization strategy.
                 Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image.
-                If None, will use slideflow.slide.norm_tile.jpg.
+            normalizer_source (str, optional): Stain normalization preset or
+                path to a source image. Valid presets include 'v1', 'v2', and
+                'v3'. If None, will use the default present ('v3').
                 Defaults to None.
             whitespace_fraction (float, optional): Range 0-1. Discard tiles
                 with this fraction of whitespace. If 1, will not perform

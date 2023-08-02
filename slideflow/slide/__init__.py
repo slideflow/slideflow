@@ -720,8 +720,9 @@ class _BaseLoader:
                 considered grayspace.
             normalizer (str, optional): Normalization to use on image tiles.
                 Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image.
-                If None, will use slideflow.slide.norm_tile.jpg.
+            normalizer_source (str, optional): Stain normalization preset or
+                path to a source image. Valid presets include 'v1', 'v2', and
+                'v3'. If None, will use the default present ('v3').
                 Defaults to None.
             full_core (bool, optional): Extract an entire detected core, rather
                 than subdividing into image tiles. Defaults to False.
@@ -1428,8 +1429,9 @@ class WSI(_BaseLoader):
                 considered grayspace.
             normalizer (str, optional): Normalization for image tiles.
                 Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image.
-                If None, will use slideflow.slide.norm_tile.jpg.
+            normalizer_source (str, optional): Stain normalization preset or
+                path to a source image. Valid presets include 'v1', 'v2', and
+                'v3'. If None, will use the default present ('v3').
                 Defaults to None.
             full_core (bool, optional): Extract an entire detected core, rather
                 than subdividing into image tiles. Defaults to False.
@@ -1542,8 +1544,9 @@ class WSI(_BaseLoader):
                 considered grayspace.
             normalizer (str, optional): Normalization strategy to use on image
                 tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image.
-                If None, will use slideflow.slide.norm_tile.jpg.
+            normalizer_source (str, optional): Stain normalization preset or
+                path to a source image. Valid presets include 'v1', 'v2', and
+                'v3'. If None, will use the default present ('v3').
                 Defaults to None.
             context_normalize (bool): If normalizing, use context from
                 the rest of the slide when calculating stain matrix
@@ -2537,8 +2540,9 @@ class TMA(_BaseLoader):
                 considered grayspace.
             normalizer (str, optional): Normalization for image tiles.
                 Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image.
-                If None, will use slideflow.slide.norm_tile.jpg.
+            normalizer_source (str, optional): Stain normalization preset or
+                path to a source image. Valid presets include 'v1', 'v2', and
+                'v3'. If None, will use the default present ('v3').
                 Defaults to None.
             full_core (bool, optional): Extract an entire detected core, rather
                 than subdividing into image tiles. Defaults to False.
@@ -2596,8 +2600,9 @@ class TMA(_BaseLoader):
                 considered grayspace.
             normalizer (str, optional): Normalization to use on image tiles.
                 Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image.
-                If None, will use slideflow.slide.norm_tile.jpg
+            normalizer_source (str, optional): Stain normalization preset or
+                path to a source image. Valid presets include 'v1', 'v2', and
+                'v3'. If None, will use the default present ('v3').
                 Defaults to None.
             num_threads (int, optional): Number of threads for pool. Unused if
                 `pool` is specified.

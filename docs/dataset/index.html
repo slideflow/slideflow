@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.Dataset &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.Dataset &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -575,6 +575,12 @@ Defaults to None.</p></li>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="slideflow.Dataset.convert_xml_rois">
+<span class="sig-name descname"><span class="pre">convert_xml_rois</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.convert_xml_rois" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert ImageScope XML ROI files to QuPath format CSV ROI files.</p>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Dataset.extract_cells">
 <span class="sig-name descname"><span class="pre">extract_cells</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">masks_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">SlideReport</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#slideflow.Dataset.extract_cells" title="Permalink to this definition">¶</a></dt>
 <dd><p>Extract cell images from slides, with a tile at each cell centroid.</p>
@@ -666,8 +672,9 @@ Increases tile extraction time. Defaults to None.</p></li>
 Defaults to True.</p></li>
 <li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy.
 Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image.
-If None, will use slideflow.slide.norm_tile.jpg.
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Stain normalization preset or
+path to a source image. Valid presets include ‘v1’, ‘v2’, and
+‘v3’. If None, will use the default present (‘v3’).
 Defaults to None.</p></li>
 <li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Discard tiles
 with this fraction of whitespace. If 1, will not perform
@@ -1017,7 +1024,7 @@ do not have a *.pt file.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Dataset.read_tfrecord_by_location">
-<span class="sig-name descname"><span class="pre">read_tfrecord_by_location</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">loc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.11)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.read_tfrecord_by_location" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">read_tfrecord_by_location</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">loc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.11)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.read_tfrecord_by_location" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read a record from a TFRecord, indexed by location.</p>
 <p>Finds the associated TFRecord for a slide, and returns the record
 inside which corresponds to a given tile location.</p>
@@ -1265,43 +1272,63 @@ If not provided, all labels will be None.</p></li>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>onehot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Onehot encode labels. Defaults to False.</p></li>
-<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third
-returned variable. Defaults to False.</p></li>
-<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Infinitely repeat data.
-Defaults to True.</p></li>
-<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify which worker this
-represents. Used to interleave results among workers without
-duplications. Defaults to 0 (first worker).</p></li>
-<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of GPUs or unique instances
-which will have their own DataLoader. Used to interleave
-results among workers without duplications. Defaults to 1.</p></li>
-<li><p><strong>normalizer</strong> (<a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>, optional) – Normalizer to use on images.</p></li>
-<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Use the following seed when randomly
-interleaving. Necessary for synchronized multiprocessing
-distributed reading.</p></li>
-<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size for image decoding.
-Defaults to 16.</p></li>
-<li><p><strong>preload_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of batches to preload.
-Defaults to 1.</p></li>
-<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String
-containing characters designating augmentations.
-‘x’ indicates random x-flipping, ‘y’ y-flipping,
-‘r’ rotating, and ‘j’ JPEG compression/decompression at
-random quality levels. Passing either ‘xyrj’ or True will
-use all augmentations.</p></li>
-<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1).
-Defaults to True.</p></li>
-<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of DataLoader workers.
-Defaults to 2.</p></li>
-<li><p><strong>deterministic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – When num_parallel_calls is
-specified, if this boolean is specified (True or False), it
-controls the order in which the transformation produces
-elements. If set to False, the transformation is allowed to
-yield elements out of order to trade determinism for
-performance. Defaults to False.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – <p>Image augmentations to perform. Augmentations include:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">'x'</span></code>: Random horizontal flip</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'y'</span></code>: Random vertical flip</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'r'</span></code>: Random 90-degree rotation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'j'</span></code>: Random JPEG compression (50% chance to compress with quality between 50-100)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'b'</span></code>: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'n'</span></code>: Random <a class="reference internal" href="../norm/#stain-augmentation"><span class="std std-ref">Stain Augmentation</span></a> (requires stain normalizer)</p></li>
+</ul>
+<p>Combine letters to define augmentations, such as <code class="docutils literal notranslate"><span class="pre">'xyrjn'</span></code>.
+A value of True will use <code class="docutils literal notranslate"><span class="pre">'xyrjb'</span></code>.</p>
+</p></li>
+<li><p><strong>deterministic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – When num_parallel_calls is specified,
+if this boolean is specified, it controls the order in which the
+transformation produces elements. If set to False, the
+transformation is allowed to yield elements out of order to trade
+determinism for performance. Defaults to False.</p></li>
 <li><p><strong>drop_last</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Drop the last non-full batch.
 Defaults to False.</p></li>
+<li><p><strong>from_wsi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Generate predictions from tiles dynamically
+extracted from whole-slide images, rather than TFRecords.
+Defaults to False (use TFRecords).</p></li>
+<li><p><strong>incl_loc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – ‘coord’, ‘grid’, or None. Return (x,y)
+origin coordinates (‘coord’) for each tile along with tile
+images, or the (x,y) grid coordinates for each tile.
+Defaults to ‘coord’.</p></li>
+<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third returned
+variable. Defaults to False.</p></li>
+<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Create an finite dataset. WARNING: If
+infinite is False &amp;&amp; balancing is used, some tiles will be skipped.
+Defaults to True.</p></li>
+<li><p><strong>img_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Image width in pixels.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>, optional) – Normalizer to use on images. Defaults to None.</p></li>
+<li><p><strong>num_parallel_reads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of parallel reads for each
+TFRecordDataset. Defaults to 4.</p></li>
+<li><p><strong>num_shards</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Shard the tfrecord datasets, used for
+multiprocessing datasets. Defaults to None.</p></li>
+<li><p><strong>pool</strong> (<em>multiprocessing.Pool</em>) – Shared multiprocessing pool. Useful
+if <code class="docutils literal notranslate"><span class="pre">from_wsi=True</span></code>, for sharing a unified processing pool between
+dataloaders. Defaults to None.</p></li>
+<li><p><strong>rois</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – List of ROI paths. Only used if
+from_wsi=True.  Defaults to None.</p></li>
+<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Method for extracting ROIs. Only used if
+from_wsi=True. Defaults to ‘auto’.</p></li>
+<li><p><strong>shard_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Index of the tfrecord shard to use.
+Defaults to None.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1).
+Defaults to True.</p></li>
+<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Size of tiles to extract from WSI, in
+microns. Only used if from_wsi=True. Defaults to None.</p></li>
+<li><p><strong>tfrecord_parser</strong> (<em>Callable</em><em>, </em><em>optional</em>) – Custom parser for TFRecords.
+Defaults to None.</p></li>
+<li><p><strong>transform</strong> (<em>Callable</em><em>, </em><em>optional</em>) – Arbitrary transform function.
+Performs transformation after augmentations but before
+standardization. Defaults to None.</p></li>
+<li><p><strong>**decode_kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a>) – Keyword arguments to pass to
+<a class="reference internal" href="../io_tensorflow/#slideflow.io.tensorflow.decode_image" title="slideflow.io.tensorflow.decode_image"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.tensorflow.decode_image()</span></code></a>.</p></li>
 </ul>
 </dd>
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -1396,6 +1423,24 @@ source. Defaults to None (return all tfrecords in dataset).</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="slideflow.Dataset.tfrecords_have_locations">
+<span class="sig-name descname"><span class="pre">tfrecords_have_locations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.tfrecords_have_locations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if TFRecords have associated tile location information.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.Dataset.transform_tfrecords">
+<span class="sig-name descname"><span class="pre">transform_tfrecords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.transform_tfrecords" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transform TFRecords, saving to a target path.</p>
+<p>Tfrecords will be saved in the output directory nested by source name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>dest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Destination.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Dataset.thumbnails">
 <span class="sig-name descname"><span class="pre">thumbnails</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_downsample</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.thumbnails" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generate square slide thumbnails with black borders of fixed size.</p>
@@ -1446,38 +1491,66 @@ Defaults to True.</p></li>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>onehot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Onehot encode labels. Defaults to False.</p></li>
-<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third
-returned variable. Defaults to False.</p></li>
-<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Infinitely repeat data.
-Defaults to True.</p></li>
-<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify which worker this
-represents. Used to interleave results among workers without
-duplications. Defaults to 0 (first worker).</p></li>
-<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of GPUs or unique instances
-which will have their own DataLoader. Used to interleave
-results among workers without duplications. Defaults to 1.</p></li>
-<li><p><strong>normalizer</strong> (<a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>, optional) – Normalizer to use on images. Defaults to None.</p></li>
-<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Use the following seed when randomly
-interleaving. Necessary for synchronized multiprocessing.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – <p>Image augmentations to perform. Augmentations include:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">'x'</span></code>: Random horizontal flip</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'y'</span></code>: Random vertical flip</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'r'</span></code>: Random 90-degree rotation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'j'</span></code>: Random JPEG compression (50% chance to compress with quality between 50-100)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'b'</span></code>: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'n'</span></code>: Random <a class="reference internal" href="../norm/#stain-augmentation"><span class="std std-ref">Stain Augmentation</span></a> (requires stain normalizer)</p></li>
+</ul>
+<p>Combine letters to define augmentations, such as <code class="docutils literal notranslate"><span class="pre">'xyrjn'</span></code>.
+A value of True will use <code class="docutils literal notranslate"><span class="pre">'xyrjb'</span></code>.</p>
+</p></li>
 <li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size for image decoding.
-Defaults to 16.</p></li>
-<li><p><strong>preload_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of batches to preload.
 Defaults to 1.</p></li>
-<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. Str
-containing characters designating augmentations. ‘x’ indicates
-random x-flipping, ‘y’ y-flipping, ‘r’ rotating, ‘j’ JPEG
-compression/decompression at random quality levels, and ‘b’
-random gaussian blur. Passing either ‘xyrjb’ or True will use
-all augmentations. Defaults to ‘xyrjb’.</p></li>
-<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1).
-Defaults to True.</p></li>
-<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of DataLoader workers.
-Defaults to 2.</p></li>
-<li><p><strong>pin_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Pin memory to GPU.
-Defaults to True.</p></li>
 <li><p><strong>drop_last</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Drop the last non-full batch.
 Defaults to False.</p></li>
+<li><p><strong>from_wsi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Generate predictions from tiles dynamically
+extracted from whole-slide images, rather than TFRecords.
+Defaults to False (use TFRecords).</p></li>
+<li><p><strong>incl_loc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Include loc_x and loc_y as additional
+returned variables. Defaults to False.</p></li>
+<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third returned
+variable. Defaults to False.</p></li>
+<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Infinitely repeat data. Defaults to True.</p></li>
+<li><p><strong>max_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Unused argument present for legacy
+compatibility; will be removed.</p></li>
+<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Used to generate random labels
+(for StyleGAN2). Not required. Defaults to ‘categorical’.</p></li>
+<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of GPUs or unique instances which
+will have their own DataLoader. Used to interleave results among
+workers without duplications. Defaults to 1.</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of DataLoader workers.
+Defaults to 2.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>, optional) – Normalizer. Defaults to None.</p></li>
+<li><p><strong>onehot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Onehot encode labels. Defaults to False.</p></li>
+<li><p><strong>persistent_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Sets the DataLoader
+persistent_workers flag. Defaults toNone (4 if not using a SPAMS
+normalizer, 1 if using SPAMS).</p></li>
+<li><p><strong>pin_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Pin memory to GPU. Defaults to True.</p></li>
+<li><p><strong>pool</strong> (<em>multiprocessing.Pool</em>) – Shared multiprocessing pool. Useful
+if from_wsi=True, for sharing a unified processing pool between
+dataloaders. Defaults to None.</p></li>
+<li><p><strong>prefetch_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of batches to prefetch in each
+SlideflowIterator. Defaults to 1.</p></li>
+<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify this worker.
+Used to interleave results.
+among workers without duplications. Defaults to 0 (first worker).</p></li>
+<li><p><strong>rois</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – List of ROI paths. Only used if
+from_wsi=True.  Defaults to None.</p></li>
+<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Method for extracting ROIs. Only used if
+from_wsi=True. Defaults to ‘auto’.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to mean 0 and
+variance of 1. Defaults to True.</p></li>
+<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Size of tiles to extract from WSI, in
+microns. Only used if from_wsi=True. Defaults to None.</p></li>
+<li><p><strong>transform</strong> (<em>Callable</em><em>, </em><em>optional</em>) – Arbitrary torchvision transform
+function. Performs transformation after augmentations but
+before standardization. Defaults to None.</p></li>
+<li><p><strong>tfrecord_parser</strong> (<em>Callable</em><em>, </em><em>optional</em>) – Custom parser for TFRecords.
+Defaults to None.</p></li>
 </ul>
 </dd>
 </dl>
@@ -1531,7 +1604,7 @@ that are already present in the annotations file.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Dataset.verify_img_format">
-<span class="sig-name descname"><span class="pre">verify_img_format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.verify_img_format" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">verify_img_format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.verify_img_format" title="Permalink to this definition">¶</a></dt>
 <dd><p>Verify that all tfrecords have the same image format (PNG/JPG).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -1539,6 +1612,33 @@ that are already present in the annotations file.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.Dataset.verify_slide_names">
+<span class="sig-name descname"><span class="pre">verify_slide_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span></span><a class="headerlink" href="#slideflow.Dataset.verify_slide_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verify that slide names inside TFRecords match the file names.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>allow_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Do not raise an error if there is a mismatch.
+Defaults to False.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>If all slide names inside TFRecords match the TFRecord</dt><dd><p>file names.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)">bool</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>sf.errors.MismatchedSlideNamesError</strong> – If any slide names inside
+    TFRecords do not match the TFRecord file names,
+    and allow_errors=False.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1570,7 +1670,7 @@ that are already present in the annotations file.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1599,6 +1699,7 @@ that are already present in the annotations file.</p>
 <li><a class="reference internal" href="#slideflow.Dataset.check_duplicates"><code class="docutils literal notranslate"><span class="pre">check_duplicates()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.clear_filters"><code class="docutils literal notranslate"><span class="pre">clear_filters()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.clip"><code class="docutils literal notranslate"><span class="pre">clip()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.Dataset.convert_xml_rois"><code class="docutils literal notranslate"><span class="pre">convert_xml_rois()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.extract_cells"><code class="docutils literal notranslate"><span class="pre">extract_cells()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.extract_tiles"><code class="docutils literal notranslate"><span class="pre">extract_tiles()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.extract_tiles_from_tfrecords"><code class="docutils literal notranslate"><span class="pre">extract_tiles_from_tfrecords()</span></code></a></li>
@@ -1634,6 +1735,8 @@ that are already present in the annotations file.</p>
 <li><a class="reference internal" href="#slideflow.Dataset.tfrecords_by_subfolder"><code class="docutils literal notranslate"><span class="pre">tfrecords_by_subfolder()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.tfrecords_folders"><code class="docutils literal notranslate"><span class="pre">tfrecords_folders()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.tfrecords_from_tiles"><code class="docutils literal notranslate"><span class="pre">tfrecords_from_tiles()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.Dataset.tfrecords_have_locations"><code class="docutils literal notranslate"><span class="pre">tfrecords_have_locations()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.Dataset.transform_tfrecords"><code class="docutils literal notranslate"><span class="pre">transform_tfrecords()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.thumbnails"><code class="docutils literal notranslate"><span class="pre">thumbnails()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.torch"><code class="docutils literal notranslate"><span class="pre">torch()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.unclip"><code class="docutils literal notranslate"><span class="pre">unclip()</span></code></a></li>
@@ -1641,6 +1744,7 @@ that are already present in the annotations file.</p>
 <li><a class="reference internal" href="#slideflow.Dataset.update_annotations_with_slidenames"><code class="docutils literal notranslate"><span class="pre">update_annotations_with_slidenames()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.verify_annotations_slides"><code class="docutils literal notranslate"><span class="pre">verify_annotations_slides()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Dataset.verify_img_format"><code class="docutils literal notranslate"><span class="pre">verify_img_format()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.Dataset.verify_slide_names"><code class="docutils literal notranslate"><span class="pre">verify_slide_names()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -1702,7 +1806,7 @@ that are already present in the annotations file.</p>
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

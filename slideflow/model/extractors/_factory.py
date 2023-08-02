@@ -132,11 +132,21 @@ def build_feature_extractor(
 
     # Build a feature extractor from a finetuned model
     if sf.util.is_tensorflow_model_path(name):
-        from slideflow.model.tensorflow import Features
-        return Features(name, **kwargs)
+        model_config = sf.util.get_model_config(name)
+        if model_config['hp']['uq']:
+            from slideflow.model.tensorflow import UncertaintyInterface
+            return UncertaintyInterface(name, **kwargs)
+        else:
+            from slideflow.model.tensorflow import Features
+            return Features(name, **kwargs)
     elif sf.util.is_torch_model_path(name):
-        from slideflow.model.torch import Features  # noqa: F401
-        return Features(name, **kwargs)
+        model_config = sf.util.get_model_config(name)
+        if model_config['hp']['uq']:
+            from slideflow.model.torch import UncertaintyInterface
+            return UncertaintyInterface(name, **kwargs)
+        else:
+            from slideflow.model.torch import Features  # noqa: F401
+            return Features(name, **kwargs)
 
     # Build feature extractor with a specific backend
     if backend == 'tensorflow':

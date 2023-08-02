@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Post-hoc Analysis &mdash; slideflow 2.0.4 documentation</title>
+  <title>Post-hoc Analysis &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -331,7 +331,7 @@
 </section>
 <section id="entire-dataset">
 <span id="dataset-features"></span><h3>Entire dataset<a class="headerlink" href="#entire-dataset" title="Permalink to this heading">¶</a></h3>
-<p>Finally, layer activations can also be calculated for an entire dataset using <code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetFeatures</span></code>. Instancing the class supervises the calculation and caching of layer activations, which can then be used for downstream analysis. The project function <a class="reference internal" href="../project/#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a> creates and returns an instance of this class.</p>
+<p>Finally, layer activations can also be calculated for an entire dataset using <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a>. Instancing the class supervises the calculation and caching of layer activations, which can then be used for downstream analysis. The project function <a class="reference internal" href="../project/#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a> creates and returns an instance of this class.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dts_ftrs</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="s1">&#39;/path/to/trained_model&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -346,13 +346,13 @@
 </pre></div>
 </div>
 <p>Tile-level feature activations for each slide can be accessed directly from <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.activations</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">num_features)</span></code>. Predictions are stored in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.predictions</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">num_classes)</span></code>. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.locations</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">2)</span></code> (<code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>).</p>
-<p>Activations can be exported to a Pandas DataFrame with <code class="xref py py-meth docutils literal notranslate"><span class="pre">DatasetFeatures.to_df()</span></code> or exported into PyTorch format (for use with <a class="reference internal" href="../mil/#clam-mil"><span class="std std-ref">multi-instance learning (MIL)</span></a> models) with <code class="xref py py-meth docutils literal notranslate"><span class="pre">DatasetFeatures.to_torch()</span></code></p>
-<p>Read the API documentation for <code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetFeatures</span></code> for more information.</p>
+<p>Activations can be exported to a Pandas DataFrame with <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_df" title="slideflow.DatasetFeatures.to_df"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_df()</span></code></a> or exported into PyTorch format with <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_torch" title="slideflow.DatasetFeatures.to_torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_torch()</span></code></a>. See <a class="reference internal" href="../mil/#clam-mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information about generating and exporting features for MIL models.</p>
+<p>Read the API documentation for <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> for more information.</p>
 </section>
 </section>
 <section id="mapping-activations">
 <span id="slidemap"></span><h2>Mapping activations<a class="headerlink" href="#mapping-activations" title="Permalink to this heading">¶</a></h2>
-<p>Layer activations across a dataset can be dimensionality reduced with UMAP and plotted for visualization using <code class="xref py py-meth docutils literal notranslate"><span class="pre">DatasetFeatures.map_activations()</span></code>. This function returns an instance of <a class="reference internal" href="../slidemap/#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a>, a class that provides easy access to labeling and plotting.</p>
+<p>Layer activations across a dataset can be dimensionality reduced with UMAP and plotted for visualization using <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.map_activations" title="slideflow.DatasetFeatures.map_activations"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.map_activations()</span></code></a>. This function returns an instance of <a class="reference internal" href="../slidemap/#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a>, a class that provides easy access to labeling and plotting.</p>
 <p>The below example calculates layer activations at the neural network layer <code class="docutils literal notranslate"><span class="pre">sep_conv_3</span></code> for an entire dataset, and then reduces the activations into two dimensions for easy visualization using UMAP. Any valid <a class="reference external" href="https://umap-learn.readthedocs.io/en/latest/parameters.html">UMAP parameters</a> can be passed via keyword argument.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dts_ftrs</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
   <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/trained_model&#39;</span><span class="p">,</span>
@@ -505,7 +505,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -597,7 +597,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

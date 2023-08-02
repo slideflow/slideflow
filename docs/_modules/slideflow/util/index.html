@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.util &mdash; slideflow 2.0.4 documentation</title>
+  <title>slideflow.util &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -349,12 +349,25 @@
 <span class="c1"># Normalizer fit keyword arguments</span>
 <span class="n">NormFit</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">]]</span>
 
+<span class="c1"># --- Detect CPU cores --------------------------------------------------------</span>
+
+<span class="k">def</span> <span class="nf">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">sched_getaffinity</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">count</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">default</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">default</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">count</span>
+
 <span class="c1"># --- Configure logging--------------------------------------------------------</span>
+
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;slideflow&#39;</span><span class="p">)</span>
 <span class="n">log</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="setLoggingLevel"><a class="viewcode-back" href="../../../util/#slideflow.setLoggingLevel">[docs]</a><span class="k">def</span> <span class="nf">setLoggingLevel</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+<div class="viewcode-block" id="setLoggingLevel"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.setLoggingLevel">[docs]</a><span class="k">def</span> <span class="nf">setLoggingLevel</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Set the logging level.</span>
 
 <span class="sd">    Uses standard python logging levels:</span>
@@ -373,7 +386,7 @@
     <span class="n">log</span><span class="o">.</span><span class="n">handlers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">level</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="getLoggingLevel"><a class="viewcode-back" href="../../../util/#slideflow.getLoggingLevel">[docs]</a><span class="k">def</span> <span class="nf">getLoggingLevel</span><span class="p">():</span>
+<div class="viewcode-block" id="getLoggingLevel"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.getLoggingLevel">[docs]</a><span class="k">def</span> <span class="nf">getLoggingLevel</span><span class="p">():</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the current logging level.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">log</span><span class="o">.</span><span class="n">handlers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">level</span></div>
 
@@ -420,10 +433,10 @@
 <span class="n">log</span><span class="o">.</span><span class="n">propagate</span> <span class="o">=</span> <span class="kc">False</span>
 
 
-<div class="viewcode-block" id="TileExtractionSpeedColumn"><a class="viewcode-back" href="../../../util/#slideflow.TileExtractionSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">TileExtractionSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
+<div class="viewcode-block" id="TileExtractionSpeedColumn"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.TileExtractionSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">TileExtractionSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Renders human readable transfer speed.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="TileExtractionSpeedColumn.render"><a class="viewcode-back" href="../../../util/#slideflow.TileExtractionSpeedColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
+<div class="viewcode-block" id="TileExtractionSpeedColumn.render"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.TileExtractionSpeedColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Show data transfer speed.&quot;&quot;&quot;</span>
         <span class="n">speed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">finished_speed</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">speed</span>
         <span class="k">if</span> <span class="n">speed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -431,14 +444,14 @@
         <span class="n">data_speed</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">speed</span><span class="p">)</span><span class="si">}</span><span class="s1"> img&#39;</span>
         <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_speed</span><span class="si">}</span><span class="s2">/s&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span></div></div>
 
-<div class="viewcode-block" id="ImgBatchSpeedColumn"><a class="viewcode-back" href="../../../util/#slideflow.ImgBatchSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">ImgBatchSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
+<div class="viewcode-block" id="ImgBatchSpeedColumn"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.ImgBatchSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">ImgBatchSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Renders human readable transfer speed.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="ImgBatchSpeedColumn.__init__"><a class="viewcode-back" href="../../../util/#slideflow.ImgBatchSpeedColumn.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="ImgBatchSpeedColumn.__init__"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.ImgBatchSpeedColumn.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span></div>
 
-<div class="viewcode-block" id="ImgBatchSpeedColumn.render"><a class="viewcode-back" href="../../../util/#slideflow.ImgBatchSpeedColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
+<div class="viewcode-block" id="ImgBatchSpeedColumn.render"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.ImgBatchSpeedColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Show data transfer speed.&quot;&quot;&quot;</span>
         <span class="n">speed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">finished_speed</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">speed</span>
         <span class="k">if</span> <span class="n">speed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -447,8 +460,8 @@
         <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_speed</span><span class="si">}</span><span class="s2">/s&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="TileExtractionProgress"><a class="viewcode-back" href="../../../util/#slideflow.TileExtractionProgress">[docs]</a><span class="k">class</span> <span class="nc">TileExtractionProgress</span><span class="p">(</span><span class="n">Progress</span><span class="p">):</span>
-<div class="viewcode-block" id="TileExtractionProgress.get_renderables"><a class="viewcode-back" href="../../../util/#slideflow.TileExtractionProgress.get_renderables">[docs]</a>    <span class="k">def</span> <span class="nf">get_renderables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="TileExtractionProgress"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.TileExtractionProgress">[docs]</a><span class="k">class</span> <span class="nc">TileExtractionProgress</span><span class="p">(</span><span class="n">Progress</span><span class="p">):</span>
+<div class="viewcode-block" id="TileExtractionProgress.get_renderables"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.TileExtractionProgress.get_renderables">[docs]</a>    <span class="k">def</span> <span class="nf">get_renderables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;progress_type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;speed&#39;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">(</span>
@@ -466,7 +479,7 @@
             <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_tasks_table</span><span class="p">([</span><span class="n">task</span><span class="p">])</span></div></div>
 
 
-<div class="viewcode-block" id="set_ignore_sigint"><a class="viewcode-back" href="../../../util/#slideflow.set_ignore_sigint">[docs]</a><span class="k">def</span> <span class="nf">set_ignore_sigint</span><span class="p">():</span>
+<div class="viewcode-block" id="set_ignore_sigint"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.set_ignore_sigint">[docs]</a><span class="k">def</span> <span class="nf">set_ignore_sigint</span><span class="p">():</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Ignore keyboard interrupts.&quot;&quot;&quot;</span>
     <span class="kn">import</span> <span class="nn">signal</span>
     <span class="n">signal</span><span class="o">.</span><span class="n">signal</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIG_IGN</span><span class="p">)</span></div>
@@ -474,14 +487,14 @@
 
 <span class="c1"># --- Slideflow header --------------------------------------------------------</span>
 
-<div class="viewcode-block" id="about"><a class="viewcode-back" href="../../../util/#slideflow.about">[docs]</a><span class="k">def</span> <span class="nf">about</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="about"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.about">[docs]</a><span class="k">def</span> <span class="nf">about</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Print a summary of the slideflow version and active backends.</span>
 
 <span class="sd">    Example</span>
 <span class="sd">        &gt;&gt;&gt; sf.about()</span>
 <span class="sd">        ╭=======================╮</span>
 <span class="sd">        │       Slideflow       │</span>
-<span class="sd">        │    Version: 1.5.0     │</span>
+<span class="sd">        │    Version: 2.1.0     │</span>
 <span class="sd">        │  Backend: tensorflow  │</span>
 <span class="sd">        │ Slide Backend: cucim  │</span>
 <span class="sd">        │ https://slideflow.dev │</span>
@@ -519,7 +532,7 @@
 
 <span class="c1"># --- Data download functions -------------------------------------------------</span>
 
-<div class="viewcode-block" id="download_from_tcga"><a class="viewcode-back" href="../../../util/#slideflow.download_from_tcga">[docs]</a><span class="k">def</span> <span class="nf">download_from_tcga</span><span class="p">(</span>
+<div class="viewcode-block" id="download_from_tcga"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.download_from_tcga">[docs]</a><span class="k">def</span> <span class="nf">download_from_tcga</span><span class="p">(</span>
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">dest</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;Downloading...&#39;</span>
@@ -574,7 +587,7 @@
 
 <span class="c1"># --- Utility functions and classes -------------------------------------------</span>
 
-<div class="viewcode-block" id="EasyDict"><a class="viewcode-back" href="../../../util/#slideflow.EasyDict">[docs]</a><span class="k">class</span> <span class="nc">EasyDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+<div class="viewcode-block" id="EasyDict"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.EasyDict">[docs]</a><span class="k">class</span> <span class="nc">EasyDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience class that behaves like a dict but allows access</span>
 <span class="sd">    with the attribute syntax.&quot;&quot;&quot;</span>
 
@@ -591,7 +604,7 @@
         <span class="k">del</span> <span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="md5"><a class="viewcode-back" href="../../../util/#slideflow.md5">[docs]</a><span class="k">def</span> <span class="nf">md5</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="md5"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.md5">[docs]</a><span class="k">def</span> <span class="nf">md5</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate and return MD5 checksum for a file.&quot;&quot;&quot;</span>
     <span class="n">m</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
@@ -625,14 +638,14 @@
         <span class="k">return</span> <span class="n">arg1</span>
 
 
-<div class="viewcode-block" id="batch"><a class="viewcode-back" href="../../../util/#slideflow.batch">[docs]</a><span class="k">def</span> <span class="nf">batch</span><span class="p">(</span><span class="n">iterable</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">:</span>
+<div class="viewcode-block" id="batch"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.batch">[docs]</a><span class="k">def</span> <span class="nf">batch</span><span class="p">(</span><span class="n">iterable</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Separates an interable into batches of maximum size `n`.&quot;&quot;&quot;</span>
     <span class="n">l</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">ndx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
         <span class="k">yield</span> <span class="n">iterable</span><span class="p">[</span><span class="n">ndx</span><span class="p">:</span><span class="nb">min</span><span class="p">(</span><span class="n">ndx</span> <span class="o">+</span> <span class="n">n</span><span class="p">,</span> <span class="n">l</span><span class="p">)]</span></div>
 
 
-<div class="viewcode-block" id="batch_generator"><a class="viewcode-back" href="../../../util/#slideflow.batch_generator">[docs]</a><span class="k">def</span> <span class="nf">batch_generator</span><span class="p">(</span><span class="n">iterable</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">:</span>
+<div class="viewcode-block" id="batch_generator"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.batch_generator">[docs]</a><span class="k">def</span> <span class="nf">batch_generator</span><span class="p">(</span><span class="n">iterable</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Separates an interable into batches of maximum size `n`.&quot;&quot;&quot;</span>
     <span class="n">batch</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">iterable</span><span class="p">:</span>
@@ -663,37 +676,37 @@
     <span class="k">return</span> <span class="kc">True</span>
 
 
-<div class="viewcode-block" id="is_model"><a class="viewcode-back" href="../../../util/#slideflow.is_model">[docs]</a><span class="k">def</span> <span class="nf">is_model</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="is_model"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.is_model">[docs]</a><span class="k">def</span> <span class="nf">is_model</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow model.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">is_tensorflow_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="ow">or</span> <span class="n">is_torch_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="is_project"><a class="viewcode-back" href="../../../util/#slideflow.is_project">[docs]</a><span class="k">def</span> <span class="nf">is_project</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="is_project"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.is_project">[docs]</a><span class="k">def</span> <span class="nf">is_project</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow project.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;settings.json&#39;</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="is_slide"><a class="viewcode-back" href="../../../util/#slideflow.is_slide">[docs]</a><span class="k">def</span> <span class="nf">is_slide</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="is_slide"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.is_slide">[docs]</a><span class="k">def</span> <span class="nf">is_slide</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a supported slide.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
             <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">SUPPORTED_FORMATS</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="is_tensorflow_model_path"><a class="viewcode-back" href="../../../util/#slideflow.is_tensorflow_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_tensorflow_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="is_tensorflow_model_path"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.is_tensorflow_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_tensorflow_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow/Tensorflow model.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
             <span class="ow">and</span> <span class="p">(</span><span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))</span>
                  <span class="ow">or</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))))</span></div>
 
 
-<div class="viewcode-block" id="is_torch_model_path"><a class="viewcode-back" href="../../../util/#slideflow.is_torch_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_torch_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="is_torch_model_path"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.is_torch_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_torch_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow/PyTorch model.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
             <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;zip&#39;</span>
             <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="s1">&#39;params.json&#39;</span><span class="p">)))</span></div>
 
 
-<div class="viewcode-block" id="is_simclr_model_path"><a class="viewcode-back" href="../../../util/#slideflow.is_simclr_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_simclr_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="is_simclr_model_path"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.is_simclr_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_simclr_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a valid SimCLR model or checkpoint.&quot;&quot;&quot;</span>
     <span class="n">is_model</span> <span class="o">=</span>  <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
                  <span class="ow">and</span> <span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -720,7 +733,7 @@
         <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">arg1</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
 
 
-<div class="viewcode-block" id="multi_warn"><a class="viewcode-back" href="../../../util/#slideflow.multi_warn">[docs]</a><span class="k">def</span> <span class="nf">multi_warn</span><span class="p">(</span><span class="n">arr</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">compare</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<div class="viewcode-block" id="multi_warn"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.multi_warn">[docs]</a><span class="k">def</span> <span class="nf">multi_warn</span><span class="p">(</span><span class="n">arr</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">compare</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Logs multiple warning</span>
 
 <span class="sd">    Args:</span>
@@ -746,7 +759,7 @@
     <span class="k">return</span> <span class="n">num_warned</span></div>
 
 
-<div class="viewcode-block" id="to_onehot"><a class="viewcode-back" href="../../../util/#slideflow.to_onehot">[docs]</a><span class="k">def</span> <span class="nf">to_onehot</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">max</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<div class="viewcode-block" id="to_onehot"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.to_onehot">[docs]</a><span class="k">def</span> <span class="nf">to_onehot</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">max</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Converts value to one-hot encoding</span>
 
 <span class="sd">    Args:</span>
@@ -764,7 +777,7 @@
     <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
 
 
-<div class="viewcode-block" id="make_dir"><a class="viewcode-back" href="../../../util/#slideflow.make_dir">[docs]</a><span class="k">def</span> <span class="nf">make_dir</span><span class="p">(</span><span class="n">_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="make_dir"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.make_dir">[docs]</a><span class="k">def</span> <span class="nf">make_dir</span><span class="p">(</span><span class="n">_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Makes a directory if one does not already exist,</span>
 <span class="sd">    in a manner compatible with multithreading.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -775,7 +788,7 @@
             <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="relative_path"><a class="viewcode-back" href="../../../util/#slideflow.relative_path">[docs]</a><span class="k">def</span> <span class="nf">relative_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<div class="viewcode-block" id="relative_path"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.relative_path">[docs]</a><span class="k">def</span> <span class="nf">relative_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a relative path, from a given root directory.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">path</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;.&#39;</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">path</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
@@ -785,7 +798,7 @@
         <span class="k">return</span> <span class="n">path</span></div>
 
 
-<div class="viewcode-block" id="global_path"><a class="viewcode-back" href="../../../util/#slideflow.global_path">[docs]</a><span class="k">def</span> <span class="nf">global_path</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<div class="viewcode-block" id="global_path"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.global_path">[docs]</a><span class="k">def</span> <span class="nf">global_path</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns global path from a local path.&#39;&#39;&#39;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">root</span><span class="p">:</span>
         <span class="n">root</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
@@ -806,7 +819,7 @@
         <span class="k">return</span> <span class="n">string</span>
 
 
-<div class="viewcode-block" id="yes_no_input"><a class="viewcode-back" href="../../../util/#slideflow.yes_no_input">[docs]</a><span class="k">def</span> <span class="nf">yes_no_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;no&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="yes_no_input"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.yes_no_input">[docs]</a><span class="k">def</span> <span class="nf">yes_no_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;no&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Prompts user for yes/no input.&#39;&#39;&#39;</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">response</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
@@ -818,7 +831,7 @@
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Invalid response.&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="path_input"><a class="viewcode-back" href="../../../util/#slideflow.path_input">[docs]</a><span class="k">def</span> <span class="nf">path_input</span><span class="p">(</span>
+<div class="viewcode-block" id="path_input"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.path_input">[docs]</a><span class="k">def</span> <span class="nf">path_input</span><span class="p">(</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">default</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -854,7 +867,7 @@
         <span class="k">return</span> <span class="n">relative_response</span></div>
 
 
-<div class="viewcode-block" id="choice_input"><a class="viewcode-back" href="../../../util/#slideflow.choice_input">[docs]</a><span class="k">def</span> <span class="nf">choice_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">valid_choices</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">multi_choice</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<div class="viewcode-block" id="choice_input"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.choice_input">[docs]</a><span class="k">def</span> <span class="nf">choice_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">valid_choices</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">multi_choice</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">input_type</span><span class="o">=</span><span class="nb">str</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Prompts user for multi-choice input.&#39;&#39;&#39;</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
@@ -878,19 +891,64 @@
         <span class="k">return</span> <span class="n">response</span></div>
 
 
-<div class="viewcode-block" id="load_json"><a class="viewcode-back" href="../../../util/#slideflow.load_json">[docs]</a><span class="k">def</span> <span class="nf">load_json</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<div class="viewcode-block" id="load_json"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.load_json">[docs]</a><span class="k">def</span> <span class="nf">load_json</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Reads JSON data from file.&#39;&#39;&#39;</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">data_file</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">data_file</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="write_json"><a class="viewcode-back" href="../../../util/#slideflow.write_json">[docs]</a><span class="k">def</span> <span class="nf">write_json</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Writes data to JSON file.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="write_json"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.write_json">[docs]</a><span class="k">def</span> <span class="nf">write_json</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Write data to JSON file.&quot;&quot;&quot;</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">data_file</span><span class="p">:</span>
         <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">data_file</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="get_slides_from_model_manifest"><a class="viewcode-back" href="../../../util/#slideflow.get_slides_from_model_manifest">[docs]</a><span class="k">def</span> <span class="nf">get_slides_from_model_manifest</span><span class="p">(</span>
+<div class="viewcode-block" id="log_manifest"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.log_manifest">[docs]</a><span class="k">def</span> <span class="nf">log_manifest</span><span class="p">(</span>
+    <span class="n">train_tfrecords</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">val_tfrecords</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Saves the training manifest in CSV format and returns as a string.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        train_tfrecords (list(str)], optional): List of training TFRecords.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        val_tfrecords (list(str)], optional): List of validation TFRecords.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        labels (dict, optional): TFRecord outcome labels. Defaults to None.</span>
+<span class="sd">        filename (str, optional): Path to CSV file to save. Defaults to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: Saved manifest in str format.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">save_file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filename</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">save_file</span><span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;dataset&#39;</span><span class="p">,</span> <span class="s1">&#39;outcome_label&#39;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">train_tfrecords</span> <span class="ow">or</span> <span class="n">val_tfrecords</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">train_tfrecords</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">tfrecord</span> <span class="ow">in</span> <span class="n">train_tfrecords</span><span class="p">:</span>
+                <span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
+                <span class="n">outcome_label</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">if</span> <span class="n">labels</span> <span class="k">else</span> <span class="s1">&#39;NA&#39;</span>
+                <span class="n">out</span> <span class="o">+=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">outcome_label</span><span class="p">)])</span>
+                <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+                    <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="n">outcome_label</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">val_tfrecords</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">tfrecord</span> <span class="ow">in</span> <span class="n">val_tfrecords</span><span class="p">:</span>
+                <span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
+                <span class="n">outcome_label</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">if</span> <span class="n">labels</span> <span class="k">else</span> <span class="s1">&#39;NA&#39;</span>
+                <span class="n">out</span> <span class="o">+=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;validation&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">outcome_label</span><span class="p">)])</span>
+                <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+                    <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;validation&#39;</span><span class="p">,</span> <span class="n">outcome_label</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">save_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="get_slides_from_model_manifest"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_slides_from_model_manifest">[docs]</a><span class="k">def</span> <span class="nf">get_slides_from_model_manifest</span><span class="p">(</span>
     <span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
@@ -928,7 +986,7 @@
     <span class="k">return</span> <span class="n">slides</span></div>
 
 
-<div class="viewcode-block" id="get_gan_config"><a class="viewcode-back" href="../../../util/#slideflow.get_gan_config">[docs]</a><span class="k">def</span> <span class="nf">get_gan_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<div class="viewcode-block" id="get_gan_config"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_gan_config">[docs]</a><span class="k">def</span> <span class="nf">get_gan_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads a GAN training_options.json for an associated network PKL.&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">model_path</span><span class="p">),</span> <span class="s1">&#39;training_options.json&#39;</span><span class="p">)):</span>
@@ -937,12 +995,12 @@
         <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelParamsNotFoundError</span></div>
 
 
-<div class="viewcode-block" id="get_model_config"><a class="viewcode-back" href="../../../util/#slideflow.get_model_config">[docs]</a><span class="k">def</span> <span class="nf">get_model_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<div class="viewcode-block" id="get_model_config"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_model_config">[docs]</a><span class="k">def</span> <span class="nf">get_model_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads model configuration JSON file.&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">)):</span>
         <span class="n">config</span> <span class="o">=</span> <span class="n">load_json</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))</span>
-    <span class="k">elif</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">model_path</span><span class="p">),</span> <span class="s1">&#39;params.json&#39;</span><span class="p">)):</span>
+    <span class="k">elif</span> <span class="n">exists</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">model_path</span><span class="p">),</span> <span class="s1">&#39;params.json&#39;</span><span class="p">)):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">torch_available</span>
                 <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;zip&#39;</span><span class="p">):</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
@@ -964,7 +1022,7 @@
     <span class="k">return</span> <span class="n">config</span></div>
 
 
-<div class="viewcode-block" id="get_ensemble_model_config"><a class="viewcode-back" href="../../../util/#slideflow.get_ensemble_model_config">[docs]</a><span class="k">def</span> <span class="nf">get_ensemble_model_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<div class="viewcode-block" id="get_ensemble_model_config"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_ensemble_model_config">[docs]</a><span class="k">def</span> <span class="nf">get_ensemble_model_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads ensemble model configuration JSON file.&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="s1">&#39;ensemble_params.json&#39;</span><span class="p">)):</span>
@@ -991,7 +1049,7 @@
     <span class="k">return</span> <span class="n">config</span></div>
 
 
-<div class="viewcode-block" id="get_model_normalizer"><a class="viewcode-back" href="../../../util/#slideflow.get_model_normalizer">[docs]</a><span class="k">def</span> <span class="nf">get_model_normalizer</span><span class="p">(</span>
+<div class="viewcode-block" id="get_model_normalizer"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_model_normalizer">[docs]</a><span class="k">def</span> <span class="nf">get_model_normalizer</span><span class="p">(</span>
     <span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;sf.norm.StainNormalizer&quot;</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads and fits normalizer using configuration at a model path.&quot;&quot;&quot;</span>
@@ -1026,7 +1084,7 @@
     <span class="k">return</span> <span class="n">normalizer</span></div>
 
 
-<div class="viewcode-block" id="get_preprocess_fn"><a class="viewcode-back" href="../../../util/#slideflow.get_preprocess_fn">[docs]</a><span class="k">def</span> <span class="nf">get_preprocess_fn</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<div class="viewcode-block" id="get_preprocess_fn"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_preprocess_fn">[docs]</a><span class="k">def</span> <span class="nf">get_preprocess_fn</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a function which preprocesses a uint8 image for a model.</span>
 
 <span class="sd">    Args:</span>
@@ -1048,14 +1106,14 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized model: </span><span class="si">{</span><span class="n">model_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="get_slide_paths"><a class="viewcode-back" href="../../../util/#slideflow.get_slide_paths">[docs]</a><span class="k">def</span> <span class="nf">get_slide_paths</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<div class="viewcode-block" id="get_slide_paths"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_slide_paths">[docs]</a><span class="k">def</span> <span class="nf">get_slide_paths</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Get all slide paths from a given directory containing slides.&#39;&#39;&#39;</span>
     <span class="n">slide_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">,</span> <span class="s1">&#39;**/*.*&#39;</span><span class="p">))</span> <span class="k">if</span> <span class="n">is_slide</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
     <span class="n">slide_list</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">,</span> <span class="s1">&#39;*.*&#39;</span><span class="p">))</span> <span class="k">if</span> <span class="n">is_slide</span><span class="p">(</span><span class="n">i</span><span class="p">)])</span>
     <span class="k">return</span> <span class="n">slide_list</span></div>
 
 
-<div class="viewcode-block" id="read_annotations"><a class="viewcode-back" href="../../../util/#slideflow.read_annotations">[docs]</a><span class="k">def</span> <span class="nf">read_annotations</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]]:</span>
+<div class="viewcode-block" id="read_annotations"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.read_annotations">[docs]</a><span class="k">def</span> <span class="nf">read_annotations</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Read an annotations file.&#39;&#39;&#39;</span>
     <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_file</span><span class="p">:</span>
@@ -1076,7 +1134,7 @@
     <span class="k">return</span> <span class="n">header</span><span class="p">,</span> <span class="n">results</span></div>
 
 
-<div class="viewcode-block" id="get_relative_tfrecord_paths"><a class="viewcode-back" href="../../../util/#slideflow.get_relative_tfrecord_paths">[docs]</a><span class="k">def</span> <span class="nf">get_relative_tfrecord_paths</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<div class="viewcode-block" id="get_relative_tfrecord_paths"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_relative_tfrecord_paths">[docs]</a><span class="k">def</span> <span class="nf">get_relative_tfrecord_paths</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns relative tfrecord paths with respect to the given directory.&#39;&#39;&#39;</span>
 
     <span class="n">tfrecords</span> <span class="o">=</span> <span class="p">[</span>
@@ -1106,7 +1164,7 @@
     <span class="k">return</span> <span class="kc">False</span>
 
 
-<div class="viewcode-block" id="path_to_name"><a class="viewcode-back" href="../../../util/#slideflow.path_to_name">[docs]</a><span class="k">def</span> <span class="nf">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="path_to_name"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.path_to_name">[docs]</a><span class="k">def</span> <span class="nf">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns name of a file, without extension,</span>
 <span class="sd">    from a given full path string.&#39;&#39;&#39;</span>
     <span class="n">_file</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
@@ -1116,7 +1174,7 @@
         <span class="k">return</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span></div>
 
 
-<div class="viewcode-block" id="path_to_ext"><a class="viewcode-back" href="../../../util/#slideflow.path_to_ext">[docs]</a><span class="k">def</span> <span class="nf">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="path_to_ext"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.path_to_ext">[docs]</a><span class="k">def</span> <span class="nf">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns extension of a file path string.&#39;&#39;&#39;</span>
     <span class="n">_file</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -1125,7 +1183,7 @@
         <span class="k">return</span> <span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="update_results_log"><a class="viewcode-back" href="../../../util/#slideflow.update_results_log">[docs]</a><span class="k">def</span> <span class="nf">update_results_log</span><span class="p">(</span>
+<div class="viewcode-block" id="update_results_log"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.update_results_log">[docs]</a><span class="k">def</span> <span class="nf">update_results_log</span><span class="p">(</span>
     <span class="n">results_log_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">results_dict</span><span class="p">:</span> <span class="n">Dict</span>
@@ -1188,7 +1246,72 @@
         <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">results_log_path</span><span class="si">}</span><span class="s2">.temp&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="location_heatmap"><a class="viewcode-back" href="../../../util/#slideflow.location_heatmap">[docs]</a><span class="k">def</span> <span class="nf">location_heatmap</span><span class="p">(</span>
+<div class="viewcode-block" id="map_values_to_slide_grid"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.map_values_to_slide_grid">[docs]</a><span class="k">def</span> <span class="nf">map_values_to_slide_grid</span><span class="p">(</span>
+    <span class="n">locations</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">wsi</span><span class="p">:</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">,</span>
+    <span class="n">background</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">interpolation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;bicubic&#39;</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map heatmap values to a slide grid, using tile location information.&quot;&quot;&quot;</span>
+
+    <span class="n">no_interpolation</span> <span class="o">=</span> <span class="p">(</span><span class="n">interpolation</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">interpolation</span> <span class="o">==</span> <span class="s1">&#39;nearest&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Slide coordinate information</span>
+    <span class="n">loc_grid_dict</span> <span class="o">=</span> <span class="p">{(</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span> <span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">coord</span><span class="p">}</span>
+
+    <span class="c1"># Determine the heatmap background</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">wsi</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">wsi</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">if</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">no_interpolation</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;&#39;mask&#39; background is not compatible with interpolation method &quot;</span>
+            <span class="s2">&quot;&#39;</span><span class="si">{}</span><span class="s2">&#39;. Expected: None or &#39;nearest&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">interpolation</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span><span class="p">:</span>
+        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;min&#39;</span><span class="p">:</span>
+        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mean&#39;</span><span class="p">:</span>
+        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;median&#39;</span><span class="p">:</span>
+        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span>
+        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized value for background: </span><span class="si">{</span><span class="n">background</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">locations</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="n">locations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">locations</span><span class="p">)</span>
+
+    <span class="c1"># Transform from coordinates as center locations to top-left locations.</span>
+    <span class="n">locations</span> <span class="o">=</span> <span class="n">locations</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">wsi_dim</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">locations</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">loc_grid_dict</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">wsi_dim</span><span class="p">)]</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">CoordinateAlignmentError</span><span class="p">(</span>
+                <span class="s2">&quot;Error plotting value at location </span><span class="si">{}</span><span class="s2"> for slide </span><span class="si">{}</span><span class="s2">. The heatmap &quot;</span>
+                <span class="s2">&quot;grid is not aligned to the slide coordinate grid. Ensure &quot;</span>
+                <span class="s2">&quot;that tile_px (got: </span><span class="si">{}</span><span class="s2">) and tile_um (got: </span><span class="si">{}</span><span class="s2">) match the given &quot;</span>
+                <span class="s2">&quot;location values. If you are using data stored in TFRecords, &quot;</span>
+                <span class="s2">&quot;verify that the TFRecord was generated using the same &quot;</span>
+                <span class="s2">&quot;tile_px and tile_um.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">tuple</span><span class="p">(</span><span class="n">wsi_dim</span><span class="p">),</span> <span class="n">wsi</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">wsi</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="n">wsi</span><span class="o">.</span><span class="n">tile_um</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">grid</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">1</span><span class="p">]][</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="c1"># Mask out background, if interpolation is not used and background == &#39;mask&#39;</span>
+    <span class="k">if</span> <span class="n">no_interpolation</span> <span class="ow">and</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span><span class="p">:</span>
+        <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_invalid</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">grid</span>
+    <span class="k">return</span> <span class="n">masked_grid</span></div>
+
+
+<div class="viewcode-block" id="location_heatmap"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.location_heatmap">[docs]</a><span class="k">def</span> <span class="nf">location_heatmap</span><span class="p">(</span>
     <span class="n">locations</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -1233,7 +1356,6 @@
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generating heatmap for [green]</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">[/]...&#39;</span><span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Plotting </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span><span class="si">}</span><span class="s2"> values&quot;</span><span class="p">)</span>
     <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_um</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">no_interpolation</span> <span class="o">=</span> <span class="p">(</span><span class="n">interpolation</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">interpolation</span> <span class="o">==</span> <span class="s1">&#39;nearest&#39;</span><span class="p">)</span>
 
     <span class="n">stats</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">slide_name</span><span class="p">:</span> <span class="p">{</span>
@@ -1242,56 +1364,9 @@
         <span class="p">}</span>
     <span class="p">}</span>
 
-    <span class="c1"># Slide coordinate information</span>
-    <span class="n">loc_grid_dict</span> <span class="o">=</span> <span class="p">{(</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span> <span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">coord</span><span class="p">}</span>
-
-    <span class="c1"># Determine the heatmap background</span>
-    <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">wsi</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">wsi</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
-    <span class="k">if</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">no_interpolation</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;&#39;mask&#39; background is not compatible with interpolation method &quot;</span>
-            <span class="s2">&quot;&#39;</span><span class="si">{}</span><span class="s2">&#39;. Expected: None or &#39;nearest&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">interpolation</span><span class="p">)</span>
-        <span class="p">)</span>
-    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span><span class="p">:</span>
-        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;min&#39;</span><span class="p">:</span>
-        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mean&#39;</span><span class="p">:</span>
-        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;median&#39;</span><span class="p">:</span>
-        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span>
-        <span class="n">grid</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized value for background: </span><span class="si">{</span><span class="n">background</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">locations</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-        <span class="n">locations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">locations</span><span class="p">)</span>
-
-    <span class="c1"># Transform from coordinates as center locations to top-left locations.</span>
-    <span class="n">locations</span> <span class="o">=</span> <span class="n">locations</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">wsi_dim</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">locations</span><span class="p">):</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">idx</span> <span class="o">=</span> <span class="n">loc_grid_dict</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">wsi_dim</span><span class="p">)]</span>
-        <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">CoordinateAlignmentError</span><span class="p">(</span>
-                <span class="s2">&quot;Error plotting value at location </span><span class="si">{}</span><span class="s2"> for slide </span><span class="si">{}</span><span class="s2">. The heatmap &quot;</span>
-                <span class="s2">&quot;grid is not aligned to the slide coordinate grid. Ensure &quot;</span>
-                <span class="s2">&quot;that tile_px (got: </span><span class="si">{}</span><span class="s2">) and tile_um (got: </span><span class="si">{}</span><span class="s2">) match the given &quot;</span>
-                <span class="s2">&quot;location values. If you are using data stored in TFRecords, &quot;</span>
-                <span class="s2">&quot;verify that the TFRecord was generated using the same &quot;</span>
-                <span class="s2">&quot;tile_px and tile_um.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                    <span class="nb">tuple</span><span class="p">(</span><span class="n">wsi_dim</span><span class="p">),</span> <span class="n">slide</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_um</span>
-                <span class="p">)</span>
-            <span class="p">)</span>
-        <span class="n">grid</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">1</span><span class="p">]][</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-
-    <span class="c1"># Mask out background, if interpolation is not used and background == &#39;mask&#39;</span>
-    <span class="k">if</span> <span class="n">no_interpolation</span> <span class="ow">and</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span><span class="p">:</span>
-        <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_invalid</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">grid</span>
+    <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">map_values_to_slide_grid</span><span class="p">(</span>
+        <span class="n">locations</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">wsi</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="n">background</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span>
+    <span class="p">)</span>
 
     <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
     <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">)</span>
@@ -1336,7 +1411,7 @@
     <span class="k">return</span> <span class="n">stats</span></div>
 
 
-<div class="viewcode-block" id="tfrecord_heatmap"><a class="viewcode-back" href="../../../util/#slideflow.tfrecord_heatmap">[docs]</a><span class="k">def</span> <span class="nf">tfrecord_heatmap</span><span class="p">(</span>
+<div class="viewcode-block" id="tfrecord_heatmap"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.tfrecord_heatmap">[docs]</a><span class="k">def</span> <span class="nf">tfrecord_heatmap</span><span class="p">(</span>
     <span class="n">tfrecord</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">tile_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -1362,17 +1437,16 @@
 <span class="sd">        Dictionary mapping slide names to dict of statistics</span>
 <span class="sd">        (mean, median)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">loc_dict</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_locations_from_tfrecord</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">,</span> <span class="n">as_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">tile_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">!=</span> <span class="n">loc_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-        <span class="n">td_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">tile_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
-        <span class="n">loc_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">loc_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+    <span class="n">locations</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_locations_from_tfrecord</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tile_dict</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;tile_dict length (</span><span class="si">{</span><span class="n">td_len</span><span class="si">}</span><span class="s1">) != TFRecord length (</span><span class="si">{</span><span class="n">loc_len</span><span class="si">}</span><span class="s1">).&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;tile_dict length (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tile_dict</span><span class="p">)</span><span class="si">}</span><span class="s1">) != TFRecord length &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">)</span><span class="si">}</span><span class="s1">).&#39;</span>
         <span class="p">)</span>
 
     <span class="k">return</span> <span class="n">location_heatmap</span><span class="p">(</span>
-        <span class="n">locations</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">loc_dict</span><span class="p">[</span><span class="n">loc</span><span class="p">]</span> <span class="k">for</span> <span class="n">loc</span> <span class="ow">in</span> <span class="n">loc_dict</span><span class="p">]),</span>
-        <span class="n">values</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tile_dict</span><span class="p">[</span><span class="n">loc</span><span class="p">]</span> <span class="k">for</span> <span class="n">loc</span> <span class="ow">in</span> <span class="n">loc_dict</span><span class="p">]),</span>
+        <span class="n">locations</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">locations</span><span class="p">),</span>
+        <span class="n">values</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tile_dict</span><span class="p">[</span><span class="n">loc</span><span class="p">]</span> <span class="k">for</span> <span class="n">loc</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">))]),</span>
         <span class="n">slide</span><span class="o">=</span><span class="n">slide</span><span class="p">,</span>
         <span class="n">tile_px</span><span class="o">=</span><span class="n">tile_px</span><span class="p">,</span>
         <span class="n">tile_um</span><span class="o">=</span><span class="n">tile_um</span><span class="p">,</span>
@@ -1381,7 +1455,7 @@
     <span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="get_valid_model_dir"><a class="viewcode-back" href="../../../util/#slideflow.get_valid_model_dir">[docs]</a><span class="k">def</span> <span class="nf">get_valid_model_dir</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+<div class="viewcode-block" id="get_valid_model_dir"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_valid_model_dir">[docs]</a><span class="k">def</span> <span class="nf">get_valid_model_dir</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    This function returns the path of the first indented directory from root.</span>
 <span class="sd">    This only works when the indented folder name starts with a 5 digit number,</span>
@@ -1421,7 +1495,7 @@
     <span class="k">return</span> <span class="n">path</span>
 
 
-<div class="viewcode-block" id="split_list"><a class="viewcode-back" href="../../../util/#slideflow.split_list">[docs]</a><span class="k">def</span> <span class="nf">split_list</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">]:</span>
+<div class="viewcode-block" id="split_list"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.split_list">[docs]</a><span class="k">def</span> <span class="nf">split_list</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Function to split a list into n components&#39;&#39;&#39;</span>
     <span class="n">k</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">n</span><span class="p">)</span>
     <span class="k">return</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="nb">min</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="nb">min</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">m</span><span class="p">)]</span>
@@ -1505,7 +1579,7 @@
     <span class="k">return</span> <span class="n">processed_features</span>
 
 
-<div class="viewcode-block" id="load_predictions"><a class="viewcode-back" href="../../../util/#slideflow.load_predictions">[docs]</a><span class="k">def</span> <span class="nf">load_predictions</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<div class="viewcode-block" id="load_predictions"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.load_predictions">[docs]</a><span class="k">def</span> <span class="nf">load_predictions</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads a &#39;csv&#39;, &#39;parquet&#39; or &#39;feather&#39; file to a pandas dataframe.</span>
 
 <span class="sd">    Args:</span>
@@ -1546,7 +1620,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1620,7 +1694,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
