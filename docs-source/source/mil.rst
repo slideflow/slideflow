@@ -121,6 +121,11 @@ Alternatively, you can calculate features for a dataset using :class:`slideflow.
     # Export feature bags.
     features.to_torch('/path/to/bag_directory/')
 
+
+.. warning::
+
+    Using :class:`slideflow.DatasetFeatures` directly may result in a large amount of memory usage, particularly for sizable datasets. When generating feature bags for training MIL models, it is recommended to use :meth:`slideflow.Project.generate_feature_bags` instead.
+
 When image features are exported for a dataset, the feature extractor configuration is saved to ``bags_config.json`` in the same directory as the exported features. This configuration file can be used to rebuild the feature extractor. An example file is shown below.
 
 .. code-block:: json

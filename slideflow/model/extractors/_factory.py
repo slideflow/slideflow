@@ -25,10 +25,17 @@ def build_feature_extractor(
     """Build a feature extractor.
 
     The returned feature extractor is a callable object, which returns
-    features (often layer activations) for a batch of images.
-    Images are expected to be in (B, W, H, C) format and non-standardized
-    (scaled 0-255) with dtype uint8. The feature extractors perform
-    all needed preprocessing on the fly.
+    features (often layer activations) for either a batch of images or a
+    :class:`slideflow.WSI` object.
+
+    If generating features for a batch of images, images are expected to be in
+    (B, W, H, C) format and non-standardized (scaled 0-255) with dtype uint8.
+    The feature extractors perform all needed preprocessing on the fly.
+
+    If generating features for a slide, the slide is expected to be a
+    :class:`slideflow.WSI` object. The feature extractor will generate features
+    for each tile in the slide, returning a numpy array of shape (W, H, F),
+    where F is the number of features.
 
     Args:
         name (str): Name of the feature extractor to build. Available
@@ -97,6 +104,26 @@ def build_feature_extractor(
                     resnet,
                     dataset=dataset
                 )
+
+        Generate a map of features across a slide.
+
+            .. code-block:: python
+
+                import slideflow as sf
+                from slideflow.model import build_feature_extractor
+
+                # Load a slide
+                wsi = sf.WSI(...)
+
+                # Create a feature extractor
+                retccl = build_feature_extractor(
+                    'retccl',
+                    tile_px=299
+                )
+
+                # Create a feature map, a 2D array of shape
+                # (W, H, F), where F is the number of features.
+                features = retccl(wsi)
 
     """
     # Build feature extractor according to manually specified backend
