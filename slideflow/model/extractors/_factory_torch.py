@@ -1,7 +1,10 @@
 """Factory for building PyTorch feature extractors."""
 
+import numpy as np
+import slideflow as sf
 from slideflow import errors
 
+from ._slide import features_from_slide
 from ._registry import _torch_extractors, is_torch_extractor, register_torch
 from ..base import BaseFeatureExtractor
 
@@ -156,11 +159,21 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
             self.num_features,
         )
 
-    def __call__(self, batch_images):
-        import torch
-        assert batch_images.dtype == torch.uint8
-        batch_images = self.transform(batch_images).to(self.device)
-        return self.ftrs._predict(batch_images)
+    def __call__(self, obj, **kwargs):
+        """Generate features for a batch of images or a WSI."""
+        if isinstance(obj, sf.WSI):
+            grid = features_from_slide(self, obj, **kwargs)
+            return np.ma.masked_where(grid == -99, grid)
+        elif kwargs:
+            raise ValueError(
+                f"{self.__class__.__name__} does not accept keyword arguments "
+                "when extracting features from a batch of images."
+            )
+        else:
+            import torch
+            assert obj.dtype == torch.uint8
+            obj = self.transform(obj).to(self.device)
+            return self.ftrs._predict(obj)
 
     def dump_config(self):
         """Return a dictionary of configuration parameters.

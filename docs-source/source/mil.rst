@@ -24,7 +24,7 @@ To calculate features from an ImageNet-pretrained network, first build an imagen
         tile_px=299
     )
 
-This will calculate features using activations from the post-convolutional layer. You can also concatenate activations from multiple neural network layers.
+This will calculate features using activations from the post-convolutional layer. You can also concatenate activations from multiple neural network layers and apply pooling for layers with 2D output shapes.
 
 .. code-block:: python
 
@@ -32,8 +32,22 @@ This will calculate features using activations from the post-convolutional layer
 
     resnet50 = build_feature_extractor(
         'resnet50_imagenet',
-        layers=['conv5_bn', 'con10_bn'],
+        layers=['conv1_relu', 'conv3_block1_2_relu'],
+        pooling='avg',
         tile_px=299
+    )
+
+If a model architecture is available in both the Tensorflow and PyTorch backends, Slideflow will default to using the active backend. You can manually set the feature extractor backend using `backend`.
+
+.. code-block:: python
+
+    # Create a PyTorch feature extractor
+    extractor = build_feature_extractor(
+        'resnet50_imagenet',
+        layers=['layer2.0.conv1', 'layer3.1.conv2'],
+        pooling='avg',
+        tile_px=299,
+        backend='torch'
     )
 
 You can view all available feature extractors with :func:`slideflow.model.list_extractors`.
@@ -141,7 +155,9 @@ When image features are exported for a dataset, the feature extractor configurat
        ]
       }
      },
-     "num_features": 2048
+     "num_features": 2048,
+     "tile_px": 299,
+     "tile_um": 302
     }
 
 The feature extractor can be manually rebuilt using :func:`slideflow.model.rebuild_extractor()`:
@@ -150,7 +166,9 @@ The feature extractor can be manually rebuilt using :func:`slideflow.model.rebui
 
     from slideflow.model import rebuild_extractor
 
-    extractor = rebuild_extractor('/path/to/bags_config.json')
+    # Recreate the feature extractor
+    # and stain normalizer, if applicable
+    extractor, normalizer = rebuild_extractor('/path/to/bags_config.json')
 
 
 Training

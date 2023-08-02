@@ -162,9 +162,10 @@ def rebuild_extractor(
 
     """
     # Load bags configuration
+    is_bag_config = bags_or_model.endswith('bags_config.json')
     is_bag_dir = exists(join(bags_or_model, 'bags_config.json'))
     is_model_dir = exists(join(bags_or_model, 'mil_params.json'))
-    if not is_bag_dir and not is_model_dir:
+    if not (is_bag_dir or is_model_dir or is_bag_config):
         if allow_errors:
             return None, None
         else:
@@ -172,7 +173,9 @@ def rebuild_extractor(
                 'Could not find bags or MIL model configuration at '
                 f'{bags_or_model}.'
             )
-    if is_model_dir:
+    if is_bag_config:
+        bags_config = sf.util.load_json(bags_or_model)
+    elif is_model_dir:
         mil_config = sf.util.load_json(join(bags_or_model, 'mil_params.json'))
         if 'bags_extractor' not in mil_config:
             if allow_errors:

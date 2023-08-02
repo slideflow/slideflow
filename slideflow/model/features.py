@@ -1252,7 +1252,7 @@ class _FeatureGenerator:
 
         # Concatenate features if we have features from >1 layer
         if isinstance(features, list):
-            features = np.concatenate(features)
+            features = np.concatenate(features, axis=1)
 
         return features, predictions, uncertainty, slides, loc
 
