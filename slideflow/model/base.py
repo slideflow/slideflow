@@ -124,8 +124,8 @@ class _ModelParams:
                       - Random JPEG compression (10% chance to JPEG compress with quality between 50-100%)
                     * - b
                       - Random Guassian blur (50% chance to blur with sigma between 0.5 - 2.0)
-                    * - s
-                      - Stain augmentation (must be using stain normalization)
+                    * - n
+                      - :ref:`stain_augmentation` (requires stain normalizer)
 
 
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
