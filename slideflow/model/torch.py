@@ -23,6 +23,7 @@ import slideflow.util.neptune_utils
 from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
+from slideflow.model.torch_utils import autocast
 from slideflow.model.base import log_manifest, no_scope, BaseFeatureExtractor
 from slideflow.util import log, NormFit, ImgBatchSpeedColumn
 
@@ -428,6 +429,7 @@ class Trainer:
         neptune_workspace: Optional[str] = None,
         load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
+        device: Optional[str] = None,
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -473,7 +475,7 @@ class Trainer:
         self.model = None  # type: Optional[torch.nn.Module]
         self.inference_model = None  # type: Optional[torch.nn.Module]
         self.mixed_precision = mixed_precision
-        self.device = torch.device('cuda:0')
+        self.device = torch_utils.get_device(device)
         self.mid_train_val_dts: Optional[Iterable] = None
         self.loss_fn: torch.nn.modules.loss._Loss
         self.use_tensorboard: bool
@@ -1051,9 +1053,8 @@ class Trainer:
             val_img = val_img.to(memory_format=torch.channels_last)
 
             with torch.no_grad():
-                _mp = self.mixed_precision
-                _ns = no_scope()
-                with torch.cuda.amp.autocast() if _mp else _ns:  # type: ignore
+                _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
+                with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
 
                     # GPU normalization, if specified.
                     if self._has_gpu_normalizer():
@@ -1126,7 +1127,7 @@ class Trainer:
         else:
             self.scheduler = None  # type: ignore
         self.loss_fn = self.hp.get_loss()
-        if self.mixed_precision:
+        if self.mixed_precision and self.device.type == 'cuda':
             self.scaler = torch.cuda.amp.GradScaler()
 
     def _prepare_neptune_run(self, dataset: "sf.Dataset", label: str) -> None:
@@ -1207,7 +1208,6 @@ class Trainer:
             num_workers=4 if not from_wsi else 0,
             onehot=False,
             incl_slidenames=True,
-            device=self.device,
             from_wsi=from_wsi,
             **kwargs
         )
@@ -1269,9 +1269,8 @@ class Trainer:
         labels = self._labels_to_device(labels, self.device)
         self.optimizer.zero_grad()
         with torch.set_grad_enabled(True):
-            _mp = self.mixed_precision
-            _ns = no_scope()
-            with torch.cuda.amp.autocast() if _mp else _ns:  # type: ignore
+            _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
+            with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
 
                 # GPU normalization, if specified.
                 if self._has_gpu_normalizer():
@@ -1291,7 +1290,7 @@ class Trainer:
                 loss = self._calculate_loss(outputs, labels, self.loss_fn)
 
             # Update weights
-            if self.mixed_precision:
+            if self.mixed_precision and self.device.type == 'cuda':
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
@@ -1460,18 +1459,17 @@ class Trainer:
         # Load and initialize model
         if not self.model:
             raise errors.ModelNotLoadedError
-        device = torch.device('cuda:0')
-        self.model.to(device)
+        self.model.to(self.device)
         self.model.eval()
         self._log_manifest(None, dataset, labels=None)
 
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
-                os.cpu_count() if os.cpu_count() else 8,
+                sf.util.num_cpu(default=8),
                 initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
-            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
+            pool = mp.dummy.Pool(sf.util.num_cpu(default=8))
         else:
             pool = None
         if not batch_size:
@@ -1566,11 +1564,11 @@ class Trainer:
             raise errors.ModelNotLoadedError
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
-                os.cpu_count() if os.cpu_count() else 8,
+                sf.util.num_cpu(default=8),
                 initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
-            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
+            pool = mp.dummy.Pool(sf.util.num_cpu(default=8))
         else:
             pool = None
 
@@ -1721,11 +1719,11 @@ class Trainer:
 
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
-                os.cpu_count() if os.cpu_count() else 8,
+                sf.util.num_cpu(default=8),
                 initializer=sf.util.set_ignore_sigint
             )
         elif from_wsi:
-            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
+            pool = mp.dummy.Pool(sf.util.num_cpu(default=8))
         else:
             pool = None
 
@@ -1978,10 +1976,18 @@ class Features(BaseFeatureExtractor):
         self.path = path
         self.apply_softmax = apply_softmax
         self.mixed_precision = mixed_precision
+        self._model = None
+        self._pooling = None
+        self._include_preds = None
+
+        # Transformation for standardizing uint8 images to float32
+        self.transform = torchvision.transforms.Lambda(lambda x: x / 127.5 - 1)
+
         # Hook for storing layer activations during model inference
         self.activation = {}  # type: Dict[Any, Tensor]
-        self.device = device if device is not None else torch.device('cuda')
-        self._model = None
+
+        # Configure device
+        self.device = torch_utils.get_device(device)
 
         if path is not None:
             config = sf.util.get_model_config(path)
@@ -2091,6 +2097,15 @@ class Features(BaseFeatureExtractor):
         else:
             return self._predict(inp, **kwargs)
 
+    def __repr__(self):
+        return ("{}(\n".format(self.__class__.__name__) +
+                "    path={!r},\n".format(self.path) +
+                "    layers={!r},\n".format(self.layers) +
+                "    include_preds={!r},\n".format(self.include_preds) +
+                "    apply_softmax={!r},\n".format(self.apply_softmax) +
+                "    pooling={!r},\n".format(self._pooling) +
+                ")")
+
     def _predict_slide(
         self,
         slide: "sf.WSI",
@@ -2102,12 +2117,13 @@ class Features(BaseFeatureExtractor):
         shuffle: bool = False,
         show_progress: bool = True,
         callback: Optional[Callable] = None,
+        normalizer: Optional[Union[str, "StainNormalizer"]] = None,
+        normalizer_source: Optional[str] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
 
-        log.debug(f"Slide prediction (batch_size={batch_size}, "
-                  f"img_format={img_format})")
+        # Check image format
         if img_format == 'auto' and self.img_format is None:
             raise ValueError(
                 'Unable to auto-detect image format (png or jpg). Set the '
@@ -2116,91 +2132,28 @@ class Features(BaseFeatureExtractor):
         elif img_format == 'auto':
             assert self.img_format is not None
             img_format = self.img_format
-        if img_format == 'png':  # PNG is lossless; this is equivalent but faster
-            log.debug("Using numpy image format instead of PNG")
-            img_format = 'numpy'
-        total_out = self.num_features + self.num_classes + self.num_uncertainty
-        if grid is None:
-            features_grid = np.ones((
-                    slide.grid.shape[1],
-                    slide.grid.shape[0],
-                    total_out),
-                dtype=dtype)
-            features_grid *= -99
-        else:
-            assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
-            features_grid = grid
-        generator = slide.build_generator(
+
+        return sf.model.extractors.features_from_slide(
+            self,
+            slide,
+            img_format=img_format,
+            batch_size=batch_size,
+            dtype=dtype,
+            grid=grid,
             shuffle=shuffle,
             show_progress=show_progress,
-            img_format=img_format,
-            **kwargs)
-        if not generator:
-            log.error(f"No tiles extracted from slide [green]{slide.name}")
-            return None
-
-        class SlideIterator(torch.utils.data.IterableDataset):
-            def __init__(self, parent, *args, **kwargs):
-                super(SlideIterator).__init__(*args, **kwargs)
-                self.parent = parent
-
-            def __iter__(self):
-                for image_dict in generator():
-                    img = image_dict['image']
-                    if img_format not in ('numpy', 'png'):
-                        np_data = torch.from_numpy(
-                            np.fromstring(img, dtype=np.uint8))
-                        img = torchvision.io.decode_image(np_data)
-                    else:
-                        img = torch.from_numpy(img).permute(2, 0, 1)
-
-                    if self.parent.wsi_normalizer:
-                        img = img.permute(1, 2, 0)  # CWH => WHC
-                        img = torch.from_numpy(
-                            self.parent.wsi_normalizer.rgb_to_rgb(img.numpy())
-                        )
-                        img = img.permute(2, 0, 1)  # WHC => CWH
-                    loc = np.array(image_dict['grid'])
-                    img = img / 127.5 - 1
-                    yield img, loc
-
-        tile_dataset = torch.utils.data.DataLoader(
-            SlideIterator(self),
-            batch_size=batch_size)
-
-        for i, (batch_images, batch_loc) in enumerate(tile_dataset):
-            model_out = sf.util.as_list(self._predict(batch_images))
-
-            # Flatten the output, relevant when
-            # there are multiple outcomes / classifier heads
-            _act_batch = []
-            for m in model_out:
-                if isinstance(m, (list, tuple)):
-                    _act_batch += [_m.cpu().detach().numpy() for _m in m]
-                else:
-                    _act_batch.append(m.cpu().detach().numpy())
-            _act_batch = np.concatenate(_act_batch, axis=-1)
-
-            grid_idx_updated = []
-            for i, act in enumerate(_act_batch):
-                xi = batch_loc[i][0]
-                yi = batch_loc[i][1]
-                if callback:
-                    grid_idx_updated.append([yi, xi])
-                features_grid[yi][xi] = act
-
-            # Trigger a callback signifying that the grid has been updated.
-            # Useful for progress tracking.
-            if callback:
-                callback(grid_idx_updated)
-
-        return features_grid
+            callback=callback,
+            normalizer=(normalizer if normalizer else self.wsi_normalizer),
+            normalizer_source=normalizer_source,
+            preprocess_fn=self.transform,
+            **kwargs
+        )
 
     def _predict(self, inp: Tensor, no_grad: bool = True) -> List[Tensor]:
         """Return activations for a single batch of images."""
         assert torch.is_floating_point(inp), "Input tensor must be float"
-        _mp = self.mixed_precision
-        with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
+        _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
+        with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
             with torch.no_grad() if no_grad else no_scope():
                 inp = inp.to(self.device).to(memory_format=torch.channels_last)
                 logits = self._model(inp)
@@ -2274,6 +2227,8 @@ class Features(BaseFeatureExtractor):
                 callable PyTorch function.
         """
 
+        self._pooling = pooling
+
         if isinstance(pooling, str):
             if pooling == 'avg':
                 pooling = lambda x: torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
@@ -2331,6 +2286,18 @@ class Features(BaseFeatureExtractor):
             log.debug(f'Number of classes: {self.num_classes}')
         log.debug(f'Number of activation features: {self.num_features}')
 
+    def dump_config(self):
+        return {
+            'class': 'slideflow.model.torch.Features',
+            'kwargs': {
+                'path': self.path,
+                'layers': self.layers,
+                'include_preds': self.include_preds,
+                'apply_softmax': self.apply_softmax,
+                'pooling': self._pooling
+            }
+        }
+
 
 class UncertaintyInterface(Features):
 
@@ -2373,18 +2340,26 @@ class UncertaintyInterface(Features):
         torch_utils.enable_dropout(obj._model)
         return obj
 
+    def __repr__(self):
+        return ("{}(\n".format(self.__class__.__name__) +
+                "    path={!r},\n".format(self.path) +
+                "    layers={!r},\n".format(self.layers) +
+                "    apply_softmax={!r},\n".format(self.apply_softmax) +
+                "    pooling={!r},\n".format(self._pooling) +
+                ")")
+
     def _predict(self, inp: Tensor, no_grad: bool = True) -> List[Tensor]:
         """Return activations (mean), predictions (mean), and uncertainty
         (stdev) for a single batch of images."""
 
         assert torch.is_floating_point(inp), "Input tensor must be float"
-        _mp = self.mixed_precision
+        _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
 
         out_pred_drop = [[] for _ in range(self.num_outputs)]
         if self.layers:
             out_act_drop = [[] for _ in range(len(self.layers))]
         for _ in range(30):
-            with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
+            with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
                 with torch.no_grad() if no_grad else no_scope():
                     inp = inp.to(self.device)
                     inp = inp.to(memory_format=torch.channels_last)
@@ -2430,6 +2405,17 @@ class UncertaintyInterface(Features):
             return reduced_activations + [predictions, uncertainty]
         else:
             return predictions, uncertainty
+
+    def dump_config(self):
+        return {
+            'class': 'slideflow.model.torch.UncertaintyInterface',
+            'kwargs': {
+                'path': self.path,
+                'layers': self.layers,
+                'apply_softmax': self.apply_softmax,
+                'pooling': self._pooling
+            }
+        }
 
 # -----------------------------------------------------------------------------
 

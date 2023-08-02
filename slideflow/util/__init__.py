@@ -72,7 +72,20 @@ Labels = Union[Dict[str, str], Dict[str, int], Dict[str, List[float]]]
 # Normalizer fit keyword arguments
 NormFit = Union[Dict[str, np.ndarray], Dict[str, List]]
 
+# --- Detect CPU cores --------------------------------------------------------
+
+def num_cpu(default: Optional[int] = None) -> Optional[int]:
+    try:
+        return len(os.sched_getaffinity(0))
+    except Exception as e:
+        count = os.cpu_count()
+        if count is None and default is not None:
+            return default
+        else:
+            return count
+
 # --- Configure logging--------------------------------------------------------
+
 log = logging.getLogger('slideflow')
 log.setLevel(logging.DEBUG)
 
@@ -204,7 +217,7 @@ def about(console=None) -> None:
         >>> sf.about()
         ╭=======================╮
         │       Slideflow       │
-        │    Version: 1.5.0     │
+        │    Version: 2.1.0     │
         │  Backend: tensorflow  │
         │ Slide Backend: cucim  │
         │ https://slideflow.dev │
@@ -608,9 +621,54 @@ def load_json(filename: str) -> Any:
 
 
 def write_json(data: Any, filename: str) -> None:
-    '''Writes data to JSON file.'''
+    """Write data to JSON file."""
     with open(filename, "w") as data_file:
         json.dump(data, data_file, indent=1)
+
+
+def log_manifest(
+    train_tfrecords: Optional[List[str]] = None,
+    val_tfrecords: Optional[List[str]] = None,
+    *,
+    labels: Optional[Dict[str, Any]] = None,
+    filename: Optional[str] = None
+) -> str:
+    """Saves the training manifest in CSV format and returns as a string.
+
+    Args:
+        train_tfrecords (list(str)], optional): List of training TFRecords.
+            Defaults to None.
+        val_tfrecords (list(str)], optional): List of validation TFRecords.
+            Defaults to None.
+        labels (dict, optional): TFRecord outcome labels. Defaults to None.
+        filename (str, optional): Path to CSV file to save. Defaults to None.
+
+    Returns:
+        str: Saved manifest in str format.
+    """
+    out = ''
+    if filename:
+        save_file = open(os.path.join(filename), 'w')
+        writer = csv.writer(save_file)
+        writer.writerow(['slide', 'dataset', 'outcome_label'])
+    if train_tfrecords or val_tfrecords:
+        if train_tfrecords:
+            for tfrecord in train_tfrecords:
+                slide = sf.util.path_to_name(tfrecord)
+                outcome_label = labels[slide] if labels else 'NA'
+                out += ' '.join([slide, 'training', str(outcome_label)])
+                if filename:
+                    writer.writerow([slide, 'training', outcome_label])
+        if val_tfrecords:
+            for tfrecord in val_tfrecords:
+                slide = sf.util.path_to_name(tfrecord)
+                outcome_label = labels[slide] if labels else 'NA'
+                out += ' '.join([slide, 'validation', str(outcome_label)])
+                if filename:
+                    writer.writerow([slide, 'validation', outcome_label])
+    if filename:
+        save_file.close()
+    return out
 
 
 def get_slides_from_model_manifest(
@@ -665,7 +723,7 @@ def get_model_config(model_path: str) -> Dict:
 
     if exists(join(model_path, 'params.json')):
         config = load_json(join(model_path, 'params.json'))
-    elif exists(join(dirname(model_path), 'params.json')):
+    elif exists(model_path) and exists(join(dirname(model_path), 'params.json')):
         if not (sf.util.torch_available
                 and sf.util.path_to_ext(model_path) == 'zip'):
             log.warning(
@@ -911,6 +969,71 @@ def update_results_log(
         os.remove(f"{results_log_path}.temp")
 
 
+def map_values_to_slide_grid(
+    locations: np.ndarray,
+    values: np.ndarray,
+    wsi: "sf.WSI",
+    background: str = 'min',
+    *,
+    interpolation: Optional[str] = 'bicubic',
+):
+    """Map heatmap values to a slide grid, using tile location information."""
+
+    no_interpolation = (interpolation is None or interpolation == 'nearest')
+
+    # Slide coordinate information
+    loc_grid_dict = {(c[0], c[1]): (c[2], c[3]) for c in wsi.coord}
+
+    # Determine the heatmap background
+    grid = np.empty((wsi.grid.shape[1], wsi.grid.shape[0]))
+    if background == 'mask' and not no_interpolation:
+        raise ValueError(
+            "'mask' background is not compatible with interpolation method "
+            "'{}'. Expected: None or 'nearest'".format(interpolation)
+        )
+    elif background == 'mask':
+        grid[:] = np.nan
+    elif background == 'min':
+        grid[:] = np.min(values)
+    elif background == 'mean':
+        grid[:] = np.mean(values)
+    elif background == 'median':
+        grid[:] = np.median(values)
+    elif background == 'max':
+        grid[:] = np.max(values)
+    else:
+        raise ValueError(f"Unrecognized value for background: {background}")
+
+    if not isinstance(locations, np.ndarray):
+        locations = np.array(locations)
+
+    # Transform from coordinates as center locations to top-left locations.
+    locations = locations - int(wsi.full_extract_px/2)
+
+    for i, wsi_dim in enumerate(locations):
+        try:
+            idx = loc_grid_dict[tuple(wsi_dim)]
+        except (IndexError, KeyError):
+            raise errors.CoordinateAlignmentError(
+                "Error plotting value at location {} for slide {}. The heatmap "
+                "grid is not aligned to the slide coordinate grid. Ensure "
+                "that tile_px (got: {}) and tile_um (got: {}) match the given "
+                "location values. If you are using data stored in TFRecords, "
+                "verify that the TFRecord was generated using the same "
+                "tile_px and tile_um.".format(
+                    tuple(wsi_dim), wsi.path, wsi.tile_px, wsi.tile_um
+                )
+            )
+        grid[idx[1]][idx[0]] = values[i]
+
+    # Mask out background, if interpolation is not used and background == 'mask'
+    if no_interpolation and background == 'mask':
+        masked_grid = np.ma.masked_invalid(grid)
+    else:
+        masked_grid = grid
+    return masked_grid
+
+
 def location_heatmap(
     locations: np.ndarray,
     values: np.ndarray,
@@ -956,7 +1079,6 @@ def location_heatmap(
     log.info(f'Generating heatmap for [green]{slide}[/]...')
     log.debug(f"Plotting {len(values)} values")
     wsi = sf.slide.WSI(slide, tile_px, tile_um, verbose=False)
-    no_interpolation = (interpolation is None or interpolation == 'nearest')
 
     stats = {
         slide_name: {
@@ -965,56 +1087,9 @@ def location_heatmap(
         }
     }
 
-    # Slide coordinate information
-    loc_grid_dict = {(c[0], c[1]): (c[2], c[3]) for c in wsi.coord}
-
-    # Determine the heatmap background
-    grid = np.empty((wsi.grid.shape[1], wsi.grid.shape[0]))
-    if background == 'mask' and not no_interpolation:
-        raise ValueError(
-            "'mask' background is not compatible with interpolation method "
-            "'{}'. Expected: None or 'nearest'".format(interpolation)
-        )
-    elif background == 'mask':
-        grid[:] = np.nan
-    elif background == 'min':
-        grid[:] = np.min(values)
-    elif background == 'mean':
-        grid[:] = np.mean(values)
-    elif background == 'median':
-        grid[:] = np.median(values)
-    elif background == 'max':
-        grid[:] = np.max(values)
-    else:
-        raise ValueError(f"Unrecognized value for background: {background}")
-
-    if not isinstance(locations, np.ndarray):
-        locations = np.array(locations)
-
-    # Transform from coordinates as center locations to top-left locations.
-    locations = locations - int(wsi.full_extract_px/2)
-
-    for i, wsi_dim in enumerate(locations):
-        try:
-            idx = loc_grid_dict[tuple(wsi_dim)]
-        except (IndexError, KeyError):
-            raise errors.CoordinateAlignmentError(
-                "Error plotting value at location {} for slide {}. The heatmap "
-                "grid is not aligned to the slide coordinate grid. Ensure "
-                "that tile_px (got: {}) and tile_um (got: {}) match the given "
-                "location values. If you are using data stored in TFRecords, "
-                "verify that the TFRecord was generated using the same "
-                "tile_px and tile_um.".format(
-                    tuple(wsi_dim), slide, tile_px, tile_um
-                )
-            )
-        grid[idx[1]][idx[0]] = values[i]
-
-    # Mask out background, if interpolation is not used and background == 'mask'
-    if no_interpolation and background == 'mask':
-        masked_grid = np.ma.masked_invalid(grid)
-    else:
-        masked_grid = grid
+    masked_grid = map_values_to_slide_grid(
+        locations, values, wsi, background=background, interpolation=interpolation
+    )
 
     fig = plt.figure(figsize=(18, 16))
     ax = fig.add_subplot(111)
@@ -1085,18 +1160,16 @@ def tfrecord_heatmap(
         Dictionary mapping slide names to dict of statistics
         (mean, median)
     """
-    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord, as_dict=True)
-    if sorted(list(tile_dict.keys())) != sorted(list(loc_dict.keys())):
-        td_len = len(list(tile_dict.keys()))
-        loc_len = len(list(loc_dict.keys()))
+    locations = sf.io.get_locations_from_tfrecord(tfrecord)
+    if len(tile_dict) != len(locations):
         raise errors.TFRecordsError(
-            f'tile_dict (length={td_len}) does not match TFRecord locations '
-            f'(length={loc_len}).'
+            f'tile_dict length ({len(tile_dict)}) != TFRecord length '
+            f'({len(locations)}).'
         )
 
     return location_heatmap(
-        locations=np.array([loc_dict[loc] for loc in loc_dict]),
-        values=np.array([tile_dict[loc] for loc in loc_dict]),
+        locations=np.array(locations),
+        values=np.array([tile_dict[loc] for loc in range(len(locations))]),
         slide=slide,
         tile_px=tile_px,
         tile_um=tile_um,

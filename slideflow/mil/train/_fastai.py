@@ -2,15 +2,18 @@ import torch
 import pandas as pd
 import numpy as np
 import numpy.typing as npt
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple
 from torch import nn
 from sklearn.preprocessing import OneHotEncoder
+from sklearn import __version__ as sklearn_version
+from packaging import version
 from fastai.vision.all import (
     DataLoader, DataLoaders, Learner, RocAuc, SaveModelCallback, CSVLogger, FetchPredsCallback
 )
 
 from slideflow import log
 from slideflow.mil.data import build_clam_dataset, build_dataset
+from slideflow.model import torch_utils
 from .._params import TrainerConfigFastAI, ModelConfigCLAM
 
 # -----------------------------------------------------------------------------
@@ -49,7 +52,7 @@ def train(learner, config, callbacks=None):
 
 # -----------------------------------------------------------------------------
 
-def build_learner(config, *args, **kwargs):
+def build_learner(config, *args, **kwargs) -> Tuple[Learner, Tuple[int, int]]:
     """Build a FastAI learner for training an MIL model.
 
     Args:
@@ -67,7 +70,8 @@ def build_learner(config, *args, **kwargs):
         device (torch.device or str): PyTorch device.
 
     Returns:
-        fastai.learner.Learner
+        fastai.learner.Learner, (int, int): FastAI learner and a tuple of the
+            number of input features and output classes.
 
     """
     if isinstance(config.model_config, ModelConfigCLAM):
@@ -84,8 +88,8 @@ def _build_clam_learner(
     val_idx: npt.NDArray[np.int_],
     unique_categories: npt.NDArray,
     outdir: Optional[str] = None,
-    device: Union[str, torch.device] = 'cuda',
-) -> Learner:
+    device: Optional[Union[str, torch.device]] = None,
+) -> Tuple[Learner, Tuple[int, int]]:
     """Build a FastAI learner for a CLAM model.
 
     Args:
@@ -101,15 +105,24 @@ def _build_clam_learner(
             in the targets. Used for one-hot encoding.
         outdir (str): Location in which to save training history and best model.
         device (torch.device or str): PyTorch device.
+
+    Returns:
+        FastAI Learner, (number of input features, number of classes).
     """
     from ..clam.utils import loss_utils
 
     # Prepare device.
-    if isinstance(device, str):
-        device = torch.device('cuda')
+    device = torch_utils.get_device(device)
 
     # Prepare data.
-    encoder = OneHotEncoder(sparse=False).fit(unique_categories.reshape(-1, 1))
+    # Set oh_kw to a dictionary of keyword arguments for OneHotEncoder,
+    # using the argument sparse=False if the sklearn version is <1.2
+    # and sparse_output=False if the sklearn version is >=1.2.
+    if version.parse(sklearn_version) < version.parse("1.2"):
+        oh_kw = {"sparse": False}
+    else:
+        oh_kw = {"sparse_output": False}
+    encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
 
     # Build dataloaders.
     train_dataset = build_clam_dataset(
@@ -144,11 +157,13 @@ def _build_clam_learner(
     # Prepare model.
     batch = train_dl.one_batch()
     n_features = batch[0][0].shape[-1]
+    n_classes = batch[-1].shape[-1]
     config_size = config.model_fn.sizes[config.model_config.model_size]
     model_size = [n_features] + config_size[1:]
     log.info(f"Training model {config.model_fn.__name__} "
              f"(size={model_size}, loss={config.loss_fn.__name__})")
-    model = config.model_fn(size=model_size, n_classes=batch[-1].shape[-1])
+    model = config.model_fn(size=model_size, n_classes=n_classes)
+
     model.relocate()
 
     # Loss should weigh inversely to class occurences.
@@ -156,7 +171,9 @@ def _build_clam_learner(
 
     # Create learning and fit.
     dls = DataLoaders(train_dl, val_dl)
-    return Learner(dls, model, loss_func=loss_func, metrics=[loss_utils.RocAuc()], path=outdir)
+    learner = Learner(dls, model, loss_func=loss_func, metrics=[loss_utils.RocAuc()], path=outdir)
+
+    return learner, (n_features, n_classes)
 
 
 def _build_fastai_learner(
@@ -167,8 +184,8 @@ def _build_fastai_learner(
     val_idx: npt.NDArray[np.int_],
     unique_categories: npt.NDArray,
     outdir: Optional[str] = None,
-    device: Union[str, torch.device] = 'cuda',
-) -> Learner:
+    device: Optional[Union[str, torch.device]] = None,
+) -> Tuple[Learner, Tuple[int, int]]:
     """Build a FastAI learner for an MIL model.
 
     Args:
@@ -184,13 +201,23 @@ def _build_fastai_learner(
             in the targets. Used for one-hot encoding.
         outdir (str): Location in which to save training history and best model.
         device (torch.device or str): PyTorch device.
+
+    Returns:
+
+        FastAI Learner, (number of input features, number of classes).
     """
     # Prepare device.
-    if isinstance(device, str):
-        device = torch.device('cuda')
+    device = torch_utils.get_device(device)
 
     # Prepare data.
-    encoder = OneHotEncoder(sparse=False).fit(unique_categories.reshape(-1, 1))
+    # Set oh_kw to a dictionary of keyword arguments for OneHotEncoder,
+    # using the argument sparse=False if the sklearn version is <1.2
+    # and sparse_output=False if the sklearn version is >=1.2.
+    if version.parse(sklearn_version) < version.parse("1.2"):
+        oh_kw = {"sparse": False}
+    else:
+        oh_kw = {"sparse_output": False}
+    encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
 
     # Build dataloaders.
     train_dataset = build_dataset(
@@ -225,7 +252,6 @@ def _build_fastai_learner(
     )
 
     # Prepare model.
-
     batch = train_dl.one_batch()
     n_in, n_out = batch[0].shape[-1], batch[-1].shape[-1]
     log.info(f"Training model {config.model_fn.__name__} "
@@ -245,4 +271,6 @@ def _build_fastai_learner(
 
     # Create learning and fit.
     dls = DataLoaders(train_dl, val_dl)
-    return Learner(dls, model, loss_func=loss_func, metrics=[RocAuc()], path=outdir)
+    learner = Learner(dls, model, loss_func=loss_func, metrics=[RocAuc()], path=outdir)
+
+    return learner, (n_in, n_out)

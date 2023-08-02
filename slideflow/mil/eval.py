@@ -5,14 +5,21 @@ import pandas as pd
 import slideflow as sf
 import numpy as np
 from rich.progress import Progress
-from os.path import join, exists, isdir, dirname
-from typing import Union, List, Optional, Callable, Tuple, Any
-from slideflow import Dataset, log, errors
+from os.path import join, exists, dirname
+from typing import Union, List, Optional, Callable, Tuple, Any, TYPE_CHECKING
+from slideflow import Dataset, log
 from slideflow.util import path_to_name
+from slideflow.model.extractors import rebuild_extractor
 from slideflow.stats.metrics import ClassifierMetrics
 from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
+from .utils import load_model_weights, _load_bag
+
+if TYPE_CHECKING:
+    import torch
+    from slideflow.norm import StainNormalizer
+    from slideflow.model.base import BaseFeatureExtractor
 
 # -----------------------------------------------------------------------------
 
@@ -64,21 +71,6 @@ def eval_mil(
     """
     import torch
 
-    if isinstance(config, TrainerConfigCLAM):
-        raise NotImplementedError
-
-    # Read configuration from saved model, if available
-    if config is None:
-        if not exists(join(weights, 'mil_params.json')):
-            raise errors.ModelError(
-                f"Could not find `mil_params.json` at {weights}. Check the "
-                "provided model/weights path, or provide a configuration "
-                "with 'config'."
-            )
-        else:
-            p = sf.util.load_json(join(weights, 'mil_params.json'))
-            config = sf.mil.mil_config(trainer=p['trainer'], **p['params'])
-
     # Prepare ground-truth labels
     labels, unique = dataset.labels(outcomes, format='id')
 
@@ -98,37 +90,8 @@ def eval_mil(
     n_features = torch.load(bags[0]).shape[-1]
     n_out = len(unique)
 
-    # Build the model
-    if isinstance(config, TrainerConfigCLAM):
-        config_size = config.model_fn.sizes[config.model_config.model_size]
-        _size = [n_features] + config_size[1:]
-        model = config.model_fn(size=_size)
-        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
-    elif isinstance(config.model_config, ModelConfigCLAM):
-        config_size = config.model_fn.sizes[config.model_config.model_size]
-        _size = [n_features] + config_size[1:]
-        model = config.model_fn(size=_size)
-        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
-    else:
-        model = config.model_fn(n_features, n_out)
-        log.info(f"Building model {config.model_fn.__name__} "
-                 f"(in={n_features}, out={n_out})")
-    if isdir(weights):
-        if exists(join(weights, 'models', 'best_valid.pth')):
-            weights = join(weights, 'models', 'best_valid.pth')
-        elif exists(join(weights, 'results', 's_0_checkpoint.pt')):
-            weights = join(weights, 'results', 's_0_checkpoint.pt')
-        else:
-            raise errors.ModelError(
-                f"Could not find model weights at path {weights}"
-            )
-    log.info(f"Loading model weights from [green]{weights}[/]")
-    model.load_state_dict(torch.load(weights))
-
-    # Prepare device.
-    if hasattr(model, 'relocate'):
-        model.relocate()  # type: ignore
-    model.eval()
+    # Load model
+    model, config = load_model_weights(weights, config)
 
     # Inference.
     if (isinstance(config, TrainerConfigCLAM)
@@ -157,19 +120,16 @@ def eval_mil(
     df.to_parquet(pred_out)
     log.info(f"Predictions saved to [green]{pred_out}[/]")
 
+    # Print categorical metrics, including per-category accuracy
+    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
+    metrics_df = df.rename(
+        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
+    )
+    sf.stats.metrics.categorical_metrics(metrics_df, level='slide')
+
     # Export attention
     if y_att:
-        att_path = join(model_dir, 'attention')
-        if not exists(att_path):
-            os.makedirs(att_path)
-        for slide, att in zip(slides, y_att):
-            if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
-                out_path = join(att_path, f'{slide}_att.npy')
-                np.save(out_path, att)
-            else:
-                out_path = join(att_path, f'{slide}_att.npz')
-                np.savez(out_path, att)
-        log.info(f"Attention scores exported to [green]{out_path}[/]")
+        _export_attention(join(model_dir, 'attention'), y_att, slides)
 
     # Attention heatmaps
     if y_att and attention_heatmaps:
@@ -185,6 +145,124 @@ def eval_mil(
 
 # -----------------------------------------------------------------------------
 
+def predict_slide(
+    model: str,
+    slide: Union[str, sf.WSI],
+    extractor: Optional["BaseFeatureExtractor"] = None,
+    *,
+    normalizer: Optional["StainNormalizer"] = None,
+    config: Optional[_TrainerConfig] = None,
+    attention: bool = False,
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """Generate predictions (and attention) for a single slide.
+
+    Args:
+        model (str): Path to MIL model.
+        slide (str): Path to slide.
+        extractor (:class:`slideflow.mil.BaseFeatureExtractor`, optional):
+            Feature extractor. If not provided, will attempt to auto-detect
+            extractor from model.
+
+            .. note::
+                If the extractor has a stain normalizer, this will be used to
+                normalize the slide before extracting features.
+
+    Keyword Args:
+        normalizer (:class:`slideflow.stain.StainNormalizer`, optional):
+            Stain normalizer. If not provided, will attempt to use stain
+            normalizer from extractor.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for building model. If None, will attempt to read
+            ``mil_params.json`` from the model directory and load saved
+            configuration. Defaults to None.
+        attention (bool): Whether to return attention scores. Defaults to
+            False.
+
+    Returns:
+        Tuple[np.ndarray, Optional[np.ndarray]]: Predictions and attention scores.
+        Attention scores are None if ``attention`` is False, otherwise
+        a masked 2D array with the same shape as the slide grid (arranged as a
+        heatmap, with unused tiles masked).
+
+    """
+    # Try to auto-determine the extractor
+    if extractor is None:
+        extractor, detected_normalizer = rebuild_extractor(model, allow_errors=True)
+        if extractor is None:
+            raise ValueError(
+                "Unable to auto-detect feature extractor used for model {}. "
+                "Please specify an extractor.".format(model)
+            )
+
+    # Determine stain normalization
+    if detected_normalizer is not None and normalizer is not None:
+        log.warning(
+            "Bags were generated with a stain normalizer, but a different stain "
+            "normalizer was provided to this function. Overriding with provided "
+            "stain normalizer."
+        )
+    elif detected_normalizer is not None:
+        normalizer = detected_normalizer
+
+    # Load model
+    model_fn, config = load_model_weights(model, config)
+    mil_params = sf.util.load_json(join(model, 'mil_params.json'))
+    if 'bags_extractor' not in mil_params:
+        raise ValueError(
+            "Unable to determine extractor used for model {}. "
+            "Please specify an extractor.".format(model)
+        )
+    bags_params = mil_params['bags_extractor']
+
+    # Load slide
+    if isinstance(slide, str):
+        if not all(k in bags_params for k in ('tile_px', 'tile_um')):
+            raise ValueError(
+                "Unable to determine tile size for slide {}. "
+                "Either slide must be a slideflow.WSI object, or tile_px and "
+                "tile_um must be specified in mil_params.json.".format(slide)
+            )
+        slide = sf.WSI(
+            slide,
+            tile_px=bags_params['tile_px'],
+            tile_um=bags_params['tile_um']
+        )
+
+    # Convert slide to bags
+    masked_bags = extractor(slide, normalizer=normalizer)
+    original_shape = masked_bags.shape
+    masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
+    mask = masked_bags.mask.any(axis=1)
+    valid_indices = np.where(~mask)
+    bags = masked_bags[valid_indices]
+    bags = np.expand_dims(bags, axis=0).astype(np.float32)
+
+    sf.log.info("Generated feature bags for {} tiles".format(bags.shape[1]))
+
+    # Generate predictions.
+    if (isinstance(config, TrainerConfigCLAM)
+       or isinstance(config.model_config, ModelConfigCLAM)):
+        y_pred, raw_att = _predict_clam(model_fn, bags, attention=attention)
+    else:
+        y_pred, raw_att = _predict_mil(
+            model_fn, bags, attention=attention, use_lens=config.model_config.use_lens
+        )
+
+    # Reshape attention to match original shape
+    if attention and raw_att is not None and len(raw_att):
+        y_att = raw_att[0]
+
+        # Create a fully masked array of shape (X, Y)
+        att_heatmap = np.ma.masked_all(masked_bags.shape[0], dtype=y_att.dtype)
+
+        # Unmask and fill the transformed data into the corresponding positions
+        att_heatmap[valid_indices] = y_att
+        y_att = np.reshape(att_heatmap, original_shape[0:2])
+    else:
+        y_att = None
+
+    return y_pred, y_att
+
 
 def predict_from_model(
     model: Callable,
@@ -195,7 +273,7 @@ def predict_from_model(
     *,
     attention: bool = False
 ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, List[np.ndarray]]]:
-    """Generate predictions from a model.
+    """Generate predictions for a dataset from a saved MIL model.
 
     Args:
         model (torch.nn.Module): Model from which to generate predictions.
@@ -256,7 +334,7 @@ def generate_attention_heatmaps(
     attention: Union[np.ndarray, List[np.ndarray]],
     **kwargs
 ) -> None:
-    """Generate and save attention heatmaps.
+    """Generate and save attention heatmaps for a dataset.
 
     Args:
         outdir (str): Path at which to save heatmap images.
@@ -318,6 +396,24 @@ def generate_attention_heatmaps(
 
 # -----------------------------------------------------------------------------
 
+def _export_attention(
+    dest: str,
+    y_att: List[np.ndarray],
+    slides: List[str]
+) -> None:
+    """Export attention scores to a directory."""
+    if not exists(dest):
+        os.makedirs(dest)
+    for slide, att in zip(slides, y_att):
+        if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
+            out_path = join(dest, f'{slide}_att.npy')
+            np.save(out_path, att)
+        else:
+            out_path = join(dest, f'{slide}_att.npz')
+            np.savez(out_path, att)
+    log.info(f"Attention scores exported to [green]{out_path}[/]")
+
+
 def _predict_clam(
     model: Callable,
     bags: Union[np.ndarray, List[str]],
@@ -350,7 +446,7 @@ def _predict_clam(
     y_att  = []
     log.info("Generating predictions...")
     for bag in bags:
-        loaded = torch.load(bag).to(device)
+        loaded = _load_bag(bag).to(device)
         with torch.no_grad():
             if clam_kw:
                 logits, att, _ = model(loaded, **clam_kw)
@@ -398,8 +494,7 @@ def _predict_mil(
         )
         attention = False
     for bag in bags:
-        loaded = torch.load(bag).to(device)
-        loaded = torch.unsqueeze(loaded, dim=0)
+        loaded = torch.unsqueeze(_load_bag(bag).to(device), dim=0)
         with torch.no_grad():
             if use_lens:
                 lens = torch.from_numpy(np.array([loaded.shape[1]])).to(device)
@@ -410,6 +505,7 @@ def _predict_mil(
             if attention:
                 att = torch.squeeze(model.calculate_attention(*model_args))
                 if len(att.shape) == 2:
+                    log.warning("Pooling attention scores from 2D to 1D")
                     # Attention needs to be pooled
                     if attention_pooling == 'avg':
                         att = torch.mean(att, dim=-1)

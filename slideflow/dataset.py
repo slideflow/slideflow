@@ -234,6 +234,34 @@ def _tile_extractor(
         raise e
 
 
+def _buffer_slide(path: str, dest: str) -> str:
+    """Buffer a slide to a path."""
+    buffered = join(dest, basename(path))
+    shutil.copy(path, buffered)
+
+    # If this is an MRXS file, copy the associated folder.
+    if path.lower().endswith('mrxs'):
+        folder_path = join(dirname(path), path_to_name(path))
+        if exists(folder_path):
+            shutil.copytree(folder_path, join(dest, path_to_name(path)))
+        else:
+            log.debug("Could not find associated MRXS folder for slide buffer")
+
+    return buffered
+
+
+def _debuffer_slide(path: str) -> None:
+    """De-buffer a slide."""
+    os.remove(path)
+    # If this is an MRXS file, remove the associated folder.
+    if path.lower().endswith('mrxs'):
+        folder_path = join(dirname(path), path_to_name(path))
+        if exists(folder_path):
+            shutil.rmtree(folder_path)
+        else:
+            log.debug("Could not find MRXS folder for slide debuffer")
+
+
 def _fill_queue(
     slide_list: Sequence[str],
     q: Queue,
@@ -247,9 +275,7 @@ def _fill_queue(
             while True:
                 if q.qsize() < q_size:
                     try:
-                        buffered = join(buffer, basename(path))
-                        shutil.copy(path, buffered)
-                        q.put(buffered)
+                        q.put(_buffer_slide(path, buffer))
                         break
                     except OSError:
                         if not warned:
@@ -681,7 +707,7 @@ class Dataset:
             str: Image format of tfrecords (PNG or JPG), or None if no
             tfrecords have been extracted.
         """
-        return self.verify_img_format()
+        return self.verify_img_format(progress=False)
 
     def _tfrecords_set(self, source: str):
         if source not in self.sources:
@@ -925,22 +951,28 @@ class Dataset:
             None
         """
         if force:
-            missing_index = self.tfrecords()
+            index_to_update = self.tfrecords()
         else:
-            missing_index = [
-                tfr for tfr in self.tfrecords()
-                if not tfrecord2idx.find_index(tfr)
-            ]
-            if not missing_index:
+            index_to_update = []
+            for tfr in self.tfrecords():
+                index = tfrecord2idx.find_index(tfr)
+                if not index:
+                    index_to_update.append(tfr)
+                elif (not tfrecord2idx.index_has_locations(index)
+                      and sf.io.tfrecord_has_locations(tfr)):
+                    os.remove(index)
+                    index_to_update.append(tfr)
+            if not index_to_update:
                 return
+
         index_fn = partial(_create_index, force=force)
         pool = mp.Pool(
-            os.cpu_count(),
+            sf.util.num_cpu(),
             initializer=sf.util.set_ignore_sigint
         )
-        for _ in track(pool.imap_unordered(index_fn, missing_index),
-                       description='Creating index files...',
-                       total=len(self.tfrecords()),
+        for _ in track(pool.imap_unordered(index_fn, index_to_update),
+                       description=f'Updating index files...',
+                       total=len(index_to_update),
                        transient=True):
             pass
         pool.close()
@@ -1090,7 +1122,7 @@ class Dataset:
                 pb.remove_task(segment_task)
 
                 if buffer:
-                    os.remove(slide_path)
+                    _debuffer_slide(slide_path)
                 q.task_done()
         if buffer:
             thread.join()
@@ -1498,6 +1530,10 @@ class Dataset:
         all_reports = []
         self.verify_annotations_slides()
 
+        # Log the active slide reading backend
+        col = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
+        log.info(f"Slide reading backend: [{col}]{sf.slide_backend()}[/]")
+
         # Set up kwargs for tile extraction generator and quality control
         qc_kwargs = {k[3:]: v for k, v in kwargs.items() if k[:3] == 'qc_'}
         kwargs = {k: v for k, v in kwargs.items() if k[:3] != 'qc_'}
@@ -1575,11 +1611,11 @@ class Dataset:
 
                 # Use a single shared multiprocessing pool
                 if 'num_threads' not in kwargs:
-                    num_threads = os.cpu_count()
-                    if sf.slide_backend() == 'libvips':
-                        num_threads = min(num_threads, 32)
+                    num_threads = sf.util.num_cpu()
                     if num_threads is None:
                         num_threads = 8
+                    if sf.slide_backend() == 'libvips':
+                        num_threads = min(num_threads, 32)
                 else:
                     num_threads = kwargs['num_threads']
                 if num_threads != 1:
@@ -1587,6 +1623,7 @@ class Dataset:
                         num_threads,
                         initializer=sf.util.set_ignore_sigint
                     )
+                    qc_kwargs['pool'] = pool
                 else:
                     pool = None
                     ptype = None
@@ -1642,7 +1679,7 @@ class Dataset:
                                 break
                             _tile_extractor(path, **extraction_kwargs)
                             pb.advance(slide_task)
-                            os.remove(path)
+                            _debuffer_slide(path)
                             q.task_done()
                         thread.join()
                     else:
@@ -1881,7 +1918,7 @@ class Dataset:
             log.info(f"Updating index for {tfr}...")
             os.remove(tfr_idx)
             _create_index(tfr)
-        return sf.io.get_locations_from_tfrecord(tfr, as_dict=False)
+        return sf.io.get_locations_from_tfrecord(tfr)
 
     def harmonize_labels(
         self,
@@ -2323,7 +2360,7 @@ class Dataset:
         self,
         slide: str,
         loc: Tuple[int, int],
-        decode: bool = True
+        decode: Optional[bool] = None
     ) -> Any:
         """Read a record from a TFRecord, indexed by location.
 
@@ -2349,6 +2386,14 @@ class Dataset:
             raise errors.TFRecordsError(
                 f"Could not find associated TFRecord for slide '{slide}'"
             )
+        if decode is None:
+            decode = True
+        else:
+            warnings.warn(
+                "The 'decode' argument to `Dataset.read_tfrecord_by_location` "
+                "is deprecated and will be removed in a future version. In the "
+                "future, all records will be decoded."
+            )
         return sf.io.get_tfrecord_by_location(tfr, loc, decode=decode)
 
     def remove_filter(self, **kwargs: Any) -> "Dataset":
@@ -2369,7 +2414,9 @@ class Dataset:
                 raise ValueError(f'Unknown filtering argument {kwarg}')
         ret = copy.deepcopy(self)
         if 'filters' in kwargs:
-            if not isinstance(kwargs['filters'], list):
+            if isinstance(kwargs['filters'], str):
+                kwargs['filters'] = [kwargs['filters']]
+            elif not isinstance(kwargs['filters'], list):
                 raise TypeError("'filters' must be a list.")
             for f in kwargs['filters']:
                 if f not in ret._filters:
@@ -2485,7 +2532,7 @@ class Dataset:
             otsu_task = pb.add_task("Otsu thresholding...", total=len(paths))
         pb.start()
         pool = mp.Pool(
-            16 if os.cpu_count is None else os.cpu_count(),
+            sf.util.num_cpu(default=16),
             initializer=sf.util.set_ignore_sigint
         )
         wsi_list = []
@@ -3116,44 +3163,63 @@ class Dataset:
             batch_size (int): Batch size.
 
         Keyword Args:
-            onehot (bool, optional): Onehot encode labels. Defaults to False.
-            incl_slidenames (bool, optional): Include slidenames as third
-                returned variable. Defaults to False.
-            infinite (bool, optional): Infinitely repeat data.
-                Defaults to True.
-            rank (int, optional): Worker ID to identify which worker this
-                represents. Used to interleave results among workers without
-                duplications. Defaults to 0 (first worker).
-            num_replicas (int, optional): Number of GPUs or unique instances
-                which will have their own DataLoader. Used to interleave
-                results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
-                Normalizer to use on images.
-            seed (int, optional): Use the following seed when randomly
-                interleaving. Necessary for synchronized multiprocessing
-                distributed reading.
-            chunk_size (int, optional): Chunk size for image decoding.
-                Defaults to 16.
-            preload_factor (int, optional): Number of batches to preload.
-                Defaults to 1.
-            augment (str, optional): Image augmentations to perform. String
-                    containing characters designating augmentations.
-                    'x' indicates random x-flipping, 'y' y-flipping,
-                    'r' rotating, and 'j' JPEG compression/decompression at
-                    random quality levels. Passing either 'xyrj' or True will
-                    use all augmentations.
-            standardize (bool, optional): Standardize images to (0,1).
-                Defaults to True.
-            num_workers (int, optional): Number of DataLoader workers.
-                Defaults to 2.
-            deterministic (bool, optional): When num_parallel_calls is
-                specified, if this boolean is specified (True or False), it
-                controls the order in which the transformation produces
-                elements. If set to False, the transformation is allowed to
-                yield elements out of order to trade determinism for
-                performance. Defaults to False.
+            augment (str or bool): Image augmentations to perform. Augmentations include:
+
+                * ``'x'``: Random horizontal flip
+                * ``'y'``: Random vertical flip
+                * ``'r'``: Random 90-degree rotation
+                * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+                * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+                * ``'n'``: Random :ref:`stain_augmentation` (requires stain normalizer)
+
+                Combine letters to define augmentations, such as ``'xyrjn'``.
+                A value of True will use ``'xyrjb'``.
+            deterministic (bool, optional): When num_parallel_calls is specified,
+                if this boolean is specified, it controls the order in which the
+                transformation produces elements. If set to False, the
+                transformation is allowed to yield elements out of order to trade
+                determinism for performance. Defaults to False.
             drop_last (bool, optional): Drop the last non-full batch.
                 Defaults to False.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            incl_loc (str, optional): 'coord', 'grid', or None. Return (x,y)
+                origin coordinates ('coord') for each tile along with tile
+                images, or the (x,y) grid coordinates for each tile.
+                Defaults to 'coord'.
+            incl_slidenames (bool, optional): Include slidenames as third returned
+                variable. Defaults to False.
+            infinite (bool, optional): Create an finite dataset. WARNING: If
+                infinite is False && balancing is used, some tiles will be skipped.
+                Defaults to True.
+            img_size (int): Image width in pixels.
+            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+                Normalizer to use on images. Defaults to None.
+            num_parallel_reads (int, optional): Number of parallel reads for each
+                TFRecordDataset. Defaults to 4.
+            num_shards (int, optional): Shard the tfrecord datasets, used for
+                multiprocessing datasets. Defaults to None.
+            pool (multiprocessing.Pool): Shared multiprocessing pool. Useful
+                if ``from_wsi=True``, for sharing a unified processing pool between
+                dataloaders. Defaults to None.
+            rois (list(str), optional): List of ROI paths. Only used if
+                from_wsi=True.  Defaults to None.
+            roi_method (str, optional): Method for extracting ROIs. Only used if
+                from_wsi=True. Defaults to 'auto'.
+            shard_idx (int, optional): Index of the tfrecord shard to use.
+                Defaults to None.
+            standardize (bool, optional): Standardize images to (0,1).
+                Defaults to True.
+            tile_um (int, optional): Size of tiles to extract from WSI, in
+                microns. Only used if from_wsi=True. Defaults to None.
+            tfrecord_parser (Callable, optional): Custom parser for TFRecords.
+                Defaults to None.
+            transform (Callable, optional): Arbitrary transform function.
+                Performs transformation after augmentations but before
+                standardization. Defaults to None.
+            **decode_kwargs (dict): Keyword arguments to pass to
+                :func:`slideflow.io.tensorflow.decode_image`.
 
         Returns:
             tf.data.Dataset
@@ -3182,7 +3248,7 @@ class Dataset:
             clip = self._clip
             if not tfrecords:
                 raise errors.TFRecordsNotFoundError
-            self.verify_img_format()
+            self.verify_img_format(progress=False)
 
         return interleave(paths=tfrecords,
                           labels=labels,
@@ -3442,7 +3508,7 @@ class Dataset:
 
     def tfrecords_have_locations(self) -> bool:
         """Check if TFRecords have associated tile location information."""
-        for tfr in tqdm(self.tfrecords(), leave=False, desc="Working..."):
+        for tfr in self.tfrecords():
             try:
                 tfr_has_loc = sf.io.tfrecord_has_locations(tfr)
             except errors.TFRecordsError:
@@ -3575,39 +3641,66 @@ class Dataset:
                 Defaults to True.
 
         Keyword Args:
-            onehot (bool, optional): Onehot encode labels. Defaults to False.
-            incl_slidenames (bool, optional): Include slidenames as third
-                returned variable. Defaults to False.
-            infinite (bool, optional): Infinitely repeat data.
-                Defaults to True.
-            rank (int, optional): Worker ID to identify which worker this
-                represents. Used to interleave results among workers without
-                duplications. Defaults to 0 (first worker).
-            num_replicas (int, optional): Number of GPUs or unique instances
-                which will have their own DataLoader. Used to interleave
-                results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
-                Normalizer to use on images. Defaults to None.
-            seed (int, optional): Use the following seed when randomly
-                interleaving. Necessary for synchronized multiprocessing.
+            augment (str or bool): Image augmentations to perform. Augmentations include:
+
+                * ``'x'``: Random horizontal flip
+                * ``'y'``: Random vertical flip
+                * ``'r'``: Random 90-degree rotation
+                * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+                * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+                * ``'n'``: Random :ref:`stain_augmentation` (requires stain normalizer)
+
+                Combine letters to define augmentations, such as ``'xyrjn'``.
+                A value of True will use ``'xyrjb'``.
             chunk_size (int, optional): Chunk size for image decoding.
-                Defaults to 16.
-            preload_factor (int, optional): Number of batches to preload.
                 Defaults to 1.
-            augment (str, optional): Image augmentations to perform. Str
-                containing characters designating augmentations. 'x' indicates
-                random x-flipping, 'y' y-flipping, 'r' rotating, 'j' JPEG
-                compression/decompression at random quality levels, and 'b'
-                random gaussian blur. Passing either 'xyrjb' or True will use
-                all augmentations. Defaults to 'xyrjb'.
-            standardize (bool, optional): Standardize images to (0,1).
-                Defaults to True.
-            num_workers (int, optional): Number of DataLoader workers.
-                Defaults to 2.
-            pin_memory (bool, optional): Pin memory to GPU.
-                Defaults to True.
             drop_last (bool, optional): Drop the last non-full batch.
                 Defaults to False.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            incl_loc (bool, optional): Include loc_x and loc_y as additional
+                returned variables. Defaults to False.
+            incl_slidenames (bool, optional): Include slidenames as third returned
+                variable. Defaults to False.
+            infinite (bool, optional): Infinitely repeat data. Defaults to True.
+            max_size (bool, optional): Unused argument present for legacy
+                compatibility; will be removed.
+            model_type (str, optional): Used to generate random labels
+                (for StyleGAN2). Not required. Defaults to 'categorical'.
+            num_replicas (int, optional): Number of GPUs or unique instances which
+                will have their own DataLoader. Used to interleave results among
+                workers without duplications. Defaults to 1.
+            num_workers (int, optional): Number of DataLoader workers.
+                Defaults to 2.
+            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+                Normalizer. Defaults to None.
+            onehot (bool, optional): Onehot encode labels. Defaults to False.
+            persistent_workers (bool, optional): Sets the DataLoader
+                persistent_workers flag. Defaults toNone (4 if not using a SPAMS
+                normalizer, 1 if using SPAMS).
+            pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
+            pool (multiprocessing.Pool): Shared multiprocessing pool. Useful
+                if from_wsi=True, for sharing a unified processing pool between
+                dataloaders. Defaults to None.
+            prefetch_factor (int, optional): Number of batches to prefetch in each
+                SlideflowIterator. Defaults to 1.
+            rank (int, optional): Worker ID to identify this worker.
+                Used to interleave results.
+                among workers without duplications. Defaults to 0 (first worker).
+            rois (list(str), optional): List of ROI paths. Only used if
+                from_wsi=True.  Defaults to None.
+            roi_method (str, optional): Method for extracting ROIs. Only used if
+                from_wsi=True. Defaults to 'auto'.
+            standardize (bool, optional): Standardize images to mean 0 and
+                variance of 1. Defaults to True.
+            tile_um (int, optional): Size of tiles to extract from WSI, in
+                microns. Only used if from_wsi=True. Defaults to None.
+            transform (Callable, optional): Arbitrary torchvision transform
+                function. Performs transformation after augmentations but
+                before standardization. Defaults to None.
+            tfrecord_parser (Callable, optional): Custom parser for TFRecords.
+                Defaults to None.
 
         """
         from slideflow.io.torch import interleave_dataloader
@@ -3631,7 +3724,7 @@ class Dataset:
             tfrecords = self.tfrecords()
             if not tfrecords:
                 raise errors.TFRecordsNotFoundError
-            self.verify_img_format()
+            self.verify_img_format(progress=False)
             _idx_dict = self.load_indices()
             indices = [_idx_dict[path_to_name(tfr)] for tfr in tfrecords]
             clip = self._clip
@@ -3819,7 +3912,7 @@ class Dataset:
         if n_missing > 1:
             log.warn(f"{n_missing} patients do not have a slide assigned.")
 
-    def verify_img_format(self) -> Optional[str]:
+    def verify_img_format(self, *, progress: bool = True) -> Optional[str]:
         """Verify that all tfrecords have the same image format (PNG/JPG).
 
         Returns:
@@ -3828,11 +3921,14 @@ class Dataset:
         tfrecords = self.tfrecords()
         if len(tfrecords):
             img_formats = []
-            pb = track(
-                tfrecords,
-                description="Verifying tfrecord formats...",
-                transient=True
-            )
+            if progress:
+                pb = track(
+                    tfrecords,
+                    description="Verifying tfrecord formats...",
+                    transient=True
+                )
+            else:
+                pb = tfrecords
             for tfr in pb:
                 fmt = sf.io.detect_tfrecord_format(tfr)[-1]
                 if fmt is not None:
@@ -3851,3 +3947,44 @@ class Dataset:
                 return None
         else:
             return None
+
+    def verify_slide_names(self, allow_errors: bool = False) -> bool:
+        """Verify that slide names inside TFRecords match the file names.
+
+        Args:
+            allow_errors (bool): Do not raise an error if there is a mismatch.
+                Defaults to False.
+
+        Returns:
+            bool: If all slide names inside TFRecords match the TFRecord
+                file names.
+
+        Raises:
+            sf.errors.MismatchedSlideNamesError: If any slide names inside
+                TFRecords do not match the TFRecord file names,
+                and allow_errors=False.
+
+        """
+        tfrecords = self.tfrecords()
+        if len(tfrecords):
+            pb = track(
+                tfrecords,
+                description="Verifying tfrecord slide names...",
+                transient=True
+            )
+            for tfr in pb:
+                first_record = sf.io.get_tfrecord_by_index(tfr, 0)
+                if first_record['slide'] == sf.util.path_to_name(tfr):
+                    continue
+                elif allow_errors:
+                    return False
+                else:
+                    raise errors.MismatchedSlideNamesError(
+                        "Mismatched slide name in TFRecord {}: expected slide "
+                        "name {} based on filename, but found {}. ".format(
+                            tfr,
+                            sf.util.path_to_name(tfr),
+                            first_record['slide']
+                        )
+                )
+        return True

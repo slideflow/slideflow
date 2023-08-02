@@ -59,6 +59,10 @@ class MismatchedImageFormatsError(DatasetError):
     pass
 
 
+class MismatchedSlideNamesError(DatasetError):
+    pass
+
+
 # --- Mosaic & Heatmap Errors -------------------------------------------------
 class HeatmapError(Exception):
     pass
@@ -102,6 +106,10 @@ class InvalidFeatureExtractor(Exception):
 
 # --- TFRecords errors --------------------------------------------------------
 class TFRecordsError(Exception):
+    pass
+
+
+class TFRecordsIndexError(Exception):
     pass
 
 

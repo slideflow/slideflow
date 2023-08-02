@@ -23,6 +23,7 @@ from cellpose.models import Cellpose
 from cellpose import transforms, plot, dynamics
 from slideflow.slide.utils import draw_roi
 from slideflow.util import batch_generator, log
+from slideflow.model import torch_utils
 
 from . import seg_utils
 
@@ -474,7 +475,8 @@ def segment_slide(
     flow_threshold: float = 0.4,
     interp: bool = True,
     tile: bool = True,
-    verbose: bool = True
+    verbose: bool = True,
+    device: Optional[str] = None,
 ) -> Segmentation:
     """Segment cells in a whole-slide image, returning masks and centroids.
 
@@ -552,7 +554,7 @@ def segment_slide(
 
     # Set up model and parameters. --------------------------------------------
     start_time = time.time()
-    device = torch.device('cuda:0')
+    device = torch_utils.get_device(device)
     model = Cellpose(gpu=True, device=device)
     cp = model.cp
     cp.batch_size = batch_size

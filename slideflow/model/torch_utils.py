@@ -7,11 +7,14 @@ from typing import Dict, Generator, Iterable, List, Tuple, Union, Optional
 import torch
 import numpy as np
 import slideflow as sf
+import contextlib
+from packaging import version
 from pandas.core.frame import DataFrame
 from scipy.special import softmax
 from slideflow.stats import df_from_pred
 from slideflow.errors import DatasetError
 from slideflow.util import log, ImgBatchSpeedColumn
+from slideflow.model.base import no_scope
 from rich.progress import Progress, TimeElapsedColumn, SpinnerColumn
 from functools import reduce
 
@@ -31,6 +34,25 @@ def get_module_by_name(module: Union[torch.Tensor, torch.nn.Module],
     """
     names = access_string.split(sep='.')
     return reduce(getattr, names, module)
+
+
+@contextlib.contextmanager
+def autocast(device_type: Optional[str] = None, mixed_precision: bool = True):
+    """Autocast with mixed precision."""
+    if not mixed_precision:
+        with no_scope():
+            yield
+    elif version.parse(torch.__version__) >= version.parse("1.12"):
+        with torch.amp.autocast(device_type):
+            yield
+    elif device_type == 'cuda':
+        with torch.cuda.amp.autocast():
+            yield
+    elif device_type == 'cpu':
+        with torch.cpu.amp.autocast():
+            yield
+    else:
+        raise ValueError("Unrecognized device type: {}".format(device_type))
 
 
 def print_module_summary(
@@ -198,6 +220,7 @@ def eval_from_model(
     pb_label: str = "Evaluating...",
     verbosity: str = 'full',
     predict_only: bool = False,
+    device: Optional[str] = None,
 ) -> Tuple[DataFrame, float, float]:
     """Evaluates a model from a dataset of (y_true, y_pred, tile_to_slide),
     returning predictions, accuracy, and loss.
@@ -237,7 +260,8 @@ def eval_from_model(
     losses, total, num_outcomes, batch_size = 0, 0, 0, 0
     corrects, acc, loss = None, None, None
     model.eval()
-    device = torch.device('cuda:0')
+    device = get_device(device)
+    _mp = (device.type in ('cuda', 'cpu'))
 
     if verbosity != 'silent':
         pb = Progress(SpinnerColumn(), transient=True)
@@ -284,7 +308,7 @@ def eval_from_model(
 
             img = img.to(device, non_blocking=True)
             img = img.to(memory_format=torch.channels_last)
-            with torch.cuda.amp.autocast():
+            with autocast(device.type, mixed_precision=_mp):
                 with torch.no_grad():
                     # GPU normalization
                     if torch_args is not None and torch_args.normalizer:
@@ -304,9 +328,9 @@ def eval_from_model(
                             inp, model, num_outcomes, uq_n
                         )
                         if isinstance(yp_std, list):
-                            yp_std = [y.cpu().numpy().copy() for y in yp_std]
+                            yp_std = [y.float().cpu().numpy().copy() for y in yp_std]
                         else:
-                            yp_std = yp_std.cpu().numpy().copy()
+                            yp_std = yp_std.float().cpu().numpy().copy()
                         y_std += [yp_std]  # type: ignore
                     else:
                         res = model(*inp)
@@ -317,9 +341,9 @@ def eval_from_model(
                         losses = torch_args.update_loss(res, yt, losses, img.size(0))
 
                     if isinstance(res, list):
-                        res = [r.cpu().numpy().copy() for r in res]
+                        res = [r.float().cpu().numpy().copy() for r in res]
                     else:
-                        res = res.cpu().numpy().copy()
+                        res = res.float().cpu().numpy().copy()
 
                     y_pred += [res]
 
@@ -439,6 +463,21 @@ def predict_from_model(
         **kwargs
     )
     return df
+
+
+def get_device(device: Optional[str] = None):
+    if device is None and torch.cuda.is_available():
+        return torch.device('cuda')
+    elif (device is None
+          and hasattr(torch.backends, 'mps')
+          and torch.backends.mps.is_available()):
+        return torch.device('mps')
+    elif device is None:
+        return torch.device('cpu')
+    elif isinstance(device, str):
+        return torch.device(device)
+    else:
+        return device
 
 # -----------------------------------------------------------------------------
 

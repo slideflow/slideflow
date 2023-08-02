@@ -110,7 +110,7 @@ class MosaicWidget(Widget):
         self.mosaic.generate_grid(**self.mosaic_kwargs)
         self.mosaic.plot(pool=self.pool)
 
-    def load(self, obj, tfrecords=None, slides=None, **kwargs):
+    def load(self, obj, tfrecords=None, slides=None, normalizer=None, **kwargs):
         """Load a UMAP from a file or SlideMap object."""
         if isinstance(obj, str):
             try:
@@ -122,7 +122,7 @@ class MosaicWidget(Widget):
             self.load_umap_from_slidemap(obj, **kwargs)
         else:
             raise ValueError(f"Unrecognized argument: {obj}")
-        self.generate(tfrecords=tfrecords, slides=slides)
+        self.generate(tfrecords=tfrecords, slides=slides, normalizer=normalizer)
 
     def load_umap_from_slidemap(self, slidemap, subsample=5000):
         """Load a UMAP from a SlideMap object."""
@@ -149,7 +149,7 @@ class MosaicWidget(Widget):
         else:
             raise ValueError(f"Could not find UMAP as path {path}")
 
-    def generate(self, tfrecords=None, slides=None):
+    def generate(self, tfrecords=None, slides=None, normalizer=None):
         """Build the mosaic."""
         if self.slidemap is None:
             raise ValueError("Cannot generate mosaic; no SlideMap loaded.")
@@ -161,12 +161,13 @@ class MosaicWidget(Widget):
         if tfrecords is None:
             tfrecords = self.slidemap.tfrecords
         if self.pool is None:
-            ctx = mp.get_context('fork')
-            self.pool = ctx.Pool(
-                os.cpu_count(),
-                initializer=sf.util.set_ignore_sigint
-            )
-        self.mosaic = OpenGLMosaic(self.slidemap, tfrecords=tfrecords, **self.mosaic_kwargs)
+            self.pool = mp.dummy.Pool(sf.util.num_cpu(default=4))
+        self.mosaic = OpenGLMosaic(
+            self.slidemap,
+            tfrecords=tfrecords,
+            normalizer=normalizer,
+            **self.mosaic_kwargs
+        )
         self.mosaic.plot()
         self.viz.set_viewer(MosaicViewer(self.mosaic, slides=slides, **self.viz._viewer_kwargs()))
 
@@ -250,6 +251,7 @@ class MosaicWidget(Widget):
             new_annotation, annotation_name = self.annotator.capture(
                 x_range=(tx+left_x, tx+right_x),
                 y_range=(ty+top_y, ty+bottom_y),
+                pixel_ratio=viz.pixel_ratio
             )
             imgui.end()
 
@@ -283,7 +285,6 @@ class MosaicWidget(Widget):
 
     def draw_config_popup(self):
         viz = self.viz
-        has_model = viz._model_config is not None
 
         if self._show_popup:
             cx, cy = imgui.get_cursor_pos()

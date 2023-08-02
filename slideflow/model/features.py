@@ -90,7 +90,7 @@ class DatasetFeatures:
         self.num_classes = 0
         self.model = model
         self.dataset = dataset
-        self.generator = None
+        self.feature_generator = None
         if dataset is not None:
             self.tile_px = dataset.tile_px
             self.manifest = dataset.manifest()
@@ -188,8 +188,23 @@ class DatasetFeatures:
         log.debug(f'Number of activation features: {self.num_features}')
 
     @classmethod
-    def from_df(cls, df: "pd.core.frame.DataFrame"):
-        """Load DataFrame of features, as exported by :meth:`DatasetFeatures.to_df()`"""
+    def from_df(cls, df: "pd.core.frame.DataFrame") -> "DatasetFeatures":
+        """Load DataFrame of features, as exported by :meth:`DatasetFeatures.to_df()`
+
+        Args:
+            df (:class:`pandas.DataFrame`): DataFrame of features, as exported by
+                :meth:`DatasetFeatures.to_df()`
+
+        Returns:
+            :class:`DatasetFeatures`: DatasetFeatures object
+
+        Examples
+            Recreate DatasetFeatures after export to a DataFrame.
+
+                >>> df = features.to_df()
+                >>> new_features = DatasetFeatures.from_df(df)
+
+        """
         obj = cls(None, None)  # type: ignore
         obj.slides = df.slide.unique().tolist()
         if 'activations' in df.columns:
@@ -209,7 +224,7 @@ class DatasetFeatures:
                 for s in obj.slides
             }
         if 'predictions' in df.columns:
-            obj.uncertainty = {
+            obj.predictions = {
                 s: np.stack(df.loc[df.slide==s].predictions.values)
                 for s in obj.slides
             }
@@ -220,8 +235,8 @@ class DatasetFeatures:
     def concat(
         cls,
         args: Iterable["DatasetFeatures"],
-    ):
-        """Concatenates activations from multiple DatasetFeatures together.
+    ) -> "DatasetFeatures":
+        """Concatenate activations from multiple DatasetFeatures together.
 
         For example, if ``df1`` is a DatasetFeatures object with 2048 features
         and ``df2`` is a DatasetFeatures object with 1024 features,
@@ -233,6 +248,22 @@ class DatasetFeatures:
 
         If there are any tiles that do not have calculated features in both
         dataframes, these will be dropped.
+
+        Args:
+            args (Iterable[:class:`DatasetFeatures`]): DatasetFeatures objects
+                to concatenate.
+
+        Returns:
+            :class:`DatasetFeatures`: DatasetFeatures object with concatenated
+            features.
+
+        Examples
+            Concatenate two DatasetFeatures objects.
+
+                >>> df1 = DatasetFeatures(model, dataset, layers='postconv')
+                >>> df2 = DatasetFeatures(model, dataset, layers='sepconv_3')
+                >>> df = DatasetFeatures.concat([df1, df2])
+
         """
         assert len(args) > 1
         dfs = []
@@ -291,7 +322,14 @@ class DatasetFeatures:
         else:
             return self.feature_generator.normalizer
 
-    def _generate_features(self, cache: Optional[str] = None, **kwargs) -> None:
+    def _generate_features(
+        self,
+        cache: Optional[str] = None,
+        progress: bool = True,
+        verbose: bool = True,
+        pool_sort: bool = True,
+        **kwargs
+    ) -> None:
 
         """Calculates activations from a given model, saving to self.activations
 
@@ -306,6 +344,11 @@ class DatasetFeatures:
                 estimation if UQ enabled. Defaults to True.
             batch_size (int, optional): Batch size to use during activations
                 calculations. Defaults to 32.
+            progress (bool): Show a progress bar during feature calculation.
+                Defaults to True.
+            verbose (bool): Show verbose logging output. Defaults to True.
+            pool_sort (bool): Use multiprocessing pools to perform final
+                sorting. Defaults to True.
             cache (str, optional): File in which to store PKL cache.
         """
 
@@ -320,7 +363,9 @@ class DatasetFeatures:
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()
 
-        activations, predictions, locations, uncertainty = fg.generate()
+        activations, predictions, locations, uncertainty = fg.generate(
+            progress=progress, verbose=verbose
+        )
 
         self.activations = {s: np.stack(v) for s, v in activations.items()}
         self.predictions = {s: np.stack(v) for s, v in predictions.items()}
@@ -337,11 +382,26 @@ class DatasetFeatures:
                     or not self.locations[s].size
                     or not self.uncertainty[s].size)
             ]
-            pool = mp.Pool(os.cpu_count())
-            for i, true_locs in enumerate(track(pool.imap(self.dataset.get_tfrecord_locations, slides_to_sort),
-                                                transient=False,
-                                                total=len(slides_to_sort),
-                                                description="Sorting...")):
+            if pool_sort and len(slides_to_sort) > 1:
+                pool = mp.Pool(sf.util.num_cpu())
+                imap_iterable = pool.imap(
+                    self.dataset.get_tfrecord_locations, slides_to_sort
+                )
+            else:
+                pool = None
+                imap_iterable = map(
+                    self.dataset.get_tfrecord_locations, slides_to_sort
+                )
+            if progress:
+                iterable = track(
+                    imap_iterable,
+                    transient=False,
+                    total=len(slides_to_sort),
+                    description="Sorting...")
+            else:
+                iterable = imap_iterable
+
+            for i, true_locs in enumerate(iterable):
                 slide = slides_to_sort[i]
                 # Get the order of locations stored in TFRecords,
                 # and the corresponding indices for sorting
@@ -361,7 +421,8 @@ class DatasetFeatures:
                 if slide in self.uncertainty:
                     self.uncertainty[slide] = self.uncertainty[slide][sorted_idx]
                 self.locations[slide] = self.locations[slide][sorted_idx]
-            pool.close()
+            if pool is not None:
+                pool.close()
 
         fla_calc_time = time.time()
         log.debug(f'Calculation time: {fla_calc_time-fla_start_time:.0f} sec')
@@ -445,6 +506,24 @@ class DatasetFeatures:
             boxplot_filename = join(outdir, f'boxplot_{title}.png')
             plt.gcf().canvas.start_event_loop(sys.float_info.min)
             plt.savefig(boxplot_filename, bbox_inches='tight')
+
+    def dump_config(self):
+        """Return a dictionary of the feature extraction configuration."""
+        if self.normalizer:
+            norm_dict = dict(
+                method=self.normalizer.method,
+                fit=self.normalizer.get_fit(as_list=True),
+            )
+        else:
+            norm_dict = None
+        config = dict(
+            extractor=self.feature_generator.generator.dump_config(),
+            normalizer=norm_dict,
+            num_features=self.num_features,
+            tile_px=self.dataset.tile_px,
+            tile_um=self.dataset.tile_um
+        )
+        return config
 
     def export_to_torch(self, *args, **kwargs):
         """Deprecated function; please use `.to_torch()`"""
@@ -530,7 +609,8 @@ class DatasetFeatures:
     def to_torch(
         self,
         outdir: str,
-        slides: Optional[List[str]] = None
+        slides: Optional[List[str]] = None,
+        verbose: bool = True
     ) -> None:
         """Export activations in torch format to .pt files in the directory.
 
@@ -538,6 +618,7 @@ class DatasetFeatures:
 
         Args:
             outdir (str): Path to directory in which to save .pt files.
+            verbose (bool): Verbose logging output. Defaults to True.
 
         """
         import torch
@@ -545,7 +626,7 @@ class DatasetFeatures:
         if not exists(outdir):
             os.makedirs(outdir)
         slides = self.slides if not slides else slides
-        for slide in track(slides):
+        for slide in (slides if not verbose else track(slides)):
             if self.activations[slide] == []:
                 log.info(f'Skipping empty slide [green]{slide}')
                 continue
@@ -557,12 +638,22 @@ class DatasetFeatures:
                 self.locations[slide],
                 join(outdir, f'{slide}.index')
             )
-        args = {
-            'model': self.model if isinstance(self.model, str) else '<NA>',
-            'num_features': self.num_features
-        }
-        sf.util.write_json(args, join(outdir, 'settings.json'))
-        log.info(f'Activations exported in Torch format to {outdir}')
+
+        # Log the feature extraction configuration
+        config = self.dump_config()
+        if exists(join(outdir, 'bags_config.json')):
+            old_config = sf.util.load_json(join(outdir, 'bags_config.json'))
+            if old_config != config:
+                log.warning(
+                    "Feature extraction configuration does not match the "
+                    "configuration used to generate the existing bags at "
+                    f"{outdir}. Current configuration will not be saved."
+                )
+        else:
+            sf.util.write_json(config, join(outdir, 'bags_config.json'))
+
+        log_fn = log.info if verbose else log.debug
+        log_fn(f'Activations exported in Torch format to {outdir}')
 
     def to_df(
         self
@@ -1056,6 +1147,9 @@ class _FeatureGenerator:
         include_preds: Optional[bool] = None,
         include_uncertainty: bool = True,
         batch_size: int = 32,
+        device: Optional[str] = None,
+        num_workers: Optional[int] = None,
+        augment: bool = False,
         **kwargs
     ) -> None:
         self.model = model
@@ -1063,6 +1157,8 @@ class _FeatureGenerator:
         self.layers = sf.util.as_list(layers)
         self.batch_size = batch_size
         self.simclr_args = None
+        self.num_workers = num_workers
+        self.augment = augment
 
         # Check if location information is stored in TFRecords
         self.tfrecords_have_loc = self.dataset.tfrecords_have_locations()
@@ -1083,6 +1179,11 @@ class _FeatureGenerator:
         self.generator = self._prepare_generator(**kwargs)
         self.num_features = self.generator.num_features
         self.num_classes = 0 if not include_preds else self.generator.num_classes
+        if self.is_torch():
+            from slideflow.model import torch_utils
+            self.device = torch_utils.get_device(device)
+        else:
+            self.device = None
         self._prepare_dataset_kwargs()
 
     def _calculate_feature_batch(self, batch_img):
@@ -1092,15 +1193,13 @@ class _FeatureGenerator:
         if self.is_torch():
             import torch
             with torch.no_grad():
-                batch_img = batch_img.to('cuda')
+                batch_img = batch_img.to(self.device)
                 if self.has_torch_gpu_normalizer():
                     batch_img = self.normalizer.preprocess(
                         batch_img,
                         standardize=self.standardize
                     )
                 return self.generator(batch_img)
-        elif self.is_simclr():
-            return self.generator(batch_img, training=False)
         else:
             return self.generator(batch_img)
 
@@ -1137,9 +1236,8 @@ class _FeatureGenerator:
             else:
                 loc = None
 
-        # Final processing
-        if self.is_simclr():
-            model_out = model_out[0]
+        # Final processing.
+        # Order of return is features, predictions, uncertainty.
         if self.uq and self.include_uncertainty:
             uncertainty = model_out[-1]
             model_out = model_out[:-1]
@@ -1152,9 +1250,9 @@ class _FeatureGenerator:
             predictions = None
             features = model_out
 
-        # Concatenate features if we have features from >`` layer
-        if self.layers:
-            features = np.concatenate(features)
+        # Concatenate features if we have features from >1 layer
+        if isinstance(features, list):
+            features = np.concatenate(features, axis=1)
 
         return features, predictions, uncertainty, slides, loc
 
@@ -1164,7 +1262,7 @@ class _FeatureGenerator:
         dts_kw = {
             'infinite': False,
             'batch_size': self.batch_size,
-            'augment': False,
+            'augment': self.augment,
             'incl_slidenames': True,
             'incl_loc': True,
         }
@@ -1187,6 +1285,7 @@ class _FeatureGenerator:
             # Otherwise, let the dataset handle normalization/standardization.
             dts_kw['normalizer'] = self.normalizer
 
+        # This is not used by SimCLR feature extractors.
         self.dts_kw = dts_kw
 
     def _determine_uq_and_normalizer(self):
@@ -1194,9 +1293,6 @@ class _FeatureGenerator:
         if isinstance(self.model, BaseFeatureExtractor):
             self.uq = self.model.num_uncertainty > 0
             self.normalizer = self.model.normalizer
-        elif isinstance(self.model, str) and sf.util.is_simclr_model_path(self.model):
-            self.uq = False
-            self.normalizer = None
         elif isinstance(self.model, str):
             model_config = sf.util.get_model_config(self.model)
             hp = sf.ModelParams.from_dict(model_config['hp'])
@@ -1210,11 +1306,36 @@ class _FeatureGenerator:
             self.normalizer = None
             self.uq = False
 
+    def _norm_from_kwargs(self, kwargs):
+        if 'normalizer' in kwargs and kwargs['normalizer'] is not None:
+            norm = kwargs['normalizer']
+            del kwargs['normalizer']
+            if 'normalizer_source' in kwargs:
+                norm_src = kwargs['normalizer_source']
+                del kwargs['normalizer_source']
+            else:
+                norm_src = None
+            if isinstance(norm, str):
+                normalizer = sf.norm.autoselect(
+                    norm,
+                    source=norm_src,
+                    backend='tensorflow' if self.is_tf() else 'torch'
+                )
+            else:
+                normalizer = norm
+            log.info(f"Normalizing with {normalizer.method}")
+            return normalizer, kwargs
+        else:
+            if 'normalizer_source' in kwargs:
+                del kwargs['normalizer_source']
+            return None, kwargs
+
     def _prepare_generator(self, **kwargs) -> Callable:
         """Prepare the feature generator."""
 
         # Generator is a Feature Extractor
         if self.is_extractor():
+            self.normalizer, kwargs = self._norm_from_kwargs(kwargs)
             if kwargs:
                 raise ValueError(
                     f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
@@ -1223,28 +1344,15 @@ class _FeatureGenerator:
 
         # Generator is a model, and we're using UQ
         elif self.uq and self.include_uncertainty:
+            if self.include_preds is False:
+                raise ValueError(
+                    "include_preds must be True if include_uncertainty is True"
+                )
             return sf.model.UncertaintyInterface(
                 self.model,
                 layers=self.layers,
                 **kwargs
             )
-
-        # Generator is a SimCLR path
-        elif self.is_simclr():
-            from slideflow import simclr
-            self.simclr_args = simclr.load_model_args(self.model)
-            generator = simclr.load(self.model)
-            generator.num_features = self.simclr_args.proj_out_dim
-            generator.num_classes = self.simclr_args.num_classes
-            if 'normalizer' in kwargs:
-                self.normalizer = kwargs['normalizer']
-                del kwargs['normalizer']
-                log.info(f"Normalizing with {self.normalizer.method}")
-            if kwargs:
-                raise ValueError(
-                    f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
-                )
-            return generator
 
         # Generator is a path to a trained Slideflow model
         elif self.is_model_path():
@@ -1267,7 +1375,7 @@ class _FeatureGenerator:
         # Generator is a loaded torch.nn.Module
         elif self.is_torch():
             return sf.model.Features.from_model(
-                self.model.to('cuda'),
+                self.model.to(self.device),
                 tile_px=self.tile_px,
                 layers=self.layers,
                 include_preds=self.include_preds,
@@ -1284,9 +1392,6 @@ class _FeatureGenerator:
     def is_extractor(self):
         return isinstance(self.model, BaseFeatureExtractor)
 
-    def is_simclr(self):
-        return sf.util.is_simclr_model_path(self.model)
-
     def is_torch(self):
         if self.is_extractor():
             return self.model.is_torch()
@@ -1294,8 +1399,6 @@ class _FeatureGenerator:
             return sf.model.is_torch_model(self.model)
 
     def is_tf(self):
-        if self.is_simclr():
-            return True
         if self.is_extractor():
             return self.model.is_tensorflow()
         else:
@@ -1311,40 +1414,31 @@ class _FeatureGenerator:
     def build_dataset(self):
         """Build a dataloader."""
 
-        # Generator is a SimCLR model.
-        if self.is_simclr():
-            log.debug("Setting up Tensorflow/SimCLR dataset iterator")
-            from slideflow import simclr
-            builder = simclr.DatasetBuilder(
-                val_dts=self.dataset,
-                dataset_kwargs=dict(
-                    incl_slidenames=True,
-                    incl_loc=True,
-                    normalizer=self.normalizer
-                )
-            )
-            return builder.build_dataset(
-                self.batch_size,
-                is_training=False,
-                simclr_args=self.simclr_args
-            )
-
         # Generator is a Tensorflow model.
-        elif self.is_tf():
+        if self.is_tf():
             log.debug(
                 "Setting up Tensorflow dataset iterator (num_parallel_reads="
                 f"None, deterministic={not self.tfrecords_have_loc})"
             )
+            # Disable parallel reads if we're using tfrecords without location
+            # information, as we would need to read and receive data in order.
+            if not self.tfrecords_have_loc:
+                par_kw = dict(num_parallel_reads=None)
+            else:
+                par_kw = dict()
             return self.dataset.tensorflow(
                 None,
-                num_parallel_reads=None,
                 deterministic=(not self.tfrecords_have_loc),
+                **par_kw,
                 **self.dts_kw  # type: ignore
             )
 
         # Generator is a PyTorch model.
         elif self.is_torch():
-            n_workers = (4 if self.tfrecords_have_loc else 1)
+            if self.num_workers is None:
+                n_workers = (4 if self.tfrecords_have_loc else 1)
+            else:
+                n_workers = self.num_workers
             log.debug(
                 "Setting up PyTorch dataset iterator (num_workers="
                 f"{n_workers}, chunk_size=8)"
@@ -1360,15 +1454,16 @@ class _FeatureGenerator:
         else:
             raise ValueError(f"Unrecognized model type: {type(self.model)}")
 
-    def generate(self):
+    def generate(self, *, verbose: bool = True, progress: bool = True):
 
         # Get the dataloader for iterating through tfrecords
         dataset = self.build_dataset()
 
         # Rename tfrecord_array to tfrecords
-        log.info(f'Calculating activations for {len(self.dataset.tfrecords())} '
+        log_fn = log.info if verbose else log.debug
+        log_fn(f'Calculating activations for {len(self.dataset.tfrecords())} '
                  f'tfrecords (layers={self.layers})')
-        log.info(f'Generating from [green]{self.model}')
+        log_fn(f'Generating from [green]{self.model}')
 
         # Interleave tfrecord datasets
         estimated_tiles = self.dataset.num_tiles
@@ -1403,16 +1498,20 @@ class _FeatureGenerator:
         batch_proc_thread = threading.Thread(target=batch_worker, daemon=True)
         batch_proc_thread.start()
 
-        pb = Progress(*Progress.get_default_columns(),
-                      ImgBatchSpeedColumn(),
-                      transient=sf.getLoggingLevel()>20)
-        task = pb.add_task("Generating...", total=estimated_tiles)
-        pb.start()
+        if progress:
+            pb = Progress(*Progress.get_default_columns(),
+                        ImgBatchSpeedColumn(),
+                        transient=sf.getLoggingLevel()>20)
+            task = pb.add_task("Generating...", total=estimated_tiles)
+            pb.start()
+        else:
+            pb = None
         with sf.util.cleanup_progress(pb):
             for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataset:
                 model_output = self._calculate_feature_batch(batch_img)
                 q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
-                pb.advance(task, self.batch_size)
+                if progress:
+                    pb.advance(task, self.batch_size)
         q.put((None, None, None))
         batch_proc_thread.join()
         if hasattr(dataset, 'close'):

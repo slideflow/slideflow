@@ -1,3 +1,4 @@
+import traceback
 import numpy as np
 import imgui
 import textwrap
@@ -22,6 +23,7 @@ class ExtensionsWidget:
         self.stylegan = any([w.tag == 'stylegan' for w in viz.widgets])
         self.mosaic = any([w.tag == 'mosaic' for w in viz.widgets])
         self.segment = any([w.tag == 'segment' for w in viz.widgets])
+        self.mil = any([w.tag == 'mil' for w in viz.widgets])
 
         _off_path = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'small_button_verified.png')
         self._official_tex      = gl_utils.Texture(
@@ -55,6 +57,14 @@ class ExtensionsWidget:
         else:
             viz.remove_widget(SegmentWidget)
 
+    def update_mil(self):
+        viz = self.viz
+        from ..widgets.mil import MILWidget
+        if not any(isinstance(w, MILWidget) for w in viz.widgets):
+            viz.add_widgets(MILWidget)
+        else:
+            viz.remove_widget(MILWidget)
+
     def extension_checkbox(self, title, description, check_value, official=False):
         viz = self.viz
         height = imgui.get_text_line_height_with_spacing() * 3
@@ -73,9 +83,13 @@ class ExtensionsWidget:
         imgui.end_child()
         return result
 
-    def show_extension_error(self, message):
+    def show_extension_error(self, message, full_trace=None):
         self._show_err_popup = True
         self._err_msg = message
+        if full_trace:
+            print(full_trace)
+        else:
+            print(message)
 
     def draw_error_popup(self):
         """Show an error message that an extension failed to load."""
@@ -122,7 +136,7 @@ class ExtensionsWidget:
                 try:
                     self.update_stylegan()
                 except Exception as e:
-                    self.show_extension_error(str(e))
+                    self.show_extension_error(str(e), traceback.format_exc())
                     self.stylegan = False
             imgui.separator()
 
@@ -142,8 +156,21 @@ class ExtensionsWidget:
                     )
                     self.segment = False
                 except Exception as e:
-                    self.show_extension_error(str(e))
+                    self.show_extension_error(str(e), traceback.format_exc())
                     self.segment = False
+
+            _c4, self.mil = self.extension_checkbox(
+                'Multiple-Instance Learning',
+                description='MIL support with attention heatmaps.',
+                check_value=self.mil,
+                official=True
+            )
+            if _c4:
+                try:
+                    self.update_mil()
+                except Exception as e:
+                    self.show_extension_error(str(e), traceback.format_exc())
+                    self.mil = False
 
         if self._show_err_popup:
             self.draw_error_popup()

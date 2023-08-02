@@ -358,7 +358,7 @@ class Renderer:
 
 class AsyncRenderer:
 
-    """Renderer to assist with tile-evel model predictions."""
+    """Renderer to assist with tile-level model predictions."""
 
     def __init__(self):
         self._closed        = False
@@ -380,8 +380,8 @@ class AsyncRenderer:
         self._addl_render   = []
 
         if sf.util.torch_available:
-            import torch
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            from slideflow.model import torch_utils
+            self.device = torch_utils.get_device()
         else:
             self.device = None
 
@@ -487,8 +487,8 @@ class AsyncRenderer:
     @staticmethod
     def _process_fn(args_queue, result_queue, model_path, live_updates):
         if sf.util.torch_available:
-            import torch
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            from slideflow.model import torch_utils
+            device = torch_utils.get_device()
         else:
             device = None
         renderer_obj = Renderer(device=device)

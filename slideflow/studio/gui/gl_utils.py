@@ -176,7 +176,45 @@ def draw_shape(vertices, *, mode=gl.GL_TRIANGLE_FAN, pos=0, size=1, color=1, alp
     gl.glPopClientAttrib()
 
 
+def create_buffer(vertices):
+    vbo = gl.glGenBuffers(1)
+    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+    gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
+    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+    return vbo
+
+
+def draw_buffer(vbo, size):
+    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+    gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
+    gl.glVertexPointer(2, gl.GL_FLOAT, 0, None)
+
+    gl.glMultiDrawArrays(gl.GL_LINE_LOOP, [i*4 for i in range(size)], [4 for _ in range(size)], size)
+
+    gl.glDisableClientState(gl.GL_VERTEX_ARRAY)
+    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+
+
+def draw_rois(vertices, *, color=1, alpha=1, linewidth=2, vbo=None):
+    """Draw multiple ROIs, reducing the number of OpenGL calls with VBO."""
+    assert vertices.ndim == 3 and vertices.shape[2] == 2
+    color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
+
+    # Set the color and alpha
+    gl.glColor4f(color[0] * alpha, color[1] * alpha, color[2] * alpha, alpha)
+    gl.glLineWidth(linewidth)
+
+    if vbo is not None:
+        draw_buffer(vbo, size=vertices.shape[0])
+    else:
+        for i in range(vertices.shape[0]):
+            draw_roi(vertices[i])
+
+    gl.glLineWidth(1)
+
+
 def draw_roi(vertices, *, color=1, alpha=1, linewidth=2):
+    """Draw a single ROI using the fixed render pipeline."""
     assert vertices.ndim == 2 and vertices.shape[1] == 2
     color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
     gl.glLineWidth(linewidth)
@@ -191,6 +229,7 @@ def draw_roi(vertices, *, color=1, alpha=1, linewidth=2):
     gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
     gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, 0)
     gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+
 
 # -----------------------------------------------------------------------------
 

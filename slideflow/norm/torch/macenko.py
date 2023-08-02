@@ -35,6 +35,7 @@ class MacenkoNormalizer:
     vectorized = False
     preferred_device = 'cpu'
     preset_tag = 'macenko'
+    standardize = True
 
     def __init__(
         self,
@@ -178,8 +179,7 @@ class MacenkoNormalizer:
     def _matrix_and_concentrations(
         self,
         img: torch.Tensor,
-        mask: bool = False,
-        standardize: bool = True
+        mask: bool = False
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -202,7 +202,7 @@ class MacenkoNormalizer:
         if mask:
             ones = torch.all(img == 255, dim=1)
 
-        if standardize:
+        if self.standardize:
             img = standardize_brightness(img, mask=mask)
 
         # Calculate optical density.
@@ -415,11 +415,4 @@ class MacenkoFastNormalizer(MacenkoNormalizer):
     """Macenko H&E stain normalizer, with brightness standardization disabled."""
 
     preset_tag = 'macenko_fast'
-
-    def _matrix_and_concentrations(
-        self,
-        img: torch.Tensor,
-        mask: bool = False,
-        standardize: bool = False
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        return super()._matrix_and_concentrations(img, mask, standardize=False)
+    standardize = False

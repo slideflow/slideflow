@@ -27,7 +27,8 @@ class AnnotationCapture:
     def capture(
         self,
         x_range: Tuple[int, int],
-        y_range: Tuple[int, int]
+        y_range: Tuple[int, int],
+        pixel_ratio: float = 1
     ) -> Tuple[Optional[List[Tuple[int, int]]], Union[bool, str]]:
         """Captures a mouse annotation in the given range.
 
@@ -36,6 +37,8 @@ class AnnotationCapture:
                 in the horizontal dimension.
             y_range (tuple(int, int)): Range of pixels to capture an annotation,
                 in the horizontal dimension.
+            pixel_ratio (float, optional): Ratio of points to pixels.
+                Defaults to 1.
 
         Returns:
             A list of tuple with (x, y) coordinates for the annotation.
@@ -49,6 +52,11 @@ class AnnotationCapture:
         min_y, max_y = y_range[0], y_range[1]
         mouse_down = imgui.is_mouse_down(self.mouse_idx)
         mouse_x, mouse_y = imgui.get_mouse_pos()
+
+        if pixel_ratio != 1:
+            mouse_x *= pixel_ratio
+            mouse_y *= pixel_ratio
+
         in_range = (max_x >= mouse_x) and (mouse_x >= min_x) and (max_y >= mouse_y) and (mouse_y >= min_y)
 
         # First, check if the annotation is finished and we are simply
@@ -87,10 +95,13 @@ class AnnotationCapture:
                 self._keyboard_focus = True
                 self._name_prompting = True
                 return self.annotation_points, False
-            else:
+            elif len(self.annotation_points) >= 3:
                 to_return = self.annotation_points
                 self.annotation_points = []
                 return to_return, True
+            else:
+                # Discard capture if there are less than 3 points
+                return None, False
         elif not self.clicking and not in_range:
             return None, False
         else:
@@ -98,4 +109,7 @@ class AnnotationCapture:
             adj_x = min(max(mouse_x - min_x, 0), max_x - min_x)
             adj_y = min(max(mouse_y - min_y, 0), max_y - min_y)
             self.annotation_points.append((adj_x, adj_y))
-            return self.annotation_points, False
+            if len(self.annotation_points) >= 3:
+                return self.annotation_points, False
+            else:
+                return None, False

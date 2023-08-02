@@ -89,9 +89,20 @@ def normalize(
     norm_range: Tuple[np.ndarray, np.ndarray],
     norm_clip: Tuple[np.ndarray, np.ndarray],
 ) -> np.ndarray:
+    """Normalize and clip an array."""
     _min, _max = norm_range
     mins, maxs = norm_clip
     clipped = np.clip(array, mins, maxs)
     clipped -= _min
     clipped /= (_max - _min)
     return clipped
+
+def denormalize(
+    array: np.ndarray,
+    norm_range: Tuple[np.ndarray, np.ndarray],
+) -> np.ndarray:
+    """De-normalize an array."""
+    _min, _max = norm_range
+    transformed = array * (_max - _min)
+    transformed += _min
+    return transformed

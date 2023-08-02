@@ -109,14 +109,28 @@ Gaussian blur filtering
 
 |
 
-Gaussian blur masking is another **slide-based method** that can detect pen marks and out-of-focus areas, and is particularly useful for datasets lacking annotated Regions of Interest (ROIs). Gaussian blur masking is applied similarly, using the ``qc`` argument:
+Gaussian blur masking is another **slide-based method** that can detect pen marks and out-of-focus areas, and is particularly useful for datasets lacking annotated Regions of Interest (ROIs). Gaussian blur masking is applied similarly, using the ``qc`` argument.
+
+Two versions of Gaussian blur masking are available: ``qc.Gaussian`` and ``qc.GaussianV2`` (new in Slideflow 2.1.0). The latter is the default and recommended version, as it is more computationally efficient. The former is provided for backwards compatibility.
 
 .. code-block:: python
 
   from slideflow.slide import qc
 
   # Use this QC during tile extraction
-  P.extract_tiles(qc=qc.Gaussian(sigma=2))
+  P.extract_tiles(qc=qc.GaussianV2())
+
+By default, Gaussian blur masking is calculated at 4 times lower magnification than the tile extraction MPP (e.g., when extracting tiles at 10X effective magnification, Gaussian filtering would be calculated at 2.5X). This is to reduce computation time. You can change this behavior by manually setting the ``mpp`` argument to a specific microns-per-pixel value.
+
+Gaussian blur masking is performed on gray images. The ``sigma`` argument controls the standard deviation of the Gaussian blur kernel. The default value of 3 is recommended, but you may need to adjust this value for your dataset. A higher value will result in more areas being masked, while a lower value will result in fewer areas being masked.
+
+.. code-block:: python
+
+  from slideflow.slide import qc
+
+  # Customize the Gaussian filter,
+  # using a sigma of 2 and a mpp of 1 (10X magnification)
+  gaussian = qc.GaussianV2(mpp=1, sigma=2)
 
 You can also use multiple slide-level masking methods by providing a list to ``qc``.
 
@@ -126,26 +140,41 @@ You can also use multiple slide-level masking methods by providing a list to ``q
 
   qc = [
     qc.Otsu(),
-    qc.Gaussian(sigma=2)
+    qc.Gaussian()
   ]
   P.extract_tiles(qc=qc)
-
 
 If both Otsu's thresholding and blur detection are being used, Slideflow will calculate Blur Burden, a metric used to assess the degree to which non-background tiles are either out-of-focus or contain artifact. In the tile extraction PDF report that is generated (see next section), the distribution of blur burden for slides in the dataset will be plotted on the first page. The report will contain the number of slides meeting criteria for warning, when the blur burden exceeds 5% for a given slide. A text file containing names of slides with high blur burden will be saved in the exported TFRecords directory. These slides should be manually reviewed to ensure they are of high enough quality to include in the dataset.
 
 DeepFocus
 ---------
 
-Slideflow also provides an interface for using `DeepFocus <https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0205387&type=printable>`_ or other deep learning models to generate masks. Create a custom slide filter that inherits :class:`slideflow.slide.qc.StridedDL`, and pass to the ``qc`` arguments as above.
+Slideflow also provides an interface for using `DeepFocus <https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0205387&type=printable>`_ to identify in-focus regions. DeepFocus is a lightweight neural network that predicts whether a section of a slide is in- or out-of-focus. When used as a slide-level masking method, DeepFocus will filter out-of-focus tiles from a slide. By default, DeepFocus is applied to slides at 40X magnification, although this can be customized with the ``tile_um`` argument.
 
-For example, to use the published DeepFocus model weights referenced above, clone the `TF2 fork on GitHub <https://github.com/jamesdolezal/deepfocus>`_ and create the custom class as below:
+.. code-block:: python
+
+    from slideflow.slide import qc
+
+    deepfocus = qc.DeepFocus(tile_um='20x')
+    slide.qc(deepfocus)
+
+Alternatively, you can also retrieve raw predictions from the DeepFocus model for a slide by calling the deepfocus object on a :class:`slideflow.WSI` object, passing the argument threshold=False:
+
+.. code-block:: python
+
+    preds = deepfocus(slide, threshold=False)
+
+Custom deep learning QC
+-----------------------
+
+You can also create your own deep learning slide filters. To create a custom deep learning QC method like DeepFocus, create a custom slide filter that inherits :class:`slideflow.slide.qc.StridedDL`. For example, to manually recreate the above DeepFocus model, first clone the `TF2 fork on GitHub <https://github.com/jamesdolezal/deepfocus>`_, which contains the DeepFocus architecture and model weights, and create a custom class as below:
 
 .. code-block:: python
 
     from slideflow.slide.qc import strided_dl
     from deepfocus.keras_model import load_checkpoint, deepfocus_v3
 
-    class DeepFocus(strided_dl.StridedDL):
+    class CustomDeepFocus(strided_dl.StridedDL):
 
         def __init__(self):
             model = deepfocus_v3()
@@ -162,10 +191,10 @@ Then, supply this class to the ``qc`` argument as above.
 
 .. code-block:: python
 
-  P.extract_tiles(qc=DeepFocus())
+  P.extract_tiles(qc=CustomDeepFocus())
 
 
-See :ref:`qc` for more information on the API for QC customization.
+See :ref:`qc` for more information on the API for further QC customization.
 
 Grayspace filtering
 --------------------

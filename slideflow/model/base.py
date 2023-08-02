@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 import numpy as np
 import slideflow as sf
 from slideflow import errors
-from slideflow.util import log
+from slideflow.util import log, log_manifest  # noqa: F401
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
@@ -124,8 +124,8 @@ class _ModelParams:
                       - Random JPEG compression (10% chance to JPEG compress with quality between 50-100%)
                     * - b
                       - Random Guassian blur (50% chance to blur with sigma between 0.5 - 2.0)
-                    * - s
-                      - Stain augmentation (must be using stain normalization)
+                    * - n
+                      - :ref:`stain_augmentation` (requires stain normalizer)
 
 
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
@@ -496,6 +496,19 @@ class BaseFeatureExtractor:
     def is_tensorflow(self):
         return self.backend == 'tensorflow'
 
+    def __call__(self, obj, **kwargs):
+        raise NotImplementedError
+
+    def dump_config(self):
+        """Dump the configuration of this feature extractor.
+
+        The configuration should be a dictionary of all parameters needed to
+        re-instantiate this feature extractor. The dictionary should have the
+        keys 'class' and 'kwargs', where 'class' is the name of the class, and
+        'kwargs' is a dictionary of keyword arguments.
+        """
+        raise NotImplementedError
+
 
 class HyperParameterError(Exception):
     pass
@@ -507,48 +520,3 @@ class no_scope():
 
     def __exit__(self, exc_type, exc_value, traceback):
         return False
-
-
-def log_manifest(
-    train_tfrecords: Optional[List[str]] = None,
-    val_tfrecords: Optional[List[str]] = None,
-    *,
-    labels: Optional[Dict[str, Any]] = None,
-    filename: Optional[str] = None
-) -> str:
-    """Saves the training manifest in CSV format and returns as a string.
-
-    Args:
-        train_tfrecords (list(str)], optional): List of training TFRecords.
-            Defaults to None.
-        val_tfrecords (list(str)], optional): List of validation TFRecords.
-            Defaults to None.
-        labels (dict, optional): TFRecord outcome labels. Defaults to None.
-        filename (str, optional): Path to CSV file to save. Defaults to None.
-
-    Returns:
-        str: Saved manifest in str format.
-    """
-    out = ''
-    if filename:
-        save_file = open(os.path.join(filename), 'w')
-        writer = csv.writer(save_file)
-        writer.writerow(['slide', 'dataset', 'outcome_label'])
-    if train_tfrecords or val_tfrecords:
-        if train_tfrecords:
-            for tfrecord in train_tfrecords:
-                slide = sf.util.path_to_name(tfrecord)
-                outcome_label = labels[slide] if labels else 'NA'
-                out += ' '.join([slide, 'training', str(outcome_label)])
-                if filename:
-                    writer.writerow([slide, 'training', outcome_label])
-        if val_tfrecords:
-            for tfrecord in val_tfrecords:
-                slide = sf.util.path_to_name(tfrecord)
-                outcome_label = labels[slide] if labels else 'NA'
-                out += ' '.join([slide, 'validation', str(outcome_label)])
-                if filename:
-                    writer.writerow([slide, 'validation', outcome_label])
-    if filename:
-        save_file.close()
-    return out

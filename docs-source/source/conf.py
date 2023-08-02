@@ -62,7 +62,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'slideflow'
-copyright = '2022, James M Dolezal'
+copyright = '2023, James M Dolezal'
 author = 'James M Dolezal'
 
 # The version info for the project you're documenting, acts as replacement for

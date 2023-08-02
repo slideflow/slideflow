@@ -10,6 +10,8 @@ Methods
 
 .. autofunction:: slideflow.DatasetFeatures.activations_by_category
 .. autofunction:: slideflow.DatasetFeatures.box_plots
+.. autofunction:: slideflow.DatasetFeatures.concat
+.. autofunction:: slideflow.DatasetFeatures.from_df
 .. autofunction:: slideflow.DatasetFeatures.load_cache
 .. autofunction:: slideflow.DatasetFeatures.map_activations
 .. autofunction:: slideflow.DatasetFeatures.map_predictions

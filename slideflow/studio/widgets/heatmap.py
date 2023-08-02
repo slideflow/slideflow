@@ -87,19 +87,15 @@ class HeatmapWidget:
 
     def _generate(self):
         """Create and generate a heatmap asynchronously."""
-
         sw = self.viz.slide_widget
         self._create_heatmap()
         self._triggered = True
         self._generating = True
         self._heatmap_grid, self._heatmap_thread = self.viz.heatmap.generate(
             asynchronous=True,
-            grayspace_fraction=sw.gs_fraction,
-            grayspace_threshold=sw.gs_threshold,
-            whitespace_fraction=sw.ws_fraction,
-            whitespace_threshold=sw.ws_threshold,
             lazy_iter=self.viz.low_memory,
             callback=self.refresh_heatmap_grid,
+            **sw.get_tile_filter_params(),
         )
 
     def load(self, obj: Union[str, "sf.Heatmap"]):
@@ -195,6 +191,8 @@ class HeatmapWidget:
 
     def _get_all_outcome_names(self):
         config = self.viz._model_config
+        if config is None:
+            raise ValueError("Model is not loaded.")
         if config['model_type'] != 'categorical':
             return config['outcomes']
         if len(config['outcomes']) > 1:
@@ -303,14 +301,15 @@ class HeatmapWidget:
         _uq_predictions_switched = False
 
         # Predictions and UQ.
-        imgui_utils.vertical_break()
-        _uq_predictions_switched = self.draw_outcome_selection()
-        imgui_utils.vertical_break()
+        if viz._model_config is not None:
+            imgui_utils.vertical_break()
+            _uq_predictions_switched = self.draw_outcome_selection()
+            imgui_utils.vertical_break()
 
         # Display options (colormap, opacity, etc).
         if viz.collapsing_header('Display', default=False):
             with imgui_utils.item_width(viz.font_size * 5):
-                _clicked, self.show = imgui.checkbox('##saliency', self.show)
+                _clicked, self.show = imgui.checkbox('##show_heatmap', self.show)
                 if _clicked:
                     self.render_heatmap()
                     if self.show:
@@ -377,24 +376,16 @@ class HeatmapWidget:
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
-        config = viz._model_config
 
         if self._generating:
             self.refresh_generating_heatmap()
 
         if show:
             viz.header("Heatmap")
-
-        if show and not config:
-            imgui_utils.padded_text('No model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
-            if viz.sidebar.full_button("Load a Model"):
-                viz.ask_load_model()
-            if viz.sidebar.full_button("Download a Model"):
-                viz.model_widget._show_download = True
-
-        elif show:
             self.draw_heatmap_thumb()
             txt = "Generate" if not self._triggered else "Generating..."
-            if viz.sidebar.full_button(txt, enabled=(not self._triggered and viz.wsi)):
+            if viz.sidebar.full_button(txt, enabled=(not self._triggered and viz.wsi and viz._model_config is not None)):
                 self.generate()
+            if viz._model_config is None and imgui.is_item_hovered():
+                imgui.set_tooltip("No model loaded.")
             self.draw_display_options()

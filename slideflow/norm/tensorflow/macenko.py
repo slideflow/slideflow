@@ -17,7 +17,7 @@ def is_self_adjoint(matrix):
 @tf.function
 def normalize_c(C):
     return tf.stack([
-        tfp.stats.percentile(C[0, :], 99), 
+        tfp.stats.percentile(C[0, :], 99),
         tfp.stats.percentile(C[1, :], 99)]
     )
 

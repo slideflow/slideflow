@@ -320,8 +320,6 @@ def concordance_index(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     y_pred = y_pred.flatten()
     E = E.flatten()
     y_true = y_true.flatten()
-    # Need -1 * concordance index, since these are log hazard ratios
-    y_pred = - y_pred
     return c_index(y_true, y_pred, E)
 
 

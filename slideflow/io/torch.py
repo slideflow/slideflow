@@ -62,7 +62,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         model_type: str = 'categorical',
         onehot: bool = False,
         indices: Optional[np.ndarray] = None,
-        device: Optional[torch.device] = None,
         max_size: int = 0,
         from_wsi: bool = False,
         tile_um: Optional[int] = None,
@@ -88,11 +87,17 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
                 Assists with synchronization across GPUs. Defaults to 0.
             num_replicas (int, optional): Total number of GPU replicas.
                 Defaults to 1.
-            augment (str of bool, optional): Image augmentations to perform.
-                If string, 'x' performs horizontal flipping, 'y' performs
-                vertical flipping, 'r' performs rotation, 'j' performs random
-                JPEG compression (e.g. 'xyr', 'xyrj', 'xy'). If bool, True
-                performs all and False performs None. Defaults to True.
+            augment (str or bool): Image augmentations to perform. Augmentations include:
+
+                * ``'x'``: Random horizontal flip
+                * ``'y'``: Random vertical flip
+                * ``'r'``: Random 90-degree rotation
+                * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+                * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+                * ``'n'``: Random :ref:`stain_augmentation` (requires stain normalizer)
+
+                Combine letters to define augmentations, such as ``'xyrjn'``.
+                A value of True will use ``'xyrjb'``.
             standardize (bool, optional): Standardize images to mean 0 and
                 variance of 1. Defaults to True.
             num_tiles (int, optional): Dict mapping tfrecord names to number
@@ -117,6 +122,23 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
                 Defaults to None.
             max_size (bool, optional): Unused argument present for legacy
                 compatibility; will be removed.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            tile_um (int, optional): Size of tiles to extract from WSI, in
+                microns. Only used if from_wsi=True. Defaults to None.
+            rois (list(str), optional): List of ROI paths. Only used if
+                from_wsi=True.  Defaults to None.
+            roi_method (str, optional): Method for extracting ROIs. Only used if
+                from_wsi=True. Defaults to 'auto'.
+            pool (multiprocessing.Pool): Shared multiprocessing pool. Useful
+                if ``from_wsi=True``, for sharing a unified processing pool between
+                dataloaders. Defaults to None.
+            transform (Callable, optional): Arbitrary torchvision transform
+                function. Performs transformation after augmentations but
+                before standardization. Defaults to None.
+            tfrecord_parser (Callable, optional): Custom parser for TFRecords.
+                Defaults to None.
         """
         self.tfrecords = np.array(tfrecords).astype(np.string_)
         if prob_weights is not None:
@@ -140,7 +162,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.incl_loc = incl_loc
         self.num_tiles = num_tiles
         self.model_type = model_type
-        self.device = device
         self.from_wsi = from_wsi
         self.tile_um = tile_um
         self.rois = rois
@@ -282,7 +303,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             rank=self.rank + worker_id,
             chunk_size=self.chunk_size,
             indices=self.indices,
-            device=self.device,
             tile_px=self.img_size,
             from_wsi=self.from_wsi,
             tile_um=self.tile_um,
@@ -415,6 +435,7 @@ class LocLabelInterleaver(StyleGAN2Interleaver):
         """Returns a random label. Used for compatibility with StyleGAN2."""
         return np.random.rand(*self.label_shape)
 
+# -------------------------------------------------------------------------
 
 def _get_images_by_dir(directory: str) -> List[str]:
     files = [
@@ -439,21 +460,24 @@ def multi_slide_loader(
 ) -> Iterable[Union[Dict[str, np.ndarray],
                     Tuple[Dict[str, np.ndarray],
                     Dict[str, List[np.ndarray]]]]]:
-    """Create an iterator by reading and merging multiple tfrecord datasets.
+    """Create an iterator by reading and merging multiple slide dataloaders.
 
     Args:
-        paths (list of str): List of tfrecord paths.
-        indices (dict): dict mapping tfrecord names to index paths.
-            Input index path pattern.
+        slides (list of str): List of slide paths.
         splits (dict):  Dictionary of (key, value) pairs, where the key is used
             to construct the data and index path(s) and the value determines
             the contribution of each split to the batch.
+        shard (tuple(int, int), optional): If provided, will only extract
+            tiles from the shard with index `shard[0]` out of `shard[1]`
+            shards. Defaults to None.
         infinite (bool, optional): Whether the returned iterator should be
             infinite or not. Defaults to True.
 
     Returns:
 
-        it (iterator): A repeating iterator that generates batches of data.
+        it (iterator): A repeating iterator that generates batches of data,
+        interleaving from the provided slides.
+
     """
     if splits is not None:
         splits_list = splits
@@ -470,15 +494,18 @@ def multi_slide_loader(
 
 
 def is_cwh(img: torch.Tensor) -> torch.Tensor:
+    """Check if Tensor is in C x W x H format."""
     return (len(img.shape) == 3 and img.shape[0] == 3
             or (len(img.shape) == 4 and img.shape[1] == 3))
 
 
 def is_whc(img: torch.Tensor) -> torch.Tensor:
+    """Check if Tensor is in W x H x C format."""
     return img.shape[-1] == 3
 
 
 def cwh_to_whc(img: torch.Tensor) -> torch.Tensor:
+    """Convert torch tensor from C x W x H => W x H x C"""
     if len(img.shape) == 3:
         return img.permute(1, 2, 0)  # CWH -> WHC
     elif len(img.shape) == 4:
@@ -490,6 +517,7 @@ def cwh_to_whc(img: torch.Tensor) -> torch.Tensor:
 
 
 def whc_to_cwh(img: torch.Tensor) -> torch.Tensor:
+    """Convert torch tensor from W x H x C => C x W x H"""
     if len(img.shape) == 3:
         return img.permute(2, 0, 1)  # WHC => CWH
     elif len(img.shape) == 4:
@@ -499,23 +527,177 @@ def whc_to_cwh(img: torch.Tensor) -> torch.Tensor:
             "Invalid shape for channel conversion. Expected 3 or 4 dims, "
             f"got {len(img.shape)} (shape={img.shape})")
 
+# -------------------------------------------------------------------------
 
-def auto_gaussian(image: torch.Tensor, sigma: float) -> torch.Tensor:
-    """Perform Gaussian blur on an image with a given sigma, automatically
-    calculating the appropriate Gaussian kernel size.
+class RandomCardinalRotation:
+    """Torchvision transform for random cardinal rotation."""
+    def __init__(self):
+        self.angles = [0, 90, 180, 270]
+
+    def __call__(self, x):
+        angle = random.choice(self.angles)
+        return transforms.functional.rotate(x, angle)
+
+
+class RandomGaussianBlur:
+    """Torchvision transform for random Gaussian blur."""
+    def __init__(self, sigma: List[float], weights: List[float]):
+        assert len(sigma) == len(weights)
+        self.sigma = sigma
+        self.weights = weights
+        self.blur_fn = {
+            s: (
+                transforms.GaussianBlur(self.calc_kernel(s), sigma=s)
+                if s else lambda x: x
+            ) for s in self.sigma
+        }
+
+    @staticmethod
+    def calc_kernel(sigma: float) -> int:
+        sigma = 0.5
+        opt_kernel = int((sigma * 4) + 1)
+        if opt_kernel % 2 == 0:
+            opt_kernel += 1
+        return opt_kernel
+
+    def __call__(self, x):
+        s = random.choices(self.sigma, weights=self.weights)[0]
+        return self.blur_fn[s](x)
+
+
+def random_jpeg_compression(img: torch.Tensor):
+    """Perform random JPEG compression on an image.
 
     Args:
-        image (torch.Tensor): Image or batch of images.
-        sigma (float): Sigma.
+        img (torch.Tensor): Image tensor, shape C x W x H.
 
     Returns:
-        torch.Tensor: Image(s) with Gaussian blur applied.
-    """
-    opt_kernel = int((sigma * 4) + 1)
-    if opt_kernel % 2 == 0:
-        opt_kernel += 1
-    return torchvision.transforms.GaussianBlur(opt_kernel, sigma=sigma)(image)
+        torch.Tensor: Transformed image (C x W x H).
 
+    """
+    q = (torch.rand(1)[0] * 50) + 50
+    img = torchvision.io.encode_jpeg(img, quality=q)
+    return torchvision.io.decode_image(img)
+
+
+def compose_color_distortion(s=1.0):
+    """Compose augmentation for random color distortion.
+
+    Args:
+        s (float): Strength of the distortion.
+
+    Returns:
+        Callable: PyTorch transform
+
+    """
+    color_jitter = transforms.ColorJitter(0.8*s, 0.8*s, 0.8*s, 0.2*s)
+    rnd_color_jitter = transforms.RandomApply([color_jitter], p=0.8)
+    rnd_gray = transforms.RandomGrayscale(p=0.2)
+    color_distort = transforms.Compose(
+        [whc_to_cwh, rnd_color_jitter, rnd_gray, cwh_to_whc])
+    return color_distort
+
+
+def compose_augmentations(
+    augment: Union[str, bool] = False,
+    *,
+    standardize: bool = False,
+    normalizer: Optional["StainNormalizer"] = None,
+    transform: Optional[Callable] = None,
+    whc: bool = False
+):
+    """Compose an augmentation pipeline for image processing.
+
+    Args:
+        augment (str or bool): Image augmentations to perform. Augmentations include:
+
+            * ``'x'``: Random horizontal flip
+            * ``'y'``: Random vertical flip
+            * ``'r'``: Random 90-degree rotation
+            * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+            * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+
+            Combine letters to define augmentations, such as ``'xyrj'``.
+            A value of True will use ``'xyrjb'``.
+            Note: this function does not support stain augmentation.
+
+    Keyword args:
+        standardize (bool, optional): Standardize images into the range (0,1)
+            using img / (255/2) - 1. Defaults to False.
+        normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer
+            to use on images. Defaults to None.
+        transform (Callable, optional): Arbitrary torchvision transform function.
+            Performs transformation after augmentations but before standardization.
+            Defaults to None.
+        whc (bool): Images are in W x H x C format. Defaults to False.
+    """
+
+    transformations = []
+
+    # Random JPEG compression.
+    if augment is True or (isinstance(augment, str) and 'j' in augment):
+        transformations.append(
+            lambda img: torch.where(
+                torch.rand(1)[0] < 0.5,
+                random_jpeg_compression(img),
+                img
+            )
+        )
+
+    # Random cardinal rotation.
+    if augment is True or (isinstance(augment, str) and 'r' in augment):
+        transformations.append(RandomCardinalRotation())
+
+    # Random x-flip.
+    if augment is True or (isinstance(augment, str) and 'x' in augment):
+        transformations.append(transforms.RandomHorizontalFlip(p=0.5))
+
+    # Random y-flip.
+    if augment is True or (isinstance(augment, str) and 'y' in augment):
+        transformations.append(transforms.RandomVerticalFlip(p=0.5))
+
+    # Stain normalization.
+    if normalizer is not None:
+        transformations.append(
+            lambda img: normalizer.torch_to_torch(  # type: ignore
+                img,
+                augment=(isinstance(augment, str) and 'n' in augment)
+            )
+        )
+
+    # Random color distortion.
+    if (isinstance(augment, str) and 'd' in augment):
+        transformations.append(compose_color_distortion())
+
+    # Random Gaussian blur.
+    if augment is True or (isinstance(augment, str) and 'b' in augment):
+        transformations.append(
+            RandomGaussianBlur(
+                sigma=[0, 0.5, 1.0, 1.5, 2.0],
+                weights=[0.9, 0.1, 0.05, 0.025, 0.0125]
+            )
+        )
+
+    # Arbitrary transformations via `augment` argument.
+    if callable(augment):
+        transformations.append(augment)
+
+    # Arbitrary transformations via `transform` argument.
+    if transform is not None:
+        transformations.append(transform)
+
+    # Image standardization.
+    # Note: not the same as tensorflow's per_image_standardization
+    # Convert back: image = (image + 1) * (255/2)
+    if standardize:
+        transformations.append(lambda img: img / (255/2) - 1)
+
+    if transformations and whc:
+        return transforms.Compose([whc_to_cwh] + transformations + [cwh_to_whc])
+    else:
+        return transforms.Compose(transformations)
+
+# -------------------------------------------------------------------------
 
 def read_and_return_record(
     record: bytes,
@@ -605,85 +787,44 @@ def preprocess_uint8(
 
 def _decode_image(
     image: Union[bytes, str, torch.Tensor],
-    img_type: str,
-    standardize: bool = False,
-    normalizer: Optional["StainNormalizer"] = None,
-    augment: bool = False,
+    *,
+    img_type: Optional[str] = None,
     device: Optional[torch.device] = None,
     transform: Optional[Any] = None,
 ) -> torch.Tensor:
-    """Decodes image. Torch implementation; different than sf.io.tensorflow"""
+    """Decodes image string/bytes to Tensor (W x H x C).
 
+    Torch implementation; different than sf.io.tensorflow.
+
+    Args:
+        image (Union[bytes, str, torch.Tensor]): Image to decode.
+
+    Keyword args:
+        img_type (str, optional): Image type. Defaults to None.
+        device (torch.device, optional): Device to move image to.
+            Defaults to None.
+        transform (Callable, optional): Arbitrary torchvision transform function.
+            Performs transformation after augmentations but before standardization.
+            Defaults to None.
+
+    """
     if img_type != 'numpy':
         np_data = torch.from_numpy(np.fromstring(image, dtype=np.uint8))
         image = cwh_to_whc(torchvision.io.decode_image(np_data))
         # Alternative method using PIL decoding:
         # image = np.array(Image.open(BytesIO(img_string)))
+
     assert isinstance(image, torch.Tensor)
 
-    def random_jpeg_compression(img):
-        img = torchvision.io.encode_jpeg(
-            whc_to_cwh(img),
-            quality=(torch.rand(1)[0]*50 + 50)
-        )
-        return cwh_to_whc(torchvision.io.decode_image(img))
+    if device is not None:
+        image = image.to(device)
 
-    if augment is True or (isinstance(augment, str) and 'j' in augment):
-        image = torch.where(
-            torch.rand(1)[0] < 0.5,
-            random_jpeg_compression(image),
-            image
-        )
-    if augment is True or (isinstance(augment, str) and 'r' in augment):
-        # Rotate randomly 0, 90, 180, 270 degrees
-        image = torch.rot90(image, np.random.choice(range(5)))
-    if augment is True or (isinstance(augment, str) and 'x' in augment):
-        image = torch.where(
-            torch.rand(1)[0] < 0.5,
-            torch.fliplr(image),
-            image
-        )
-    if augment is True or (isinstance(augment, str) and 'y' in augment):
-        image = torch.where(
-            torch.rand(1)[0] < 0.5,
-            torch.flipud(image),
-            image
-        )
-    if augment is True or (isinstance(augment, str) and 'b' in augment):
-        # image = image.to(device)
-        image = whc_to_cwh(image)
-        image = torch.where(
-            (torch.rand(1)[0] < 0.1),  # .to(device),
-            torch.where(
-                (torch.rand(1)[0] < 0.5),  # .to(device),
-                torch.where(
-                    (torch.rand(1)[0] < 0.5),  # .to(device),
-                    torch.where(
-                        (torch.rand(1)[0] < 0.5),  # .to(device),
-                        auto_gaussian(image, sigma=2.0),
-                        auto_gaussian(image, sigma=1.5),
-                    ),
-                    auto_gaussian(image, sigma=1.0)
-                ),
-                auto_gaussian(image, sigma=0.5),
-            ),
-            image
-        )
-        image = cwh_to_whc(image)
-        # image = image.cpu()
-    if normalizer:
-        image = normalizer.torch_to_torch(
-            image,
-            augment=(isinstance(augment, str) and 'n' in augment)
-        )
-    if standardize:
-        # Note: not the same as tensorflow's per_image_standardization
-        # Convert back: image = (image + 1) * (255/2)
-        image = image / 127.5 - 1
-    if transform:
-        image = cwh_to_whc(transform(whc_to_cwh(image)))
+    if transform is not None:
+        image = transform(image)
+
     return image
 
+# -------------------------------------------------------------------------
 
 def worker_init_fn(worker_id) -> None:
     np.random.seed(np.random.get_state()[1][0])  # type: ignore
@@ -717,11 +858,17 @@ def get_tfrecord_parser(
             Defaults to False.
         normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer
             to use on images. Defaults to None.
-        augment (str): Image augmentations to perform. String containing
-            characters designating augmentations. 'x' indicates random
-            x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG
-            compression/decompression at random quality levels. Passing either
-            'xyrj' or True will use all augmentations.
+        augment (str or bool): Image augmentations to perform. Augmentations include:
+
+            * ``'x'``: Random horizontal flip
+            * ``'y'``: Random vertical flip
+            * ``'r'``: Random 90-degree rotation
+            * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+            * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+
+            Combine letters to define augmentations, such as ``'xyrjn'``.
+            A value of True will use ``'xyrjb'``.
+            Note: this function does not support stain augmentation.
 
     Returns:
         A tuple containing
@@ -744,6 +891,14 @@ def get_tfrecord_parser(
             f'were found in the tfrecord {detected}'
         )
 
+    # Build the transformations / augmentations.
+    transform = compose_augmentations(
+        augment=augment,
+        standardize=standardize,
+        normalizer=normalizer,
+        whc=True
+    )
+
     def parser(record):
         """Each item in args is an array with one item, as the dareblopy reader
         returns items in batches and we have set our batch_size = 1 for
@@ -758,10 +913,8 @@ def get_tfrecord_parser(
             if decode_images:
                 features['image_raw'] = _decode_image(
                     img,
-                    img_type,
-                    standardize,
-                    normalizer,
-                    augment
+                    img_type=img_type,
+                    transform=transform
                 )
             else:
                 features['image_raw'] = img
@@ -793,7 +946,6 @@ def interleave(
     num_replicas: int = 1,
     rank: int = 0,
     indices: Optional[List[str]] = None,
-    device: Optional[torch.device] = None,
     from_wsi: bool = False,
     tile_px: Optional[int] = None,
     tile_um: Optional[int] = None,
@@ -825,19 +977,21 @@ def interleave(
         infinite (bool, optional): Create an finite dataset. WARNING: If
             infinite is False && balancing is used, some tiles will be skipped.
             Defaults to True.
-        labels (dict, optional): Dict mapping slide names to outcome labels,
-            used for balancing. Defaults to None.
-        augment (str): Image augmentations to perform. String containing
-            characters designating augmentations. 'x' indicates random
-            x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG
-            compression/decompression at random quality levels. Passing either
-            'xyrj' or True will use all augmentations.
+        augment (str or bool): Image augmentations to perform. Augmentations include:
+
+            * ``'x'``: Random horizontal flip
+            * ``'y'``: Random vertical flip
+            * ``'r'``: Random 90-degree rotation
+            * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+            * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+            * ``'n'``: Random :ref:`stain_augmentation` (requires stain normalizer)
+
+            Combine letters to define augmentations, such as ``'xyrjn'``.
+            A value of True will use ``'xyrjb'``.
         standardize (bool, optional): Standardize images to (0,1).
             Defaults to True.
         normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
             Normalizer to use on images. Defaults to None.
-        manifest (dict, optional): Dataset manifest containing number of tiles
-            per tfrecord.
         num_threads (int, optional): Number of threads to use decoding images.
             Defaults to 4.
         chunk_size (int, optional): Chunk size for image decoding.
@@ -851,9 +1005,26 @@ def interleave(
             duplications. Defaults to 0 (first worker).
         indices (list(str)): Paths to TFRecord index files. If not provided,
             will generate. Defaults to None.
+        from_wsi (bool): Generate predictions from tiles dynamically
+            extracted from whole-slide images, rather than TFRecords.
+            Defaults to False (use TFRecords).
+        tile_px (int, optional): Size of tiles to extract from WSI, in pixels.
+            Only used if from_wsi=True. Defaults to None.
+        tile_um (int, optional): Size of tiles to extract from WSI, in
+            microns. Only used if from_wsi=True. Defaults to None.
+        rois (list(str), optional): List of ROI paths. Only used if
+            from_wsi=True.  Defaults to None.
+        roi_method (str, optional): Method for extracting ROIs. Only used if
+            from_wsi=True. Defaults to 'auto'.
         pool (multiprocessing.Pool): Shared multiprocessing pool. Useful
-            if from_wsi=True, for sharing a unified processing pool between
+            if ``from_wsi=True``, for sharing a unified processing pool between
             dataloaders. Defaults to None.
+        transform (Callable, optional): Arbitrary torchvision transform
+            function. Performs transformation after augmentations but
+            before standardization. Defaults to None.
+        tfrecord_parser (Callable, optional): Custom parser for TFRecords.
+            Defaults to None.
+
     """
     if not len(paths):
         raise errors.TFRecordsNotFoundError
@@ -885,11 +1056,11 @@ def interleave(
         # ---- Load slides and apply Otsu thresholding ------------------------
         if pool is None and sf.slide_backend() == 'cucim':
             pool = mp.Pool(
-                8 if os.cpu_count is None else os.cpu_count(),
+                sf.util.num_cpu(default=8),
                 initializer=sf.util.set_ignore_sigint
             )
         elif pool is None:
-            pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
+            pool = mp.dummy.Pool(sf.util.num_cpu(default=16))
         wsi_list = []
         to_remove = []
         otsu_list = []
@@ -986,17 +1157,22 @@ def interleave(
         )
         sampler_iter = iter(random_sampler)
 
+    # Compose augmentation transformations
+    transform_fn = compose_augmentations(
+        augment=augment,
+        standardize=standardize,
+        normalizer=normalizer,
+        transform=transform,
+        whc=True
+    )
+
     # Worker to decode images and process records
     def threading_worker(record):
         record = base_parser(record)
         record[0] = _decode_image(
             record[0],  # Image is the first returned variable
             img_type=img_type,
-            standardize=standardize,
-            normalizer=normalizer,
-            augment=augment,
-            transform=transform,
-            device=device
+            transform=transform_fn,
         )
         return record
 
@@ -1116,50 +1292,77 @@ def interleave_dataloader(
         batch_size (int): Batch size.
 
     Keyword Args:
-        prob_weights (dict, optional): Dict mapping tfrecords to probability
-            of including in batch. Defaults to None.
+        augment (str or bool): Image augmentations to perform. Augmentations include:
+
+            * ``'x'``: Random horizontal flip
+            * ``'y'``: Random vertical flip
+            * ``'r'``: Random 90-degree rotation
+            * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+            * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+            * ``'n'``: Random :ref:`stain_augmentation` (requires stain normalizer)
+
+            Combine letters to define augmentations, such as ``'xyrjn'``.
+            A value of True will use ``'xyrjb'``.
+        chunk_size (int, optional): Chunk size for image decoding.
+            Defaults to 1.
         clip (dict, optional): Dict mapping tfrecords to number of tiles to
             take per tfrecord. Defaults to None.
-        onehot (bool, optional): Onehot encode labels. Defaults to False.
-        incl_slidenames (bool, optional): Include slidenames as third returned
-            variable. Defaults to False.
+        drop_last (bool, optional): Drop the last non-full batch.
+            Defaults to False.
+        from_wsi (bool): Generate predictions from tiles dynamically
+            extracted from whole-slide images, rather than TFRecords.
+            Defaults to False (use TFRecords).
         incl_loc (bool, optional): Include loc_x and loc_y as additional
             returned variables. Defaults to False.
+        incl_slidenames (bool, optional): Include slidenames as third returned
+            variable. Defaults to False.
         infinite (bool, optional): Infinitely repeat data. Defaults to True.
-        rank (int, optional): Worker ID to identify this worker.
-            Used to interleave results.
-            among workers without duplications. Defaults to 0 (first worker).
+        indices (numpy.ndarray, optional): Indices in form of array,
+            with np.loadtxt(index_path, dtype=np.int64) for each tfrecord.
+            Defaults to None.
+        labels (dict, optional): Dict mapping slide names to outcome labels,
+            used for balancing. Defaults to None.
+        max_size (bool, optional): Unused argument present for legacy
+            compatibility; will be removed.
+        model_type (str, optional): Used to generate random labels
+            (for StyleGAN2). Not required. Defaults to 'categorical'.
         num_replicas (int, optional): Number of GPUs or unique instances which
             will have their own DataLoader. Used to interleave results among
             workers without duplications. Defaults to 1.
-        labels (dict, optional): Dict mapping slide names to outcome labels,
-            used for balancing. Defaults to None.
-        normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
-            Normalizer to use on images. Defaults to None.
-        chunk_size (int, optional): Chunk size for image decoding.
-            Defaults to 1.
-        prefetch_factor (int, optional): Number of batches to prefetch in each
-            SlideflowIterator. Defaults to 1.
-        manifest (dict, optional): Dataset manifest containing number of tiles
-            per tfrecord.
-        balance (str, optional): Batch-level balancing. Options: category,
-            patient, and None. If infinite is not True, will drop tiles to
-            maintain proportions across the interleaved dataset.
-        augment (str, optional): Image augmentations to perform. String
-            containing characters designating augmentations. 'x' indicates
-            random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG
-            compression/decompression at random quality levels. Passing either
-            'xyrj' or True will use all augmentations.
-        standardize (bool, optional): Standardize images to (0,1).
-            Defaults to True.
+        num_tiles (int, optional): Dict mapping tfrecord names to number
+            of total tiles. Defaults to None.
         num_workers (int, optional): Number of DataLoader workers.
             Defaults to 2.
+        normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+            Normalizer. Defaults to None.
+        onehot (bool, optional): Onehot encode labels. Defaults to False.
         persistent_workers (bool, optional): Sets the DataLoader
             persistent_workers flag. Defaults toNone (4 if not using a SPAMS
             normalizer, 1 if using SPAMS).
         pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
-        drop_last (bool, optional): Drop the last non-full batch.
-            Defaults to False.
+        pool (multiprocessing.Pool): Shared multiprocessing pool. Useful
+            if ``from_wsi=True``, for sharing a unified processing pool between
+            dataloaders. Defaults to None.
+        prefetch_factor (int, optional): Number of batches to prefetch in each
+            SlideflowIterator. Defaults to 1.
+        prob_weights (dict, optional): Dict mapping tfrecords to probability
+            of including in batch. Defaults to None.
+        rank (int, optional): Worker ID to identify this worker.
+            Used to interleave results.
+            among workers without duplications. Defaults to 0 (first worker).
+        rois (list(str), optional): List of ROI paths. Only used if
+            from_wsi=True.  Defaults to None.
+        roi_method (str, optional): Method for extracting ROIs. Only used if
+            from_wsi=True. Defaults to 'auto'.
+        standardize (bool, optional): Standardize images to mean 0 and
+            variance of 1. Defaults to True.
+        tile_um (int, optional): Size of tiles to extract from WSI, in
+            microns. Only used if from_wsi=True. Defaults to None.
+        transform (Callable, optional): Arbitrary torchvision transform
+            function. Performs transformation after augmentations but
+            before standardization. Defaults to None.
+        tfrecord_parser (Callable, optional): Custom parser for TFRecords.
+            Defaults to None.
 
     Returns:
         torch.utils.data.DataLoader
@@ -1173,13 +1376,13 @@ def interleave_dataloader(
         raise ValueError("Option `from_wsi=True` incompatible with "
                          "num_workers > 0")
 
-    if num_workers is None and os.cpu_count():
-        num_workers = os.cpu_count() // 4  # type: ignore
+    if num_workers is None and sf.util.num_cpu():
+        num_workers = max(sf.util.num_cpu() // 4, 1)  # type: ignore
     elif num_workers is None:
         num_workers = 8
     log.debug(f"Using num_workers={num_workers}")
-    if 'num_threads' not in kwargs and os.cpu_count():
-        kwargs['num_threads'] = int(math.ceil(os.cpu_count() / max(num_workers, 1)))
+    if 'num_threads' not in kwargs and sf.util.num_cpu():
+        kwargs['num_threads'] = int(math.ceil(sf.util.num_cpu() / max(num_workers, 1)))
         log.debug(f"Threads per worker={kwargs['num_threads']}")
 
     iterator = InterleaveIterator(

@@ -72,7 +72,7 @@ Layer activations can also be calculated across an entire slide using the same :
 Entire dataset
 --------------
 
-Finally, layer activations can also be calculated for an entire dataset using :class:`DatasetFeatures`. Instancing the class supervises the calculation and caching of layer activations, which can then be used for downstream analysis. The project function :func:`slideflow.Project.generate_features` creates and returns an instance of this class.
+Finally, layer activations can also be calculated for an entire dataset using :class:`slideflow.DatasetFeatures`. Instancing the class supervises the calculation and caching of layer activations, which can then be used for downstream analysis. The project function :func:`slideflow.Project.generate_features` creates and returns an instance of this class.
 
 .. code-block:: python
 
@@ -92,16 +92,16 @@ Alternatively, you can create an instance of this class directly:
 
 Tile-level feature activations for each slide can be accessed directly from ``DatasetFeatures.activations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_features)``. Predictions are stored in ``DatasetFeatures.predictions``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_classes)``. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in ``DatasetFeatures.locations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, 2)`` (``x``, ``y``).
 
-Activations can be exported to a Pandas DataFrame with :meth:`DatasetFeatures.to_df` or exported into PyTorch format (for use with :ref:`multi-instance learning (MIL) <clam_mil>` models) with :meth:`DatasetFeatures.to_torch`
+Activations can be exported to a Pandas DataFrame with :meth:`slideflow.DatasetFeatures.to_df` or exported into PyTorch format with :meth:`slideflow.DatasetFeatures.to_torch`. See :ref:`clam_mil` for more information about generating and exporting features for MIL models.
 
-Read the API documentation for :class:`DatasetFeatures` for more information.
+Read the API documentation for :class:`slideflow.DatasetFeatures` for more information.
 
 .. _slidemap:
 
 Mapping activations
 *******************
 
-Layer activations across a dataset can be dimensionality reduced with UMAP and plotted for visualization using :meth:`DatasetFeatures.map_activations`. This function returns an instance of :class:`slideflow.SlideMap`, a class that provides easy access to labeling and plotting.
+Layer activations across a dataset can be dimensionality reduced with UMAP and plotted for visualization using :meth:`slideflow.DatasetFeatures.map_activations`. This function returns an instance of :class:`slideflow.SlideMap`, a class that provides easy access to labeling and plotting.
 
 The below example calculates layer activations at the neural network layer ``sep_conv_3`` for an entire dataset, and then reduces the activations into two dimensions for easy visualization using UMAP. Any valid `UMAP parameters <https://umap-learn.readthedocs.io/en/latest/parameters.html>`_ can be passed via keyword argument.
 

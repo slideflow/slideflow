@@ -40,7 +40,7 @@ from .project_utils import (  # noqa: F401
 )
 
 if TYPE_CHECKING:
-    from slideflow.model import DatasetFeatures, Trainer
+    from slideflow.model import DatasetFeatures, Trainer, BaseFeatureExtractor
     from slideflow.slide import SlideReport
     from slideflow import simclr, mil
     from ConfigSpace import ConfigurationSpace, Configuration
@@ -1281,7 +1281,9 @@ class Project:
         filter_blank: Optional[Union[str, List[str]]] = None,
         attention_heatmaps: bool = True
     ) -> None:
-        """Evaluate CLAM model on activations and export attention heatmaps.
+        """Deprecated function.
+
+        Evaluate CLAM model on activations and export attention heatmaps.
 
         Args:
             exp_name (str): Name of experiment to evaluate (subfolder in clam/)
@@ -1309,6 +1311,10 @@ class Project:
             None
 
         """
+        warnings.warn("Project.evaluate_clam() is deprecated. Please use "
+                      "Project.evaluate_mil()",
+                      DeprecationWarning)
+
         import slideflow.clam as clam
         from slideflow.clam import export_attention
         from slideflow.clam import Generic_MIL_Dataset
@@ -1961,23 +1967,33 @@ class Project:
         return df
 
     @auto_dataset_allow_none
-    def generate_features_for_clam(
+    def generate_features_for_clam(self, *args, **kwargs):
+        warnings.warn(
+            "Project.generate_features_for_clam() is deprecated. "
+            "Please use .generate_feature_bags()",
+            DeprecationWarning
+        )
+        self.generate_feature_bags(*args, **kwargs)
+
+    @auto_dataset_allow_none
+    def generate_feature_bags(
         self,
-        model: str,
+        model: Union[str, "BaseFeatureExtractor"],
+        dataset: Optional[Dataset] = None,
         outdir: str = 'auto',
         *,
-        dataset: Optional[Dataset] = None,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 16,
         max_tiles: int = 0,
-        layers: Union[str, List[str]] = 'postconv',
         force_regenerate: bool = False,
-        batch_size: int = 32
+        batch_size: int = 32,
+        slide_batch_size: int = 16,
+        **kwargs: Any
     ) -> str:
-        """Generate tile-level features for slides for use with CLAM.
+        """Generate tile-level features for slides for use with MIL models.
 
-        By default, CLAM features are saved in the ``pt_files`` folder
+        By default, features are exported to the ``pt_files`` folder
         within the project root directory.
 
         Args:
@@ -2002,20 +2018,26 @@ class Project:
             max_tiles (int, optional): Only include maximum of this many tiles
                 per slide. Defaults to 0 (all tiles).
             layers (list): Which model layer(s) generate activations.
-                Defaults to 'postconv'.
+                If ``model`` is a saved model, this defaults to 'postconv'.
+                Defaults to None.
             force_regenerate (bool): Forcibly regenerate activations
                 for all slides even if .pt file exists. Defaults to False.
             min_tiles (int, optional): Minimum tiles per slide. Skip slides
                 not meeting this threshold. Defaults to 16.
             batch_size (int): Batch size during feature calculation.
                 Defaults to 32.
+            slide_batch_size (int): Interleave feature calculation across
+                this many slides. Higher values may improve performance
+                but require more memory. Defaults to 16.
+            **kwargs: Additional keyword arguments are passed to
+                ``sf.DatasetFeatures``.
 
         Returns:
             Path to directory containing exported .pt files
 
         """
         # Check if the model exists and has a valid parameters file
-        if exists(model):
+        if isinstance(model, str) and exists(model):
             config = sf.util.get_model_config(model)
 
             if dataset is None:
@@ -2045,23 +2067,37 @@ class Project:
         # Ensure min_tiles is applied to the dataset.
         dataset = dataset.filter(min_tiles=min_tiles)
 
-        # If the model does not exist, check if it is an architecture name
+        # Check if the model is an architecture name
         # (for using an Imagenet pretrained model)
-        if sf.model.is_extractor(model):
-            log.info(f"Building feature extractor {model}.")
+        if isinstance(model, str) and sf.model.is_extractor(model):
+            log.info(f"Building feature extractor: [green]{model}[/]")
+            layer_kw = dict(layers=kwargs['layers']) if 'layers' in kwargs else dict()
             model = sf.model.build_feature_extractor(
-                model, tile_px=dataset.tile_px
+                model, tile_px=dataset.tile_px, **layer_kw
             )
 
             # Set the pt_files directory if not provided
             if outdir.lower() == 'auto':
                 outdir = join(self.root, 'pt_files', model.tag)
 
-        elif not exists(model):
+        elif isinstance(model, str) and not exists(model):
             raise ValueError(
                 f"'{model}' is neither a path to a saved model nor the name "
                 "of a valid feature extractor (use sf.model.list_extractors() "
                 "for a list of all available feature extractors).")
+
+        elif not isinstance(model, str):
+            from slideflow.model.base import BaseFeatureExtractor
+            if not isinstance(model, BaseFeatureExtractor):
+                raise ValueError(
+                    f"'{model}' is neither a path to a saved model nor the name "
+                    "of a valid feature extractor (use sf.model.list_extractors() "
+                    "for a list of all available feature extractors).")
+
+            log.info(f"Using feature extractor: [green]{model.tag}[/]")
+            # Set the pt_files directory if not provided
+            if outdir.lower() == 'auto':
+                outdir = join(self.root, 'pt_files', model.tag)
 
         # Create the pt_files directory
         if not exists(outdir):
@@ -2081,22 +2117,35 @@ class Project:
                 skip_p = f'{to_skip}/{len(all_slides)}'
                 log.info(f"Skipping {skip_p} finished slides.")
             if not slides_to_generate:
-                log.warn("No slides to generate CLAM features.")
+                log.warn("No slides for which to generate features.")
                 return outdir
             dataset = dataset.filter(filters={'slide': slides_to_generate})
             filtered_slides_to_generate = dataset.slides()
             log.info(f'Skipping {len(done)} files already done.')
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
 
-        # Set up activations interface
-        df = sf.DatasetFeatures(
-            model=model,
-            dataset=dataset,
-            layers=layers,
-            include_preds=False,
-            batch_size=batch_size
-        )
-        df.to_torch(outdir)
+        # Set up activations interface.
+        # Calculate features one slide at a time to reduce memory consumption.
+        for slide_batch in tqdm(sf.util.batch(dataset.slides(), slide_batch_size),
+                                total=len(dataset.slides()) // slide_batch_size):
+            try:
+                _dataset = dataset.remove_filter(filters='slide')
+            except errors.DatasetFilterError:
+                _dataset = dataset
+            _dataset = _dataset.filter(filters={'slide': slide_batch})
+            df = sf.DatasetFeatures(
+                model=model,
+                dataset=_dataset,
+                include_preds=False,
+                include_uncertainty=False,
+                batch_size=batch_size,
+                verbose=False,
+                progress=False,
+                pool_sort=False,
+                **kwargs
+            )
+            df.to_torch(outdir, verbose=False)
+
         return outdir
 
     @auto_dataset
@@ -2467,7 +2516,7 @@ class Project:
 
         Keyword Args:
             dataset (:class:`slideflow.Dataset`): Dataset object.
-            model (str, optional): Path to Tensorflow model to use when
+            model (str, optional): Path to model to use when
                 generating layer activations.
             Defaults to None.
                 If not provided, mosaic will not be calculated or saved.
@@ -3332,8 +3381,8 @@ class Project:
                 model from which to load weights. Defaults to 'imagenet'.
             multi_gpu (bool): Train using multiple GPUs when available.
                 Defaults to False.
-            resume_training (str, optional): Path to Tensorflow model to
-                continue training. Defaults to None.
+            resume_training (str, optional): Path to model to continue training.
+                Only valid in Tensorflow backend. Defaults to None.
             starting_epoch (int): Start training at the specified epoch.
                 Defaults to 0.
             steps_per_epoch_override (int): If provided, will manually set the
@@ -3350,7 +3399,7 @@ class Project:
             validation_batch_size (int): Validation dataset batch size.
                 Defaults to 32.
             use_tensorboard (bool): Add tensorboard callback for realtime
-                training monitoring. Defaults to False.
+                training monitoring. Defaults to True.
             validation_steps (int): Number of steps of validation to perform
                 each time doing a mid-epoch validation check. Defaults to 200.
 
@@ -3622,6 +3671,8 @@ class Project:
         exp_label: Optional[str] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
         dataset_kwargs: Optional[Dict[str, Any]] = None,
+        normalizer: Optional[Union[str, "sf.norm.StainNormalizer"]] = None,
+        normalizer_source: Optional[str] = None,
         **kwargs
     ) -> None:
         """Train SimCLR model.
@@ -3670,7 +3721,9 @@ class Project:
             train_dts=train_dataset,
             val_dts=val_dataset,
             labels=outcomes,
-            dataset_kwargs=dataset_kwargs
+            dataset_kwargs=dataset_kwargs,
+            normalizer=normalizer,
+            normalizer_source=normalizer_source
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 

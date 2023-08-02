@@ -112,13 +112,14 @@ class Studio(ImguiWindow):
         self.low_memory         = low_memory
 
         # Interface.
-        self._show_about        = False
-        self._show_performance  = False
-        self._show_tile_preview = False
-        self._tile_preview_is_new = True
+        self._show_about                = False
+        self._show_tile_preview         = False
+        self._tile_preview_is_new       = True
         self._tile_preview_image_is_new = True
-        self._show_overlays     = True
-        self.theme              = theme
+        self._show_overlays             = True
+        self._show_mpp_zoom_popup       = False
+        self._input_mpp                 = 1.
+        self.theme                      = theme
 
         # Widget interface.
         self.wsi                = None
@@ -320,6 +321,35 @@ class Studio(ImguiWindow):
                     self._show_about = False
                 imgui.end_popup()
 
+    def _draw_mpp_zoom_dialog(self):
+        """Show a dialog that prompts the user to specify microns-per-pixel."""
+        if not self._show_mpp_zoom_popup:
+            return
+
+        window_size = (self.font_size * 18, self.font_size * 7)
+        self.center_next_window(*window_size)
+        imgui.set_next_window_size(*window_size)
+        _, opened = imgui.begin('Zoom to Microns-Per-Pixel (MPP)', closable=True, flags=imgui.WINDOW_NO_RESIZE)
+        if not opened:
+            self._show_mpp_zoom_popup = False
+
+        imgui.text("Zoom the current view to a given MPP.")
+        imgui.separator()
+        imgui.text('')
+        imgui.same_line(self.font_size*4)
+        with imgui_utils.item_width(self.font_size*4):
+            _changed, self._input_mpp = imgui.input_float('MPP##input_mpp', self._input_mpp, format='%.3f')
+        imgui.same_line()
+        if self._input_mpp:
+            mag = f'{10/self._input_mpp:.1f}x'
+        else:
+            mag = '-'
+        imgui.text(mag)
+        if self.sidebar.full_button("Zoom", width=-1):
+            self.viewer.zoom_to_mpp(window_size[0] / 2, window_size[1] / 2, self._input_mpp)
+            self._show_mpp_zoom_popup = False
+        imgui.end()
+
     def _draw_control_pane(self) -> None:
         """Draw the control pane and widgets."""
         self.sidebar.draw()
@@ -464,8 +494,6 @@ class Studio(ImguiWindow):
 
                 # --- Show sub-menu -------------------------------------------
                 if imgui.begin_menu('Show', True):
-                    if imgui.menu_item('Performance', 'Ctrl+Shift+P', selected=self._show_performance)[0]:
-                        self._show_performance = not self._show_performance
                     if imgui.menu_item('Tile Preview', 'Ctrl+Shift+T', selected=self._show_tile_preview)[0]:
                         self._show_tile_preview = not self._show_tile_preview
                     imgui.separator()
@@ -494,6 +522,8 @@ class Studio(ImguiWindow):
                     self.increase_tile_zoom()
                 if imgui.menu_item('Decrease Tile Zoom', 'Ctrl+[')[1]:
                     self.decrease_tile_zoom()
+                if imgui.menu_item('Zoom to MPP', 'Ctrl+/')[1]:
+                    self.ask_zoom_to_mpp()
                 if imgui.menu_item('Reset Tile Zoom', 'Ctrl+\\')[1]:
                     self.reset_tile_zoom()
 
@@ -541,7 +571,7 @@ class Studio(ImguiWindow):
         r = self.pixel_ratio
         y_pos = int((self.content_frame_height - (h * r)) / r)
         imgui.set_next_window_position(0-2, y_pos)
-        imgui.set_next_window_size(self.content_frame_width+4, h)
+        imgui.set_next_window_size(self.content_width+4, h)
         imgui.push_style_color(imgui.COLOR_WINDOW_BACKGROUND, *self.theme.main_background)
         imgui.push_style_var(imgui.STYLE_WINDOW_PADDING, [10, 5])
 
@@ -643,8 +673,6 @@ class Studio(ImguiWindow):
     def _glfw_key_callback(self, _window, key, _scancode, action, _mods):
         """Callback for handling keyboard input."""
         super()._glfw_key_callback(_window, key, _scancode, action, _mods)
-        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_P:
-            self._show_performance = not self._show_performance
         if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_T:
             self._show_tile_preview = not self._show_tile_preview
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_Q:
@@ -665,6 +693,8 @@ class Studio(ImguiWindow):
             self.decrease_tile_zoom()
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_RIGHT_BRACKET:
             self.increase_tile_zoom()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_SLASH:
+            self.ask_zoom_to_mpp()
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_BACKSLASH:
             self.reset_tile_zoom()
 
@@ -707,7 +737,7 @@ class Studio(ImguiWindow):
         stride: Optional[int] = None,
         use_rois: bool = True,
         **kwargs
-    ) -> None:
+    ) -> bool:
         """Reload the currently loaded Whole-Slide Image.
 
         Args:
@@ -717,6 +747,10 @@ class Studio(ImguiWindow):
                 provided, will use the stride value from the currently loaded
                 slide.
             use_rois (bool): Use ROIs from the loaded project, if available.
+
+        Returns:
+            bool: True if slide loaded successfully, False otherwise.
+
         """
         if self.wsi is None and path is None:
             return
@@ -731,25 +765,35 @@ class Studio(ImguiWindow):
         else:
             rois = None
         if sf.slide_backend() == 'cucim':
-            kwargs['num_workers'] = os.cpu_count()
-        self.wsi = sf.WSI(
-            path,
-            tile_px=(self.tile_px if self.tile_px else 256),
-            tile_um=(self.tile_um if self.tile_um else 512),
-            stride_div=stride,
-            rois=rois,
-            cache_kw=dict(
-                tile_width=512,
-                tile_height=512,
-                max_tiles=-1,
-                threaded=True,
-                persistent=True
-            ),
-            verbose=False,
-            mpp=self.slide_widget.manual_mpp,
-            **kwargs)
-        self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
-        self.set_title(os.path.basename(self.wsi.path))
+            kwargs['num_workers'] = sf.util.num_cpu(default=4)
+        try:
+            self.wsi = sf.WSI(
+                path,
+                tile_px=(self.tile_px if self.tile_px else 256),
+                tile_um=(self.tile_um if self.tile_um else 512),
+                stride_div=stride,
+                rois=rois,
+                cache_kw=dict(
+                    tile_width=512,
+                    tile_height=512,
+                    max_tiles=-1,
+                    threaded=True,
+                    persistent=True
+                ),
+                verbose=False,
+                mpp=self.slide_widget.manual_mpp,
+                **kwargs)
+        except sf.errors.IncompatibleBackendError:
+            self.create_toast(
+                title="Incompatbile slide",
+                message='Slide type "{}" is incompatible with the {} backend.'.format(sf.util.path_to_ext(path), sf.slide_backend()),
+                icon='error'
+            )
+            return False
+        else:
+            self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
+            self.set_title(os.path.basename(self.wsi.path))
+            return True
 
     def _render_prediction_message(self, message: str) -> None:
         """Render a prediction string to below the tile bounding box.
@@ -836,6 +880,28 @@ class Studio(ImguiWindow):
         imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.dim)
         yield
         imgui.pop_style_color(1)
+
+    @contextmanager
+    def highlighted(self, enable: bool = True):
+        """Render highlighted text.
+
+        Args:
+            enable (bool): Whether to enable highlighting.
+
+        Examples
+            Render highlighted text.
+
+                .. code-block:: python
+
+                    with studio.highlighted(True):
+                        imgui.text('This is highlighted')
+
+        """
+        if enable:
+            imgui.push_style_color(imgui.COLOR_BUTTON, *self.theme.button_active)
+        yield
+        if enable:
+            imgui.pop_style_color(1)
 
     def collapsing_header(self, text, **kwargs):
         """Render a collapsing header using the active theme.
@@ -1166,6 +1232,7 @@ class Studio(ImguiWindow):
         self._draw_control_pane()
         self._draw_menu_bar()
         self._draw_about_dialog()
+        self._draw_mpp_zoom_dialog()
 
         user_input = self._handle_user_input()
 
@@ -1227,10 +1294,6 @@ class Studio(ImguiWindow):
         # Render control pane contents.
         self._render_control_pane_contents()
 
-        # Render user widgets.
-        for widget in self.widgets:
-            if hasattr(widget, 'render'):
-                widget.render()
 
         if self.is_skipping_frames():
             pass
@@ -1273,6 +1336,14 @@ class Studio(ImguiWindow):
             _msg = self.message if 'message' not in self.result else self.result['message']
             tex = text_utils.get_texture(_msg, size=self.gl_font_size, max_width=max_w, max_height=max_h, outline=2)
             tex.draw(pos=middle_pos, align=0.5, rint=True, color=1)
+
+        # Render user widgets.
+        for widget in self.widgets:
+            if hasattr(widget, 'render'):
+                widget.render()
+
+        # Render slide widget tile boxes (for tile extraction preview)
+        self.slide_widget.early_render()
 
         # Render the tile view and status bar.
         self._draw_tile_view()
@@ -1349,6 +1420,11 @@ class Studio(ImguiWindow):
                 and self._model_config is not None
                 and 'uq' in self._model_config['hp']
                 and self._model_config['hp']['uq'])
+
+    def ask_zoom_to_mpp(self) -> None:
+        """Prompt the user to zoom to a specific microns-per-pixel (MPP)."""
+        if self.viewer and isinstance(self.viewer, SlideViewer):
+            self._show_mpp_zoom_popup = True
 
     def increase_tile_zoom(self) -> None:
         """Increase zoom of tile view two-fold."""
@@ -1432,7 +1508,7 @@ class Studio(ImguiWindow):
             self.model_widget.use_model = True
             self.model_widget.use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
             if normalizer is not None and hasattr(self, 'slide_widget'):
-                self.slide_widget.show_model_normalizer()
+                self.slide_widget.add_model_normalizer_option()
                 self.slide_widget.norm_idx = len(self.slide_widget._normalizer_methods)-1
             if self.wsi:
                 log.debug(f"Loading slide... tile_px={self.tile_px}, tile_um={self.tile_um}")
@@ -1454,6 +1530,11 @@ class Studio(ImguiWindow):
             if self.viewer and not isinstance(self.viewer, SlideViewer):
                 self.viewer.set_tile_px(self.tile_px)
                 self.viewer.set_tile_um(self.tile_um)
+
+            # Trigger user widgets
+            for widget in self.widgets:
+                if hasattr(widget, '_on_model_load'):
+                    widget._on_model_load()
 
             self.create_toast(f"Loaded model at {model}", icon="success")
 
@@ -1491,6 +1572,11 @@ class Studio(ImguiWindow):
                 Defaults to False.
         """
         self.slide_widget.load(slide, **kwargs)
+
+        # Trigger user widgets
+        for widget in self.widgets:
+            if hasattr(widget, '_on_slide_load'):
+                widget._on_slide_load()
 
     def print_error(self, error: str) -> None:
         """Print the given error message."""
@@ -1590,6 +1676,7 @@ class Sidebar:
         self.selected           = None
         self.buttonbar_width    = 72
         self.navbutton_width    = 70
+        self.imagebutton_width  = 64
         self._button_tex        = dict()
         self._pane_w_div        = 15
         self.navbuttons         = ['project', 'slide', 'model', 'heatmap']
@@ -1682,7 +1769,7 @@ class Sidebar:
         else:
             tex = self._button_tex[f'{tex_name}_highlighted'].gl_id
         imgui.set_cursor_position((0, start_px))
-        if imgui.image_button(tex, 64, 64):
+        if imgui.image_button(tex, self.imagebutton_width, self.imagebutton_width):
             if name == self.selected or self.selected is None or not self.expanded:
                 self.expanded = not self.expanded
             self.selected = name
@@ -1810,7 +1897,7 @@ class Sidebar:
         imgui.pop_style_color(3)
         return result
 
-    def large_image_button(self, image_name, size=64):
+    def large_image_button(self, image_name, size=None):
         """Render a small button for the sidebar.
 
         Args:
@@ -1824,6 +1911,8 @@ class Sidebar:
             bool: If the button was clicked.
 
         """
+        if size is None:
+            size = self.imagebutton_width
         tex = self._button_tex[f'{image_name}'].gl_id
         return imgui.image_button(tex, size, size)
 

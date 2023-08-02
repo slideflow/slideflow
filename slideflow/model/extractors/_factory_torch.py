@@ -1,7 +1,10 @@
 """Factory for building PyTorch feature extractors."""
 
+import numpy as np
+import slideflow as sf
 from slideflow import errors
 
+from ._slide import features_from_slide
 from ._registry import _torch_extractors, is_torch_extractor, register_torch
 from ..base import BaseFeatureExtractor
 
@@ -29,68 +32,68 @@ def retccl(tile_px, **kwargs):
 
 @register_torch
 def resnet18_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('resnet18', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('resnet18', tile_px, **kwargs)
 
 @register_torch
 def resnet50_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('resnet50', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('resnet50', tile_px, **kwargs)
 
 @register_torch
 def alexnet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('alexnet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('alexnet', tile_px, **kwargs)
 
 @register_torch
 def squeezenet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('squeezenet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('squeezenet', tile_px, **kwargs)
 
 @register_torch
 def densenet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('densenet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('densenet', tile_px, **kwargs)
 
 @register_torch
 def inception_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('inception', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('inception', tile_px, **kwargs)
 
 @register_torch
 def googlenet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('googlenet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('googlenet', tile_px, **kwargs)
 
 @register_torch
 def shufflenet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('shufflenet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('shufflenet', tile_px, **kwargs)
 
 @register_torch
 def resnext50_32x4d_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('resnext50_32x4d', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('resnext50_32x4d', tile_px, **kwargs)
 
 @register_torch
 def vgg16_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('vgg16', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('vgg16', tile_px, **kwargs)
 
 @register_torch
 def mobilenet_v2_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('mobilenet_v2', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('mobilenet_v2', tile_px, **kwargs)
 
 @register_torch
 def mobilenet_v3_small_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('mobilenet_v3_small', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('mobilenet_v3_small', tile_px, **kwargs)
 
 @register_torch
 def mobilenet_v3_large_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('mobilenet_v3_large', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('mobilenet_v3_large', tile_px, **kwargs)
 
 @register_torch
 def wide_resnet50_2_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('wide_resnet50_2', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('wide_resnet50_2', tile_px, **kwargs)
 
 @register_torch
 def mnasnet_imagenet(tile_px, **kwargs):
-    return _TorchImagenetLayerExtractor('mnasnet', tile_px, **kwargs)
+    return TorchImagenetLayerExtractor('mnasnet', tile_px, **kwargs)
 
 @register_torch
 def xception_imagenet(tile_px, **kwargs):
     from torchvision import transforms
-    extractor = _TorchImagenetLayerExtractor('xception', tile_px, **kwargs)
+    extractor = TorchImagenetLayerExtractor('xception', tile_px, **kwargs)
     extractor.transform = transforms.Compose([
         transforms.Lambda(lambda x: x / 255.),
         transforms.Normalize(
@@ -102,7 +105,7 @@ def xception_imagenet(tile_px, **kwargs):
 @register_torch
 def nasnet_large_imagenet(tile_px, **kwargs):
     from torchvision import transforms
-    extractor = _TorchImagenetLayerExtractor('nasnet_large', tile_px, **kwargs)
+    extractor = TorchImagenetLayerExtractor('nasnet_large', tile_px, **kwargs)
     extractor.transform = transforms.Compose([
         transforms.Lambda(lambda x: x / 255.),
         transforms.Normalize(
@@ -113,18 +116,19 @@ def nasnet_large_imagenet(tile_px, **kwargs):
 
 # -----------------------------------------------------------------------------
 
-class _TorchImagenetLayerExtractor(BaseFeatureExtractor):
+class TorchImagenetLayerExtractor(BaseFeatureExtractor):
     """Feature extractor that calculates layer activations for
     imagenet-pretrained PyTorch models."""
 
     def __init__(self, model_name, tile_px, device=None, **kwargs):
         super().__init__(backend='torch')
 
-        import torch
         from ..torch import ModelParams, Features
+        from .. import torch_utils
         from torchvision import transforms
 
-        self.device = device if device is not None else torch.device('cuda')
+
+        self.device = torch_utils.get_device(device)
         _hp = ModelParams(tile_px=tile_px, model=model_name, include_top=False, hidden_layers=0)
         model = _hp.build_model(num_classes=1, pretrain='imagenet').to(self.device)
         self.model_name = model_name
@@ -132,6 +136,7 @@ class _TorchImagenetLayerExtractor(BaseFeatureExtractor):
         self.tag = model_name + "_" + '-'.join(self.ftrs.layers)
         self.num_features = self.ftrs.num_features
         self.num_classes = 0
+        self._tile_px = tile_px
 
         # Normalization for Imagenet pretrained models
         # as described here: https://pytorch.org/vision/0.11/models.html
@@ -154,8 +159,35 @@ class _TorchImagenetLayerExtractor(BaseFeatureExtractor):
             self.num_features,
         )
 
-    def __call__(self, batch_images):
-        import torch
-        assert batch_images.dtype == torch.uint8
-        batch_images = self.transform(batch_images).to(self.device)
-        return self.ftrs._predict(batch_images)
+    def __call__(self, obj, **kwargs):
+        """Generate features for a batch of images or a WSI."""
+        if isinstance(obj, sf.WSI):
+            grid = features_from_slide(self, obj, **kwargs)
+            return np.ma.masked_where(grid == -99, grid)
+        elif kwargs:
+            raise ValueError(
+                f"{self.__class__.__name__} does not accept keyword arguments "
+                "when extracting features from a batch of images."
+            )
+        else:
+            import torch
+            assert obj.dtype == torch.uint8
+            obj = self.transform(obj).to(self.device)
+            return self.ftrs._predict(obj)
+
+    def dump_config(self):
+        """Return a dictionary of configuration parameters.
+
+        These configuration parameters can be used to reconstruct the
+        feature extractor, using ``slideflow.model.build_feature_extractor()``.
+
+        """
+        return {
+            'class': 'slideflow.model.extractors.TorchImagenetLayerExtractor',
+            'kwargs': {
+                'model_name': self.model_name,
+                'tile_px': self._tile_px,
+                'layers': self.ftrs.layers,
+                'pooling': self.ftrs._pooling,
+            }
+        }
