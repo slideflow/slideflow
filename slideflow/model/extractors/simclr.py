@@ -52,7 +52,7 @@ class SimCLR_Features(BaseFeatureExtractor):
         self.model = simclr.load(ckpt, as_pretrained=True)
         self.simclr_args = simclr.load_model_args(ckpt)
         self.num_features = self.simclr_args.proj_out_dim
-        self.num_classes = self.simclr_args.num_classes
+        self.num_classes = 0  # Disable the supervised head.
         self._model_path = ckpt
         self._resize_crop = resize_crop
 
@@ -95,7 +95,7 @@ class SimCLR_Features(BaseFeatureExtractor):
         # However, for flexibility, if this `SimCLR_Features`` interface is used
         # on unprocessed (uint8) images outside a Dataset pipeline, the
         # transform function will be applied to each image automatically when
-        # using the __call_function, via `self.transform()`.
+        # using the __call__ function, via `self.transform()`.
         self.preprocess_kwargs = dict(
             standardize=False,
             transform=self.transform
