@@ -49,7 +49,7 @@ class SimCLR_Features(BaseFeatureExtractor):
     ) -> None:
         super().__init__(backend='tensorflow')
 
-        self.model = simclr.load(ckpt)
+        self.model = simclr.load(ckpt, as_pretrained=True)
         self.simclr_args = simclr.load_model_args(ckpt)
         self.num_features = self.simclr_args.proj_out_dim
         self.num_classes = self.simclr_args.num_classes
