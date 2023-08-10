@@ -57,6 +57,17 @@ class GlfwWindow:
         if not self._deferred_show:
             glfw.show_window(self._glfw_window)
 
+        # Initialize GL state.
+        gl.glViewport(0, 0, self.content_frame_width, self.content_frame_height)
+        gl.glMatrixMode(gl.GL_PROJECTION)
+        gl.glLoadIdentity()
+        gl.glTranslate(-1, 1, 0)
+        gl.glScale(2 / max(self.content_frame_width, 1), -2 / max(self.content_frame_height, 1), 1)
+        gl.glMatrixMode(gl.GL_MODELVIEW)
+        gl.glLoadIdentity()
+        gl.glEnable(gl.GL_BLEND)
+        gl.glBlendFunc(gl.GL_ONE, gl.GL_ONE_MINUS_SRC_ALPHA) # Pre-multiplied alpha.
+
     def close(self):
         if self._drawing_frame:
             self.end_frame()
@@ -226,20 +237,9 @@ class GlfwWindow:
         self._drawing_frame = True
         self.make_context_current()
 
-        # Initialize GL state.
-        gl.glViewport(0, 0, self.content_frame_width, self.content_frame_height)
-        gl.glMatrixMode(gl.GL_PROJECTION)
-        gl.glLoadIdentity()
-        gl.glTranslate(-1, 1, 0)
-        gl.glScale(2 / max(self.content_frame_width, 1), -2 / max(self.content_frame_height, 1), 1)
-        gl.glMatrixMode(gl.GL_MODELVIEW)
-        gl.glLoadIdentity()
-        gl.glEnable(gl.GL_BLEND)
-        gl.glBlendFunc(gl.GL_ONE, gl.GL_ONE_MINUS_SRC_ALPHA) # Pre-multiplied alpha.
-
         # Clear.
         gl.glClearColor(*self._background_color)
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT)# | gl.GL_DEPTH_BUFFER_BIT)
 
     def end_frame(self):
         assert self._drawing_frame
