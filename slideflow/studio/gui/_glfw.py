@@ -157,7 +157,10 @@ class GlfwWindow:
             self._vsync = vsync
 
     def set_fps_limit(self, fps_limit):
-        self._fps_limit = int(fps_limit)
+        if fps_limit is not None:
+            self._fps_limit = int(fps_limit)
+        else:
+            self._fps_limit = None
 
     def should_close(self):
         return glfw.window_should_close(self._glfw_window) or self._exit_trigger
