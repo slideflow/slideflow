@@ -154,8 +154,8 @@ class SlideWidget:
             #   True = tile will be extracted
             #   False = tile will be discarded (failed QC)
             self._filter_grid = np.transpose(self.viz.wsi.grid).astype(bool)
-            self._ws_grid = np.zeros_like(self._filter_grid, dtype=np.float)
-            self._gs_grid = np.zeros_like(self._filter_grid, dtype=np.float)
+            self._ws_grid = np.zeros_like(self._filter_grid, dtype=np.float32)
+            self._gs_grid = np.zeros_like(self._filter_grid, dtype=np.float32)
 
             # Render the tile filter grid as an overlay.
             if self.show_tile_filter:

@@ -16,7 +16,7 @@ def compute_midrank(x):
     J = np.argsort(x)
     Z = x[J]
     N = len(x)
-    T = np.zeros(N, dtype=np.float)
+    T = np.zeros(N, dtype=np.float32)
     i = 0
     while i < N:
         j = i
@@ -24,7 +24,7 @@ def compute_midrank(x):
             j += 1
         T[i:j] = 0.5*(i + j - 1)
         i = j
-    T2 = np.empty(N, dtype=np.float)
+    T2 = np.empty(N, dtype=np.float32)
     # Note(kazeevn) +1 is due to Python using 0-based indexing
     # instead of 1-based in the AUC formula in the paper
     T2[J] = T + 1
@@ -63,9 +63,9 @@ def fastDeLong(predictions_sorted_transposed, label_1_count):
     negative_examples = predictions_sorted_transposed[:, m:]
     k = predictions_sorted_transposed.shape[0]
 
-    tx = np.empty([k, m], dtype=np.float)
-    ty = np.empty([k, n], dtype=np.float)
-    tz = np.empty([k, m + n], dtype=np.float)
+    tx = np.empty([k, m], dtype=np.float32)
+    ty = np.empty([k, n], dtype=np.float32)
+    tz = np.empty([k, m + n], dtype=np.float32)
     for r in range(k):
         tx[r, :] = compute_midrank(positive_examples[r, :])
         ty[r, :] = compute_midrank(negative_examples[r, :])
