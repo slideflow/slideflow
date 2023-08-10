@@ -209,6 +209,13 @@ def _find_translation_matrix(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     return warp_matrix
 
 
+def _align_to_matrix(im1: np.ndarray, im2: np.ndarray, warp_matrix: np.ndarray) -> np.ndarray:
+    """Align an image to a warp matrix."""
+    import cv2
+    # Use the warpAffine function to apply the transformation
+    return cv2.warpAffine(im1, warp_matrix, (im2.shape[1], im2.shape[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
+
+
 def align_image(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     """
     Align two images using only scaling and translation.
@@ -219,22 +226,44 @@ def align_image(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     """
     import cv2
     warp_matrix = _find_translation_matrix(im1, im2)
-
-    # Use the warpAffine function to apply the transformation
-    aligned_image = cv2.warpAffine(im1, warp_matrix, (im2.shape[1], im2.shape[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
-
-    return aligned_image
+    return _align_to_matrix(im1, im2, warp_matrix)
 
 
 def align_by_translation(
     im1: np.ndarray,
     im2: np.ndarray,
-    round: bool = False
-) -> Union[Tuple[float, float], Tuple[int, int]]:
+    round: bool = False,
+    calculate_mse: bool = False
+) -> Union[Union[Tuple[float, float], Tuple[int, int]],
+           Tuple[Union[Tuple[float, float], Tuple[int, int]], float]]:
     """Find the (x, y) translation that aligns im1 to im2."""
     warp_matrix = _find_translation_matrix(im1, im2)
     alignment = -warp_matrix[0, 2], -warp_matrix[1, 2]
     if round:
-        return (int(np.round(alignment[0])), int(np.round(alignment[1])))
+        alignment = (int(np.round(alignment[0])), int(np.round(alignment[1])))
+    if calculate_mse:
+        aligned_im1 = _align_to_matrix(im1, im2, warp_matrix)
+        mse = compute_alignment_mse(aligned_im1, im2)
+        return alignment, mse
     else:
         return alignment
+
+def compute_alignment_mse(imageA, imageB):
+    """
+    Compute the Mean Squared Error between two images in their overlapping region,
+    excluding areas that are black (0, 0, 0) in either image.
+
+    :param imageA: First image.
+    :param imageB: Second image.
+    :return: Mean Squared Error (MSE) between the images in the valid overlapping region.
+    """
+    assert imageA.shape == imageB.shape, "Image sizes must match."
+
+    # Create a combined mask where neither of the images is black
+    combined_mask = np.logical_not(np.logical_or(imageA == 0, imageB == 0))
+
+    # Compute MSE only for valid regions
+    diff = (imageA.astype("float") - imageB.astype("float")) ** 2
+    err = np.sum(diff[combined_mask]) / np.sum(combined_mask)
+
+    return err

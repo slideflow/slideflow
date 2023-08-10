@@ -426,7 +426,7 @@ class _BaseLoader:
         slide: "_BaseLoader",
         mpp: float = 4,
         apply: bool = True
-    ) -> Tuple[int, int]:
+    ) -> Tuple[Tuple[int, int], float]:
         """Align this slide to another slide."""
         if not isinstance(slide, _BaseLoader):
             raise TypeError("Can only align to another slide.")
@@ -436,23 +436,67 @@ class _BaseLoader:
         their_thumb = np.array(slide.thumb(mpp=mpp))
 
         # Align thumbnails and calculate scale.
-        alignment = align_by_translation(their_thumb, our_thumb, round=True)
+        alignment, mse = align_by_translation(
+            their_thumb, our_thumb, round=True, calculate_mse=True
+        )
         scale = mpp / self.mpp
 
         if not apply:
-            return alignment  # type: ignore
+            log.info("Slide aligned with MSE {:.2f}".format(mse))
+            return alignment, mse  # type: ignore
 
         # Reset origin to apply alignment.
         self.origin = (int(np.round(alignment[0] * scale)),
                        int(np.round(alignment[1] * scale)))
-        log.info("Slide aligned. Origin set to {}".format(self.origin))
+        log.info("Slide aligned with MSE {:.2f}. Origin set to {}".format(
+                mse, self.origin
+        ))
 
         # Rebuild coordinates and reapply QC, if present.
         self._build_coord()
         if self.qc_mask is not None:
             self.apply_qc_mask()
 
-        return alignment  # type: ignore
+        return alignment, mse  # type: ignore
+
+    def show_alignment(
+        self,
+        slide: "_BaseLoader",
+        mpp: float = 4
+    ) -> Image.Image:
+        """Show aligned thumbnail of another slide."""
+        if not isinstance(slide, _BaseLoader):
+            raise TypeError("Can only align to another slide.")
+
+        # Calculate thumbnails for alignment.
+        our_thumb = np.array(self.thumb(mpp=mpp))
+        their_thumb = np.array(slide.thumb(mpp=mpp))
+
+        # Return an image of a thumbnail of the given slide,
+        # aligned to this slide.
+        return Image.fromarray(align_image(their_thumb, our_thumb))
+
+
+    def verify_alignment(
+        self,
+        slide: "_BaseLoader",
+        mpp: float = 4
+    ) -> float:
+        """Verify alignment to another slide by calculating MSE."""
+        if not isinstance(slide, _BaseLoader):
+            raise TypeError("Can only align to another slide.")
+
+        # Calculate thumbnails for alignment.
+        our_thumb = np.array(self.thumb(mpp=mpp))
+        their_thumb = np.array(slide.thumb(mpp=mpp))
+
+        aligned_theirs = align_image(their_thumb, our_thumb)
+
+        theirs_gray = cv2.cvtColor(aligned_theirs, cv2.COLOR_BGR2GRAY)
+        ours_gray = cv2.cvtColor(our_thumb, cv2.COLOR_BGR2GRAY)
+
+        return compute_alignment_mse(theirs_gray, ours_gray)
+
 
     def mpp_to_dim(self, mpp: float) -> Tuple[int, int]:
         width = int((self.mpp * self.dimensions[0]) / mpp)
