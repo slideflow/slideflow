@@ -11,6 +11,7 @@ class SettingsWidget:
         self.use_vsync      = True
         self.ignore_jpg     = viz._use_model_img_fmt
         self.low_memory     = viz.low_memory
+        self.use_bounds     = False
         self.themes         = theme.list_themes()
         self._theme_idx     = self.themes.index("Studio Dark")
 
@@ -39,6 +40,12 @@ class SettingsWidget:
             _clicked, self.ignore_jpg = imgui.checkbox('Ignore compression', self.ignore_jpg)
             if _clicked:
                 viz._use_model_img_fmt = not self.ignore_jpg
+
+            _clicked, self.use_bounds = imgui.checkbox('Use slide bounding boxes', self.use_bounds)
+            if _clicked:
+                viz._reload_wsi()
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Use slide bounding boxes, if present, to crop the slide images.")
 
             with imgui_utils.item_width(viz.font_size * 6):
                 _changed, self.fps_limit = imgui.input_int('FPS limit', self.fps_limit, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)

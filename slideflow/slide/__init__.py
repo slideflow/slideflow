@@ -421,6 +421,39 @@ class _BaseLoader:
     def _build_coord(self):
         raise NotImplementedError
 
+    def align_to(
+        self,
+        slide: "_BaseLoader",
+        mpp: float = 4,
+        apply: bool = True
+    ) -> Tuple[int, int]:
+        """Align this slide to another slide."""
+        if not isinstance(slide, _BaseLoader):
+            raise TypeError("Can only align to another slide.")
+
+        # Calculate thumbnails for alignment.
+        our_thumb = np.array(self.thumb(mpp=mpp))
+        their_thumb = np.array(slide.thumb(mpp=mpp))
+
+        # Align thumbnails and calculate scale.
+        alignment = align_by_translation(their_thumb, our_thumb, round=True)
+        scale = mpp / self.mpp
+
+        if not apply:
+            return alignment  # type: ignore
+
+        # Reset origin to apply alignment.
+        self.origin = (int(np.round(alignment[0] * scale)),
+                       int(np.round(alignment[1] * scale)))
+        log.info("Slide aligned. Origin set to {}".format(self.origin))
+
+        # Rebuild coordinates and reapply QC, if present.
+        self._build_coord()
+        if self.qc_mask is not None:
+            self.apply_qc_mask()
+
+        return alignment  # type: ignore
+
     def mpp_to_dim(self, mpp: float) -> Tuple[int, int]:
         width = int((self.mpp * self.dimensions[0]) / mpp)
         height = int((self.mpp * self.dimensions[1]) / mpp)
@@ -515,13 +548,14 @@ class _BaseLoader:
 
     def apply_qc_mask(
         self,
-        mask: np.ndarray,
+        mask: Optional[np.ndarray] = None,
         filter_threshold: float = 0.6,
     ) -> "Image":
         """Apply custom slide-level QC by filtering grid coordinates.
 
         Args:
-            mask (np.ndarray): Boolean QC mask.
+            mask (np.ndarray, optional): Boolean QC mask. If None, will
+                re-apply the current mask. Defaults to None.
             filter_threshold (float): Percent of a tile detected as
                 background that will trigger a tile to be discarded.
                 Defaults to 0.6.
@@ -529,6 +563,10 @@ class _BaseLoader:
         Returns:
             Image: Image of applied QC mask.
         """
+        if mask is None and self.qc_mask is None:
+            raise errors.QCError("No QC mask available")
+        elif mask is None:
+            mask = self.qc_mask
         assert isinstance(mask, np.ndarray)
         assert len(mask.shape) == 2
         assert mask.dtype == bool
@@ -958,10 +996,11 @@ class WSI(_BaseLoader):
         rois: Optional[List[str]] = None,
         roi_method: str = 'auto',
         roi_filter_method: Union[str, float] = 'center',
-        randomize_origin: bool = False,
+        origin: Union[str, Tuple[int, int]] = (0, 0),
         pb: Optional[Progress] = None,
         verbose: bool = True,
         use_edge_tiles: bool = False,
+        randomize_origin: Optional[bool] = None,  # Deprecated
         **kwargs
     ) -> None:
         """Loads slide and ROI(s).
@@ -1002,7 +1041,10 @@ class WSI(_BaseLoader):
                 ROI will be included, and a tile that is 50% inside of an ROI
                 will be excluded. Defaults to 'center'.
             randomize_origin (bool, optional): Offset the starting grid by a
-                random amount. Defaults to False.
+                random amount. Deprecated function. Instead, set origin='random'.
+                Defaults to None.
+            origin (str or tuple(int, int)): Offset the starting grid (x, y).
+                Either a tuple of ints or 'random'. Defaults to (0, 0).
             pb (:class:`Progress`, optional): Multiprocessing
                 capable Progress instance; will update progress bar during
                 tile extraction if provided.
@@ -1035,11 +1077,29 @@ class WSI(_BaseLoader):
         self.roi_scale = 10  # type: float
         self.roi_method = roi_method
         self.roi_filter_method = roi_filter_method
-        self.randomize_origin = randomize_origin
         self.verbose = verbose
         self.segmentation = None
         self.grid = None
         self.use_edge_tiles = use_edge_tiles
+        if randomize_origin is not None:
+            warnings.warn(
+                "The 'randomize_origin' argument is deprecated and will be "
+                "removed in a future version. Please use the 'origin' "
+                "argument instead (origin='random').",
+                DeprecationWarning
+            )
+            if randomize_origin:
+                origin = 'random'
+        if isinstance(origin, str) and origin != 'random':
+            raise ValueError(
+                "Unrecognized value for argument 'origin': {} ."
+                "Expected either 'random' or a tuple of ints.".format(origin)
+            )
+        if isinstance(origin, tuple) and len(origin) != 2:
+            raise ValueError(
+                "If 'origin' is a tuple, it must be of length 2."
+            )
+        self.origin = origin
 
         if (not isinstance(roi_filter_method, (int, float))
            and roi_filter_method != 'center'):
@@ -1195,12 +1255,12 @@ class WSI(_BaseLoader):
         self.extracted_y_size = self.dimensions[1] - self.full_extract_px
 
         # Randomize origin, if desired
-        if self.randomize_origin:
+        if self.origin == 'random':
             start_x = random.randint(0, self.full_stride-1)
             start_y = random.randint(0, self.full_stride-1)
-            log.info(f"Random origin: X: {start_x}, Y: {start_y}")
         else:
-            start_x = start_y = 0
+            start_x, start_y = self.origin
+        log.debug("Slide origin: ({}, {})".format(start_x, start_y))
 
         # Coordinates must be in level 0 (full) format
         # for the read_region function
@@ -2106,6 +2166,10 @@ class WSI(_BaseLoader):
 
         # Regenerate the grid to reflect the newly-loaded ROIs.
         self._build_coord()
+
+        # Re-apply any existing QC mask, now that the coordinates have changed.
+        if self.qc_mask is not None:
+            self.apply_qc_mask()
 
         return len(self.rois)
 

@@ -383,7 +383,8 @@ class _VIPSReader:
         ignore_missing_mpp: bool = False,
         pad_missing: bool = True,
         loaded_image: Optional["vips.Image"] = None,
-        use_bounds: bool = False
+        use_bounds: bool = False,
+        transforms: Optional[List[int]] = None,
     ) -> None:
         """Libvips slide reader.
 
@@ -405,6 +406,11 @@ class _VIPSReader:
             use_bounds (bool): If True, use the slide bounds to determine
                 the slide dimensions. This will crop out unscanned white space.
                 If False, use the full slide dimensions. Defaults to False.
+            transforms (list(int), optional): List of transforms to apply to
+                the slide before establishing coordinate grid. Options include
+                any combination of ``ROTATE_90_CLOCKWISE``,
+                ``ROTATE_180_CLOCKWISE``, ``ROTATE_270_CLOCKWISE``,
+                ``FLIP_HORIZONTAL``, and ``FLIP_VERTICAL``. Defaults to None.
 
         """
         self.path = path
@@ -414,6 +420,7 @@ class _VIPSReader:
         if loaded_image is None:
             loaded_image = vips.Image.new_from_file(path)
         self.vips_loader = loaded_image.get('vips-loader')
+        self.transforms = transforms
 
         # Load image properties
         self.properties = {}
@@ -523,6 +530,16 @@ class _VIPSReader:
                 self.levels[lev]['height'] = int(np.round(self.bounds[3] / self.levels[lev]['downsample']))
                 self.levels[lev]['dimensions'] = (self.levels[lev]['width'], self.levels[lev]['height'])
 
+        # Adjust for transforms, if present
+        if self.transforms is not None:
+            for transform in self.transforms:
+                if transform in (ROTATE_90_CLOCKWISE, ROTATE_270_CLOCKWISE):
+                    for lev in range(self.level_count):
+                        self.levels[lev]['width'], self.levels[lev]['height'] = \
+                            self.levels[lev]['height'], self.levels[lev]['width']
+                        self.levels[lev]['dimensions'] = (self.levels[lev]['width'], self.levels[lev]['height'])
+                    self.dimensions = (self.dimensions[1], self.dimensions[0])
+
         self.level_downsamples = [lev['downsample'] for lev in self.levels]
         self.level_dimensions = [lev['dimensions'] for lev in self.levels]
 
@@ -595,6 +612,18 @@ class _VIPSReader:
                 int(np.round(self.bounds[2] / self.level_downsamples[level])),
                 int(np.round(self.bounds[3] / self.level_downsamples[level])),
             )
+        if self.transforms is not None:
+            for transform in self.transforms:
+                if transform == ROTATE_90_CLOCKWISE:
+                    image = image.rot90()
+                if transform == ROTATE_180_CLOCKWISE:
+                    image = image.rot180()
+                if transform == ROTATE_270_CLOCKWISE:
+                    image = image.rot270()
+                if transform == FLIP_HORIZONTAL:
+                    image = image.fliphor()
+                if transform == FLIP_VERTICAL:
+                    image = image.flipver()
 
         if to_numpy:
             return vips2numpy(image)

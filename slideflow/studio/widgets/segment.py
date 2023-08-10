@@ -256,6 +256,7 @@ class SegmentWidget(Widget):
             self.viz.wsi.path,
             tile_px=self.tile_px,
             tile_um=self.tile_um,
+            use_bounds=self.settings_widget.use_bounds,
             verbose=False
         )
         if self.otsu:

@@ -782,6 +782,7 @@ class Studio(ImguiWindow):
                 ),
                 verbose=False,
                 mpp=self.slide_widget.manual_mpp,
+                use_bounds=self.settings_widget.use_bounds,
                 **kwargs)
         except sf.errors.IncompatibleBackendError:
             self.create_toast(
