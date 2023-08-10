@@ -8,6 +8,7 @@ class SettingsWidget:
     def __init__(self, viz):
         self.viz            = viz
         self.fps_limit      = 60
+        self.use_fps_limit  = False
         self.use_vsync      = True
         self.ignore_jpg     = viz._use_model_img_fmt
         self.low_memory     = viz.low_memory
@@ -15,7 +16,7 @@ class SettingsWidget:
         self.themes         = theme.list_themes()
         self._theme_idx     = self.themes.index("Studio Dark")
 
-        viz.set_fps_limit(self.fps_limit)
+        viz.set_fps_limit(self.fps_limit if self.use_fps_limit else None)
         viz.set_vsync(self.use_vsync)
         viz.low_memory = self.low_memory
         viz._use_model_img_fmt = not self.ignore_jpg
@@ -47,11 +48,13 @@ class SettingsWidget:
             if imgui.is_item_hovered():
                 imgui.set_tooltip("Use slide bounding boxes, if present, to crop the slide images.")
 
+            _clicked, self.use_fps_limit = imgui.checkbox('Limit FPS', self.use_fps_limit)
+            imgui.same_line()
             with imgui_utils.item_width(viz.font_size * 6):
-                _changed, self.fps_limit = imgui.input_int('FPS limit', self.fps_limit, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
+                _changed, self.fps_limit = imgui.input_int('##fps_limit', self.fps_limit, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
                 self.fps_limit = min(max(self.fps_limit, 5), 1000)
-                if _changed:
-                    viz.set_fps_limit(self.fps_limit)
+                if _changed or _clicked:
+                    viz.set_fps_limit(self.fps_limit if self.use_fps_limit else None)
 
             with imgui_utils.item_width(viz.font_size*6):
                 _clicked, self._theme_idx = imgui.combo(
