@@ -449,19 +449,22 @@ class _VIPSReader:
                 )
 
         # Check for bounding box
-        if use_bounds and OPS_BOUNDS_X in self.properties:
+        if isinstance(use_bounds, (list, tuple, np.ndarray)):
+            self.bounds = tuple(use_bounds)
+        elif use_bounds and OPS_BOUNDS_X in self.properties:
             self.bounds = (
                 int(self.properties[OPS_BOUNDS_X]),
                 int(self.properties[OPS_BOUNDS_Y]),
                 int(self.properties[OPS_BOUNDS_WIDTH]),
                 int(self.properties[OPS_BOUNDS_HEIGHT])
             )
+        else:
+            self.bounds = None
+        if self.bounds is not None:
             self.dimensions = (
                 self.bounds[2],
                 self.bounds[3]
             )
-        else:
-            self.bounds = None
 
         # Load levels
         self._load_levels(loaded_image)
@@ -742,7 +745,7 @@ class _VIPSReader:
         """Return thumbnail of slide as numpy array."""
 
         if ((OPS_VENDOR in self.properties and self.properties[OPS_VENDOR] == 'leica')
-           or (self.vips_loader == 'tiffload')):
+           or (self.vips_loader == 'tiffload') or self.bounds):
             thumbnail = self.read_level(fail=fail, access=access, **kwargs)
         else:
             thumbnail = vips.Image.thumbnail(self.path, width)
