@@ -424,30 +424,142 @@ class _BaseLoader:
     def align_to(
         self,
         slide: "_BaseLoader",
-        mpp: float = 4,
         apply: bool = True
     ) -> Tuple[Tuple[int, int], float]:
         """Align this slide to another slide."""
+        from scipy import ndimage
+
         if not isinstance(slide, _BaseLoader):
             raise TypeError("Can only align to another slide.")
 
-        # Calculate thumbnails for alignment.
-        our_thumb = np.array(self.thumb(mpp=mpp))
-        their_thumb = np.array(slide.thumb(mpp=mpp))
+        # Plan:
+        # 1. Identify tissue regions as targets for alignment
+        # 2. Rough align with low-mag thumbnails (mpp ~8)
+        # 3. Fine-tune alignment at tissue regions (mpp ~2-4)
+        # 4. Progressively fine-tune alignment at increasing magnification
+        # 5. Stop at user-specified alignment depth (mpp target)
 
-        # Align thumbnails and calculate scale.
-        alignment, mse = align_by_translation(
+        # --- 1. Identify tissue regions as targets for alignment. ------------
+
+        # Use QC mask (.qc_mask) if available, otherwise calculate one.
+        # Target should be the centroid of unmasked tissue regions, but
+        # there may be multiple distinct tissue regions.
+
+        # First, grab the QC mask, or make one if it is not available.
+        if self.qc_mask is not None:
+            mask = self.qc_mask
+        else:
+            mask = sf.slide.qc.Otsu()(self)
+
+        # Next, fill holes and remove small peaks through gaussian blur,
+        # thresholding, and morphological closing.
+        mask = skimage.morphology.binary_closing(
+            skimage.filters.gaussian(mask, sigma=5) > 0.5,
+            skimage.morphology.disk(5)
+        )
+
+        # For each pixel in the mask, calculate the nearest distance to an
+        # unmasked pixe. This will assist us with finding the densest areas
+        # of tissue.
+        distances = ndimage.distance_transform_edt(~mask)
+
+        # Find the coordinates of the pixel with the highest average distance.
+        # This is the center of the densest tissue region.
+        target = np.unravel_index(np.argmax(distances), distances.shape)
+
+        # Convert from mask coordinates to slide coordinates.
+        target = (
+            int(target[1] * (self.dimensions[0] / mask.shape[1])),
+            int(target[0] * (self.dimensions[1] / mask.shape[0]))
+        )
+        target_them = (
+            int(np.round(target[0] * (self.mpp / slide.mpp))),
+            int(np.round(target[1] * (self.mpp / slide.mpp)))
+        )
+        log.debug("Target for alignment (us): {}".format(target))
+        log.debug("Target for alignment (them, pre-alignment): {}".format(target_them))
+
+        # --- 2. Align low-mag thumbnails. ------------------------------------
+
+        # Calculate thumbnails for alignment.
+        our_thumb = np.array(self.thumb(mpp=8))
+        their_thumb = np.array(slide.thumb(mpp=8))
+
+        # Align thumbnails and adjust for scale.
+        alignment_raw, mse = align_by_translation(
             their_thumb, our_thumb, round=True, calculate_mse=True
         )
-        scale = mpp / self.mpp
+        alignment = (int(np.round(alignment_raw[0] * (8 / self.mpp))),
+                     int(np.round(alignment_raw[1] * (8 / self.mpp))))
+        alignment_them = (-int(np.round(alignment_raw[0] * (8 / slide.mpp))),
+                          -int(np.round(alignment_raw[1] * (8 / slide.mpp))))
 
+        log.debug("Low-mag alignment (us): {}".format(alignment))
+        log.debug("Low-mag alignment (them): {}".format(alignment_them))
+
+        # --- 3. Fine-tune alignment at tissue regions. -----------------------
+
+        # Get the coordinates of the tissue region in both slides.
+        for finetune_mpp in (1, 0.5):
+            # Us
+            our_window_size = (
+                int(np.round(512 * (finetune_mpp/self.mpp))),
+                int(np.round(512 * (finetune_mpp/self.mpp)))
+            )
+            our_top_left = (
+                int(np.round(target[0] - (our_window_size[0]/2))),
+                int(np.round(target[1] - (our_window_size[1]/2)))
+            )
+            log.debug("Extracting mpp={} alignment window (ours) at window_size={}, top_left={}".format(
+                finetune_mpp, our_window_size, our_top_left)
+            )
+            our_region = self.slide.read_from_pyramid(
+                top_left=our_top_left,
+                window_size=our_window_size,
+                target_size=(512, 512),
+                convert='numpy',
+                flatten=True,
+                pad_missing=True
+            )
+            # Them
+            their_window_size = (
+                int(np.round(512 * (finetune_mpp/slide.mpp))),
+                int(np.round(512 * (finetune_mpp/slide.mpp)))
+            )
+            their_top_left = (
+                int(np.round(target_them[0] - (their_window_size[0]/2))) + alignment_them[0],
+                int(np.round(target_them[1] - (their_window_size[1]/2))) + alignment_them[1]
+            )
+            log.debug("Extracting mpp={} alignment window (theirs) at window_size={}, top_left={}".format(
+                finetune_mpp, their_window_size, their_top_left)
+            )
+            their_region = slide.slide.read_from_pyramid(
+                top_left=their_top_left,
+                window_size=their_window_size,
+                target_size=(512, 512),
+                convert='numpy',
+                flatten=True,
+                pad_missing=True
+            )
+
+            # Finetune alignment on this region.
+            alignment_fine = align_by_translation(their_region, our_region, round=True)
+            alignment = (
+                alignment[0] + int(np.round(alignment_fine[0] * (finetune_mpp/self.mpp))),
+                alignment[1] + int(np.round(alignment_fine[1] * (finetune_mpp/self.mpp)))
+            )
+            alignment_them = (
+                alignment_them[0] - int(np.round(alignment_fine[0] * (finetune_mpp/slide.mpp))),
+                alignment_them[1] - int(np.round(alignment_fine[1] * (finetune_mpp/slide.mpp)))
+            )
+            log.debug("Finetuned alignment (us) at mpp={}: {}".format(finetune_mpp, alignment))
+            log.debug("Finetuned alignment (them) at mpp={}: {}".format(finetune_mpp, alignment_them))
+
+        # Apply alignment, if requested.
         if not apply:
             log.info("Slide aligned with MSE {:.2f}".format(mse))
             return alignment, mse  # type: ignore
-
-        # Reset origin to apply alignment.
-        self.origin = (int(np.round(alignment[0] * scale)),
-                       int(np.round(alignment[1] * scale)))
+        self.origin = alignment
         log.info("Slide aligned with MSE {:.2f}. Origin set to {}".format(
                 mse, self.origin
         ))

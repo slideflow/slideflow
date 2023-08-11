@@ -640,7 +640,8 @@ class _VIPSReader:
         extract_size: Tuple[int, int],
         convert: Optional[str] = None,
         flatten: bool = False,
-        resize_factor: Optional[float] = None
+        resize_factor: Optional[float] = None,
+        pad_missing: Optional[bool] = None
     ) -> "vips.Image":
         """Extracts a region from the image at the given downsample level.
 
@@ -650,6 +651,9 @@ class _VIPSReader:
             downsample_level (int): Downsample level to read.
             extract_size (Tuple[int, int]): Size of the region to read
                 (width, height) using downsample layer coordinates.
+            pad_missing (bool, optional): Pad missing regions with black.
+                If None, uses the value of the `pad_missing` attribute.
+                Defaults to None.
 
         Returns:
             vips.Image: VIPS image.
@@ -666,7 +670,8 @@ class _VIPSReader:
             extract_width,
             extract_height
         )
-        if self.pad_missing:
+        if ((pad_missing is not None and pad_missing)
+           or (pad_missing is None and self.pad_missing)):
             region = vips_padded_crop(image, *crop_args)
         else:
             region = image.crop(*crop_args)
@@ -691,6 +696,7 @@ class _VIPSReader:
         target_size: Tuple[int, int],
         convert: Optional[str] = None,
         flatten: bool = False,
+        pad_missing: Optional[bool] = None
     ) -> "vips.Image":
         """Reads a region from the image using base layer coordinates.
         Performance is accelerated by pyramid downsample layers, if available.
@@ -702,6 +708,9 @@ class _VIPSReader:
                 height) using base layer coordinates.
             target_size (Tuple[int, int]): Resize the region to this target
                 size (width, height).
+            pad_missing (bool, optional): Pad missing regions with black.
+                If None, uses the value of the `pad_missing` attribute.
+                Defaults to None.
 
         Returns:
             vips.Image: VIPS image. Dimensions will equal target_size unless
@@ -719,7 +728,8 @@ class _VIPSReader:
             min(target_size[0], image.width),
             min(target_size[1], image.height)
         )
-        if self.pad_missing:
+        if ((pad_missing is not None and pad_missing)
+           or (pad_missing is None and self.pad_missing)):
             image = vips_padded_crop(image, *crop_args)
         else:
             image = image.crop(*crop_args)

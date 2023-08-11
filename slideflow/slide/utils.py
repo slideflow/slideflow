@@ -224,7 +224,6 @@ def align_image(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     :param im2: The reference image.
     :return: Aligned image of im1.
     """
-    import cv2
     warp_matrix = _find_translation_matrix(im1, im2)
     return _align_to_matrix(im1, im2, warp_matrix)
 
