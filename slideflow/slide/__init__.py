@@ -447,10 +447,10 @@ class _BaseLoader:
         if not isinstance(slide, _BaseLoader):
             raise TypeError("Can only align to another slide.")
 
-        # Plan:
-        # 1. Identify tissue regions as targets for alignment
-        # 2. Rough align with low-mag thumbnails (mpp = 8)
-        # 3. Fine-tune alignment at tissue regions (mpp = 1, 0.5, 0.25)
+        # Steps:
+        # 1. Identify tissue region as target for alignment.
+        # 2. Rough align with low-mag thumbnails (mpp = 8).
+        # 3. Fine-tune alignment at a dense tissue region (mpp = 1, 0.5, 0.25).
 
         # --- 1. Identify tissue regions as targets for alignment. ------------
 
@@ -472,7 +472,7 @@ class _BaseLoader:
         )
 
         # For each pixel in the mask, calculate the nearest distance to an
-        # unmasked pixe. This will assist us with finding the densest areas
+        # unmasked pixel. This will assist us with finding the densest areas
         # of tissue.
         distances = ndimage.distance_transform_edt(~mask)
 
@@ -1104,6 +1104,7 @@ class _BaseLoader:
         self,
         rois: bool = True,
         thumb_kwargs: Optional[Dict] = None,
+        low_res: bool = True,
         **kwargs
     ) -> Optional[Image.Image]:
         """Performs a dry run of tile extraction without saving any images,
@@ -1133,6 +1134,10 @@ class _BaseLoader:
             yolo (bool, optional): Export yolo-formatted tile-level ROI
                 annotations (.txt) in the tile directory. Requires that
                 tiles_dir is set. Defaults to False.
+            thumb_kwargs (Optional[Dict], optional): Keyword arguments to pass
+                to the thumb method. Defaults to None.
+            low_res (bool, optional): Use low resolution thumbnail. Defaults to
+                True.
         """
         if 'show_progress' not in kwargs:
             kwargs['show_progress'] = (self.pb is None)
@@ -1142,15 +1147,15 @@ class _BaseLoader:
             **kwargs
         )
         if thumb_kwargs is None:
-            thumb_kwargs = dict()
+            thumb_kwargs = dict(low_res=low_res)
         if generator is None:
-            return self.thumb(rois=rois, low_res=True, **thumb_kwargs)
+            return self.thumb(rois=rois,  **thumb_kwargs)
         locations = []
         for tile_dict in generator():
             locations += [tile_dict['loc']]
         log.debug(f"Previewing with {len(locations)} extracted tile locations.")
         return self.thumb(
-            coords=locations, rois=rois, low_res=True, **thumb_kwargs
+            coords=locations, rois=rois, **thumb_kwargs
         )
 
 
