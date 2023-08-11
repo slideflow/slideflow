@@ -426,7 +426,22 @@ class _BaseLoader:
         slide: "_BaseLoader",
         apply: bool = True
     ) -> Tuple[Tuple[int, int], float]:
-        """Align this slide to another slide."""
+        """Align this slide to another slide.
+
+        Alignment is performed by first aligning thumbnails at low magnification
+        (mpp = 8), then progressively fine-tuning alignment at increasing
+        magnification (mpp = 1, 0.5, 0.25), focused on a dense tissue region.
+        The densest tissue region is identified using the QC mask, if available,
+        otherwise via Otsu thresholding.
+
+        Args:
+            slide: Slide to align to.
+            apply: Whether to apply the alignment to the slide.
+
+        Returns:
+            Tuple of (x, y) offset and MSE of initial alignment.
+
+        """
         from scipy import ndimage
 
         if not isinstance(slide, _BaseLoader):
@@ -434,10 +449,8 @@ class _BaseLoader:
 
         # Plan:
         # 1. Identify tissue regions as targets for alignment
-        # 2. Rough align with low-mag thumbnails (mpp ~8)
-        # 3. Fine-tune alignment at tissue regions (mpp ~2-4)
-        # 4. Progressively fine-tune alignment at increasing magnification
-        # 5. Stop at user-specified alignment depth (mpp target)
+        # 2. Rough align with low-mag thumbnails (mpp = 8)
+        # 3. Fine-tune alignment at tissue regions (mpp = 1, 0.5, 0.25)
 
         # --- 1. Identify tissue regions as targets for alignment. ------------
 
@@ -500,7 +513,10 @@ class _BaseLoader:
         # --- 3. Fine-tune alignment at tissue regions. -----------------------
 
         # Get the coordinates of the tissue region in both slides.
-        for finetune_mpp in (1, 0.5):
+        for finetune_mpp in (1, 0.5, 0.25):
+            if (finetune_mpp < self.mpp) or (finetune_mpp < slide.mpp):
+                log.debug("Skipping finetune at mpp={}".format(finetune_mpp))
+                continue
             # Us
             our_window_size = (
                 int(np.round(512 * (finetune_mpp/self.mpp))),
