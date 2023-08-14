@@ -38,8 +38,11 @@ class TransMIL(nn.Module):
         # ---->PPEG
         h = self.pos_layer(h, _H, _W)  # [B, N, 512]
 
-        # ---->Translayer x2
-        return self.layer2.calculate_attention(h)  # [B, N, 512]
+        #---->Translayer x2
+        att = self.layer2.calculate_attention(h) #[B, N, 512]
+
+        # Remove padding
+        return att[:,:H,:]
 
     def relocate(self):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

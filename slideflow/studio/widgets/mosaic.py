@@ -285,7 +285,6 @@ class MosaicWidget(Widget):
 
     def draw_config_popup(self):
         viz = self.viz
-        has_model = viz._model_config is not None
 
         if self._show_popup:
             cx, cy = imgui.get_cursor_pos()

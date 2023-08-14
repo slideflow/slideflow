@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.stats.slidemap &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.stats.slidemap &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -768,8 +768,9 @@
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            normalizer ((str or `slideflow.norm.StainNormalizer`), optional):</span>
 <span class="sd">                Normalization strategy to use on image tiles. Defaults to None.</span>
-<span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
-<span class="sd">                If None, normalizer will use slideflow.slide.norm_tile.jpg.</span>
+<span class="sd">            normalizer_source (str, optional): Stain normalization preset or</span>
+<span class="sd">                path to a source image. Valid presets include &#39;v1&#39;, &#39;v2&#39;, and</span>
+<span class="sd">                &#39;v3&#39;. If None, will use the default present (&#39;v3&#39;).</span>
 <span class="sd">                Defaults to None.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -787,7 +788,9 @@
                 <span class="s2">&quot;of TFRecord paths to the `tfrecords` argument &quot;</span>
                 <span class="s2">&quot;of `SlideMap.build_mosaic()`&quot;</span>
             <span class="p">)</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">ftrs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ftrs</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">):</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="n">tfrecords</span> <span class="ow">is</span> <span class="kc">None</span>
+             <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">ftrs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+             <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ftrs</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">)):</span>
             <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">Mosaic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tfrecords</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ftrs</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">Mosaic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tfrecords</span><span class="o">=</span><span class="n">tfrecords</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -1026,8 +1029,11 @@
         <span class="n">ylabel</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">legend</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">ax</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;Axes&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">loc</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;center right&#39;</span><span class="p">,</span>
+        <span class="n">ncol</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">categorical</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
-        <span class="o">**</span><span class="n">scatter_kwargs</span><span class="p">:</span> <span class="n">Any</span>
+        <span class="n">legend_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">scatter_kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Plots calculated map.</span>
 
@@ -1045,14 +1051,23 @@
 <span class="sd">            legend (str, optional): Title for legend. Defaults to None.</span>
 <span class="sd">            ax (matplotlib.axes.Axes, optional): Figure axis. If not supplied,</span>
 <span class="sd">                will prepare a new figure axis.</span>
+<span class="sd">            loc (str, optional): Location for legend, as defined by</span>
+<span class="sd">                matplotlib.axes.Axes.legend(). Defaults to &#39;center right&#39;.</span>
+<span class="sd">            ncol (int, optional): Number of columns in legend, as defined</span>
+<span class="sd">                by matplotlib.axes.Axes.legend(). Defaults to 1.</span>
 <span class="sd">            categorical (str, optional): Specify whether labels are categorical.</span>
 <span class="sd">                Determines the colormap.  Defaults to &#39;auto&#39; (will attempt to</span>
 <span class="sd">                automatically determine from the labels).</span>
+<span class="sd">            legend_kwargs (dict, optional): Dictionary of additional keyword</span>
+<span class="sd">                arguments to the matplotlib.axes.Axes.legend() function.</span>
 <span class="sd">            **scatter_kwargs (optional): Additional keyword arguments to the</span>
-<span class="sd">                seaborn scatterplot function.</span>
+<span class="sd">                 seaborn scatterplot function.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
         <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+        <span class="k">if</span> <span class="n">legend_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">legend_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
 
         <span class="c1"># Make plot</span>
         <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1107,9 +1122,10 @@
         <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">*</span><span class="p">((</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">xlim</span> <span class="k">else</span> <span class="n">xlim</span><span class="p">))</span>
         <span class="k">if</span> <span class="s1">&#39;hue&#39;</span> <span class="ow">in</span> <span class="n">scatter_kwargs</span><span class="p">:</span>
             <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span>
-                <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;center right&#39;</span><span class="p">,</span>
-                <span class="n">ncol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-                <span class="n">title</span><span class="o">=</span><span class="n">legend</span>
+                <span class="n">loc</span><span class="o">=</span><span class="n">loc</span><span class="p">,</span>
+                <span class="n">ncol</span><span class="o">=</span><span class="n">ncol</span><span class="p">,</span>
+                <span class="n">title</span><span class="o">=</span><span class="n">legend</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">legend_kwargs</span>
             <span class="p">)</span>
         <span class="n">umap_2d</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">xlabel</span><span class="o">=</span><span class="n">xlabel</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="n">ylabel</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">title</span><span class="p">:</span>
@@ -1382,7 +1398,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1456,7 +1472,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

@@ -9,7 +9,7 @@ from slideflow import Dataset, log
 from slideflow.util import path_to_name
 from os.path import join
 
-from ..eval import predict_from_model, generate_attention_heatmaps
+from ..eval import predict_from_model, generate_attention_heatmaps, _export_attention
 from .._params import (
     _TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
 )
@@ -91,18 +91,7 @@ def train_mil(
         os.makedirs(outdir)
     outdir = sf.util.create_new_model_dir(outdir, exp_label)
 
-    # Log MIL training parameters
-    mil_params = config.json_dump()
-    mil_params['outcomes'] = outcomes
-    mil_params['bags'] = bags
-    if isinstance(bags, str) and exists(join(bags, 'bags_config.json')):
-        mil_params['bags_encoder'] = sf.util.load_json(
-            join(bags, 'bags_config.json')
-        )
-    else:
-        mil_params['bags_encoder'] = None
-    sf.util.write_json(mil_params, join(outdir, 'mil_params.json'))
-
+    # Execute training.
     return train_fn(
         config,
         train_dataset,
@@ -193,8 +182,8 @@ def train_clam(
 
     # Write slide/bag manifest
     sf.util.log_manifest(
-        train_bags.tolist(),
-        val_bags.tolist(),
+        [b for b in train_bags],
+        [b for b in val_bags],
         labels=labels,
         filename=join(outdir, 'slide_manifest.csv')
     )
@@ -232,6 +221,9 @@ def train_clam(
     # Save clam settings
     sf.util.write_json(clam_args.to_dict(), join(outdir, 'experiment.json'))
 
+    # Save MIL settings
+    _log_mil_params(config, outcomes, unique_labels, bags, num_features, clam_args.n_classes, outdir)
+
     # Run CLAM
     datasets = (train_mil_dataset, val_mil_dataset, val_mil_dataset)
     model, results, test_auc, val_auc, test_acc, val_acc = clam.train(
@@ -265,6 +257,15 @@ def train_clam(
     else:
         val_bags = np.array(bags)
 
+    # Export attention to numpy arrays
+    if attention:
+        _export_attention(
+            join(outdir, 'attention'),
+            attention,
+            [path_to_name(b) for b in val_bags]
+        )
+
+    # Save attention heatmaps
     if attention and attention_heatmaps:
         assert len(val_bags) == len(attention)
         generate_attention_heatmaps(
@@ -285,6 +286,7 @@ def build_fastai_learner(
     bags: Union[str, np.ndarray, List[str]],
     *,
     outdir: str = 'mil',
+    return_shape: bool = False,
 ) -> "Learner":
     """Build a FastAI Learner for training an aMIL model.
 
@@ -347,7 +349,7 @@ def build_fastai_learner(
     )
 
     # Build FastAI Learner
-    learner = _fastai.build_learner(
+    learner, (n_in, n_out) = _fastai.build_learner(
         config,
         bags=bags,
         targets=targets,
@@ -356,7 +358,10 @@ def build_fastai_learner(
         unique_categories=unique_categories,
         outdir=outdir,
     )
-    return learner
+    if return_shape:
+        return learner, (n_in, n_out)
+    else:
+        return learner
 
 
 def train_fastai(
@@ -417,14 +422,27 @@ def train_fastai(
         all_bags = np.array(bags)
 
     # Build learner.
-    learner = build_fastai_learner(
+    learner, (n_in, n_out) = build_fastai_learner(
         config,
         train_dataset,
         val_dataset,
         outcomes,
         bags=all_bags,
         outdir=outdir,
+        return_shape=True
     )
+
+    # Save MIL settings.
+    # Attempt to read the unique categories from the learner.
+    if not hasattr(learner.dls.train_ds, 'encoder'):
+        unique = None
+    else:
+        encoder = learner.dls.train_ds.encoder
+        if encoder is not None:
+            unique = encoder.categories_[0].tolist()
+        else:
+            unique = None
+    _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir)
 
     # Train.
     _fastai.train(learner, config)
@@ -450,6 +468,14 @@ def train_fastai(
     )
     sf.stats.metrics.categorical_metrics(df, level='slide')
 
+    # Export attention to numpy arrays
+    if attention:
+        _export_attention(
+            join(outdir, 'attention'),
+            attention,
+            [path_to_name(b) for b in val_bags]
+        )
+
     # Attention heatmaps.
     if attention and attention_heatmaps:
         generate_attention_heatmaps(
@@ -461,3 +487,25 @@ def train_fastai(
         )
 
     return learner
+
+# ------------------------------------------------------------------------------
+
+def _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir):
+    """Log MIL parameters to JSON."""
+    mil_params = config.json_dump()
+    mil_params['outcomes'] = outcomes
+    if unique is not None:
+        mil_params['outcome_labels'] = dict(zip(range(len(unique)), unique))
+    else:
+        mil_params['outcome_labels'] = None
+    mil_params['bags'] = bags
+    mil_params['input_shape'] = n_in
+    mil_params['output_shape'] = n_out
+    if isinstance(bags, str) and exists(join(bags, 'bags_config.json')):
+        mil_params['bags_extractor'] = sf.util.load_json(
+            join(bags, 'bags_config.json')
+        )
+    else:
+        mil_params['bags_extractor'] = None
+    sf.util.write_json(mil_params, join(outdir, 'mil_params.json'))
+    return mil_params

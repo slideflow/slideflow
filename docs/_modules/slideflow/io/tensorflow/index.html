@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.io.tensorflow &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.io.tensorflow &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -419,10 +419,33 @@
     <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="n">standardize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">augment</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="o">...</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Applies augmentations and/or standardization to an image Tensor.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Applies augmentations and/or standardization to an image Tensor.</span>
 
+<span class="sd">    Args:</span>
+<span class="sd">        record (Union[tf.Tensor, Dict[str, tf.Tensor]]): Image Tensor.</span>
+
+<span class="sd">    Keyword Args:</span>
+<span class="sd">        standardize (bool, optional): Standardize images. Defaults to False.</span>
+<span class="sd">        augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">            * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">            * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">            * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">            * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">            * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+
+<span class="sd">            Combine letters to define augmentations, such as ``&#39;xyrj&#39;``.</span>
+<span class="sd">            A value of True will use ``&#39;xyrjb&#39;``.</span>
+<span class="sd">            Note: this function does not support stain augmentation.</span>
+<span class="sd">        transform (Callable, optional): Arbitrary transform function.</span>
+<span class="sd">            Performs transformation after augmentations but before standardization.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        size (int, optional): Set the image shape. Defaults to None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">]</span>
     <span class="k">else</span><span class="p">:</span>
@@ -483,7 +506,9 @@
             <span class="n">false_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">image</span>
         <span class="p">)</span>
     <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;i&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
-        <span class="o">...</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Random pixel interpolation not implemented.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">transform</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">transform</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">standardize</span><span class="p">:</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">per_image_standardization</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
@@ -546,6 +571,13 @@
     <span class="k">return</span> <span class="n">image</span></div>
 
 
+<span class="k">def</span> <span class="nf">_decode_image</span><span class="p">(</span><span class="n">img_string</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">img_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">img_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">imghdr</span>
+        <span class="n">img_type</span> <span class="o">=</span> <span class="n">imghdr</span><span class="o">.</span><span class="n">what</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">img_string</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">decode_image</span><span class="p">(</span><span class="n">img_string</span><span class="p">,</span> <span class="n">img_type</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="get_tfrecord_parser"><a class="viewcode-back" href="../../../../io_tensorflow/#slideflow.io.get_tfrecord_parser">[docs]</a><span class="k">def</span> <span class="nf">get_tfrecord_parser</span><span class="p">(</span>
     <span class="n">tfrecord_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">features_to_return</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -577,12 +609,17 @@
 <span class="sd">            if provided. Defaults to False.</span>
 <span class="sd">        normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer</span>
 <span class="sd">            to use on images. Defaults to None.</span>
-<span class="sd">        augment (str): Image augmentations to perform. String containing</span>
-<span class="sd">            characters designating augmentations. &#39;x&#39; indicates random</span>
-<span class="sd">            x-flipping, &#39;y&#39; y-flipping, &#39;r&#39; rotating, &#39;j&#39; JPEG</span>
-<span class="sd">            compression/decompression at random quality levels, and &#39;b&#39;</span>
-<span class="sd">            random gaussian blur. Passing either &#39;xyrjb&#39; or True will use all</span>
-<span class="sd">            augmentations.</span>
+<span class="sd">        augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">            * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">            * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">            * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">            * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">            * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+<span class="sd">            * ``&#39;n&#39;``: Random :ref:`stain_augmentation` (requires stain normalizer)</span>
+
+<span class="sd">            Combine letters to define augmentations, such as ``&#39;xyrjn&#39;``.</span>
+<span class="sd">            A value of True will use ``&#39;xyrjb&#39;``.</span>
 <span class="sd">        error_if_invalid (bool, optional): Raise an error if a tfrecord cannot</span>
 <span class="sd">            be read. Defaults to True.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -631,9 +668,16 @@
 
 
 <div class="viewcode-block" id="parser_from_labels"><a class="viewcode-back" href="../../../../io_tensorflow/#slideflow.io.parser_from_labels">[docs]</a><span class="k">def</span> <span class="nf">parser_from_labels</span><span class="p">(</span><span class="n">labels</span><span class="p">:</span> <span class="n">Labels</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns a label parsing function used for parsing slides into single</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a label parsing function used for parsing slides into single</span>
 <span class="sd">    or multi-outcome labels.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        labels (dict): Dictionary mapping slide names to outcome labels.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Callable: Label parsing function.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">outcome_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
     <span class="n">slides</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -664,74 +708,56 @@
 <div class="viewcode-block" id="interleave"><a class="viewcode-back" href="../../../../io_tensorflow/#slideflow.io.interleave">[docs]</a><span class="k">def</span> <span class="nf">interleave</span><span class="p">(</span>
     <span class="n">paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
     <span class="o">*</span><span class="p">,</span>
-    <span class="n">img_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="n">batch_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
-    <span class="n">prob_weights</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">clip</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Labels</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">incl_slidenames</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">incl_loc</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">infinite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">standardize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">num_shards</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">shard_idx</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">num_parallel_reads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">clip</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">deterministic</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">drop_last</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">tile_um</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">incl_loc</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">incl_slidenames</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">infinite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">img_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Labels</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">num_parallel_reads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="n">num_shards</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">pool</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;mp.pool.Pool&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">prob_weights</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">rois</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
-    <span class="n">pool</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;mp.pool.Pool&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">shard_idx</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">standardize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">tile_um</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">tfrecord_parser</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">**</span><span class="n">decode_kwargs</span><span class="p">:</span> <span class="n">Any</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate an interleaved dataset from a collection of tfrecord files.</span>
 
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates an interleaved dataset from a collection of tfrecord files,</span>
-<span class="sd">    sampling from tfrecord files randomly according to balancing if provided.</span>
-<span class="sd">    Requires manifest for balancing. Assumes TFRecord files are named by slide.</span>
+<span class="sd">    The interleaved dataset samples from tfrecord files randomly according to</span>
+<span class="sd">    balancing, if provided. Requires manifest for balancing. Assumes TFRecord</span>
+<span class="sd">    files are named by slide.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        paths (list(str)): List of paths to TFRecord files or whole-slide</span>
 <span class="sd">            images.</span>
-<span class="sd">        img_size (int): Image width in pixels.</span>
+
+<span class="sd">    Keyword Args:</span>
+<span class="sd">        augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">            * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">            * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">            * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">            * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">            * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+<span class="sd">            * ``&#39;n&#39;``: Random :ref:`stain_augmentation` (requires stain normalizer)</span>
+
+<span class="sd">            Combine letters to define augmentations, such as ``&#39;xyrjn&#39;``.</span>
+<span class="sd">            A value of True will use ``&#39;xyrjb&#39;``.</span>
 <span class="sd">        batch_size (int): Batch size.</span>
-<span class="sd">        prob_weights (dict, optional): Dict mapping tfrecords to probability of</span>
-<span class="sd">            including in batch. Defaults to None.</span>
 <span class="sd">        clip (dict, optional): Dict mapping tfrecords to number of tiles to</span>
 <span class="sd">            take per tfrecord. Defaults to None.</span>
-<span class="sd">        labels (dict or str, optional): Dict or function. If dict, must map</span>
-<span class="sd">            slide names to outcome labels. If function, function must accept an</span>
-<span class="sd">            image (tensor) and slide name (str), and return a dict</span>
-<span class="sd">            {&#39;image_raw&#39;: image (tensor)} and label (int or float). If not</span>
-<span class="sd">            provided,  all labels will be None.</span>
-<span class="sd">        incl_slidenames (bool, optional): Include slidenames as third returned</span>
-<span class="sd">            variable. Defaults to False.</span>
-<span class="sd">        incl_loc (str, optional): &#39;coord&#39;, &#39;grid&#39;, or None. Return (x,y)</span>
-<span class="sd">                origin coordinates (&#39;coord&#39;) for each tile along with tile</span>
-<span class="sd">                images, or the (x,y) grid coordinates for each tile.</span>
-<span class="sd">                Defaults to &#39;coord&#39;.</span>
-<span class="sd">        infinite (bool, optional): Create an finite dataset. WARNING: If</span>
-<span class="sd">            infinite is False &amp;&amp; balancing is used, some tiles will be skipped.</span>
-<span class="sd">            Defaults to True.</span>
-<span class="sd">        augment (str): Image augmentations to perform. String containing</span>
-<span class="sd">            characters designating augmentations. &#39;x&#39; indicates random</span>
-<span class="sd">            x-flipping, &#39;y&#39; y-flipping, &#39;r&#39; rotating, &#39;j&#39; JPEG</span>
-<span class="sd">            compression/decompression at random quality levels, and &#39;b&#39;</span>
-<span class="sd">            random gaussian blur. Passing either &#39;xyrjb&#39; or True will use all</span>
-<span class="sd">            augmentations.</span>
-<span class="sd">        standardize (bool, optional): Standardize images to (0,1).</span>
-<span class="sd">            Defaults to True.</span>
-<span class="sd">        normalizer (:class:`slideflow.norm.StainNormalizer`, optional):</span>
-<span class="sd">            Normalizer to use on images. Defaults to None.</span>
-<span class="sd">        num_shards (int, optional): Shard the tfrecord datasets, used for</span>
-<span class="sd">            multiprocessing datasets. Defaults to None.</span>
-<span class="sd">        shard_idx (int, optional): Index of the tfrecord shard to use.</span>
-<span class="sd">            Defaults to None.</span>
-<span class="sd">        num_parallel_reads (int, optional): Number of parallel reads for each</span>
-<span class="sd">            TFRecordDataset. Defaults to 4.</span>
 <span class="sd">        deterministic (bool, optional): When num_parallel_calls is specified,</span>
 <span class="sd">            if this boolean is specified, it controls the order in which the</span>
 <span class="sd">            transformation produces elements. If set to False, the</span>
@@ -739,6 +765,53 @@
 <span class="sd">            determinism for performance. Defaults to False.</span>
 <span class="sd">        drop_last (bool, optional): Drop the last non-full batch.</span>
 <span class="sd">            Defaults to False.</span>
+<span class="sd">        from_wsi (bool): Generate predictions from tiles dynamically</span>
+<span class="sd">            extracted from whole-slide images, rather than TFRecords.</span>
+<span class="sd">            Defaults to False (use TFRecords).</span>
+<span class="sd">        incl_loc (str, optional): &#39;coord&#39;, &#39;grid&#39;, or None. Return (x,y)</span>
+<span class="sd">            origin coordinates (&#39;coord&#39;) for each tile along with tile</span>
+<span class="sd">            images, or the (x,y) grid coordinates for each tile.</span>
+<span class="sd">            Defaults to &#39;coord&#39;.</span>
+<span class="sd">        incl_slidenames (bool, optional): Include slidenames as third returned</span>
+<span class="sd">            variable. Defaults to False.</span>
+<span class="sd">        infinite (bool, optional): Create an finite dataset. WARNING: If</span>
+<span class="sd">            infinite is False &amp;&amp; balancing is used, some tiles will be skipped.</span>
+<span class="sd">            Defaults to True.</span>
+<span class="sd">        img_size (int): Image width in pixels.</span>
+<span class="sd">        labels (dict or str, optional): Dict or function. If dict, must map</span>
+<span class="sd">            slide names to outcome labels. If function, function must accept an</span>
+<span class="sd">            image (tensor) and slide name (str), and return a dict</span>
+<span class="sd">            {&#39;image_raw&#39;: image (tensor)} and label (int or float). If not</span>
+<span class="sd">            provided,  all labels will be None.</span>
+<span class="sd">        normalizer (:class:`slideflow.norm.StainNormalizer`, optional):</span>
+<span class="sd">            Normalizer to use on images. Defaults to None.</span>
+<span class="sd">        num_parallel_reads (int, optional): Number of parallel reads for each</span>
+<span class="sd">            TFRecordDataset. Defaults to 4.</span>
+<span class="sd">        num_shards (int, optional): Shard the tfrecord datasets, used for</span>
+<span class="sd">            multiprocessing datasets. Defaults to None.</span>
+<span class="sd">        pool (multiprocessing.Pool): Shared multiprocessing pool. Useful</span>
+<span class="sd">            if ``from_wsi=True``, for sharing a unified processing pool between</span>
+<span class="sd">            dataloaders. Defaults to None.</span>
+<span class="sd">        prob_weights (dict, optional): Dict mapping tfrecords to probability of</span>
+<span class="sd">            including in batch. Defaults to None.</span>
+<span class="sd">        rois (list(str), optional): List of ROI paths. Only used if</span>
+<span class="sd">            from_wsi=True.  Defaults to None.</span>
+<span class="sd">        roi_method (str, optional): Method for extracting ROIs. Only used if</span>
+<span class="sd">            from_wsi=True. Defaults to &#39;auto&#39;.</span>
+<span class="sd">        shard_idx (int, optional): Index of the tfrecord shard to use.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        standardize (bool, optional): Standardize images to (0,1).</span>
+<span class="sd">            Defaults to True.</span>
+<span class="sd">        tile_um (int, optional): Size of tiles to extract from WSI, in</span>
+<span class="sd">            microns. Only used if from_wsi=True. Defaults to None.</span>
+<span class="sd">        tfrecord_parser (Callable, optional): Custom parser for TFRecords.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        transform (Callable, optional): Arbitrary transform function.</span>
+<span class="sd">            Performs transformation after augmentations but before</span>
+<span class="sd">            standardization. Defaults to None.</span>
+<span class="sd">        **decode_kwargs (dict): Keyword arguments to pass to</span>
+<span class="sd">            :func:`slideflow.io.tensorflow.decode_image`.</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsNotFoundError</span>
@@ -786,11 +859,11 @@
             <span class="c1"># Load slides and apply Otsu&#39;s thresholding</span>
             <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cucim&#39;</span><span class="p">:</span>
                 <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
-                    <span class="mi">8</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(),</span>
+                    <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">8</span><span class="p">),</span>
                     <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span>
                 <span class="p">)</span>
             <span class="k">elif</span> <span class="n">pool</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="mi">16</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">())</span>
+                <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">16</span><span class="p">))</span>
             <span class="n">wsi_list</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="n">to_remove</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="n">otsu_list</span> <span class="o">=</span> <span class="p">[]</span>
@@ -889,10 +962,6 @@
             <span class="p">)</span>
             <span class="k">if</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">vectorized</span><span class="p">:</span>
                 <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">unbatch</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;macenko&#39;</span><span class="p">:</span>
-                <span class="c1"># Drop the images that causes an error, e.g. if eigen</span>
-                <span class="c1"># decomposition is unsuccessful.</span>
-                <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">ignore_errors</span><span class="p">())</span>
 
         <span class="c1"># ------- Standardize and augment images ------------------------------</span>
         <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
@@ -900,6 +969,7 @@
                 <span class="n">process_image</span><span class="p">,</span>
                 <span class="n">standardize</span><span class="o">=</span><span class="n">standardize</span><span class="p">,</span>
                 <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">,</span>
+                <span class="n">transform</span><span class="o">=</span><span class="n">transform</span><span class="p">,</span>
                 <span class="n">size</span><span class="o">=</span><span class="n">img_size</span>
             <span class="p">),</span>
             <span class="n">num_parallel_calls</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">AUTOTUNE</span><span class="p">,</span>
@@ -970,7 +1040,18 @@
     <span class="n">loc_x</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">loc_y</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Example&quot;</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns a Tensorflow Data example for TFRecord storage.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a Tensorflow Data example for TFRecord storage.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        slide (bytes): Slide name.</span>
+<span class="sd">        image_raw (bytes): Image bytes.</span>
+<span class="sd">        loc_x (Optional[int], optional): X coordinate of image. Defaults to 0.</span>
+<span class="sd">        loc_y (Optional[int], optional): Y coordinate of image. Defaults to 0.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Example: Tensorflow Data example.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">feature</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="n">_bytes_feature</span><span class="p">(</span><span class="n">slide</span><span class="p">),</span>
         <span class="s1">&#39;image_raw&#39;</span><span class="p">:</span> <span class="n">_bytes_feature</span><span class="p">(</span><span class="n">image_raw</span><span class="p">),</span>
@@ -988,13 +1069,35 @@
     <span class="n">loc_x</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">loc_y</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns a serialized example for TFRecord storage, ready to be written</span>
-<span class="sd">    by a TFRecordWriter.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Serialize a record for TFRecord storage.</span>
+
+<span class="sd">    The serialized record will be in a data format ready to be written</span>
+<span class="sd">    by a TFRecordWriter.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        slide (bytes): Slide name.</span>
+<span class="sd">        image_raw (bytes): Image bytes.</span>
+<span class="sd">        loc_x (int, optional): X coordinate of image. Defaults to 0.</span>
+<span class="sd">        loc_y (int, optional): Y coordinate of image. Defaults to 0.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bytes: Serialized record.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">tfrecord_example</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">image_raw</span><span class="p">,</span> <span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span><span class="p">)</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="multi_image_example"><a class="viewcode-back" href="../../../../io_tensorflow/#slideflow.io.multi_image_example">[docs]</a><span class="k">def</span> <span class="nf">multi_image_example</span><span class="p">(</span><span class="n">slide</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">image_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Example&quot;</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns a Tensorflow Data example for storage with multiple images.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a Tensorflow Data example for storage with multiple images.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        slide (bytes): Slide name.</span>
+<span class="sd">        image_dict (Dict): Dictionary of image names and image bytes.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Example: Tensorflow Data example.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">feature</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="n">_bytes_feature</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
     <span class="p">}</span>
@@ -1010,8 +1113,16 @@
     <span class="n">output_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">assign_slide</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Randomly samples from tfrecords in the input folder with shuffling,</span>
-<span class="sd">    and combines into a single tfrecord file.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Randomly sample from tfrecords in the input folder with shuffling,</span>
+<span class="sd">    and combine into a single tfrecord file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        input_folder (str): Folder containing tfrecord files.</span>
+<span class="sd">        output_file (str): Output tfrecord file.</span>
+<span class="sd">        assign_slide (str, optional): Assign a slide name to all images.</span>
+<span class="sd">            Defaults to None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">writer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">TFRecordWriter</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span>
     <span class="n">tfrecord_files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">input_folder</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
     <span class="n">datasets</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1046,9 +1157,14 @@
 
 
 <div class="viewcode-block" id="split_tfrecord"><a class="viewcode-back" href="../../../../io_tensorflow/#slideflow.io.split_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">split_tfrecord</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">output_folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Splits records from a single tfrecord file into individual tfrecord</span>
-<span class="sd">    files by slide.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Split records from a single tfrecord into individual tfrecord</span>
+<span class="sd">    files, stratified by slide.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tfrecord_file (str): Path to tfrecord file.</span>
+<span class="sd">        output_folder (str): Path to output folder.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="p">)</span>
     <span class="n">parser</span> <span class="o">=</span> <span class="n">get_tfrecord_parser</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">],</span> <span class="n">to_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">full_parser</span> <span class="o">=</span> <span class="n">get_tfrecord_parser</span><span class="p">(</span>
@@ -1074,9 +1190,13 @@
 
 
 <div class="viewcode-block" id="print_tfrecord"><a class="viewcode-back" href="../../../../io_tensorflow/#slideflow.io.print_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">print_tfrecord</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Prints the slide names (and locations, if present) for records</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Print the slide names (and locations, if present) for records</span>
 <span class="sd">    in the given tfrecord file.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        target: Path to the tfrecord file or folder containing tfrecord files.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">isfile</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
         <span class="n">_print_record</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -1086,8 +1206,13 @@
 
 
 <div class="viewcode-block" id="checkpoint_to_tf_model"><a class="viewcode-back" href="../../../../io_tensorflow/#slideflow.io.checkpoint_to_tf_model">[docs]</a><span class="k">def</span> <span class="nf">checkpoint_to_tf_model</span><span class="p">(</span><span class="n">models_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Converts a checkpoint file into a saved model.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a checkpoint file into a saved model.</span>
 
+<span class="sd">    Args:</span>
+<span class="sd">        models_dir: Directory containing the model.</span>
+<span class="sd">        model_name: Name of the model to convert.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">checkpoint</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">models_dir</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="s2">&quot;cp.ckpt&quot;</span><span class="p">)</span>
     <span class="n">tf_model</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">models_dir</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="s2">&quot;untrained_model&quot;</span><span class="p">)</span>
     <span class="n">updated_tf_model</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">models_dir</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="s2">&quot;checkpoint_model&quot;</span><span class="p">)</span>
@@ -1108,9 +1233,20 @@
     <span class="n">hue_shift</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">resize</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Transforms images in a single tfrecord. Can perform hue shifting,</span>
-<span class="sd">    resizing, or re-assigning slide label.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Transform images in a single tfrecord.</span>
+
+<span class="sd">    Can perform hue shifting, resizing, or re-assigning slide label.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        origin: Path to the original tfrecord file.</span>
+<span class="sd">        target: Path to the new tfrecord file.</span>
+<span class="sd">        assign_slide: If provided, will assign this slide name to all</span>
+<span class="sd">            records in the new tfrecord.</span>
+<span class="sd">        hue_shift: If provided, will shift the hue of all images by</span>
+<span class="sd">            this amount.</span>
+<span class="sd">        resize: If provided, will resize all images to this size.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Transforming tiles in tfrecord [green]</span><span class="si">{</span><span class="n">origin</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saving to new tfrecord at [green]</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">assign_slide</span><span class="p">:</span>
@@ -1167,7 +1303,12 @@
 
 
 <div class="viewcode-block" id="shuffle_tfrecord"><a class="viewcode-back" href="../../../../io_tensorflow/#slideflow.io.shuffle_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">shuffle_tfrecord</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Shuffles records in a TFRecord, saving the original to a .old file.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shuffle records in a TFRecord, saving the original to a .old file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        target: Path to the tfrecord file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">old_tfrecord</span> <span class="o">=</span> <span class="n">target</span><span class="o">+</span><span class="s2">&quot;.old&quot;</span>
     <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">old_tfrecord</span><span class="p">)</span>
@@ -1183,9 +1324,13 @@
 
 
 <div class="viewcode-block" id="shuffle_tfrecords_by_dir"><a class="viewcode-back" href="../../../../io_tensorflow/#slideflow.io.shuffle_tfrecords_by_dir">[docs]</a><span class="k">def</span> <span class="nf">shuffle_tfrecords_by_dir</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;For each TFRecord in a directory, shuffles records in the TFRecord,</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;For each TFRecord in a directory, shuffle records in the TFRecord,</span>
 <span class="sd">    saving the original to a .old file.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        directory: Path to the directory containing tfrecord files.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">records</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">listdir</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span> <span class="k">if</span> <span class="n">tfr</span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">:]</span> <span class="o">==</span> <span class="s2">&quot;.tfrecords&quot;</span><span class="p">]</span>
     <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on </span><span class="si">{</span><span class="n">record</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
@@ -1206,7 +1351,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1280,7 +1425,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

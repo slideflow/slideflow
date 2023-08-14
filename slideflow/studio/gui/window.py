@@ -102,10 +102,10 @@ class ImguiWindow(GlfwWindow):
             if toast.icon:
                 self.icon(toast.icon, sameline=True)
             if toast.title:
-                imgui.text(toast.title)
                 if toast.spinner:
-                    imgui.same_line()
-                    imgui_utils.spinner()
+                    imgui.text(f"{toast.title}{imgui_utils.spinner_text()}")
+                else:
+                    imgui.text(toast.title)
                 if toast.message:
                     imgui.separator()
             if toast.message:

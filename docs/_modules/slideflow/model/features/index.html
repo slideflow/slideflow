@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.model.features &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.model.features &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -299,7 +299,7 @@
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">track</span><span class="p">,</span> <span class="n">Progress</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">Labels</span><span class="p">,</span> <span class="n">ImgBatchSpeedColumn</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">Labels</span><span class="p">,</span> <span class="n">ImgBatchSpeedColumn</span><span class="p">,</span> <span class="n">tfrecord2idx</span>
 <span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">BaseFeatureExtractor</span>
 
 
@@ -339,7 +339,7 @@
         <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculates features / layer activations from model, storing to</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate features / layer activations from model, storing to</span>
 <span class="sd">        internal parameters ``self.activations``, and ``self.predictions``,</span>
 <span class="sd">        ``self.locations``, dictionaries mapping slides to arrays of activations,</span>
 <span class="sd">        predictions, and locations for each tiles&#39; constituent tiles.</span>
@@ -351,15 +351,106 @@
 <span class="sd">            labels (dict, optional): Dict mapping slide names to outcome</span>
 <span class="sd">                categories.</span>
 <span class="sd">            cache (str, optional): File for PKL cache.</span>
-<span class="sd">            annotations: Deprecated.</span>
 
 <span class="sd">        Keyword Args:</span>
-<span class="sd">            layers (str): Model layer(s) from which to calculate activations.</span>
-<span class="sd">                Defaults to &#39;postconv&#39;.</span>
+<span class="sd">            augment (bool, str, optional): Whether to use data augmentation</span>
+<span class="sd">                during feature extraction. If True, will use default</span>
+<span class="sd">                augmentation. If str, will use augmentation specified by the</span>
+<span class="sd">                string. Defaults to None.</span>
 <span class="sd">            batch_size (int): Batch size for activations calculations.</span>
 <span class="sd">                Defaults to 32.</span>
+<span class="sd">            device (str, optional): Device to use for feature extraction.</span>
+<span class="sd">                Only used for PyTorch feature extractors. Defaults to None.</span>
 <span class="sd">            include_preds (bool): Calculate and store predictions.</span>
 <span class="sd">                Defaults to True.</span>
+<span class="sd">            include_uncertainty (bool, optional): Whether to include model</span>
+<span class="sd">                uncertainty in the output. Only used if the feature generator</span>
+<span class="sd">                is a UQ-enabled model. Defaults to True.</span>
+<span class="sd">            layers (str, list(str)): Layers to extract features from. May be</span>
+<span class="sd">                the name of a single layer (str) or a list of layers (list).</span>
+<span class="sd">                Only used if model is a str. Defaults to &#39;postconv&#39;.</span>
+<span class="sd">            normalizer ((str or `slideflow.norm.StainNormalizer`), optional):</span>
+<span class="sd">                Stain normalization strategy to use on image tiles prior to</span>
+<span class="sd">                feature extraction. This argument is invalid if ``model`` is a</span>
+<span class="sd">                feature extractor built from a trained model, as stain</span>
+<span class="sd">                normalization will be specified by the model configuration.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            normalizer_source (str, optional): Stain normalization preset</span>
+<span class="sd">                or path to a source image. Valid presets include &#39;v1&#39;, &#39;v2&#39;,</span>
+<span class="sd">                and &#39;v3&#39;. If None, will use the default present (&#39;v3&#39;).</span>
+<span class="sd">                This argument is invalid if ``model`` is a feature extractor</span>
+<span class="sd">                built from a trained model. Defaults to None.</span>
+<span class="sd">            num_workers (int, optional): Number of workers to use for feature</span>
+<span class="sd">                extraction. Only used for PyTorch feature extractors. Defaults</span>
+<span class="sd">                to None.</span>
+<span class="sd">            pool_sort (bool): Use multiprocessing pools to perform final</span>
+<span class="sd">                sorting. Defaults to True.</span>
+<span class="sd">            progress (bool): Show a progress bar during feature calculation.</span>
+<span class="sd">                Defaults to True.</span>
+<span class="sd">            verbose (bool): Show verbose logging output. Defaults to True.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            Calculate features using a feature extractor.</span>
+
+<span class="sd">                .. code-block:: python</span>
+
+<span class="sd">                    import slideflow as sf</span>
+<span class="sd">                    from slideflow.model import build_feature_extractor</span>
+
+<span class="sd">                    # Create a feature extractor</span>
+<span class="sd">                    retccl = build_feature_extractor(&#39;retccl&#39;, tile_px=299)</span>
+
+<span class="sd">                    # Load a dataset</span>
+<span class="sd">                    P = sf.load_project(...)</span>
+<span class="sd">                    dataset = P.dataset(...)</span>
+
+<span class="sd">                    # Calculate features</span>
+<span class="sd">                    dts_ftrs = sf.DatasetFeatures(retccl, dataset)</span>
+
+<span class="sd">            Calculate features using a trained model (preferred).</span>
+
+<span class="sd">                .. code-block:: python</span>
+
+<span class="sd">                    from slideflow.model import build_feature_extractor</span>
+
+<span class="sd">                    # Create a feature extractor from the saved model.</span>
+<span class="sd">                    extractor = build_feature_extractor(</span>
+<span class="sd">                        &#39;/path/to/trained_model.zip&#39;,</span>
+<span class="sd">                        layers=[&#39;postconv&#39;]</span>
+<span class="sd">                    )</span>
+
+<span class="sd">                    # Calculate features across the dataset</span>
+<span class="sd">                    dts_ftrs = sf.DatasetFeatures(extractor, dataset)</span>
+
+<span class="sd">            Calculate features using a trained model (legacy).</span>
+
+<span class="sd">                .. code-block:: python</span>
+
+<span class="sd">                    # This method is deprecated, and will be removed in a</span>
+<span class="sd">                    # future release. Please use the method above instead.</span>
+<span class="sd">                    dts_ftrs = sf.DatasetFeatures(</span>
+<span class="sd">                        &#39;/path/to/trained_model.zip&#39;,</span>
+<span class="sd">                        dataset=dataset,</span>
+<span class="sd">                        layers=[&#39;postconv&#39;]</span>
+<span class="sd">                    )</span>
+
+<span class="sd">            Calculate features from a loaded model.</span>
+
+<span class="sd">                .. code-block:: python</span>
+
+<span class="sd">                    import tensorflow as tf</span>
+<span class="sd">                    import slideflow as sf</span>
+
+<span class="sd">                    # Load a model</span>
+<span class="sd">                    model = tf.keras.models.load_model(&#39;/path/to/model.h5&#39;)</span>
+
+<span class="sd">                    # Calculate features</span>
+<span class="sd">                    dts_ftrs = sf.DatasetFeatures(</span>
+<span class="sd">                        model,</span>
+<span class="sd">                        layers=[&#39;postconv&#39;],</span>
+<span class="sd">                        dataset</span>
+<span class="sd">                    )</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">activations</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>  <span class="c1"># type: Dict[str, Any]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>  <span class="c1"># type: Dict[str, Any]</span>
@@ -369,7 +460,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">generator</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feature_generator</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">dataset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tile_px</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">manifest</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">manifest</span><span class="p">()</span>
@@ -467,8 +558,23 @@
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Number of activation features: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_features</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_df</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="s2">&quot;pd.core.frame.DataFrame&quot;</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load DataFrame of features, as exported by :meth:`DatasetFeatures.to_df()`&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">from_df</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="s2">&quot;pd.core.frame.DataFrame&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;DatasetFeatures&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load DataFrame of features, as exported by :meth:`DatasetFeatures.to_df()`</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            df (:class:`pandas.DataFrame`): DataFrame of features, as exported by</span>
+<span class="sd">                :meth:`DatasetFeatures.to_df()`</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`DatasetFeatures`: DatasetFeatures object</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">            Recreate DatasetFeatures after export to a DataFrame.</span>
+
+<span class="sd">                &gt;&gt;&gt; df = features.to_df()</span>
+<span class="sd">                &gt;&gt;&gt; new_features = DatasetFeatures.from_df(df)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">slides</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
         <span class="k">if</span> <span class="s1">&#39;activations&#39;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
@@ -488,7 +594,7 @@
                 <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">slides</span>
             <span class="p">}</span>
         <span class="k">if</span> <span class="s1">&#39;predictions&#39;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-            <span class="n">obj</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">predictions</span> <span class="o">=</span> <span class="p">{</span>
                 <span class="n">s</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df</span><span class="o">.</span><span class="n">slide</span><span class="o">==</span><span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">predictions</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
                 <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">slides</span>
             <span class="p">}</span>
@@ -499,8 +605,8 @@
     <span class="k">def</span> <span class="nf">concat</span><span class="p">(</span>
         <span class="bp">cls</span><span class="p">,</span>
         <span class="n">args</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="s2">&quot;DatasetFeatures&quot;</span><span class="p">],</span>
-    <span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Concatenates activations from multiple DatasetFeatures together.</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;DatasetFeatures&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Concatenate activations from multiple DatasetFeatures together.</span>
 
 <span class="sd">        For example, if ``df1`` is a DatasetFeatures object with 2048 features</span>
 <span class="sd">        and ``df2`` is a DatasetFeatures object with 1024 features,</span>
@@ -512,6 +618,22 @@
 
 <span class="sd">        If there are any tiles that do not have calculated features in both</span>
 <span class="sd">        dataframes, these will be dropped.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            args (Iterable[:class:`DatasetFeatures`]): DatasetFeatures objects</span>
+<span class="sd">                to concatenate.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`DatasetFeatures`: DatasetFeatures object with concatenated</span>
+<span class="sd">            features.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">            Concatenate two DatasetFeatures objects.</span>
+
+<span class="sd">                &gt;&gt;&gt; df1 = DatasetFeatures(model, dataset, layers=&#39;postconv&#39;)</span>
+<span class="sd">                &gt;&gt;&gt; df2 = DatasetFeatures(model, dataset, layers=&#39;sepconv_3&#39;)</span>
+<span class="sd">                &gt;&gt;&gt; df = DatasetFeatures.concat([df1, df2])</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
         <span class="n">dfs</span> <span class="o">=</span> <span class="p">[]</span>
@@ -521,7 +643,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">dfs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">dfs</span><span class="p">]):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="s2">&quot;Unable to concatenate DatasetFeatures of different lengths &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;(got: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">_df</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">_df</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">dfs</span><span class="p">])</span><span class="si">}</span><span class="s2">)&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(got: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">_df</span><span class="p">))</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">_df</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">dfs</span><span class="p">])</span><span class="si">}</span><span class="s2">)&quot;</span>
             <span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">dfs</span><span class="p">)</span><span class="si">}</span><span class="s2"> dataframes&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dfs</span><span class="p">)):</span>
@@ -570,7 +692,14 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">feature_generator</span><span class="o">.</span><span class="n">normalizer</span>
 
-    <span class="k">def</span> <span class="nf">_generate_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">pool_sort</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculates activations from a given model, saving to self.activations</span>
 
@@ -585,6 +714,11 @@
 <span class="sd">                estimation if UQ enabled. Defaults to True.</span>
 <span class="sd">            batch_size (int, optional): Batch size to use during activations</span>
 <span class="sd">                calculations. Defaults to 32.</span>
+<span class="sd">            progress (bool): Show a progress bar during feature calculation.</span>
+<span class="sd">                Defaults to True.</span>
+<span class="sd">            verbose (bool): Show verbose logging output. Defaults to True.</span>
+<span class="sd">            pool_sort (bool): Use multiprocessing pools to perform final</span>
+<span class="sd">                sorting. Defaults to True.</span>
 <span class="sd">            cache (str, optional): File in which to store PKL cache.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
@@ -599,7 +733,9 @@
         <span class="c1"># Calculate final layer activations for each tfrecord</span>
         <span class="n">fla_start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
 
-        <span class="n">activations</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">locations</span><span class="p">,</span> <span class="n">uncertainty</span> <span class="o">=</span> <span class="n">fg</span><span class="o">.</span><span class="n">generate</span><span class="p">()</span>
+        <span class="n">activations</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">locations</span><span class="p">,</span> <span class="n">uncertainty</span> <span class="o">=</span> <span class="n">fg</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span>
+            <span class="n">progress</span><span class="o">=</span><span class="n">progress</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span>
+        <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">activations</span> <span class="o">=</span> <span class="p">{</span><span class="n">s</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">activations</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span> <span class="o">=</span> <span class="p">{</span><span class="n">s</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">predictions</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
@@ -616,11 +752,26 @@
                     <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">locations</span><span class="p">[</span><span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
                     <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">[</span><span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
             <span class="p">]</span>
-            <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">())</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">true_locs</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">track</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">get_tfrecord_locations</span><span class="p">,</span> <span class="n">slides_to_sort</span><span class="p">),</span>
-                                                <span class="n">transient</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                                                <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">slides_to_sort</span><span class="p">),</span>
-                                                <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Sorting...&quot;</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">pool_sort</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">slides_to_sort</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">())</span>
+                <span class="n">imap_iterable</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">get_tfrecord_locations</span><span class="p">,</span> <span class="n">slides_to_sort</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pool</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">imap_iterable</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">get_tfrecord_locations</span><span class="p">,</span> <span class="n">slides_to_sort</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+                <span class="n">iterable</span> <span class="o">=</span> <span class="n">track</span><span class="p">(</span>
+                    <span class="n">imap_iterable</span><span class="p">,</span>
+                    <span class="n">transient</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">slides_to_sort</span><span class="p">),</span>
+                    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Sorting...&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">iterable</span> <span class="o">=</span> <span class="n">imap_iterable</span>
+
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">true_locs</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">iterable</span><span class="p">):</span>
                 <span class="n">slide</span> <span class="o">=</span> <span class="n">slides_to_sort</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
                 <span class="c1"># Get the order of locations stored in TFRecords,</span>
                 <span class="c1"># and the corresponding indices for sorting</span>
@@ -640,7 +791,8 @@
                 <span class="k">if</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">[</span><span class="n">slide</span><span class="p">][</span><span class="n">sorted_idx</span><span class="p">]</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">locations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">locations</span><span class="p">[</span><span class="n">slide</span><span class="p">][</span><span class="n">sorted_idx</span><span class="p">]</span>
-            <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
         <span class="n">fla_calc_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Calculation time: </span><span class="si">{</span><span class="n">fla_calc_time</span><span class="o">-</span><span class="n">fla_start_time</span><span class="si">:</span><span class="s1">.0f</span><span class="si">}</span><span class="s1"> sec&#39;</span><span class="p">)</span>
@@ -725,6 +877,24 @@
             <span class="n">plt</span><span class="o">.</span><span class="n">gcf</span><span class="p">()</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">start_event_loop</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">float_info</span><span class="o">.</span><span class="n">min</span><span class="p">)</span>
             <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">boxplot_filename</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">dump_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a dictionary of the feature extraction configuration.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span><span class="p">:</span>
+            <span class="n">norm_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span><span class="o">.</span><span class="n">method</span><span class="p">,</span>
+                <span class="n">fit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span><span class="o">.</span><span class="n">get_fit</span><span class="p">(</span><span class="n">as_list</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">norm_dict</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">extractor</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">feature_generator</span><span class="o">.</span><span class="n">generator</span><span class="o">.</span><span class="n">dump_config</span><span class="p">(),</span>
+            <span class="n">normalizer</span><span class="o">=</span><span class="n">norm_dict</span><span class="p">,</span>
+            <span class="n">num_features</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_features</span><span class="p">,</span>
+            <span class="n">tile_px</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
+            <span class="n">tile_um</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tile_um</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">config</span>
+
     <span class="k">def</span> <span class="nf">export_to_torch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Deprecated function; please use `.to_torch()`&quot;&quot;&quot;</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
@@ -783,7 +953,7 @@
             <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">slides</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">level</span> <span class="o">==</span> <span class="s1">&#39;tile&#39;</span><span class="p">:</span>
                     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tile_act</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">slide</span><span class="p">]):</span>
-                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="o">!=</span> <span class="p">[]:</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="o">!=</span> <span class="p">[]:</span>
                             <span class="n">csvwriter</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span>
                                 <span class="p">[</span><span class="n">slide</span><span class="p">]</span>
                                 <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[</span><span class="n">slide</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
@@ -796,7 +966,7 @@
                         <span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">slide</span><span class="p">],</span>
                         <span class="n">axis</span><span class="o">=</span><span class="mi">0</span>
                     <span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="o">!=</span> <span class="p">[]:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="o">!=</span> <span class="p">[]:</span>
                         <span class="n">logit</span> <span class="o">=</span> <span class="n">meth_fn</span><span class="p">[</span><span class="n">method</span><span class="p">](</span>
                             <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[</span><span class="n">slide</span><span class="p">],</span>
                             <span class="n">axis</span><span class="o">=</span><span class="mi">0</span>
@@ -809,7 +979,8 @@
     <span class="k">def</span> <span class="nf">to_torch</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">slides</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">slides</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Export activations in torch format to .pt files in the directory.</span>
 
@@ -817,13 +988,15 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            outdir (str): Path to directory in which to save .pt files.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">            verbose (bool): Verbose logging output. Defaults to True.</span>
 
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">import</span> <span class="nn">torch</span>
+
         <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
         <span class="n">slides</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">slides</span> <span class="k">else</span> <span class="n">slides</span>
-        <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">slides</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="p">(</span><span class="n">slides</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">track</span><span class="p">(</span><span class="n">slides</span><span class="p">)):</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="o">==</span> <span class="p">[]:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Skipping empty slide [green]</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
                 <span class="k">continue</span>
@@ -831,13 +1004,26 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
             <span class="p">)</span>
             <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">slide_activations</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">.pt&#39;</span><span class="p">))</span>
-            <span class="n">np</span><span class="o">.</span><span class="n">savez</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">.index&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">locations</span><span class="p">[</span><span class="n">slide</span><span class="p">])</span>
-        <span class="n">args</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&lt;NA&gt;&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;num_features&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_features</span>
-        <span class="p">}</span>
-        <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;settings.json&#39;</span><span class="p">))</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Activations exported in Torch format to </span><span class="si">{</span><span class="n">outdir</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">save_index</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">locations</span><span class="p">[</span><span class="n">slide</span><span class="p">],</span>
+                <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">.index&#39;</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Log the feature extraction configuration</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dump_config</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;bags_config.json&#39;</span><span class="p">)):</span>
+            <span class="n">old_config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;bags_config.json&#39;</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">old_config</span> <span class="o">!=</span> <span class="n">config</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Feature extraction configuration does not match the &quot;</span>
+                    <span class="s2">&quot;configuration used to generate the existing bags at &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">outdir</span><span class="si">}</span><span class="s2">. Current configuration will not be saved.&quot;</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;bags_config.json&#39;</span><span class="p">))</span>
+
+        <span class="n">log_fn</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span>
+        <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Activations exported in Torch format to </span><span class="si">{</span><span class="n">outdir</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">to_df</span><span class="p">(</span>
         <span class="bp">self</span>
@@ -1215,19 +1401,21 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">slides</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 
     <span class="k">def</span> <span class="nf">remove_slide</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Removes slide from internally cached activations.&quot;&quot;&quot;</span>
-        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
-        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
-        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
-        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">locations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Removes slide from calculated features.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">locations</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">locations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
             <span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span>
             <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">!=</span> <span class="n">slide</span>
         <span class="p">])</span>
-        <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">slides</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-            <span class="k">pass</span>
 
     <span class="k">def</span> <span class="nf">save_example_tiles</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1329,13 +1517,60 @@
         <span class="n">include_preds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">include_uncertainty</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initializes FeatureGenerator.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model (str, BaseFeatureExtractor, tf.keras.models.Model, torch.nn.Module):</span>
+<span class="sd">                Model to use for feature extraction. If str, must be a path to</span>
+<span class="sd">                a saved model.</span>
+<span class="sd">            dataset (sf.Dataset): Dataset to use for feature extraction.</span>
+
+<span class="sd">        Keyword Args:</span>
+<span class="sd">            augment (bool, str, optional): Whether to use data augmentation</span>
+<span class="sd">                during feature extraction. If True, will use default</span>
+<span class="sd">                augmentation. If str, will use augmentation specified by the</span>
+<span class="sd">                string. Defaults to None.</span>
+<span class="sd">            batch_size (int, optional): Batch size to use for feature</span>
+<span class="sd">                extraction. Defaults to 32.</span>
+<span class="sd">            device (str, optional): Device to use for feature extraction.</span>
+<span class="sd">                Only used for PyTorch feature extractors. Defaults to None.</span>
+<span class="sd">            include_preds (bool, optional): Whether to include model</span>
+<span class="sd">                predictions. If None, will be set to True if</span>
+<span class="sd">                model has a num_classes attribute. Defaults to None.</span>
+<span class="sd">            include_uncertainty (bool, optional): Whether to include model</span>
+<span class="sd">                uncertainty in the output. Only used if the feature generator</span>
+<span class="sd">                is a UQ-enabled model. Defaults to True.</span>
+<span class="sd">            layers (str, list(str)): Layers to extract features from. May be</span>
+<span class="sd">                the name of a single layer (str) or a list of layers (list).</span>
+<span class="sd">                Only used if model is a str. Defaults to &#39;postconv&#39;.</span>
+<span class="sd">            normalizer ((str or `slideflow.norm.StainNormalizer`), optional):</span>
+<span class="sd">                Stain normalization strategy to use on image tiles prior to</span>
+<span class="sd">                feature extraction. This argument is invalid if ``model`` is a</span>
+<span class="sd">                feature extractor built from a trained model, as stain</span>
+<span class="sd">                normalization will be specified by the model configuration.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            normalizer_source (str, optional): Stain normalization preset</span>
+<span class="sd">                or path to a source image. Valid presets include &#39;v1&#39;, &#39;v2&#39;,</span>
+<span class="sd">                and &#39;v3&#39;. If None, will use the default present (&#39;v3&#39;).</span>
+<span class="sd">                This argument is invalid if ``model`` is a feature extractor</span>
+<span class="sd">                built from a trained model. Defaults to None.</span>
+<span class="sd">            num_workers (int, optional): Number of workers to use for feature</span>
+<span class="sd">                extraction. Only used for PyTorch feature extractors. Defaults</span>
+<span class="sd">                to None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">as_list</span><span class="p">(</span><span class="n">layers</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">simclr_args</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">=</span> <span class="n">num_workers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">augment</span> <span class="o">=</span> <span class="n">augment</span>
 
         <span class="c1"># Check if location information is stored in TFRecords</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords_have_loc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tfrecords_have_locations</span><span class="p">()</span>
@@ -1352,10 +1587,19 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">include_preds</span> <span class="o">=</span> <span class="n">include_preds</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">include_uncertainty</span> <span class="o">=</span> <span class="n">include_uncertainty</span>
 
+        <span class="c1"># Determine UQ and stain normalization.</span>
+        <span class="c1"># If the `model` is a feature extractor, stain normalization</span>
+        <span class="c1"># will be determined via keyword arguments by self._prepare_generator()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_determine_uq_and_normalizer</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">generator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_generator</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">num_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generator</span><span class="o">.</span><span class="n">num_features</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">include_preds</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">generator</span><span class="o">.</span><span class="n">num_classes</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_torch</span><span class="p">():</span>
+            <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">torch_utils</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">torch_utils</span><span class="o">.</span><span class="n">get_device</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_dataset_kwargs</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_calculate_feature_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch_img</span><span class="p">):</span>
@@ -1365,15 +1609,13 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_torch</span><span class="p">():</span>
             <span class="kn">import</span> <span class="nn">torch</span>
             <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
-                <span class="n">batch_img</span> <span class="o">=</span> <span class="n">batch_img</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;cuda&#39;</span><span class="p">)</span>
+                <span class="n">batch_img</span> <span class="o">=</span> <span class="n">batch_img</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_torch_gpu_normalizer</span><span class="p">():</span>
                     <span class="n">batch_img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span>
                         <span class="n">batch_img</span><span class="p">,</span>
                         <span class="n">standardize</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">standardize</span>
                     <span class="p">)</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">generator</span><span class="p">(</span><span class="n">batch_img</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_simclr</span><span class="p">():</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">generator</span><span class="p">(</span><span class="n">batch_img</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">generator</span><span class="p">(</span><span class="n">batch_img</span><span class="p">)</span>
 
@@ -1381,7 +1623,7 @@
         <span class="n">model_out</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">as_list</span><span class="p">(</span><span class="n">model_out</span><span class="p">)</span>
 
         <span class="c1"># Process data if the output is Tensorflow (SimCLR or Tensorflow model)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_simclr</span><span class="p">()</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_tf</span><span class="p">():</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_tf</span><span class="p">():</span>
             <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">bs</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
                 <span class="k">for</span> <span class="n">bs</span> <span class="ow">in</span> <span class="n">batch_slides</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
@@ -1410,9 +1652,8 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">loc</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="c1"># Final processing</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_simclr</span><span class="p">():</span>
-            <span class="n">model_out</span> <span class="o">=</span> <span class="n">model_out</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># Final processing.</span>
+        <span class="c1"># Order of return is features, predictions, uncertainty.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uq</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_uncertainty</span><span class="p">:</span>
             <span class="n">uncertainty</span> <span class="o">=</span> <span class="n">model_out</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
             <span class="n">model_out</span> <span class="o">=</span> <span class="n">model_out</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
@@ -1425,9 +1666,9 @@
             <span class="n">predictions</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">features</span> <span class="o">=</span> <span class="n">model_out</span>
 
-        <span class="c1"># Concatenate features if we have features from &gt;`` layer</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
-            <span class="n">features</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+        <span class="c1"># Concatenate features if we have features from &gt;1 layer</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">features</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">uncertainty</span><span class="p">,</span> <span class="n">slides</span><span class="p">,</span> <span class="n">loc</span>
 
@@ -1437,7 +1678,7 @@
         <span class="n">dts_kw</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;infinite&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
             <span class="s1">&#39;batch_size&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
-            <span class="s1">&#39;augment&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s1">&#39;augment&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment</span><span class="p">,</span>
             <span class="s1">&#39;incl_slidenames&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
             <span class="s1">&#39;incl_loc&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
         <span class="p">}</span>
@@ -1460,16 +1701,19 @@
             <span class="c1"># Otherwise, let the dataset handle normalization/standardization.</span>
             <span class="n">dts_kw</span><span class="p">[</span><span class="s1">&#39;normalizer&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span>
 
+        <span class="c1"># This is not used by SimCLR feature extractors.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dts_kw</span> <span class="o">=</span> <span class="n">dts_kw</span>
 
     <span class="k">def</span> <span class="nf">_determine_uq_and_normalizer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Determines whether the model uses UQ and its stain normalizer.&quot;&quot;&quot;</span>
+
         <span class="c1"># Load configuration if model is path to a saved model</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">BaseFeatureExtractor</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">uq</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">num_uncertainty</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="c1"># If the feature extractor has a normalizer, use it.</span>
+            <span class="c1"># This will be overridden by keyword arguments if the</span>
+            <span class="c1"># feature extractor is not an instance of slideflow.model.Features.</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">normalizer</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_simclr_model_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">uq</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">model_config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
             <span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">model_config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">])</span>
@@ -1483,41 +1727,84 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">uq</span> <span class="o">=</span> <span class="kc">False</span>
 
+    <span class="k">def</span> <span class="nf">_norm_from_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the stain normalizer from keyword arguments.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;normalizer&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="ow">and</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;normalizer&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;normalizer&#39;</span><span class="p">]</span>
+            <span class="k">del</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;normalizer&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s1">&#39;normalizer_source&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="n">norm_src</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;normalizer_source&#39;</span><span class="p">]</span>
+                <span class="k">del</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;normalizer_source&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">norm_src</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">norm</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">normalizer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">autoselect</span><span class="p">(</span>
+                    <span class="n">norm</span><span class="p">,</span>
+                    <span class="n">source</span><span class="o">=</span><span class="n">norm_src</span><span class="p">,</span>
+                    <span class="n">backend</span><span class="o">=</span><span class="s1">&#39;tensorflow&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_tf</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;torch&#39;</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">normalizer</span> <span class="o">=</span> <span class="n">norm</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Normalizing with </span><span class="si">{</span><span class="n">normalizer</span><span class="o">.</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">normalizer</span><span class="p">,</span> <span class="n">kwargs</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;normalizer_source&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;normalizer_source&#39;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">kwargs</span>
+
     <span class="k">def</span> <span class="nf">_prepare_generator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Prepare the feature generator.&quot;&quot;&quot;</span>
 
         <span class="c1"># Generator is a Feature Extractor</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_extractor</span><span class="p">():</span>
+
+            <span class="c1"># Handle the case where the extractor is built from a trained model</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_tf</span><span class="p">():</span>
+                <span class="kn">from</span> <span class="nn">slideflow.model.tensorflow</span> <span class="kn">import</span> <span class="n">Features</span> <span class="k">as</span> <span class="n">TFFeatures</span>
+                <span class="n">is_tf_model_extractor</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">TFFeatures</span><span class="p">)</span>
+                <span class="n">is_torch_model_extractor</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_torch</span><span class="p">():</span>
+                <span class="kn">from</span> <span class="nn">slideflow.model.torch</span> <span class="kn">import</span> <span class="n">Features</span> <span class="k">as</span> <span class="n">TorchFeatures</span>
+                <span class="n">is_torch_model_extractor</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">TorchFeatures</span><span class="p">)</span>
+                <span class="n">is_tf_model_extractor</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">is_tf_model_extractor</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">is_torch_model_extractor</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">is_tf_model_extractor</span> <span class="ow">or</span> <span class="n">is_torch_model_extractor</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;normalizer&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Cannot specify a normalizer when using a feature extractor &quot;</span>
+                    <span class="s2">&quot;created from a trained model. Stain normalization is auto-detected &quot;</span>
+                    <span class="s2">&quot;from the model configuration.&quot;</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="n">is_tf_model_extractor</span> <span class="ow">or</span> <span class="n">is_torch_model_extractor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Invalid keyword arguments: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="n">is_tf_model_extractor</span> <span class="ow">or</span> <span class="n">is_torch_model_extractor</span><span class="p">):</span>
+                <span class="c1"># Stain normalization has already been determined</span>
+                <span class="c1"># from the model configuration.</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
+
+            <span class="c1"># For all other feature extractors, stain normalization</span>
+            <span class="c1"># is determined from keyword arguments.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm_from_kwargs</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Invalid keyword arguments: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
 
-        <span class="c1"># Generator is a model, and we&#39;re using UQ</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">uq</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_uncertainty</span><span class="p">:</span>
+        <span class="c1"># Generator is a path to a trained model, and we&#39;re using UQ</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_model_path</span><span class="p">()</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uq</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_uncertainty</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_preds</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;include_preds must be True if include_uncertainty is True&quot;</span>
+                <span class="p">)</span>
             <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">UncertaintyInterface</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
                 <span class="n">layers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">,</span>
                 <span class="o">**</span><span class="n">kwargs</span>
             <span class="p">)</span>
-
-        <span class="c1"># Generator is a SimCLR path</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_simclr</span><span class="p">():</span>
-            <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">simclr</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">simclr_args</span> <span class="o">=</span> <span class="n">simclr</span><span class="o">.</span><span class="n">load_model_args</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
-            <span class="n">generator</span> <span class="o">=</span> <span class="n">simclr</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
-            <span class="n">generator</span><span class="o">.</span><span class="n">num_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">proj_out_dim</span>
-            <span class="n">generator</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">simclr_args</span><span class="o">.</span><span class="n">num_classes</span>
-            <span class="k">if</span> <span class="s1">&#39;normalizer&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;normalizer&#39;</span><span class="p">]</span>
-                <span class="k">del</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;normalizer&#39;</span><span class="p">]</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Normalizing with </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span><span class="o">.</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Invalid keyword arguments: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="p">)</span>
-            <span class="k">return</span> <span class="n">generator</span>
 
         <span class="c1"># Generator is a path to a trained Slideflow model</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_model_path</span><span class="p">():</span>
@@ -1540,25 +1827,22 @@
         <span class="c1"># Generator is a loaded torch.nn.Module</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_torch</span><span class="p">():</span>
             <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Features</span><span class="o">.</span><span class="n">from_model</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;cuda&#39;</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">),</span>
                 <span class="n">tile_px</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
                 <span class="n">layers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">,</span>
                 <span class="n">include_preds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">include_preds</span><span class="p">,</span>
                 <span class="o">**</span><span class="n">kwargs</span>
             <span class="p">)</span>
 
-        <span class="c1"># Unrecognized feature generator</span>
+        <span class="c1"># Unrecognized feature extractor</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unrecognized model </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unrecognized feature extractor </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">is_model_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">is_tf</span><span class="p">()</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_torch</span><span class="p">())</span>
 
     <span class="k">def</span> <span class="nf">is_extractor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">BaseFeatureExtractor</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">is_simclr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_simclr_model_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">is_torch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_extractor</span><span class="p">():</span>
@@ -1582,40 +1866,31 @@
     <span class="k">def</span> <span class="nf">build_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a dataloader.&quot;&quot;&quot;</span>
 
-        <span class="c1"># Generator is a SimCLR model.</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_simclr</span><span class="p">():</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting up Tensorflow/SimCLR dataset iterator&quot;</span><span class="p">)</span>
-            <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">simclr</span>
-            <span class="n">builder</span> <span class="o">=</span> <span class="n">simclr</span><span class="o">.</span><span class="n">DatasetBuilder</span><span class="p">(</span>
-                <span class="n">val_dts</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span>
-                <span class="n">dataset_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
-                    <span class="n">incl_slidenames</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                    <span class="n">incl_loc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                    <span class="n">normalizer</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span>
-                <span class="p">)</span>
-            <span class="p">)</span>
-            <span class="k">return</span> <span class="n">builder</span><span class="o">.</span><span class="n">build_dataset</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
-                <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">simclr_args</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">simclr_args</span>
-            <span class="p">)</span>
-
         <span class="c1"># Generator is a Tensorflow model.</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_tf</span><span class="p">():</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_tf</span><span class="p">():</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
                 <span class="s2">&quot;Setting up Tensorflow dataset iterator (num_parallel_reads=&quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;None, deterministic=</span><span class="si">{</span><span class="ow">not</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords_have_loc</span><span class="si">}</span><span class="s2">)&quot;</span>
             <span class="p">)</span>
+            <span class="c1"># Disable parallel reads if we&#39;re using tfrecords without location</span>
+            <span class="c1"># information, as we would need to read and receive data in order.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords_have_loc</span><span class="p">:</span>
+                <span class="n">par_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">num_parallel_reads</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">par_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span>
                 <span class="kc">None</span><span class="p">,</span>
-                <span class="n">num_parallel_reads</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                 <span class="n">deterministic</span><span class="o">=</span><span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords_have_loc</span><span class="p">),</span>
+                <span class="o">**</span><span class="n">par_kw</span><span class="p">,</span>
                 <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">dts_kw</span>  <span class="c1"># type: ignore</span>
             <span class="p">)</span>
 
         <span class="c1"># Generator is a PyTorch model.</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_torch</span><span class="p">():</span>
-            <span class="n">n_workers</span> <span class="o">=</span> <span class="p">(</span><span class="mi">4</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords_have_loc</span> <span class="k">else</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">n_workers</span> <span class="o">=</span> <span class="p">(</span><span class="mi">4</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords_have_loc</span> <span class="k">else</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">n_workers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
                 <span class="s2">&quot;Setting up PyTorch dataset iterator (num_workers=&quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n_workers</span><span class="si">}</span><span class="s2">, chunk_size=8)&quot;</span>
@@ -1631,15 +1906,16 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized model type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">generate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">generate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
 
         <span class="c1"># Get the dataloader for iterating through tfrecords</span>
         <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_dataset</span><span class="p">()</span>
 
         <span class="c1"># Rename tfrecord_array to tfrecords</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Calculating activations for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">())</span><span class="si">}</span><span class="s1"> &#39;</span>
-                 <span class="sa">f</span><span class="s1">&#39;tfrecords (layers=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generating from [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">log_fn</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span>
+        <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Calculating activations for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">())</span><span class="si">}</span><span class="s1"> &#39;</span>
+               <span class="s1">&#39;tfrecords&#39;</span><span class="p">)</span>
+        <span class="n">log_fn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generating from [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
         <span class="c1"># Interleave tfrecord datasets</span>
         <span class="n">estimated_tiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">num_tiles</span>
@@ -1664,7 +1940,7 @@
                 <span class="k">for</span> <span class="n">d</span><span class="p">,</span> <span class="n">slide</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">slides</span><span class="p">):</span>
                     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
                         <span class="n">activations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="n">d</span><span class="p">])</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_preds</span> <span class="ow">and</span> <span class="n">predictions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_preds</span> <span class="ow">and</span> <span class="n">preds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                         <span class="n">predictions</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">preds</span><span class="p">[</span><span class="n">d</span><span class="p">])</span>
                     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uq</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_uncertainty</span><span class="p">:</span>
                         <span class="n">uncertainty</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">unc</span><span class="p">[</span><span class="n">d</span><span class="p">])</span>
@@ -1674,18 +1950,24 @@
         <span class="n">batch_proc_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">batch_worker</span><span class="p">,</span> <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">batch_proc_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 
-        <span class="n">pb</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">(</span><span class="o">*</span><span class="n">Progress</span><span class="o">.</span><span class="n">get_default_columns</span><span class="p">(),</span>
-                      <span class="n">ImgBatchSpeedColumn</span><span class="p">(),</span>
-                      <span class="n">transient</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span><span class="o">&gt;</span><span class="mi">20</span><span class="p">)</span>
-        <span class="n">task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s2">&quot;Generating...&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">estimated_tiles</span><span class="p">)</span>
-        <span class="n">pb</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+            <span class="n">pb</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">(</span><span class="o">*</span><span class="n">Progress</span><span class="o">.</span><span class="n">get_default_columns</span><span class="p">(),</span>
+                        <span class="n">ImgBatchSpeedColumn</span><span class="p">(),</span>
+                        <span class="n">transient</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span><span class="o">&gt;</span><span class="mi">20</span><span class="p">)</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s2">&quot;Generating...&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">estimated_tiles</span><span class="p">)</span>
+            <span class="n">pb</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pb</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">with</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">cleanup_progress</span><span class="p">(</span><span class="n">pb</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">batch_img</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">batch_slides</span><span class="p">,</span> <span class="n">batch_loc_x</span><span class="p">,</span> <span class="n">batch_loc_y</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">:</span>
                 <span class="n">model_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_feature_batch</span><span class="p">(</span><span class="n">batch_img</span><span class="p">)</span>
                 <span class="n">q</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">model_output</span><span class="p">,</span> <span class="n">batch_slides</span><span class="p">,</span> <span class="p">(</span><span class="n">batch_loc_x</span><span class="p">,</span> <span class="n">batch_loc_y</span><span class="p">)))</span>
-                <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+                    <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
         <span class="n">q</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
         <span class="n">batch_proc_thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="s1">&#39;close&#39;</span><span class="p">):</span>
+            <span class="n">dataset</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
         <span class="k">return</span> <span class="n">activations</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">locations</span><span class="p">,</span> <span class="n">uncertainty</span>
 </pre></div>
@@ -1704,7 +1986,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1778,7 +2060,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

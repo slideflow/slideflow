@@ -125,6 +125,15 @@ Preview slide normalization
 
 Stain normalization strategies can be quickly previewed by checking "Normalize", which will apply the associated normalization strategy to the main view. If a model is loaded, the model's normalizer will be used by default. The normalizer can be changed with the corresponding dropdown menu, allowing you to preview any normalization method. All normalizer methods shown except for the model normalizer will use the "v3" fit (see :py:mod:`slideflow.norm` for more information).
 
+Preview tile extraction
+-----------------------
+
+.. image:: https://github-production-user-asset-6210df.s3.amazonaws.com/48372806/257349240-a4911b16-9b5a-4289-9d46-41c95f31acda.png
+
+|
+
+The "Display" subsection of the slide widget allows users to preview tile extraction, displaying outlines around tiles. Model predictions generated from the slide will only utilize the shown tiles.
+
 Models & predictions
 ********************
 
@@ -252,3 +261,16 @@ Alternatively, a mosaic map can be saved to disk with :meth:`slideflow.Mosaic.ex
 Once loaded,the mosaic map can be navigated using the same controls as WSI navigation - click and drag to pan, and use the mouse wheel to zoom. The UMAP used to generate the mosaic map will be shown in a window in the bottom-right corner, with a red box indicating the section of the UMAP currently in view. If a Project is loaded, hovering over an image tile will reveal a popup containing a larger corresponding section from the associated whole-slide image. This popup also contains the name of the slide and tile location coordinates.
 
 Use the control panel to increase or decrease the mosaic grid size, or to change the background color.
+
+Multiple-Instance Learning
+--------------------------
+
+Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see :ref:`clam_mil` for more information.
+
+Start by navigating to the Extensions tab in the bottom-left corner, and enable the "Multiple-instance Learning" extension. A new icon will appear in the left-hand toolbar, which can be used to open the MIL widget. Models are loaded by either clicking the "Load MIL model" button, selecting "File -> Load MIL Model...", or by dragging-and-dropping an MIL model folder onto the window.
+
+Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the "HP" button. Click "Predict Slide" to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.
+
+.. image:: https://github-production-user-asset-6210df.s3.amazonaws.com/48372806/257356236-d5a838df-a654-4538-bd94-1aa6a63de32d.png
+
+|

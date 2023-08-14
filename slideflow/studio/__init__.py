@@ -325,7 +325,7 @@ class Studio(ImguiWindow):
         """Show a dialog that prompts the user to specify microns-per-pixel."""
         if not self._show_mpp_zoom_popup:
             return
-        
+
         window_size = (self.font_size * 18, self.font_size * 7)
         self.center_next_window(*window_size)
         imgui.set_next_window_size(*window_size)
@@ -737,7 +737,7 @@ class Studio(ImguiWindow):
         stride: Optional[int] = None,
         use_rois: bool = True,
         **kwargs
-    ) -> None:
+    ) -> bool:
         """Reload the currently loaded Whole-Slide Image.
 
         Args:
@@ -747,6 +747,10 @@ class Studio(ImguiWindow):
                 provided, will use the stride value from the currently loaded
                 slide.
             use_rois (bool): Use ROIs from the loaded project, if available.
+
+        Returns:
+            bool: True if slide loaded successfully, False otherwise.
+
         """
         if self.wsi is None and path is None:
             return
@@ -762,24 +766,35 @@ class Studio(ImguiWindow):
             rois = None
         if sf.slide_backend() == 'cucim':
             kwargs['num_workers'] = sf.util.num_cpu(default=4)
-        self.wsi = sf.WSI(
-            path,
-            tile_px=(self.tile_px if self.tile_px else 256),
-            tile_um=(self.tile_um if self.tile_um else 512),
-            stride_div=stride,
-            rois=rois,
-            cache_kw=dict(
-                tile_width=512,
-                tile_height=512,
-                max_tiles=-1,
-                threaded=True,
-                persistent=True
-            ),
-            verbose=False,
-            mpp=self.slide_widget.manual_mpp,
-            **kwargs)
-        self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
-        self.set_title(os.path.basename(self.wsi.path))
+        try:
+            self.wsi = sf.WSI(
+                path,
+                tile_px=(self.tile_px if self.tile_px else 256),
+                tile_um=(self.tile_um if self.tile_um else 512),
+                stride_div=stride,
+                rois=rois,
+                cache_kw=dict(
+                    tile_width=512,
+                    tile_height=512,
+                    max_tiles=-1,
+                    threaded=True,
+                    persistent=True
+                ),
+                verbose=False,
+                mpp=self.slide_widget.manual_mpp,
+                use_bounds=self.settings_widget.use_bounds,
+                **kwargs)
+        except sf.errors.IncompatibleBackendError:
+            self.create_toast(
+                title="Incompatbile slide",
+                message='Slide type "{}" is incompatible with the {} backend.'.format(sf.util.path_to_ext(path), sf.slide_backend()),
+                icon='error'
+            )
+            return False
+        else:
+            self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
+            self.set_title(os.path.basename(self.wsi.path))
+            return True
 
     def _render_prediction_message(self, message: str) -> None:
         """Render a prediction string to below the tile bounding box.
@@ -866,6 +881,28 @@ class Studio(ImguiWindow):
         imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.dim)
         yield
         imgui.pop_style_color(1)
+
+    @contextmanager
+    def highlighted(self, enable: bool = True):
+        """Render highlighted text.
+
+        Args:
+            enable (bool): Whether to enable highlighting.
+
+        Examples
+            Render highlighted text.
+
+                .. code-block:: python
+
+                    with studio.highlighted(True):
+                        imgui.text('This is highlighted')
+
+        """
+        if enable:
+            imgui.push_style_color(imgui.COLOR_BUTTON, *self.theme.button_active)
+        yield
+        if enable:
+            imgui.pop_style_color(1)
 
     def collapsing_header(self, text, **kwargs):
         """Render a collapsing header using the active theme.
@@ -1258,10 +1295,6 @@ class Studio(ImguiWindow):
         # Render control pane contents.
         self._render_control_pane_contents()
 
-        # Render user widgets.
-        for widget in self.widgets:
-            if hasattr(widget, 'render'):
-                widget.render()
 
         if self.is_skipping_frames():
             pass
@@ -1304,6 +1337,14 @@ class Studio(ImguiWindow):
             _msg = self.message if 'message' not in self.result else self.result['message']
             tex = text_utils.get_texture(_msg, size=self.gl_font_size, max_width=max_w, max_height=max_h, outline=2)
             tex.draw(pos=middle_pos, align=0.5, rint=True, color=1)
+
+        # Render user widgets.
+        for widget in self.widgets:
+            if hasattr(widget, 'render'):
+                widget.render()
+
+        # Render slide widget tile boxes (for tile extraction preview)
+        self.slide_widget.early_render()
 
         # Render the tile view and status bar.
         self._draw_tile_view()
@@ -1468,7 +1509,7 @@ class Studio(ImguiWindow):
             self.model_widget.use_model = True
             self.model_widget.use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
             if normalizer is not None and hasattr(self, 'slide_widget'):
-                self.slide_widget.show_model_normalizer()
+                self.slide_widget.add_model_normalizer_option()
                 self.slide_widget.norm_idx = len(self.slide_widget._normalizer_methods)-1
             if self.wsi:
                 log.debug(f"Loading slide... tile_px={self.tile_px}, tile_um={self.tile_um}")
@@ -1490,6 +1531,11 @@ class Studio(ImguiWindow):
             if self.viewer and not isinstance(self.viewer, SlideViewer):
                 self.viewer.set_tile_px(self.tile_px)
                 self.viewer.set_tile_um(self.tile_um)
+
+            # Trigger user widgets
+            for widget in self.widgets:
+                if hasattr(widget, '_on_model_load'):
+                    widget._on_model_load()
 
             self.create_toast(f"Loaded model at {model}", icon="success")
 
@@ -1527,6 +1573,11 @@ class Studio(ImguiWindow):
                 Defaults to False.
         """
         self.slide_widget.load(slide, **kwargs)
+
+        # Trigger user widgets
+        for widget in self.widgets:
+            if hasattr(widget, '_on_slide_load'):
+                widget._on_slide_load()
 
     def print_error(self, error: str) -> None:
         """Print the given error message."""

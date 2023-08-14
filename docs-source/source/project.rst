@@ -50,7 +50,7 @@ Methods
 
 .. autofunction:: slideflow.Project.generate_features
 
-.. autofunction:: slideflow.Project.generate_features_for_clam
+.. autofunction:: slideflow.Project.generate_feature_bags
 
 .. autofunction:: slideflow.Project.generate_heatmaps
 

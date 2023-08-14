@@ -14,6 +14,7 @@ Main functions
 .. autofunction:: train_fastai
 .. autofunction:: build_fastai_learner
 .. autofunction:: eval_mil
+.. autofunction:: predict_slide
 
 TrainerConfigFastAI
 *******************

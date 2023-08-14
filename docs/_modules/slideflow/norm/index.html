@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.norm &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.norm &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -468,7 +468,7 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">Dataset</span><span class="p">):</span>
             <span class="c1"># Set up thread pool</span>
             <span class="k">if</span> <span class="n">num_threads</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
-                <span class="n">num_threads</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>  <span class="c1"># type: ignore</span>
+                <span class="n">num_threads</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setting up pool (size=</span><span class="si">{</span><span class="n">num_threads</span><span class="si">}</span><span class="s2">) for norm fitting&quot;</span><span class="p">)</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using normalizer batch size of </span><span class="si">{</span><span class="n">batch_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">num_threads</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
@@ -907,7 +907,7 @@
 <span class="sd">        When calculating max concentrations from the image context,</span>
 <span class="sd">        white pixels (255) will be masked.</span>
 
-<span class="sd">         If a slide (``sf.WSI``) is used for context, any existing QC filters</span>
+<span class="sd">        If a slide (``sf.WSI``) is used for context, any existing QC filters</span>
 <span class="sd">        and regions of interest will be used to mask out background as white</span>
 <span class="sd">        pixels, and the masked thumbnail will be used for creating the</span>
 <span class="sd">        normalizer context. If no QC has been applied to the slide and the</span>
@@ -959,8 +959,9 @@
 <span class="sd">        method (str): Normalization method. Options include &#39;macenko&#39;,</span>
 <span class="sd">            &#39;reinhard&#39;, &#39;reinhard_fast&#39;, &#39;reinhard_mask&#39;, &#39;reinhard_fast_mask&#39;,</span>
 <span class="sd">            &#39;vahadane&#39;, &#39;vahadane_spams&#39;, &#39;vahadane_sklearn&#39;, and &#39;augment&#39;.</span>
-<span class="sd">        source (str, optional): Path to a source image. If provided, will</span>
-<span class="sd">            fit the normalizer to this image. Defaults to None.</span>
+<span class="sd">        source (str, optional): Stain normalization preset or path to a source</span>
+<span class="sd">            image. Valid presets include &#39;v1&#39;, &#39;v2&#39;, and &#39;v3&#39;. If None, will</span>
+<span class="sd">            use the default present (&#39;v3&#39;). Defaults to None.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        StainNormalizer:    Initialized StainNormalizer.</span>
@@ -1001,7 +1002,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1075,7 +1076,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

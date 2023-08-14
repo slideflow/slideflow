@@ -2,104 +2,135 @@
 
 import slideflow as sf
 import importlib
+import numpy as np
 
-from os.path import exists, join
-from typing import Optional, Tuple, TYPE_CHECKING
+from os.path import exists, join, isdir
+from typing import Optional, Tuple, Union, TYPE_CHECKING
+from slideflow import errors, log
+from ._params import (
+    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
+)
 
 if TYPE_CHECKING:
+    import torch
     from slideflow.model.base import BaseFeatureExtractor
     from slideflow.norm import StainNormalizer
 
 # -----------------------------------------------------------------------------
 
-def build_bag_encoder(
-    bags_or_model: str,
-    allow_errors: bool = False
-) -> Tuple[Optional["BaseFeatureExtractor"], Optional["StainNormalizer"]]:
-    """Recreate the encoder used to generate features stored in bags.
+def load_model_weights(
+    weights: str,
+    config: Optional[_TrainerConfig] = None,
+    *,
+    input_shape: Optional[int] = None,
+    output_shape: Optional[int] = None,
+) -> Tuple["torch.nn.Module", _TrainerConfig]:
+    """Load weights and build model.
 
     Args:
-        bags_or_model (str): Either a path to directory containing feature bags,
-            or a path to a trained MIL model. If a path to a trained MIL model,
-            the encoder used to generate features will be recreated.
-        allow_errors (bool): If True, return None if the encoder
-            cannot be rebuilt. If False, raise an error. Defaults to False.
+        weights (str): Path to model weights.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for building model. If ``weights`` is a path to a
+            model directory, will attempt to read ``mil_params.json`` from this
+            location and load saved configuration. Defaults to None.
+
+    Keyword Args:
+        input_shape (int): Number of features in the input data.
+        output_shape (int): Number of output classes.
 
     Returns:
-        Optional[BaseFeatureExtractor]: Encoder function, or None if ``allow_errors`` is
-            True and the encoder cannot be rebuilt.
-
-        Optional[StainNormalizer]: Stain normalizer used when generating
-            feature bags, or None if no stain normalization was used.
-
+        :class:`torch.nn.Module`: Loaded model.
     """
-    # Load bags configuration
-    is_bag_dir = exists(join(bags_or_model, 'bags_config.json'))
-    is_model_dir = exists(join(bags_or_model, 'mil_params.json'))
-    if not is_bag_dir and not is_model_dir:
-        if allow_errors:
-            return None, None
-        else:
-            raise ValueError(
-                'Could not find bags or MIL model configuration at '
-                f'{bags_or_model}.'
+    import torch
+
+    if isinstance(config, TrainerConfigCLAM):
+        raise NotImplementedError
+
+    if exists(join(weights, 'mil_params.json')):
+        mil_params = sf.util.load_json(join(weights, 'mil_params.json'))
+    else:
+        mil_params = None
+
+    # Read configuration from saved model, if available
+    if config is None:
+        if mil_params is None:
+            raise errors.ModelError(
+                f"Could not find `mil_params.json` at {weights}. Check the "
+                "provided model/weights path, or provide a configuration "
+                "with 'config'."
             )
-    if is_model_dir:
-        mil_config = sf.util.load_json(join(bags_or_model, 'mil_params.json'))
-        if 'bags_encoder' not in mil_config:
-            if allow_errors:
-                return None, None
-            else:
-                raise ValueError(
-                    'Could not rebuild extractor from configuration at '
-                    f'{bags_or_model}.'
+        else:
+            config = sf.mil.mil_config(trainer=mil_params['trainer'],
+                                       **mil_params['params'])
+
+    # Determine the input and output shapes, reading from the model
+    # configuration, if necessary.
+    if input_shape is None or output_shape is None:
+        if mil_params is None:
+            raise errors.ModelError(
+                f"Could not find `mil_params.json` at {weights}. Check the "
+                "provided model/weights path, or provide the input and output "
+                "shape via input_shape and output_shape."
+            )
+        else:
+            if input_shape is None and 'input_shape' in mil_params:
+                input_shape = mil_params['input_shape']
+            elif input_shape is None:
+                raise errors.ModelError(
+                    'Could not find input_shape in `mil_params.json`.'
                 )
-        bags_config = mil_config['bags_encoder']
+            if output_shape is None and 'output_shape' in mil_params:
+                output_shape = mil_params['output_shape']
+            elif output_shape is None:
+                raise errors.ModelError(
+                    'Could not find output_shape in `mil_params.json`.'
+                )
+
+    # Build the model
+    if isinstance(config, TrainerConfigCLAM):
+        config_size = config.model_fn.sizes[config.model_config.model_size]
+        _size = [input_shape] + config_size[1:]
+        model = config.model_fn(size=_size)
+        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
+    elif isinstance(config.model_config, ModelConfigCLAM):
+        config_size = config.model_fn.sizes[config.model_config.model_size]
+        _size = [input_shape] + config_size[1:]
+        model = config.model_fn(size=_size)
+        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
     else:
-        bags_config = sf.util.load_json(join(bags_or_model, 'bags_config.json'))
-    if ('extractor' not in bags_config
-       or any(n not in bags_config['extractor'] for n in ['class', 'kwargs'])):
-        if allow_errors:
-            return None, None
+        model = config.model_fn(input_shape, output_shape)
+        log.info(f"Building model {config.model_fn.__name__} "
+                 f"(in={input_shape}, out={output_shape})")
+    if isdir(weights):
+        if exists(join(weights, 'models', 'best_valid.pth')):
+            weights = join(weights, 'models', 'best_valid.pth')
+        elif exists(join(weights, 'results', 's_0_checkpoint.pt')):
+            weights = join(weights, 'results', 's_0_checkpoint.pt')
         else:
-            raise ValueError(
-                'Could not rebuild extractor from configuration at '
-                f'{bags_or_model}.'
+            raise errors.ModelError(
+                f"Could not find model weights at path {weights}"
             )
+    log.info(f"Loading model weights from [green]{weights}[/]")
+    model.load_state_dict(torch.load(weights))
 
-    # Rebuild encoder
-    encoder_name = bags_config['extractor']['class'].split('.')
-    encoder_class = encoder_name[-1]
-    encoder_kwargs = bags_config['extractor']['kwargs']
-    module = importlib.import_module('.'.join(encoder_name[:-1]))
-    try:
-        encoder = getattr(module, encoder_class)(**encoder_kwargs)
-    except Exception:
-        if allow_errors:
-            return None
-        else:
-            raise ValueError(
-                f'Could not rebuild extractor from configuration at {bags}.'
-            )
+    # Prepare device.
+    if hasattr(model, 'relocate'):
+        model.relocate()  # type: ignore
+    model.eval()
+    return model, config
 
-    # Rebuild stain normalizer
-    if bags_config['normalizer'] is not None:
-        normalizer = sf.norm.autoselect(
-            bags_config['normalizer']['method'],
-            backend=encoder.backend
-        )
-        normalizer.set_fit(**bags_config['normalizer']['fit'])
+
+def _load_bag(bag: Union[str, np.ndarray, "torch.Tensor"]) -> "torch.Tensor":
+    """Load bag from file or convert to torch.Tensor."""
+    import torch
+
+    if isinstance(bag, str):
+        return torch.load(bag)
+    elif isinstance(bag, np.ndarray):
+        return torch.from_numpy(bag)
+    elif isinstance(bag, torch.Tensor):
+        return bag
     else:
-        normalizer = None
-    if (hasattr(encoder, 'normalizer')
-       and encoder.normalizer is not None
-       and normalizer is not None):
-        sf.log.warning(
-            'Encoder already has a stain normalizer. Overwriting with '
-            'normalizer from bags configuration.'
+        raise ValueError(
+            "Unrecognized bag type '{}'".format(type(bag))
         )
-        encoder.normalizer = normalizer
-    elif hasattr(encoder, 'normalizer') and encoder.normalizer is not None:
-        normalizer = encoder.normalizer
-
-    return encoder, normalizer

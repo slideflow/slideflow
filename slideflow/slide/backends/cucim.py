@@ -199,7 +199,8 @@ class _cuCIMReader:
         mpp: Optional[float] = None,
         cache_kw: Optional[Dict[str, Any]] = None,
         num_workers: int = 0,
-        ignore_missing_mpp: bool = True
+        ignore_missing_mpp: bool = True,
+        use_bounds: bool = False,  #TODO: Not yet implemented
     ):
         '''Wrapper for cuCIM reader to preserve cross-compatible functionality.'''
         global __cuimage__, __cuimage_path__
@@ -326,8 +327,8 @@ class _cuCIMReader:
             num_workers=self.num_workers,
         )
         if resize_factor:
-            target_size = (int(extract_size[0] * resize_factor),
-                           int(extract_size[1] * resize_factor))
+            target_size = (int(np.round(extract_size[0] * resize_factor)),
+                           int(np.round(extract_size[1] * resize_factor)))
             if not __cv2_resize__:
                 region = resize(np.asarray(region), target_size)
         # Final conversions

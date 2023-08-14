@@ -11,10 +11,15 @@ from slideflow import errors
 from types import SimpleNamespace
 from typing import Union, List, Tuple
 
+# Constants
 DEFAULT_JPG_MPP = 1
 OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
 OPS_VENDOR = 'openslide.vendor'
+OPS_BOUNDS_HEIGHT = 'openslide.bounds-height'
+OPS_BOUNDS_WIDTH = 'openslide.bounds-width'
+OPS_BOUNDS_X = 'openslide.bounds-x'
+OPS_BOUNDS_Y = 'openslide.bounds-y'
 TIF_EXIF_KEY_MPP = 65326
 OPS_WIDTH = 'width'
 OPS_HEIGHT = 'height'
@@ -24,6 +29,11 @@ DEFAULT_GRAYSPACE_THRESHOLD = 0.05
 DEFAULT_GRAYSPACE_FRACTION = 0.6
 FORCE_CALCULATE_WHITESPACE = -1
 FORCE_CALCULATE_GRAYSPACE = -1
+ROTATE_90_CLOCKWISE = 1
+ROTATE_180_CLOCKWISE = 2
+ROTATE_270_CLOCKWISE = 3
+FLIP_HORIZONTAL = 4
+FLIP_VERTICAL = 5
 
 
 def OPS_LEVEL_HEIGHT(level: int) -> str:
@@ -167,3 +177,92 @@ def xml_to_csv(path: str) -> str:
                 for vertex in vertices
             ])
     return new_csv_file
+
+
+def _find_translation_matrix(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
+    """
+    Align two images using only scaling and translation.
+
+    :param im1: The image to be aligned.
+    :param im2: The reference image.
+    :return: Aligned image of im1.
+    """
+    import cv2
+
+    # Convert images to grayscale
+    im1_gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
+    im2_gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
+
+    # Define the motion model
+    warp_mode = cv2.MOTION_TRANSLATION
+
+    # Define 2x3 matrix to store the transformation
+    warp_matrix = np.eye(2, 3, dtype=np.float32)
+
+    # Set the number of iterations and termination criteria
+    number_of_iterations = 5000
+    termination_eps = 1e-10
+    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations, termination_eps)
+
+    # Use findTransformECC to compute the transformation
+    _, warp_matrix = cv2.findTransformECC(im2_gray, im1_gray, warp_matrix, warp_mode, criteria)
+    return warp_matrix
+
+
+def _align_to_matrix(im1: np.ndarray, im2: np.ndarray, warp_matrix: np.ndarray) -> np.ndarray:
+    """Align an image to a warp matrix."""
+    import cv2
+    # Use the warpAffine function to apply the transformation
+    return cv2.warpAffine(im1, warp_matrix, (im2.shape[1], im2.shape[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
+
+
+def align_image(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
+    """
+    Align two images using only scaling and translation.
+
+    :param im1: The image to be aligned.
+    :param im2: The reference image.
+    :return: Aligned image of im1.
+    """
+    warp_matrix = _find_translation_matrix(im1, im2)
+    return _align_to_matrix(im1, im2, warp_matrix)
+
+
+def align_by_translation(
+    im1: np.ndarray,
+    im2: np.ndarray,
+    round: bool = False,
+    calculate_mse: bool = False
+) -> Union[Union[Tuple[float, float], Tuple[int, int]],
+           Tuple[Union[Tuple[float, float], Tuple[int, int]], float]]:
+    """Find the (x, y) translation that aligns im1 to im2."""
+    warp_matrix = _find_translation_matrix(im1, im2)
+    alignment = -warp_matrix[0, 2], -warp_matrix[1, 2]
+    if round:
+        alignment = (int(np.round(alignment[0])), int(np.round(alignment[1])))
+    if calculate_mse:
+        aligned_im1 = _align_to_matrix(im1, im2, warp_matrix)
+        mse = compute_alignment_mse(aligned_im1, im2)
+        return alignment, mse
+    else:
+        return alignment
+
+def compute_alignment_mse(imageA, imageB):
+    """
+    Compute the Mean Squared Error between two images in their overlapping region,
+    excluding areas that are black (0, 0, 0) in either image.
+
+    :param imageA: First image.
+    :param imageB: Second image.
+    :return: Mean Squared Error (MSE) between the images in the valid overlapping region.
+    """
+    assert imageA.shape == imageB.shape, "Image sizes must match."
+
+    # Create a combined mask where neither of the images is black
+    combined_mask = np.logical_not(np.logical_or(imageA == 0, imageB == 0))
+
+    # Compute MSE only for valid regions
+    diff = (imageA.astype("float") - imageB.astype("float")) ** 2
+    err = np.sum(diff[combined_mask]) / np.sum(combined_mask)
+
+    return err

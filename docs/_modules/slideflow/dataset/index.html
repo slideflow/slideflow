@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.dataset &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.dataset &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -430,6 +430,16 @@
     <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">MissingROIError</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Missing ROI for slide </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">; skipping&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">IncompatibleBackendError</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Slide </span><span class="si">{}</span><span class="s1"> has type </span><span class="si">{}</span><span class="s1">, which is incompatible with the active &#39;</span>
+                  <span class="s1">&#39;slide reading backend, </span><span class="si">{}</span><span class="s1">. Consider using a different &#39;</span>
+                  <span class="s1">&#39;backend, which can be set with the environmental variable &#39;</span>
+                  <span class="s1">&#39;SF_SLIDE_BACKEND. See https://slideflow.dev/installation/#cucim-vs-libvips &#39;</span>
+                  <span class="s1">&#39;for more information.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">path</span><span class="p">,</span>
+                    <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
+                    <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span>
+                  <span class="p">))</span>
     <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error loading slide </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">. Skipping&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
@@ -501,6 +511,34 @@
         <span class="k">raise</span> <span class="n">e</span>
 
 
+<span class="k">def</span> <span class="nf">_buffer_slide</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Buffer a slide to a path.&quot;&quot;&quot;</span>
+    <span class="n">buffered</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+    <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">buffered</span><span class="p">)</span>
+
+    <span class="c1"># If this is an MRXS file, copy the associated folder.</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;mrxs&#39;</span><span class="p">):</span>
+        <span class="n">folder_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">folder_path</span><span class="p">):</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copytree</span><span class="p">(</span><span class="n">folder_path</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">)))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Could not find associated MRXS folder for slide buffer&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">buffered</span>
+
+
+<span class="k">def</span> <span class="nf">_debuffer_slide</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;De-buffer a slide.&quot;&quot;&quot;</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="c1"># If this is an MRXS file, remove the associated folder.</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;mrxs&#39;</span><span class="p">):</span>
+        <span class="n">folder_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">folder_path</span><span class="p">):</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">folder_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Could not find MRXS folder for slide debuffer&quot;</span><span class="p">)</span>
+
+
 <span class="k">def</span> <span class="nf">_fill_queue</span><span class="p">(</span>
     <span class="n">slide_list</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
     <span class="n">q</span><span class="p">:</span> <span class="n">Queue</span><span class="p">,</span>
@@ -514,9 +552,7 @@
             <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">qsize</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">q_size</span><span class="p">:</span>
                     <span class="k">try</span><span class="p">:</span>
-                        <span class="n">buffered</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
-                        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">buffered</span><span class="p">)</span>
-                        <span class="n">q</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">buffered</span><span class="p">)</span>
+                        <span class="n">q</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">_buffer_slide</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">buffer</span><span class="p">))</span>
                         <span class="k">break</span>
                     <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
                         <span class="k">if</span> <span class="ow">not</span> <span class="n">warned</span><span class="p">:</span>
@@ -772,16 +808,17 @@
 <span class="sd">                (str, e.g. &quot;20x&quot;).</span>
 
 <span class="sd">        Keyword args:</span>
-<span class="sd">            filters (Optional[Dict], optional): Filters for selecting slides</span>
-<span class="sd">                from annotations. Defaults to None.</span>
-<span class="sd">            filter_blank (Optional[Union[List[str], str]], optional): Omit</span>
-<span class="sd">                slides that are blank in these annotation columns.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            annotations (Optional[Union[str, pd.DataFrame]], optional): Path</span>
-<span class="sd">                to annotations file or pandas DataFrame with slide-level</span>
-<span class="sd">                annotations. Defaults to None.</span>
 <span class="sd">            min_tiles (int, optional): Only include slides with this</span>
 <span class="sd">                many tiles at minimum. Defaults to 0.</span>
+<span class="sd">            annotations (str or pd.DataFrame, optional): Path</span>
+<span class="sd">                to annotations file or pandas DataFrame with slide-level</span>
+<span class="sd">                annotations. Defaults to None.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            errors.SourceNotFoundError: If provided source does not exist</span>
@@ -947,7 +984,7 @@
 <span class="sd">            str: Image format of tfrecords (PNG or JPG), or None if no</span>
 <span class="sd">            tfrecords have been extracted.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">verify_img_format</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">verify_img_format</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_tfrecords_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">source</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">:</span>
@@ -1182,7 +1219,7 @@
         <span class="k">return</span> <span class="n">ret</span>
 
     <span class="k">def</span> <span class="nf">build_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build index files for TFRecords. Required for PyTorch.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build index files for TFRecords.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            force (bool): Force re-build existing indices.</span>
@@ -1190,14 +1227,29 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            None</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
+            <span class="n">index_to_update</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">index_to_update</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">():</span>
+                <span class="n">index</span> <span class="o">=</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">find_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="p">:</span>
+                    <span class="n">index_to_update</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="p">(</span><span class="ow">not</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">index_has_locations</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+                      <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">tfrecord_has_locations</span><span class="p">(</span><span class="n">tfr</span><span class="p">)):</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+                    <span class="n">index_to_update</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">index_to_update</span><span class="p">:</span>
+                <span class="k">return</span>
+
+        <span class="n">index_fn</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">_create_index</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
         <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(),</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(),</span>
             <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span>
         <span class="p">)</span>
-        <span class="n">index_fn</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">_create_index</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap_unordered</span><span class="p">(</span><span class="n">index_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()),</span>
-                       <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Creating index files...&#39;</span><span class="p">,</span>
-                       <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()),</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap_unordered</span><span class="p">(</span><span class="n">index_fn</span><span class="p">,</span> <span class="n">index_to_update</span><span class="p">),</span>
+                       <span class="n">description</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Updating index files...&#39;</span><span class="p">,</span>
+                       <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">index_to_update</span><span class="p">),</span>
                        <span class="n">transient</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
             <span class="k">pass</span>
         <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
@@ -1347,7 +1399,7 @@
                 <span class="n">pb</span><span class="o">.</span><span class="n">remove_task</span><span class="p">(</span><span class="n">segment_task</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="n">buffer</span><span class="p">:</span>
-                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">slide_path</span><span class="p">)</span>
+                    <span class="n">_debuffer_slide</span><span class="p">(</span><span class="n">slide_path</span><span class="p">)</span>
                 <span class="n">q</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">buffer</span><span class="p">:</span>
             <span class="n">thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
@@ -1555,6 +1607,7 @@
     <span class="k">def</span> <span class="nf">convert_xml_rois</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert ImageScope XML ROI files to QuPath format CSV ROI files.&quot;&quot;&quot;</span>
         <span class="n">n_converted</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">xml_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">source</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roi_set</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
                 <span class="n">xml_list</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">[</span><span class="n">source</span><span class="p">][</span><span class="s1">&#39;roi&#39;</span><span class="p">],</span> <span class="s2">&quot;*.xml&quot;</span><span class="p">))</span>
@@ -1640,8 +1693,8 @@
 <span class="sd">        :class:`slideflow.Dataset`.</span>
 
 <span class="sd">        Keyword Args:</span>
-<span class="sd">            save_tiles (bool): Save images of extracted tiles to</span>
-<span class="sd">                project tile directory. Defaults to False.</span>
+<span class="sd">            save_tiles (bool, optional): Save tile images in loose format.</span>
+<span class="sd">                Defaults to False.</span>
 <span class="sd">            save_tfrecords (bool): Save compressed image data from</span>
 <span class="sd">                extracted tiles into TFRecords in the corresponding TFRecord</span>
 <span class="sd">                directory. Defaults to True.</span>
@@ -1694,8 +1747,9 @@
 <span class="sd">                Defaults to True.</span>
 <span class="sd">            normalizer (str, optional): Normalization strategy.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            normalizer_source (str, optional): Path to normalizer source image.</span>
-<span class="sd">                If None, will use slideflow.slide.norm_tile.jpg.</span>
+<span class="sd">            normalizer_source (str, optional): Stain normalization preset or</span>
+<span class="sd">                path to a source image. Valid presets include &#39;v1&#39;, &#39;v2&#39;, and</span>
+<span class="sd">                &#39;v3&#39;. If None, will use the default present (&#39;v3&#39;).</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            whitespace_fraction (float, optional): Range 0-1. Discard tiles</span>
 <span class="sd">                with this fraction of whitespace. If 1, will not perform</span>
@@ -1717,11 +1771,12 @@
 <span class="sd">                given tile micron size. Defaults to False.</span>
 <span class="sd">            shuffle (bool, optional): Shuffle tiles prior to storage in</span>
 <span class="sd">                tfrecords. Defaults to True.</span>
-<span class="sd">            num_threads (int, optional): Number of workers threads for each</span>
+<span class="sd">            num_threads (int, optional): Number of worker processes for each</span>
 <span class="sd">                tile extractor. When using cuCIM slide reading backend,</span>
-<span class="sd">                defaults to the total number of available CPU threads.</span>
-<span class="sd">                With Libvips, this defaults to the total number of available</span>
-<span class="sd">                CPU threads or 32, whichever is lower.</span>
+<span class="sd">                defaults to the total number of available CPU cores, using the</span>
+<span class="sd">                &#39;fork&#39; multiprocessing method. With Libvips, this defaults to</span>
+<span class="sd">                the total number of available CPU cores or 32, whichever is</span>
+<span class="sd">                lower, using &#39;spawn&#39; multiprocessing.</span>
 <span class="sd">            qc_blur_radius (int, optional): Quality control blur radius for</span>
 <span class="sd">                out-of-focus area detection. Used if qc=True. Defaults to 3.</span>
 <span class="sd">            qc_blur_threshold (float, optional): Quality control blur threshold</span>
@@ -1735,6 +1790,8 @@
 <span class="sd">                Defaults to mpp=4 (effective magnification 2.5 X)</span>
 <span class="sd">            dry_run (bool, optional): Determine tiles that would be extracted,</span>
 <span class="sd">                but do not export any images. Defaults to None.</span>
+<span class="sd">            max_tiles (int, optional): Only extract this many tiles per slide.</span>
+<span class="sd">                Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Dictionary mapping slide paths to each slide&#39;s SlideReport</span>
@@ -1750,6 +1807,10 @@
             <span class="n">sources</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
         <span class="n">all_reports</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">verify_annotations_slides</span><span class="p">()</span>
+
+        <span class="c1"># Log the active slide reading backend</span>
+        <span class="n">col</span> <span class="o">=</span> <span class="s1">&#39;green&#39;</span> <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cucim&#39;</span> <span class="k">else</span> <span class="s1">&#39;cyan&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Slide reading backend: [</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2">]</span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
 
         <span class="c1"># Set up kwargs for tile extraction generator and quality control</span>
         <span class="n">qc_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">[</span><span class="mi">3</span><span class="p">:]:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;qc_&#39;</span><span class="p">}</span>
@@ -1828,11 +1889,11 @@
 
                 <span class="c1"># Use a single shared multiprocessing pool</span>
                 <span class="k">if</span> <span class="s1">&#39;num_threads&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-                    <span class="n">num_threads</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;libvips&#39;</span><span class="p">:</span>
-                        <span class="n">num_threads</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_threads</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
+                    <span class="n">num_threads</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">()</span>
                     <span class="k">if</span> <span class="n">num_threads</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                         <span class="n">num_threads</span> <span class="o">=</span> <span class="mi">8</span>
+                    <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;libvips&#39;</span><span class="p">:</span>
+                        <span class="n">num_threads</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_threads</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">num_threads</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;num_threads&#39;</span><span class="p">]</span>
                 <span class="k">if</span> <span class="n">num_threads</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
@@ -1840,6 +1901,7 @@
                         <span class="n">num_threads</span><span class="p">,</span>
                         <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span>
                     <span class="p">)</span>
+                    <span class="n">qc_kwargs</span><span class="p">[</span><span class="s1">&#39;pool&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pool</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">pool</span> <span class="o">=</span> <span class="kc">None</span>
                     <span class="n">ptype</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1895,7 +1957,7 @@
                                 <span class="k">break</span>
                             <span class="n">_tile_extractor</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">extraction_kwargs</span><span class="p">)</span>
                             <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">slide_task</span><span class="p">)</span>
-                            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                            <span class="n">_debuffer_slide</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
                             <span class="n">q</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
                         <span class="n">thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
                     <span class="k">else</span><span class="p">:</span>
@@ -2003,14 +2065,26 @@
     <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Dataset&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a filtered dataset.</span>
 
+<span class="sd">        This method can either accept a single argument (``filters``) or any</span>
+<span class="sd">        combination of keyword arguments (``filters``, ``filter_blank``, or</span>
+<span class="sd">        ``min_tiles``).</span>
+
 <span class="sd">        Keyword Args:</span>
-<span class="sd">            filters (dict): Filters dict to use when selecting tfrecords.</span>
-<span class="sd">                See :meth:`get_dataset` documentation for more information</span>
-<span class="sd">                on filtering. Defaults to None.</span>
-<span class="sd">            filter_blank (list): Exclude slides blank in these columns.</span>
+<span class="sd">            filters (dict, optional): Dictionary used for filtering</span>
+<span class="sd">                the dataset. Dictionary keys should be column headers in the</span>
+<span class="sd">                patient annotations, and the values should be the variable</span>
+<span class="sd">                states to be included in the dataset. For example,</span>
+<span class="sd">                ``filters={&#39;HPV_status&#39;: [&#39;negative&#39;, &#39;positive&#39;]}``</span>
+<span class="sd">                would filter the dataset by the column ``HPV_status`` and only</span>
+<span class="sd">                include slides with values of either ``&#39;negative&#39;`` or</span>
+<span class="sd">                ``&#39;positive&#39;`` in this column.</span>
+<span class="sd">                See `Filtering &lt;https://slideflow.dev/datasets_and_val/#filtering&gt;`_</span>
+<span class="sd">                for further discussion. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            min_tiles (int): Filter out tfrecords that have less than this</span>
-<span class="sd">                minimum number of tiles.</span>
+<span class="sd">                minimum number of tiles. Defaults to 0.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            :class:`slideflow.Dataset`: Dataset with filter added.</span>
@@ -2122,7 +2196,7 @@
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Updating index for </span><span class="si">{</span><span class="n">tfr</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
             <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">tfr_idx</span><span class="p">)</span>
             <span class="n">_create_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_locations_from_tfrecord</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="n">as_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_locations_from_tfrecord</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">harmonize_labels</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -2212,7 +2286,7 @@
             <span class="n">temp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span>
             <span class="n">splits</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;_splits.json&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">temp_file</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">temp_dir</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">crossval_splits</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">k_fold_iter</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
             <span class="n">split_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
@@ -2320,9 +2394,10 @@
                     <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filtered_labels</span><span class="p">)</span><span class="si">}</span><span class="s2">).&quot;</span>
                 <span class="p">)</span>
             <span class="k">elif</span> <span class="n">header_is_float</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Interpreting column &quot;</span><span class="si">{</span><span class="n">header</span><span class="si">}</span><span class="s1">&quot; as continuous&#39;</span><span class="p">)</span>
                 <span class="n">filtered_labels</span> <span class="o">=</span> <span class="n">filtered_labels</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Interpreting column &quot;</span><span class="si">{</span><span class="n">header</span><span class="si">}</span><span class="s1">&quot; as continuous&#39;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Interpreting column &quot;</span><span class="si">{</span><span class="n">header</span><span class="si">}</span><span class="s1">&quot; as categorical&#39;</span><span class="p">)</span>
                 <span class="n">unique_labels_for_this_header</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">filtered_labels</span><span class="p">))</span>
                 <span class="n">unique_labels_for_this_header</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
                 <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ul</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">unique_labels_for_this_header</span><span class="p">):</span>
@@ -2563,7 +2638,7 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">loc</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
-        <span class="n">decode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">decode</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Read a record from a TFRecord, indexed by location.</span>
 
@@ -2589,6 +2664,14 @@
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Could not find associated TFRecord for slide &#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
             <span class="p">)</span>
+        <span class="k">if</span> <span class="n">decode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">decode</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;The &#39;decode&#39; argument to `Dataset.read_tfrecord_by_location` &quot;</span>
+                <span class="s2">&quot;is deprecated and will be removed in a future version. In the &quot;</span>
+                <span class="s2">&quot;future, all records will be decoded.&quot;</span>
+            <span class="p">)</span>
         <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_tfrecord_by_location</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="n">loc</span><span class="p">,</span> <span class="n">decode</span><span class="o">=</span><span class="n">decode</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">remove_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Dataset&quot;</span><span class="p">:</span>
@@ -2609,7 +2692,9 @@
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unknown filtering argument </span><span class="si">{</span><span class="n">kwarg</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">ret</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">&#39;filters&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;filters&#39;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;filters&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;filters&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;filters&#39;</span><span class="p">]]</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;filters&#39;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;&#39;filters&#39; must be a list.&quot;</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;filters&#39;</span><span class="p">]:</span>
                 <span class="k">if</span> <span class="n">f</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ret</span><span class="o">.</span><span class="n">_filters</span><span class="p">:</span>
@@ -2725,7 +2810,7 @@
             <span class="n">otsu_task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s2">&quot;Otsu thresholding...&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">))</span>
         <span class="n">pb</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
         <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
-            <span class="mi">16</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(),</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">16</span><span class="p">),</span>
             <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span>
         <span class="p">)</span>
         <span class="n">wsi_list</span> <span class="o">=</span> <span class="p">[]</span>
@@ -3356,44 +3441,63 @@
 <span class="sd">            batch_size (int): Batch size.</span>
 
 <span class="sd">        Keyword Args:</span>
-<span class="sd">            onehot (bool, optional): Onehot encode labels. Defaults to False.</span>
-<span class="sd">            incl_slidenames (bool, optional): Include slidenames as third</span>
-<span class="sd">                returned variable. Defaults to False.</span>
-<span class="sd">            infinite (bool, optional): Infinitely repeat data.</span>
-<span class="sd">                Defaults to True.</span>
-<span class="sd">            rank (int, optional): Worker ID to identify which worker this</span>
-<span class="sd">                represents. Used to interleave results among workers without</span>
-<span class="sd">                duplications. Defaults to 0 (first worker).</span>
-<span class="sd">            num_replicas (int, optional): Number of GPUs or unique instances</span>
-<span class="sd">                which will have their own DataLoader. Used to interleave</span>
-<span class="sd">                results among workers without duplications. Defaults to 1.</span>
-<span class="sd">            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):</span>
-<span class="sd">                Normalizer to use on images.</span>
-<span class="sd">            seed (int, optional): Use the following seed when randomly</span>
-<span class="sd">                interleaving. Necessary for synchronized multiprocessing</span>
-<span class="sd">                distributed reading.</span>
-<span class="sd">            chunk_size (int, optional): Chunk size for image decoding.</span>
-<span class="sd">                Defaults to 16.</span>
-<span class="sd">            preload_factor (int, optional): Number of batches to preload.</span>
-<span class="sd">                Defaults to 1.</span>
-<span class="sd">            augment (str, optional): Image augmentations to perform. String</span>
-<span class="sd">                    containing characters designating augmentations.</span>
-<span class="sd">                    &#39;x&#39; indicates random x-flipping, &#39;y&#39; y-flipping,</span>
-<span class="sd">                    &#39;r&#39; rotating, and &#39;j&#39; JPEG compression/decompression at</span>
-<span class="sd">                    random quality levels. Passing either &#39;xyrj&#39; or True will</span>
-<span class="sd">                    use all augmentations.</span>
-<span class="sd">            standardize (bool, optional): Standardize images to (0,1).</span>
-<span class="sd">                Defaults to True.</span>
-<span class="sd">            num_workers (int, optional): Number of DataLoader workers.</span>
-<span class="sd">                Defaults to 2.</span>
-<span class="sd">            deterministic (bool, optional): When num_parallel_calls is</span>
-<span class="sd">                specified, if this boolean is specified (True or False), it</span>
-<span class="sd">                controls the order in which the transformation produces</span>
-<span class="sd">                elements. If set to False, the transformation is allowed to</span>
-<span class="sd">                yield elements out of order to trade determinism for</span>
-<span class="sd">                performance. Defaults to False.</span>
+<span class="sd">            augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">                * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">                * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">                * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">                * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">                * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+<span class="sd">                * ``&#39;n&#39;``: Random :ref:`stain_augmentation` (requires stain normalizer)</span>
+
+<span class="sd">                Combine letters to define augmentations, such as ``&#39;xyrjn&#39;``.</span>
+<span class="sd">                A value of True will use ``&#39;xyrjb&#39;``.</span>
+<span class="sd">            deterministic (bool, optional): When num_parallel_calls is specified,</span>
+<span class="sd">                if this boolean is specified, it controls the order in which the</span>
+<span class="sd">                transformation produces elements. If set to False, the</span>
+<span class="sd">                transformation is allowed to yield elements out of order to trade</span>
+<span class="sd">                determinism for performance. Defaults to False.</span>
 <span class="sd">            drop_last (bool, optional): Drop the last non-full batch.</span>
 <span class="sd">                Defaults to False.</span>
+<span class="sd">            from_wsi (bool): Generate predictions from tiles dynamically</span>
+<span class="sd">                extracted from whole-slide images, rather than TFRecords.</span>
+<span class="sd">                Defaults to False (use TFRecords).</span>
+<span class="sd">            incl_loc (str, optional): &#39;coord&#39;, &#39;grid&#39;, or None. Return (x,y)</span>
+<span class="sd">                origin coordinates (&#39;coord&#39;) for each tile along with tile</span>
+<span class="sd">                images, or the (x,y) grid coordinates for each tile.</span>
+<span class="sd">                Defaults to &#39;coord&#39;.</span>
+<span class="sd">            incl_slidenames (bool, optional): Include slidenames as third returned</span>
+<span class="sd">                variable. Defaults to False.</span>
+<span class="sd">            infinite (bool, optional): Create an finite dataset. WARNING: If</span>
+<span class="sd">                infinite is False &amp;&amp; balancing is used, some tiles will be skipped.</span>
+<span class="sd">                Defaults to True.</span>
+<span class="sd">            img_size (int): Image width in pixels.</span>
+<span class="sd">            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):</span>
+<span class="sd">                Normalizer to use on images. Defaults to None.</span>
+<span class="sd">            num_parallel_reads (int, optional): Number of parallel reads for each</span>
+<span class="sd">                TFRecordDataset. Defaults to 4.</span>
+<span class="sd">            num_shards (int, optional): Shard the tfrecord datasets, used for</span>
+<span class="sd">                multiprocessing datasets. Defaults to None.</span>
+<span class="sd">            pool (multiprocessing.Pool): Shared multiprocessing pool. Useful</span>
+<span class="sd">                if ``from_wsi=True``, for sharing a unified processing pool between</span>
+<span class="sd">                dataloaders. Defaults to None.</span>
+<span class="sd">            rois (list(str), optional): List of ROI paths. Only used if</span>
+<span class="sd">                from_wsi=True.  Defaults to None.</span>
+<span class="sd">            roi_method (str, optional): Method for extracting ROIs. Only used if</span>
+<span class="sd">                from_wsi=True. Defaults to &#39;auto&#39;.</span>
+<span class="sd">            shard_idx (int, optional): Index of the tfrecord shard to use.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            standardize (bool, optional): Standardize images to (0,1).</span>
+<span class="sd">                Defaults to True.</span>
+<span class="sd">            tile_um (int, optional): Size of tiles to extract from WSI, in</span>
+<span class="sd">                microns. Only used if from_wsi=True. Defaults to None.</span>
+<span class="sd">            tfrecord_parser (Callable, optional): Custom parser for TFRecords.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            transform (Callable, optional): Arbitrary transform function.</span>
+<span class="sd">                Performs transformation after augmentations but before</span>
+<span class="sd">                standardization. Defaults to None.</span>
+<span class="sd">            **decode_kwargs (dict): Keyword arguments to pass to</span>
+<span class="sd">                :func:`slideflow.io.tensorflow.decode_image`.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            tf.data.Dataset</span>
@@ -3422,7 +3526,7 @@
             <span class="n">clip</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clip</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">tfrecords</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsNotFoundError</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">verify_img_format</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_img_format</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">interleave</span><span class="p">(</span><span class="n">paths</span><span class="o">=</span><span class="n">tfrecords</span><span class="p">,</span>
                           <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
@@ -3682,7 +3786,7 @@
 
     <span class="k">def</span> <span class="nf">tfrecords_have_locations</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if TFRecords have associated tile location information.&quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">(),</span> <span class="n">leave</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Working...&quot;</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">():</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">tfr_has_loc</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">tfrecord_has_locations</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
             <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">:</span>
@@ -3712,9 +3816,11 @@
 <span class="sd">                calculate activations for all tfrecords at the tile_px/tile_um</span>
 <span class="sd">                matching the supplied model, optionally using provided filters</span>
 <span class="sd">                and filter_blank.</span>
-<span class="sd">            filters (dict, optional): Filters to use when selecting tfrecords.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            filter_blank (list, optional): Exclude slides blank in these cols.</span>
+<span class="sd">            filters (dict, optional): Dataset filters to use for</span>
+<span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
+<span class="sd">                more information. Defaults to None.</span>
+<span class="sd">            filter_blank (list(str) or str, optional): Skip slides that have</span>
+<span class="sd">                blank values in these patient annotation columns.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            roi (bool, optional): Include ROI in the thumbnail images.</span>
 <span class="sd">                Defaults to False.</span>
@@ -3813,39 +3919,66 @@
 <span class="sd">                Defaults to True.</span>
 
 <span class="sd">        Keyword Args:</span>
-<span class="sd">            onehot (bool, optional): Onehot encode labels. Defaults to False.</span>
-<span class="sd">            incl_slidenames (bool, optional): Include slidenames as third</span>
-<span class="sd">                returned variable. Defaults to False.</span>
-<span class="sd">            infinite (bool, optional): Infinitely repeat data.</span>
-<span class="sd">                Defaults to True.</span>
-<span class="sd">            rank (int, optional): Worker ID to identify which worker this</span>
-<span class="sd">                represents. Used to interleave results among workers without</span>
-<span class="sd">                duplications. Defaults to 0 (first worker).</span>
-<span class="sd">            num_replicas (int, optional): Number of GPUs or unique instances</span>
-<span class="sd">                which will have their own DataLoader. Used to interleave</span>
-<span class="sd">                results among workers without duplications. Defaults to 1.</span>
-<span class="sd">            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):</span>
-<span class="sd">                Normalizer to use on images. Defaults to None.</span>
-<span class="sd">            seed (int, optional): Use the following seed when randomly</span>
-<span class="sd">                interleaving. Necessary for synchronized multiprocessing.</span>
+<span class="sd">            augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">                * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">                * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">                * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">                * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">                * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+<span class="sd">                * ``&#39;n&#39;``: Random :ref:`stain_augmentation` (requires stain normalizer)</span>
+
+<span class="sd">                Combine letters to define augmentations, such as ``&#39;xyrjn&#39;``.</span>
+<span class="sd">                A value of True will use ``&#39;xyrjb&#39;``.</span>
 <span class="sd">            chunk_size (int, optional): Chunk size for image decoding.</span>
-<span class="sd">                Defaults to 16.</span>
-<span class="sd">            preload_factor (int, optional): Number of batches to preload.</span>
 <span class="sd">                Defaults to 1.</span>
-<span class="sd">            augment (str, optional): Image augmentations to perform. Str</span>
-<span class="sd">                containing characters designating augmentations. &#39;x&#39; indicates</span>
-<span class="sd">                random x-flipping, &#39;y&#39; y-flipping, &#39;r&#39; rotating, &#39;j&#39; JPEG</span>
-<span class="sd">                compression/decompression at random quality levels, and &#39;b&#39;</span>
-<span class="sd">                random gaussian blur. Passing either &#39;xyrjb&#39; or True will use</span>
-<span class="sd">                all augmentations. Defaults to &#39;xyrjb&#39;.</span>
-<span class="sd">            standardize (bool, optional): Standardize images to (0,1).</span>
-<span class="sd">                Defaults to True.</span>
-<span class="sd">            num_workers (int, optional): Number of DataLoader workers.</span>
-<span class="sd">                Defaults to 2.</span>
-<span class="sd">            pin_memory (bool, optional): Pin memory to GPU.</span>
-<span class="sd">                Defaults to True.</span>
 <span class="sd">            drop_last (bool, optional): Drop the last non-full batch.</span>
 <span class="sd">                Defaults to False.</span>
+<span class="sd">            from_wsi (bool): Generate predictions from tiles dynamically</span>
+<span class="sd">                extracted from whole-slide images, rather than TFRecords.</span>
+<span class="sd">                Defaults to False (use TFRecords).</span>
+<span class="sd">            incl_loc (bool, optional): Include loc_x and loc_y as additional</span>
+<span class="sd">                returned variables. Defaults to False.</span>
+<span class="sd">            incl_slidenames (bool, optional): Include slidenames as third returned</span>
+<span class="sd">                variable. Defaults to False.</span>
+<span class="sd">            infinite (bool, optional): Infinitely repeat data. Defaults to True.</span>
+<span class="sd">            max_size (bool, optional): Unused argument present for legacy</span>
+<span class="sd">                compatibility; will be removed.</span>
+<span class="sd">            model_type (str, optional): Used to generate random labels</span>
+<span class="sd">                (for StyleGAN2). Not required. Defaults to &#39;categorical&#39;.</span>
+<span class="sd">            num_replicas (int, optional): Number of GPUs or unique instances which</span>
+<span class="sd">                will have their own DataLoader. Used to interleave results among</span>
+<span class="sd">                workers without duplications. Defaults to 1.</span>
+<span class="sd">            num_workers (int, optional): Number of DataLoader workers.</span>
+<span class="sd">                Defaults to 2.</span>
+<span class="sd">            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):</span>
+<span class="sd">                Normalizer. Defaults to None.</span>
+<span class="sd">            onehot (bool, optional): Onehot encode labels. Defaults to False.</span>
+<span class="sd">            persistent_workers (bool, optional): Sets the DataLoader</span>
+<span class="sd">                persistent_workers flag. Defaults toNone (4 if not using a SPAMS</span>
+<span class="sd">                normalizer, 1 if using SPAMS).</span>
+<span class="sd">            pin_memory (bool, optional): Pin memory to GPU. Defaults to True.</span>
+<span class="sd">            pool (multiprocessing.Pool): Shared multiprocessing pool. Useful</span>
+<span class="sd">                if from_wsi=True, for sharing a unified processing pool between</span>
+<span class="sd">                dataloaders. Defaults to None.</span>
+<span class="sd">            prefetch_factor (int, optional): Number of batches to prefetch in each</span>
+<span class="sd">                SlideflowIterator. Defaults to 1.</span>
+<span class="sd">            rank (int, optional): Worker ID to identify this worker.</span>
+<span class="sd">                Used to interleave results.</span>
+<span class="sd">                among workers without duplications. Defaults to 0 (first worker).</span>
+<span class="sd">            rois (list(str), optional): List of ROI paths. Only used if</span>
+<span class="sd">                from_wsi=True.  Defaults to None.</span>
+<span class="sd">            roi_method (str, optional): Method for extracting ROIs. Only used if</span>
+<span class="sd">                from_wsi=True. Defaults to &#39;auto&#39;.</span>
+<span class="sd">            standardize (bool, optional): Standardize images to mean 0 and</span>
+<span class="sd">                variance of 1. Defaults to True.</span>
+<span class="sd">            tile_um (int, optional): Size of tiles to extract from WSI, in</span>
+<span class="sd">                microns. Only used if from_wsi=True. Defaults to None.</span>
+<span class="sd">            transform (Callable, optional): Arbitrary torchvision transform</span>
+<span class="sd">                function. Performs transformation after augmentations but</span>
+<span class="sd">                before standardization. Defaults to None.</span>
+<span class="sd">            tfrecord_parser (Callable, optional): Custom parser for TFRecords.</span>
+<span class="sd">                Defaults to None.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> <span class="n">interleave_dataloader</span>
@@ -3869,7 +4002,7 @@
             <span class="n">tfrecords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">tfrecords</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsNotFoundError</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">verify_img_format</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_img_format</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="n">_idx_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_indices</span><span class="p">()</span>
             <span class="n">indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">_idx_dict</span><span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">)]</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecords</span><span class="p">]</span>
             <span class="n">clip</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clip</span>
@@ -4057,7 +4190,7 @@
         <span class="k">if</span> <span class="n">n_missing</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n_missing</span><span class="si">}</span><span class="s2"> patients do not have a slide assigned.&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">verify_img_format</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">verify_img_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Verify that all tfrecords have the same image format (PNG/JPG).</span>
 
 <span class="sd">        Returns:</span>
@@ -4066,11 +4199,14 @@
         <span class="n">tfrecords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">):</span>
             <span class="n">img_formats</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">pb</span> <span class="o">=</span> <span class="n">track</span><span class="p">(</span>
-                <span class="n">tfrecords</span><span class="p">,</span>
-                <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Verifying tfrecord formats...&quot;</span><span class="p">,</span>
-                <span class="n">transient</span><span class="o">=</span><span class="kc">True</span>
-            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+                <span class="n">pb</span> <span class="o">=</span> <span class="n">track</span><span class="p">(</span>
+                    <span class="n">tfrecords</span><span class="p">,</span>
+                    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Verifying tfrecord formats...&quot;</span><span class="p">,</span>
+                    <span class="n">transient</span><span class="o">=</span><span class="kc">True</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pb</span> <span class="o">=</span> <span class="n">tfrecords</span>
             <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">pb</span><span class="p">:</span>
                 <span class="n">fmt</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">detect_tfrecord_format</span><span class="p">(</span><span class="n">tfr</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
                 <span class="k">if</span> <span class="n">fmt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -4088,7 +4224,48 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">None</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span></div>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">verify_slide_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">allow_errors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Verify that slide names inside TFRecords match the file names.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            allow_errors (bool): Do not raise an error if there is a mismatch.</span>
+<span class="sd">                Defaults to False.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: If all slide names inside TFRecords match the TFRecord</span>
+<span class="sd">                file names.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            sf.errors.MismatchedSlideNamesError: If any slide names inside</span>
+<span class="sd">                TFRecords do not match the TFRecord file names,</span>
+<span class="sd">                and allow_errors=False.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tfrecords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">):</span>
+            <span class="n">pb</span> <span class="o">=</span> <span class="n">track</span><span class="p">(</span>
+                <span class="n">tfrecords</span><span class="p">,</span>
+                <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Verifying tfrecord slide names...&quot;</span><span class="p">,</span>
+                <span class="n">transient</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">pb</span><span class="p">:</span>
+                <span class="n">first_record</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_tfrecord_by_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">first_record</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="k">elif</span> <span class="n">allow_errors</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">MismatchedSlideNamesError</span><span class="p">(</span>
+                        <span class="s2">&quot;Mismatched slide name in TFRecord </span><span class="si">{}</span><span class="s2">: expected slide &quot;</span>
+                        <span class="s2">&quot;name </span><span class="si">{}</span><span class="s2"> based on filename, but found </span><span class="si">{}</span><span class="s2">. &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">tfr</span><span class="p">,</span>
+                            <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">),</span>
+                            <span class="n">first_record</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span>
+                        <span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
 </pre></div>
 
              </article>
@@ -4105,7 +4282,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -4179,7 +4356,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

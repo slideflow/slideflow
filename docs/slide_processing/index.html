@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Slide Processing &mdash; slideflow 2.0.0 documentation</title>
+  <title>Slide Processing &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -289,11 +289,11 @@
 <p>Most tools in Slideflow work with image tiles - extracted sub-regions of a whole-slide image - as the primary data source. For efficiency, image tiles are first buffered into <span class="xref std std-ref">TFRecords</span> , a binary file format that greatly improves IO throughput. Although training can be performed without using TFRecords (see <a class="reference internal" href="../training/#from-wsi"><span class="std std-ref">Training without TFRecords</span></a>), we recommend tile extraction as the first step for most projects.</p>
 <section id="tile-extraction">
 <h2>Tile extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this heading">¶</a></h2>
-<p>Image tiles are extracted from whole-slide images using either <code class="xref py py-meth docutils literal notranslate"><span class="pre">Project.extract_tiles()</span></code> or <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.extract_tiles()</span></code>. When using the Project interface, the only arguments required are <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> and <code class="docutils literal notranslate"><span class="pre">tile_um</span></code>, which determine the size of the extracted image tiles in pixels and microns:</p>
+<p>Image tiles are extracted from whole-slide images using either <a class="reference internal" href="../project/#slideflow.Project.extract_tiles" title="slideflow.Project.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.extract_tiles()</span></code></a> or <a class="reference internal" href="../dataset/#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>. When using the Project interface, the only arguments required are <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> and <code class="docutils literal notranslate"><span class="pre">tile_um</span></code>, which determine the size of the extracted image tiles in pixels and microns:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>and when using a <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code>, no arguments are required.</p>
+<p>and when using a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>, no arguments are required.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -360,11 +360,21 @@
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>Gaussian blur masking is another <strong>slide-based method</strong> that can detect pen marks and out-of-focus areas, and is particularly useful for datasets lacking annotated Regions of Interest (ROIs). Gaussian blur masking is applied similarly, using the <code class="docutils literal notranslate"><span class="pre">qc</span></code> argument:</p>
+<p>Gaussian blur masking is another <strong>slide-based method</strong> that can detect pen marks and out-of-focus areas, and is particularly useful for datasets lacking annotated Regions of Interest (ROIs). Gaussian blur masking is applied similarly, using the <code class="docutils literal notranslate"><span class="pre">qc</span></code> argument.</p>
+<p>Two versions of Gaussian blur masking are available: <code class="docutils literal notranslate"><span class="pre">qc.Gaussian</span></code> and <code class="docutils literal notranslate"><span class="pre">qc.GaussianV2</span></code> (new in Slideflow 2.1.0). The latter is the default and recommended version, as it is more computationally efficient. The former is provided for backwards compatibility.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
 
 <span class="c1"># Use this QC during tile extraction</span>
-<span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+<span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="n">qc</span><span class="o">.</span><span class="n">GaussianV2</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>By default, Gaussian blur masking is calculated at 4 times lower magnification than the tile extraction MPP (e.g., when extracting tiles at 10X effective magnification, Gaussian filtering would be calculated at 2.5X). This is to reduce computation time. You can change this behavior by manually setting the <code class="docutils literal notranslate"><span class="pre">mpp</span></code> argument to a specific microns-per-pixel value.</p>
+<p>Gaussian blur masking is performed on gray images. The <code class="docutils literal notranslate"><span class="pre">sigma</span></code> argument controls the standard deviation of the Gaussian blur kernel. The default value of 3 is recommended, but you may need to adjust this value for your dataset. A higher value will result in more areas being masked, while a lower value will result in fewer areas being masked.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
+
+<span class="c1"># Customize the Gaussian filter,</span>
+<span class="c1"># using a sigma of 2 and a mpp of 1 (10X magnification)</span>
+<span class="n">gaussian</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">GaussianV2</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>You can also use multiple slide-level masking methods by providing a list to <code class="docutils literal notranslate"><span class="pre">qc</span></code>.</p>
@@ -372,7 +382,7 @@
 
 <span class="n">qc</span> <span class="o">=</span> <span class="p">[</span>
   <span class="n">qc</span><span class="o">.</span><span class="n">Otsu</span><span class="p">(),</span>
-  <span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+  <span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">()</span>
 <span class="p">]</span>
 <span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="n">qc</span><span class="p">)</span>
 </pre></div>
@@ -381,12 +391,25 @@
 </section>
 <section id="deepfocus">
 <h3>DeepFocus<a class="headerlink" href="#deepfocus" title="Permalink to this heading">¶</a></h3>
-<p>Slideflow also provides an interface for using <a class="reference external" href="https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0205387&amp;type=printable">DeepFocus</a> or other deep learning models to generate masks. Create a custom slide filter that inherits <a class="reference internal" href="../slide_qc/#slideflow.slide.qc.StridedDL" title="slideflow.slide.qc.StridedDL"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.slide.qc.StridedDL</span></code></a>, and pass to the <code class="docutils literal notranslate"><span class="pre">qc</span></code> arguments as above.</p>
-<p>For example, to use the published DeepFocus model weights referenced above, clone the <a class="reference external" href="https://github.com/jamesdolezal/deepfocus">TF2 fork on GitHub</a> and create the custom class as below:</p>
+<p>Slideflow also provides an interface for using <a class="reference external" href="https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0205387&amp;type=printable">DeepFocus</a> to identify in-focus regions. DeepFocus is a lightweight neural network that predicts whether a section of a slide is in- or out-of-focus. When used as a slide-level masking method, DeepFocus will filter out-of-focus tiles from a slide. By default, DeepFocus is applied to slides at 40X magnification, although this can be customized with the <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> argument.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
+
+<span class="n">deepfocus</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">DeepFocus</span><span class="p">(</span><span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;20x&#39;</span><span class="p">)</span>
+<span class="n">slide</span><span class="o">.</span><span class="n">qc</span><span class="p">(</span><span class="n">deepfocus</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Alternatively, you can also retrieve raw predictions from the DeepFocus model for a slide by calling the deepfocus object on a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code> object, passing the argument threshold=False:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">preds</span> <span class="o">=</span> <span class="n">deepfocus</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="custom-deep-learning-qc">
+<h3>Custom deep learning QC<a class="headerlink" href="#custom-deep-learning-qc" title="Permalink to this heading">¶</a></h3>
+<p>You can also create your own deep learning slide filters. To create a custom deep learning QC method like DeepFocus, create a custom slide filter that inherits <a class="reference internal" href="../slide_qc/#slideflow.slide.qc.StridedDL" title="slideflow.slide.qc.StridedDL"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.slide.qc.StridedDL</span></code></a>. For example, to manually recreate the above DeepFocus model, first clone the <a class="reference external" href="https://github.com/jamesdolezal/deepfocus">TF2 fork on GitHub</a>, which contains the DeepFocus architecture and model weights, and create a custom class as below:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.slide.qc</span> <span class="kn">import</span> <span class="n">strided_dl</span>
 <span class="kn">from</span> <span class="nn">deepfocus.keras_model</span> <span class="kn">import</span> <span class="n">load_checkpoint</span><span class="p">,</span> <span class="n">deepfocus_v3</span>
 
-<span class="k">class</span> <span class="nc">DeepFocus</span><span class="p">(</span><span class="n">strided_dl</span><span class="o">.</span><span class="n">StridedDL</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">CustomDeepFocus</span><span class="p">(</span><span class="n">strided_dl</span><span class="o">.</span><span class="n">StridedDL</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">model</span> <span class="o">=</span> <span class="n">deepfocus_v3</span><span class="p">()</span>
@@ -401,10 +424,10 @@
 </pre></div>
 </div>
 <p>Then, supply this class to the <code class="docutils literal notranslate"><span class="pre">qc</span></code> argument as above.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="n">DeepFocus</span><span class="p">())</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="n">CustomDeepFocus</span><span class="p">())</span>
 </pre></div>
 </div>
-<p>See <a class="reference internal" href="../slide_qc/#qc"><span class="std std-ref">slideflow.slide.qc</span></a> for more information on the API for QC customization.</p>
+<p>See <a class="reference internal" href="../slide_qc/#qc"><span class="std std-ref">slideflow.slide.qc</span></a> for more information on the API for further QC customization.</p>
 </section>
 <section id="grayspace-filtering">
 <h3>Grayspace filtering<a class="headerlink" href="#grayspace-filtering" title="Permalink to this heading">¶</a></h3>
@@ -508,7 +531,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -535,6 +558,7 @@
 <li><a class="reference internal" href="#otsu-s-thresholding">Otsu’s thresholding</a></li>
 <li><a class="reference internal" href="#gaussian-blur-filtering">Gaussian blur filtering</a></li>
 <li><a class="reference internal" href="#deepfocus">DeepFocus</a></li>
+<li><a class="reference internal" href="#custom-deep-learning-qc">Custom deep learning QC</a></li>
 <li><a class="reference internal" href="#grayspace-filtering">Grayspace filtering</a></li>
 <li><a class="reference internal" href="#whitepsace-filtering">Whitepsace filtering</a></li>
 </ul>
@@ -605,7 +629,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.Project &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.Project &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -512,9 +512,11 @@ header specifying the outcome label(s).</p></li>
 to evaluate. If not supplied, will evaluate all project
 tfrecords at the tile_px/tile_um matching the supplied model,
 optionally using provided filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting
-tfrecords. Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum number of tiles a slide must
 have to be included in evaluation. Defaults to 0.</p></li>
@@ -608,7 +610,8 @@ separately. Defaults to None.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Project.evaluate_clam">
 <span class="sig-name descname"><span class="pre">evaluate_clam</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">pt_files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcomes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_heatmaps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Project.evaluate_clam" title="Permalink to this definition">¶</a></dt>
-<dd><p>Evaluate CLAM model on activations and export attention heatmaps.</p>
+<dd><p>Deprecated function.</p>
+<p>Evaluate CLAM model on activations and export attention heatmaps.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -626,9 +629,11 @@ separately. Defaults to None.</p></li>
 the model saved as s_{k}_checkpoint.pt. Defaults to 0.</p></li>
 <li><p><strong>eval_tag</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Unique identifier for this evaluation.
 Defaults to None</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>attention_heatmaps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save attention heatmaps of
 validation dataset. Defaults to True.</p></li>
@@ -689,20 +694,27 @@ magnification (str, e.g. “20x”).</p></li>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
+Defaults to None.</p></li>
 <li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile images in loose format.
 Defaults to False.</p></li>
-<li><p><strong>save_tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile images as TFRecords.
-Defaults to True.</p></li>
-<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Process slides only from this source.
-Defaults to None (all slides in project).</p></li>
-<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Stride divisor. Defaults to 1.
+<li><p><strong>save_tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Save compressed image data from
+extracted tiles into TFRecords in the corresponding TFRecord
+directory. Defaults to True.</p></li>
+<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Name of dataset source from which to select
+slides for extraction. Defaults to None. If not provided, will
+default to all sources in project.</p></li>
+<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Stride divisor for tile extraction.
 A stride of 1 will extract non-overlapping tiles.
-A stride_div of 2 will extract overlapping tiles with a stride
-equal to 50% of the tile width.</p></li>
-<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable downsampling when
-reading slides. Defaults to True. This may result in corrupted
-image tiles if downsampled slide layers are corrupted or
-incomplete. Recommend manual confirmation of tile integrity.</p></li>
+A stride_div of 2 will extract overlapping tiles, with a stride
+equal to 50% of the tile width. Defaults to 1.</p></li>
+<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Enable downsampling for slides.
+This may result in corrupted image tiles if downsampled slide
+layers are corrupted or incomplete. Defaults to True.</p></li>
 <li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Either ‘inside’, ‘outside’, ‘auto’, or ‘ignore’.
 Determines how ROIs are used to extract tiles.
 If ‘inside’ or ‘outside’, will extract tiles in/out of an ROI,
@@ -712,57 +724,74 @@ and across the whole-slide if no ROI is found.
 If ‘ignore’, will extract tiles across the whole-slide
 regardless of whether an ROI is available.
 Defaults to ‘auto’.</p></li>
-<li><p><strong>skip_extracted</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip already extracted slides.
-Defaults to True.</p></li>
-<li><p><strong>tma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Reads slides as Tumor Micro-Arrays (TMAs),
-detecting and extracting tumor cores. Defaults to False.</p></li>
-<li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Randomize pixel starting
+<li><p><strong>roi_filter_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Method of filtering tiles with
+ROIs. Either ‘center’ or float (0-1). If ‘center’, tiles are
+filtered with ROIs based on the center of the tile. If float,
+tiles are filtered based on the proportion of the tile inside
+the ROI, and <code class="docutils literal notranslate"><span class="pre">roi_filter_method</span></code> is interpreted as a
+threshold. If the proportion of a tile inside the ROI is
+greater than this number, the tile is included. For example,
+if <code class="docutils literal notranslate"><span class="pre">roi_filter_method=0.7</span></code>, a tile that is 80% inside of an
+ROI will be included, and a tile that is 50% inside of an ROI
+will be excluded. Defaults to ‘center’.</p></li>
+<li><p><strong>skip_extracted</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Skip slides that have already
+been extracted. Defaults to True.</p></li>
+<li><p><strong>tma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Reads slides as Tumor Micro-Arrays (TMAs),
+detecting and extracting tumor cores. Defaults to False.
+Experimental function with limited testing.</p></li>
+<li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Randomize pixel starting
 position during extraction. Defaults to False.</p></li>
-<li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Copy slides here before extraction.
-Improves processing speed if using an SSD/ramdisk buffer.
-Defaults to None.</p></li>
-<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Extract tiles from this many slides
-simultaneously. Defaults to 1.</p></li>
-<li><p><strong>q_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Queue size for buffer. Defaults to 2.</p></li>
+<li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Slides will be copied to this directory
+before extraction. Defaults to None. Using an SSD or ramdisk
+buffer vastly improves tile extraction speed.</p></li>
+<li><p><strong>q_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Size of queue when using a buffer.
+Defaults to 2.</p></li>
 <li><p><strong>qc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – ‘otsu’, ‘blur’, ‘both’, or None. Perform blur
 detection quality control - discarding tiles with detected
 out-of-focus regions or artifact - and/or otsu’s method.
-Defaults to None.</p></li>
-<li><p><strong>report</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save a PDF report of tile extraction.
+Increases tile extraction time. Defaults to None.</p></li>
+<li><p><strong>report</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Save a PDF report of tile extraction.
 Defaults to True.</p></li>
 <li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy.
 Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image.
-Defaults to None (use internal image at slide.norm_tile.jpg).</p></li>
-<li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
-Discard tiles with this fraction of whitespace. If 1, will not
-perform whitespace filtering.</p></li>
-<li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Threshold above
-which a pixel (RGB average) is considered whitespace.
-Defaults to 230.</p></li>
-<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Discard tiles with
-this fraction of grayspace. If 1, will not perform grayspace
-filtering. Defaults to 0.6.</p></li>
-<li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Pixels in HSV
-format with saturation below this are considered grayspace.
-Defaults to 0.05.</p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Stain normalization preset or
+path to a source image. Valid presets include ‘v1’, ‘v2’, and
+‘v3’. If None, will use the default present (‘v3’).
+Defaults to None.</p></li>
+<li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Discard tiles
+with this fraction of whitespace. If 1, will not perform
+whitespace filtering. Defaults to 1.</p></li>
+<li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
+Threshold above which a pixel (RGB average) is whitespace.</p></li>
+<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
+Discard tiles with this fraction of grayspace.
+If 1, will not perform grayspace filtering.</p></li>
+<li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
+Pixels in HSV format with saturation below this threshold are
+considered grayspace.</p></li>
 <li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – ‘png’ or ‘jpg’. Defaults to ‘jpg’.
-Image format to use in tfrecords. PNG (lossless) for
-fidelity, JPG (lossy) for efficiency.</p></li>
-<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Only used if extracting from TMA. Save
-entire TMA core as image. Otherwise, will extract sub-images
-from each core at the tile micron size. Defaults to False.</p></li>
-<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Shuffle tiles before tfrecords storage.
-Defaults to True.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Threads for each tile extractor.
-Defaults to 4.</p></li>
-<li><p><strong>qc_blur_radius</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Blur radius for out-of-focus area
-detection. Used if qc=True. Defaults to 3.</p></li>
-<li><p><strong>qc_blur_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Blur threshold for detecting
-out-of-focus areas. Used if qc=True. Defaults to 0.1.</p></li>
-<li><p><strong>qc_filter_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Float between 0-1.
-Tiles with more than this proportion of blur will be discarded.
-Used if qc=True. Defaults to 0.6.</p></li>
+Image format to use in tfrecords. PNG (lossless) for fidelity,
+JPG (lossy) for efficiency.</p></li>
+<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Only used if extracting from TMA.
+If True, will save entire TMA core as image.
+Otherwise, will extract sub-images from each core using the
+given tile micron size. Defaults to False.</p></li>
+<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Shuffle tiles prior to storage in
+tfrecords. Defaults to True.</p></li>
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of worker processes for each
+tile extractor. When using cuCIM slide reading backend,
+defaults to the total number of available CPU cores, using the
+‘fork’ multiprocessing method. With Libvips, this defaults to
+the total number of available CPU cores or 32, whichever is
+lower, using ‘spawn’ multiprocessing.</p></li>
+<li><p><strong>qc_blur_radius</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Quality control blur radius for
+out-of-focus area detection. Used if qc=True. Defaults to 3.</p></li>
+<li><p><strong>qc_blur_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Quality control blur threshold
+for detecting out-of-focus areas. Only used if qc=True.
+Defaults to 0.1</p></li>
+<li><p><strong>qc_filter_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Float between 0-1. Tiles
+with more than this proportion of blur will be discarded.
+Only used if qc=True. Defaults to 0.6.</p></li>
 <li><p><strong>qc_mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel indicating image
 magnification level at which quality control is performed.
 Defaults to mpp=4 (effective magnification 2.5 X)</p></li>
@@ -945,10 +974,12 @@ size. Defaults to None.</p></li>
 from which to generate activations. If not supplied, calculate
 activations for all tfrecords compatible with the model,
 optionally using provided filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will
-be excluded. Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only include slides with this minimum
 number of tiles. Defaults to 0.</p></li>
 <li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only include maximum of this many tiles
@@ -974,10 +1005,10 @@ Defaults to 32.</p></li>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="slideflow.Project.generate_features_for_clam">
-<span class="sig-name descname"><span class="pre">generate_features_for_clam</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'postconv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_regenerate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></span><a class="headerlink" href="#slideflow.Project.generate_features_for_clam" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generate tile-level features for slides for use with CLAM.</p>
-<p>By default, CLAM features are saved in the <code class="docutils literal notranslate"><span class="pre">pt_files</span></code> folder
+<dt class="sig sig-object py" id="slideflow.Project.generate_feature_bags">
+<span class="sig-name descname"><span class="pre">generate_feature_bags</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">BaseFeatureExtractor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_regenerate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide_batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></span><a class="headerlink" href="#slideflow.Project.generate_feature_bags" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate tile-level features for slides for use with MIL models.</p>
+<p>By default, features are exported to the <code class="docutils literal notranslate"><span class="pre">pt_files</span></code> folder
 within the project root directory.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -994,22 +1025,30 @@ Defaults to ‘auto’ (project directory).</p></li>
 from which to generate activations. If not supplied, calculate
 activations for all tfrecords compatible with the model,
 optionally using provided filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will
-be excluded. Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only include slides with this minimum
 number of tiles. Defaults to 16.</p></li>
 <li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Only include maximum of this many tiles
 per slide. Defaults to 0 (all tiles).</p></li>
 <li><p><strong>layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a>) – Which model layer(s) generate activations.
-Defaults to ‘postconv’.</p></li>
+If <code class="docutils literal notranslate"><span class="pre">model</span></code> is a saved model, this defaults to ‘postconv’.
+Defaults to None.</p></li>
 <li><p><strong>force_regenerate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Forcibly regenerate activations
 for all slides even if .pt file exists. Defaults to False.</p></li>
 <li><p><strong>min_tiles</strong> – Minimum tiles per slide. Skip slides
 not meeting this threshold. Defaults to 16.</p></li>
 <li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Batch size during feature calculation.
 Defaults to 32.</p></li>
+<li><p><strong>slide_batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Interleave feature calculation across
+this many slides. Higher values may improve performance
+but require more memory. Defaults to 16.</p></li>
+<li><p><strong>**kwargs</strong> – Additional keyword arguments are passed to
+<a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a>.</p></li>
 </ul>
 </dd>
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -1035,9 +1074,11 @@ from which to generate predictions. If not supplied, will
 generate predictions for all project tfrecords at the
 tile_px/tile_um matching the model, optionally using provided
 filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum tiles per slide. Skip slides
 not meeting this threshold. Defaults to 8.</p></li>
@@ -1110,10 +1151,12 @@ the supplied model, optionally using filters/filter_blank.</p></li>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting
-tfrecords. Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will
-be excluded. Defaults to None.</p></li>
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
+Defaults to None.</p></li>
 <li><p><strong>outcomes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Column name in annotations file from
 which to read category labels.</p></li>
 <li><p><strong>map_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – None (default), ‘centroid’ or ‘average’.
@@ -1172,7 +1215,7 @@ provided model, and the tile nearest to centroid is used.</p>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>dataset</strong> (<a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>) – Dataset object.</p></li>
-<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to Tensorflow model to use when
+<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to model to use when
 generating layer activations.</p></li>
 <li><p><strong>None.</strong> (<em>Defaults to</em>) – If not provided, mosaic will not be calculated or saved.
 If provided, saved in project mosaic directory.</p></li>
@@ -1236,9 +1279,11 @@ tile-level value for display in heatmap format</p></li>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters for selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Min tiles a slide must have.
 Defaults to 0.</p></li>
@@ -1270,9 +1315,11 @@ from which to generate predictions. If not supplied, will
 generate predictions for all project tfrecords at the
 tile_px/tile_um matching the model, optionally using provided
 filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Min tiles a slide must have
 to be included. Defaults to 0.</p></li>
@@ -1355,9 +1402,11 @@ present in the selected k-fold folder.</p></li>
 from which to generate activations. If not supplied, will
 calculate activations for all tfrecords at the tile_px/tile_um
 matching the supplied model.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Min tiles a slide must have
 to be included. Defaults to 0.</p></li>
@@ -1496,9 +1545,11 @@ examples below for use.</p></li>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>exp_label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Experiment label to add model names.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
+more information. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>) or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Skip slides that have
+blank values in these patient annotation columns.
 Defaults to None.</p></li>
 <li><p><strong>input_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – List of annotation column headers to
 use as additional slide-level model input. Defaults to None.</p></li>
@@ -1544,6 +1595,7 @@ None (same as training).</p></li>
 <li><p><strong>val_annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to annotations file for validation
 dataset. Defaults to None (same as training).</p></li>
 <li><p><strong>val_filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a>) – Filters to use for validation dataset.
+See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for more information.
 Defaults to None (same as training).</p></li>
 <li><p><strong>checkpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to cp.ckpt from which to load
 weights. Defaults to None.</p></li>
@@ -1551,8 +1603,8 @@ weights. Defaults to None.</p></li>
 model from which to load weights. Defaults to ‘imagenet’.</p></li>
 <li><p><strong>multi_gpu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Train using multiple GPUs when available.
 Defaults to False.</p></li>
-<li><p><strong>resume_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to Tensorflow model to
-continue training. Defaults to None.</p></li>
+<li><p><strong>resume_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to model to continue training.
+Only valid in Tensorflow backend. Defaults to None.</p></li>
 <li><p><strong>starting_epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Start training at the specified epoch.
 Defaults to 0.</p></li>
 <li><p><strong>steps_per_epoch_override</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – If provided, will manually set the
@@ -1569,7 +1621,7 @@ Defaults to 0 (only at epoch end).</p></li>
 <li><p><strong>validation_batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Validation dataset batch size.
 Defaults to 32.</p></li>
 <li><p><strong>use_tensorboard</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Add tensorboard callback for realtime
-training monitoring. Defaults to False.</p></li>
+training monitoring. Defaults to True.</p></li>
 <li><p><strong>validation_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of steps of validation to perform
 each time doing a mid-epoch validation check. Defaults to 200.</p></li>
 </ul>
@@ -1653,7 +1705,7 @@ separately. Defaults to None.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Project.train_simclr">
-<span class="sig-name descname"><span class="pre">train_simclr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">simclr_args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../simclr/#slideflow.simclr.SimCLR_Args" title="slideflow.simclr.SimCLR_Args"><span class="pre">simclr.SimCLR_Args</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcomes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Project.train_simclr" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">train_simclr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">simclr_args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../simclr/#slideflow.simclr.SimCLR_Args" title="slideflow.simclr.SimCLR_Args"><span class="pre">simclr.SimCLR_Args</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcomes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">sf.norm.StainNormalizer</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Project.train_simclr" title="Permalink to this definition">¶</a></dt>
 <dd><p>Train SimCLR model.</p>
 <p>Models are saved in <code class="docutils literal notranslate"><span class="pre">simclr</span></code> folder in the project root directory.</p>
 <p>See <a class="reference internal" href="../ssl/#simclr-ssl"><span class="std std-ref">Self-Supervised Learning (SSL)</span></a> for more information.</p>
@@ -1687,7 +1739,7 @@ Defaults to None.</p></li>
 <span class="sig-name descname"><span class="pre">train_clam</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">splits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'splits.json'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Project.train_clam" title="Permalink to this definition">¶</a></dt>
 <dd><p>Deprecated function.</p>
 <p>Train a CLAM model from layer activations
-exported with <a class="reference internal" href="#slideflow.Project.generate_features_for_clam" title="slideflow.Project.generate_features_for_clam"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_features_for_clam()</span></code></a>.</p>
+exported with <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_features_for_clam()</span></code>.</p>
 <p>Preferred API is <a class="reference internal" href="#slideflow.Project.train_mil" title="slideflow.Project.train_mil"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train_mil()</span></code></a>.</p>
 <p>See <a class="reference internal" href="../mil/#clam-mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information.</p>
 <dl>
@@ -1764,7 +1816,7 @@ validation dataset.</p></li>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1800,7 +1852,7 @@ validation dataset.</p></li>
 <li><a class="reference internal" href="#slideflow.Project.gan_train"><code class="docutils literal notranslate"><span class="pre">gan_train()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Project.gan_generate"><code class="docutils literal notranslate"><span class="pre">gan_generate()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Project.generate_features"><code class="docutils literal notranslate"><span class="pre">generate_features()</span></code></a></li>
-<li><a class="reference internal" href="#slideflow.Project.generate_features_for_clam"><code class="docutils literal notranslate"><span class="pre">generate_features_for_clam()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.Project.generate_feature_bags"><code class="docutils literal notranslate"><span class="pre">generate_feature_bags()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Project.generate_heatmaps"><code class="docutils literal notranslate"><span class="pre">generate_heatmaps()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Project.generate_mosaic"><code class="docutils literal notranslate"><span class="pre">generate_mosaic()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.Project.generate_mosaic_from_annotations"><code class="docutils literal notranslate"><span class="pre">generate_mosaic_from_annotations()</span></code></a></li>
@@ -1877,7 +1929,7 @@ validation dataset.</p></li>
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

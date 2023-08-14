@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.cellseg &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.cellseg &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -300,6 +300,7 @@
 <span class="kn">from</span> <span class="nn">cellpose</span> <span class="kn">import</span> <span class="n">transforms</span><span class="p">,</span> <span class="n">plot</span><span class="p">,</span> <span class="n">dynamics</span>
 <span class="kn">from</span> <span class="nn">slideflow.slide.utils</span> <span class="kn">import</span> <span class="n">draw_roi</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">batch_generator</span><span class="p">,</span> <span class="n">log</span>
+<span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">torch_utils</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">seg_utils</span>
 
@@ -406,22 +407,29 @@
 <span class="sd">                polygons, as available in ``slideflow.WSI.annPolys``.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">roi_seg_scale</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_ratio</span>
-        <span class="n">scaled_polys</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">sa</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span>
-                <span class="n">poly</span><span class="p">,</span>
-                <span class="n">xfact</span><span class="o">=</span><span class="n">roi_seg_scale</span><span class="p">,</span>
-                <span class="n">yfact</span><span class="o">=</span><span class="n">roi_seg_scale</span><span class="p">,</span>
-                <span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-            <span class="p">)</span> <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="n">annpolys</span>
-        <span class="p">]</span>
-        <span class="n">roi_seg_mask</span> <span class="o">=</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">rasterize</span><span class="p">(</span>
-            <span class="n">scaled_polys</span><span class="p">,</span>
-            <span class="n">out_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
-            <span class="n">all_touched</span><span class="o">=</span><span class="kc">False</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">masks</span> <span class="o">*=</span> <span class="n">roi_seg_mask</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">calculate_centroids</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_ratio</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">annpolys</span><span class="p">):</span>
+            <span class="n">roi_seg_scale</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_ratio</span>
+            <span class="n">scaled_polys</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">sa</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span>
+                    <span class="n">poly</span><span class="p">,</span>
+                    <span class="n">xfact</span><span class="o">=</span><span class="n">roi_seg_scale</span><span class="p">,</span>
+                    <span class="n">yfact</span><span class="o">=</span><span class="n">roi_seg_scale</span><span class="p">,</span>
+                    <span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="p">)</span> <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="n">annpolys</span>
+            <span class="p">]</span>
+            <span class="n">roi_seg_mask</span> <span class="o">=</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">rasterize</span><span class="p">(</span>
+                <span class="n">scaled_polys</span><span class="p">,</span>
+                <span class="n">out_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                <span class="n">all_touched</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">masks</span> <span class="o">*=</span> <span class="n">roi_seg_mask</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calculate_centroids</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_ratio</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Unable to apply ROIs; WSI dimensions not set.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># No ROIs to apply</span>
+            <span class="k">return</span>
 
     <span class="k">def</span> <span class="nf">centroids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wsi_dim</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate and return mask centroids.</span>
@@ -744,7 +752,8 @@
     <span class="n">flow_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span><span class="p">,</span>
     <span class="n">interp</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">tile</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Segmentation</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Segment cells in a whole-slide image, returning masks and centroids.</span>
 
@@ -822,7 +831,7 @@
 
     <span class="c1"># Set up model and parameters. --------------------------------------------</span>
     <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-    <span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s1">&#39;cuda:0&#39;</span><span class="p">)</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="n">torch_utils</span><span class="o">.</span><span class="n">get_device</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
     <span class="n">model</span> <span class="o">=</span> <span class="n">Cellpose</span><span class="p">(</span><span class="n">gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
     <span class="n">cp</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">cp</span>
     <span class="n">cp</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
@@ -1012,7 +1021,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1086,7 +1095,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

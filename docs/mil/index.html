@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Multiple-Instance Learning (MIL) &mdash; slideflow 2.0.0 documentation</title>
+  <title>Multiple-Instance Learning (MIL) &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -281,13 +281,13 @@
 
   <section id="multiple-instance-learning-mil">
 <span id="clam-mil"></span><h1>Multiple-Instance Learning (MIL)<a class="headerlink" href="#multiple-instance-learning-mil" title="Permalink to this heading">¶</a></h1>
-<p>In addition to standard tile-based neural networks, slideflow supports training multiple-instance learning (MIL) models. Several architectures are available, including <a class="reference external" href="https://github.com/AMLab-Amsterdam/AttentionDeepMIL">attention-based MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;Attention_MIL&quot;</span></code>), <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a> (<code class="docutils literal notranslate"><span class="pre">&quot;CLAM_SB&quot;,</span></code> <code class="docutils literal notranslate"><span class="pre">&quot;CLAM_MB&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc_mc&quot;</span></code>), and <a class="reference external" href="https://github.com/szc19990412/TransMIL">transformer MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;TransMIL&quot;</span></code>). Custom architectures can also be trained.</p>
+<p>In addition to standard tile-based neural networks, Slideflow also supports training multiple-instance learning (MIL) models. Several architectures are available, including <a class="reference external" href="https://github.com/AMLab-Amsterdam/AttentionDeepMIL">attention-based MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;Attention_MIL&quot;</span></code>), <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a> (<code class="docutils literal notranslate"><span class="pre">&quot;CLAM_SB&quot;,</span></code> <code class="docutils literal notranslate"><span class="pre">&quot;CLAM_MB&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc_mc&quot;</span></code>), and <a class="reference external" href="https://github.com/szc19990412/TransMIL">transformer MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;TransMIL&quot;</span></code>). Custom architectures can also be trained. MIL training requires PyTorch.</p>
 <section id="generating-features">
 <h2>Generating features<a class="headerlink" href="#generating-features" title="Permalink to this heading">¶</a></h2>
-<p>The first step in MIL training is generating features from image tiles extracted from whole-slide images. First, determine the feature extractor that will be used. This can be an imagenet-pretrained model, a model finetuned in Slideflow, a pretrained feature extractor (such as CTransPath or RetCCL), or a fine-tuned SSL model.  In all cases, the <a class="reference internal" href="../posthoc/#activations"><span class="std std-ref">slideflow.DatasetFeatures</span></a> interface is used to generate and export features.</p>
+<p>The first step in MIL model development is generating features from image tiles. Many types of feature extractors can be used, including imagenet-pretrained models, models finetuned in Slideflow, histology-specific pretrained feature extractors (such as CTransPath or RetCCL), or fine-tuned SSL models.  In all cases, feature extractors are built with <a class="reference internal" href="../model/#slideflow.model.build_feature_extractor" title="slideflow.model.build_feature_extractor"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.build_feature_extractor()</span></code></a>, and features are generated for a dataset using either with <a class="reference internal" href="../posthoc/#activations"><span class="std std-ref">slideflow.DatasetFeatures.to_torch()</span></a> or <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a>.</p>
 <section id="imagenet-features">
 <h3>ImageNet Features<a class="headerlink" href="#imagenet-features" title="Permalink to this heading">¶</a></h3>
-<p>To calculate features from an ImageNet-pretrained network, first build an imagenet feature extractor with <a class="reference internal" href="../model/#slideflow.model.build_feature_extractor" title="slideflow.model.build_feature_extractor"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.build_feature_extractor()</span></code></a>. The first argument should be the name of an architecture followed by <code class="docutils literal notranslate"><span class="pre">_imagnet</span></code>, and the expected tile size should be passed to the keyword argument <code class="docutils literal notranslate"><span class="pre">tile_px</span></code>. You can optionally specify the layer from which to generate features with the <code class="docutils literal notranslate"><span class="pre">layers</span></code> argument; if not provided, it will default to calculating features from post-convolutional layer activations. For example, to build a ResNet50 feature extractor for images at 299 x 299 pixels:</p>
+<p>To calculate features from an ImageNet-pretrained network, first build an imagenet feature extractor with <a class="reference internal" href="../model/#slideflow.model.build_feature_extractor" title="slideflow.model.build_feature_extractor"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.build_feature_extractor()</span></code></a>. The first argument should be the name of an architecture followed by <code class="docutils literal notranslate"><span class="pre">_imagenet</span></code>, and the expected tile size should be passed to the keyword argument <code class="docutils literal notranslate"><span class="pre">tile_px</span></code>. You can optionally specify the layer from which to generate features with the <code class="docutils literal notranslate"><span class="pre">layers</span></code> argument; if not provided, it will default to calculating features from post-convolutional layer activations. For example, to build a ResNet50 feature extractor for images at 299 x 299 pixels:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
 
 <span class="n">resnet50</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
@@ -296,32 +296,38 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Next, pass this feature extractor to the first argument of <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a>.  The second argument should be a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+<p>This will calculate features using activations from the post-convolutional layer. You can also concatenate activations from multiple neural network layers and apply pooling for layers with 2D output shapes.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
 
-<span class="c1"># Load a project and dataset.</span>
-<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
-<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
-
-<span class="c1"># Calculate features for this dataset.</span>
-<span class="n">features</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span><span class="n">resnet50</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
+<span class="n">resnet50</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
+    <span class="s1">&#39;resnet50_imagenet&#39;</span><span class="p">,</span>
+    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;conv1_relu&#39;</span><span class="p">,</span> <span class="s1">&#39;conv3_block1_2_relu&#39;</span><span class="p">],</span>
+    <span class="n">pooling</span><span class="o">=</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>If a model architecture is available in both the Tensorflow and PyTorch backends, Slideflow will default to using the active backend. You can manually set the feature extractor backend using <cite>backend</cite>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a PyTorch feature extractor</span>
+<span class="n">extractor</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
+    <span class="s1">&#39;resnet50_imagenet&#39;</span><span class="p">,</span>
+    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;layer2.0.conv1&#39;</span><span class="p">,</span> <span class="s1">&#39;layer3.1.conv2&#39;</span><span class="p">],</span>
+    <span class="n">pooling</span><span class="o">=</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s1">&#39;torch&#39;</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 <p>You can view all available feature extractors with <a class="reference internal" href="../model/#slideflow.model.list_extractors" title="slideflow.model.list_extractors"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.list_extractors()</span></code></a>.</p>
 </section>
 <section id="features-from-finetuned-model">
 <h3>Features from Finetuned Model<a class="headerlink" href="#features-from-finetuned-model" title="Permalink to this heading">¶</a></h3>
-<p>You can also calculate features from any model trained in Slideflow. Set the first argument of <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> equal to the path of the trained model, optionally specifying the layer name with <code class="docutils literal notranslate"><span class="pre">layers</span></code> to choose the layer at which features will be calculated (defaults to post-convolutional layer).</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-
-<span class="c1"># Load a project and dataset.</span>
-<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
-<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+<p>You can also calculate features from any model trained in Slideflow. The first argument to <code class="docutils literal notranslate"><span class="pre">build_feature_extractor()</span></code> should be the path of the trained model.  You can optionally specify the layer at which to calculate activations using the <code class="docutils literal notranslate"><span class="pre">layers</span></code> keyword argument. If not specified, activations are calculated at the post-convolutional layer.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
 
 <span class="c1"># Calculate features from trained model.</span>
-<span class="n">features</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span>
+<span class="n">features</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
     <span class="s1">&#39;/path/to/model&#39;</span><span class="p">,</span>
-    <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span>
     <span class="n">layers</span><span class="o">=</span><span class="s1">&#39;sepconv3_bn&#39;</span>
 <span class="p">)</span>
 </pre></div>
@@ -329,36 +335,109 @@
 </section>
 <section id="pretrained-feature-extractor">
 <h3>Pretrained Feature Extractor<a class="headerlink" href="#pretrained-feature-extractor" title="Permalink to this heading">¶</a></h3>
-<p>Slideflow includes several pathology-specific pretrained feature extractors. Use <a class="reference internal" href="../model/#slideflow.model.build_feature_extractor" title="slideflow.model.build_feature_extractor"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.build_feature_extractor()</span></code></a> to build a feature extractor by name, and then pass this extractor to the first argument of <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a>. You can view all available feature extractors with <a class="reference internal" href="../model/#slideflow.model.list_extractors" title="slideflow.model.list_extractors"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.list_extractors()</span></code></a>.</p>
+<p>Slideflow includes two pathology-specific pretrained feature extractors, RetCCL and CTransPath. Use <a class="reference internal" href="../model/#slideflow.model.build_feature_extractor" title="slideflow.model.build_feature_extractor"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.build_feature_extractor()</span></code></a> to build one of these feature extractors by name. Weights for these pretrained networks will be automatically downloaded from <a class="reference external" href="https://github.com/jamesdolezal/slideflow/blob/untagged-bf8d980a34d2a9ddfde5/huggingface.co/jamesdolezal/retccl">HuggingFace</a>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
 
-<span class="n">ctranspath</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;ctranspath&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">)</span>
-<span class="n">features</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span><span class="n">ctranspath</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="n">retccl</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;retccl&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
 <section id="self-supervised-learning">
 <h3>Self-Supervised Learning<a class="headerlink" href="#self-supervised-learning" title="Permalink to this heading">¶</a></h3>
-<p>Finally, you can also generate features from a <a class="reference internal" href="../ssl/#simclr-ssl"><span class="std std-ref">self-supervised learning</span></a> model. Simply pass the path to the saved model:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">features</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span><span class="s1">&#39;path/to/saved_model&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<p>Finally, you can also generate features from a <a class="reference internal" href="../ssl/#simclr-ssl"><span class="std std-ref">self-supervised learning</span></a> model. Use <code class="docutils literal notranslate"><span class="pre">'simclr'</span></code> as the first argument to <code class="docutils literal notranslate"><span class="pre">build_feature_extractor()</span></code>, and pass the path to a saved model (or saved checkpoint file) via the keyword argument <code class="docutils literal notranslate"><span class="pre">ckpt</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
+
+<span class="n">simclr</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
+    <span class="s1">&#39;simclr&#39;</span><span class="p">,</span>
+    <span class="n">ckpt</span><span class="o">=</span><span class="s1">&#39;/path/to/simclr.ckpt&#39;</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 </section>
 <section id="exporting-features">
 <h3>Exporting Features<a class="headerlink" href="#exporting-features" title="Permalink to this heading">¶</a></h3>
-<p>Once you have generated features for a dataset, export the feature “bags” to disk using <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_torch" title="slideflow.DatasetFeatures.to_torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_torch()</span></code></a>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">features</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<p>Once you have prepared a feature extractor, features can be generated for a dataset and exported to disk for later use. Pass a feature extractor to the first argument of <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a>, with a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> as the second argument.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load a project and dataset.</span>
+<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+
+<span class="c1"># Create a feature extractor.</span>
+<span class="n">retccl</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;retccl&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">)</span>
+
+<span class="c1"># Calculate &amp; export feature bags.</span>
+<span class="n">P</span><span class="o">.</span><span class="n">generate_feature_bags</span><span class="p">(</span><span class="n">retccl</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you are generating features from a SimCLR model trained with stain normalization,
+you should specify the stain normalizer using the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> argument to <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a> or <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a>.</p>
+</div>
+<p>Features are calculated for slides in batches, keeping memory usage low. By default, features are saved to disk in a directory named <code class="docutils literal notranslate"><span class="pre">pt_files</span></code> within the project directory, but you can override the destination directory using the <code class="docutils literal notranslate"><span class="pre">outdir</span></code> argument.</p>
+<p>Alternatively, you can calculate features for a dataset using <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> and the <code class="docutils literal notranslate"><span class="pre">.to_torch()</span></code> method.  This will calculate features for your entire dataset at once, which may require a large amount of memory. The first argument should be the feature extractor, and the second argument should be a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Calculate features for the entire dataset.</span>
+<span class="n">features</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span><span class="n">retccl</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
+
+<span class="c1"># Export feature bags.</span>
 <span class="n">features</span><span class="o">.</span><span class="n">to_torch</span><span class="p">(</span><span class="s1">&#39;/path/to/bag_directory/&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>This bag directory will then be used to train the MIL models.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Using <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> directly may result in a large amount of memory usage, particularly for sizable datasets. When generating feature bags for training MIL models, it is recommended to use <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a> instead.</p>
+</div>
+<p>When image features are exported for a dataset, the feature extractor configuration is saved to <code class="docutils literal notranslate"><span class="pre">bags_config.json</span></code> in the same directory as the exported features. This configuration file can be used to rebuild the feature extractor. An example file is shown below.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w"> </span><span class="nt">&quot;extractor&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;class&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;slideflow.model.extractors.retccl.RetCCLFeatures&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;kwargs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="nt">&quot;center_crop&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w"> </span><span class="p">},</span>
+<span class="w"> </span><span class="nt">&quot;normalizer&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;macenko&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;fit&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="nt">&quot;stain_matrix_target&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">[</span>
+<span class="w">     </span><span class="mf">0.5062568187713623</span><span class="p">,</span>
+<span class="w">     </span><span class="mf">0.22186939418315887</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">    </span><span class="p">[</span>
+<span class="w">     </span><span class="mf">0.7532230615615845</span><span class="p">,</span>
+<span class="w">     </span><span class="mf">0.8652154803276062</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">    </span><span class="p">[</span>
+<span class="w">     </span><span class="mf">0.4069173336029053</span><span class="p">,</span>
+<span class="w">     </span><span class="mf">0.42241501808166504</span>
+<span class="w">    </span><span class="p">]</span>
+<span class="w">   </span><span class="p">],</span>
+<span class="w">   </span><span class="nt">&quot;target_concentrations&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="mf">1.7656903266906738</span><span class="p">,</span>
+<span class="w">    </span><span class="mf">1.2797492742538452</span>
+<span class="w">   </span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w"> </span><span class="p">},</span>
+<span class="w"> </span><span class="nt">&quot;num_features&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2048</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;tile_px&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">299</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;tile_um&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">302</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The feature extractor can be manually rebuilt using <a class="reference internal" href="../model/#slideflow.model.rebuild_extractor" title="slideflow.model.rebuild_extractor"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.rebuild_extractor()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">rebuild_extractor</span>
+
+<span class="c1"># Recreate the feature extractor</span>
+<span class="c1"># and stain normalizer, if applicable</span>
+<span class="n">extractor</span><span class="p">,</span> <span class="n">normalizer</span> <span class="o">=</span> <span class="n">rebuild_extractor</span><span class="p">(</span><span class="s1">&#39;/path/to/bags_config.json&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
 </section>
 </section>
 <section id="training">
 <h2>Training<a class="headerlink" href="#training" title="Permalink to this heading">¶</a></h2>
 <section id="model-configuration">
 <h3>Model Configuration<a class="headerlink" href="#model-configuration" title="Permalink to this heading">¶</a></h3>
-<p>To train an MIL model on exported features, first prepare the MIL configuration using <a class="reference internal" href="../mil_module/#slideflow.mil.mil_config" title="slideflow.mil.mil_config"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.mil.mil_config()</span></code></a>.</p>
+<p>To train an MIL model on exported features, first prepare an MIL configuration using <a class="reference internal" href="../mil_module/#slideflow.mil.mil_config" title="slideflow.mil.mil_config"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.mil.mil_config()</span></code></a>.</p>
 <p>The first argument to this function is the model architecture (which can be a name or a custom <code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code> model), and the remaining arguments are used to configure the training process (including learning rate and epochs).</p>
 <p>By default, training is executed using <a class="reference external" href="https://docs.fast.ai/">FastAI</a> with <a class="reference external" href="https://arxiv.org/pdf/1803.09820.pdf%E5%92%8CSylvain">1cycle learning rate scheduling</a>. Available models out-of-the-box include <a class="reference external" href="https://github.com/AMLab-Amsterdam/AttentionDeepMIL">attention-based MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;Attention_MIL&quot;</span></code>), <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a> (<code class="docutils literal notranslate"><span class="pre">&quot;CLAM_SB&quot;,</span></code> <code class="docutils literal notranslate"><span class="pre">&quot;CLAM_MB&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc_mc&quot;</span></code>), and <a class="reference external" href="https://github.com/szc19990412/TransMIL">transformer MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;TransMIL&quot;</span></code>).</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
@@ -421,6 +500,36 @@
 <span class="p">)</span>
 </pre></div>
 </div>
+<p>Hyperparameters, model configuration, and feature extractor information is logged to <code class="docutils literal notranslate"><span class="pre">mil_params.json</span></code> in the model directory. This file also contains information about the input and output shapes of the MIL network and outcome labels. An example file is shown below.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w"> </span><span class="nt">&quot;trainer&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;fastai&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;params&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w"> </span><span class="p">},</span>
+<span class="w"> </span><span class="nt">&quot;outcomes&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;histology&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;outcome_labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;0&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Adenocarcinoma&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;1&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Squamous&quot;</span>
+<span class="w"> </span><span class="p">},</span>
+<span class="w"> </span><span class="nt">&quot;bags&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/mnt/data/projects/example_project/bags/simclr-263510/&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;input_shape&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1024</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;output_shape&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;bags_encoder&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;extractor&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="nt">&quot;class&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;slideflow.model.extractors.simclr.SimCLR_Features&quot;</span><span class="p">,</span>
+<span class="w">   </span><span class="nt">&quot;kwargs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;center_crop&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;ckpt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/mnt/data/projects/example_project/simclr/00001-EXAMPLE/ckpt-263510.ckpt&quot;</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;normalizer&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;num_features&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1024</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;tile_px&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">299</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;tile_um&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">302</span>
+<span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
 </section>
 </section>
 <section id="evaluation">
@@ -450,6 +559,32 @@
 <p>As with training, attention heatmaps can be generated for attention-based MIL models with the argument <code class="docutils literal notranslate"><span class="pre">attention_heatmaps=True</span></code>, and these can be customized using <code class="docutils literal notranslate"><span class="pre">cmap</span></code> and <code class="docutils literal notranslate"><span class="pre">interpolation</span></code> arguments.</p>
 <img alt="../_images/att_heatmap.jpg" src="../_images/att_heatmap.jpg" />
 </section>
+<section id="single-slide-inference">
+<h2>Single-Slide Inference<a class="headerlink" href="#single-slide-inference" title="Permalink to this heading">¶</a></h2>
+<p>Predictions can also be generated for individual slides, without requiring the user to manually generate feature bags. Use <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.predict_slide()</span></code> to generate predictions for a single slide. The first argument is th path to the saved MIL model (a directory containing <code class="docutils literal notranslate"><span class="pre">mil_params.json</span></code>), and the second argument can either be a path to a slide or a loaded <code class="xref py py-class docutils literal notranslate"><span class="pre">sf.WSI</span></code> object.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.mil</span> <span class="kn">import</span> <span class="n">predict_slide</span>
+<span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
+
+<span class="c1"># Load a slide and apply Otsu thresholding</span>
+<span class="n">slide</span> <span class="o">=</span> <span class="s1">&#39;/path/to/slide.svs&#39;</span>
+<span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+<span class="n">wsi</span><span class="o">.</span><span class="n">qc</span><span class="p">(</span><span class="n">qc</span><span class="o">.</span><span class="n">Otsu</span><span class="p">())</span>
+
+<span class="c1"># Calculate predictions and attention heatmap</span>
+<span class="n">model</span> <span class="o">=</span> <span class="s1">&#39;/path/to/mil_model&#39;</span>
+<span class="n">y_pred</span><span class="p">,</span> <span class="n">y_att</span> <span class="o">=</span> <span class="n">predict_slide</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">wsi</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The function will return a tuple of predictions and attention heatmaps. If the model is not attention-based, the attention heatmap will be <code class="docutils literal notranslate"><span class="pre">None</span></code>. To calculate attention for a model, set <code class="docutils literal notranslate"><span class="pre">attention=True</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y_att</span> <span class="o">=</span> <span class="n">predict_slide</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">slide</span><span class="p">,</span> <span class="n">attention</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The returned attention values will be a masked <code class="docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> with the same shape as the slide tile extraction grid. Unused tiles will have masked attention values.</p>
+</section>
+<section id="visualizing-attention-heatmaps">
+<h2>Visualizing Attention Heatmaps<a class="headerlink" href="#visualizing-attention-heatmaps" title="Permalink to this heading">¶</a></h2>
+<p>Attention heatmaps can be interactively visualized in Slideflow Studio by enabling the Multiple-Instance Learning extension (new in Slideflow 2.1.0). This extension is discussed in more detail in the <a class="reference internal" href="../studio/#extensions"><span class="std std-ref">Extensions</span></a> section.</p>
+</section>
 </section>
 
 
@@ -476,7 +611,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -511,6 +646,8 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#evaluation">Evaluation</a></li>
+<li><a class="reference internal" href="#single-slide-inference">Single-Slide Inference</a></li>
+<li><a class="reference internal" href="#visualizing-attention-heatmaps">Visualizing Attention Heatmaps</a></li>
 </ul>
 </li>
 </ul>
@@ -570,7 +707,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

@@ -60,7 +60,7 @@ class DatasetFeatures:
         **kwargs: Any
     ) -> None:
 
-        """Calculates features / layer activations from model, storing to
+        """Calculate features / layer activations from model, storing to
         internal parameters ``self.activations``, and ``self.predictions``,
         ``self.locations``, dictionaries mapping slides to arrays of activations,
         predictions, and locations for each tiles' constituent tiles.
@@ -72,15 +72,106 @@ class DatasetFeatures:
             labels (dict, optional): Dict mapping slide names to outcome
                 categories.
             cache (str, optional): File for PKL cache.
-            annotations: Deprecated.
 
         Keyword Args:
-            layers (str): Model layer(s) from which to calculate activations.
-                Defaults to 'postconv'.
+            augment (bool, str, optional): Whether to use data augmentation
+                during feature extraction. If True, will use default
+                augmentation. If str, will use augmentation specified by the
+                string. Defaults to None.
             batch_size (int): Batch size for activations calculations.
                 Defaults to 32.
+            device (str, optional): Device to use for feature extraction.
+                Only used for PyTorch feature extractors. Defaults to None.
             include_preds (bool): Calculate and store predictions.
                 Defaults to True.
+            include_uncertainty (bool, optional): Whether to include model
+                uncertainty in the output. Only used if the feature generator
+                is a UQ-enabled model. Defaults to True.
+            layers (str, list(str)): Layers to extract features from. May be
+                the name of a single layer (str) or a list of layers (list).
+                Only used if model is a str. Defaults to 'postconv'.
+            normalizer ((str or :class:`slideflow.norm.StainNormalizer`), optional):
+                Stain normalization strategy to use on image tiles prior to
+                feature extraction. This argument is invalid if ``model`` is a
+                feature extractor built from a trained model, as stain
+                normalization will be specified by the model configuration.
+                Defaults to None.
+            normalizer_source (str, optional): Stain normalization preset
+                or path to a source image. Valid presets include 'v1', 'v2',
+                and 'v3'. If None, will use the default present ('v3').
+                This argument is invalid if ``model`` is a feature extractor
+                built from a trained model. Defaults to None.
+            num_workers (int, optional): Number of workers to use for feature
+                extraction. Only used for PyTorch feature extractors. Defaults
+                to None.
+            pool_sort (bool): Use multiprocessing pools to perform final
+                sorting. Defaults to True.
+            progress (bool): Show a progress bar during feature calculation.
+                Defaults to True.
+            verbose (bool): Show verbose logging output. Defaults to True.
+
+        Examples
+            Calculate features using a feature extractor.
+
+                .. code-block:: python
+
+                    import slideflow as sf
+                    from slideflow.model import build_feature_extractor
+
+                    # Create a feature extractor
+                    retccl = build_feature_extractor('retccl', tile_px=299)
+
+                    # Load a dataset
+                    P = sf.load_project(...)
+                    dataset = P.dataset(...)
+
+                    # Calculate features
+                    dts_ftrs = sf.DatasetFeatures(retccl, dataset)
+
+            Calculate features using a trained model (preferred).
+
+                .. code-block:: python
+
+                    from slideflow.model import build_feature_extractor
+
+                    # Create a feature extractor from the saved model.
+                    extractor = build_feature_extractor(
+                        '/path/to/trained_model.zip',
+                        layers=['postconv']
+                    )
+
+                    # Calculate features across the dataset
+                    dts_ftrs = sf.DatasetFeatures(extractor, dataset)
+
+            Calculate features using a trained model (legacy).
+
+                .. code-block:: python
+
+                    # This method is deprecated, and will be removed in a
+                    # future release. Please use the method above instead.
+                    dts_ftrs = sf.DatasetFeatures(
+                        '/path/to/trained_model.zip',
+                        dataset=dataset,
+                        layers=['postconv']
+                    )
+
+            Calculate features from a loaded model.
+
+                .. code-block:: python
+
+                    import tensorflow as tf
+                    import slideflow as sf
+
+                    # Load a model
+                    model = tf.keras.models.load_model('/path/to/model.h5')
+
+                    # Calculate features
+                    dts_ftrs = sf.DatasetFeatures(
+                        model,
+                        layers=['postconv'],
+                        dataset
+                    )
+
         """
         self.activations = defaultdict(list)  # type: Dict[str, Any]
         self.predictions = defaultdict(list)  # type: Dict[str, Any]
@@ -188,8 +279,23 @@ class DatasetFeatures:
         log.debug(f'Number of activation features: {self.num_features}')
 
     @classmethod
-    def from_df(cls, df: "pd.core.frame.DataFrame"):
-        """Load DataFrame of features, as exported by :meth:`DatasetFeatures.to_df()`"""
+    def from_df(cls, df: "pd.core.frame.DataFrame") -> "DatasetFeatures":
+        """Load DataFrame of features, as exported by :meth:`DatasetFeatures.to_df()`
+
+        Args:
+            df (:class:`pandas.DataFrame`): DataFrame of features, as exported by
+                :meth:`DatasetFeatures.to_df()`
+
+        Returns:
+            :class:`DatasetFeatures`: DatasetFeatures object
+
+        Examples
+            Recreate DatasetFeatures after export to a DataFrame.
+
+                >>> df = features.to_df()
+                >>> new_features = DatasetFeatures.from_df(df)
+
+        """
         obj = cls(None, None)  # type: ignore
         obj.slides = df.slide.unique().tolist()
         if 'activations' in df.columns:
@@ -220,8 +326,8 @@ class DatasetFeatures:
     def concat(
         cls,
         args: Iterable["DatasetFeatures"],
-    ):
-        """Concatenates activations from multiple DatasetFeatures together.
+    ) -> "DatasetFeatures":
+        """Concatenate activations from multiple DatasetFeatures together.
 
         For example, if ``df1`` is a DatasetFeatures object with 2048 features
         and ``df2`` is a DatasetFeatures object with 1024 features,
@@ -233,6 +339,22 @@ class DatasetFeatures:
 
         If there are any tiles that do not have calculated features in both
         dataframes, these will be dropped.
+
+        Args:
+            args (Iterable[:class:`DatasetFeatures`]): DatasetFeatures objects
+                to concatenate.
+
+        Returns:
+            :class:`DatasetFeatures`: DatasetFeatures object with concatenated
+            features.
+
+        Examples
+            Concatenate two DatasetFeatures objects.
+
+                >>> df1 = DatasetFeatures(model, dataset, layers='postconv')
+                >>> df2 = DatasetFeatures(model, dataset, layers='sepconv_3')
+                >>> df = DatasetFeatures.concat([df1, df2])
+
         """
         assert len(args) > 1
         dfs = []
@@ -489,6 +611,8 @@ class DatasetFeatures:
             extractor=self.feature_generator.generator.dump_config(),
             normalizer=norm_dict,
             num_features=self.num_features,
+            tile_px=self.dataset.tile_px,
+            tile_um=self.dataset.tile_um
         )
         return config
 
@@ -1116,9 +1240,51 @@ class _FeatureGenerator:
         batch_size: int = 32,
         device: Optional[str] = None,
         num_workers: Optional[int] = None,
-        augment: bool = False,
+        augment: Optional[Union[bool, str]] = None,
         **kwargs
     ) -> None:
+        """Initializes FeatureGenerator.
+
+        Args:
+            model (str, BaseFeatureExtractor, tf.keras.models.Model, torch.nn.Module):
+                Model to use for feature extraction. If str, must be a path to
+                a saved model.
+            dataset (sf.Dataset): Dataset to use for feature extraction.
+
+        Keyword Args:
+            augment (bool, str, optional): Whether to use data augmentation
+                during feature extraction. If True, will use default
+                augmentation. If str, will use augmentation specified by the
+                string. Defaults to None.
+            batch_size (int, optional): Batch size to use for feature
+                extraction. Defaults to 32.
+            device (str, optional): Device to use for feature extraction.
+                Only used for PyTorch feature extractors. Defaults to None.
+            include_preds (bool, optional): Whether to include model
+                predictions. If None, will be set to True if
+                model has a num_classes attribute. Defaults to None.
+            include_uncertainty (bool, optional): Whether to include model
+                uncertainty in the output. Only used if the feature generator
+                is a UQ-enabled model. Defaults to True.
+            layers (str, list(str)): Layers to extract features from. May be
+                the name of a single layer (str) or a list of layers (list).
+                Only used if model is a str. Defaults to 'postconv'.
+            normalizer ((str or :class:`slideflow.norm.StainNormalizer`), optional):
+                Stain normalization strategy to use on image tiles prior to
+                feature extraction. This argument is invalid if ``model`` is a
+                feature extractor built from a trained model, as stain
+                normalization will be specified by the model configuration.
+                Defaults to None.
+            normalizer_source (str, optional): Stain normalization preset
+                or path to a source image. Valid presets include 'v1', 'v2',
+                and 'v3'. If None, will use the default present ('v3').
+                This argument is invalid if ``model`` is a feature extractor
+                built from a trained model. Defaults to None.
+            num_workers (int, optional): Number of workers to use for feature
+                extraction. Only used for PyTorch feature extractors. Defaults
+                to None.
+
+        """
         self.model = model
         self.dataset = dataset
         self.layers = sf.util.as_list(layers)
@@ -1142,8 +1308,12 @@ class _FeatureGenerator:
         self.include_preds = include_preds
         self.include_uncertainty = include_uncertainty
 
+        # Determine UQ and stain normalization.
+        # If the `model` is a feature extractor, stain normalization
+        # will be determined via keyword arguments by self._prepare_generator()
         self._determine_uq_and_normalizer()
         self.generator = self._prepare_generator(**kwargs)
+
         self.num_features = self.generator.num_features
         self.num_classes = 0 if not include_preds else self.generator.num_classes
         if self.is_torch():
@@ -1219,7 +1389,7 @@ class _FeatureGenerator:
 
         # Concatenate features if we have features from >1 layer
         if isinstance(features, list):
-            features = np.concatenate(features)
+            features = np.concatenate(features, axis=1)
 
         return features, predictions, uncertainty, slides, loc
 
@@ -1256,9 +1426,14 @@ class _FeatureGenerator:
         self.dts_kw = dts_kw
 
     def _determine_uq_and_normalizer(self):
+        """Determines whether the model uses UQ and its stain normalizer."""
+
         # Load configuration if model is path to a saved model
         if isinstance(self.model, BaseFeatureExtractor):
             self.uq = self.model.num_uncertainty > 0
+            # If the feature extractor has a normalizer, use it.
+            # This will be overridden by keyword arguments if the
+            # feature extractor is not an instance of slideflow.model.Features.
             self.normalizer = self.model.normalizer
         elif isinstance(self.model, str):
             model_config = sf.util.get_model_config(self.model)
@@ -1274,6 +1449,7 @@ class _FeatureGenerator:
             self.uq = False
 
     def _norm_from_kwargs(self, kwargs):
+        """Parse the stain normalizer from keyword arguments."""
         if 'normalizer' in kwargs and kwargs['normalizer'] is not None:
             norm = kwargs['normalizer']
             del kwargs['normalizer']
@@ -1302,6 +1478,36 @@ class _FeatureGenerator:
 
         # Generator is a Feature Extractor
         if self.is_extractor():
+
+            # Handle the case where the extractor is built from a trained model
+            if self.is_tf():
+                from slideflow.model.tensorflow import Features as TFFeatures
+                is_tf_model_extractor = isinstance(self.model, TFFeatures)
+                is_torch_model_extractor = False
+            elif self.is_torch():
+                from slideflow.model.torch import Features as TorchFeatures
+                is_torch_model_extractor = isinstance(self.model, TorchFeatures)
+                is_tf_model_extractor = False
+            else:
+                is_tf_model_extractor = False
+                is_torch_model_extractor = False
+            if (is_tf_model_extractor or is_torch_model_extractor) and 'normalizer' in kwargs:
+                raise ValueError(
+                    "Cannot specify a normalizer when using a feature extractor "
+                    "created from a trained model. Stain normalization is auto-detected "
+                    "from the model configuration."
+                )
+            elif (is_tf_model_extractor or is_torch_model_extractor) and kwargs:
+                raise ValueError(
+                    f"Invalid keyword arguments: {', '.join(list(kwargs.keys()))}"
+                )
+            elif (is_tf_model_extractor or is_torch_model_extractor):
+                # Stain normalization has already been determined
+                # from the model configuration.
+                return self.model
+
+            # For all other feature extractors, stain normalization
+            # is determined from keyword arguments.
             self.normalizer, kwargs = self._norm_from_kwargs(kwargs)
             if kwargs:
                 raise ValueError(
@@ -1309,8 +1515,8 @@ class _FeatureGenerator:
                 )
             return self.model
 
-        # Generator is a model, and we're using UQ
-        elif self.uq and self.include_uncertainty:
+        # Generator is a path to a trained model, and we're using UQ
+        elif self.is_model_path() and (self.uq and self.include_uncertainty):
             if self.include_preds is False:
                 raise ValueError(
                     "include_preds must be True if include_uncertainty is True"
@@ -1349,9 +1555,9 @@ class _FeatureGenerator:
                 **kwargs
             )
 
-        # Unrecognized feature generator
+        # Unrecognized feature extractor
         else:
-            raise ValueError(f'Unrecognized model {self.model}')
+            raise ValueError(f'Unrecognized feature extractor {self.model}')
 
     def is_model_path(self):
         return isinstance(self.model, str) and (self.is_tf() or self.is_torch())
@@ -1429,7 +1635,7 @@ class _FeatureGenerator:
         # Rename tfrecord_array to tfrecords
         log_fn = log.info if verbose else log.debug
         log_fn(f'Calculating activations for {len(self.dataset.tfrecords())} '
-                 f'tfrecords (layers={self.layers})')
+               'tfrecords')
         log_fn(f'Generating from [green]{self.model}')
 
         # Interleave tfrecord datasets

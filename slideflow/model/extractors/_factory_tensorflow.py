@@ -1,8 +1,11 @@
 """Factory for building Tensorflow feature extractors."""
 
 import importlib
+import numpy as np
+import slideflow as sf
 from slideflow import errors
 
+from ._slide import features_from_slide
 from ._registry import _tf_extractors, is_tensorflow_extractor, register_tf
 from ..base import BaseFeatureExtractor
 
@@ -131,12 +134,26 @@ class TensorflowImagenetLayerExtractor(BaseFeatureExtractor):
             self.num_features,
         )
 
-    def __call__(self, batch_images):
+    def _predict(self, batch_images):
+        """Generate features for a batch of images."""
         import tensorflow as tf
-        assert batch_images.dtype == tf.uint8
-        batch_images = tf.cast(batch_images, tf.float32)
-        batch_images = self.transform(batch_images)
+        if batch_images.dtype == tf.uint8:
+            batch_images = tf.cast(batch_images, tf.float32)
+            batch_images = self.transform(batch_images)
         return self.ftrs._predict(batch_images)
+
+    def __call__(self, obj, **kwargs):
+        """Generate features for a batch of images or a WSI."""
+        if isinstance(obj, sf.WSI):
+            grid = features_from_slide(self, obj, preprocess_fn=self.transform, **kwargs)
+            return np.ma.masked_where(grid == -99, grid)
+        elif kwargs:
+            raise ValueError(
+                f"{self.__class__.__name__} does not accept keyword arguments "
+                "when extracting features from a batch of images."
+            )
+        else:
+            return self._predict(obj)
 
     def dump_config(self):
         """Return a dictionary of configuration parameters.

@@ -124,14 +124,15 @@ class _ModelParams:
                       - Random JPEG compression (10% chance to JPEG compress with quality between 50-100%)
                     * - b
                       - Random Guassian blur (50% chance to blur with sigma between 0.5 - 2.0)
-                    * - s
-                      - Stain augmentation (must be using stain normalization)
+                    * - n
+                      - :ref:`stain_augmentation` (requires stain normalizer)
 
 
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.slide.norm_tile.jpg
+            normalizer_source (str, optional): Stain normalization preset or
+                path to a source image. Valid presets include 'v1', 'v2', and
+                'v3'. If None, will use the default present ('v3').
+                Defaults to None.
             include_top (bool): Include post-convolution fully-connected layers from the core model. Defaults
                 to True. include_top=False is not currently compatible with the PyTorch backend.
             drop_images (bool): Drop images, using only other slide-level features as input.

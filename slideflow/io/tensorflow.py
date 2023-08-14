@@ -145,10 +145,26 @@ def process_image(
 ) -> Tuple[Union[Dict, tf.Tensor], ...]:
     """Applies augmentations and/or standardization to an image Tensor.
 
+    Args:
+        record (Union[tf.Tensor, Dict[str, tf.Tensor]]): Image Tensor.
+
     Keyword Args:
+        standardize (bool, optional): Standardize images. Defaults to False.
+        augment (str or bool): Image augmentations to perform. Augmentations include:
+
+            * ``'x'``: Random horizontal flip
+            * ``'y'``: Random vertical flip
+            * ``'r'``: Random 90-degree rotation
+            * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+            * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+
+            Combine letters to define augmentations, such as ``'xyrj'``.
+            A value of True will use ``'xyrjb'``.
+            Note: this function does not support stain augmentation.
         transform (Callable, optional): Arbitrary transform function.
             Performs transformation after augmentations but before standardization.
             Defaults to None.
+        size (int, optional): Set the image shape. Defaults to None.
 
     """
     if isinstance(record, dict):
@@ -211,7 +227,7 @@ def process_image(
             false_fn=lambda: image
         )
     if augment is True or (isinstance(augment, str) and 'i' in augment):
-        ...
+        raise NotImplementedError("Random pixel interpolation not implemented.")
     if transform is not None:
         image = transform(image)
     if standardize:
@@ -314,12 +330,17 @@ def get_tfrecord_parser(
             if provided. Defaults to False.
         normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer
             to use on images. Defaults to None.
-        augment (str): Image augmentations to perform. String containing
-            characters designating augmentations. 'x' indicates random
-            x-flipping, 'y' y-flipping, 'r' rotating, 'j' JPEG
-            compression/decompression at random quality levels, and 'b'
-            random gaussian blur. Passing either 'xyrjb' or True will use all
-            augmentations.
+        augment (str or bool): Image augmentations to perform. Augmentations include:
+
+            * ``'x'``: Random horizontal flip
+            * ``'y'``: Random vertical flip
+            * ``'r'``: Random 90-degree rotation
+            * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+            * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+            * ``'n'``: Random :ref:`stain_augmentation` (requires stain normalizer)
+
+            Combine letters to define augmentations, such as ``'xyrjn'``.
+            A value of True will use ``'xyrjb'``.
         error_if_invalid (bool, optional): Raise an error if a tfrecord cannot
             be read. Defaults to True.
     """
@@ -368,9 +389,16 @@ def get_tfrecord_parser(
 
 
 def parser_from_labels(labels: Labels) -> Callable:
-    '''Returns a label parsing function used for parsing slides into single
+    """Create a label parsing function used for parsing slides into single
     or multi-outcome labels.
-    '''
+
+    Args:
+        labels (dict): Dictionary mapping slide names to outcome labels.
+
+    Returns:
+        Callable: Label parsing function.
+
+    """
     outcome_labels = np.array(list(labels.values()))
     slides = list(labels.keys())
     if len(outcome_labels.shape) == 1:
@@ -401,78 +429,56 @@ def parser_from_labels(labels: Labels) -> Callable:
 def interleave(
     paths: List[str],
     *,
-    img_size: int,
-    batch_size: Optional[int],
-    prob_weights: Optional[Dict[str, float]] = None,
-    clip: Optional[Dict[str, int]] = None,
-    labels: Optional[Labels] = None,
-    incl_slidenames: bool = False,
-    incl_loc: Optional[str] = None,
-    infinite: bool = True,
     augment: bool = False,
-    standardize: bool = True,
-    transform: Optional[Callable] = None,
-    normalizer: Optional["StainNormalizer"] = None,
-    num_shards: Optional[int] = None,
-    shard_idx: Optional[int] = None,
-    num_parallel_reads: int = 4,
+    batch_size: Optional[int],
+    clip: Optional[Dict[str, int]] = None,
     deterministic: bool = False,
     drop_last: bool = False,
     from_wsi: bool = False,
-    tile_um: Optional[int] = None,
+    incl_loc: Optional[str] = None,
+    incl_slidenames: bool = False,
+    infinite: bool = True,
+    img_size: int,
+    labels: Optional[Labels] = None,
+    normalizer: Optional["StainNormalizer"] = None,
+    num_parallel_reads: int = 4,
+    num_shards: Optional[int] = None,
+    pool: Optional["mp.pool.Pool"] = None,
+    prob_weights: Optional[Dict[str, float]] = None,
     rois: Optional[List[str]] = None,
     roi_method: str = 'auto',
-    pool: Optional["mp.pool.Pool"] = None,
+    shard_idx: Optional[int] = None,
+    standardize: bool = True,
+    tile_um: Optional[int] = None,
     tfrecord_parser: Optional[Callable] = None,
+    transform: Optional[Callable] = None,
     **decode_kwargs: Any
 ) -> Iterable:
+    """Generate an interleaved dataset from a collection of tfrecord files.
 
-    """Generates an interleaved dataset from a collection of tfrecord files,
-    sampling from tfrecord files randomly according to balancing if provided.
-    Requires manifest for balancing. Assumes TFRecord files are named by slide.
+    The interleaved dataset samples from tfrecord files randomly according to
+    balancing, if provided. Requires manifest for balancing. Assumes TFRecord
+    files are named by slide.
 
     Args:
         paths (list(str)): List of paths to TFRecord files or whole-slide
             images.
-        img_size (int): Image width in pixels.
+
+    Keyword Args:
+        augment (str or bool): Image augmentations to perform. Augmentations include:
+
+            * ``'x'``: Random horizontal flip
+            * ``'y'``: Random vertical flip
+            * ``'r'``: Random 90-degree rotation
+            * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+            * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+            * ``'n'``: Random :ref:`stain_augmentation` (requires stain normalizer)
+
+            Combine letters to define augmentations, such as ``'xyrjn'``.
+            A value of True will use ``'xyrjb'``.
         batch_size (int): Batch size.
-        prob_weights (dict, optional): Dict mapping tfrecords to probability of
-            including in batch. Defaults to None.
         clip (dict, optional): Dict mapping tfrecords to number of tiles to
             take per tfrecord. Defaults to None.
-        labels (dict or str, optional): Dict or function. If dict, must map
-            slide names to outcome labels. If function, function must accept an
-            image (tensor) and slide name (str), and return a dict
-            {'image_raw': image (tensor)} and label (int or float). If not
-            provided,  all labels will be None.
-        incl_slidenames (bool, optional): Include slidenames as third returned
-            variable. Defaults to False.
-        incl_loc (str, optional): 'coord', 'grid', or None. Return (x,y)
-                origin coordinates ('coord') for each tile along with tile
-                images, or the (x,y) grid coordinates for each tile.
-                Defaults to 'coord'.
-        infinite (bool, optional): Create an finite dataset. WARNING: If
-            infinite is False && balancing is used, some tiles will be skipped.
-            Defaults to True.
-        augment (str): Image augmentations to perform. String containing
-            characters designating augmentations. 'x' indicates random
-            x-flipping, 'y' y-flipping, 'r' rotating, 'j' JPEG
-            compression/decompression at random quality levels, and 'b'
-            random gaussian blur. Passing either 'xyrjb' or True will use all
-            augmentations.
-        standardize (bool, optional): Standardize images to (0,1).
-            Defaults to True.
-        transform (Callable, optional): Arbitrary transform function.
-            Performs transformation after augmentations but before standardization.
-            Defaults to None.
-        normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
-            Normalizer to use on images. Defaults to None.
-        num_shards (int, optional): Shard the tfrecord datasets, used for
-            multiprocessing datasets. Defaults to None.
-        shard_idx (int, optional): Index of the tfrecord shard to use.
-            Defaults to None.
-        num_parallel_reads (int, optional): Number of parallel reads for each
-            TFRecordDataset. Defaults to 4.
         deterministic (bool, optional): When num_parallel_calls is specified,
             if this boolean is specified, it controls the order in which the
             transformation produces elements. If set to False, the
@@ -480,6 +486,53 @@ def interleave(
             determinism for performance. Defaults to False.
         drop_last (bool, optional): Drop the last non-full batch.
             Defaults to False.
+        from_wsi (bool): Generate predictions from tiles dynamically
+            extracted from whole-slide images, rather than TFRecords.
+            Defaults to False (use TFRecords).
+        incl_loc (str, optional): 'coord', 'grid', or None. Return (x,y)
+            origin coordinates ('coord') for each tile along with tile
+            images, or the (x,y) grid coordinates for each tile.
+            Defaults to 'coord'.
+        incl_slidenames (bool, optional): Include slidenames as third returned
+            variable. Defaults to False.
+        infinite (bool, optional): Create an finite dataset. WARNING: If
+            infinite is False && balancing is used, some tiles will be skipped.
+            Defaults to True.
+        img_size (int): Image width in pixels.
+        labels (dict or str, optional): Dict or function. If dict, must map
+            slide names to outcome labels. If function, function must accept an
+            image (tensor) and slide name (str), and return a dict
+            {'image_raw': image (tensor)} and label (int or float). If not
+            provided,  all labels will be None.
+        normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+            Normalizer to use on images. Defaults to None.
+        num_parallel_reads (int, optional): Number of parallel reads for each
+            TFRecordDataset. Defaults to 4.
+        num_shards (int, optional): Shard the tfrecord datasets, used for
+            multiprocessing datasets. Defaults to None.
+        pool (multiprocessing.Pool): Shared multiprocessing pool. Useful
+            if ``from_wsi=True``, for sharing a unified processing pool between
+            dataloaders. Defaults to None.
+        prob_weights (dict, optional): Dict mapping tfrecords to probability of
+            including in batch. Defaults to None.
+        rois (list(str), optional): List of ROI paths. Only used if
+            from_wsi=True.  Defaults to None.
+        roi_method (str, optional): Method for extracting ROIs. Only used if
+            from_wsi=True. Defaults to 'auto'.
+        shard_idx (int, optional): Index of the tfrecord shard to use.
+            Defaults to None.
+        standardize (bool, optional): Standardize images to (0,1).
+            Defaults to True.
+        tile_um (int, optional): Size of tiles to extract from WSI, in
+            microns. Only used if from_wsi=True. Defaults to None.
+        tfrecord_parser (Callable, optional): Custom parser for TFRecords.
+            Defaults to None.
+        transform (Callable, optional): Arbitrary transform function.
+            Performs transformation after augmentations but before
+            standardization. Defaults to None.
+        **decode_kwargs (dict): Keyword arguments to pass to
+            :func:`slideflow.io.tensorflow.decode_image`.
+
     """
     if not len(paths):
         raise errors.TFRecordsNotFoundError
@@ -708,7 +761,18 @@ def tfrecord_example(
     loc_x: Optional[int] = 0,
     loc_y: Optional[int] = 0
 ) -> "Example":
-    '''Returns a Tensorflow Data example for TFRecord storage.'''
+    """Return a Tensorflow Data example for TFRecord storage.
+
+    Args:
+        slide (bytes): Slide name.
+        image_raw (bytes): Image bytes.
+        loc_x (Optional[int], optional): X coordinate of image. Defaults to 0.
+        loc_y (Optional[int], optional): Y coordinate of image. Defaults to 0.
+
+    Returns:
+        Example: Tensorflow Data example.
+
+    """
     feature = {
         'slide': _bytes_feature(slide),
         'image_raw': _bytes_feature(image_raw),
@@ -726,13 +790,35 @@ def serialized_record(
     loc_x: int = 0,
     loc_y: int = 0
 ) -> bytes:
-    '''Returns a serialized example for TFRecord storage, ready to be written
-    by a TFRecordWriter.'''
+    """Serialize a record for TFRecord storage.
+
+    The serialized record will be in a data format ready to be written
+    by a TFRecordWriter.
+
+    Args:
+        slide (bytes): Slide name.
+        image_raw (bytes): Image bytes.
+        loc_x (int, optional): X coordinate of image. Defaults to 0.
+        loc_y (int, optional): Y coordinate of image. Defaults to 0.
+
+    Returns:
+        bytes: Serialized record.
+
+    """
     return tfrecord_example(slide, image_raw, loc_x, loc_y).SerializeToString()
 
 
 def multi_image_example(slide: bytes, image_dict: Dict) -> "Example":
-    '''Returns a Tensorflow Data example for storage with multiple images.'''
+    """Returns a Tensorflow Data example for storage with multiple images.
+
+    Args:
+        slide (bytes): Slide name.
+        image_dict (Dict): Dictionary of image names and image bytes.
+
+    Returns:
+        Example: Tensorflow Data example.
+
+    """
     feature = {
         'slide': _bytes_feature(slide)
     }
@@ -748,8 +834,16 @@ def join_tfrecord(
     output_file: str,
     assign_slide: str = None
 ) -> None:
-    '''Randomly samples from tfrecords in the input folder with shuffling,
-    and combines into a single tfrecord file.'''
+    """Randomly sample from tfrecords in the input folder with shuffling,
+    and combine into a single tfrecord file.
+
+    Args:
+        input_folder (str): Folder containing tfrecord files.
+        output_file (str): Output tfrecord file.
+        assign_slide (str, optional): Assign a slide name to all images.
+            Defaults to None.
+
+    """
     writer = tf.io.TFRecordWriter(output_file)
     tfrecord_files = glob(join(input_folder, "*.tfrecords"))
     datasets = []
@@ -784,9 +878,14 @@ def join_tfrecord(
 
 
 def split_tfrecord(tfrecord_file: str, output_folder: str) -> None:
-    '''Splits records from a single tfrecord file into individual tfrecord
-    files by slide.
-    '''
+    """Split records from a single tfrecord into individual tfrecord
+    files, stratified by slide.
+
+    Args:
+        tfrecord_file (str): Path to tfrecord file.
+        output_folder (str): Path to output folder.
+
+    """
     dataset = tf.data.TFRecordDataset(tfrecord_file)
     parser = get_tfrecord_parser(tfrecord_file, ['slide'], to_numpy=True)
     full_parser = get_tfrecord_parser(
@@ -812,9 +911,13 @@ def split_tfrecord(tfrecord_file: str, output_folder: str) -> None:
 
 
 def print_tfrecord(target: str) -> None:
-    '''Prints the slide names (and locations, if present) for records
+    """Print the slide names (and locations, if present) for records
     in the given tfrecord file.
-    '''
+
+    Args:
+        target: Path to the tfrecord file or folder containing tfrecord files.
+
+    """
     if isfile(target):
         _print_record(target)
     else:
@@ -824,8 +927,13 @@ def print_tfrecord(target: str) -> None:
 
 
 def checkpoint_to_tf_model(models_dir: str, model_name: str) -> None:
-    '''Converts a checkpoint file into a saved model.'''
+    """Convert a checkpoint file into a saved model.
 
+    Args:
+        models_dir: Directory containing the model.
+        model_name: Name of the model to convert.
+
+    """
     checkpoint = join(models_dir, model_name, "cp.ckpt")
     tf_model = join(models_dir, model_name, "untrained_model")
     updated_tf_model = join(models_dir, model_name, "checkpoint_model")
@@ -846,9 +954,20 @@ def transform_tfrecord(
     hue_shift: Optional[float] = None,
     resize: Optional[float] = None,
 ) -> None:
-    '''Transforms images in a single tfrecord. Can perform hue shifting,
-    resizing, or re-assigning slide label.
-    '''
+    """Transform images in a single tfrecord.
+
+    Can perform hue shifting, resizing, or re-assigning slide label.
+
+    Args:
+        origin: Path to the original tfrecord file.
+        target: Path to the new tfrecord file.
+        assign_slide: If provided, will assign this slide name to all
+            records in the new tfrecord.
+        hue_shift: If provided, will shift the hue of all images by
+            this amount.
+        resize: If provided, will resize all images to this size.
+
+    """
     log.info(f"Transforming tiles in tfrecord [green]{origin}")
     log.info(f"Saving to new tfrecord at [green]{target}")
     if assign_slide:
@@ -905,7 +1024,12 @@ def transform_tfrecord(
 
 
 def shuffle_tfrecord(target: str) -> None:
-    '''Shuffles records in a TFRecord, saving the original to a .old file.'''
+    """Shuffle records in a TFRecord, saving the original to a .old file.
+
+    Args:
+        target: Path to the tfrecord file.
+
+    """
 
     old_tfrecord = target+".old"
     shutil.move(target, old_tfrecord)
@@ -921,9 +1045,13 @@ def shuffle_tfrecord(target: str) -> None:
 
 
 def shuffle_tfrecords_by_dir(directory: str) -> None:
-    '''For each TFRecord in a directory, shuffles records in the TFRecord,
+    """For each TFRecord in a directory, shuffle records in the TFRecord,
     saving the original to a .old file.
-    '''
+
+    Args:
+        directory: Path to the directory containing tfrecord files.
+
+    """
     records = [tfr for tfr in listdir(directory) if tfr[-10:] == ".tfrecords"]
     for record in records:
         log.info(f'Working on {record}')

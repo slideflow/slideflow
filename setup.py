@@ -73,6 +73,8 @@ setuptools.setup(
             'studio/gui/buttons/button_slide.png',
             'studio/gui/buttons/small_button_gear.png',
             'studio/gui/buttons/button_gear.png',
+            'studio/gui/buttons/button_mil.png',
+            'studio/gui/buttons/button_mil_highlighted.png',
             'gan/stylegan2/stylegan2/torch_utils/ops/bias_act.cpp',
             'gan/stylegan2/stylegan2/torch_utils/ops/bias_act.cu',
             'gan/stylegan2/stylegan2/torch_utils/ops/bias_act.h',
@@ -144,7 +146,8 @@ setuptools.setup(
             'torchvision',
             'pretrainedmodels',
             'cellpose<2.2',
-            'fastai'
+            'fastai',
+            'timm<0.9'
         ],
         'dev': [
             'sphinx',

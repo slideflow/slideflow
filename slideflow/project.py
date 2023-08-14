@@ -40,7 +40,7 @@ from .project_utils import (  # noqa: F401
 )
 
 if TYPE_CHECKING:
-    from slideflow.model import DatasetFeatures, Trainer
+    from slideflow.model import DatasetFeatures, Trainer, BaseFeatureExtractor
     from slideflow.slide import SlideReport
     from slideflow import simclr, mil
     from ConfigSpace import ConfigurationSpace, Configuration
@@ -1281,7 +1281,9 @@ class Project:
         filter_blank: Optional[Union[str, List[str]]] = None,
         attention_heatmaps: bool = True
     ) -> None:
-        """Evaluate CLAM model on activations and export attention heatmaps.
+        """Deprecated function.
+
+        Evaluate CLAM model on activations and export attention heatmaps.
 
         Args:
             exp_name (str): Name of experiment to evaluate (subfolder in clam/)
@@ -1309,6 +1311,10 @@ class Project:
             None
 
         """
+        warnings.warn("Project.evaluate_clam() is deprecated. Please use "
+                      "Project.evaluate_mil()",
+                      DeprecationWarning)
+
         import slideflow.clam as clam
         from slideflow.clam import export_attention
         from slideflow.clam import Generic_MIL_Dataset
@@ -1565,18 +1571,19 @@ class Project:
                 Defaults to None.
             save_tiles (bool, optional): Save tile images in loose format.
                 Defaults to False.
-            save_tfrecords (bool, optional): Save tile images as TFRecords.
-                Defaults to True.
-            source (str, optional): Process slides only from this source.
-                Defaults to None (all slides in project).
-            stride_div (int, optional): Stride divisor. Defaults to 1.
+            save_tfrecords (bool): Save compressed image data from
+                extracted tiles into TFRecords in the corresponding TFRecord
+                directory. Defaults to True.
+            source (str, optional): Name of dataset source from which to select
+                slides for extraction. Defaults to None. If not provided, will
+                default to all sources in project.
+            stride_div (int): Stride divisor for tile extraction.
                 A stride of 1 will extract non-overlapping tiles.
-                A stride_div of 2 will extract overlapping tiles with a stride
-                equal to 50% of the tile width.
-            enable_downsample (bool, optional): Enable downsampling when
-                reading slides. Defaults to True. This may result in corrupted
-                image tiles if downsampled slide layers are corrupted or
-                incomplete. Recommend manual confirmation of tile integrity.
+                A stride_div of 2 will extract overlapping tiles, with a stride
+                equal to 50% of the tile width. Defaults to 1.
+            enable_downsample (bool): Enable downsampling for slides.
+                This may result in corrupted image tiles if downsampled slide
+                layers are corrupted or incomplete. Defaults to True.
             roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
                 Determines how ROIs are used to extract tiles.
                 If 'inside' or 'outside', will extract tiles in/out of an ROI,
@@ -1586,57 +1593,74 @@ class Project:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
-            skip_extracted (bool, optional): Skip already extracted slides.
-                Defaults to True.
-            tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs),
+            roi_filter_method (str or float): Method of filtering tiles with
+                ROIs. Either 'center' or float (0-1). If 'center', tiles are
+                filtered with ROIs based on the center of the tile. If float,
+                tiles are filtered based on the proportion of the tile inside
+                the ROI, and ``roi_filter_method`` is interpreted as a
+                threshold. If the proportion of a tile inside the ROI is
+                greater than this number, the tile is included. For example,
+                if ``roi_filter_method=0.7``, a tile that is 80% inside of an
+                ROI will be included, and a tile that is 50% inside of an ROI
+                will be excluded. Defaults to 'center'.
+            skip_extracted (bool): Skip slides that have already
+                been extracted. Defaults to True.
+            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),
                 detecting and extracting tumor cores. Defaults to False.
-            randomize_origin (bool, optional): Randomize pixel starting
+                Experimental function with limited testing.
+            randomize_origin (bool): Randomize pixel starting
                 position during extraction. Defaults to False.
-            buffer (str, optional): Copy slides here before extraction.
-                Improves processing speed if using an SSD/ramdisk buffer.
-                Defaults to None.
-            num_workers (int, optional): Extract tiles from this many slides
-                simultaneously. Defaults to 1.
-            q_size (int, optional): Queue size for buffer. Defaults to 2.
+            buffer (str, optional): Slides will be copied to this directory
+                before extraction. Defaults to None. Using an SSD or ramdisk
+                buffer vastly improves tile extraction speed.
+            q_size (int): Size of queue when using a buffer.
+                Defaults to 2.
             qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur
                 detection quality control - discarding tiles with detected
                 out-of-focus regions or artifact - and/or otsu's method.
-                Defaults to None.
-            report (bool, optional): Save a PDF report of tile extraction.
+                Increases tile extraction time. Defaults to None.
+            report (bool): Save a PDF report of tile extraction.
                 Defaults to True.
             normalizer (str, optional): Normalization strategy.
                 Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image.
-                Defaults to None (use internal image at slide.norm_tile.jpg).
-            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
-                Discard tiles with this fraction of whitespace. If 1, will not
-                perform whitespace filtering.
-            whitespace_threshold (int, optional): Range 0-255. Threshold above
-                which a pixel (RGB average) is considered whitespace.
-                Defaults to 230.
-            grayspace_fraction (float, optional): Range 0-1. Discard tiles with
-                this fraction of grayspace. If 1, will not perform grayspace
-                filtering. Defaults to 0.6.
-            grayspace_threshold (float, optional): Range 0-1. Pixels in HSV
-                format with saturation below this are considered grayspace.
-                Defaults to 0.05.
+            normalizer_source (str, optional): Stain normalization preset or
+                path to a source image. Valid presets include 'v1', 'v2', and
+                'v3'. If None, will use the default present ('v3').
+                Defaults to None.
+            whitespace_fraction (float, optional): Range 0-1. Discard tiles
+                with this fraction of whitespace. If 1, will not perform
+                whitespace filtering. Defaults to 1.
+            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
+                Threshold above which a pixel (RGB average) is whitespace.
+            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
+                Discard tiles with this fraction of grayspace.
+                If 1, will not perform grayspace filtering.
+            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
+                Pixels in HSV format with saturation below this threshold are
+                considered grayspace.
             img_format (str, optional): 'png' or 'jpg'. Defaults to 'jpg'.
-                Image format to use in tfrecords. PNG (lossless) for
-                fidelity, JPG (lossy) for efficiency.
-            full_core (bool, optional): Only used if extracting from TMA. Save
-                entire TMA core as image. Otherwise, will extract sub-images
-                from each core at the tile micron size. Defaults to False.
-            shuffle (bool, optional): Shuffle tiles before tfrecords storage.
-                Defaults to True.
-            num_threads (int, optional): Threads for each tile extractor.
-                Defaults to 4.
-            qc_blur_radius (int, optional): Blur radius for out-of-focus area
-                detection. Used if qc=True. Defaults to 3.
-            qc_blur_threshold (float, optional): Blur threshold for detecting
-                out-of-focus areas. Used if qc=True. Defaults to 0.1.
-            qc_filter_threshold (float, optional): Float between 0-1.
-                Tiles with more than this proportion of blur will be discarded.
-                Used if qc=True. Defaults to 0.6.
+                Image format to use in tfrecords. PNG (lossless) for fidelity,
+                JPG (lossy) for efficiency.
+            full_core (bool, optional): Only used if extracting from TMA.
+                If True, will save entire TMA core as image.
+                Otherwise, will extract sub-images from each core using the
+                given tile micron size. Defaults to False.
+            shuffle (bool, optional): Shuffle tiles prior to storage in
+                tfrecords. Defaults to True.
+            num_threads (int, optional): Number of worker processes for each
+                tile extractor. When using cuCIM slide reading backend,
+                defaults to the total number of available CPU cores, using the
+                'fork' multiprocessing method. With Libvips, this defaults to
+                the total number of available CPU cores or 32, whichever is
+                lower, using 'spawn' multiprocessing.
+            qc_blur_radius (int, optional): Quality control blur radius for
+                out-of-focus area detection. Used if qc=True. Defaults to 3.
+            qc_blur_threshold (float, optional): Quality control blur threshold
+                for detecting out-of-focus areas. Only used if qc=True.
+                Defaults to 0.1
+            qc_filter_threshold (float, optional): Float between 0-1. Tiles
+                with more than this proportion of blur will be discarded.
+                Only used if qc=True. Defaults to 0.6.
             qc_mpp (float, optional): Microns-per-pixel indicating image
                 magnification level at which quality control is performed.
                 Defaults to mpp=4 (effective magnification 2.5 X)
@@ -1955,10 +1979,10 @@ class Project:
     @auto_dataset_allow_none
     def generate_feature_bags(
         self,
-        model: str,
+        model: Union[str, "BaseFeatureExtractor"],
+        dataset: Optional[Dataset] = None,
         outdir: str = 'auto',
         *,
-        dataset: Optional[Dataset] = None,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 16,
@@ -1968,9 +1992,9 @@ class Project:
         slide_batch_size: int = 16,
         **kwargs: Any
     ) -> str:
-        """Generate tile-level features for slides for use with CLAM.
+        """Generate tile-level features for slides for use with MIL models.
 
-        By default, CLAM features are saved in the ``pt_files`` folder
+        By default, features are exported to the ``pt_files`` folder
         within the project root directory.
 
         Args:
@@ -2007,7 +2031,7 @@ class Project:
                 this many slides. Higher values may improve performance
                 but require more memory. Defaults to 16.
             **kwargs: Additional keyword arguments are passed to
-                ``sf.DatasetFeatures``.
+                :class:`slideflow.DatasetFeatures`.
 
         Returns:
             Path to directory containing exported .pt files
@@ -3717,7 +3741,7 @@ class Project:
             join(self.root, 'simclr'), exp_label
         )
 
-        # get base SimCLR args/settings if not provided
+        # Get base SimCLR args/settings if not provided
         if not simclr_args:
             simclr_args = simclr.get_args()
         assert isinstance(simclr_args, simclr.SimCLR_Args)

@@ -50,3 +50,4 @@ Other functions
 .. autofunction:: is_torch_model
 .. autofunction:: is_torch_tensor
 .. autofunction:: read_hp_sweep
+.. autofunction:: rebuild_extractor

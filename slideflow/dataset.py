@@ -1416,8 +1416,8 @@ class Dataset:
         :class:`slideflow.Dataset`.
 
         Keyword Args:
-            save_tiles (bool): Save images of extracted tiles to
-                project tile directory. Defaults to False.
+            save_tiles (bool, optional): Save tile images in loose format.
+                Defaults to False.
             save_tfrecords (bool): Save compressed image data from
                 extracted tiles into TFRecords in the corresponding TFRecord
                 directory. Defaults to True.
@@ -1470,8 +1470,9 @@ class Dataset:
                 Defaults to True.
             normalizer (str, optional): Normalization strategy.
                 Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image.
-                If None, will use slideflow.slide.norm_tile.jpg.
+            normalizer_source (str, optional): Stain normalization preset or
+                path to a source image. Valid presets include 'v1', 'v2', and
+                'v3'. If None, will use the default present ('v3').
                 Defaults to None.
             whitespace_fraction (float, optional): Range 0-1. Discard tiles
                 with this fraction of whitespace. If 1, will not perform
@@ -1512,6 +1513,8 @@ class Dataset:
                 Defaults to mpp=4 (effective magnification 2.5 X)
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
+            max_tiles (int, optional): Only extract this many tiles per slide.
+                Defaults to None.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
@@ -1610,10 +1613,10 @@ class Dataset:
                 # Use a single shared multiprocessing pool
                 if 'num_threads' not in kwargs:
                     num_threads = sf.util.num_cpu()
-                    if sf.slide_backend() == 'libvips':
-                        num_threads = min(num_threads, 32)
                     if num_threads is None:
                         num_threads = 8
+                    if sf.slide_backend() == 'libvips':
+                        num_threads = min(num_threads, 32)
                 else:
                     num_threads = kwargs['num_threads']
                 if num_threads != 1:
@@ -3161,44 +3164,63 @@ class Dataset:
             batch_size (int): Batch size.
 
         Keyword Args:
-            onehot (bool, optional): Onehot encode labels. Defaults to False.
-            incl_slidenames (bool, optional): Include slidenames as third
-                returned variable. Defaults to False.
-            infinite (bool, optional): Infinitely repeat data.
-                Defaults to True.
-            rank (int, optional): Worker ID to identify which worker this
-                represents. Used to interleave results among workers without
-                duplications. Defaults to 0 (first worker).
-            num_replicas (int, optional): Number of GPUs or unique instances
-                which will have their own DataLoader. Used to interleave
-                results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
-                Normalizer to use on images.
-            seed (int, optional): Use the following seed when randomly
-                interleaving. Necessary for synchronized multiprocessing
-                distributed reading.
-            chunk_size (int, optional): Chunk size for image decoding.
-                Defaults to 16.
-            preload_factor (int, optional): Number of batches to preload.
-                Defaults to 1.
-            augment (str, optional): Image augmentations to perform. String
-                    containing characters designating augmentations.
-                    'x' indicates random x-flipping, 'y' y-flipping,
-                    'r' rotating, and 'j' JPEG compression/decompression at
-                    random quality levels. Passing either 'xyrj' or True will
-                    use all augmentations.
-            standardize (bool, optional): Standardize images to (0,1).
-                Defaults to True.
-            num_workers (int, optional): Number of DataLoader workers.
-                Defaults to 2.
-            deterministic (bool, optional): When num_parallel_calls is
-                specified, if this boolean is specified (True or False), it
-                controls the order in which the transformation produces
-                elements. If set to False, the transformation is allowed to
-                yield elements out of order to trade determinism for
-                performance. Defaults to False.
+            augment (str or bool): Image augmentations to perform. Augmentations include:
+
+                * ``'x'``: Random horizontal flip
+                * ``'y'``: Random vertical flip
+                * ``'r'``: Random 90-degree rotation
+                * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+                * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+                * ``'n'``: Random :ref:`stain_augmentation` (requires stain normalizer)
+
+                Combine letters to define augmentations, such as ``'xyrjn'``.
+                A value of True will use ``'xyrjb'``.
+            deterministic (bool, optional): When num_parallel_calls is specified,
+                if this boolean is specified, it controls the order in which the
+                transformation produces elements. If set to False, the
+                transformation is allowed to yield elements out of order to trade
+                determinism for performance. Defaults to False.
             drop_last (bool, optional): Drop the last non-full batch.
                 Defaults to False.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            incl_loc (str, optional): 'coord', 'grid', or None. Return (x,y)
+                origin coordinates ('coord') for each tile along with tile
+                images, or the (x,y) grid coordinates for each tile.
+                Defaults to 'coord'.
+            incl_slidenames (bool, optional): Include slidenames as third returned
+                variable. Defaults to False.
+            infinite (bool, optional): Create an finite dataset. WARNING: If
+                infinite is False && balancing is used, some tiles will be skipped.
+                Defaults to True.
+            img_size (int): Image width in pixels.
+            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+                Normalizer to use on images. Defaults to None.
+            num_parallel_reads (int, optional): Number of parallel reads for each
+                TFRecordDataset. Defaults to 4.
+            num_shards (int, optional): Shard the tfrecord datasets, used for
+                multiprocessing datasets. Defaults to None.
+            pool (multiprocessing.Pool): Shared multiprocessing pool. Useful
+                if ``from_wsi=True``, for sharing a unified processing pool between
+                dataloaders. Defaults to None.
+            rois (list(str), optional): List of ROI paths. Only used if
+                from_wsi=True.  Defaults to None.
+            roi_method (str, optional): Method for extracting ROIs. Only used if
+                from_wsi=True. Defaults to 'auto'.
+            shard_idx (int, optional): Index of the tfrecord shard to use.
+                Defaults to None.
+            standardize (bool, optional): Standardize images to (0,1).
+                Defaults to True.
+            tile_um (int, optional): Size of tiles to extract from WSI, in
+                microns. Only used if from_wsi=True. Defaults to None.
+            tfrecord_parser (Callable, optional): Custom parser for TFRecords.
+                Defaults to None.
+            transform (Callable, optional): Arbitrary transform function.
+                Performs transformation after augmentations but before
+                standardization. Defaults to None.
+            **decode_kwargs (dict): Keyword arguments to pass to
+                :func:`slideflow.io.tensorflow.decode_image`.
 
         Returns:
             tf.data.Dataset
@@ -3620,39 +3642,66 @@ class Dataset:
                 Defaults to True.
 
         Keyword Args:
-            onehot (bool, optional): Onehot encode labels. Defaults to False.
-            incl_slidenames (bool, optional): Include slidenames as third
-                returned variable. Defaults to False.
-            infinite (bool, optional): Infinitely repeat data.
-                Defaults to True.
-            rank (int, optional): Worker ID to identify which worker this
-                represents. Used to interleave results among workers without
-                duplications. Defaults to 0 (first worker).
-            num_replicas (int, optional): Number of GPUs or unique instances
-                which will have their own DataLoader. Used to interleave
-                results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
-                Normalizer to use on images. Defaults to None.
-            seed (int, optional): Use the following seed when randomly
-                interleaving. Necessary for synchronized multiprocessing.
+            augment (str or bool): Image augmentations to perform. Augmentations include:
+
+                * ``'x'``: Random horizontal flip
+                * ``'y'``: Random vertical flip
+                * ``'r'``: Random 90-degree rotation
+                * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+                * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+                * ``'n'``: Random :ref:`stain_augmentation` (requires stain normalizer)
+
+                Combine letters to define augmentations, such as ``'xyrjn'``.
+                A value of True will use ``'xyrjb'``.
             chunk_size (int, optional): Chunk size for image decoding.
-                Defaults to 16.
-            preload_factor (int, optional): Number of batches to preload.
                 Defaults to 1.
-            augment (str, optional): Image augmentations to perform. Str
-                containing characters designating augmentations. 'x' indicates
-                random x-flipping, 'y' y-flipping, 'r' rotating, 'j' JPEG
-                compression/decompression at random quality levels, and 'b'
-                random gaussian blur. Passing either 'xyrjb' or True will use
-                all augmentations. Defaults to 'xyrjb'.
-            standardize (bool, optional): Standardize images to (0,1).
-                Defaults to True.
-            num_workers (int, optional): Number of DataLoader workers.
-                Defaults to 2.
-            pin_memory (bool, optional): Pin memory to GPU.
-                Defaults to True.
             drop_last (bool, optional): Drop the last non-full batch.
                 Defaults to False.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            incl_loc (bool, optional): Include loc_x and loc_y as additional
+                returned variables. Defaults to False.
+            incl_slidenames (bool, optional): Include slidenames as third returned
+                variable. Defaults to False.
+            infinite (bool, optional): Infinitely repeat data. Defaults to True.
+            max_size (bool, optional): Unused argument present for legacy
+                compatibility; will be removed.
+            model_type (str, optional): Used to generate random labels
+                (for StyleGAN2). Not required. Defaults to 'categorical'.
+            num_replicas (int, optional): Number of GPUs or unique instances which
+                will have their own DataLoader. Used to interleave results among
+                workers without duplications. Defaults to 1.
+            num_workers (int, optional): Number of DataLoader workers.
+                Defaults to 2.
+            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+                Normalizer. Defaults to None.
+            onehot (bool, optional): Onehot encode labels. Defaults to False.
+            persistent_workers (bool, optional): Sets the DataLoader
+                persistent_workers flag. Defaults toNone (4 if not using a SPAMS
+                normalizer, 1 if using SPAMS).
+            pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
+            pool (multiprocessing.Pool): Shared multiprocessing pool. Useful
+                if from_wsi=True, for sharing a unified processing pool between
+                dataloaders. Defaults to None.
+            prefetch_factor (int, optional): Number of batches to prefetch in each
+                SlideflowIterator. Defaults to 1.
+            rank (int, optional): Worker ID to identify this worker.
+                Used to interleave results.
+                among workers without duplications. Defaults to 0 (first worker).
+            rois (list(str), optional): List of ROI paths. Only used if
+                from_wsi=True.  Defaults to None.
+            roi_method (str, optional): Method for extracting ROIs. Only used if
+                from_wsi=True. Defaults to 'auto'.
+            standardize (bool, optional): Standardize images to mean 0 and
+                variance of 1. Defaults to True.
+            tile_um (int, optional): Size of tiles to extract from WSI, in
+                microns. Only used if from_wsi=True. Defaults to None.
+            transform (Callable, optional): Arbitrary torchvision transform
+                function. Performs transformation after augmentations but
+                before standardization. Defaults to None.
+            tfrecord_parser (Callable, optional): Custom parser for TFRecords.
+                Defaults to None.
 
         """
         from slideflow.io.torch import interleave_dataloader

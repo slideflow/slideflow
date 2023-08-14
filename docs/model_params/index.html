@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.ModelParams &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.ModelParams &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -363,16 +363,17 @@ y-flip, rotation, and JPEG compression. True will use all augmentations. Default
 <tr class="row-even"><td><p>b</p></td>
 <td><p>Random Guassian blur (50% chance to blur with sigma between 0.5 - 2.0)</p></td>
 </tr>
-<tr class="row-odd"><td><p>s</p></td>
-<td><p>Stain augmentation (must be using stain normalization)</p></td>
+<tr class="row-odd"><td><p>n</p></td>
+<td><p><a class="reference internal" href="../norm/#stain-augmentation"><span class="std std-ref">Stain Augmentation</span></a> (requires stain normalizer)</p></td>
 </tr>
 </tbody>
 </table>
 </p></li>
 <li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
-If None but using a normalizer, will use an internal tile for normalization.
-Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Stain normalization preset or
+path to a source image. Valid presets include ‘v1’, ‘v2’, and
+‘v3’. If None, will use the default present (‘v3’).
+Defaults to None.</p></li>
 <li><p><strong>include_top</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Include post-convolution fully-connected layers from the core model. Defaults
 to True. include_top=False is not currently compatible with the PyTorch backend.</p></li>
 <li><p><strong>drop_images</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Drop images, using only other slide-level features as input.
@@ -446,7 +447,7 @@ Defaults to False.</p></li>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -534,7 +535,7 @@ Defaults to False.</p></li>
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

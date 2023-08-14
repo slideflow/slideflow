@@ -489,10 +489,11 @@ class SlideMap:
                 Dictionary should have slide names as keys, mapped to list of
                 metadata (length of list = number of tiles in slide).
                 Defaults to None.
-            normalizer ((str or `slideflow.norm.StainNormalizer`), optional):
+            normalizer ((str or :class:`slideflow.norm.StainNormalizer`), optional):
                 Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image.
-                If None, normalizer will use slideflow.slide.norm_tile.jpg.
+            normalizer_source (str, optional): Stain normalization preset or
+                path to a source image. Valid presets include 'v1', 'v2', and
+                'v3'. If None, will use the default present ('v3').
                 Defaults to None.
 
         """

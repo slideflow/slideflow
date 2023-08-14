@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.model.tensorflow &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.model.tensorflow &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -666,9 +666,8 @@
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generating model with only slide-level input - no images&#39;</span><span class="p">)</span>
             <span class="n">merged_model</span> <span class="o">=</span> <span class="n">slide_feature_input_tensor</span>
             <span class="n">model_inputs</span> <span class="o">+=</span> <span class="p">[</span><span class="n">slide_feature_input_tensor</span><span class="p">]</span>
-        <span class="k">elif</span> <span class="n">num_slide_features</span> <span class="ow">and</span> <span class="n">num_slide_features</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="c1"># Add slide feature input tensors, if there are more slide features</span>
-            <span class="c1">#    than just the event input tensor for CPH models</span>
+        <span class="k">elif</span> <span class="n">num_slide_features</span><span class="p">:</span>
+            <span class="c1"># Add slide feature input tensors</span>
             <span class="n">merged_model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Concatenate</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;input_merge&#39;</span><span class="p">)(</span>
                 <span class="p">[</span><span class="n">slide_feature_input_tensor</span><span class="p">,</span> <span class="n">tile_image_model</span><span class="o">.</span><span class="n">output</span><span class="p">]</span>
             <span class="p">)</span>
@@ -1503,8 +1502,8 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_slide_features</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Training with both images and &#39;</span>
-                             <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_slide_features</span><span class="si">}</span><span class="s1"> categories of slide-&#39;</span>
-                             <span class="s1">&#39;level input&#39;</span><span class="p">)</span>
+                             <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_slide_features</span><span class="si">}</span><span class="s1"> slide-level input&#39;</span>
+                             <span class="s1">&#39;features&#39;</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="s2">&quot;Unable to find slide-level input at &quot;</span>
                                         <span class="s2">&quot;&#39;input&#39; key in annotations&quot;</span><span class="p">)</span>
@@ -1940,8 +1939,8 @@
 <span class="sd">                Defaults to &#39;parquet&#39;.</span>
 <span class="sd">            save_model (bool, optional): Save models when evaluating at</span>
 <span class="sd">                specified epochs. Defaults to True.</span>
-<span class="sd">            resume_training (str, optional): Path to Tensorflow model to</span>
-<span class="sd">                continue training. Defaults to None.</span>
+<span class="sd">            resume_training (str, optional): Path to model to continue training.</span>
+<span class="sd">                Only valid in Tensorflow backend. Defaults to None.</span>
 <span class="sd">            pretrain (str, optional): Either &#39;imagenet&#39; or path to Tensorflow</span>
 <span class="sd">                model from which to load weights. Defaults to &#39;imagenet&#39;.</span>
 <span class="sd">            checkpoint (str, optional): Path to cp.ckpt from which to load</span>
@@ -1998,7 +1997,7 @@
         <span class="c1"># Prepare multiprocessing pool if from_wsi=True</span>
         <span class="k">if</span> <span class="n">from_wsi</span><span class="p">:</span>
             <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
-                <span class="mi">8</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(),</span>
+                <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">8</span><span class="p">),</span>
                 <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -2455,6 +2454,8 @@
             <span class="n">layers</span> <span class="o">=</span> <span class="p">[</span><span class="n">layers</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">layers</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_include_preds</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">load_method</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
             <span class="n">config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -2496,7 +2497,7 @@
 <span class="sd">            include_preds (bool, optional): Include predictions in output. Will be</span>
 <span class="sd">                returned last. Defaults to False.</span>
 <span class="sd">            wsi_normalizer (:class:`slideflow.norm.StainNormalizer`): Stain</span>
-<span class="sd">                normalizer to use on whole-slide images. Is not used on</span>
+<span class="sd">                normalizer to use on whole-slide images. Not used on</span>
 <span class="sd">                individual tile datasets via __call__. Defaults to None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">layers</span><span class="p">,</span> <span class="n">include_preds</span><span class="p">)</span>
@@ -2511,14 +2512,26 @@
         <span class="n">obj</span><span class="o">.</span><span class="n">wsi_normalizer</span> <span class="o">=</span> <span class="n">wsi_normalizer</span>
         <span class="k">return</span> <span class="n">obj</span>
 
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">(</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span> <span class="o">+</span>
+                <span class="s2">&quot;    path=</span><span class="si">{!r}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="o">+</span>
+                <span class="s2">&quot;    layers=</span><span class="si">{!r}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">)</span> <span class="o">+</span>
+                <span class="s2">&quot;    include_preds=</span><span class="si">{!r}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_include_preds</span><span class="p">)</span> <span class="o">+</span>
+                <span class="s2">&quot;    pooling=</span><span class="si">{!r}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span><span class="p">)</span> <span class="o">+</span>
+                <span class="s2">&quot;)&quot;</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">inp</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">],</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Process a given input and return features and/or predictions.</span>
-<span class="sd">        Expects either a batch of images or a :class:`slideflow.WSI`.&quot;&quot;&quot;</span>
+<span class="sd">        Expects either a batch of images or a :class:`slideflow.WSI`.</span>
 
+<span class="sd">        When calling on a `WSI` object, keyword arguments are passed to</span>
+<span class="sd">        :meth:`slideflow.WSI.build_generator()`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inp</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict_slide</span><span class="p">(</span><span class="n">inp</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -2535,12 +2548,13 @@
         <span class="n">shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">show_progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">callback</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;sf.norm.StainNormalizer&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">normalizer_source</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate activations from slide =&gt; activation grid array.&quot;&quot;&quot;</span>
 
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Slide prediction (batch_size=</span><span class="si">{</span><span class="n">batch_size</span><span class="si">}</span><span class="s2">, &quot;</span>
-                  <span class="sa">f</span><span class="s2">&quot;img_format=</span><span class="si">{</span><span class="n">img_format</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="c1"># Check image format</span>
         <span class="k">if</span> <span class="n">img_format</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="s1">&#39;Unable to auto-detect image format (png or jpg). Set the &#39;</span>
@@ -2549,132 +2563,21 @@
         <span class="k">elif</span> <span class="n">img_format</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
             <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
             <span class="n">img_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span>
-        <span class="k">if</span> <span class="n">img_format</span> <span class="o">==</span> <span class="s1">&#39;png&#39;</span><span class="p">:</span>  <span class="c1"># PNG is lossless; this is equivalent but faster</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Using numpy image format instead of PNG&quot;</span><span class="p">)</span>
-            <span class="n">img_format</span> <span class="o">=</span> <span class="s1">&#39;numpy&#39;</span>
-        <span class="n">total_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_features</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_uncertainty</span>
-        <span class="k">if</span> <span class="n">grid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">features_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span>
-                    <span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
-                    <span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
-                    <span class="n">total_out</span><span class="p">),</span>
-                <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-            <span class="n">features_grid</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">99</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="n">grid</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">total_out</span><span class="p">)</span>
-            <span class="n">features_grid</span> <span class="o">=</span> <span class="n">grid</span>
-        <span class="n">generator</span> <span class="o">=</span> <span class="n">slide</span><span class="o">.</span><span class="n">build_generator</span><span class="p">(</span>
+
+        <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">extractors</span><span class="o">.</span><span class="n">features_from_slide</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">slide</span><span class="p">,</span>
             <span class="n">img_format</span><span class="o">=</span><span class="n">img_format</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+            <span class="n">grid</span><span class="o">=</span><span class="n">grid</span><span class="p">,</span>
             <span class="n">shuffle</span><span class="o">=</span><span class="n">shuffle</span><span class="p">,</span>
             <span class="n">show_progress</span><span class="o">=</span><span class="n">show_progress</span><span class="p">,</span>
+            <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">,</span>
+            <span class="n">normalizer</span><span class="o">=</span><span class="p">(</span><span class="n">normalizer</span> <span class="k">if</span> <span class="n">normalizer</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="p">),</span>
+            <span class="n">normalizer_source</span><span class="o">=</span><span class="n">normalizer_source</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">generator</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No tiles extracted from slide [green]</span><span class="si">{</span><span class="n">slide</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span>
-
-        <span class="k">def</span> <span class="nf">tile_generator</span><span class="p">():</span>
-            <span class="k">for</span> <span class="n">image_dict</span> <span class="ow">in</span> <span class="n">generator</span><span class="p">():</span>
-                <span class="k">yield</span> <span class="p">{</span>
-                    <span class="s1">&#39;grid&#39;</span><span class="p">:</span> <span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">],</span>
-                    <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
-                <span class="p">}</span>
-
-        <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
-        <span class="k">def</span> <span class="nf">_parse</span><span class="p">(</span><span class="n">record</span><span class="p">):</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
-            <span class="k">if</span> <span class="n">img_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">):</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">decode_jpeg</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
-            <span class="n">image</span><span class="o">.</span><span class="n">set_shape</span><span class="p">([</span><span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
-            <span class="n">loc</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">image</span><span class="p">,</span> <span class="n">loc</span>
-
-        <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
-        <span class="k">def</span> <span class="nf">_standardize</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">loc</span><span class="p">):</span>
-            <span class="n">parsed_image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">per_image_standardization</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">parsed_image</span><span class="p">,</span> <span class="n">loc</span>
-
-        <span class="c1"># Generate dataset from the generator</span>
-        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;dataset_input&#39;</span><span class="p">):</span>
-            <span class="n">output_signature</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s1">&#39;grid&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">TensorSpec</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
-            <span class="p">}</span>
-            <span class="k">if</span> <span class="n">img_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">):</span>
-                <span class="n">output_signature</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
-                    <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">TensorSpec</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">string</span><span class="p">)</span>
-                <span class="p">})</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">output_signature</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
-                    <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">TensorSpec</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
-                                                  <span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
-                                                  <span class="mi">3</span><span class="p">),</span>
-                                           <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
-                <span class="p">})</span>
-            <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_generator</span><span class="p">(</span>
-                <span class="n">tile_generator</span><span class="p">,</span>
-                <span class="n">output_signature</span><span class="o">=</span><span class="n">output_signature</span>
-            <span class="p">)</span>
-            <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
-                <span class="n">_parse</span><span class="p">,</span>
-                <span class="n">num_parallel_calls</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">AUTOTUNE</span><span class="p">,</span>
-                <span class="n">deterministic</span><span class="o">=</span><span class="kc">True</span>
-            <span class="p">)</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="p">:</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="o">.</span><span class="n">vectorized</span><span class="p">:</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Using vectorized normalization&quot;</span><span class="p">)</span>
-                    <span class="n">norm_batch_size</span> <span class="o">=</span> <span class="mi">32</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">batch_size</span> <span class="k">else</span> <span class="n">batch_size</span>
-                    <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">norm_batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Using per-image normalization&quot;</span><span class="p">)</span>
-                <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="o">.</span><span class="n">tf_to_tf</span><span class="p">,</span>
-                    <span class="n">num_parallel_calls</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">AUTOTUNE</span><span class="p">,</span>
-                    <span class="n">deterministic</span><span class="o">=</span><span class="kc">True</span>
-                <span class="p">)</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="o">.</span><span class="n">vectorized</span><span class="p">:</span>
-                    <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">unbatch</span><span class="p">()</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;macenko&#39;</span><span class="p">:</span>
-                    <span class="c1"># Drop the images that causes an error, e.g. if eigen</span>
-                    <span class="c1"># decomposition is unsuccessful.</span>
-                    <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">ignore_errors</span><span class="p">())</span>
-            <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
-                <span class="n">_standardize</span><span class="p">,</span>
-                <span class="n">num_parallel_calls</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">AUTOTUNE</span><span class="p">,</span>
-                <span class="n">deterministic</span><span class="o">=</span><span class="kc">True</span>
-            <span class="p">)</span>
-            <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">prefetch</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
-
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">batch_images</span><span class="p">,</span> <span class="n">batch_loc</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tile_dataset</span><span class="p">):</span>
-            <span class="n">model_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict</span><span class="p">(</span><span class="n">batch_images</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model_out</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
-                <span class="n">model_out</span> <span class="o">=</span> <span class="p">[</span><span class="n">model_out</span><span class="p">]</span>
-
-            <span class="c1"># Flatten the output, relevant when</span>
-            <span class="c1"># there are multiple outcomes / classifier heads</span>
-            <span class="n">_act_batch</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">model_out</span><span class="p">:</span>
-                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                    <span class="n">_act_batch</span> <span class="o">+=</span> <span class="p">[</span><span class="n">_m</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span> <span class="k">for</span> <span class="n">_m</span> <span class="ow">in</span> <span class="n">m</span><span class="p">]</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">_act_batch</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
-            <span class="n">_act_batch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">_act_batch</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-
-            <span class="n">_loc_batch</span> <span class="o">=</span> <span class="n">batch_loc</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-            <span class="n">grid_idx_updated</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">act</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">_act_batch</span><span class="p">):</span>
-                <span class="n">xi</span> <span class="o">=</span> <span class="n">_loc_batch</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">yi</span> <span class="o">=</span> <span class="n">_loc_batch</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
-                    <span class="n">grid_idx_updated</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">yi</span><span class="p">,</span> <span class="n">xi</span><span class="p">))</span>
-                <span class="n">features_grid</span><span class="p">[</span><span class="n">yi</span><span class="p">][</span><span class="n">xi</span><span class="p">]</span> <span class="o">=</span> <span class="n">act</span>
-
-            <span class="c1"># Trigger a callback signifying that the grid has been updated.</span>
-            <span class="c1"># Useful for progress tracking.</span>
-            <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
-                <span class="n">callback</span><span class="p">(</span><span class="n">grid_idx_updated</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">features_grid</span>
 
     <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
     <span class="k">def</span> <span class="nf">_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inp</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
@@ -2690,6 +2593,9 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Builds the interface model that outputs feature activations at the</span>
 <span class="sd">        designated layers and/or predictions. Intermediate layers are returned in</span>
 <span class="sd">        the order of layers. predictions are returned last.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span> <span class="o">=</span> <span class="n">pooling</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_include_preds</span> <span class="o">=</span> <span class="n">include_preds</span>
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pooling</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">pooling</span> <span class="o">==</span> <span class="s1">&#39;avg&#39;</span><span class="p">:</span>
@@ -2765,14 +2671,24 @@
 
         <span class="k">if</span> <span class="n">include_preds</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Number of classes: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Number of activation features: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_features</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Number of activation features: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_features</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">dump_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;slideflow.model.tensorflow.Features&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;kwargs&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+                <span class="s1">&#39;layers&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">,</span>
+                <span class="s1">&#39;include_preds&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_include_preds</span><span class="p">,</span>
+                <span class="s1">&#39;pooling&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span>
+            <span class="p">}</span>
+        <span class="p">}</span></div>
 
 <span class="k">class</span> <span class="nc">UncertaintyInterface</span><span class="p">(</span><span class="n">Features</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-        <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="s1">&#39;postconv&#39;</span><span class="p">,</span>
         <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;weights&#39;</span><span class="p">,</span>
         <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -2810,6 +2726,12 @@
         <span class="n">obj</span><span class="o">.</span><span class="n">wsi_normalizer</span> <span class="o">=</span> <span class="n">wsi_normalizer</span>
         <span class="k">return</span> <span class="n">obj</span>
 
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">(</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span> <span class="o">+</span>
+                <span class="s2">&quot;    path=</span><span class="si">{!r}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="o">+</span>
+                <span class="s2">&quot;    layers=</span><span class="si">{!r}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">)</span> <span class="o">+</span>
+                <span class="s2">&quot;    pooling=</span><span class="si">{!r}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span><span class="p">)</span> <span class="o">+</span>
+                <span class="s2">&quot;)&quot;</span><span class="p">)</span>
 
     <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
     <span class="k">def</span> <span class="nf">_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inp</span><span class="p">):</span>
@@ -2840,6 +2762,15 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">uncertainty</span>
 
+    <span class="k">def</span> <span class="nf">dump_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;slideflow.model.tensorflow.UncertaintyInterface&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;kwargs&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+                <span class="s1">&#39;layers&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">,</span>
+                <span class="s1">&#39;pooling&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
 
 <div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_tensorflow/#slideflow.model.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span>
     <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -2909,7 +2840,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -2983,7 +2914,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

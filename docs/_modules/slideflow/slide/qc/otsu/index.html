@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.slide.qc.otsu &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.slide.qc.otsu &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -297,6 +297,21 @@
     <span class="k">return</span> <span class="n">cv2</span><span class="o">.</span><span class="n">bitwise_or</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">resized_mask</span><span class="p">)</span>
 
 
+<span class="k">def</span> <span class="nf">_get_level_for_otsu</span><span class="p">(</span><span class="n">wsi</span><span class="p">:</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">,</span> <span class="n">min_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">500</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Find the smallest downsample level of a minimum size.&quot;&quot;&quot;</span>
+    <span class="n">smallest_dim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">L</span><span class="p">[</span><span class="s1">&#39;dimensions&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">L</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">levels</span><span class="p">])</span>
+    <span class="n">level_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">L</span><span class="p">[</span><span class="s1">&#39;level&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">L</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">levels</span><span class="p">])</span>
+    <span class="n">sorted_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">smallest_dim</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">best_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">smallest_dim</span><span class="p">[</span><span class="n">sorted_idx</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">min_size</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+        <span class="c1"># If the slide is smaller than the target minimum dimension,</span>
+        <span class="c1"># use the full slide image</span>
+        <span class="n">best_idx</span> <span class="o">=</span> <span class="n">sorted_idx</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">level_ids</span><span class="p">[</span><span class="n">sorted_idx</span><span class="p">][</span><span class="n">best_idx</span><span class="p">]</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
 <div class="viewcode-block" id="Otsu"><a class="viewcode-back" href="../../../../../slide_qc/#slideflow.slide.qc.Otsu">[docs]</a><span class="k">class</span> <span class="nc">Otsu</span><span class="p">:</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slide_level</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
@@ -326,7 +341,7 @@
 <span class="sd">                    from slideflow.slide import qc</span>
 
 <span class="sd">                    wsi = sf.WSI(...)</span>
-<span class="sd">                    gaussian = qc.Gaussian()</span>
+<span class="sd">                    gaussian = qc.GaussianV2()</span>
 <span class="sd">                    otsu = qc.Otsu()</span>
 <span class="sd">                    wsi.qc([gaussian, otsu])</span>
 
@@ -366,8 +381,9 @@
 <span class="sd">            np.ndarray: RGB thumbnail of the whole-slide image.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># Otsu&#39;s thresholding can be done on the lowest downsample level</span>
-            <span class="n">level</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_count</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="c1"># Otsu&#39;s thresholding can be done on the smallest downsample level,</span>
+            <span class="c1"># with the smallest dimension being at least 500 pixels</span>
+            <span class="n">level</span> <span class="o">=</span> <span class="n">_get_level_for_otsu</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">min_size</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">level</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span>
 
@@ -449,7 +465,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -523,7 +539,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

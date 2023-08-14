@@ -382,7 +382,9 @@ class _VIPSReader:
         cache_kw: Optional[Dict[str, Any]] = None,
         ignore_missing_mpp: bool = False,
         pad_missing: bool = True,
-        loaded_image: Optional["vips.Image"] = None
+        loaded_image: Optional["vips.Image"] = None,
+        use_bounds: bool = False,
+        transforms: Optional[List[int]] = None,
     ) -> None:
         """Libvips slide reader.
 
@@ -401,6 +403,14 @@ class _VIPSReader:
                 (e.g., an edge tile), pad the image with black. If False,
                 will raise an error if an out-of-bounds area is requested.
                 Defaults to False.
+            use_bounds (bool): If True, use the slide bounds to determine
+                the slide dimensions. This will crop out unscanned white space.
+                If False, use the full slide dimensions. Defaults to False.
+            transforms (list(int), optional): List of transforms to apply to
+                the slide before establishing coordinate grid. Options include
+                any combination of ``ROTATE_90_CLOCKWISE``,
+                ``ROTATE_180_CLOCKWISE``, ``ROTATE_270_CLOCKWISE``,
+                ``FLIP_HORIZONTAL``, and ``FLIP_VERTICAL``. Defaults to None.
 
         """
         self.path = path
@@ -410,6 +420,7 @@ class _VIPSReader:
         if loaded_image is None:
             loaded_image = vips.Image.new_from_file(path)
         self.vips_loader = loaded_image.get('vips-loader')
+        self.transforms = transforms
 
         # Load image properties
         self.properties = {}
@@ -436,6 +447,24 @@ class _VIPSReader:
                 raise errors.SlideMissingMPPError(
                     f'Could not detect microns-per-pixel for slide: {path}'
                 )
+
+        # Check for bounding box
+        if isinstance(use_bounds, (list, tuple, np.ndarray)):
+            self.bounds = tuple(use_bounds)
+        elif use_bounds and OPS_BOUNDS_X in self.properties:
+            self.bounds = (
+                int(self.properties[OPS_BOUNDS_X]),
+                int(self.properties[OPS_BOUNDS_Y]),
+                int(self.properties[OPS_BOUNDS_WIDTH]),
+                int(self.properties[OPS_BOUNDS_HEIGHT])
+            )
+        else:
+            self.bounds = None
+        if self.bounds is not None:
+            self.dimensions = (
+                self.bounds[2],
+                self.bounds[3]
+            )
 
         # Load levels
         self._load_levels(loaded_image)
@@ -496,6 +525,24 @@ class _VIPSReader:
                     'downsample': 1,
                     'level': 0
                 }]
+
+        # Adjust for bounding boxes, if present
+        if self.bounds is not None:
+            for lev in range(self.level_count):
+                self.levels[lev]['width'] = int(np.round(self.bounds[2] / self.levels[lev]['downsample']))
+                self.levels[lev]['height'] = int(np.round(self.bounds[3] / self.levels[lev]['downsample']))
+                self.levels[lev]['dimensions'] = (self.levels[lev]['width'], self.levels[lev]['height'])
+
+        # Adjust for transforms, if present
+        if self.transforms is not None:
+            for transform in self.transforms:
+                if transform in (ROTATE_90_CLOCKWISE, ROTATE_270_CLOCKWISE):
+                    for lev in range(self.level_count):
+                        self.levels[lev]['width'], self.levels[lev]['height'] = \
+                            self.levels[lev]['height'], self.levels[lev]['width']
+                        self.levels[lev]['dimensions'] = (self.levels[lev]['width'], self.levels[lev]['height'])
+                    self.dimensions = (self.dimensions[1], self.dimensions[0])
+
         self.level_downsamples = [lev['downsample'] for lev in self.levels]
         self.level_dimensions = [lev['dimensions'] for lev in self.levels]
 
@@ -560,6 +607,27 @@ class _VIPSReader:
         elif level is not None:
             kwargs['level'] = level
         image = vips.Image.new_from_file(self.path, fail=fail, access=access, **kwargs)
+
+        if self.bounds is not None:
+            image = image.crop(
+                int(np.round(self.bounds[0] / self.level_downsamples[level])),
+                int(np.round(self.bounds[1] / self.level_downsamples[level])),
+                int(np.round(self.bounds[2] / self.level_downsamples[level])),
+                int(np.round(self.bounds[3] / self.level_downsamples[level])),
+            )
+        if self.transforms is not None:
+            for transform in self.transforms:
+                if transform == ROTATE_90_CLOCKWISE:
+                    image = image.rot90()
+                if transform == ROTATE_180_CLOCKWISE:
+                    image = image.rot180()
+                if transform == ROTATE_270_CLOCKWISE:
+                    image = image.rot270()
+                if transform == FLIP_HORIZONTAL:
+                    image = image.fliphor()
+                if transform == FLIP_VERTICAL:
+                    image = image.flipver()
+
         if to_numpy:
             return vips2numpy(image)
         else:
@@ -572,7 +640,8 @@ class _VIPSReader:
         extract_size: Tuple[int, int],
         convert: Optional[str] = None,
         flatten: bool = False,
-        resize_factor: Optional[float] = None
+        resize_factor: Optional[float] = None,
+        pad_missing: Optional[bool] = None
     ) -> "vips.Image":
         """Extracts a region from the image at the given downsample level.
 
@@ -582,6 +651,9 @@ class _VIPSReader:
             downsample_level (int): Downsample level to read.
             extract_size (Tuple[int, int]): Size of the region to read
                 (width, height) using downsample layer coordinates.
+            pad_missing (bool, optional): Pad missing regions with black.
+                If None, uses the value of the `pad_missing` attribute.
+                Defaults to None.
 
         Returns:
             vips.Image: VIPS image.
@@ -598,7 +670,8 @@ class _VIPSReader:
             extract_width,
             extract_height
         )
-        if self.pad_missing:
+        if ((pad_missing is not None and pad_missing)
+           or (pad_missing is None and self.pad_missing)):
             region = vips_padded_crop(image, *crop_args)
         else:
             region = image.crop(*crop_args)
@@ -623,6 +696,7 @@ class _VIPSReader:
         target_size: Tuple[int, int],
         convert: Optional[str] = None,
         flatten: bool = False,
+        pad_missing: Optional[bool] = None
     ) -> "vips.Image":
         """Reads a region from the image using base layer coordinates.
         Performance is accelerated by pyramid downsample layers, if available.
@@ -634,6 +708,9 @@ class _VIPSReader:
                 height) using base layer coordinates.
             target_size (Tuple[int, int]): Resize the region to this target
                 size (width, height).
+            pad_missing (bool, optional): Pad missing regions with black.
+                If None, uses the value of the `pad_missing` attribute.
+                Defaults to None.
 
         Returns:
             vips.Image: VIPS image. Dimensions will equal target_size unless
@@ -651,7 +728,8 @@ class _VIPSReader:
             min(target_size[0], image.width),
             min(target_size[1], image.height)
         )
-        if self.pad_missing:
+        if ((pad_missing is not None and pad_missing)
+           or (pad_missing is None and self.pad_missing)):
             image = vips_padded_crop(image, *crop_args)
         else:
             image = image.crop(*crop_args)
@@ -677,7 +755,7 @@ class _VIPSReader:
         """Return thumbnail of slide as numpy array."""
 
         if ((OPS_VENDOR in self.properties and self.properties[OPS_VENDOR] == 'leica')
-           or (self.vips_loader == 'tiffload')):
+           or (self.vips_loader == 'tiffload') or self.bounds):
             thumbnail = self.read_level(fail=fail, access=access, **kwargs)
         else:
             thumbnail = vips.Image.thumbnail(self.path, width)

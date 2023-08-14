@@ -21,11 +21,13 @@ def build_dataset(bags, targets, encoder, bag_size, use_lens=False):
         else:
             return (features, targets.squeeze())
 
-    return MapDataset(
+    dataset = MapDataset(
         _zip,
         BagDataset(bags, bag_size=bag_size),
         EncodedDataset(encoder, targets),
     )
+    dataset.encoder = encoder
+    return dataset
 
 def build_clam_dataset(bags, targets, encoder, bag_size):
     assert len(bags) == len(targets)
@@ -34,11 +36,13 @@ def build_clam_dataset(bags, targets, encoder, bag_size):
         features, lengths = bag
         return (features, targets.squeeze(), True), targets.squeeze()
 
-    return MapDataset(
+    dataset = MapDataset(
         _zip,
         BagDataset(bags, bag_size=bag_size),
         EncodedDataset(encoder, targets),
     )
+    dataset.encoder = encoder
+    return dataset
 
 # -----------------------------------------------------------------------------
 
@@ -119,6 +123,7 @@ class MapDataset(Dataset):
 
         self._datasets = datasets
         self.func = func
+        self.encoder = None
 
     def __len__(self) -> int:
         return self._len

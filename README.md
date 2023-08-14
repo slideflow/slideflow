@@ -9,7 +9,7 @@ Slideflow is a deep learning library for digital pathology that provides a unifi
 
 Slideflow includes tools for **[whole-slide image processing](https://slideflow.dev/slide_processing)**, **customizable deep learning [model training](https://slideflow.dev/training)** with dozens of supported architectures, **[multi-instance learning](https://slideflow.dev/mil)**, **[self-supervised learning](https://slideflow.dev/ssl)**, **[cell segmentation](https://slideflow.dev/cellseg)**, **explainability tools** (including [heatmaps](https://slideflow.dev/evaluation/#heatmaps), [mosaic maps](https://slideflow.dev/posthoc/#mosaic-maps), [GANs](https://slideflow.dev/stylegan/), and [saliency maps](https://slideflow.dev/saliency/)), **analysis of [layer activations](https://slideflow.dev/posthoc/)**, **[uncertainty quantification](https://slideflow.dev/uq/)**, and more.
 
-A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, [stain normalization](https://slideflow.dev/norm), and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an straightforward API for training custom architectures. Slideflow can be used as an image processing backend for external training loops, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
+A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, [stain normalization/augmentation](https://slideflow.dev/norm), and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an straightforward API for training custom architectures. Slideflow can be used as an image processing backend for external training loops, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
 
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
@@ -178,7 +178,7 @@ Slideflow has been used by:
 - [Storozuk et al](https://www.nature.com/articles/s41379-022-01039-1.pdf), _Modern Pathology_ [abstract], 2022
 - [Partin et al](https://doi.org/10.3389/fmed.2023.1058919) _Front Med_, 2022
 - [Dolezal et al](https://ascopubs.org/doi/abs/10.1200/JCO.2022.40.16_suppl.8549) [abstract], 2022
-- [Dolezal et al](https://arxiv.org/abs/2211.06522) [arXiv], 2022
+- [Dolezal et al](https://www.nature.com/articles/s41698-023-00399-4) _npj Precision Oncology_, 2023
 - [Howard et al](https://www.nature.com/articles/s41523-023-00530-5) _npj Breast Cancer_, 2023
 - [Hieromnimon et al](https://doi.org/10.1101/2023.03.22.533810) [bioRxiv], 2023
 

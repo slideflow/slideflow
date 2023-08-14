@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.heatmap &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.heatmap &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -293,6 +293,7 @@
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
     <span class="kn">from</span> <span class="nn">matplotlib.axes</span> <span class="kn">import</span> <span class="n">Axes</span>
+    <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
@@ -305,9 +306,17 @@
 
 <span class="n">Inset</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s2">&quot;Inset&quot;</span><span class="p">,</span> <span class="s2">&quot;x y zoom loc mark1 mark2 axes&quot;</span><span class="p">)</span>
 
+<span class="c1"># -----------------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="Heatmap"><a class="viewcode-back" href="../../../heatmap/#slideflow.Heatmap">[docs]</a><span class="k">class</span> <span class="nc">Heatmap</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates a heatmap of predictions across a whole-slide image.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate a heatmap of predictions across a whole-slide image.</span>
+
+<span class="sd">    This interface is designed to be used with tile-based models, and</span>
+<span class="sd">    does not support multiple-instance learning models. Attention heatmaps</span>
+<span class="sd">    of multiple-instance learning models can be generated using</span>
+<span class="sd">    :func:`slideflow.mil.predict_slide`.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -324,7 +333,7 @@
         <span class="n">load_method</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">wsi_kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a heatmap from a path to a slide or a :class:``slideflow.WSI``.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a heatmap from a path to a slide or a :class:`slideflow.WSI`.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">            Create a heatmap from a path to a slide.</span>
@@ -441,6 +450,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">num_uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interface</span><span class="o">.</span><span class="n">num_uncertainty</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">stride_div</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -696,19 +706,19 @@
         <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_ax</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">width</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">mpp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">width</span> <span class="o">=</span> <span class="mi">2048</span>
-        <span class="n">thumb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span> <span class="n">mpp</span><span class="o">=</span><span class="n">mpp</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span> <span class="n">mpp</span><span class="o">=</span><span class="n">mpp</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_format_ax</span><span class="p">(</span>
             <span class="n">ax</span><span class="p">,</span>
-            <span class="n">thumb_size</span><span class="o">=</span><span class="n">thumb</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+            <span class="n">thumb_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
             <span class="n">show_roi</span><span class="o">=</span><span class="n">show_roi</span><span class="p">,</span>
             <span class="n">color</span><span class="o">=</span><span class="n">roi_color</span><span class="p">,</span>
             <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">imshow_thumb</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">thumb</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">imshow_thumb</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">inset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">insets</span><span class="p">:</span>
             <span class="n">axins</span> <span class="o">=</span> <span class="n">zoomed_inset_axes</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">inset</span><span class="o">.</span><span class="n">zoom</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="n">inset</span><span class="o">.</span><span class="n">loc</span><span class="p">)</span>
-            <span class="n">axins</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">thumb</span><span class="p">)</span>
+            <span class="n">axins</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="p">)</span>
             <span class="n">axins</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">inset</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">inset</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">axins</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">inset</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">inset</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">mark_inset</span><span class="p">(</span>
@@ -759,7 +769,7 @@
 <span class="sd">            linewidth (int): Width of ROI line. Defaults to 5.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_ax</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
-        <span class="n">implot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plot_thumbnail</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">thumb_kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plot_thumbnail</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">thumb_kwargs</span><span class="p">)</span>
         <span class="n">ax</span><span class="o">.</span><span class="n">set_facecolor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">callable</span><span class="p">(</span><span class="n">logit_cmap</span><span class="p">):</span>
             <span class="n">map_logit</span> <span class="o">=</span> <span class="n">logit_cmap</span>
@@ -770,12 +780,17 @@
                 <span class="k">return</span> <span class="p">(</span><span class="n">logit</span><span class="p">[</span><span class="n">logit_cmap</span><span class="p">[</span><span class="s1">&#39;r&#39;</span><span class="p">]],</span>
                         <span class="n">logit</span><span class="p">[</span><span class="n">logit_cmap</span><span class="p">[</span><span class="s1">&#39;g&#39;</span><span class="p">]],</span>
                         <span class="n">logit</span><span class="p">[</span><span class="n">logit_cmap</span><span class="p">[</span><span class="s1">&#39;b&#39;</span><span class="p">]])</span>
+        <span class="n">extent</span> <span class="o">=</span> <span class="n">calculate_heatmap_extent</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span>
+        <span class="p">)</span>
         <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span>
             <span class="p">[[</span><span class="n">map_logit</span><span class="p">(</span><span class="n">logit</span><span class="p">)</span> <span class="k">for</span> <span class="n">logit</span> <span class="ow">in</span> <span class="n">row</span><span class="p">]</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">],</span>
-            <span class="n">extent</span><span class="o">=</span><span class="n">implot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">(),</span>
+            <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span>
             <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
             <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span>
         <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">plot_uncertainty</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -818,15 +833,20 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">==</span> <span class="o">-</span><span class="mi">99</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span>
         <span class="p">)</span>
+        <span class="n">extent</span> <span class="o">=</span> <span class="n">calculate_heatmap_extent</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span>
+        <span class="p">)</span>
         <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span>
             <span class="n">masked_uncertainty</span><span class="p">,</span>
             <span class="n">norm</span><span class="o">=</span><span class="n">uqnorm</span><span class="p">,</span>
-            <span class="n">extent</span><span class="o">=</span><span class="n">implot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">(),</span>
+            <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span>
             <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span>
             <span class="n">alpha</span><span class="o">=</span><span class="n">heatmap_alpha</span><span class="p">,</span>
             <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
             <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span>
         <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -902,15 +922,20 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">class_idx</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">99</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">class_idx</span><span class="p">]</span>
         <span class="p">)</span>
+        <span class="n">extent</span> <span class="o">=</span> <span class="n">calculate_heatmap_extent</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span>
+        <span class="p">)</span>
         <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span>
             <span class="n">masked_arr</span><span class="p">,</span>
             <span class="n">norm</span><span class="o">=</span><span class="n">divnorm</span><span class="p">,</span>
-            <span class="n">extent</span><span class="o">=</span><span class="n">implot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">(),</span>
+            <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span>
             <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span>
             <span class="n">alpha</span><span class="o">=</span><span class="n">heatmap_alpha</span><span class="p">,</span>
             <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
             <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span>
         <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">save_npz</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Save heatmap predictions and uncertainty in .npz format.</span>
@@ -1255,6 +1280,35 @@
 
     <span class="k">def</span> <span class="nf">view</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<span class="k">def</span> <span class="nf">calculate_heatmap_extent</span><span class="p">(</span>
+        <span class="n">wsi</span><span class="p">:</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">,</span>
+        <span class="n">thumbnail</span><span class="p">:</span> <span class="s2">&quot;Image&quot;</span><span class="p">,</span>
+        <span class="n">grid</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate implot extent for a heatmap grid.&quot;&quot;&quot;</span>
+    <span class="n">full_extract</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">wsi</span><span class="o">.</span><span class="n">tile_um</span> <span class="o">/</span> <span class="n">wsi</span><span class="o">.</span><span class="n">mpp</span><span class="p">)</span>
+    <span class="n">wsi_stride</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">full_extract</span> <span class="o">/</span> <span class="n">wsi</span><span class="o">.</span><span class="n">stride_div</span><span class="p">)</span>
+    <span class="n">_overlay_wsi_dim</span> <span class="o">=</span> <span class="p">(</span><span class="n">wsi_stride</span> <span class="o">*</span> <span class="p">(</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                        <span class="n">wsi_stride</span> <span class="o">*</span> <span class="p">(</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="n">_overlay_offset_wsi_dim</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">full_extract</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">wsi_stride</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+        <span class="n">full_extract</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">wsi_stride</span><span class="o">/</span><span class="mi">2</span>
+    <span class="p">)</span>
+    <span class="n">thumb_ratio</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">thumbnail</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">thumbnail</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">_overlay_offset_wsi_dim</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">thumb_ratio</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="n">_overlay_wsi_dim</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">thumb_ratio</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="n">_overlay_wsi_dim</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">thumb_ratio</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="n">_overlay_offset_wsi_dim</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">thumb_ratio</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="p">)</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
 </pre></div>
 
              </article>
@@ -1271,7 +1325,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1345,7 +1399,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

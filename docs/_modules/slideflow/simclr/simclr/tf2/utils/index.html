@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.simclr.simclr.tf2.utils &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.simclr.simclr.tf2.utils &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -290,10 +290,10 @@
 <div class="viewcode-block" id="SimCLR_Args"><a class="viewcode-back" href="../../../../../../simclr/#slideflow.simclr.SimCLR_Args">[docs]</a><span class="k">class</span> <span class="nc">SimCLR_Args</span><span class="p">:</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
-        <span class="n">learning_rate_scaling</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span>
+        <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.075</span><span class="p">,</span>
+        <span class="n">learning_rate_scaling</span><span class="o">=</span><span class="s1">&#39;sqrt&#39;</span><span class="p">,</span>
         <span class="n">warmup_epochs</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-        <span class="n">weight_decay</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
+        <span class="n">weight_decay</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>
         <span class="n">batch_norm_decay</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span>
         <span class="n">train_batch_size</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
         <span class="n">train_split</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">,</span>
@@ -330,6 +330,7 @@
         <span class="n">color_jitter_strength</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
         <span class="n">use_blur</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">num_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">stain_augment</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">      </span><span class="sd">&quot;&quot;&quot;SimCLR arguments.</span>
 
@@ -402,6 +403,12 @@
     <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;model_kwargs&#39;</span><span class="p">,</span> <span class="s1">&#39;self&#39;</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">(</span><span class="se">\n</span><span class="si">{}</span><span class="se">\n</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="s1">&#39;,</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;  </span><span class="si">{}</span><span class="s1">=</span><span class="si">{!r}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">model_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -531,7 +538,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -605,7 +612,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

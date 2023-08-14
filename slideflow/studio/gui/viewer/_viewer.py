@@ -233,7 +233,7 @@ class Viewer:
         overlay: np.ndarray,
         dim: Optional[Tuple[int, int]],
         offset: Tuple[int, int] = (0, 0)
-    ) -> None:
+    ) -> int:
         """Render an image as an overlay on the WSI.
 
         Args:
@@ -242,6 +242,9 @@ class Viewer:
                 WSI coordinate space (level=0). Defaults to the full WSI size.
             offset ((int, int)): Offset for the overlay in the full WSI
                 coordinate space (level=0). Defaults to 0, 0 (no offset).
+
+        Returns:
+            int: ID of the texture created for the overlay.
         """
         if dim is None:
             dim = self.dimensions
@@ -303,6 +306,7 @@ class Viewer:
             self._overlay_tex_obj.update(self._overlay_tex_img)
         assert self._overlay_tex_obj is not None
         self._overlay_tex_obj.draw(pos=self.overlay_pos, zoom=self.h_zoom, align=0.5, rint=True, anchor='topleft')
+        return self._overlay_tex_obj.gl_id
 
     def set_normalizer(self, normalizer: sf.norm.StainNormalizer) -> None:
         """Set the internal WSI normalizer.

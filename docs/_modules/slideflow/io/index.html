@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.io &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.io &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -289,24 +289,25 @@
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">slideflow.io.io_utils</span> <span class="kn">import</span> <span class="n">detect_tfrecord_format</span><span class="p">,</span> <span class="n">convert_dtype</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">tfrecord2idx</span>
 <span class="kn">from</span> <span class="nn">slideflow.util.tfrecord2idx</span> <span class="kn">import</span> <span class="n">get_tfrecord_by_index</span><span class="p">,</span> <span class="n">get_tfrecord_length</span>
 <span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
 
 <span class="c1"># --- Backend-specific imports and configuration ------------------------------</span>
 
 <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">slideflow.io.tensorflow</span> <span class="kn">import</span> <span class="n">get_tfrecord_parser</span>  <span class="c1"># noqa F401</span>
-    <span class="kn">from</span> <span class="nn">slideflow.io.tensorflow</span> <span class="kn">import</span> <span class="n">read_and_return_record</span>  <span class="c1"># noqa F401</span>
-    <span class="kn">from</span> <span class="nn">slideflow.io.tensorflow</span> <span class="kn">import</span> <span class="n">serialized_record</span>
-
+    <span class="kn">from</span> <span class="nn">slideflow.io.tensorflow</span> <span class="kn">import</span> <span class="p">(</span>
+        <span class="n">get_tfrecord_parser</span><span class="p">,</span> <span class="n">read_and_return_record</span><span class="p">,</span> <span class="n">serialized_record</span><span class="p">,</span>
+        <span class="n">_decode_image</span>
+    <span class="p">)</span>
     <span class="kn">from</span> <span class="nn">tensorflow.data</span> <span class="kn">import</span> <span class="n">TFRecordDataset</span>
     <span class="kn">from</span> <span class="nn">tensorflow.io</span> <span class="kn">import</span> <span class="n">TFRecordWriter</span>
 
 <span class="k">elif</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> \
-        <span class="n">get_tfrecord_parser</span>  <span class="c1"># type: ignore  # noqa F401</span>
-    <span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> <span class="n">read_and_return_record</span><span class="p">,</span> <span class="n">serialized_record</span>
+    <span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> <span class="p">(</span>
+        <span class="n">get_tfrecord_parser</span><span class="p">,</span> <span class="n">read_and_return_record</span><span class="p">,</span> <span class="n">serialized_record</span><span class="p">,</span>
+        <span class="n">_decode_image</span>
+    <span class="p">)</span>
     <span class="kn">from</span> <span class="nn">slideflow.tfrecord</span> <span class="kn">import</span> <span class="n">TFRecordWriter</span>
     <span class="kn">from</span> <span class="nn">slideflow.tfrecord.torch.dataset</span> <span class="kn">import</span> <span class="n">TFRecordDataset</span>
 
@@ -414,24 +415,41 @@
        <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">location</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))):</span>
         <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index must be a tuple of two ints. Got: </span><span class="si">{</span><span class="n">location</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-    <span class="n">dataset</span> <span class="o">=</span> <span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
-    <span class="n">parser</span> <span class="o">=</span> <span class="n">get_tfrecord_parser</span><span class="p">(</span>
-        <span class="n">tfrecord</span><span class="p">,</span>
-        <span class="p">(</span><span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;image_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_x&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_y&#39;</span><span class="p">),</span>
-        <span class="n">decode_images</span><span class="o">=</span><span class="n">decode</span>
-    <span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">record</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dataset</span><span class="p">):</span>
-        <span class="n">slide</span><span class="p">,</span> <span class="n">image_raw</span><span class="p">,</span> <span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span> <span class="o">=</span> <span class="n">parser</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span><span class="p">)</span> <span class="o">==</span> <span class="n">location</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">decode</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">slide</span><span class="p">,</span> <span class="n">image_raw</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">record</span>
+    <span class="c1"># Use index files, if available.</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">find_index</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">decode</span> <span class="ow">and</span> <span class="n">index</span> <span class="ow">and</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">index_has_locations</span><span class="p">(</span><span class="n">index</span><span class="p">):</span>
+        <span class="n">locations</span> <span class="o">=</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">get_locations_from_index</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">locations</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Unable to find record with location </span><span class="si">{</span><span class="n">location</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">tfrecord</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span>
+        <span class="n">record</span> <span class="o">=</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">get_tfrecord_by_index</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">,</span> <span class="n">idx</span><span class="p">)</span>
+        <span class="n">slide</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">_decode_image</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">slide</span><span class="p">,</span> <span class="n">image</span>
 
-    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-        <span class="sa">f</span><span class="s2">&quot;Unable to find record with location </span><span class="si">{</span><span class="n">location</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">tfrecord</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="p">)</span>
-    <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span></div>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">get_tfrecord_parser</span><span class="p">(</span>
+            <span class="n">tfrecord</span><span class="p">,</span>
+            <span class="p">(</span><span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;image_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_x&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_y&#39;</span><span class="p">),</span>
+            <span class="n">decode_images</span><span class="o">=</span><span class="n">decode</span>
+        <span class="p">)</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">record</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dataset</span><span class="p">):</span>
+            <span class="n">slide</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span> <span class="o">=</span> <span class="n">parser</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span><span class="p">)</span> <span class="o">==</span> <span class="n">location</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">decode</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">slide</span><span class="p">,</span> <span class="n">image</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">record</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Unable to find record with location </span><span class="si">{</span><span class="n">location</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">tfrecord</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span></div>
 
 
 <div class="viewcode-block" id="write_tfrecords_multi"><a class="viewcode-back" href="../../../io/#slideflow.io.write_tfrecords_multi">[docs]</a><span class="k">def</span> <span class="nf">write_tfrecords_multi</span><span class="p">(</span><span class="n">input_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">output_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -587,25 +605,22 @@
         <span class="n">image_string</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="get_locations_from_tfrecord"><a class="viewcode-back" href="../../../io/#slideflow.io.get_locations_from_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">get_locations_from_tfrecord</span><span class="p">(</span>
-    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">as_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span>
-    <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
-    <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
-<span class="p">]:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns dictionary mapping indices to tile locations (X, Y)&#39;&#39;&#39;</span>
-    <span class="n">out_dict</span> <span class="o">=</span> <span class="p">{}</span>
+<div class="viewcode-block" id="get_locations_from_tfrecord"><a class="viewcode-back" href="../../../io/#slideflow.io.get_locations_from_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">get_locations_from_tfrecord</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return list of tile locations (X, Y) for all items in the TFRecord.&quot;&quot;&quot;</span>
+
+    <span class="c1"># Use the TFRecord index file, if one exists and it has info stored.</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">find_index</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">index</span> <span class="ow">and</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">index_has_locations</span><span class="p">(</span><span class="n">index</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">get_locations_from_index</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="c1"># Otherwise, read the TFRecord manually.</span>
     <span class="n">out_list</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_tfrecord_length</span><span class="p">(</span><span class="n">filename</span><span class="p">)):</span>
         <span class="n">record</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_tfrecord_by_index</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
         <span class="n">loc_x</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">]</span>
         <span class="n">loc_y</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">as_dict</span><span class="p">:</span>
-            <span class="n">out_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">i</span><span class="p">:</span> <span class="p">(</span><span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span><span class="p">)})</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">out_list</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">out_dict</span> <span class="k">if</span> <span class="n">as_dict</span> <span class="k">else</span> <span class="n">out_list</span></div>
+        <span class="n">out_list</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">out_list</span></div>
 
 
 <div class="viewcode-block" id="tfrecord_has_locations"><a class="viewcode-back" href="../../../io/#slideflow.io.tfrecord_has_locations">[docs]</a><span class="k">def</span> <span class="nf">tfrecord_has_locations</span><span class="p">(</span>
@@ -614,6 +629,11 @@
     <span class="n">check_y</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if a given TFRecord has location information stored.&quot;&quot;&quot;</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">find_index</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">index</span> <span class="ow">and</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">index_has_locations</span><span class="p">(</span><span class="n">index</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">check_y</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">index</span><span class="p">)[</span><span class="s1">&#39;locations&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span>
+        <span class="k">return</span> <span class="kc">True</span>
     <span class="n">record</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_tfrecord_by_index</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
     <span class="k">return</span> <span class="p">(((</span><span class="ow">not</span> <span class="n">check_x</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;loc_x&#39;</span> <span class="ow">in</span> <span class="n">record</span> <span class="p">)</span> <span class="ow">and</span> <span class="p">((</span><span class="ow">not</span> <span class="n">check_y</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;loc_y&#39;</span> <span class="ow">in</span> <span class="n">record</span> <span class="p">))</span></div>
 </pre></div>
@@ -632,7 +652,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -706,7 +726,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

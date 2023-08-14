@@ -2409,7 +2409,7 @@ class UncertaintyInterface(Features):
     def __init__(
         self,
         path: Optional[str],
-        layers: Optional[Union[str, List[str]]] = None,
+        layers: Optional[Union[str, List[str]]] = 'postconv',
         load_method: str = 'weights',
         pooling: Optional[Any] = None
     ) -> None:

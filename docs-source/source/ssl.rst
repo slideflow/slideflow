@@ -80,9 +80,17 @@ The SimCLR model checkpoints and final saved model will be saved in the ``simclr
 Generating features
 *******************
 
-Generating SimCLR features is straightforward - use the same :meth:`slideflow.Project.generate_features` and :class:`slideflow.DatasetFeatures` interfaces as :ref:`previously described <dataset_features>`, providing a path to a saved SimCLR model or checkpoint. When generating SimCLR features, the ``layers`` argument is not used, but the API is otherwise the same.
+Generating SimCLR features is straightforward - use the same :meth:`slideflow.Project.generate_features` and :class:`slideflow.DatasetFeatures` interfaces as :ref:`previously described <dataset_features>`, providing a path to a saved SimCLR model or checkpoint.
 
 .. code-block:: python
 
-    simclr_ftrs = P.generate_features('/simclr/saved_model')
+    from slideflow.model import build_feature_extractor
 
+    # Create the SimCLR feature extractor
+    simclr = build_feature_extractor(
+        'simclr',
+        ckpt='/path/to/simclr.ckpt'
+    )
+
+    # Calculate SimCLR features for a dataset
+    features = P.generate_features(simclr, ...)

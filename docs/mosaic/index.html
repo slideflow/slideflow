@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.Mosaic &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.Mosaic &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -86,7 +86,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -388,9 +388,10 @@ Defaults to ‘nearest’.</p></li>
 Dictionary should have slide names as keys, mapped to list of
 metadata (length of list = number of tiles in slide).
 Defaults to None.</p></li>
-<li><p><strong>normalizer</strong> ((str or <cite>slideflow.norm.StainNormalizer</cite>), optional) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image.
-If None, normalizer will use slideflow.slide.norm_tile.jpg.
+<li><p><strong>normalizer</strong> ((str or <a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>), optional) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Stain normalization preset or
+path to a source image. Valid presets include ‘v1’, ‘v2’, and
+‘v3’. If None, will use the default present (‘v3’).
 Defaults to None.</p></li>
 </ul>
 </dd>
@@ -401,7 +402,7 @@ Defaults to None.</p></li>
 <h2>Methods<a class="headerlink" href="#methods" title="Permalink to this heading">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Mosaic.generate_grid">
-<span class="sig-name descname"><span class="pre">generate_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles_x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_select</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'first'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic.generate_grid" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">generate_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles_x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_select</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'first'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dist</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic.generate_grid" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generate the mosaic map grid.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -524,7 +525,7 @@ Defaults to None.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -613,7 +614,7 @@ Defaults to None.</p>
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>

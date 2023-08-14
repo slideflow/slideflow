@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>slideflow.io.torch &mdash; slideflow 2.0.0 documentation</title>
+  <title>slideflow.io.torch &mdash; slideflow 2.1.0 documentation</title>
 
 
 
@@ -83,7 +83,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
@@ -118,7 +118,7 @@
 
 
                 <div class="version">
-                  2.0
+                  2.1
                 </div>
 
 
@@ -285,6 +285,7 @@
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">torchvision</span>
 <span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">from</span> <span class="nn">torchvision</span> <span class="kn">import</span> <span class="n">transforms</span>
 <span class="kn">from</span> <span class="nn">os</span> <span class="kn">import</span> <span class="n">listdir</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">isfile</span><span class="p">,</span> <span class="n">join</span>
@@ -340,14 +341,14 @@
         <span class="n">model_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;categorical&#39;</span><span class="p">,</span>
         <span class="n">onehot</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">indices</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">max_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">tile_um</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">rois</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="n">pool</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">interleave_kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Pytorch IterableDataset that interleaves tfrecords with</span>
 <span class="sd">        :func:`slideflow.io.torch.interleave`.</span>
@@ -365,11 +366,17 @@
 <span class="sd">                Assists with synchronization across GPUs. Defaults to 0.</span>
 <span class="sd">            num_replicas (int, optional): Total number of GPU replicas.</span>
 <span class="sd">                Defaults to 1.</span>
-<span class="sd">            augment (str of bool, optional): Image augmentations to perform.</span>
-<span class="sd">                If string, &#39;x&#39; performs horizontal flipping, &#39;y&#39; performs</span>
-<span class="sd">                vertical flipping, &#39;r&#39; performs rotation, &#39;j&#39; performs random</span>
-<span class="sd">                JPEG compression (e.g. &#39;xyr&#39;, &#39;xyrj&#39;, &#39;xy&#39;). If bool, True</span>
-<span class="sd">                performs all and False performs None. Defaults to True.</span>
+<span class="sd">            augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">                * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">                * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">                * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">                * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">                * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+<span class="sd">                * ``&#39;n&#39;``: Random :ref:`stain_augmentation` (requires stain normalizer)</span>
+
+<span class="sd">                Combine letters to define augmentations, such as ``&#39;xyrjn&#39;``.</span>
+<span class="sd">                A value of True will use ``&#39;xyrjb&#39;``.</span>
 <span class="sd">            standardize (bool, optional): Standardize images to mean 0 and</span>
 <span class="sd">                variance of 1. Defaults to True.</span>
 <span class="sd">            num_tiles (int, optional): Dict mapping tfrecord names to number</span>
@@ -394,6 +401,23 @@
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            max_size (bool, optional): Unused argument present for legacy</span>
 <span class="sd">                compatibility; will be removed.</span>
+<span class="sd">            from_wsi (bool): Generate predictions from tiles dynamically</span>
+<span class="sd">                extracted from whole-slide images, rather than TFRecords.</span>
+<span class="sd">                Defaults to False (use TFRecords).</span>
+<span class="sd">            tile_um (int, optional): Size of tiles to extract from WSI, in</span>
+<span class="sd">                microns. Only used if from_wsi=True. Defaults to None.</span>
+<span class="sd">            rois (list(str), optional): List of ROI paths. Only used if</span>
+<span class="sd">                from_wsi=True.  Defaults to None.</span>
+<span class="sd">            roi_method (str, optional): Method for extracting ROIs. Only used if</span>
+<span class="sd">                from_wsi=True. Defaults to &#39;auto&#39;.</span>
+<span class="sd">            pool (multiprocessing.Pool): Shared multiprocessing pool. Useful</span>
+<span class="sd">                if ``from_wsi=True``, for sharing a unified processing pool between</span>
+<span class="sd">                dataloaders. Defaults to None.</span>
+<span class="sd">            transform (Callable, optional): Arbitrary torchvision transform</span>
+<span class="sd">                function. Performs transformation after augmentations but</span>
+<span class="sd">                before standardization. Defaults to None.</span>
+<span class="sd">            tfrecord_parser (Callable, optional): Custom parser for TFRecords.</span>
+<span class="sd">                Defaults to None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">string_</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">prob_weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -417,13 +441,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">incl_loc</span> <span class="o">=</span> <span class="n">incl_loc</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_tiles</span> <span class="o">=</span> <span class="n">num_tiles</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model_type</span> <span class="o">=</span> <span class="n">model_type</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">device</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">from_wsi</span> <span class="o">=</span> <span class="n">from_wsi</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="o">=</span> <span class="n">tile_um</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rois</span> <span class="o">=</span> <span class="n">rois</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">=</span> <span class="n">roi_method</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pool</span> <span class="o">=</span> <span class="n">pool</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interleave_kwargs</span> <span class="o">=</span> <span class="n">interleave_kwargs</span>
 
         <span class="c1"># Values for random label generation, for GAN</span>
         <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -558,14 +582,14 @@
             <span class="n">rank</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">+</span> <span class="n">worker_id</span><span class="p">,</span>
             <span class="n">chunk_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">,</span>
             <span class="n">indices</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">,</span>
-            <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
             <span class="n">tile_px</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">img_size</span><span class="p">,</span>
             <span class="n">from_wsi</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">from_wsi</span><span class="p">,</span>
             <span class="n">tile_um</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span><span class="p">,</span>
             <span class="n">rois</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">,</span>
             <span class="n">roi_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span><span class="p">,</span>
             <span class="n">pool</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pool</span><span class="p">,</span>
-            <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span>
+            <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">interleave_kwargs</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">close</span> <span class="o">=</span> <span class="n">queue_retriever</span><span class="o">.</span><span class="n">close</span>
         <span class="k">try</span><span class="p">:</span>
@@ -690,6 +714,7 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a random label. Used for compatibility with StyleGAN2.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">label_shape</span><span class="p">)</span>
 
+<span class="c1"># -------------------------------------------------------------------------</span>
 
 <span class="k">def</span> <span class="nf">_get_images_by_dir</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
     <span class="n">files</span> <span class="o">=</span> <span class="p">[</span>
@@ -714,21 +739,24 @@
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
                     <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
                     <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]]]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create an iterator by reading and merging multiple tfrecord datasets.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create an iterator by reading and merging multiple slide dataloaders.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        paths (list of str): List of tfrecord paths.</span>
-<span class="sd">        indices (dict): dict mapping tfrecord names to index paths.</span>
-<span class="sd">            Input index path pattern.</span>
+<span class="sd">        slides (list of str): List of slide paths.</span>
 <span class="sd">        splits (dict):  Dictionary of (key, value) pairs, where the key is used</span>
 <span class="sd">            to construct the data and index path(s) and the value determines</span>
 <span class="sd">            the contribution of each split to the batch.</span>
+<span class="sd">        shard (tuple(int, int), optional): If provided, will only extract</span>
+<span class="sd">            tiles from the shard with index `shard[0]` out of `shard[1]`</span>
+<span class="sd">            shards. Defaults to None.</span>
 <span class="sd">        infinite (bool, optional): Whether the returned iterator should be</span>
 <span class="sd">            infinite or not. Defaults to True.</span>
 
 <span class="sd">    Returns:</span>
 
-<span class="sd">        it (iterator): A repeating iterator that generates batches of data.</span>
+<span class="sd">        it (iterator): A repeating iterator that generates batches of data,</span>
+<span class="sd">        interleaving from the provided slides.</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">splits</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">splits_list</span> <span class="o">=</span> <span class="n">splits</span>
@@ -744,16 +772,19 @@
     <span class="k">return</span> <span class="n">RandomSampler</span><span class="p">(</span><span class="n">loaders</span><span class="p">,</span> <span class="n">splits_list</span><span class="p">,</span> <span class="n">shard</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></div>
 
 
-<span class="k">def</span> <span class="nf">is_cwh</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<div class="viewcode-block" id="is_cwh"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.is_cwh">[docs]</a><span class="k">def</span> <span class="nf">is_cwh</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if Tensor is in C x W x H format.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span>
-            <span class="ow">or</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span><span class="p">))</span>
+            <span class="ow">or</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span><span class="p">))</span></div>
 
 
-<span class="k">def</span> <span class="nf">is_whc</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span>
+<div class="viewcode-block" id="is_whc"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.is_whc">[docs]</a><span class="k">def</span> <span class="nf">is_whc</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if Tensor is in W x H x C format.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span></div>
 
 
-<span class="k">def</span> <span class="nf">cwh_to_whc</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<div class="viewcode-block" id="cwh_to_whc"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.cwh_to_whc">[docs]</a><span class="k">def</span> <span class="nf">cwh_to_whc</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert torch tensor from C x W x H =&gt; W x H x C&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">img</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># CWH -&gt; WHC</span>
     <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
@@ -761,10 +792,11 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="s2">&quot;Invalid shape for channel conversion. Expected 3 or 4 dims, &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2"> (shape=</span><span class="si">{</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2"> (shape=</span><span class="si">{</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span></div>
 
 
-<span class="k">def</span> <span class="nf">whc_to_cwh</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<div class="viewcode-block" id="whc_to_cwh"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.whc_to_cwh">[docs]</a><span class="k">def</span> <span class="nf">whc_to_cwh</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert torch tensor from W x H x C =&gt; C x W x H&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">img</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># WHC =&gt; CWH</span>
     <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
@@ -772,25 +804,179 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="s2">&quot;Invalid shape for channel conversion. Expected 3 or 4 dims, &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2"> (shape=</span><span class="si">{</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2"> (shape=</span><span class="si">{</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span></div>
+
+<span class="c1"># -------------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="RandomCardinalRotation"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.RandomCardinalRotation">[docs]</a><span class="k">class</span> <span class="nc">RandomCardinalRotation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Torchvision transform for random cardinal rotation.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="RandomCardinalRotation.__init__"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.RandomCardinalRotation.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">angles</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">180</span><span class="p">,</span> <span class="mi">270</span><span class="p">]</span></div>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">transforms</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">angle</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="auto_gaussian"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.auto_gaussian">[docs]</a><span class="k">def</span> <span class="nf">auto_gaussian</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Perform Gaussian blur on an image with a given sigma, automatically</span>
-<span class="sd">    calculating the appropriate Gaussian kernel size.</span>
+<div class="viewcode-block" id="RandomGaussianBlur"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.RandomGaussianBlur">[docs]</a><span class="k">class</span> <span class="nc">RandomGaussianBlur</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Torchvision transform for random Gaussian blur.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="RandomGaussianBlur.__init__"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.RandomGaussianBlur.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sigma</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]):</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">blur_fn</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">s</span><span class="p">:</span> <span class="p">(</span>
+                <span class="n">transforms</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc_kernel</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">sigma</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">s</span> <span class="k">else</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span>
+            <span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span>
+        <span class="p">}</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">calc_kernel</span><span class="p">(</span><span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.5</span>
+        <span class="n">opt_kernel</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">sigma</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">opt_kernel</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">opt_kernel</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">opt_kernel</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">blur_fn</span><span class="p">[</span><span class="n">s</span><span class="p">](</span><span class="n">x</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="random_jpeg_compression"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.random_jpeg_compression">[docs]</a><span class="k">def</span> <span class="nf">random_jpeg_compression</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Perform random JPEG compression on an image.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        image (torch.Tensor): Image or batch of images.</span>
-<span class="sd">        sigma (float): Sigma.</span>
+<span class="sd">        img (torch.Tensor): Image tensor, shape C x W x H.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        torch.Tensor: Image(s) with Gaussian blur applied.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">opt_kernel</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">sigma</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">opt_kernel</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="n">opt_kernel</span> <span class="o">+=</span> <span class="mi">1</span>
-    <span class="k">return</span> <span class="n">torchvision</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">opt_kernel</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">)(</span><span class="n">image</span><span class="p">)</span></div>
+<span class="sd">        torch.Tensor: Transformed image (C x W x H).</span>
 
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">50</span><span class="p">)</span> <span class="o">+</span> <span class="mi">50</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">torchvision</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">encode_jpeg</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">quality</span><span class="o">=</span><span class="n">q</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torchvision</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">decode_image</span><span class="p">(</span><span class="n">img</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="compose_color_distortion"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.compose_color_distortion">[docs]</a><span class="k">def</span> <span class="nf">compose_color_distortion</span><span class="p">(</span><span class="n">s</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compose augmentation for random color distortion.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        s (float): Strength of the distortion.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Callable: PyTorch transform</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">color_jitter</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">ColorJitter</span><span class="p">(</span><span class="mf">0.8</span><span class="o">*</span><span class="n">s</span><span class="p">,</span> <span class="mf">0.8</span><span class="o">*</span><span class="n">s</span><span class="p">,</span> <span class="mf">0.8</span><span class="o">*</span><span class="n">s</span><span class="p">,</span> <span class="mf">0.2</span><span class="o">*</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">rnd_color_jitter</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">RandomApply</span><span class="p">([</span><span class="n">color_jitter</span><span class="p">],</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+    <span class="n">rnd_gray</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">RandomGrayscale</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+    <span class="n">color_distort</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">whc_to_cwh</span><span class="p">,</span> <span class="n">rnd_color_jitter</span><span class="p">,</span> <span class="n">rnd_gray</span><span class="p">,</span> <span class="n">cwh_to_whc</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">color_distort</span></div>
+
+
+<div class="viewcode-block" id="compose_augmentations"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.compose_augmentations">[docs]</a><span class="k">def</span> <span class="nf">compose_augmentations</span><span class="p">(</span>
+    <span class="n">augment</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">standardize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">whc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compose an augmentation pipeline for image processing.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">            * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">            * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">            * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">            * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">            * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+
+<span class="sd">            Combine letters to define augmentations, such as ``&#39;xyrj&#39;``.</span>
+<span class="sd">            A value of True will use ``&#39;xyrjb&#39;``.</span>
+<span class="sd">            Note: this function does not support stain augmentation.</span>
+
+<span class="sd">    Keyword args:</span>
+<span class="sd">        standardize (bool, optional): Standardize images into the range (0,1)</span>
+<span class="sd">            using img / (255/2) - 1. Defaults to False.</span>
+<span class="sd">        normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer</span>
+<span class="sd">            to use on images. Defaults to None.</span>
+<span class="sd">        transform (Callable, optional): Arbitrary torchvision transform function.</span>
+<span class="sd">            Performs transformation after augmentations but before standardization.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        whc (bool): Images are in W x H x C format. Defaults to False.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">transformations</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Random JPEG compression.</span>
+    <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;j&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
+        <span class="n">transformations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">,</span>
+                <span class="n">random_jpeg_compression</span><span class="p">(</span><span class="n">img</span><span class="p">),</span>
+                <span class="n">img</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Random cardinal rotation.</span>
+    <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;r&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
+        <span class="n">transformations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">RandomCardinalRotation</span><span class="p">())</span>
+
+    <span class="c1"># Random x-flip.</span>
+    <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;x&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
+        <span class="n">transformations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transforms</span><span class="o">.</span><span class="n">RandomHorizontalFlip</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">))</span>
+
+    <span class="c1"># Random y-flip.</span>
+    <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;y&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
+        <span class="n">transformations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transforms</span><span class="o">.</span><span class="n">RandomVerticalFlip</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">))</span>
+
+    <span class="c1"># Stain normalization.</span>
+    <span class="k">if</span> <span class="n">normalizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">transformations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">img</span><span class="p">:</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">torch_to_torch</span><span class="p">(</span>  <span class="c1"># type: ignore</span>
+                <span class="n">img</span><span class="p">,</span>
+                <span class="n">augment</span><span class="o">=</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;n&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Random color distortion.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;d&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
+        <span class="n">transformations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">compose_color_distortion</span><span class="p">())</span>
+
+    <span class="c1"># Random Gaussian blur.</span>
+    <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;b&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
+        <span class="n">transformations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">RandomGaussianBlur</span><span class="p">(</span>
+                <span class="n">sigma</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">],</span>
+                <span class="n">weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.9</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.025</span><span class="p">,</span> <span class="mf">0.0125</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Arbitrary transformations via `augment` argument.</span>
+    <span class="k">if</span> <span class="n">callable</span><span class="p">(</span><span class="n">augment</span><span class="p">):</span>
+        <span class="n">transformations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">augment</span><span class="p">)</span>
+
+    <span class="c1"># Arbitrary transformations via `transform` argument.</span>
+    <span class="k">if</span> <span class="n">transform</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">transformations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span>
+
+    <span class="c1"># Image standardization.</span>
+    <span class="c1"># Note: not the same as tensorflow&#39;s per_image_standardization</span>
+    <span class="c1"># Convert back: image = (image + 1) * (255/2)</span>
+    <span class="k">if</span> <span class="n">standardize</span><span class="p">:</span>
+        <span class="n">transformations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="k">lambda</span> <span class="n">img</span><span class="p">:</span> <span class="n">img</span> <span class="o">/</span> <span class="p">(</span><span class="mi">255</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">transformations</span> <span class="ow">and</span> <span class="n">whc</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span><span class="n">whc_to_cwh</span><span class="p">]</span> <span class="o">+</span> <span class="n">transformations</span> <span class="o">+</span> <span class="p">[</span><span class="n">cwh_to_whc</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">(</span><span class="n">transformations</span><span class="p">)</span></div>
+
+<span class="c1"># -------------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="read_and_return_record"><a class="viewcode-back" href="../../../../io_torch/#slideflow.io.torch.read_and_return_record">[docs]</a><span class="k">def</span> <span class="nf">read_and_return_record</span><span class="p">(</span>
     <span class="n">record</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
@@ -880,85 +1066,44 @@
 
 <span class="k">def</span> <span class="nf">_decode_image</span><span class="p">(</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
-    <span class="n">img_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">standardize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">img_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decodes image. Torch implementation; different than sf.io.tensorflow&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decodes image string/bytes to Tensor (W x H x C).</span>
 
+<span class="sd">    Torch implementation; different than sf.io.tensorflow.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        image (Union[bytes, str, torch.Tensor]): Image to decode.</span>
+
+<span class="sd">    Keyword args:</span>
+<span class="sd">        img_type (str, optional): Image type. Defaults to None.</span>
+<span class="sd">        device (torch.device, optional): Device to move image to.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        transform (Callable, optional): Arbitrary torchvision transform function.</span>
+<span class="sd">            Performs transformation after augmentations but before standardization.</span>
+<span class="sd">            Defaults to None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">img_type</span> <span class="o">!=</span> <span class="s1">&#39;numpy&#39;</span><span class="p">:</span>
         <span class="n">np_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">))</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">cwh_to_whc</span><span class="p">(</span><span class="n">torchvision</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">decode_image</span><span class="p">(</span><span class="n">np_data</span><span class="p">))</span>
         <span class="c1"># Alternative method using PIL decoding:</span>
         <span class="c1"># image = np.array(Image.open(BytesIO(img_string)))</span>
+
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">random_jpeg_compression</span><span class="p">(</span><span class="n">img</span><span class="p">):</span>
-        <span class="n">img</span> <span class="o">=</span> <span class="n">torchvision</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">encode_jpeg</span><span class="p">(</span>
-            <span class="n">whc_to_cwh</span><span class="p">(</span><span class="n">img</span><span class="p">),</span>
-            <span class="n">quality</span><span class="o">=</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="mi">50</span> <span class="o">+</span> <span class="mi">50</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">cwh_to_whc</span><span class="p">(</span><span class="n">torchvision</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">decode_image</span><span class="p">(</span><span class="n">img</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">device</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;j&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">,</span>
-            <span class="n">random_jpeg_compression</span><span class="p">(</span><span class="n">image</span><span class="p">),</span>
-            <span class="n">image</span>
-        <span class="p">)</span>
-    <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;r&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
-        <span class="c1"># Rotate randomly 0, 90, 180, 270 degrees</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rot90</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">)))</span>
-    <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;x&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">,</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">fliplr</span><span class="p">(</span><span class="n">image</span><span class="p">),</span>
-            <span class="n">image</span>
-        <span class="p">)</span>
-    <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;y&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">,</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">image</span><span class="p">),</span>
-            <span class="n">image</span>
-        <span class="p">)</span>
-    <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;b&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
-        <span class="c1"># image = image.to(device)</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">whc_to_cwh</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-            <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.1</span><span class="p">),</span>  <span class="c1"># .to(device),</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-                <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">),</span>  <span class="c1"># .to(device),</span>
-                <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-                    <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">),</span>  <span class="c1"># .to(device),</span>
-                    <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-                        <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">),</span>  <span class="c1"># .to(device),</span>
-                        <span class="n">auto_gaussian</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">2.0</span><span class="p">),</span>
-                        <span class="n">auto_gaussian</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">1.5</span><span class="p">),</span>
-                    <span class="p">),</span>
-                    <span class="n">auto_gaussian</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
-                <span class="p">),</span>
-                <span class="n">auto_gaussian</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">0.5</span><span class="p">),</span>
-            <span class="p">),</span>
-            <span class="n">image</span>
-        <span class="p">)</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">cwh_to_whc</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-        <span class="c1"># image = image.cpu()</span>
-    <span class="k">if</span> <span class="n">normalizer</span><span class="p">:</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">torch_to_torch</span><span class="p">(</span>
-            <span class="n">image</span><span class="p">,</span>
-            <span class="n">augment</span><span class="o">=</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;n&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">)</span>
-        <span class="p">)</span>
-    <span class="k">if</span> <span class="n">standardize</span><span class="p">:</span>
-        <span class="c1"># Note: not the same as tensorflow&#39;s per_image_standardization</span>
-        <span class="c1"># Convert back: image = (image + 1) * (255/2)</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span> <span class="o">/</span> <span class="mf">127.5</span> <span class="o">-</span> <span class="mi">1</span>
-    <span class="k">if</span> <span class="n">transform</span><span class="p">:</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">cwh_to_whc</span><span class="p">(</span><span class="n">transform</span><span class="p">(</span><span class="n">whc_to_cwh</span><span class="p">(</span><span class="n">image</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="n">transform</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">transform</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+
     <span class="k">return</span> <span class="n">image</span>
 
+<span class="c1"># -------------------------------------------------------------------------</span>
 
 <span class="k">def</span> <span class="nf">worker_init_fn</span><span class="p">(</span><span class="n">worker_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">get_state</span><span class="p">()[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>  <span class="c1"># type: ignore</span>
@@ -992,11 +1137,17 @@
 <span class="sd">            Defaults to False.</span>
 <span class="sd">        normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer</span>
 <span class="sd">            to use on images. Defaults to None.</span>
-<span class="sd">        augment (str): Image augmentations to perform. String containing</span>
-<span class="sd">            characters designating augmentations. &#39;x&#39; indicates random</span>
-<span class="sd">            x-flipping, &#39;y&#39; y-flipping, &#39;r&#39; rotating, and &#39;j&#39; JPEG</span>
-<span class="sd">            compression/decompression at random quality levels. Passing either</span>
-<span class="sd">            &#39;xyrj&#39; or True will use all augmentations.</span>
+<span class="sd">        augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">            * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">            * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">            * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">            * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">            * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+
+<span class="sd">            Combine letters to define augmentations, such as ``&#39;xyrjn&#39;``.</span>
+<span class="sd">            A value of True will use ``&#39;xyrjb&#39;``.</span>
+<span class="sd">            Note: this function does not support stain augmentation.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A tuple containing</span>
@@ -1019,6 +1170,14 @@
             <span class="sa">f</span><span class="s1">&#39;were found in the tfrecord </span><span class="si">{</span><span class="n">detected</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="p">)</span>
 
+    <span class="c1"># Build the transformations / augmentations.</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">compose_augmentations</span><span class="p">(</span>
+        <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">,</span>
+        <span class="n">standardize</span><span class="o">=</span><span class="n">standardize</span><span class="p">,</span>
+        <span class="n">normalizer</span><span class="o">=</span><span class="n">normalizer</span><span class="p">,</span>
+        <span class="n">whc</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">parser</span><span class="p">(</span><span class="n">record</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Each item in args is an array with one item, as the dareblopy reader</span>
 <span class="sd">        returns items in batches and we have set our batch_size = 1 for</span>
@@ -1033,10 +1192,8 @@
             <span class="k">if</span> <span class="n">decode_images</span><span class="p">:</span>
                 <span class="n">features</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_decode_image</span><span class="p">(</span>
                     <span class="n">img</span><span class="p">,</span>
-                    <span class="n">img_type</span><span class="p">,</span>
-                    <span class="n">standardize</span><span class="p">,</span>
-                    <span class="n">normalizer</span><span class="p">,</span>
-                    <span class="n">augment</span>
+                    <span class="n">img_type</span><span class="o">=</span><span class="n">img_type</span><span class="p">,</span>
+                    <span class="n">transform</span><span class="o">=</span><span class="n">transform</span>
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">features</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">img</span>
@@ -1068,7 +1225,6 @@
     <span class="n">num_replicas</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">indices</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">tile_px</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">tile_um</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1100,19 +1256,21 @@
 <span class="sd">        infinite (bool, optional): Create an finite dataset. WARNING: If</span>
 <span class="sd">            infinite is False &amp;&amp; balancing is used, some tiles will be skipped.</span>
 <span class="sd">            Defaults to True.</span>
-<span class="sd">        labels (dict, optional): Dict mapping slide names to outcome labels,</span>
-<span class="sd">            used for balancing. Defaults to None.</span>
-<span class="sd">        augment (str): Image augmentations to perform. String containing</span>
-<span class="sd">            characters designating augmentations. &#39;x&#39; indicates random</span>
-<span class="sd">            x-flipping, &#39;y&#39; y-flipping, &#39;r&#39; rotating, and &#39;j&#39; JPEG</span>
-<span class="sd">            compression/decompression at random quality levels. Passing either</span>
-<span class="sd">            &#39;xyrj&#39; or True will use all augmentations.</span>
+<span class="sd">        augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">            * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">            * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">            * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">            * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">            * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+<span class="sd">            * ``&#39;n&#39;``: Random :ref:`stain_augmentation` (requires stain normalizer)</span>
+
+<span class="sd">            Combine letters to define augmentations, such as ``&#39;xyrjn&#39;``.</span>
+<span class="sd">            A value of True will use ``&#39;xyrjb&#39;``.</span>
 <span class="sd">        standardize (bool, optional): Standardize images to (0,1).</span>
 <span class="sd">            Defaults to True.</span>
 <span class="sd">        normalizer (:class:`slideflow.norm.StainNormalizer`, optional):</span>
 <span class="sd">            Normalizer to use on images. Defaults to None.</span>
-<span class="sd">        manifest (dict, optional): Dataset manifest containing number of tiles</span>
-<span class="sd">            per tfrecord.</span>
 <span class="sd">        num_threads (int, optional): Number of threads to use decoding images.</span>
 <span class="sd">            Defaults to 4.</span>
 <span class="sd">        chunk_size (int, optional): Chunk size for image decoding.</span>
@@ -1126,9 +1284,26 @@
 <span class="sd">            duplications. Defaults to 0 (first worker).</span>
 <span class="sd">        indices (list(str)): Paths to TFRecord index files. If not provided,</span>
 <span class="sd">            will generate. Defaults to None.</span>
+<span class="sd">        from_wsi (bool): Generate predictions from tiles dynamically</span>
+<span class="sd">            extracted from whole-slide images, rather than TFRecords.</span>
+<span class="sd">            Defaults to False (use TFRecords).</span>
+<span class="sd">        tile_px (int, optional): Size of tiles to extract from WSI, in pixels.</span>
+<span class="sd">            Only used if from_wsi=True. Defaults to None.</span>
+<span class="sd">        tile_um (int, optional): Size of tiles to extract from WSI, in</span>
+<span class="sd">            microns. Only used if from_wsi=True. Defaults to None.</span>
+<span class="sd">        rois (list(str), optional): List of ROI paths. Only used if</span>
+<span class="sd">            from_wsi=True.  Defaults to None.</span>
+<span class="sd">        roi_method (str, optional): Method for extracting ROIs. Only used if</span>
+<span class="sd">            from_wsi=True. Defaults to &#39;auto&#39;.</span>
 <span class="sd">        pool (multiprocessing.Pool): Shared multiprocessing pool. Useful</span>
-<span class="sd">            if from_wsi=True, for sharing a unified processing pool between</span>
+<span class="sd">            if ``from_wsi=True``, for sharing a unified processing pool between</span>
 <span class="sd">            dataloaders. Defaults to None.</span>
+<span class="sd">        transform (Callable, optional): Arbitrary torchvision transform</span>
+<span class="sd">            function. Performs transformation after augmentations but</span>
+<span class="sd">            before standardization. Defaults to None.</span>
+<span class="sd">        tfrecord_parser (Callable, optional): Custom parser for TFRecords.</span>
+<span class="sd">            Defaults to None.</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsNotFoundError</span>
@@ -1160,11 +1335,11 @@
         <span class="c1"># ---- Load slides and apply Otsu thresholding ------------------------</span>
         <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cucim&#39;</span><span class="p">:</span>
             <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
-                <span class="mi">8</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(),</span>
+                <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">8</span><span class="p">),</span>
                 <span class="n">initializer</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">set_ignore_sigint</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="n">pool</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="mi">16</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">())</span>
+            <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">16</span><span class="p">))</span>
         <span class="n">wsi_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">to_remove</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">otsu_list</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1261,17 +1436,22 @@
         <span class="p">)</span>
         <span class="n">sampler_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">random_sampler</span><span class="p">)</span>
 
+    <span class="c1"># Compose augmentation transformations</span>
+    <span class="n">transform_fn</span> <span class="o">=</span> <span class="n">compose_augmentations</span><span class="p">(</span>
+        <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">,</span>
+        <span class="n">standardize</span><span class="o">=</span><span class="n">standardize</span><span class="p">,</span>
+        <span class="n">normalizer</span><span class="o">=</span><span class="n">normalizer</span><span class="p">,</span>
+        <span class="n">transform</span><span class="o">=</span><span class="n">transform</span><span class="p">,</span>
+        <span class="n">whc</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+
     <span class="c1"># Worker to decode images and process records</span>
     <span class="k">def</span> <span class="nf">threading_worker</span><span class="p">(</span><span class="n">record</span><span class="p">):</span>
         <span class="n">record</span> <span class="o">=</span> <span class="n">base_parser</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
         <span class="n">record</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">_decode_image</span><span class="p">(</span>
             <span class="n">record</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>  <span class="c1"># Image is the first returned variable</span>
             <span class="n">img_type</span><span class="o">=</span><span class="n">img_type</span><span class="p">,</span>
-            <span class="n">standardize</span><span class="o">=</span><span class="n">standardize</span><span class="p">,</span>
-            <span class="n">normalizer</span><span class="o">=</span><span class="n">normalizer</span><span class="p">,</span>
-            <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">,</span>
-            <span class="n">transform</span><span class="o">=</span><span class="n">transform</span><span class="p">,</span>
-            <span class="n">device</span><span class="o">=</span><span class="n">device</span>
+            <span class="n">transform</span><span class="o">=</span><span class="n">transform_fn</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">record</span>
 
@@ -1287,6 +1467,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">n_threads</span> <span class="o">=</span> <span class="n">num_threads</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">n_closed</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">il_closed</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_close_complete</span> <span class="o">=</span> <span class="kc">False</span>
 
             <span class="k">def</span> <span class="nf">interleaver</span><span class="p">():</span>
                 <span class="n">msg</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1340,7 +1521,12 @@
                     <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">record</span><span class="p">:</span>
                         <span class="k">yield</span> <span class="n">item</span>
 
+        <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
         <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_close_complete</span><span class="p">:</span>
+                <span class="k">return</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Closing QueueRetriever&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">closed</span> <span class="o">=</span> <span class="kc">True</span>
 
@@ -1354,6 +1540,7 @@
                 <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">sampler</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_close_complete</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="k">return</span> <span class="n">QueueRetriever</span><span class="p">(</span><span class="n">random_sampler</span><span class="p">,</span> <span class="n">num_threads</span><span class="p">)</span></div>
 
@@ -1384,50 +1571,77 @@
 <span class="sd">        batch_size (int): Batch size.</span>
 
 <span class="sd">    Keyword Args:</span>
-<span class="sd">        prob_weights (dict, optional): Dict mapping tfrecords to probability</span>
-<span class="sd">            of including in batch. Defaults to None.</span>
+<span class="sd">        augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">            * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">            * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">            * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">            * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">            * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+<span class="sd">            * ``&#39;n&#39;``: Random :ref:`stain_augmentation` (requires stain normalizer)</span>
+
+<span class="sd">            Combine letters to define augmentations, such as ``&#39;xyrjn&#39;``.</span>
+<span class="sd">            A value of True will use ``&#39;xyrjb&#39;``.</span>
+<span class="sd">        chunk_size (int, optional): Chunk size for image decoding.</span>
+<span class="sd">            Defaults to 1.</span>
 <span class="sd">        clip (dict, optional): Dict mapping tfrecords to number of tiles to</span>
 <span class="sd">            take per tfrecord. Defaults to None.</span>
-<span class="sd">        onehot (bool, optional): Onehot encode labels. Defaults to False.</span>
-<span class="sd">        incl_slidenames (bool, optional): Include slidenames as third returned</span>
-<span class="sd">            variable. Defaults to False.</span>
+<span class="sd">        drop_last (bool, optional): Drop the last non-full batch.</span>
+<span class="sd">            Defaults to False.</span>
+<span class="sd">        from_wsi (bool): Generate predictions from tiles dynamically</span>
+<span class="sd">            extracted from whole-slide images, rather than TFRecords.</span>
+<span class="sd">            Defaults to False (use TFRecords).</span>
 <span class="sd">        incl_loc (bool, optional): Include loc_x and loc_y as additional</span>
 <span class="sd">            returned variables. Defaults to False.</span>
+<span class="sd">        incl_slidenames (bool, optional): Include slidenames as third returned</span>
+<span class="sd">            variable. Defaults to False.</span>
 <span class="sd">        infinite (bool, optional): Infinitely repeat data. Defaults to True.</span>
-<span class="sd">        rank (int, optional): Worker ID to identify this worker.</span>
-<span class="sd">            Used to interleave results.</span>
-<span class="sd">            among workers without duplications. Defaults to 0 (first worker).</span>
+<span class="sd">        indices (numpy.ndarray, optional): Indices in form of array,</span>
+<span class="sd">            with np.loadtxt(index_path, dtype=np.int64) for each tfrecord.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        labels (dict, optional): Dict mapping slide names to outcome labels,</span>
+<span class="sd">            used for balancing. Defaults to None.</span>
+<span class="sd">        max_size (bool, optional): Unused argument present for legacy</span>
+<span class="sd">            compatibility; will be removed.</span>
+<span class="sd">        model_type (str, optional): Used to generate random labels</span>
+<span class="sd">            (for StyleGAN2). Not required. Defaults to &#39;categorical&#39;.</span>
 <span class="sd">        num_replicas (int, optional): Number of GPUs or unique instances which</span>
 <span class="sd">            will have their own DataLoader. Used to interleave results among</span>
 <span class="sd">            workers without duplications. Defaults to 1.</span>
-<span class="sd">        labels (dict, optional): Dict mapping slide names to outcome labels,</span>
-<span class="sd">            used for balancing. Defaults to None.</span>
-<span class="sd">        normalizer (:class:`slideflow.norm.StainNormalizer`, optional):</span>
-<span class="sd">            Normalizer to use on images. Defaults to None.</span>
-<span class="sd">        chunk_size (int, optional): Chunk size for image decoding.</span>
-<span class="sd">            Defaults to 1.</span>
-<span class="sd">        prefetch_factor (int, optional): Number of batches to prefetch in each</span>
-<span class="sd">            SlideflowIterator. Defaults to 1.</span>
-<span class="sd">        manifest (dict, optional): Dataset manifest containing number of tiles</span>
-<span class="sd">            per tfrecord.</span>
-<span class="sd">        balance (str, optional): Batch-level balancing. Options: category,</span>
-<span class="sd">            patient, and None. If infinite is not True, will drop tiles to</span>
-<span class="sd">            maintain proportions across the interleaved dataset.</span>
-<span class="sd">        augment (str, optional): Image augmentations to perform. String</span>
-<span class="sd">            containing characters designating augmentations. &#39;x&#39; indicates</span>
-<span class="sd">            random x-flipping, &#39;y&#39; y-flipping, &#39;r&#39; rotating, and &#39;j&#39; JPEG</span>
-<span class="sd">            compression/decompression at random quality levels. Passing either</span>
-<span class="sd">            &#39;xyrj&#39; or True will use all augmentations.</span>
-<span class="sd">        standardize (bool, optional): Standardize images to (0,1).</span>
-<span class="sd">            Defaults to True.</span>
+<span class="sd">        num_tiles (int, optional): Dict mapping tfrecord names to number</span>
+<span class="sd">            of total tiles. Defaults to None.</span>
 <span class="sd">        num_workers (int, optional): Number of DataLoader workers.</span>
 <span class="sd">            Defaults to 2.</span>
+<span class="sd">        normalizer (:class:`slideflow.norm.StainNormalizer`, optional):</span>
+<span class="sd">            Normalizer. Defaults to None.</span>
+<span class="sd">        onehot (bool, optional): Onehot encode labels. Defaults to False.</span>
 <span class="sd">        persistent_workers (bool, optional): Sets the DataLoader</span>
 <span class="sd">            persistent_workers flag. Defaults toNone (4 if not using a SPAMS</span>
 <span class="sd">            normalizer, 1 if using SPAMS).</span>
 <span class="sd">        pin_memory (bool, optional): Pin memory to GPU. Defaults to True.</span>
-<span class="sd">        drop_last (bool, optional): Drop the last non-full batch.</span>
-<span class="sd">            Defaults to False.</span>
+<span class="sd">        pool (multiprocessing.Pool): Shared multiprocessing pool. Useful</span>
+<span class="sd">            if ``from_wsi=True``, for sharing a unified processing pool between</span>
+<span class="sd">            dataloaders. Defaults to None.</span>
+<span class="sd">        prefetch_factor (int, optional): Number of batches to prefetch in each</span>
+<span class="sd">            SlideflowIterator. Defaults to 1.</span>
+<span class="sd">        prob_weights (dict, optional): Dict mapping tfrecords to probability</span>
+<span class="sd">            of including in batch. Defaults to None.</span>
+<span class="sd">        rank (int, optional): Worker ID to identify this worker.</span>
+<span class="sd">            Used to interleave results.</span>
+<span class="sd">            among workers without duplications. Defaults to 0 (first worker).</span>
+<span class="sd">        rois (list(str), optional): List of ROI paths. Only used if</span>
+<span class="sd">            from_wsi=True.  Defaults to None.</span>
+<span class="sd">        roi_method (str, optional): Method for extracting ROIs. Only used if</span>
+<span class="sd">            from_wsi=True. Defaults to &#39;auto&#39;.</span>
+<span class="sd">        standardize (bool, optional): Standardize images to mean 0 and</span>
+<span class="sd">            variance of 1. Defaults to True.</span>
+<span class="sd">        tile_um (int, optional): Size of tiles to extract from WSI, in</span>
+<span class="sd">            microns. Only used if from_wsi=True. Defaults to None.</span>
+<span class="sd">        transform (Callable, optional): Arbitrary torchvision transform</span>
+<span class="sd">            function. Performs transformation after augmentations but</span>
+<span class="sd">            before standardization. Defaults to None.</span>
+<span class="sd">        tfrecord_parser (Callable, optional): Custom parser for TFRecords.</span>
+<span class="sd">            Defaults to None.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        torch.utils.data.DataLoader</span>
@@ -1441,11 +1655,14 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Option `from_wsi=True` incompatible with &quot;</span>
                          <span class="s2">&quot;num_workers &gt; 0&quot;</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">num_workers</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">():</span>
-        <span class="n">num_workers</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="o">//</span> <span class="mi">4</span>  <span class="c1"># type: ignore</span>
+    <span class="k">if</span> <span class="n">num_workers</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">():</span>
+        <span class="n">num_workers</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">()</span> <span class="o">//</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
     <span class="k">elif</span> <span class="n">num_workers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">num_workers</span> <span class="o">=</span> <span class="mi">8</span>
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using num_workers=</span><span class="si">{</span><span class="n">num_workers</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;num_threads&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">():</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;num_threads&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">()</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_workers</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Threads per worker=</span><span class="si">{</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;num_threads&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="n">iterator</span> <span class="o">=</span> <span class="n">InterleaveIterator</span><span class="p">(</span>
         <span class="n">tfrecords</span><span class="o">=</span><span class="n">tfrecords</span><span class="p">,</span>
@@ -1489,7 +1706,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2022, James M Dolezal.
+        &copy; Copyright 2023, James M Dolezal.
 
     </p>
   </div>
@@ -1563,7 +1780,7 @@
           </li>
 
           <li>
-            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
           </li>
 
           <li>
