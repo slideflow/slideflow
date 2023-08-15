@@ -11,6 +11,9 @@ from fastai.vision.all import (
     DataLoader, DataLoaders, Learner, RocAuc, SaveModelCallback, CSVLogger, FetchPredsCallback
 )
 
+from neptune.integrations.fastai import NeptuneCallback
+import neptune
+
 from slideflow import log
 from slideflow.mil.data import build_clam_dataset, build_dataset
 from slideflow.model import torch_utils
@@ -18,7 +21,7 @@ from .._params import TrainerConfigFastAI, ModelConfigCLAM
 
 # -----------------------------------------------------------------------------
 
-def train(learner, config, callbacks=None):
+def train(learner, config, callbacks=None, use_neptune=False, nep_args=None):
     """Train an attention-based multi-instance learning model with FastAI.
 
     Args:
@@ -27,11 +30,18 @@ def train(learner, config, callbacks=None):
 
     Keyword args:
         callbacks (list(fastai.Callback)): FastAI callbacks. Defaults to None.
+        use_neptune (bool,optional): Log training to neptune.ai
+        nep_args (dict): Keyword arguments to specify neptune project data.
     """
+
     cbs = [
         SaveModelCallback(fname=f"best_valid"),
-        CSVLogger(),
+        CSVLogger()
     ]
+
+    if use_neptune:
+        run = neptune.init_run(**nep_args)
+        cbs.append(NeptuneCallback(run=run))
     if callbacks:
         cbs += callbacks
     if config.fit_one_cycle:
@@ -48,6 +58,8 @@ def train(learner, config, callbacks=None):
         else:
             lr = config.lr
         learner.fit(n_epoch=config.epochs, lr=lr, wd=config.wd, cbs=cbs)
+    if use_neptune:
+        run.stop()
     return learner
 
 # -----------------------------------------------------------------------------
