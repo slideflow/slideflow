@@ -506,7 +506,7 @@ class _VIPSReader:
                 temp_img = vips.Image.new_from_file(self.path, page=lev)
                 width = int(temp_img.get('width'))
                 height = int(temp_img.get('height'))
-                downsample = float(self.dimensions[0] / width)
+                downsample = float(int(self.properties[OPS_WIDTH]) / width)
                 self.levels += [{
                     'dimensions': (width, height),
                     'width': width,
@@ -520,8 +520,8 @@ class _VIPSReader:
             self.level_count = 1
             self.levels = [{
                     'dimensions': self.dimensions,
-                    'width': self.dimensions[0],
-                    'height': self.dimensions[1],
+                    'width': int(self.properties[OPS_WIDTH]),
+                    'height': int(self.properties[OPS_HEIGHT]),
                     'downsample': 1,
                     'level': 0
                 }]
@@ -609,12 +609,14 @@ class _VIPSReader:
         image = vips.Image.new_from_file(self.path, fail=fail, access=access, **kwargs)
 
         if self.bounds is not None:
-            image = image.crop(
-                int(np.round(self.bounds[0] / self.level_downsamples[level])),
-                int(np.round(self.bounds[1] / self.level_downsamples[level])),
-                int(np.round(self.bounds[2] / self.level_downsamples[level])),
-                int(np.round(self.bounds[3] / self.level_downsamples[level])),
+            ds = self.level_downsamples[level]
+            crop_bounds = (
+                int(np.round(self.bounds[0] / ds)),
+                int(np.round(self.bounds[1] / ds)),
+                int(np.round(self.bounds[2] / ds)),
+                int(np.round(self.bounds[3] / ds))
             )
+            image = image.crop(*crop_bounds)
         if self.transforms is not None:
             for transform in self.transforms:
                 if transform == ROTATE_90_CLOCKWISE:
@@ -780,7 +782,7 @@ class _MultiPageVIPSReader(_VIPSReader):
             temp_img = vips.Image.new_from_file(self.path, page=lev)
             width = int(temp_img.get('width'))
             height = int(temp_img.get('height'))
-            downsample = float(self.dimensions[0] / width)
+            downsample = float(int(self.properties[OPS_WIDTH]) / width)
             self.levels += [{
                 'dimensions': (width, height),
                 'width': width,
@@ -809,7 +811,7 @@ class _VersaVIPSReader(_VIPSReader):
             temp_img = vips.Image.new_from_file(self.path, page=lev)
             width = int(temp_img.get('width'))
             height = int(temp_img.get('height'))
-            downsample = float(self.dimensions[0] / width)
+            downsample = float(int(self.properties[OPS_WIDTH]) / width)
             self.levels += [{
                 'dimensions': (width, height),
                 'width': width,
