@@ -179,6 +179,13 @@ def xml_to_csv(path: str) -> str:
     return new_csv_file
 
 
+def _align_to_matrix(im1: np.ndarray, im2: np.ndarray, warp_matrix: np.ndarray) -> np.ndarray:
+    """Align an image to a warp matrix."""
+    import cv2
+    # Use the warpAffine function to apply the transformation
+    return cv2.warpAffine(im1, warp_matrix, (im2.shape[1], im2.shape[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
+
+
 def _find_translation_matrix(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     """
     Align two images using only scaling and translation.
@@ -193,6 +200,14 @@ def _find_translation_matrix(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     im1_gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
     im2_gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
 
+    # De-noising
+    im1_gray = cv2.fastNlMeansDenoising(im1_gray, None, 30, 7, 21)
+    im2_gray = cv2.fastNlMeansDenoising(im2_gray, None, 30, 7, 21)
+
+    # Transform images to normalize contrast
+    im1_gray = cv2.equalizeHist(im1_gray)
+    im2_gray = cv2.equalizeHist(im2_gray)
+
     # Define the motion model
     warp_mode = cv2.MOTION_TRANSLATION
 
@@ -200,20 +215,14 @@ def _find_translation_matrix(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     warp_matrix = np.eye(2, 3, dtype=np.float32)
 
     # Set the number of iterations and termination criteria
-    number_of_iterations = 5000
+    number_of_iterations = 10000
     termination_eps = 1e-10
     criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations, termination_eps)
 
     # Use findTransformECC to compute the transformation
     _, warp_matrix = cv2.findTransformECC(im2_gray, im1_gray, warp_matrix, warp_mode, criteria)
+
     return warp_matrix
-
-
-def _align_to_matrix(im1: np.ndarray, im2: np.ndarray, warp_matrix: np.ndarray) -> np.ndarray:
-    """Align an image to a warp matrix."""
-    import cv2
-    # Use the warpAffine function to apply the transformation
-    return cv2.warpAffine(im1, warp_matrix, (im2.shape[1], im2.shape[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
 
 
 def align_image(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
@@ -235,11 +244,30 @@ def align_by_translation(
     calculate_mse: bool = False
 ) -> Union[Union[Tuple[float, float], Tuple[int, int]],
            Tuple[Union[Tuple[float, float], Tuple[int, int]], float]]:
-    """Find the (x, y) translation that aligns im1 to im2."""
-    warp_matrix = _find_translation_matrix(im1, im2)
+    """
+    Find the (x, y) translation that aligns im1 to im2.
+
+    Args:
+        im1 (np.ndarray): Target for alignment.
+        im2 (np.ndarray): Image to align.
+        round (bool): Round to the nearest int. Defaults to False.
+        calculate_mse (bool): Return the mean squared error (MSE) of alignment.
+            Defaults to False.
+
+    """
+    import cv2
+    try:
+        warp_matrix = _find_translation_matrix(im1, im2)
+    except cv2.error:
+        raise errors.AlignmentError(
+            "Could not align images. Check that the images are the same "
+            "size, that they are not rotated or flipped, and that they have "
+            "overlapping regions."
+        )
     alignment = -warp_matrix[0, 2], -warp_matrix[1, 2]
     if round:
         alignment = (int(np.round(alignment[0])), int(np.round(alignment[1])))
+
     if calculate_mse:
         aligned_im1 = _align_to_matrix(im1, im2, warp_matrix)
         mse = compute_alignment_mse(aligned_im1, im2)
@@ -247,7 +275,11 @@ def align_by_translation(
     else:
         return alignment
 
-def compute_alignment_mse(imageA, imageB):
+def compute_alignment_mse(
+    imageA: np.ndarray,
+    imageB: np.ndarray,
+    flatten: bool = True
+) -> float:
     """
     Compute the Mean Squared Error between two images in their overlapping region,
     excluding areas that are black (0, 0, 0) in either image.
@@ -256,6 +288,11 @@ def compute_alignment_mse(imageA, imageB):
     :param imageB: Second image.
     :return: Mean Squared Error (MSE) between the images in the valid overlapping region.
     """
+    # Remove the alpha channel from both images
+    if flatten:
+        imageA = imageA[:, :, 0:3]
+        imageB = imageB[:, :, 0:3]
+
     assert imageA.shape == imageB.shape, "Image sizes must match."
 
     # Create a combined mask where neither of the images is black

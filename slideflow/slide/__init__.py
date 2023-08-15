@@ -27,7 +27,7 @@ from slideflow import errors
 from functools import partial
 from os.path import exists, join
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Sequence
 
 import slideflow as sf
 import slideflow.slide.qc
@@ -424,7 +424,10 @@ class _BaseLoader:
     def align_to(
         self,
         slide: "_BaseLoader",
-        apply: bool = True
+        apply: bool = True,
+        finetune_depth: Optional[Sequence[int]] = None,
+        normalizer: Optional[str] = 'reinhard_mask',
+        allow_errors: bool = False
     ) -> Tuple[Tuple[int, int], float]:
         """Align this slide to another slide.
 
@@ -446,6 +449,9 @@ class _BaseLoader:
 
         if not isinstance(slide, _BaseLoader):
             raise TypeError("Can only align to another slide.")
+
+        if finetune_depth is None:
+            finetune_depth = [1, 0.5, 0.25]
 
         # Steps:
         # 1. Identify tissue region as target for alignment.
@@ -489,6 +495,7 @@ class _BaseLoader:
             int(np.round(target[0] * (self.mpp / slide.mpp))),
             int(np.round(target[1] * (self.mpp / slide.mpp)))
         )
+        log.debug("Low-mag alignment complete.")
         log.debug("Target for alignment (us): {}".format(target))
         log.debug("Target for alignment (them, pre-alignment): {}".format(target_them))
 
@@ -498,10 +505,25 @@ class _BaseLoader:
         our_thumb = np.array(self.thumb(mpp=8))
         their_thumb = np.array(slide.thumb(mpp=8))
 
+        # Stain normalization
+        if normalizer is not None:
+            log.debug("Aligning with stain normalization: {}".format(normalizer))
+            if isinstance(normalizer, str):
+                norm = sf.norm.autoselect('reinhard_mask')
+            elif isinstance(normalizer, sf.norm.StainNormalizer):
+                norm = normalizer
+            else:
+                raise ValueError("normalizer must be a str or instance of StainNormalizer")
+            our_thumb = norm.transform(our_thumb[:, :, 0:3])
+            their_thumb = norm.transform(their_thumb[:, :, 0:3])
+
         # Align thumbnails and adjust for scale.
-        alignment_raw, mse = align_by_translation(
-            their_thumb, our_thumb, round=True, calculate_mse=True
-        )
+        try:
+            alignment_raw, mse = align_by_translation(
+                their_thumb, our_thumb, round=True, calculate_mse=True
+            )
+        except errors.AlignmentError:
+            raise errors.AlignmentError("Alignment failed at thumbnail (mpp=8)")
         alignment = (int(np.round(alignment_raw[0] * (8 / self.mpp))),
                      int(np.round(alignment_raw[1] * (8 / self.mpp))))
         alignment_them = (-int(np.round(alignment_raw[0] * (8 / slide.mpp))),
@@ -513,7 +535,7 @@ class _BaseLoader:
         # --- 3. Fine-tune alignment at tissue regions. -----------------------
 
         # Get the coordinates of the tissue region in both slides.
-        for finetune_mpp in (1, 0.5, 0.25):
+        for finetune_mpp in finetune_depth:
             if (finetune_mpp < self.mpp) or (finetune_mpp < slide.mpp):
                 log.debug("Skipping finetune at mpp={}".format(finetune_mpp))
                 continue
@@ -558,18 +580,31 @@ class _BaseLoader:
                 pad_missing=True
             )
 
+            if normalizer is not None:
+                our_region = norm.transform(our_region[:, :, 0:3])
+                their_region = norm.transform(their_region[:, :, 0:3])
+
             # Finetune alignment on this region.
-            alignment_fine = align_by_translation(their_region, our_region, round=True)
-            alignment = (
-                alignment[0] + int(np.round(alignment_fine[0] * (finetune_mpp/self.mpp))),
-                alignment[1] + int(np.round(alignment_fine[1] * (finetune_mpp/self.mpp)))
-            )
-            alignment_them = (
-                alignment_them[0] - int(np.round(alignment_fine[0] * (finetune_mpp/slide.mpp))),
-                alignment_them[1] - int(np.round(alignment_fine[1] * (finetune_mpp/slide.mpp)))
-            )
-            log.debug("Finetuned alignment (us) at mpp={}: {}".format(finetune_mpp, alignment))
-            log.debug("Finetuned alignment (them) at mpp={}: {}".format(finetune_mpp, alignment_them))
+            try:
+                alignment_fine = align_by_translation(their_region, our_region, round=True)
+            except errors.AlignmentError:
+                msg = "Alignment failed at finetuning (mpp={})".format(finetune_mpp)
+                if allow_errors:
+                    log.error(msg)
+                else:
+                    raise errors.AlignmentError(msg)
+            else:
+                alignment = (
+                    alignment[0] + int(np.round(alignment_fine[0] * (finetune_mpp/self.mpp))),
+                    alignment[1] + int(np.round(alignment_fine[1] * (finetune_mpp/self.mpp)))
+                )
+                alignment_them = (
+                    alignment_them[0] - int(np.round(alignment_fine[0] * (finetune_mpp/slide.mpp))),
+                    alignment_them[1] - int(np.round(alignment_fine[1] * (finetune_mpp/slide.mpp)))
+                )
+                log.debug("Finetune alignment complete at mpp={}.".format(finetune_mpp))
+                log.debug("Finetuned alignment (us) at mpp={}: {}".format(finetune_mpp, alignment))
+                log.debug("Finetuned alignment (them) at mpp={}: {}".format(finetune_mpp, alignment_them))
 
         # Apply alignment, if requested.
         if not apply:
