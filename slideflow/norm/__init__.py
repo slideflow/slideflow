@@ -685,6 +685,10 @@ def autoselect(
         source (str, optional): Stain normalization preset or path to a source
             image. Valid presets include 'v1', 'v2', and 'v3'. If None, will
             use the default present ('v3'). Defaults to None.
+        backend (str): Backend to use for native normalizers. Options include
+            'tensorflow', 'torch', and 'opencv'. If None, will use the current
+            backend, falling back to opencv/numpy if a native normalizer is
+            not available. Defaults to None.
 
     Returns:
         StainNormalizer:    Initialized StainNormalizer.
@@ -697,6 +701,8 @@ def autoselect(
     elif backend == 'torch':
         import slideflow.norm.torch
         BackendNormalizer = sf.norm.torch.TorchStainNormalizer  # type: ignore
+    elif backend == 'opencv':
+        BackendNormalizer = StainNormalizer
     else:
         raise errors.UnrecognizedBackendError
 
