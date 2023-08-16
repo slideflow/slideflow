@@ -29,7 +29,7 @@ def train_mil(
     outdir: str = 'mil',
     exp_label: Optional[str] = None,
     use_neptune=False,
-    nep_args=None,
+    neptune_args=None,
     **kwargs
 ):
     """Train a multiple-instance learning (MIL) model.
@@ -63,7 +63,7 @@ def train_mil(
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
         use_neptune (bool,optional): Log training to neptune.ai
-        nep_args (dict): Keyword arguments to specify neptune project data.
+        neptune_args (dict): Keyword arguments to specify neptune project data.
     """
     log.info("Training FastAI MIL model with config:")
     log.info(f"{config}")
@@ -103,7 +103,7 @@ def train_mil(
         bags,
         outdir=outdir,
         use_neptune=use_neptune,
-        nep_args=nep_args,
+        neptune_args=neptune_args,
         **kwargs
     )
 
@@ -379,7 +379,7 @@ def train_fastai(
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     use_neptune=False,
-    nep_args=None,
+    neptune_args=None,
     **heatmap_kwargs
 ) -> None:
     """Train an aMIL model using FastAI.
@@ -414,7 +414,7 @@ def train_fastai(
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
         use_neptune (bool,optional): Log training to neptune.ai
-        nep_args (dict): Keyword arguments to specify neptune project data.
+        neptune_args (dict): Keyword arguments to specify neptune project data.
 
     Returns:
         fastai.learner.Learner
@@ -454,7 +454,7 @@ def train_fastai(
     _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir)
 
     # Train.
-    _fastai.train(learner, config,use_neptune=use_neptune,nep_args=nep_args)
+    _fastai.train(learner, config,use_neptune=use_neptune,neptune_args=neptune_args)
 
     # Generate validation predictions.
     df, attention = predict_from_model(
