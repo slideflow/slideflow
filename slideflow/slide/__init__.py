@@ -1488,7 +1488,14 @@ class WSI(_BaseLoader):
             (self.dimensions[0]+1) - edge_buffer,
             self.full_stride
         )
+
         self.grid = np.ones((len(x_range), len(y_range)), dtype=bool)
+
+        # For any indexes in y_range or x_range corresponding to a negative value,
+        # set the corresponding index in self.grid to False.
+        # This may occur after slide alignment.
+        self.grid[np.argwhere(y_range < 0), :] = False
+        self.grid[:, np.argwhere(x_range < 0)] = False
 
         # ROI filtering
         roi_by_center = (self.roi_filter_method == 'center')
@@ -1539,6 +1546,12 @@ class WSI(_BaseLoader):
             for xi, x in enumerate(x_range):
                 y = int(y)
                 x = int(x)
+
+                # Skip the slide if the coordinate has a negative value.
+                # This may happen after slide alignment.
+                if x < 0 or y < 0:
+                    continue
+
                 self.coord.append([x, y, xi, yi])
 
                 # ROI filtering
