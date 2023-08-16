@@ -190,7 +190,7 @@ def detect_mpp(
             and loaded_image.get('resolution-unit') == 'cm'):
             # xres = xres # though resolution from tiffinfo
             # says 40000 pixels/cm, for some reason the xres
-            # val is 4000.0, so multipley by 10.
+            # val is 4000.0, so multiply by 10.
             # Convert from pixels/cm to cm/pixels, then convert
             # to microns by multiplying by 1000
             mpp_x = (1/xres) * 1000

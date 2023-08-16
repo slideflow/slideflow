@@ -153,6 +153,7 @@ def predict_slide(
     normalizer: Optional["StainNormalizer"] = None,
     config: Optional[_TrainerConfig] = None,
     attention: bool = False,
+    native_normalizer: Optional[bool] = None
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """Generate predictions (and attention) for a single slide.
 
@@ -177,6 +178,12 @@ def predict_slide(
             configuration. Defaults to None.
         attention (bool): Whether to return attention scores. Defaults to
             False.
+        native_normalizer (bool, optional): Whether to use PyTorch/Tensorflow-native
+            stain normalization, if applicable. If False, will use the OpenCV/Numpy
+            implementations. Defaults to None, which auto-detects based on the
+            slide backend (False if libvips, True if cucim). This behavior is due
+            to performance issued when using native stain normalization with
+            libvips-compatible multiprocessing.
 
     Returns:
         Tuple[np.ndarray, Optional[np.ndarray]]: Predictions and attention scores.
@@ -186,8 +193,12 @@ def predict_slide(
 
     """
     # Try to auto-determine the extractor
+    if native_normalizer is None:
+        native_normalizer = (sf.slide_backend() == 'cucim')
     if extractor is None:
-        extractor, detected_normalizer = rebuild_extractor(model, allow_errors=True)
+        extractor, detected_normalizer = rebuild_extractor(
+            model, allow_errors=True, native_normalizer=native_normalizer
+        )
         if extractor is None:
             raise ValueError(
                 "Unable to auto-detect feature extractor used for model {}. "

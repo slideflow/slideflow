@@ -163,7 +163,9 @@ class MILWidget(Widget):
     def load(self, path: str, allow_errors: bool = True) -> bool:
         try:
             self.close()
-            self.extractor, self.normalizer = rebuild_extractor(path)
+            self.extractor, self.normalizer = rebuild_extractor(
+                path, native_normalizer=(sf.slide_backend()=='cucim')
+            )
             self.mil_params = _get_mil_params(path)
             self.extractor_params = self.mil_params['bags_extractor']
             self._reload_wsi()
