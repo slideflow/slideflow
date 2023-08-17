@@ -3798,7 +3798,6 @@ class Project:
         bags: Union[str, List[str]],
         *,
         exp_label: Optional[str] = None,
-        use_neptune=False,
         neptune_args=None,
         **kwargs
     ):
@@ -3832,7 +3831,6 @@ class Project:
                 for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
                 If 'two_slope', normalizes values less than 0 and greater than 0
                 separately. Defaults to None.
-            use_neptune (bool,optional): Log training to neptune.ai
             neptune_args (dict): Keyword arguments to specify neptune project data.
 
         """
@@ -3846,7 +3844,6 @@ class Project:
             bags,
             outdir=join(self.root, 'mil'),
             exp_label=exp_label,
-            use_neptune=use_neptune,
             neptune_args=neptune_args,
             **kwargs
         )

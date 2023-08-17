@@ -28,7 +28,6 @@ def train_mil(
     *,
     outdir: str = 'mil',
     exp_label: Optional[str] = None,
-    use_neptune=False,
     neptune_args=None,
     **kwargs
 ):
@@ -62,7 +61,6 @@ def train_mil(
             for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
-        use_neptune (bool,optional): Log training to neptune.ai
         neptune_args (dict): Keyword arguments to specify neptune project data.
     """
     log.info("Training FastAI MIL model with config:")
@@ -102,7 +100,6 @@ def train_mil(
         outcomes,
         bags,
         outdir=outdir,
-        use_neptune=use_neptune,
         neptune_args=neptune_args,
         **kwargs
     )
@@ -378,7 +375,6 @@ def train_fastai(
     *,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
-    use_neptune=False,
     neptune_args=None,
     **heatmap_kwargs
 ) -> None:
@@ -413,7 +409,6 @@ def train_fastai(
             for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
-        use_neptune (bool,optional): Log training to neptune.ai
         neptune_args (dict): Keyword arguments to specify neptune project data.
 
     Returns:
@@ -454,7 +449,7 @@ def train_fastai(
     _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir)
 
     # Train.
-    _fastai.train(learner, config,use_neptune=use_neptune,neptune_args=neptune_args)
+    _fastai.train(learner, config,neptune_args=neptune_args)
 
     # Generate validation predictions.
     df, attention = predict_from_model(
