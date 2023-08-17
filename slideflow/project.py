@@ -3798,7 +3798,7 @@ class Project:
         bags: Union[str, List[str]],
         *,
         exp_label: Optional[str] = None,
-        neptune_args=None,
+        neptune_name: Optional[str] = None,
         **kwargs
     ):
         r"""Train a multi-instance learning model.
@@ -3831,8 +3831,7 @@ class Project:
                 for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
                 If 'two_slope', normalizes values less than 0 and greater than 0
                 separately. Defaults to None.
-            neptune_args (dict): Keyword arguments to specify neptune project data.
-
+            neptune_name (str, optional): Custom Name for neptune run. Defaults to None.
         """
         from .mil import train_mil
 
@@ -3844,7 +3843,10 @@ class Project:
             bags,
             outdir=join(self.root, 'mil'),
             exp_label=exp_label,
-            neptune_args=neptune_args,
+            use_neptune=self.use_neptune,
+            neptune_workspace=self.neptune_workspace,
+            neptune_api=self.neptune_api,
+            neptune_name=neptune_name,
             **kwargs
         )
 

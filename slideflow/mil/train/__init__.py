@@ -28,7 +28,10 @@ def train_mil(
     *,
     outdir: str = 'mil',
     exp_label: Optional[str] = None,
-    neptune_args=None,
+    use_neptune: Optional[bool] = False,
+    neptune_workspace: Optional[str] = None,
+    neptune_api: Optional[str] = None,
+    neptune_name: Optional[str] = None,
     **kwargs
 ):
     """Train a multiple-instance learning (MIL) model.
@@ -50,6 +53,14 @@ def train_mil(
         exp_label (str): Experiment label, used for naming the subdirectory
             in the ``{project root}/mil`` folder, where training history
             and the model will be saved.
+        use_neptune (bool, optional): Use Neptune API logging.
+            Defaults to False
+        neptune_api (str, optional): Neptune API token, used for logging.
+            Defaults to None.
+        neptune_workspace (str, optional): Neptune workspace.
+            Defaults to None.
+        neptune_name (str, optional): Custom Name for neptune run.
+            Defaults to None.
         attention_heatmaps (bool): Generate attention heatmaps for slides.
             Defaults to False.
         interpolation (str, optional): Interpolation strategy for smoothing
@@ -61,7 +72,6 @@ def train_mil(
             for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
-        neptune_args (dict): Keyword arguments to specify neptune project data.
     """
     log.info("Training FastAI MIL model with config:")
     log.info(f"{config}")
@@ -100,7 +110,10 @@ def train_mil(
         outcomes,
         bags,
         outdir=outdir,
-        neptune_args=neptune_args,
+        use_neptune=use_neptune,
+        neptune_workspace=neptune_workspace,
+        neptune_api=neptune_api,
+        neptune_name=neptune_name,
         **kwargs
     )
 
@@ -375,7 +388,10 @@ def train_fastai(
     *,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
-    neptune_args=None,
+    use_neptune: Optional[bool] = False,
+    neptune_workspace: Optional[str] = None,
+    neptune_api: Optional[str] = None,
+    neptune_name: Optional[str] = None,
     **heatmap_kwargs
 ) -> None:
     """Train an aMIL model using FastAI.
@@ -409,7 +425,12 @@ def train_fastai(
             for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
-        neptune_args (dict): Keyword arguments to specify neptune project data.
+        use_neptune (bool, optional): Use Neptune API logging.
+            Defaults to False.
+        neptune_api (str, optional): Neptune API token, used for logging.
+            Defaults to None.
+        neptune_workspace (str, optional): Neptune workspace.
+            Defaults to None.
 
     Returns:
         fastai.learner.Learner
@@ -449,7 +470,8 @@ def train_fastai(
     _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir)
 
     # Train.
-    _fastai.train(learner, config,neptune_args=neptune_args)
+    _fastai.train(learner, config, use_neptune=use_neptune,neptune_workspace=neptune_workspace,
+                  neptune_api=neptune_api,neptune_name=neptune_name)
 
     # Generate validation predictions.
     df, attention = predict_from_model(
