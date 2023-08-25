@@ -603,9 +603,9 @@ class Studio(ImguiWindow):
             imgui.text_colored("Low memory mode", 0.99, 0.75, 0.42, 1)
 
         # Location / MPP
-        if self.viewer and hasattr(self.viewer, 'mpp'):
+        if self.viewer and hasattr(self.viewer, 'mpp') and self.mouse_x is not None:
             imgui_utils.right_aligned_text('x={:<8} y={:<8} mpp={:.3f}'.format(int(self.mouse_x), int(self.mouse_y), self.viewer.mpp))
-        elif self.viewer:
+        elif self.viewer and self.mouse_x is not None:
             imgui_utils.right_aligned_text('x={:<8} y={:<8}'.format(int(self.mouse_x), int(self.mouse_y)))
 
         imgui.end()

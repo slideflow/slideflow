@@ -498,7 +498,6 @@ class SlideWidget:
         """
         viz = self.viz
         if slide == '':
-            viz.result = EasyDict(message='No slide loaded')
             return
 
         # Wait until current ops are complete
