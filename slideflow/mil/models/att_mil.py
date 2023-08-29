@@ -2,6 +2,8 @@ import torch
 from torch import nn
 from typing import Optional
 
+from slideflow.model.torch_utils import get_device
+
 # -----------------------------------------------------------------------------
 
 class Attention_MIL(nn.Module):
@@ -70,7 +72,7 @@ class Attention_MIL(nn.Module):
         return torch.softmax(masked_attention, dim=1)
 
     def relocate(self):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = get_device()
         self.encoder = self.encoder.to(device)
         self.attention = self.attention.to(device)
         self.head = self.head.to(device)
