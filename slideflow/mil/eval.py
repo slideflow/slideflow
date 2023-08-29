@@ -472,12 +472,8 @@ def _predict_mil(
 
     # Auto-detect device.
     if device is None:
-        if next(model.parameters()).is_cuda:
-            log.debug("Auto device detection: using CUDA")
-            device = torch.device('cuda')
-        else:
-            log.debug("Auto device detection: using CPU")
-            device = torch.device('cpu')
+        device = next(model.parameters()).device
+        log.debug(f"Auto device detection: using {device}")
     elif isinstance(device, str):
         log.debug(f"Using {device}")
         device = torch.device(device)

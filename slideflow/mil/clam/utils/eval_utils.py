@@ -12,6 +12,7 @@ from sklearn.preprocessing import label_binarize
 
 from slideflow import log
 from slideflow.mil.models import CLAM_MB, CLAM_SB, MIL_fc, MIL_fc_mc
+from slideflow.model.torch_utils import get_device
 from ..utils import *
 from ..utils.core_utils import Accuracy_Logger
 
@@ -34,7 +35,7 @@ def initiate_model(args, ckpt_path):
 
     log.info(network_summary(model))
 
-    ckpt = torch.load(ckpt_path)
+    ckpt = torch.load(ckpt_path, map_location=get_device())
     ckpt_clean = {}
     for key in ckpt.keys():
         if 'instance_loss_fn' in key:

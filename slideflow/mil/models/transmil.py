@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
+
+from slideflow.model.torch_utils import get_device
 
 # -----------------------------------------------------------------------------
 
@@ -44,8 +45,7 @@ class TransMIL(nn.Module):
         return att[:,:H,:]
 
     def relocate(self):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.to(device)
+        self.to(get_device())
 
     def forward(self, h):
         h = self._fc1(h) #[B, n, 1024] -> [B, n, 512]

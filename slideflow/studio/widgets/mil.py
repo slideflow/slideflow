@@ -3,6 +3,7 @@ import numpy as np
 import slideflow as sf
 import slideflow.mil
 import threading
+import traceback
 
 from tkinter.filedialog import askdirectory
 from os.path import join, exists, dirname, abspath
@@ -176,6 +177,7 @@ class MILWidget(Widget):
             if allow_errors:
                 self.viz.create_toast('Error loading MIL model', icon='error')
                 sf.log.error(e)
+                sf.log.error(traceback.format_exc())
                 return False
             raise e
         return True

@@ -1,12 +1,12 @@
 """Utility functions for MIL."""
 
 import slideflow as sf
-import importlib
 import numpy as np
 
 from os.path import exists, join, isdir
 from typing import Optional, Tuple, Union, TYPE_CHECKING
 from slideflow import errors, log
+from slideflow.model.torch_utils import get_device
 from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
@@ -111,7 +111,7 @@ def load_model_weights(
                 f"Could not find model weights at path {weights}"
             )
     log.info(f"Loading model weights from [green]{weights}[/]")
-    model.load_state_dict(torch.load(weights))
+    model.load_state_dict(torch.load(weights, map_location=get_device()))
 
     # Prepare device.
     if hasattr(model, 'relocate'):
