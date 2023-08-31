@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer, BaseFeatureExtractor
     from slideflow.slide import SlideReport
     from slideflow import simclr, mil
+    from slideflow.mil.features import MILFeatures
     from ConfigSpace import ConfigurationSpace, Configuration
     from smac.facade.smac_bb_facade import SMAC4BB  # noqa: F401
 
@@ -1457,6 +1458,7 @@ class Project:
         Logs classifier metrics (AUROC and AP) to the console.
 
         Args:
+            model (str): Path to MIL model.
             outcomes (str): Outcome column (annotation header) from which to
                 derive category labels.
             dataset (:class:`slideflow.Dataset`): Dataset.
@@ -1464,8 +1466,7 @@ class Project:
                 of paths to individual \*.pt files. Each file should contain
                 exported feature vectors, with each file containing all tile
                 features for one patient.
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or 
-            :class:`slideflow.mil.TrainerConfigCLAM`):
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
                 Training configuration, as obtained by
                 :func:`slideflow.mil.mil_config()`.
 
@@ -2072,8 +2073,7 @@ class Project:
         # (for using an Imagenet pretrained model)
         if isinstance(model, str) and sf.model.is_extractor(model):
             log.info(f"Building feature extractor: [green]{model}[/]")
-            layer_kw = dict(layers=kwargs['layers']
-                            ) if 'layers' in kwargs else dict()
+            layer_kw = dict(layers=kwargs['layers']) if 'layers' in kwargs else dict()
             model = sf.model.build_feature_extractor(
                 model, tile_px=dataset.tile_px, **layer_kw
             )
@@ -2301,7 +2301,7 @@ class Project:
         dataset: "sf.Dataset",
         outcomes: Union[str, List[str]],
         bags: Union[str, np.ndarray, List[str]]
-    ):
+    ) -> "MILFeatures":
         """Generate activations weights from the last layer of an MIL model.
 
         Returns MILFeatures object.
@@ -2318,6 +2318,10 @@ class Project:
             bags (str, list(str)): Path to bags, or list of bag file paths.
                 Each bag should contain PyTorch array of features from all tiles
                 in a slide, with the shape ``(n_tiles, n_features)``.
+
+        Returns:
+            :class:`MILFeatures`: Object containing MIL layer activations.
+
         """
         from .mil import generate_mil_features
 
@@ -3155,11 +3159,9 @@ class Project:
 
                 # Interpret results.
                 model_name = list(results.keys())[0]
-                last_epoch = sorted(
-                    list(results[model_name]['epochs'].keys()))[-1]
+                last_epoch = sorted(list(results[model_name]['epochs'].keys()))[-1]
                 if len(results[model_name]['epochs']) > 1:
-                    log.warning(
-                        f"Ambiguous epoch for SMAC. Using '{last_epoch}'.")
+                    log.warning(f"Ambiguous epoch for SMAC. Using '{last_epoch}'.")
                 epoch_results = results[model_name]['epochs'][last_epoch]
 
                 # Determine metric for optimization.

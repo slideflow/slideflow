@@ -18,6 +18,7 @@ from .utils import load_model_weights, _load_bag
 
 if TYPE_CHECKING:
     import torch
+    from .features import MILFeatures
     from slideflow.norm import StainNormalizer
     from slideflow.model.base import BaseFeatureExtractor
 
@@ -336,7 +337,7 @@ def generate_mil_features(
     config: _TrainerConfig,
     dataset: "sf.Dataset",
     bags: Union[str, np.ndarray, List[str]]
-):
+) -> "MILFeatures":
     """Generate activations weights from the last layer of an MIL model.
 
     Returns MILFeatures object.
@@ -355,7 +356,7 @@ def generate_mil_features(
             a slide, with the shape ``(n_tiles, n_features)``.
     """
     from .features import MILFeatures
-    
+
     # Load model weights.
     model, config = load_model_weights(weights, config)
 
