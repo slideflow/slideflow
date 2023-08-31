@@ -1,7 +1,6 @@
 """Utility functions for MIL."""
 
 import slideflow as sf
-import importlib
 import numpy as np
 
 from os.path import exists, join, isdir
@@ -13,8 +12,6 @@ from ._params import (
 
 if TYPE_CHECKING:
     import torch
-    from slideflow.model.base import BaseFeatureExtractor
-    from slideflow.norm import StainNormalizer
 
 # -----------------------------------------------------------------------------
 
@@ -42,9 +39,6 @@ def load_model_weights(
         :class:`torch.nn.Module`: Loaded model.
     """
     import torch
-
-    if isinstance(config, TrainerConfigCLAM):
-        raise NotImplementedError
 
     if exists(join(weights, 'mil_params.json')):
         mil_params = sf.util.load_json(join(weights, 'mil_params.json'))

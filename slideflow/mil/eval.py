@@ -5,13 +5,12 @@ import pandas as pd
 import slideflow as sf
 import numpy as np
 from rich.progress import Progress
-from os.path import join, exists, isdir, dirname
+from os.path import join, exists, dirname
 from typing import Union, List, Optional, Callable, Tuple, Any, TYPE_CHECKING
 from slideflow import Dataset, log, errors
 from slideflow.util import path_to_name
 from slideflow.model.extractors import rebuild_extractor
 from slideflow.stats.metrics import ClassifierMetrics
-from .features import MILFeatures
 from ._params import (
     _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
@@ -51,8 +50,7 @@ def eval_mil(
         bags (str, list(str)): Path to bags, or list of bag file paths.
             Each bag should contain PyTorch array of features from all tiles in
             a slide, with the shape ``(n_tiles, n_features)``.
-        config (:class:`slideflow.mil.TrainerConfigFastAI` or 
-        :class:`slideflow.mil.TrainerConfigCLAM`):
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
             Configuration for building model. If ``weights`` is a path to a
             model directory, will attempt to read ``mil_params.json`` from this
             location and load saved configuration. Defaults to None.
@@ -108,7 +106,9 @@ def eval_mil(
     # Generate metrics
     for idx in range(y_pred.shape[-1]):
         m = ClassifierMetrics(
-            y_true=(y_true == idx).astype(int), y_pred=y_pred[:, idx])
+            y_true=(y_true == idx).astype(int), 
+            y_pred=y_pred[:, idx]
+        )
         log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
         log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
 
@@ -125,8 +125,7 @@ def eval_mil(
     log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print categorical metrics, including per-category accuracy
-    outcome_name = outcomes if isinstance(
-        outcomes, str) else '-'.join(outcomes)
+    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
     metrics_df = df.rename(
         columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
     )
@@ -283,8 +282,7 @@ def predict_from_model(
 
     Args:
         model (torch.nn.Module): Model from which to generate predictions.
-        config (:class:`slideflow.mil.TrainerConfigFastAI` or 
-        :class:`slideflow.mil.TrainerConfigCLAM`):
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
             Configuration for the MIL model.
         dataset (sf.Dataset): Dataset from which to generation predictions.
         outcomes (str, list(str)): Outcomes.
@@ -318,10 +316,8 @@ def predict_from_model(
        or isinstance(config.model_config, ModelConfigCLAM)):
         y_pred, y_att = _predict_clam(model, bags, attention=attention)
     else:
-        y_pred, y_att = _predict_mil(
-            model, bags, attention=attention, 
-            use_lens=config.model_config.use_lens
-        )
+        y_pred, y_att = _predict_mil(model, bags, attention=attention, 
+                                     use_lens=config.model_config.use_lens)
 
     # Create dataframe.
     df_dict = dict(slide=slides, y_true=y_true)
@@ -339,7 +335,6 @@ def generate_mil_features(
     weights: str,
     config: _TrainerConfig,
     dataset: "sf.Dataset",
-    outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]]
 ):
     """Generate activations weights from the last layer of an MIL model.
@@ -355,38 +350,23 @@ def generate_mil_features(
             location and load saved configuration. Defaults to None.
         dataset (:class:`slideflow.Dataset`): Dataset.
         outcomes (str, list(str)): Outcomes.
-        bags (str, list(str)): fPath to bags, or list of bag file paths.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
             Each bag should contain PyTorch array of features from all tiles in
             a slide, with the shape ``(n_tiles, n_features)``.
     """
+    from .features import MILFeatures
+    
+    # Load model weights.
+    model, config = load_model_weights(weights, config)
 
-    import torch
-
-    # if isinstance(config, TrainerConfigCLAM):
-    #     raise NotImplementedError
-    # Check for correct model
+    # Ensure the model is valid for generating features.
     acceptable_models = ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
     if config.model_config.model.lower() not in acceptable_models:
         raise errors.ModelError(
             f"Model {config.model_config.model} is not supported.")
 
-    # Read configuration from saved model, if available
-    if config is None:
-        if not exists(join(weights, 'mil_params.json')):
-            raise errors.ModelError(
-                f"Could not find `mil_params.json` at {weights}. Check the "
-                "provided model/weights path, or provide a configuration "
-                "with 'config'."
-            )
-        else:
-            p = sf.util.load_json(join(weights, 'mil_params.json'))
-            config = sf.mil.mil_config(trainer=p['trainer'], **p['params'])
-
-    # Prepare ground-truth labels
-    labels, unique = dataset.labels(outcomes, format='id')
-
-    # Prepare bags and targets
-    slides = list(labels.keys())
+    # Prepare bags and targets.
+    slides = dataset.slides()
     if isinstance(bags, str):
         bags = dataset.pt_files(bags)
     else:
@@ -395,46 +375,8 @@ def generate_mil_features(
     # Ensure slide names are sorted according to the bags.
     slides = [path_to_name(b) for b in bags]
 
-    # Detect feature size from bags
-    n_features = torch.load(bags[0]).shape[-1]
-    n_out = len(unique)
-
-    # Build the model
-    if isinstance(config, TrainerConfigCLAM):
-        config_size = config.model_fn.sizes[config.model_config.model_size]
-        _size = [n_features] + config_size[1:]
-        model = config.model_fn(size=_size)
-        log.info(
-            f"Building model {config.model_fn.__name__} (size={_size})")
-    elif isinstance(config.model_config, ModelConfigCLAM):
-        config_size = config.model_fn.sizes[config.model_config.model_size]
-        _size = [n_features] + config_size[1:]
-        model = config.model_fn(size=_size)
-        log.info(
-            f"Building model {config.model_fn.__name__} (size={_size})")
-    else:
-        model = config.model_fn(n_features, n_out)
-        log.info(f"Building model {config.model_fn.__name__} "
-                 f"(in={n_features}, out={n_out})")
-    if isdir(weights):
-        if exists(join(weights, 'models', 'best_valid.pth')):
-            weights = join(weights, 'models', 'best_valid.pth')
-        elif exists(join(weights, 'results', 's_0_checkpoint.pt')):
-            weights = join(weights, 'results', 's_0_checkpoint.pt')
-        else:
-            raise errors.ModelError(
-                f"Could not find model weights at path {weights}"
-            )
-    log.info(f"Loading model weights from [green]{weights}[/]")
-    model.load_state_dict(torch.load(weights))
-
-    # Prepare device.
-    if hasattr(model, 'relocate'):
-        model.relocate()  # type: ignore
-    model.eval()
-
-    annotations = dataset.annotations
-    return MILFeatures(model, bags, slides, annotations)
+    # Calculate and return last-layer features.
+    return MILFeatures(model, bags, slides, dataset.annotations)
 
 
 def generate_attention_heatmaps(
@@ -564,8 +506,7 @@ def _predict_clam(
                 logits, att = model(loaded, **clam_kw)
             if attention:
                 y_att.append(np.squeeze(att.cpu().numpy()))
-            y_pred.append(torch.nn.functional.softmax(
-                logits, dim=1).cpu().numpy())
+            y_pred.append(torch.nn.functional.softmax(logits, dim=1).cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att
 
@@ -629,7 +570,6 @@ def _predict_mil(
                             )
                         )
                 y_att.append(att.cpu().numpy())
-            y_pred.append(torch.nn.functional.softmax(
-                model_out, dim=1).cpu().numpy())
+            y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att

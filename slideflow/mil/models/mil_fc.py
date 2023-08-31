@@ -52,8 +52,8 @@ class MIL_fc(nn.Module):
         logits = self.classifier(h)  # K x 1
 
         y_probs = F.softmax(logits, dim=1)
-        top_instance_idx = torch.topk(
-            y_probs[:, 1], self.top_k, dim=0)[1].view(1,)
+        _topk = torch.topk(y_probs[:, 1], self.top_k, dim=0)
+        top_instance_idx = _topk[1].view(1,)
         top_instance = torch.index_select(
             logits, dim=0, index=top_instance_idx)
         results_dict = {}
@@ -90,7 +90,8 @@ class MIL_fc_mc(nn.Module):
         self.fc = nn.Sequential(*fc)
 
         self.classifiers = nn.ModuleList(
-            [nn.Linear(self.size[1], 1) for i in range(n_classes)])
+            [nn.Linear(self.size[1], 1) for _ in range(n_classes)]
+        )
         initialize_weights(self)
         self.top_k = top_k
         self.n_classes = n_classes
