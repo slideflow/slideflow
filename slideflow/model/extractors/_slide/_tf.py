@@ -63,6 +63,7 @@ def _build_slide_iterator(
     with tf.name_scope('dataset_input'):
 
         # Define the output signature and parse the dataset
+        log.debug(f"Processing tiles with img_format={img_format}")
         output_signature = {
             'grid': tf.TensorSpec(shape=(2), dtype=tf.uint32)
         }

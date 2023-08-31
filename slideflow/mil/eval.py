@@ -153,7 +153,8 @@ def predict_slide(
     normalizer: Optional["StainNormalizer"] = None,
     config: Optional[_TrainerConfig] = None,
     attention: bool = False,
-    native_normalizer: Optional[bool] = None
+    native_normalizer: Optional[bool] = True, 
+    extractor_kwargs: Optional[dict] = None,
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """Generate predictions (and attention) for a single slide.
 
@@ -240,7 +241,9 @@ def predict_slide(
         )
 
     # Convert slide to bags
-    masked_bags = extractor(slide, normalizer=normalizer)
+    if extractor_kwargs is None:
+        extractor_kwargs = dict()
+    masked_bags = extractor(slide, normalizer=normalizer, **extractor_kwargs)
     original_shape = masked_bags.shape
     masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
     mask = masked_bags.mask.any(axis=1)
