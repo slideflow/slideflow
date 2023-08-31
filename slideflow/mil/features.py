@@ -1,25 +1,31 @@
-import csv
-import os
-from typing import Union, List, Optional, Callable, Tuple, Any
-from os.path import join, exists, isdir, dirname
+import re
 import numpy as np
 import pandas as pd
-import re
+import torch
+import slideflow as sf
+import os
+from typing import Union, List, Optional, Callable, Any, TYPE_CHECKING
+from os.path import join
+from slideflow import log, errors
+from slideflow.util import log, path_to_name
+
 from ._params import (
-    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
+    _TrainerConfig
 )
-from .models.clam import CLAM_SB, CLAM_MB
 from .models.mil_fc import MIL_fc, MIL_fc_mc
 from .models.att_mil import Attention_MIL
 from .models.transmil import TransMIL
-from slideflow import Dataset, log, errors
-from slideflow.util import log, path_to_name
-import slideflow as sf
-import torch
-import tensorflow as tf
+from .utils import load_model_weights
 
+if TYPE_CHECKING:
+    try:
+        import tensorflow as tf
+    except ImportError:
+        pass
 
-class MILFeatures():
+# -----------------------------------------------------------------------------
+
+class MILFeatures:
     """Loads annotations, saved layer activations / features, predictions, 
     and prepares output pandas DataFrame."""
 
@@ -27,14 +33,13 @@ class MILFeatures():
         self,
         model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
         bags: Union[np.ndarray, List[str], str],
-        slides: list,
-        annotations: Union[str, "pd.core.frame.DataFrame"],
+        *,
+        slides: Optional[list],
         config: Optional[_TrainerConfig] = None,
         dataset: Optional["sf.Dataset"] = None,
-        outcomes: Optional[Union[str, List[str]]] = None,
         attention_pooling: Optional[str] = 'avg',
         device: Optional[Any] = None
-    ):
+    ) -> None:
         """Loads in model from Callable or path to model weights and config.
         Saves activations from last hidden layer weights, predictions, and 
         attention weight, storing to internal parameters ``self.activations``,
@@ -44,9 +49,8 @@ class MILFeatures():
 
         Args:
             model (str): Path to model from which to calculate activations.
-            bags (str, list): Path or list of feature bags,
-            slides (list): List of slides, 
-            annotations: Union[str, "pd.core.frame.DataFrame"],
+            bags (str, list): Path or list of feature bags.
+            slides (list): List of slides. 
         Keyword Args:
             config (:class:`TrainerConfig`]: Trainer for MIL model,
             dataset (:class:`slideflow.Dataset`): Dataset from which to
@@ -55,138 +59,56 @@ class MILFeatures():
             attention_pooling (str): pooling strategy for MIL model layers,
             device (Any): device backend for torch tensors
         """
-        if type(model) is not str:
+
+        # --- Prepare data ----------------------------------------------------
+        # Find bags.
+        if isinstance(bags, str) and dataset is not None:
+            bags = dataset.pt_files(bags)
+        elif isinstance(bags, str) and slides:
+            bags = np.array([
+                join(bags, f) for f in os.listdir(bags)
+                if f.endswith('.pt') and path_to_name(f) in slides
+            ])
+        elif isinstance(bags, str):
+            bags = np.array([
+                join(bags, f) for f in os.listdir(bags)
+                if f.endswith('.pt')
+            ])
+        elif slides:
+            bags = np.array([b for b in bags if path_to_name(b) in slides])
+        elif dataset:
+            bags = np.array([b for b in bags 
+                             if path_to_name(b) in dataset.slides()])
+
+        # Determine slides.
+        self.slides = np.array([path_to_name(b) for b in bags])
+
+        # --- Prepare model ---------------------------------------------------
+        # Load or build the model.
+        if isinstance(model, str):
+            self.model, config = load_model_weights(model, config)
+            use_lens = config.model_config.use_lens
+        else:
             self.model = model
-            self.slides = slides
-            self.annotations = self._get_annotations(annotations)
-            if type(model) is Attention_MIL:
+            if isinstance(model, Attention_MIL):
                 use_lens = True
             else:
                 use_lens = False
-        elif (config is not None) and (outcomes is not None) and \
-                (dataset is not None):
-            log.info(f"Building model {config.model_fn.__name__} from path")
-            self.slides, self.model, use_lens = self._generate_model(
-                model, config, dataset, outcomes, bags)
-            self.annotations = dataset.annotations
-            if isinstance(bags, str):
-                bags = dataset.pt_files(bags)
-            else:
-                bags = np.array([b for b in bags if path_to_name(b) in slides])
-        else:
-            raise RuntimeError(
-                'Model path detected without config, dataset, bags, or \
-                    outcomes')
-        if self.model:
-            self.num_features, self.predictions, self.attentions, \
-                self.activations = self._get_mil_activations(
-                    self.model, bags, attention_pooling, use_lens, device)
 
-    def _generate_model(
-        self,
-        weights: str,
-        config: _TrainerConfig,
-        dataset: "sf.Dataset",
-        outcomes: Union[str, List[str]],
-        bags: Union[str, np.ndarray, List[str]]
-    ):
-        """Generate model from model path and config.
-
-        Returns callable model object.
-
-        Args:
-            weights (str): Path to model weights to load.
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or 
-            :class:`slideflow.mil.TrainerConfigCLAM`):
-                Configuration for building model. If ``weights`` is a path to a
-                model directory, will attempt to read ``mil_params.json`` from 
-                this location and load saved configuration. Defaults to None.
-            dataset (:class:`slideflow.Dataset`): Dataset to evaluation.
-            outcomes (str, list(str)): Outcomes.
-            bags (str, list(str)): Path to bags, or list of bag file paths.
-                Each bag should contain PyTorch array of features from all tiles
-                in a slide, with the shape ``(n_tiles, n_features)``.
-        """
-
-        import torch
-
-        # if isinstance(config, TrainerConfigCLAM):
-        #     raise NotImplementedError
-        # Check for correct model
+        # Ensure model is compatible.
         acceptable_models = ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
         if config.model_config.model.lower() not in acceptable_models:
             raise errors.ModelErrors(
                 f"Model {config.model_config.model} is not supported.")
-
-        # Read configuration from saved model, if available
-        if config is None:
-            if not exists(join(weights, 'mil_params.json')):
-                raise errors.ModelError(
-                    f"Could not find `mil_params.json` at {weights}. Check the "
-                    "provided model/weights path, or provide a configuration "
-                    "with 'config'."
-                )
-            else:
-                p = sf.util.load_json(join(weights, 'mil_params.json'))
-                config = sf.mil.mil_config(trainer=p['trainer'], **p['params'])
-
-        # Prepare ground-truth labels
-        labels, unique = dataset.labels(outcomes, format='id')
-
-        # Prepare bags and targets
-        slides = list(labels.keys())
-        if isinstance(bags, str):
-            bags = dataset.pt_files(bags)
-        else:
-            bags = np.array([b for b in bags if path_to_name(b) in slides])
-
-        # Ensure slide names are sorted according to the bags.
-        slides = [path_to_name(b) for b in bags]
-
-        # Detect feature size from bags
-        n_features = torch.load(bags[0]).shape[-1]
-        n_out = len(unique)
-
-        # Build the model
-        if isinstance(config, TrainerConfigCLAM):
-            config_size = config.model_fn.sizes[config.model_config.model_size]
-            _size = [n_features] + config_size[1:]
-            model = config.model_fn(size=_size)
-            log.info(
-                f"Building model {config.model_fn.__name__} (size={_size})")
-        elif isinstance(config.model_config, ModelConfigCLAM):
-            config_size = config.model_fn.sizes[config.model_config.model_size]
-            _size = [n_features] + config_size[1:]
-            model = config.model_fn(size=_size)
-            log.info(
-                f"Building model {config.model_fn.__name__} (size={_size})")
-        else:
-            model = config.model_fn(n_features, n_out)
-            log.info(f"Building model {config.model_fn.__name__} "
-                     f"(in={n_features}, out={n_out})")
-        if isdir(weights):
-            if exists(join(weights, 'models', 'best_valid.pth')):
-                weights = join(weights, 'models', 'best_valid.pth')
-            elif exists(join(weights, 'results', 's_0_checkpoint.pt')):
-                weights = join(weights, 'results', 's_0_checkpoint.pt')
-            else:
-                raise errors.ModelError(
-                    f"Could not find model weights at path {weights}"
-                )
-        log.info(f"Loading model weights from [green]{weights}[/]")
-        model.load_state_dict(torch.load(weights))
-
-        # Prepare device.
-        if hasattr(model, 'relocate'):
-            model.relocate()  # type: ignore
-        model.eval()
-
-        try:
-            use_lens = config.model_config.use_lens
-        except AttributeError:
-            use_lens = False
-
-        return slides, model, use_lens
+        
+        # --- Generate activations --------------------------------------------
+        n_feat, preds, attention, act = self._get_mil_activations(
+            self.model, bags, attention_pooling, use_lens, device
+        )
+        self.num_features = n_feat
+        self.predictions = preds
+        self.attentions = attention
+        self.activations = act
 
     def _get_mil_activations(
         self,
@@ -207,6 +129,7 @@ class MILFeatures():
                 _get_mil_activations, generate activations.
             device (Any): device backend for torch tensors
         """
+        import torch
 
         # Auto-detect device.
         if device is None:
@@ -236,7 +159,7 @@ class MILFeatures():
                 else:
                     model_args = (loaded,)
 
-                if type(model) is Attention_MIL or type(model) is TransMIL:
+                if isinstance(model, (Attention_MIL, TransMIL)):
                     model_out = model(*model_args)
                     h = model.get_last_layer_activations(*model_args)
                     att = torch.squeeze(model.calculate_attention(*model_args))
@@ -254,7 +177,7 @@ class MILFeatures():
                                 )
                             )
                     y_att.append(att.cpu().numpy())
-                elif type(model) is MIL_fc or type(model) is MIL_fc_mc:
+                elif isinstance(model, (MIL_fc, MIL_fc_mc)):
                     model_out = model(*model_args)
                     h = model.get_last_layer_activations(*model_args)
                     y_att = None
@@ -299,7 +222,7 @@ class MILFeatures():
         Returns the DataFrame."""
         if annotations is None:
             return None
-        elif type(annotations) is str:
+        elif isinstance(annotations, str):
             return pd.read_csv(annotations)
         else:
             return annotations
@@ -331,8 +254,12 @@ class MILFeatures():
         return np.array([float(num) for num in numbers])
 
     @classmethod
-    def from_df(cls, df: "pd.core.frame.DataFrame", *,
-                annotations: Union[str, "pd.core.frame.DataFrame"] = None):
+    def from_df(
+        cls, 
+        df: "pd.core.frame.DataFrame", 
+        *,
+        annotations: Union[str, "pd.core.frame.DataFrame"] = None
+    ) -> None:
         """Load MILFeatures of activations, as exported by 
         :meth:`MILFeatures.to_df()`"""
         obj = cls(None, None, None, None)
@@ -396,14 +323,17 @@ class MILFeatures():
 
         return obj
 
-    def to_df(self, predictions=True, attentions=True
-              ) -> pd.core.frame.DataFrame:
-        """Export activations to
-        a pandas DataFrame.
+    def to_df(
+        self, 
+        predictions: bool = True, 
+        attentions: bool = True
+    ) -> pd.core.frame.DataFrame:
+        """Export activations to a pandas DataFrame.
 
         Returns:
             pd.core.frame.DataFrame: Dataframe with columns 'slide', 
-            'patient', 'activations', 'predictions', and 'attentions'.
+                'activations', 'predictions', and 'attentions'.
+
         """
         assert self.activations is not None
         assert self.slides is not None
@@ -458,16 +388,4 @@ class MILFeatures():
 
         df = pd.DataFrame.from_dict(df_dict)
         df['slide'] = df.index
-
-        if self.annotations is None:
-            log.warning(
-                "No annotation file was given. Patients will not be extracted."
-            )
-            return df
-
-        patients = self.annotations[['slide', 'patient']]
-        df2 = df.set_index('slide').join(
-            patients.set_index('slide'), how='inner')
-        p = df2.pop('patient')
-        df2.insert(0, 'patient', p)
-        return df2
+        return df
