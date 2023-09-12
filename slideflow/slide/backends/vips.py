@@ -405,7 +405,9 @@ class _VIPSReader:
                 Defaults to False.
             use_bounds (bool): If True, use the slide bounds to determine
                 the slide dimensions. This will crop out unscanned white space.
-                If False, use the full slide dimensions. Defaults to False.
+                If a tuple of int, interprets the bounds as ``(top_left_x,
+                top_left_y, width, height)``. If False, use the full slide
+                dimensions. Defaults to False.
             transforms (list(int), optional): List of transforms to apply to
                 the slide before establishing coordinate grid. Options include
                 any combination of ``ROTATE_90_CLOCKWISE``,

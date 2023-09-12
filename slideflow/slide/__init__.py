@@ -42,6 +42,34 @@ from .backends import tile_worker, wsi_reader, backend_formats
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
 
+def calc_alignment(c, us, them, n=None):
+    idx, (x, y, xi, yi) = c
+    our_tile = us[xi, yi]
+    try:
+        their_tile = them[xi, yi]
+    except IndexError:
+        return None, c
+    if our_tile is None or their_tile is None:
+        return None, c
+    if n is not None:
+        our_tile = n.transform(our_tile[:, :, 0:3])
+        their_tile = n.transform(their_tile[:, :, 0:3])
+    try:
+        rough_alignment = sf.slide.utils._find_translation_matrix(their_tile, our_tile, h=50, search_window=53)
+    except cv2.error:
+        rough_alignment = None
+        log.debug("Initial rough alignment failed at x={}, y={} (grid {}, {})".format(
+            x, y, xi, yi
+        ))
+    else:
+        log.debug("Initial rough alignment complete at x={}, y={} (grid {}, {}): {}".format(
+            x, y, xi, yi, (int(np.round(-rough_alignment[0, 2])), int(np.round(-rough_alignment[1, 2])))
+        ))
+    try:
+        return align_by_translation(their_tile, our_tile, round=True, warp_matrix=rough_alignment), c
+    except errors.AlignmentError as e:
+        return 'error', c
+
 # -----------------------------------------------------------------------
 
 def _update_kw_with_defaults(kwargs) -> Dict:
@@ -425,7 +453,8 @@ class _BaseLoader:
         self,
         slide: "_BaseLoader",
         apply: bool = True,
-        finetune_depth: Optional[Sequence[int]] = None,
+        *,
+        finetune_depth: Optional[Sequence[float]] = None,
         normalizer: Optional[str] = 'reinhard_mask',
         allow_errors: bool = False
     ) -> Tuple[Tuple[int, int], float]:
@@ -438,11 +467,26 @@ class _BaseLoader:
         otherwise via Otsu thresholding.
 
         Args:
-            slide: Slide to align to.
-            apply: Whether to apply the alignment to the slide.
+            slide (:class:`slideflow.WSI`): Slide to align to.
+            apply (bool): Whether to apply the alignment to the slide.
+
+        Keyword Args:
+            finetune_depth (Optional[List[int]]): List of magnifications at
+                which to fine-tune alignment. Defaults to [1, 0.5, 0.25].
+            normalizer (str, optional): Stain normalization method to use.
+                Defaults to 'reinhard_mask'.
+            allow_errors (bool): Whether to allow and ignore alignment errors
+                when finetuning at higher magnification. Defaults to False.
 
         Returns:
             Tuple of (x, y) offset and MSE of initial alignment.
+
+        Raises:
+            TypeError: If ``slide`` is not a :class:`slideflow.WSI` object.
+
+            AlignmentError: If initial, thumbnail-based alignment fails, or
+                if finetuning alignment fails at any magnification and
+                ``allow_errors`` is False.
 
         """
         from scipy import ndimage
@@ -509,7 +553,7 @@ class _BaseLoader:
         if normalizer is not None:
             log.debug("Aligning with stain normalization: {}".format(normalizer))
             if isinstance(normalizer, str):
-                norm = sf.norm.autoselect('reinhard_mask')
+                norm = sf.norm.autoselect(normalizer, backend='opencv')
             elif isinstance(normalizer, sf.norm.StainNormalizer):
                 norm = normalizer
             else:
@@ -584,9 +628,17 @@ class _BaseLoader:
                 our_region = norm.transform(our_region[:, :, 0:3])
                 their_region = norm.transform(their_region[:, :, 0:3])
 
+            try:
+                rough_alignment = sf.slide.utils._find_translation_matrix(their_region, our_region, h=50, search_window=53)
+            except cv2.error:
+                rough_alignment = None
+                log.debug("Initial rough alignment failed at mpp={}".format(finetune_mpp))
+            else:
+                log.debug("Initial rough alignment complete at mpp={}".format(finetune_mpp))
+
             # Finetune alignment on this region.
             try:
-                alignment_fine = align_by_translation(their_region, our_region, round=True)
+                alignment_fine = align_by_translation(their_region, our_region, round=True, warp_matrix=rough_alignment)
             except errors.AlignmentError:
                 msg = "Alignment failed at finetuning (mpp={})".format(finetune_mpp)
                 if allow_errors:
@@ -606,10 +658,12 @@ class _BaseLoader:
                 log.debug("Finetuned alignment (us) at mpp={}: {}".format(finetune_mpp, alignment))
                 log.debug("Finetuned alignment (them) at mpp={}: {}".format(finetune_mpp, alignment_them))
 
-        # Apply alignment, if requested.
+        # If not applying alignment, return the base alignment and MSE.
         if not apply:
             log.info("Slide aligned with MSE {:.2f}".format(mse))
             return alignment, mse  # type: ignore
+
+        # Apply alignment.
         self.origin = alignment
         log.info("Slide aligned with MSE {:.2f}. Origin set to {}".format(
                 mse, self.origin
@@ -621,6 +675,125 @@ class _BaseLoader:
             self.apply_qc_mask()
 
         return alignment, mse  # type: ignore
+
+    def align_tiles_to(
+        self,
+        slide: "_BaseLoader",
+        normalizer: Optional[str] = 'reinhard_mask',
+        allow_errors: bool = True,
+        mask_on_fail: bool = True,
+        align_by: str = 'tile',
+        **kwargs
+    ) -> np.ndarray:
+
+        if align_by not in ('tile', 'fit'):
+            raise ValueError("align_by must be 'tile' or 'median'")
+
+        # Stain normalizer.
+        if normalizer is not None:
+            if isinstance(normalizer, str):
+                normalizer = sf.norm.autoselect(normalizer, backend='opencv')
+            elif not isinstance(normalizer, sf.norm.StainNormalizer):
+                raise ValueError("normalizer must be a str or instance of StainNormalizer")
+
+        # Perform coarse alignment.
+        self.align_to(
+            slide, apply=True, normalizer=normalizer, allow_errors=allow_errors, **kwargs
+        )
+
+        # Finetune alignment at each tile location.
+        from tqdm import tqdm
+
+        ctx = mp.get_context('spawn') if sf.slide_backend() == 'libvips' else mp.get_context('fork')
+        pool = ctx.Pool(sf.util.num_cpu())
+
+        alignment_grid = np.zeros((self.grid.shape[0], self.grid.shape[1], 2))
+        idx_to_remove = []
+        for tile_alignment, c in tqdm(pool.imap_unordered(partial(calc_alignment, us=self, them=slide, n=normalizer), enumerate(self.coord)), desc="Aligning tiles...", total=len(self.coord)):
+            idx, (x, y, xi, yi) = c
+            if tile_alignment == 'error':
+                msg = "Tile alignment failed at x={}, y={} (grid {}, {})".format(
+                    x, y, xi, yi
+                )
+                if allow_errors:
+                    log.debug(msg)
+                    continue
+                else:
+                    raise errors.AlignmentError(msg)
+            if tile_alignment is None and mask_on_fail:
+                self.grid[xi, yi] = False
+                idx_to_remove += [idx]
+            if tile_alignment is not None:
+                pixel_ratio = (self.full_extract_px / self.tile_px)
+                x_adjust = int(np.round(tile_alignment[0] * pixel_ratio))
+                y_adjust = int(np.round(tile_alignment[1] * pixel_ratio))
+                alignment_grid[xi, yi] = np.array([x_adjust, y_adjust])
+                log.debug("Tile alignment complete at x={}, y={} (grid {}, {}): adjust by {}, {}".format(
+                    x, y, xi, yi, x_adjust, y_adjust
+                ))
+
+                if align_by == 'tile':
+                    self.coord[idx, 0] += x_adjust
+                    self.coord[idx, 1] += y_adjust
+
+        pool.close()
+
+        all_tile_alignment = np.ma.masked_array(alignment_grid, mask=~np.repeat(self.grid[:, :, None], 2, axis=2))  # type: ignore
+
+        if align_by == 'fit':
+
+            x_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 0])
+            y_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 1])
+
+            x_centroid, x_normal = best_fit_plane(x_adjustment_coordinates)
+            y_centroid, y_normal = best_fit_plane(y_adjustment_coordinates)
+
+            fit_alignment = all_tile_alignment.copy()
+            for x in range(all_tile_alignment.shape[0]):
+                for y in range(all_tile_alignment.shape[1]):
+                    fit_alignment[x, y] = (
+                        int(np.round(z_on_plane(x, y, x_centroid, x_normal))),
+                        int(np.round(z_on_plane(x, y, y_centroid, y_normal)))
+                    )
+
+            remove_outliers = True
+            if remove_outliers:
+                # Calculate outlier threshold (90th percentile)
+                diff = np.abs(all_tile_alignment - fit_alignment)
+                diff = np.max(diff, axis=-1)
+                threshold = np.percentile(diff[~diff.mask].data, 90)
+                all_tile_alignment.mask[diff > threshold] = True
+                fit_alignment.mask = all_tile_alignment.mask
+
+                # Recalculate fit without outliers
+                log.debug('Recalculating fit without outliers')
+                x_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 0])
+                y_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 1])
+
+                x_centroid, x_normal = best_fit_plane(x_adjustment_coordinates)
+                y_centroid, y_normal = best_fit_plane(y_adjustment_coordinates)
+
+                for x in range(all_tile_alignment.shape[0]):
+                    for y in range(all_tile_alignment.shape[1]):
+                        all_tile_alignment[x, y] = (
+                            int(np.round(z_on_plane(x, y, x_centroid, x_normal))),
+                            int(np.round(z_on_plane(x, y, y_centroid, y_normal)))
+                        )
+            else:
+                all_tile_alignment = fit_alignment
+
+        for idx, (x, y, xi, yi) in enumerate(self.coord):
+            self.coord[idx, 0] += all_tile_alignment[xi, yi][0]
+            self.coord[idx, 1] += all_tile_alignment[xi, yi][1]
+
+        # Delete tiles that failed to align.
+        if idx_to_remove:
+            log.warning("Removing {} tiles that failed to align.".format(len(idx_to_remove)))
+            self.coord = np.delete(self.coord, idx_to_remove, axis=0)
+
+        log.info("Slide alignment complete and finetuned at each tile location.")
+
+        return all_tile_alignment
 
     def show_alignment(
         self,

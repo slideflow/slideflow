@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 from PIL import Image, ImageDraw
 from slideflow import errors
 from types import SimpleNamespace
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Optional
 
 # Constants
 DEFAULT_JPG_MPP = 1
@@ -186,7 +186,18 @@ def _align_to_matrix(im1: np.ndarray, im2: np.ndarray, warp_matrix: np.ndarray) 
     return cv2.warpAffine(im1, warp_matrix, (im2.shape[1], im2.shape[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
 
 
-def _find_translation_matrix(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
+def _find_translation_matrix(
+    im1: np.ndarray,
+    im2: np.ndarray,
+    *,
+    denoise: bool = True,
+    h: float = 30,
+    block_size: int = 7,
+    search_window: int = 21,
+    n_iterations: int = 10000,
+    termination_eps = 1e-10,
+    warp_matrix: Optional[np.ndarray] = None
+) -> np.ndarray:
     """
     Align two images using only scaling and translation.
 
@@ -201,8 +212,9 @@ def _find_translation_matrix(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     im2_gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
 
     # De-noising
-    im1_gray = cv2.fastNlMeansDenoising(im1_gray, None, 30, 7, 21)
-    im2_gray = cv2.fastNlMeansDenoising(im2_gray, None, 30, 7, 21)
+    if denoise:
+        im1_gray = cv2.fastNlMeansDenoising(im1_gray, None, h, block_size, search_window)
+        im2_gray = cv2.fastNlMeansDenoising(im2_gray, None, h, block_size, search_window)
 
     # Transform images to normalize contrast
     im1_gray = cv2.equalizeHist(im1_gray)
@@ -212,12 +224,11 @@ def _find_translation_matrix(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     warp_mode = cv2.MOTION_TRANSLATION
 
     # Define 2x3 matrix to store the transformation
-    warp_matrix = np.eye(2, 3, dtype=np.float32)
+    if warp_matrix is None:
+        warp_matrix = np.eye(2, 3, dtype=np.float32)
 
     # Set the number of iterations and termination criteria
-    number_of_iterations = 10000
-    termination_eps = 1e-10
-    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations, termination_eps)
+    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, n_iterations, termination_eps)
 
     # Use findTransformECC to compute the transformation
     _, warp_matrix = cv2.findTransformECC(im2_gray, im1_gray, warp_matrix, warp_mode, criteria)
@@ -241,7 +252,8 @@ def align_by_translation(
     im1: np.ndarray,
     im2: np.ndarray,
     round: bool = False,
-    calculate_mse: bool = False
+    calculate_mse: bool = False,
+    **kwargs
 ) -> Union[Union[Tuple[float, float], Tuple[int, int]],
            Tuple[Union[Tuple[float, float], Tuple[int, int]], float]]:
     """
@@ -257,7 +269,7 @@ def align_by_translation(
     """
     import cv2
     try:
-        warp_matrix = _find_translation_matrix(im1, im2)
+        warp_matrix = _find_translation_matrix(im1, im2, **kwargs)
     except cv2.error:
         raise errors.AlignmentError(
             "Could not align images. Check that the images are the same "
@@ -303,3 +315,51 @@ def compute_alignment_mse(
     err = np.sum(diff[combined_mask]) / np.sum(combined_mask)
 
     return err
+
+
+def alignment_to_list(grid):
+    if not isinstance(grid, np.ma.MaskedArray):
+        raise ValueError("Input should be a numpy masked array.")
+
+    # Extract valid (unmasked) indices
+    valid_indices = np.ma.where(~grid.mask)
+
+    # Get the values from these indices
+    valid_values = grid[valid_indices]
+
+    # Stack the indices and values
+    result = np.column_stack(valid_indices + (valid_values,))
+
+    return result
+
+
+def best_fit_plane(points):
+    # Ensure the input is a numpy array
+    points = np.array(points)
+
+    # 1. Center the data
+    centroid = points.mean(axis=0)
+    centered_points = points - centroid
+
+    # 2. Compute the covariance matrix
+    cov_matrix = np.cov(centered_points, rowvar=False)
+
+    # 3. Compute the eigenvalues and eigenvectors
+    eigenvalues, eigenvectors = np.linalg.eigh(cov_matrix)
+
+    # 4. Get the eigenvector corresponding to the smallest eigenvalue
+    normal_vector = eigenvectors[:, np.argmin(eigenvalues)]
+
+    # The equation of the plane is `normal_vector . (x - centroid) = 0`
+    return centroid, normal_vector
+
+
+def z_on_plane(x, y, centroid, normal):
+    cx, cy, cz = centroid
+    nx, ny, nz = normal
+
+    if nz == 0:
+        raise ValueError("Normal vector's Z component is zero. Can't compute Z value for the given X, Y.")
+
+    z = cz + (nx * (cx - x) + ny * (cy - y)) / nz
+    return z
