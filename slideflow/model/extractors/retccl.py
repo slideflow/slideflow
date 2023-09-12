@@ -277,7 +277,7 @@ class RetCCLFeatures(BaseFeatureExtractor):
 
     tag = 'retccl'
 
-    def __init__(self, device=None, center_crop=False):
+    def __init__(self, device=None, center_crop=False, ckpt=None):
         super().__init__(backend='torch')
 
         from slideflow.model import torch_utils
@@ -291,12 +291,14 @@ class RetCCLFeatures(BaseFeatureExtractor):
             normlinear=True
         )
         self.model.fc = torch.nn.Identity().to(self.device)
-
-        checkpoint_path = hf_hub_download(
-            repo_id='jamesdolezal/RetCCL',
-            filename='retccl.pth'
-        )
-        td = torch.load(checkpoint_path, map_location=self.device)
+        if ckpt is None:
+            ckpt = hf_hub_download(
+                repo_id='jamesdolezal/RetCCL',
+                filename='retccl.pth'
+            )
+        elif not isinstance(ckpt, str):
+            raise ValueError(f"Invalid checkpoint path: {ckpt}")
+        td = torch.load(ckpt, map_location=self.device)
         self.model.load_state_dict(td, strict=True)
         self.model = self.model.to(self.device)
         self.model.eval()
@@ -337,7 +339,8 @@ class RetCCLFeatures(BaseFeatureExtractor):
         feature extractor, using ``slideflow.model.build_feature_extractor()``.
 
         """
+        cls_name = self.__class__.__name__
         return {
-            'class': 'slideflow.model.extractors.retccl.RetCCLFeatures',
+            'class': f'slideflow.model.extractors.retccl.{cls_name}',
             'kwargs': {'center_crop': self._center_crop}
         }
