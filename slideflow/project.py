@@ -1695,6 +1695,8 @@ class Project:
         dry_run: bool = False,
         normalizer: Optional[str] = None,
         normalizer_source: Optional[str] = None,
+        tile_labels: Optional[str] = None,
+        crop: Optional[int] = None,
         **kwargs
     ) -> None:
         """Train a GAN network.
@@ -1764,6 +1766,17 @@ class Project:
             outcomes (str, list(str), optional): Class conditioning outcome
                 labels for training a class-conditioned GAN. If not provided,
                 trains an unconditioned GAN. Defaults to None.
+            tile_labels (str, optional): Path to pandas dataframe with
+                tile-level labels. The dataframe should be indexed by tile name,
+                where the name of the tile follows the format:
+                [slide name]-[tile x coordinate]-[tile y coordinate], e.g.:
+                ``slide1-251-666``. The dataframe should have a single column
+                with the name 'label'. Labels can be categorical or continuous.
+                If categorical, the labels should be onehot encoded.
+            crop (int, optional): Randomly crop images to this target size
+                during training. This permits training a smaller network
+                (e.g. 256 x 256) on larger images (e.g. 299 x 299).
+                Defaults to None.
             resume (str): Load previous network. Options include
                 'noresume' , 'ffhq256', 'ffhq512', 'ffhqq1024', 'celebahq256',
                 'lsundog256', <file>, or <url>. Defaults to 'noresume'.
@@ -1803,6 +1816,8 @@ class Project:
             outcome_label_headers=outcomes,
             filters=dataset._filters,
             filter_blank=dataset._filter_blank,
+            tile_labels=tile_labels,
+            crop=crop
         )
         if normalizer:
             config['normalizer_kwargs'] = dict(
@@ -1817,7 +1832,7 @@ class Project:
             outdir=gan_dir,
             dry_run=dry_run,
             slideflow=config_loc,
-            cond=(outcomes is not None),
+            cond=(outcomes is not None or tile_labels is not None),
             mirror=mirror,
             metrics=metrics,
             **kwargs)

@@ -335,13 +335,17 @@ class StyleGAN2Interleaver(InterleaveIterator):
 
     def __init__(
         self,
-        resolution=None,
-        xflip=None,
+        resolution=None,  # Ignored argument, for StyleGAN2/3 compatibility.
+        xflip=None,       # Ignored argument, for StyleGAN2/3 compatibility.
         normalizer=None,
         normalizer_source=None,
+        crop=None,
         **kwargs
     ):
         super().__init__(**kwargs)
+        if crop is not None:
+            self.transform = torchvision.transforms.RandomCrop(crop)
+            self.img_size = crop
         if normalizer:
             self.normalizer = sf.norm.autoselect(
                 normalizer,
@@ -364,33 +368,36 @@ class StyleGAN2Interleaver(InterleaveIterator):
             return np.zeros((1,))
 
 
-class LocLabelInterleaver(StyleGAN2Interleaver):
+class TileLabelInterleaver(StyleGAN2Interleaver):
     """Pytorch Iterable Dataset that interleaves tfrecords with the
     as the `InterleaveIterator`, but applies tile-specific labels.
-    """
 
+    Labels should be onehot encoded.
+
+    """
     def __init__(
         self,
-        loc_labels: str,
-        resolution: Any = None,
-        xflip: Any = None,
+        tile_labels: str,
+        resolution: Any = None,  # Ignored, for StyleGAN2/3 compatibility.
+        xflip: Any = None,       # Ignored, for StyleGAN2/3 compatibility.
         *args: Any,
         **kwargs: Any,
     ) -> None:
         """Initializes an InterleaveIterator modified to use tile-level labels.
 
         Args:
-            loc_labels (str): Location of parquet-format pandas DataFrame
+            tile_labels (str): Location of parquet-format pandas DataFrame
                 containing tile-level labels. Labels are indexed by the slide
                 name and X/Y location, with the format {slide}-{loc_x}-{loc_y}.
-                Labels are determined by the `label` columns.
+                Labels are determined by the `label` columns. Labels should
+                be onehot encoded.
         """
         super().__init__(*args, **kwargs)
 
-        self.df = pd.read_parquet(loc_labels)
+        self.df = pd.read_parquet(tile_labels)
         if 'label' not in self.df.columns:
             raise ValueError('Could not find column "label" in the '
-                             'loc_labels dataset.')
+                             'tile_labels dataset.')
 
         self.incl_loc = True
         first_row  = next(self.df.itertuples())
@@ -422,7 +429,8 @@ class LocLabelInterleaver(StyleGAN2Interleaver):
         """
 
         label_key = f'{slide}-{loc_x}-{loc_y}'
-        label = torch.tensor(self.df.iloc[self.df.index.get_loc(label_key)].values)[0]
+        df_idx = self.df.index.get_loc(label_key)
+        label = torch.tensor(self.df.iloc[df_idx].values[0])
 
         image = whc_to_cwh(image)
         to_return = [image, label]  # type: List[Any]
@@ -433,7 +441,7 @@ class LocLabelInterleaver(StyleGAN2Interleaver):
 
     def get_label(self, idx: Any) -> Any:
         """Returns a random label. Used for compatibility with StyleGAN2."""
-        return np.random.rand(*self.label_shape)
+        return self.df.sample(n=1).label.values[0]
 
 # -------------------------------------------------------------------------
 
