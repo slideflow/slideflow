@@ -564,8 +564,35 @@ class RandomGaussianBlur:
         s = random.choices(self.sigma, weights=self.weights)[0]
         return self.blur_fn[s](x)
 
+class RandomJPEGCompression:
+    """Torchvision transform for random JPEG compression."""
+    def __init__(self, p: float = 0.5, q_min: int = 50, q_max: int = 100):
+        self.p = p
+        self.q_min = q_min
+        self.q_max = q_max
 
-def random_jpeg_compression(img: torch.Tensor):
+    def __call__(self, x):
+        return torch.where(
+            torch.rand(1)[0] < self.p,
+            random_jpeg_compression(x),
+            x
+        )
+
+
+class RandomColorDistortion:
+    """Torchvision transform for random color distortion."""
+    def __init__(self, s: float = 1.0):
+        self.color_distort = compose_color_distortion(s=s)
+
+    def __call__(self, x):
+        return self.color_distort(x)
+
+
+def random_jpeg_compression(
+    img: torch.Tensor,
+    q_min: int = 50,
+    q_max: int = 100
+):
     """Perform random JPEG compression on an image.
 
     Args:
@@ -575,7 +602,7 @@ def random_jpeg_compression(img: torch.Tensor):
         torch.Tensor: Transformed image (C x W x H).
 
     """
-    q = (torch.rand(1)[0] * 50) + 50
+    q = (torch.rand(1)[0] * q_min) + (q_max - q_min)
     img = torchvision.io.encode_jpeg(img, quality=q)
     return torchvision.io.decode_image(img)
 
@@ -596,6 +623,50 @@ def compose_color_distortion(s=1.0):
     color_distort = transforms.Compose(
         [whc_to_cwh, rnd_color_jitter, rnd_gray, cwh_to_whc])
     return color_distort
+
+
+def decode_augmentation_string(augment: str) -> List[Callable]:
+    """Decode a string of augmentation characters into a list of
+    augmentation functions.
+
+    Args:
+        augment (str): Augmentation string.
+
+    Returns:
+        List[Callable]: List of augmentation functions.
+
+    """
+    if not isinstance(augment, str):
+        raise ValueError(f"Invalid argument: {augment}; expected a str")
+
+    transformations = []  # type: List[Callable]
+    for a in augment:
+        if a == 'x':
+            # Random x-flip.
+            transformations.append(transforms.RandomHorizontalFlip(p=0.5))
+        elif a == 'y':
+            # Random y-flip.
+            transformations.append(transforms.RandomVerticalFlip(p=0.5))
+        elif a == 'r':
+            # Random cardinal rotation.
+            transformations.append(RandomCardinalRotation())
+        elif a == 'd':
+            # Random color distortion.
+            transformations.append(RandomColorDistortion(s=1.0))
+        elif a == 'b':
+            # Random Gaussian blur.
+            transformations.append(
+                RandomGaussianBlur(
+                    sigma=[0, 0.5, 1.0, 1.5, 2.0],
+                    weights=[0.9, 0.1, 0.05, 0.025, 0.0125]
+                )
+            )
+        elif a == 'j':
+            # Random JPEG compression.
+            transformations.append(RandomJPEGCompression(p=0.5, q_min=50, q_max=100))
+        else:
+            raise ValueError(f"Invalid augmentation: {a}")
+    return transformations
 
 
 def compose_augmentations(
@@ -632,29 +703,10 @@ def compose_augmentations(
         whc (bool): Images are in W x H x C format. Defaults to False.
     """
 
-    transformations = []
+    transformations = []  # type: List[Callable]
 
-    # Random JPEG compression.
-    if augment is True or (isinstance(augment, str) and 'j' in augment):
-        transformations.append(
-            lambda img: torch.where(
-                torch.rand(1)[0] < 0.5,
-                random_jpeg_compression(img),
-                img
-            )
-        )
-
-    # Random cardinal rotation.
-    if augment is True or (isinstance(augment, str) and 'r' in augment):
-        transformations.append(RandomCardinalRotation())
-
-    # Random x-flip.
-    if augment is True or (isinstance(augment, str) and 'x' in augment):
-        transformations.append(transforms.RandomHorizontalFlip(p=0.5))
-
-    # Random y-flip.
-    if augment is True or (isinstance(augment, str) and 'y' in augment):
-        transformations.append(transforms.RandomVerticalFlip(p=0.5))
+    if augment is True:
+        augment = 'xyrjb'
 
     # Stain normalization.
     if normalizer is not None:
@@ -665,22 +717,11 @@ def compose_augmentations(
             )
         )
 
-    # Random color distortion.
-    if (isinstance(augment, str) and 'd' in augment):
-        transformations.append(compose_color_distortion())
-
-    # Random Gaussian blur.
-    if augment is True or (isinstance(augment, str) and 'b' in augment):
-        transformations.append(
-            RandomGaussianBlur(
-                sigma=[0, 0.5, 1.0, 1.5, 2.0],
-                weights=[0.9, 0.1, 0.05, 0.025, 0.0125]
-            )
-        )
-
-    # Arbitrary transformations via `augment` argument.
-    if callable(augment):
-        transformations.append(augment)
+    # Assemble augmentation pipeline.
+    if isinstance(augment, str):
+        transformations += decode_augmentation_string(augment)
+    elif callable(augment):
+        transformations.append(augment)  # type: ignore
 
     # Arbitrary transformations via `transform` argument.
     if transform is not None:
