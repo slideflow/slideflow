@@ -340,12 +340,26 @@ class StyleGAN2Interleaver(InterleaveIterator):
         normalizer=None,
         normalizer_source=None,
         crop=None,
+        resize=None,
         **kwargs
     ):
         super().__init__(**kwargs)
+
+        # Assemble crop/resize transformations.
+        transforms = []
         if crop is not None:
-            self.transform = torchvision.transforms.RandomCrop(crop)
+            transforms.append(torchvision.transforms.RandomCrop(crop))
+        if resize is not None:
+            transforms.append(torchvision.transforms.Resize(crop))
+        if len(transforms):
+            self.transform = torchvision.transforms.Compose(transforms)
+
+        # Update the final image size.
+        if resize is not None:
+            self.img_size = resize
+        elif crop is not None:
             self.img_size = crop
+        
         if normalizer:
             self.normalizer = sf.norm.autoselect(
                 normalizer,

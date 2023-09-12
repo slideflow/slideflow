@@ -1697,6 +1697,7 @@ class Project:
         normalizer_source: Optional[str] = None,
         tile_labels: Optional[str] = None,
         crop: Optional[int] = None,
+        resize: Optional[int] = None,
         **kwargs
     ) -> None:
         """Train a GAN network.
@@ -1777,6 +1778,11 @@ class Project:
                 during training. This permits training a smaller network
                 (e.g. 256 x 256) on larger images (e.g. 299 x 299).
                 Defaults to None.
+            resize (int, optional): Resize images to this target size
+                during training. This permits training a smaller network
+                (e.g. 256 x 256) on larger images (e.g. 299 x 299).
+                If both ``crop`` and ``resize`` are provided, cropping
+                will be performed first. Defaults to None.
             resume (str): Load previous network. Options include
                 'noresume' , 'ffhq256', 'ffhq512', 'ffhqq1024', 'celebahq256',
                 'lsundog256', <file>, or <url>. Defaults to 'noresume'.
@@ -1817,7 +1823,8 @@ class Project:
             filters=dataset._filters,
             filter_blank=dataset._filter_blank,
             tile_labels=tile_labels,
-            crop=crop
+            crop=crop,
+            resize=resize
         )
         if normalizer:
             config['normalizer_kwargs'] = dict(
