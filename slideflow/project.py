@@ -3222,7 +3222,7 @@ class Project:
              'runcount-limit': smac_limit,  # Max # of function evaluations
              'cs': smac_configspace},
             {'output_dir': self.models_dir})
-        train_kwargs['save_checkpoints'] = save_checkpoints
+
         train_kwargs['save_model'] = save_model
         train_kwargs['save_predictions'] = save_predictions
         smac = SMAC4BB(
