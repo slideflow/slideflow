@@ -945,7 +945,6 @@ class Trainer:
             self.neptune_run[f"metrics/{label}/{phase}/loss"].log(loss,
                                                                   step=step)
             run_kw = {
-                'run': self.neptune_run,
                 'step': step
             }
             acc = self._accuracy_as_numpy(acc)
@@ -956,8 +955,9 @@ class Trainer:
                     )
             else:
                 sf.util.neptune_utils.list_log(
-                    f'metrics/{label}/{phase}/accuracy', acc, **run_kw
+                    self.neptune_run, f'metrics/{label}/{phase}/accuracy', acc, **run_kw
                 )
+
 
     def _log_early_stop_to_neptune(self) -> None:
         # Log early stop to neptune
@@ -1629,7 +1629,6 @@ class Trainer:
         resume_training: Optional[str] = None,
         pretrain: Optional[str] = 'imagenet',
         checkpoint: Optional[str] = None,
-        save_checkpoints: bool = False,
         multi_gpu: bool = False,
         norm_fit: Optional[NormFit] = None,
         reduce_method: str = 'average',
@@ -1705,12 +1704,6 @@ class Trainer:
             raise NotImplementedError(
                 "PyTorch backend does not support `resume_training`; "
                 "please use `checkpoint`"
-            )
-        if save_checkpoints:
-            log.warning(
-                "The argument save_checkpoints is ignored when training models "
-                "in the PyTorch backend. To save a model throughout training, "
-                "use the `epochs` hyperparameter."
             )
         results = {'epochs': defaultdict(dict)}  # type: Dict[str, Any]
         starting_epoch = max(starting_epoch, 1)
