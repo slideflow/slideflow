@@ -193,6 +193,8 @@ def predict_slide(
                 "Unable to auto-detect feature extractor used for model {}. "
                 "Please specify an extractor.".format(model)
             )
+    else:
+        detected_normalizer = None
 
     # Determine stain normalization
     if detected_normalizer is not None and normalizer is not None:
