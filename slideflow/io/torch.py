@@ -350,7 +350,7 @@ class StyleGAN2Interleaver(InterleaveIterator):
         if crop is not None:
             transforms.append(torchvision.transforms.RandomCrop(crop))
         if resize is not None:
-            transforms.append(torchvision.transforms.Resize(crop))
+            transforms.append(torchvision.transforms.Resize(resize))
         if len(transforms):
             self.transform = torchvision.transforms.Compose(transforms)
 
