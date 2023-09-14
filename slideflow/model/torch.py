@@ -944,18 +944,21 @@ class Trainer:
         if self.neptune_run:
             self.neptune_run[f"metrics/{label}/{phase}/loss"].log(loss,
                                                                   step=step)
-            run_kw = {
-                'step': step
-            }
             acc = self._accuracy_as_numpy(acc)
             if isinstance(acc, list):
                 for a, _acc in enumerate(acc):
                     sf.util.neptune_utils.list_log(
-                        f'metrics/{label}/{phase}/accuracy-{a}', _acc, **run_kw
+                        run=self.neptune_run, 
+                        label=f'metrics/{label}/{phase}/accuracy-{a}', 
+                        val=_acc, 
+                        step=step
                     )
             else:
                 sf.util.neptune_utils.list_log(
-                    self.neptune_run, f'metrics/{label}/{phase}/accuracy', acc, **run_kw
+                    run=self.neptune_run, 
+                    label=f'metrics/{label}/{phase}/accuracy', 
+                    val=acc, 
+                    step=step
                 )
 
 
