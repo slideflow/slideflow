@@ -625,3 +625,19 @@ class OneCycleScheduler(tf.keras.callbacks.Callback):
         ax = plt.subplot(1, 2, 2)
         ax.plot(self.moms)
         ax.set_title('Momentum')
+
+# -----------------------------------------------------------------------------
+
+def build_uq_model(model):
+    """Rebuild a dropout-based UQ model to return predictions and uncertainties."""
+    layers = [l for l in model.layers]
+    new_layers = (layers[0:3]
+                  + [tf.keras.layers.RepeatVector(30),
+                     tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, 2048)))]
+                  + layers[3:]
+                  + [tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, 30, 2)))])
+    new_core = tf.keras.models.Sequential(new_layers)
+    yp_mean = tf.math.reduce_mean(new_core.output, axis=1)
+    yp_std = tf.math.reduce_std(new_core.output, axis=1)
+    uq_model = tf.keras.models.Model(inputs=new_core.input, outputs=[yp_mean, yp_std])
+    return uq_model

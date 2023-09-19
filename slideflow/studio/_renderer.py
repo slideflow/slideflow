@@ -176,22 +176,26 @@ class Renderer:
     def _calc_preds_and_uncertainty(self, img, uq_n=30):
 
         if self.model_type in ('tensorflow', 'tflite'):
-            yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
-            reduce_fn = _reduce_dropout_preds_tf
+            #yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
+            #reduce_fn = _reduce_dropout_preds_tf
+            yp_mean, yp_std = self._model(img, training=False)
+            yp_mean, yp_std = yp_mean.numpy()[0], yp_std.numpy()[0]
+            num_outcomes = 1 if not isinstance(yp_std, list) else len(yp_std)
         else:
             import torch
             with torch.no_grad():
                 yp = self._model(img.expand(uq_n, -1, -1, -1))
             reduce_fn = _reduce_dropout_preds_torch
 
-        num_outcomes = 1 if not isinstance(yp, list) else len(yp)
-        yp_drop = {n: [] for n in range(num_outcomes)}
-        if num_outcomes > 1:
-            for o in range(num_outcomes):
-                yp_drop[o] = yp[o]
-        else:
-            yp_drop[0] = yp
-        yp_mean, yp_std = reduce_fn(yp_drop, num_outcomes, stack=False)
+            # Previously for both tf & torch
+            num_outcomes = 1 if not isinstance(yp, list) else len(yp)
+            yp_drop = {n: [] for n in range(num_outcomes)}
+            if num_outcomes > 1:
+                for o in range(num_outcomes):
+                    yp_drop[o] = yp[o]
+            else:
+                yp_drop[0] = yp
+            yp_mean, yp_std = reduce_fn(yp_drop, num_outcomes, stack=False)
         if num_outcomes > 1:
             uncertainty = [np.mean(s) for s in yp_std]
         else:
@@ -472,7 +476,7 @@ class AsyncRenderer:
                 self._renderer_obj = Renderer(device=self.device)
                 for _renderer in self._addl_render:
                     self._renderer_obj.add_renderer(_renderer)
-            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
+            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device, build_uq=True)
             self._renderer_obj._model = self._model
             self._renderer_obj._saliency = self._saliency
             if _umap_encoders is not None:
@@ -493,7 +497,7 @@ class AsyncRenderer:
             device = None
         renderer_obj = Renderer(device=device)
         if model_path:
-            _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device)
+            _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device, build_uq=True)
             renderer_obj._model = _model
             renderer_obj._saliency = _saliency
             renderer_obj._umap_encoders = _umap_encoders
@@ -501,7 +505,7 @@ class AsyncRenderer:
             while args_queue.qsize() > 0:
                 args, stamp = args_queue.get()
                 if 'load_model' in args:
-                    _model, _saliency, _umap_encoders = _load_model_and_saliency(args['load_model'], device=device)
+                    _model, _saliency, _umap_encoders = _load_model_and_saliency(args['load_model'], device=device, build_uq=True)
                     renderer_obj._model = _model
                     renderer_obj._saliency = _saliency
                     renderer_obj._umap_encoders = _umap_encoders
