@@ -81,7 +81,7 @@ def _load_umap_encoders(path, model) -> EasyDict:
     )
 
 
-def _load_model_and_saliency(model_path, device=None, build_uq=False):
+def _load_model_and_saliency(model_path, device=None):
     log.debug("Loading model at {}...".format(model_path))
     _umap_encoders = None
     _saliency = None
@@ -108,8 +108,6 @@ def _load_model_and_saliency(model_path, device=None, build_uq=False):
         _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
         if exists(join(model_path, 'umap_encoders')):
             _umap_encoders = _load_umap_encoders(join(model_path, 'umap_encoders'), _model)
-        if build_uq and sf.util.get_model_config(model_path)['hp']['uq']:
-            _model = sf.model.tensorflow.build_uq_model(_model)
     else:
         raise ValueError(f"Unable to interpret model {model_path}")
     return _model, _saliency, _umap_encoders

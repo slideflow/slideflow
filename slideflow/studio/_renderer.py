@@ -114,6 +114,7 @@ class Renderer:
         self._net_layers        = dict()
         self._uq_thread         = None
         self._model             = None
+        self._uq_model          = None
         self._saliency          = None
         self._buffer            = buffer
         self.extract_px         = extract_px
@@ -170,6 +171,17 @@ class Renderer:
             self._is_timing = False
         return res
 
+    def set_model(self, model, uq=False):
+        self._model = model
+        if uq:
+            self._uq_model = sf.model.tensorflow.build_uq_model(model)
+
+    def set_saliency(self, saliency):
+        self._saliency = saliency
+
+    def set_umap_encoders(self, umap_encoders):
+        self._umap_encoders = umap_encoders
+
     def _ignore_timing(self):
         self._is_timing = False
 
@@ -178,7 +190,7 @@ class Renderer:
         if self.model_type in ('tensorflow', 'tflite'):
             #yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
             #reduce_fn = _reduce_dropout_preds_tf
-            yp_mean, yp_std = self._model(img, training=False)
+            yp_mean, yp_std = self._uq_model(img, training=False)
             yp_mean, yp_std = yp_mean.numpy()[0], yp_std.numpy()[0]
             num_outcomes = 1 if not isinstance(yp_std, list) else len(yp_std)
         else:
@@ -476,9 +488,9 @@ class AsyncRenderer:
                 self._renderer_obj = Renderer(device=self.device)
                 for _renderer in self._addl_render:
                     self._renderer_obj.add_renderer(_renderer)
-            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device, build_uq=True)
-            self._renderer_obj._model = self._model
-            self._renderer_obj._saliency = self._saliency
+            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
+            self._renderer_obj.set_model(self._model, uq=sf.util.is_uq_model(self._model_path))
+            self._renderer_obj.set_saliency(self._saliency)
             if _umap_encoders is not None:
                 self._umap_encoders = _umap_encoders
             self._renderer_obj._umap_encoders = self._umap_encoders
@@ -497,18 +509,18 @@ class AsyncRenderer:
             device = None
         renderer_obj = Renderer(device=device)
         if model_path:
-            _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device, build_uq=True)
-            renderer_obj._model = _model
-            renderer_obj._saliency = _saliency
-            renderer_obj._umap_encoders = _umap_encoders
+            _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device)
+            renderer_obj.set_model(_model, uq=sf.util.is_uq_model(model_path))
+            renderer_obj.set_saliency(_saliency)
+            renderer_obj.set_umap_encoders(_umap_encoders)
         while True:
             while args_queue.qsize() > 0:
                 args, stamp = args_queue.get()
                 if 'load_model' in args:
-                    _model, _saliency, _umap_encoders = _load_model_and_saliency(args['load_model'], device=device, build_uq=True)
-                    renderer_obj._model = _model
-                    renderer_obj._saliency = _saliency
-                    renderer_obj._umap_encoders = _umap_encoders
+                    _model, _saliency, _umap_encoders = _load_model_and_saliency(args['load_model'], device=device)
+                    renderer_obj.set_model(_model, uq=sf.util.is_uq_model(args['load_model']))
+                    renderer_obj.set_saliency(_saliency)
+                    renderer_obj.set_umap_encoders(_umap_encoders)
                 if 'quit' in args:
                     return
             if (live_updates and not result_queue.qsize()):
