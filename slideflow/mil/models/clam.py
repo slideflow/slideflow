@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Union, List, Optional, Callable
+
+from slideflow.model.torch_utils import get_device
 from ._utils import initialize_weights
 
 # -----------------------------------------------------------------------------
@@ -119,7 +121,7 @@ class _CLAM_Base(nn.Module):
         self.subtyping = subtyping
 
     def relocate(self):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = get_device()
         self.attention_net = self.attention_net.to(device)
         self.classifiers = self.classifiers.to(device)
         self.instance_classifiers = self.instance_classifiers.to(device)

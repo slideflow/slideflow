@@ -247,7 +247,7 @@ class ReinhardFastNormalizer:
 
         I1, I2, I3 = lab_split(I)
         if self.threshold is not None:
-            mask = ((I3 + 128.) / 255. < self.threshold)[:, :, np.newaxis]
+            mask = ((I1 / 100) < self.threshold)[:, :, np.newaxis]
         means, stds = self._get_mean_std(I, ctx_means, ctx_stds)
 
         norm1 = ((I1 - means[0]) * (target_stds[0] / stds[0])) + target_means[0]

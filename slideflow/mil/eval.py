@@ -153,6 +153,8 @@ def predict_slide(
     normalizer: Optional["StainNormalizer"] = None,
     config: Optional[_TrainerConfig] = None,
     attention: bool = False,
+    native_normalizer: Optional[bool] = True, 
+    extractor_kwargs: Optional[dict] = None,
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """Generate predictions (and attention) for a single slide.
 
@@ -177,6 +179,12 @@ def predict_slide(
             configuration. Defaults to None.
         attention (bool): Whether to return attention scores. Defaults to
             False.
+        native_normalizer (bool, optional): Whether to use PyTorch/Tensorflow-native
+            stain normalization, if applicable. If False, will use the OpenCV/Numpy
+            implementations. Defaults to None, which auto-detects based on the
+            slide backend (False if libvips, True if cucim). This behavior is due
+            to performance issued when using native stain normalization with
+            libvips-compatible multiprocessing.
 
     Returns:
         Tuple[np.ndarray, Optional[np.ndarray]]: Predictions and attention scores.
@@ -186,13 +194,19 @@ def predict_slide(
 
     """
     # Try to auto-determine the extractor
+    if native_normalizer is None:
+        native_normalizer = (sf.slide_backend() == 'cucim')
     if extractor is None:
-        extractor, detected_normalizer = rebuild_extractor(model, allow_errors=True)
+        extractor, detected_normalizer = rebuild_extractor(
+            model, allow_errors=True, native_normalizer=native_normalizer
+        )
         if extractor is None:
             raise ValueError(
                 "Unable to auto-detect feature extractor used for model {}. "
                 "Please specify an extractor.".format(model)
             )
+    else:
+        detected_normalizer = None
 
     # Determine stain normalization
     if detected_normalizer is not None and normalizer is not None:
@@ -229,7 +243,9 @@ def predict_slide(
         )
 
     # Convert slide to bags
-    masked_bags = extractor(slide, normalizer=normalizer)
+    if extractor_kwargs is None:
+        extractor_kwargs = dict()
+    masked_bags = extractor(slide, normalizer=normalizer, **extractor_kwargs)
     original_shape = masked_bags.shape
     masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
     mask = masked_bags.mask.any(axis=1)
@@ -472,12 +488,8 @@ def _predict_mil(
 
     # Auto-detect device.
     if device is None:
-        if next(model.parameters()).is_cuda:
-            log.debug("Auto device detection: using CUDA")
-            device = torch.device('cuda')
-        else:
-            log.debug("Auto device detection: using CPU")
-            device = torch.device('cpu')
+        device = next(model.parameters()).device
+        log.debug(f"Auto device detection: using {device}")
     elif isinstance(device, str):
         log.debug(f"Using {device}")
         device = torch.device(device)

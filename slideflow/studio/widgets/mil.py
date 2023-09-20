@@ -3,6 +3,7 @@ import numpy as np
 import slideflow as sf
 import slideflow.mil
 import threading
+import traceback
 
 from tkinter.filedialog import askdirectory
 from os.path import join, exists, dirname, abspath
@@ -163,7 +164,9 @@ class MILWidget(Widget):
     def load(self, path: str, allow_errors: bool = True) -> bool:
         try:
             self.close()
-            self.extractor, self.normalizer = rebuild_extractor(path)
+            self.extractor, self.normalizer = rebuild_extractor(
+                path, native_normalizer=(sf.slide_backend()=='cucim')
+            )
             self.mil_params = _get_mil_params(path)
             self.extractor_params = self.mil_params['bags_extractor']
             self._reload_wsi()
@@ -176,6 +179,7 @@ class MILWidget(Widget):
             if allow_errors:
                 self.viz.create_toast('Error loading MIL model', icon='error')
                 sf.log.error(e)
+                sf.log.error(traceback.format_exc())
                 return False
             raise e
         return True

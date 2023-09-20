@@ -1629,6 +1629,7 @@ class Trainer:
         resume_training: Optional[str] = None,
         pretrain: Optional[str] = 'imagenet',
         checkpoint: Optional[str] = None,
+        save_checkpoints: bool = False,
         multi_gpu: bool = False,
         norm_fit: Optional[NormFit] = None,
         reduce_method: str = 'average',
@@ -1704,6 +1705,12 @@ class Trainer:
             raise NotImplementedError(
                 "PyTorch backend does not support `resume_training`; "
                 "please use `checkpoint`"
+            )
+        if save_checkpoints:
+            log.warning(
+                "The argument save_checkpoints is ignored when training models "
+                "in the PyTorch backend. To save a model throughout training, "
+                "use the `epochs` hyperparameter."
             )
         results = {'epochs': defaultdict(dict)}  # type: Dict[str, Any]
         starting_epoch = max(starting_epoch, 1)

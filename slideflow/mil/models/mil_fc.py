@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Union, List
 
+from slideflow.model.torch_utils import get_device
 from ._utils import initialize_weights
 
 # -----------------------------------------------------------------------------
@@ -37,8 +38,7 @@ class MIL_fc(nn.Module):
         self.top_k=top_k
 
     def relocate(self):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.classifier.to(device)
+        self.classifier.to(get_device())
 
     def forward(self, h):
         if isinstance(h, tuple) and len(h) == 2:
@@ -92,7 +92,7 @@ class MIL_fc_mc(nn.Module):
         assert self.top_k == 1
 
     def relocate(self):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = get_device()
         self.fc = self.fc.to(device)
         self.classifiers = self.classifiers.to(device)
 

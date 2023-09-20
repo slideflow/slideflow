@@ -154,13 +154,26 @@ class Heatmap:
             int_kw.update(dict(load_method=load_method))
 
         if self.uq:
-            self.interface = sf.model.UncertaintyInterface(model, **int_kw)  # type: ignore
+            if sf.util.is_torch_model_path(model):
+                import slideflow.model.torch
+                interface_fn = sf.model.torch.UncertaintyInterface
+            else:
+                import slideflow.model.tensorflow
+                interface_fn = sf.model.tensorflow.UncertaintyInterface  # type: ignore
+            self.interface = interface_fn(model, **int_kw)
         else:
-            self.interface = sf.model.Features(  # type: ignore
+            if sf.util.is_torch_model_path(model):
+                import slideflow.model.torch
+                interface_fn = sf.model.torch.Features
+            else:
+                import slideflow.model.tensorflow
+                interface_fn = sf.model.tensorflow.Features  # type: ignore
+            self.interface = interface_fn(  # type: ignore
                 model,
                 layers=None,
                 include_preds=True,
                 **int_kw)
+
         self.model_path = model
         self.num_threads = num_threads
         self.num_processes = num_processes

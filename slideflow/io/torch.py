@@ -335,13 +335,31 @@ class StyleGAN2Interleaver(InterleaveIterator):
 
     def __init__(
         self,
-        resolution=None,
-        xflip=None,
+        resolution=None,  # Ignored argument, for StyleGAN2/3 compatibility.
+        xflip=None,       # Ignored argument, for StyleGAN2/3 compatibility.
         normalizer=None,
         normalizer_source=None,
+        crop=None,
+        resize=None,
         **kwargs
     ):
         super().__init__(**kwargs)
+
+        # Assemble crop/resize transformations.
+        transforms = []
+        if crop is not None:
+            transforms.append(torchvision.transforms.RandomCrop(crop))
+        if resize is not None:
+            transforms.append(torchvision.transforms.Resize(resize))
+        if len(transforms):
+            self.transform = torchvision.transforms.Compose(transforms)
+
+        # Update the final image size.
+        if resize is not None:
+            self.img_size = resize
+        elif crop is not None:
+            self.img_size = crop
+        
         if normalizer:
             self.normalizer = sf.norm.autoselect(
                 normalizer,
@@ -364,33 +382,36 @@ class StyleGAN2Interleaver(InterleaveIterator):
             return np.zeros((1,))
 
 
-class LocLabelInterleaver(StyleGAN2Interleaver):
+class TileLabelInterleaver(StyleGAN2Interleaver):
     """Pytorch Iterable Dataset that interleaves tfrecords with the
     as the `InterleaveIterator`, but applies tile-specific labels.
-    """
 
+    Labels should be onehot encoded.
+
+    """
     def __init__(
         self,
-        loc_labels: str,
-        resolution: Any = None,
-        xflip: Any = None,
+        tile_labels: str,
+        resolution: Any = None,  # Ignored, for StyleGAN2/3 compatibility.
+        xflip: Any = None,       # Ignored, for StyleGAN2/3 compatibility.
         *args: Any,
         **kwargs: Any,
     ) -> None:
         """Initializes an InterleaveIterator modified to use tile-level labels.
 
         Args:
-            loc_labels (str): Location of parquet-format pandas DataFrame
+            tile_labels (str): Location of parquet-format pandas DataFrame
                 containing tile-level labels. Labels are indexed by the slide
                 name and X/Y location, with the format {slide}-{loc_x}-{loc_y}.
-                Labels are determined by the `label` columns.
+                Labels are determined by the `label` columns. Labels should
+                be onehot encoded.
         """
         super().__init__(*args, **kwargs)
 
-        self.df = pd.read_parquet(loc_labels)
+        self.df = pd.read_parquet(tile_labels)
         if 'label' not in self.df.columns:
             raise ValueError('Could not find column "label" in the '
-                             'loc_labels dataset.')
+                             'tile_labels dataset.')
 
         self.incl_loc = True
         first_row  = next(self.df.itertuples())
@@ -422,7 +443,8 @@ class LocLabelInterleaver(StyleGAN2Interleaver):
         """
 
         label_key = f'{slide}-{loc_x}-{loc_y}'
-        label = torch.tensor(self.df.iloc[self.df.index.get_loc(label_key)].values)[0]
+        df_idx = self.df.index.get_loc(label_key)
+        label = torch.tensor(self.df.iloc[df_idx].values[0])
 
         image = whc_to_cwh(image)
         to_return = [image, label]  # type: List[Any]
@@ -433,7 +455,7 @@ class LocLabelInterleaver(StyleGAN2Interleaver):
 
     def get_label(self, idx: Any) -> Any:
         """Returns a random label. Used for compatibility with StyleGAN2."""
-        return np.random.rand(*self.label_shape)
+        return self.df.sample(n=1).label.values[0]
 
 # -------------------------------------------------------------------------
 
@@ -564,8 +586,35 @@ class RandomGaussianBlur:
         s = random.choices(self.sigma, weights=self.weights)[0]
         return self.blur_fn[s](x)
 
+class RandomJPEGCompression:
+    """Torchvision transform for random JPEG compression."""
+    def __init__(self, p: float = 0.5, q_min: int = 50, q_max: int = 100):
+        self.p = p
+        self.q_min = q_min
+        self.q_max = q_max
 
-def random_jpeg_compression(img: torch.Tensor):
+    def __call__(self, x):
+        return torch.where(
+            torch.rand(1)[0] < self.p,
+            random_jpeg_compression(x),
+            x
+        )
+
+
+class RandomColorDistortion:
+    """Torchvision transform for random color distortion."""
+    def __init__(self, s: float = 1.0):
+        self.color_distort = compose_color_distortion(s=s)
+
+    def __call__(self, x):
+        return self.color_distort(x)
+
+
+def random_jpeg_compression(
+    img: torch.Tensor,
+    q_min: int = 50,
+    q_max: int = 100
+):
     """Perform random JPEG compression on an image.
 
     Args:
@@ -575,7 +624,7 @@ def random_jpeg_compression(img: torch.Tensor):
         torch.Tensor: Transformed image (C x W x H).
 
     """
-    q = (torch.rand(1)[0] * 50) + 50
+    q = (torch.rand(1)[0] * q_min) + (q_max - q_min)
     img = torchvision.io.encode_jpeg(img, quality=q)
     return torchvision.io.decode_image(img)
 
@@ -596,6 +645,50 @@ def compose_color_distortion(s=1.0):
     color_distort = transforms.Compose(
         [whc_to_cwh, rnd_color_jitter, rnd_gray, cwh_to_whc])
     return color_distort
+
+
+def decode_augmentation_string(augment: str) -> List[Callable]:
+    """Decode a string of augmentation characters into a list of
+    augmentation functions.
+
+    Args:
+        augment (str): Augmentation string.
+
+    Returns:
+        List[Callable]: List of augmentation functions.
+
+    """
+    if not isinstance(augment, str):
+        raise ValueError(f"Invalid argument: {augment}; expected a str")
+
+    transformations = []  # type: List[Callable]
+    for a in augment:
+        if a == 'x':
+            # Random x-flip.
+            transformations.append(transforms.RandomHorizontalFlip(p=0.5))
+        elif a == 'y':
+            # Random y-flip.
+            transformations.append(transforms.RandomVerticalFlip(p=0.5))
+        elif a == 'r':
+            # Random cardinal rotation.
+            transformations.append(RandomCardinalRotation())
+        elif a == 'd':
+            # Random color distortion.
+            transformations.append(RandomColorDistortion(s=1.0))
+        elif a == 'b':
+            # Random Gaussian blur.
+            transformations.append(
+                RandomGaussianBlur(
+                    sigma=[0, 0.5, 1.0, 1.5, 2.0],
+                    weights=[0.9, 0.1, 0.05, 0.025, 0.0125]
+                )
+            )
+        elif a == 'j':
+            # Random JPEG compression.
+            transformations.append(RandomJPEGCompression(p=0.5, q_min=50, q_max=100))
+        else:
+            raise ValueError(f"Invalid augmentation: {a}")
+    return transformations
 
 
 def compose_augmentations(
@@ -632,29 +725,10 @@ def compose_augmentations(
         whc (bool): Images are in W x H x C format. Defaults to False.
     """
 
-    transformations = []
+    transformations = []  # type: List[Callable]
 
-    # Random JPEG compression.
-    if augment is True or (isinstance(augment, str) and 'j' in augment):
-        transformations.append(
-            lambda img: torch.where(
-                torch.rand(1)[0] < 0.5,
-                random_jpeg_compression(img),
-                img
-            )
-        )
-
-    # Random cardinal rotation.
-    if augment is True or (isinstance(augment, str) and 'r' in augment):
-        transformations.append(RandomCardinalRotation())
-
-    # Random x-flip.
-    if augment is True or (isinstance(augment, str) and 'x' in augment):
-        transformations.append(transforms.RandomHorizontalFlip(p=0.5))
-
-    # Random y-flip.
-    if augment is True or (isinstance(augment, str) and 'y' in augment):
-        transformations.append(transforms.RandomVerticalFlip(p=0.5))
+    if augment is True:
+        augment = 'xyrjb'
 
     # Stain normalization.
     if normalizer is not None:
@@ -665,22 +739,11 @@ def compose_augmentations(
             )
         )
 
-    # Random color distortion.
-    if (isinstance(augment, str) and 'd' in augment):
-        transformations.append(compose_color_distortion())
-
-    # Random Gaussian blur.
-    if augment is True or (isinstance(augment, str) and 'b' in augment):
-        transformations.append(
-            RandomGaussianBlur(
-                sigma=[0, 0.5, 1.0, 1.5, 2.0],
-                weights=[0.9, 0.1, 0.05, 0.025, 0.0125]
-            )
-        )
-
-    # Arbitrary transformations via `augment` argument.
-    if callable(augment):
-        transformations.append(augment)
+    # Assemble augmentation pipeline.
+    if isinstance(augment, str):
+        transformations += decode_augmentation_string(augment)
+    elif callable(augment):
+        transformations.append(augment)  # type: ignore
 
     # Arbitrary transformations via `transform` argument.
     if transform is not None:
