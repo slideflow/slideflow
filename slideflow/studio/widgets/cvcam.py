@@ -74,6 +74,7 @@ class CameraViewer(Viewer):
         self.x              = None
         self.y              = None
         self._initialize(width, height)
+        self._use_deepfocus = True
 
     @property
     def dimensions(self) -> Tuple[int, int]:
@@ -94,6 +95,10 @@ class CameraViewer(Viewer):
     @property
     def preview_mpp(self) -> float:
         return self.um_width / self.preview_width
+
+    def apply_args(self, args):
+        super().apply_args(args)
+        args.use_deepfocus = self._use_deepfocus
 
     def _initialize(self, width, height):
         self.width = width
@@ -191,6 +196,7 @@ class CameraWidget:
         self.viz            = viz
         self.um_width       = 800
         self.content_height = 0
+        self.use_deepfocus  = True
 
         viewer = CameraViewer(self.um_width, **viz._viewer_kwargs())
         viz.set_viewer(viewer)
@@ -209,6 +215,9 @@ class CameraWidget:
                 self.um_width = min(max(self.um_width, 1), 10000)
                 if _changed:
                     viz.viewer.set_um_width(self.um_width)
+
+            _clicked, self.use_deepfocus = imgui.checkbox("Enable DeepFocus", self.use_deepfocus)
+            viz.viewer._use_deepfocus = self.use_deepfocus
         else:
             self.content_height = 0
 

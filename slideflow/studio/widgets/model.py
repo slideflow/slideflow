@@ -222,6 +222,7 @@ class ModelWidget:
     def _draw_tile_pred_result(self, outcome, labels, pred_array, uq_array=None):
         viz = self.viz
         config = viz._model_config
+        out_of_focus = hasattr(viz.result, 'in_focus') and not viz.result.in_focus
 
         # Outcome name label
         imgui.text_colored(outcome, *viz.theme.dim)
@@ -232,10 +233,14 @@ class ModelWidget:
         else:
             pred_str = f'{pred_array:.3f}'
         imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
-        imgui.text(pred_str)
+        with viz.dim_text(out_of_focus):
+            imgui.text(pred_str)
 
         # Histogram
         if self.is_categorical():
+            if out_of_focus:
+                imgui.push_style_color(imgui.COLOR_PLOT_HISTOGRAM, 0.5, 0.5, 0.5)
+                imgui.push_style_color(imgui.COLOR_PLOT_HISTOGRAM_HOVERED, 0.6, 0.6, 0.6)
             with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.spacing):
                 _histogram_size = imgui.get_content_region_max()[0] - viz.spacing, viz.font_size * 3
                 imgui.core.plot_histogram(
@@ -245,6 +250,8 @@ class ModelWidget:
                     scale_max=1, 
                     graph_size=_histogram_size
                 )
+            if out_of_focus:
+                imgui.pop_style_color(2)
 
         # Uncertainty bar
         if viz._use_uncertainty and uq_array is not None:
@@ -256,6 +263,8 @@ class ModelWidget:
             w -= viz.spacing * 2
             y -= viz.spacing
             color, width = scale_uncertainty_bar(uq_array, max_width=w, max_uq=0.10)
+            if out_of_focus:
+                color=(0.5, 0.5, 0.5, 1)
             draw_list.add_rect_filled(x, y, x+width, y+7, imgui.get_color_u32_rgba(*color))
 
             # Right-aligned text below bar
@@ -263,7 +272,8 @@ class ModelWidget:
             uq_text = "Uncertainty: {:.4f})".format(uq_array)
             right_offset = imgui.get_content_region_max()[0] - (imgui.calc_text_size(uq_text)[0] + viz.spacing)
             imgui.set_cursor_position([cx+right_offset, cy+5])
-            imgui.text(uq_text)
+            with viz.dim_text(out_of_focus):
+                imgui.text(uq_text)
 
     def _draw_prediction_as_text(self, outcome, all_labels):
         viz = self.viz
@@ -408,6 +418,10 @@ class ModelWidget:
         has_preds = viz._use_model and viz._predictions is not None
 
         if config is not None:
+
+            if hasattr(viz.result, 'in_focus') and not viz.result.in_focus:
+                imgui.text("Image out of focus.")
+                #return
 
             # Multiple categorical outcomes
             if has_preds and isinstance(viz._predictions, list):

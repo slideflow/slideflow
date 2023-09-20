@@ -866,7 +866,7 @@ class Studio(ImguiWindow):
     # --- Imgui methods -------------------------------------------------------
 
     @contextmanager
-    def dim_text(self):
+    def dim_text(self, dim=True):
         """Render dim text.
 
         Examples
@@ -878,9 +878,11 @@ class Studio(ImguiWindow):
                         imgui.text('This is dim')
 
         """
-        imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.dim)
+        if dim:
+            imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.dim)
         yield
-        imgui.pop_style_color(1)
+        if dim:
+            imgui.pop_style_color(1)
 
     @contextmanager
     def highlighted(self, enable: bool = True):
@@ -1290,6 +1292,7 @@ class Studio(ImguiWindow):
             self.args.full_image = self.viewer.tile_view
             self.args.tile_px = self.viewer.tile_px
             self.args.tile_um = self.viewer.tile_um
+            self.viewer.apply_args(self.args)
 
         if self.has_live_viewer():
             self.args.viewer = None

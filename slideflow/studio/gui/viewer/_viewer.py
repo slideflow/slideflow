@@ -96,6 +96,9 @@ class Viewer:
         else:
             self._tex_obj.update(self._tex_img)
 
+    def apply_args(self, args):
+        pass
+
     def clear(self):
         """Remove the displayed image."""
         self._tex_img = None
