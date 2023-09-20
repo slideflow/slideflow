@@ -1177,6 +1177,11 @@ class Studio(ImguiWindow):
         if self._async_renderer is not None:
             self._async_renderer.close()
             self._async_renderer = None
+        if hasattr(self.viewer, 'close'):
+            self.viewer.close()
+        for w in self.widgets:
+            if hasattr(w, 'close'):
+                w.close()
 
     def close_model(self, now: bool = False) -> None:
         """Close the currently loaded model.
