@@ -239,7 +239,11 @@ class Renderer:
             else:
                 preds = preds[0]
         else:
-            preds = self._model(img)
+            if self.model_type == 'torch':
+                with torch.no_grad():
+                    preds = self._model(img)
+            else:
+                preds = self._model(img, training=False)
             preds = self.process_tf_preds(preds)
         return preds, None
 
