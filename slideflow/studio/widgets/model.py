@@ -10,6 +10,18 @@ from ..gui.annotator import AnnotationCapture
 
 import slideflow.grad as grad
 
+def scale_uncertainty_bar(val, max_width, max_uq):
+    width = (min(val, max_uq) / max_uq) * max_width
+    fraction = width / max_width
+    if fraction < 0.33:
+        color = (0, 1, 0, 1)
+    elif fraction < 0.66:
+        color = (1, 1, 0, 1)
+    else:
+        color = (1, 0, 0, 1)
+    return color, width
+
+# -----------------------------------------------------------------------------
 
 class ModelWidget:
     def __init__(self, viz, show_saliency=True):
@@ -219,15 +231,39 @@ class ModelWidget:
             pred_str = labels[str(np.argmax(pred_array))]
         else:
             pred_str = f'{pred_array:.3f}'
-        if viz._use_uncertainty and uq_array is not None:
-            pred_str += " (UQ: {:.4f})".format(uq_array)
         imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
         imgui.text(pred_str)
 
         # Histogram
         if self.is_categorical():
             with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.spacing):
-                imgui.core.plot_histogram('##pred', array('f', pred_array), scale_min=0, scale_max=1)
+                _histogram_size = imgui.get_content_region_max()[0] - viz.spacing, viz.font_size * 3
+                imgui.core.plot_histogram(
+                    '##pred', 
+                    array('f', pred_array), 
+                    scale_min=0, 
+                    scale_max=1, 
+                    graph_size=_histogram_size
+                )
+
+        # Uncertainty bar
+        if viz._use_uncertainty and uq_array is not None:
+            # Uncertainty bar
+            draw_list = imgui.get_window_draw_list()
+            w = imgui.get_content_region_max()[0]
+            x, y = imgui.get_cursor_screen_position()
+            x += int(viz.spacing / 2)
+            w -= viz.spacing * 2
+            y -= viz.spacing
+            color, width = scale_uncertainty_bar(uq_array, max_width=w, max_uq=0.10)
+            draw_list.add_rect_filled(x, y, x+width, y+7, imgui.get_color_u32_rgba(*color))
+
+            # Right-aligned text below bar
+            cx, cy = imgui.get_cursor_position()
+            uq_text = "Uncertainty: {:.4f})".format(uq_array)
+            right_offset = imgui.get_content_region_max()[0] - (imgui.calc_text_size(uq_text)[0] + viz.spacing)
+            imgui.set_cursor_position([cx+right_offset, cy+5])
+            imgui.text(uq_text)
 
     def _draw_prediction_as_text(self, outcome, all_labels):
         viz = self.viz
