@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from functools import lru_cache
 from os.path import join, dirname
 
-__version__ = "2.0.5"
+__version__ = "2.1.0"
 
 # -----------------------------------------------------------------------------
 
@@ -24,7 +24,8 @@ __version__ = "2.0.5"
 @click.option('--project', '-p', help='Slideflow project.', metavar='PATH')
 @click.option('--low_memory', '-l', is_flag=True, help='Low memory mode.', metavar=bool)
 @click.option('--stylegan', '-g', is_flag=True, help='Enable StyleGAN support (requires PyTorch).', metavar=bool)
-@click.option('--picam', '-c', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
+@click.option('--picam', '-pc', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
+@click.option('--camera', '-c', is_flag=True, help='Enable Camera (OpenCV) view (experimental).', metavar=bool)
 @click.option('--cellpose', is_flag=True, help='Enable Cellpose segmentation (experimental).', metavar=bool)
 @click.option('--advanced', '-a', is_flag=True, help='Enable advanced StyleGAN options.', metavar=bool)
 def main(
@@ -34,6 +35,7 @@ def main(
     low_memory,
     stylegan,
     picam,
+    camera,
     cellpose,
     advanced
 ):
@@ -60,6 +62,10 @@ def main(
     if picam:
         from slideflow.studio.widgets.picam import PicamWidget
         widgets += [PicamWidget]
+
+    if camera:
+        from slideflow.studio.widgets.cvcam import CameraWidget
+        widgets += [CameraWidget]
 
     if cellpose:
         from slideflow.studio.widgets.segment import SegmentWidget
