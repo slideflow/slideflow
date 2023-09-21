@@ -147,8 +147,14 @@ class Renderer:
         assert img.dtype == tf.uint8
         self.enable_deepfocus()
         proc_img = tf.image.resize(img, (64, 64), method='lanczos3')
-        proc_img = tf.cast(proc_img, tf.float32) / 255.
-        proc_img = proc_img - tf.math.reduce_mean(proc_img)
+        # From what I can tell, DeepFocus was trained using the preprocessing steps:
+        #   (img / 255.) - mean(img / 255.)
+        # However, this does not work well with a live camera feed, probably because
+        # the brightness/contrast is lower.
+        # Instead, I've found that tf.image.per_image_standardization() works better
+        # on live camera images, as it scales the variance of the image to be 1, 
+        # which would be effectively similary to increasing contrast in the image.
+        proc_img = tf.image.per_image_standardization(proc_img)
         proc_img = tf.expand_dims(proc_img, axis=0)
         _focus_pred = self._deepfocus(proc_img, training=False)[0][1]
         return _focus_pred > 0.5
