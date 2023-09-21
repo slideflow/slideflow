@@ -147,7 +147,8 @@ class Renderer:
         assert img.dtype == tf.uint8
         self.enable_deepfocus()
         proc_img = tf.image.resize(img, (64, 64), method='lanczos3')
-        proc_img = tf.image.per_image_standardization(proc_img)
+        proc_img = tf.cast(proc_img, tf.float32) / 255.
+        proc_img = proc_img - tf.math.reduce_mean(proc_img)
         proc_img = tf.expand_dims(proc_img, axis=0)
         _focus_pred = self._deepfocus(proc_img, training=False)[0][1]
         return _focus_pred > 0.5
@@ -310,7 +311,7 @@ class Renderer:
                 crop_w = crop_ratio * w
                 focus_img = full_image[int(w/2-crop_w/2):int(w/2+crop_w/2),
                                        int(w/2-crop_w/2):int(w/2+crop_w/2)]
-                
+
         elif viewer is not None:
 
             if not self._model:
@@ -330,7 +331,7 @@ class Renderer:
             img = viewer.read_tile(x, y, img_format='jpg' if use_jpeg else None, allow_errors=True)
             if use_deepfocus:
                 raise NotImplementedError
-            
+
             if img is None:
                 res.message = "Invalid tile location."
                 print(res.message)
