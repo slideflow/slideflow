@@ -1,6 +1,7 @@
 """Whole-slide imaging viewer for graphical interfaces."""
 
 import cv2
+import time
 import numpy as np
 import slideflow as sf
 from typing import Tuple, Optional, Union, Callable
@@ -46,6 +47,7 @@ class Viewer:
         self.mipmap             = mipmap
         self.view_zoom          = 1
         self.viz                = viz
+        self._capture_start     = None
 
         # Window offset for the display
         self.x_offset           = x_offset
@@ -98,6 +100,9 @@ class Viewer:
 
     def apply_args(self, args):
         pass
+
+    def capture_animation(self):
+        self._capture_start = time.time()
 
     def clear(self):
         """Remove the displayed image."""
@@ -218,7 +223,21 @@ class Viewer:
         return x_in_view and y_in_view
 
     def late_render(self):
-        pass
+        # Draw the capturing animation (flash on screen)
+        if self._capture_start:
+            now = time.time()
+            duration = 1
+            if (now - self._capture_start) > duration:
+                self._capture_start = None
+            else:
+                f = (now-self._capture_start) / duration
+                alpha = (1-f) ** 3
+                gl_utils.draw_rect(
+                    pos=(self.x_offset, self.y_offset), 
+                    size=[self.width, self.height], 
+                    color=1,
+                    alpha=alpha
+                )
 
     def refresh_view(self):
         pass

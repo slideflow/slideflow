@@ -104,13 +104,10 @@ def _umap_normalize(vector, clip_min, clip_max, norm_min, norm_max):
 
 class Renderer:
     def __init__(self, device=None, buffer=None, extract_px=None, tile_px=None):
-        #self._device            = torch.device('cuda')
         self._pkl_data          = dict()    # {pkl: dict | CapturedException, ...}
         self._pinned_bufs       = dict()    # {(shape, dtype): torch.Tensor, ...}
         self._cmaps             = dict()    # {name: torch.Tensor, ...}
         self._is_timing         = False
-        #self._start_event       = torch.cuda.Event(enable_timing=True)
-        #self._end_event         = torch.cuda.Event(enable_timing=True)
         self._net_layers        = dict()
         self._uq_thread         = None
         self._model             = None
@@ -142,22 +139,29 @@ class Renderer:
             self._deepfocus = sf.slide.qc.DeepFocus().model
             print("...done")
 
-    def _image_in_focus(self, img) -> bool:
+    def _image_in_focus(self, img, method='laplacian') -> bool:
         """Predict whether an image is in-focus using DeepFocus."""
-        assert img.dtype == tf.uint8
-        self.enable_deepfocus()
-        proc_img = tf.image.resize(img, (64, 64), method='lanczos3')
-        # From what I can tell, DeepFocus was trained using the preprocessing steps:
-        #   (img / 255.) - mean(img / 255.)
-        # However, this does not work well with a live camera feed, probably because
-        # the brightness/contrast is lower.
-        # Instead, I've found that tf.image.per_image_standardization() works better
-        # on live camera images, as it scales the variance of the image to be 1, 
-        # which would be effectively similary to increasing contrast in the image.
-        proc_img = tf.image.per_image_standardization(proc_img)
-        proc_img = tf.expand_dims(proc_img, axis=0)
-        _focus_pred = self._deepfocus(proc_img, training=False)[0][1]
-        return _focus_pred > 0.5
+        if method == 'deepfocus':
+            self.enable_deepfocus()
+            img = tf.cast(tf.convert_to_tensor(img), tf.uint8)
+            proc_img = tf.image.resize(img, (64, 64), method='lanczos3')
+            # From what I can tell, DeepFocus was trained using the preprocessing steps:
+            #   (img / 255.) - mean(img / 255.)
+            # However, this does not work well with a live camera feed, probably because
+            #   the brightness/contrast is lower.
+            # Instead, I've found that tf.image.per_image_standardization() works better
+            #   on live camera images, as it scales the variance of the image to be 1, 
+            #   which would be effectively similary to increasing contrast in the image.
+            proc_img = tf.image.per_image_standardization(proc_img)
+            proc_img = tf.expand_dims(proc_img, axis=0)
+            _focus_pred = self._deepfocus(proc_img, training=False)[0][1]
+            return _focus_pred > 0.5
+        elif method == 'laplacian':
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            laplacian_variance = cv2.Laplacian(img, cv2.CV_64F).var()
+            return laplacian_variance > 80
+        else:
+            raise ValueError("Unrecognized focus method: {}".format(method))
 
     def process_tf_preds(self, preds):
         if isinstance(preds, list):
@@ -291,7 +295,7 @@ class Renderer:
         tile_um             = None,
         full_image          = None,
         use_umap_encoders   = False,
-        use_deepfocus       = False,
+        assess_focus        = False,
         **kwargs
     ):
         args = locals()
@@ -308,13 +312,18 @@ class Renderer:
                 return
             img = cv2.resize(full_image, (tile_px, tile_px))
             res.image = img
-            if use_deepfocus:
-                # DeepFocus target size is tile_px=64 tile_um=256 (40X)
-                crop_ratio = 128. / tile_um
-                if crop_ratio > 1:
-                    raise NotImplementedError
+            if assess_focus:
                 w = full_image.shape[0]
-                crop_w = crop_ratio * w
+                if assess_focus == 'deepfocus':
+                    # DeepFocus target size is tile_px=64 tile_um=256 (40X),
+                    # but we'll work at 20X since it's more practical.
+                    crop_ratio = 128. / tile_um
+                    if crop_ratio > 1:
+                        raise NotImplementedError
+                    crop_w = crop_ratio * w
+                else:
+                    # Other focus methods use a 64x64 center crop
+                    crop_w = 64
                 focus_img = full_image[int(w/2-crop_w/2):int(w/2+crop_w/2),
                                        int(w/2-crop_w/2):int(w/2+crop_w/2)]
 
@@ -335,7 +344,7 @@ class Renderer:
 
             use_jpeg = use_model and img_format is not None and img_format.lower() in ('jpg', 'jpeg')
             img = viewer.read_tile(x, y, img_format='jpg' if use_jpeg else None, allow_errors=True)
-            if use_deepfocus:
+            if assess_focus:
                 raise NotImplementedError
 
             if img is None:
@@ -355,7 +364,7 @@ class Renderer:
             # Image was generated by one of the additional renderers.
             # Check if any additional pre-processing needs to be done.
             img = res.image
-            if use_deepfocus:
+            if assess_focus:
                 raise NotImplementedError
             for renderer in self._addl_renderers:
                 if hasattr(renderer, 'preprocess'):
@@ -363,8 +372,8 @@ class Renderer:
 
         if use_model:
             # Check focus.
-            if use_deepfocus:
-                res.in_focus = self._image_in_focus(focus_img)
+            if assess_focus:
+                res.in_focus = self._image_in_focus(focus_img, method=assess_focus)
                 if not res.in_focus:
                     return
 

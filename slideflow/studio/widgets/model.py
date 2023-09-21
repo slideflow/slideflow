@@ -10,12 +10,12 @@ from ..gui.annotator import AnnotationCapture
 
 import slideflow.grad as grad
 
-def scale_uncertainty_bar(val, max_width, max_uq):
+def scale_uncertainty_bar(val, max_width, uq_threshold=0.033):
+    max_uq = uq_threshold * 3
     width = (min(val, max_uq) / max_uq) * max_width
-    fraction = width / max_width
-    if fraction < 0.33:
+    if val < uq_threshold:
         color = (0, 1, 0, 1)
-    elif fraction < 0.66:
+    elif val < uq_threshold * 2:
         color = (1, 1, 0, 1)
     else:
         color = (1, 0, 0, 1)
@@ -262,16 +262,19 @@ class ModelWidget:
             x += int(viz.spacing / 2)
             w -= viz.spacing * 2
             y -= viz.spacing
-            color, width = scale_uncertainty_bar(uq_array, max_width=w, max_uq=0.10)
+            if 'thresholds' in config and 'tile_uq' in config['thresholds']:
+                uq_thresh = config['thresholds']['tile_uq']
+            else:
+                uq_thresh = 0.033
+            color, width = scale_uncertainty_bar(uq_array, max_width=w, uq_threshold=uq_thresh)
             if out_of_focus:
                 color=(0.5, 0.5, 0.5, 1)
             draw_list.add_rect_filled(x, y, x+width, y+7, imgui.get_color_u32_rgba(*color))
+            viz._box_color = color[0:3]
 
             # Right-aligned text below bar
             cx, cy = imgui.get_cursor_position()
-            uq_text = "Uncertainty: {:.4f})".format(uq_array)
-            right_offset = imgui.get_content_region_max()[0] - (imgui.calc_text_size(uq_text)[0] + viz.spacing)
-            imgui.set_cursor_position([cx+right_offset, cy+5])
+            uq_text = "Uncertainty: {:.4f} (threshold: {:.4f})".format(uq_array, uq_thresh)
             with viz.dim_text(out_of_focus):
                 imgui.text(uq_text)
 

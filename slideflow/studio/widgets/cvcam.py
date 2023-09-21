@@ -10,15 +10,29 @@ from ..gui.viewer import Viewer
 
 #----------------------------------------------------------------------------
 
+def center_crop(image, width, height):
+    width = min(image.shape[1], width)
+    height = min(image.shape[0], height)
+    x = int(image.shape[1]/2 - width/2)
+    y = int(image.shape[0]/2 - height/2)
+    return image[y:y+height, x:x+width]
+
+#----------------------------------------------------------------------------
+
 class OpenCVCamera:
 
     def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.should_stop = False
-        self._active_frame = None
-        raw_width = 1920
-        raw_height = 1080
+        self.width              = width
+        self.height             = height
+        self.should_stop        = False
+        self._active_frame      = None
+        self._thread            = None
+        self._alignment_thread  = None
+        self._last_img          = None
+        self._align_x           = 500
+        self._align_y           = 500
+        raw_width               = 1920
+        raw_height              = 1080
 
         format_str = 'video/x-raw(memory:NVMM), ' \
                      f'width={raw_width}, ' \
@@ -42,6 +56,31 @@ class OpenCVCamera:
             if ret:
                 self._active_frame = frame
 
+    def _alignment_tracker(self):
+        import slideflow as sf
+        while not self.should_stop:
+            if self._last_img is not None and self._active_frame is not None:
+                last = center_crop(self._last_img, 512, 512)
+                now = center_crop(self._active_frame, 512, 512)
+                l_r = last.shape[0] / 256.
+                n_r = now.shape[0] / 256.
+                last = cv2.resize(last, (int(last.shape[1]/l_r), 256))
+                now = cv2.resize(now, (int(now.shape[1]/n_r), 256))
+                try:
+                    alignment = sf.slide.utils.align_by_translation(now, last, h=50, search_window=53)
+                    self._align_x += alignment[0]
+                    self._align_y += alignment[1]
+                except sf.errors.AlignmentError:
+                    print("Unable to align.")
+                    self._align_x = 500
+                    self._align_y = 500
+                else:
+                    print(alignment)
+            else:
+                print("Skipping alignment.")
+                if self._active_frame is not None:
+                    self._last_img = self._active_frame
+
     def start(self):
         self._thread = threading.Thread(target=self._thread_runner)
         self._thread.start()
@@ -51,14 +90,14 @@ class OpenCVCamera:
         self._thread.join()
         self.should_stop = False
 
-    def capture_frame(self):
+    def capture_frame(self, width=None, height=None):
+        if width is None:
+            width = self.width
+        if height is None:
+            height = self.height
         while self._active_frame is None and not self.should_stop:
             pass
-        frame = self._active_frame
-        x = int(frame.shape[1]/2 - self.width/2)
-        y = int(frame.shape[0]/2 - self.height/2)
-        frame = frame[y:y+self.height, x:x+self.width]
-        return frame
+        return center_crop(self._active_frame, width, height)
 
 
 class CameraViewer(Viewer):
@@ -66,7 +105,7 @@ class CameraViewer(Viewer):
     live        = True
     movable     = False
 
-    def __init__(self,  um_width, width=800, height=600, **kwargs):
+    def __init__(self,  um_width, width=800, height=600, assess_focus='laplacian', **kwargs):
         super().__init__(width=width, height=height, **kwargs)
         self.um_width       = um_width
         self.full_width     = 4056
@@ -74,7 +113,8 @@ class CameraViewer(Viewer):
         self.x              = None
         self.y              = None
         self._initialize(width, height)
-        self._use_deepfocus = True
+        self._assess_focus  = assess_focus
+        self.last_preds     = []
 
     @property
     def dimensions(self) -> Tuple[int, int]:
@@ -98,7 +138,7 @@ class CameraViewer(Viewer):
 
     def apply_args(self, args):
         super().apply_args(args)
-        args.use_deepfocus = self._use_deepfocus
+        args.assess_focus = self._assess_focus
 
     def _initialize(self, width, height):
         self.width = width
@@ -161,9 +201,12 @@ class CameraViewer(Viewer):
     def render(self, max_w, max_h):
         # Optional: capture high-quality still image.
         super().render()
+        viz = self.viz
+        config = self.viz._model_config
 
         # Get the image.
-        self._tex_img = self.view = self.camera.capture_frame()
+        self._last_img = self.view
+        self._tex_img = self.view = self.camera.capture_frame(max_w, max_h)
 
         # Normalize.
         if self._normalizer:
@@ -185,20 +228,63 @@ class CameraViewer(Viewer):
             h_pos = (self.x_offset + off_x, self.y_offset + off_y)
             self._tex_obj.draw(pos=h_pos, zoom=1, align=0.5, rint=True, anchor='topleft')
 
+        # Track high-certainty images.
+        # First, check that we have predicions and the image is in focus.
+        if (viz._use_model 
+            and viz._predictions is not None
+            and viz._model_config is not None
+            and viz._use_uncertainty 
+            and viz._uncertainty is not None
+            and (not hasattr(viz.result, 'in_focus') or viz.result.in_focus)):
+            
+            # Establish predictions, UQ, and thresholds.
+            uq = viz._uncertainty
+            pred = viz._predictions
+            if 'thresholds' in config and 'tile_uq' in config['thresholds']:
+                uq_thresh = config['thresholds']['tile_uq']
+            else:
+                uq_thresh = 0.033
+
+            # Only process if the predictions have been updated
+            if len(self.last_preds) and viz._predictions is not self.last_preds[-1][1]:
+                #TODO: expand for more than just single categorical outcome
+
+                if len(self.last_preds) >= 8:
+                    self.last_preds.pop(0)
+                self.last_preds.append((uq, pred))
+                if (uq < uq_thresh 
+                    and len([p for p in self.last_preds if p[0] < uq_thresh]) >= 5
+                    and len([p for p in self.last_preds if p[0] >= uq_thresh*2]) == 0):
+
+                    # Capture high-certainty prediction
+                    from PIL import Image
+                    Image.fromarray(self._last_img).save('high_certainty.png')
+                    print("Captured high-certainty predictions!")
+                    self.capture_animation()
+                    self.viz.create_toast('Captured high-certainty image', icon='success')
+                    self.last_preds = []
+            elif not len(self.last_preds):
+                self.last_preds.append((uq, pred))
+        else:
+            self.last_preds = []
+
+
 class CameraWidget:
 
     tag = 'camera'
     description = 'Camera Viewer'
-    icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_extensions.png')
-    icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_extensions_highlighted.png')
+    icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_camera.png')
+    icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_camera_highlighted.png')
 
     def __init__(self, viz):
         self.viz            = viz
         self.um_width       = 800
         self.content_height = 0
-        self.use_deepfocus  = True
+        self.assess_focus   = 'laplacian'
+        self.focus_methods  = ['laplacian', 'deepfocus']
+        self._focus_idx     = 0
 
-        viewer = CameraViewer(self.um_width, **viz._viewer_kwargs())
+        viewer = CameraViewer(self.um_width, assess_focus=self.assess_focus, **viz._viewer_kwargs())
         viz.set_viewer(viewer)
         viz._use_model_img_fmt = False
 
@@ -207,6 +293,8 @@ class CameraWidget:
         viz = self.viz
 
         if show:
+            viz.header("Camera")
+
             self.content_height = viz.font_size + viz.spacing * 2
             imgui.text('Width (um)')
             imgui.same_line(viz.label_w)
@@ -216,8 +304,11 @@ class CameraWidget:
                 if _changed:
                     viz.viewer.set_um_width(self.um_width)
 
-            _clicked, self.use_deepfocus = imgui.checkbox("Enable DeepFocus", self.use_deepfocus)
-            viz.viewer._use_deepfocus = self.use_deepfocus
+            _, self.assess_focus = imgui.checkbox("Assess Focus", self.assess_focus)
+            imgui.same_line()
+            with imgui_utils.item_width(viz.font_size * 8):
+                _, self._focus_idx = imgui.combo("##focus", self._focus_idx, self.focus_methods)
+            viz.viewer._assess_focus = self.focus_methods[self._focus_idx] if self.assess_focus else None
         else:
             self.content_height = 0
 

@@ -119,6 +119,7 @@ class Studio(ImguiWindow):
         self._show_overlays             = True
         self._show_mpp_zoom_popup       = False
         self._input_mpp                 = 1.
+        self._box_color                 = [1, 0, 0]
         self.theme                      = theme
 
         # Widget interface.
@@ -425,7 +426,7 @@ class Studio(ImguiWindow):
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
             gl.glLineWidth(3)
             box_pos = np.array([self.box_x, self.box_y])
-            gl_utils.draw_rect(pos=box_pos, size=np.array([tw, tw]), color=[1, 0, 0], mode=gl.GL_LINE_LOOP)
+            gl_utils.draw_rect(pos=box_pos, size=np.array([tw, tw]), color=self._box_color, mode=gl.GL_LINE_LOOP)
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
             gl.glLineWidth(1)
 
@@ -1363,13 +1364,14 @@ class Studio(ImguiWindow):
            and self._predictions is not None
            and not isinstance(self._predictions, list)
            and self.viewer is not None):
-            #TODO: support multi-outcome models
-            outcomes = self._model_config['outcome_labels']
-            if self._model_config['model_type'] == 'categorical':
-                pred_str = f'{outcomes[str(np.argmax(self._predictions))]} ({np.max(self._predictions)*100:.1f}%)'
-            else:
-                pred_str = f'{self._predictions[0]:.2f}'
-            self._render_prediction_message(pred_str)
+            if not hasattr(self.result, 'in_focus') or self.result.in_focus:
+                #TODO: support multi-outcome models
+                outcomes = self._model_config['outcome_labels']
+                if self._model_config['model_type'] == 'categorical':
+                    pred_str = f'{outcomes[str(np.argmax(self._predictions))]} ({np.max(self._predictions)*100:.1f}%)'
+                else:
+                    pred_str = f'{self._predictions[0]:.2f}'
+                self._render_prediction_message(pred_str)
 
         # End frame.
         if self._should_close_model:
