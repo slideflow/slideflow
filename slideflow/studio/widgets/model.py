@@ -12,14 +12,7 @@ import slideflow.grad as grad
 
 def scale_uncertainty_bar(val, max_width, uq_threshold=0.033):
     max_uq = uq_threshold * 3
-    width = (min(val, max_uq) / max_uq) * max_width
-    if val < uq_threshold:
-        color = (0, 1, 0, 1)
-    elif val < uq_threshold * 2:
-        color = (1, 1, 0, 1)
-    else:
-        color = (1, 0, 0, 1)
-    return color, width
+    return (min(val, max_uq) / max_uq) * max_width
 
 # -----------------------------------------------------------------------------
 
@@ -50,6 +43,7 @@ class ModelWidget:
         self._show_popup        = False
         self._show_download     = False
         self._last_preds        = None
+        self.uncertainty_color  = (0, 0, 0, 1)
 
         self._saliency_methods_all = {
             'Vanilla': grad.VANILLA,
@@ -266,11 +260,8 @@ class ModelWidget:
                 uq_thresh = config['thresholds']['tile_uq']
             else:
                 uq_thresh = 0.033
-            color, width = scale_uncertainty_bar(uq_array, max_width=w, uq_threshold=uq_thresh)
-            if out_of_focus:
-                color=(0.5, 0.5, 0.5, 1)
-            draw_list.add_rect_filled(x, y, x+width, y+7, imgui.get_color_u32_rgba(*color))
-            viz._box_color = color[0:3]
+            width = scale_uncertainty_bar(uq_array, max_width=w, uq_threshold=uq_thresh)
+            draw_list.add_rect_filled(x, y, x+width, y+7, imgui.get_color_u32_rgba(*self.uncertainty_color))
 
             # Right-aligned text below bar
             cx, cy = imgui.get_cursor_position()
@@ -583,10 +574,38 @@ class ModelWidget:
 
             imgui.end()
 
+    def update_uncertainty_color(self):
+        viz = self.viz
+        c = viz._model_config
+        val = viz._uncertainty
+        
+        if hasattr(viz.result, 'in_focus') and not viz.result.in_focus:
+            color = (0.5, 0.5, 0.5, 1)
+        elif isinstance(val, np.floating):
+            if 'thresholds' in c and 'tile_uq' in c['thresholds']:
+                uq_thresh = c['thresholds']['tile_uq']
+            else:
+                uq_thresh = 0.033
+            if val < uq_thresh:
+                color = (0, 1, 0, 1)
+            elif val < uq_thresh * 2:
+                color = (1, 1, 0, 1)
+            else:
+                color = (1, 0, 0, 1)
+        else:
+            color = (1, 0, 0, 1)
+
+        self.uncertainty_color = color
+        viz._box_color = color[0:3]
+            
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
         config = viz._model_config
+
+        # Color uncertainty
+        self.update_uncertainty_color()
 
         if show:
             with viz.header_with_buttons("Model"):
