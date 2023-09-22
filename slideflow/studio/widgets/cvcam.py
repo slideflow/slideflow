@@ -116,7 +116,10 @@ class CameraViewer(Viewer):
         self._initialize(width, height)
         self._assess_focus  = assess_focus
         self.last_preds     = []
-        self.autocapture    = True
+        self.autocapture    = False
+        self.enhance_contrast = False
+
+        self.clahe = None
 
     @property
     def dimensions(self) -> Tuple[int, int]:
@@ -141,6 +144,15 @@ class CameraViewer(Viewer):
     def apply_args(self, args):
         super().apply_args(args)
         args.assess_focus = self._assess_focus
+
+    def _enhance_contrast(self, img):
+        if self.clahe is None:
+            self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+        l_channel, a, b = cv2.split(lab)
+        cl = self.clahe.apply(l_channel)
+        limg = cv2.merge((cl,a,b))
+        return cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
 
     def _initialize(self, width, height):
         self.width = width
@@ -182,7 +194,10 @@ class CameraViewer(Viewer):
         ratio = self.full_width / self.view.shape[1]
         x = int(self.x / ratio)
         y = int(self.y / ratio)
-        return self.view[y:y+self.extract_px, x:x+self.extract_px, :]
+        view = self.view[y:y+self.extract_px, x:x+self.extract_px, :]
+        if self.enhance_contrast:
+            view = self._enhance_contrast(view)
+        return view
 
     def is_in_view(*args, **kwargs):
         return True
@@ -286,7 +301,8 @@ class CameraWidget:
         self.assess_focus   = 'laplacian'
         self.focus_methods  = ['laplacian', 'deepfocus']
         self._focus_idx     = 0
-        self.autocapture    = True
+        self.autocapture    = False
+        self.enhance_contrast = False
 
         viewer = CameraViewer(self.um_width, assess_focus=self.assess_focus, **viz._viewer_kwargs())
         viz.set_viewer(viewer)
@@ -313,9 +329,12 @@ class CameraWidget:
             with imgui_utils.item_width(viz.font_size * 8):
                 _, self._focus_idx = imgui.combo("##focus", self._focus_idx, self.focus_methods)
             viz.viewer._assess_focus = self.focus_methods[self._focus_idx] if self.assess_focus else None
-            _clicked, self.autocapture = imgui.checkbox("Auto-Capture", self.autocapture)
+            _clicked, self.autocapture = imgui.checkbox("Auto-capture", self.autocapture)
             if _clicked:
                 viz.viewer.autocapture = self.autocapture
+            _clicked, self.enhance_contrast = imgui.checkbox("Enhance contrast", self.enhance_contrast)
+            if _clicked:
+                viz.viewer.enhance_contrast = self.enhance_contrast
         else:
             self.content_height = 0
 
