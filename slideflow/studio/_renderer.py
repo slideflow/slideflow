@@ -310,7 +310,7 @@ class Renderer:
         if full_image is not None:
             if not tile_px:
                 return
-            img = cv2.resize(full_image, (tile_px, tile_px))
+            img = cv2.resize(full_image, (tile_px, tile_px), interpolation=cv2.INTER_LANCZOS4)
             res.image = img
             if assess_focus:
                 w = full_image.shape[0]
