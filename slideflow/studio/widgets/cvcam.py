@@ -54,6 +54,7 @@ class OpenCVCamera:
         while not self.should_stop:
             ret, frame = self.cap.read()
             if ret:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 self._active_frame = frame
 
     def _alignment_tracker(self):
@@ -64,8 +65,8 @@ class OpenCVCamera:
                 now = center_crop(self._active_frame, 512, 512)
                 l_r = last.shape[0] / 256.
                 n_r = now.shape[0] / 256.
-                last = cv2.resize(last, (int(last.shape[1]/l_r), 256))
-                now = cv2.resize(now, (int(now.shape[1]/n_r), 256))
+                last = cv2.resize(last, (int(last.shape[1]/l_r), 256), interpolation=cv2.INTER_LANCZOS4)
+                now = cv2.resize(now, (int(now.shape[1]/n_r), 256), interpolation=cv2.INTER_LANCZOS4)
                 try:
                     alignment = sf.slide.utils.align_by_translation(now, last, h=50, search_window=53)
                     self._align_x += alignment[0]
@@ -115,6 +116,7 @@ class CameraViewer(Viewer):
         self._initialize(width, height)
         self._assess_focus  = assess_focus
         self.last_preds     = []
+        self.autocapture    = True
 
     @property
     def dimensions(self) -> Tuple[int, int]:
@@ -230,7 +232,8 @@ class CameraViewer(Viewer):
 
         # Track high-certainty images.
         # First, check that we have predicions and the image is in focus.
-        if (viz._use_model 
+        if (self.autocapture
+            and viz._use_model 
             and viz._predictions is not None
             and viz._model_config is not None
             and viz._use_uncertainty 
@@ -283,6 +286,7 @@ class CameraWidget:
         self.assess_focus   = 'laplacian'
         self.focus_methods  = ['laplacian', 'deepfocus']
         self._focus_idx     = 0
+        self.autocapture    = True
 
         viewer = CameraViewer(self.um_width, assess_focus=self.assess_focus, **viz._viewer_kwargs())
         viz.set_viewer(viewer)
@@ -309,6 +313,9 @@ class CameraWidget:
             with imgui_utils.item_width(viz.font_size * 8):
                 _, self._focus_idx = imgui.combo("##focus", self._focus_idx, self.focus_methods)
             viz.viewer._assess_focus = self.focus_methods[self._focus_idx] if self.assess_focus else None
+            _clicked, self.autocapture = imgui.checkbox("Auto-Capture", self.autocapture)
+            if _clicked:
+                viz.viewer.autocapture = self.autocapture
         else:
             self.content_height = 0
 
