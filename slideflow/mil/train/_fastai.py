@@ -94,6 +94,7 @@ def _build_clam_learner(
 
     Args:
         config (``TrainerConfigFastAI``): Trainer and model configuration.
+        bags (list(str)): Path to .pt files (bags) with features, one per patient.
         targets (np.ndarray): Category labels for each patient, in the same
             order as ``bags``.
         train_idx (np.ndarray, int): Indices of bags/targets that constitutes
