@@ -299,6 +299,7 @@ def build_fastai_learner(
             of paths to individual \*.pt files. Each file should contain
             exported feature vectors, with each file containing all tile
             features for one patient.
+            # FIXME: at this point bags is never still a string, it is always a list of strings
 
     Keyword args:
         outdir (str): Directory in which to save model and results.
@@ -328,14 +329,15 @@ def build_fastai_learner(
     else:
         bags = np.array(bags)
 
+    train_slides = train_dataset.slides()
+    val_slides = val_dataset.slides()
+
     if config.aggregation_level == 'slide':
         targets = np.array([labels[path_to_name(f)] for f in bags])
 
-            # Prepare training/validation indices
-        train_slides = train_dataset.slides()
+        # Prepare training/validation indices
         train_idx = np.array([i for i, bag in enumerate(bags)
                                 if path_to_name(bag) in train_slides])
-        val_slides = val_dataset.slides()
         val_idx = np.array([i for i, bag in enumerate(bags)
                                 if path_to_name(bag) in val_slides])
         
@@ -390,7 +392,6 @@ def build_fastai_learner(
             labels=patients_labels,
             filename=join(outdir, 'slide_manifest.csv')
         )
-
 
     # Build FastAI Learner
     learner, (n_in, n_out) = _fastai.build_learner(

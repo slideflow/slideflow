@@ -87,7 +87,10 @@ class BagDataset(Dataset):
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
         # collect all the features
-        feats = torch.load(self.bags[index])
+        if isinstance(self.bags[index], str):
+            feats = torch.load(self.bags[index])
+        else:
+            feats = torch.cat([torch.load(slide) for slide in self.bags[index]])
 
         # sample a subset, if required
         if self.bag_size:
