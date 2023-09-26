@@ -295,11 +295,9 @@ def build_fastai_learner(
         val_dataset (:class:`slideflow.Dataset`): Validation dataset.
         outcomes (str): Outcome column (annotation header) from which to
             derive category labels.
-        bags (str): Either a path to directory with \*.pt files, or a list
-            of paths to individual \*.pt files. Each file should contain
-            exported feature vectors, with each file containing all tile
+        bags (str): list of paths to individual \*.pt files. Each file should
+            contain exported feature vectors, with each file containing all tile
             features for one patient.
-            # FIXME: at this point bags is never still a string, it is always a list of strings
 
     Keyword args:
         outdir (str): Directory in which to save model and results.
@@ -321,7 +319,7 @@ def build_fastai_learner(
     labels.update(val_labels)
     unique_categories = np.unique(unique_train + unique_val)
 
-    # Prepare bags and targets
+    # Prepare bags
     if isinstance(bags, str):
         train_bags = train_dataset.pt_files(bags)
         val_bags = val_dataset.pt_files(bags)
@@ -333,6 +331,7 @@ def build_fastai_learner(
     val_slides = val_dataset.slides()
 
     if config.aggregation_level == 'slide':
+        # Prepare targets
         targets = np.array([labels[path_to_name(f)] for f in bags])
 
         # Prepare training/validation indices
@@ -341,8 +340,10 @@ def build_fastai_learner(
         val_idx = np.array([i for i, bag in enumerate(bags)
                                 if path_to_name(bag) in val_slides])
         
-        log.info("Training dataset: {} bags (from {} slides)".format(len(train_idx), len(train_slides)))
-        log.info("Validation dataset: {} bags (from {} slides)".format(len(val_idx), len(val_slides)))
+        log.info("Training dataset: {} bags (from {} slides)".format(
+            len(train_idx), len(train_slides)))
+        log.info("Validation dataset: {} bags (from {} slides)".format(
+            len(val_idx), len(val_slides)))
 
         # Write slide/bag manifest
         sf.util.log_manifest(
@@ -353,9 +354,9 @@ def build_fastai_learner(
         )
 
     elif config.aggregation_level == 'patient':
-        slide_patients_dict = {**train_dataset.patients(), **val_dataset.patients()}
-        
         # create dict for storing association between patients and their slides
+        slide_patients_dict = {
+            **train_dataset.patients(), **val_dataset.patients()}
         patient_slide_association = {patient: [] for patient in slide_patients_dict.values()}
         for slide_path in bags:
             slide_name = path_to_name(slide_path)
@@ -364,7 +365,6 @@ def build_fastai_learner(
                 patient_slide_association[patient].append(slide_path)     
 
         # create array where each element contains the list of slides for a patient
-        # bags = list(patient_slide_association.values()) # FIXME: list of list or array of list?
         bags = np.array([lst for lst in patient_slide_association.values()], dtype=object)
 
         # get patients labels
@@ -382,8 +382,10 @@ def build_fastai_learner(
         val_idx = np.array([i for i, bag in enumerate(bags)
                                 if path_to_name(bag[0]) in val_slides])
 
-        log.info("Training dataset: {} bags (from {} slides)".format(len(train_idx), len(train_slides)))
-        log.info("Validation dataset: {} bags (from {} slides)".format(len(val_idx), len(val_slides)))
+        log.info("Training dataset: {} bags (from {} slides)".format(
+            len(train_idx), len(train_slides)))
+        log.info("Validation dataset: {} bags (from {} slides)".format(
+            len(val_idx), len(val_slides)))
 
         # Write patient/bag manifest
         sf.util.log_manifest(
