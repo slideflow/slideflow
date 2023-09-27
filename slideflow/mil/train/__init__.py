@@ -7,7 +7,7 @@ from os.path import join, exists
 from typing import Union, List, Optional, TYPE_CHECKING
 from slideflow import Dataset, log
 from slideflow.util import path_to_name
-from os.path import join
+from os.path import join, isdir
 
 from ..eval import predict_from_model, generate_attention_heatmaps, _export_attention
 from .._params import (
@@ -320,7 +320,7 @@ def build_fastai_learner(
     unique_categories = np.unique(unique_train + unique_val)
 
     # Prepare bags
-    if isinstance(bags, str):
+    if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
         train_bags = train_dataset.pt_files(bags)
         val_bags = val_dataset.pt_files(bags)
         bags = np.concatenate((train_bags, val_bags))
@@ -330,6 +330,7 @@ def build_fastai_learner(
     train_slides = train_dataset.slides()
     val_slides = val_dataset.slides()
 
+    # Aggregate feature bags across slides or patients.
     if config.aggregation_level == 'slide':
         # Prepare targets
         targets = np.array([labels[path_to_name(f)] for f in bags])
@@ -352,16 +353,15 @@ def build_fastai_learner(
             labels=labels,
             filename=join(outdir, 'slide_manifest.csv')
         )
-
     elif config.aggregation_level == 'patient':
         # Associate patients and their slides
         slide_to_patient = { **train_dataset.patients(),
                              **val_dataset.patients() }
         patient_to_slide = {patient: [] for patient in slide_to_patient.values()}
         for slide_path in bags:
-            slide_name = path_to_name(slide_path)
-            if slide_name in slide_to_patient:
-                patient = slide_to_patient[slide_name]
+            slide = path_to_name(slide_path)
+            if slide in slide_to_patient:
+                patient = slide_to_patient[slide]
                 patient_to_slide[patient].append(slide_path)
 
         # Create array where each element contains the list of slides for a patient.
@@ -370,9 +370,9 @@ def build_fastai_learner(
         # Get patients' labels
         patients_labels = {}
         for patient_bag in bags:
-            slide_name = path_to_name(patient_bag[0])
-            patient_code = slide_to_patient[slide_name]
-            patients_labels[patient_code] = labels[slide_name]
+            slide = path_to_name(patient_bag[0])
+            patient_code = slide_to_patient[slide]
+            patients_labels[patient_code] = labels[slide]
 
         # Prepare targets
         targets = np.array([patients_labels[patient] for patient in slide_to_patient.values()])
