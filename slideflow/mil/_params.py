@@ -103,6 +103,7 @@ class TrainerConfigFastAI(_TrainerConfig):
         self,
         model: Union[str, Callable] = 'attention_mil',
         *,
+        aggregation_level: str = 'slide',
         lr: Optional[float] = None,
         wd: float = 1e-5,
         bag_size: int = 512,
@@ -124,6 +125,9 @@ class TrainerConfigFastAI(_TrainerConfig):
                 ``"transmil"``.
 
         Keyword args:
+            aggregation_level (str): When equal to ``'slide'`` each bag
+                contains tiles from a single slide. When equal to ``'patient'``
+                tiles from all slides of a patient are grouped together.
             lr (float, optional): Learning rate. If ``fit_one_cycle=True``,
                 this is the maximum learning rate. If None, uses the Leslie
                 Smith `LR Range test <https://arxiv.org/abs/1506.01186>`_ to
@@ -140,6 +144,7 @@ class TrainerConfigFastAI(_TrainerConfig):
                 :class:`slideflow.mil.ModelConfigFastAI` for all other models.
 
         """
+        self.aggregation_level = aggregation_level
         self.lr = lr
         self.wd = wd
         self.bag_size = bag_size

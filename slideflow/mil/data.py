@@ -68,13 +68,18 @@ def _to_fixed_size_bag(
 class BagDataset(Dataset):
     """A dataset of bags of instances."""
 
-    bags: List[Path]
-    """The `.h5` files containing the bags.
-    Each bag consists of the features taken from one or multiple h5 files.
-    Each of the h5 files needs to have a dataset called `feats` of shape N x
-    F, where N is the number of instances and F the number of features per
-    instance.
+    bags: Union[List[Path], List[np.ndarray], List[torch.Tensor], List[List[str]]]
+    """Bags for each slide.
+
+    This can either be a list of `.pt` files, a list of numpy arrays, a list
+    of Tensors, or a list of lists of strings (where each item in the list is
+    a patient, and nested items are slides for that patient).
+
+    Each bag consists of features taken from all images from a slide. Data
+    should be of shape N x F, where N is the number of instances and F is the
+    number of features per instance/slide.
     """
+
     bag_size: Optional[int] = None
     """The number of instances in each bag.
     For bags containing more instances, a random sample of `bag_size`
@@ -87,7 +92,14 @@ class BagDataset(Dataset):
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
         # collect all the features
-        feats = torch.load(self.bags[index])
+        if isinstance(self.bags[index], str):
+            feats = torch.load(self.bags[index])
+        elif isinstance(self.bags[index], np.ndarray):
+            feats = torch.from_numpy(self.bags[index])
+        elif isinstance(self.bags[index], torch.Tensor):
+            feats = self.bags[index]
+        else:
+            feats = torch.cat([torch.load(slide) for slide in self.bags[index]])
 
         # sample a subset, if required
         if self.bag_size:
