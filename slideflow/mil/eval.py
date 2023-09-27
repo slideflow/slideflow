@@ -12,9 +12,9 @@ from slideflow.util import path_to_name
 from slideflow.model.extractors import rebuild_extractor
 from slideflow.stats.metrics import ClassifierMetrics
 from ._params import (
-    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
+    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM, TrainerConfigFastAI
 )
-from .utils import load_model_weights, _load_bag
+from . import utils
 
 if TYPE_CHECKING:
     import torch
@@ -91,7 +91,7 @@ def eval_mil(
     n_out = len(unique)
 
     # Load model
-    model, config = load_model_weights(weights, config)
+    model, config = utils.load_model_weights(weights, config)
 
     # Inference.
     if (isinstance(config, TrainerConfigCLAM)
@@ -153,7 +153,7 @@ def predict_slide(
     normalizer: Optional["StainNormalizer"] = None,
     config: Optional[_TrainerConfig] = None,
     attention: bool = False,
-    native_normalizer: Optional[bool] = True, 
+    native_normalizer: Optional[bool] = True,
     extractor_kwargs: Optional[dict] = None,
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """Generate predictions (and attention) for a single slide.
@@ -219,7 +219,7 @@ def predict_slide(
         normalizer = detected_normalizer
 
     # Load model
-    model_fn, config = load_model_weights(model, config)
+    model_fn, config = utils.load_model_weights(model, config)
     mil_params = sf.util.load_json(join(model, 'mil_params.json'))
     if 'bags_extractor' not in mil_params:
         raise ValueError(
@@ -317,10 +317,25 @@ def predict_from_model(
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
 
-    # Ensure slide names are sorted according to the bags.
-    slides = [path_to_name(b) for b in bags]
+    # Aggregate bags by slide or patient.
+    if (isinstance(config, TrainerConfigFastAI)
+        and config.aggregation_level == 'patient'):
 
-    y_true = np.array([labels[s] for s in slides])
+        # Get nested list of bags, aggregated by slide.
+        slide_to_patient = dataset.patients()
+        bags, y_true = utils.aggregate_bags_by_patient(bags, labels, slide_to_patient)
+
+        # Create prediction dataframe.
+        patients = [slide_to_patient[path_to_name(b[0])] for b in bags]
+        df_dict = dict(patient=patients, y_true=y_true)
+
+    else:
+        # Ensure slide names are sorted according to the bags.
+        slides = [path_to_name(b) for b in bags]
+        y_true = np.array([labels[s] for s in slides])
+
+        # Create prediction dataframe.
+        df_dict = dict(slide=slides, y_true=y_true)
 
     # Inference.
     if (isinstance(config, TrainerConfigCLAM)
@@ -331,8 +346,7 @@ def predict_from_model(
             model, bags, attention=attention, use_lens=config.model_config.use_lens
         )
 
-    # Create dataframe.
-    df_dict = dict(slide=slides, y_true=y_true)
+    # Update dataframe with predictions.
     for i in range(y_pred.shape[-1]):
         df_dict[f'y_pred{i}'] = y_pred[:, i]
     df = pd.DataFrame(df_dict)
@@ -462,7 +476,11 @@ def _predict_clam(
     y_att  = []
     log.info("Generating predictions...")
     for bag in bags:
-        loaded = _load_bag(bag).to(device)
+        if isinstance(bag, list):
+            # If bags are passed as a list of paths, load them individually.
+            loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
+        else:
+            loaded = utils._load_bag(bag).to(device)
         with torch.no_grad():
             if clam_kw:
                 logits, att, _ = model(loaded, **clam_kw)
@@ -506,7 +524,12 @@ def _predict_mil(
         )
         attention = False
     for bag in bags:
-        loaded = torch.unsqueeze(_load_bag(bag).to(device), dim=0)
+        if isinstance(bag, list):
+            # If bags are passed as a list of paths, load them individually.
+            loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
+        else:
+            loaded = utils._load_bag(bag).to(device)
+        loaded = torch.unsqueeze(loaded, dim=0)
         with torch.no_grad():
             if use_lens:
                 lens = torch.from_numpy(np.array([loaded.shape[1]])).to(device)
