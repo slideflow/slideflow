@@ -34,7 +34,7 @@ class MILFeatures:
         model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
         bags: Union[np.ndarray, List[str], str],
         *,
-        slides: Optional[list],
+        slides: Optional[list] = None,
         config: Optional[_TrainerConfig] = None,
         dataset: Optional["sf.Dataset"] = None,
         attention_pooling: Optional[str] = 'avg',
@@ -81,13 +81,19 @@ class MILFeatures:
                              if path_to_name(b) in dataset.slides()])
 
         # Determine slides.
-        self.slides = np.array([path_to_name(b) for b in bags])
+        if bags:
+            self.slides = np.array([path_to_name(b) for b in bags])
+        else:
+            self.slides = None
 
         # --- Prepare model ---------------------------------------------------
         # Load or build the model.
         if isinstance(model, str):
             self.model, config = load_model_weights(model, config)
-            use_lens = config.model_config.use_lens
+            if isinstance(self.model, Attention_MIL) or isinstance(self.model, TransMIL):
+                use_lens = config.model_config.use_lens
+            else:
+                use_lens = False
         else:
             self.model = model
             if isinstance(model, Attention_MIL):
@@ -97,8 +103,8 @@ class MILFeatures:
 
         # Ensure model is compatible.
         acceptable_models = ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
-        if config.model_config.model.lower() not in acceptable_models:
-            raise errors.ModelErrors(
+        if config and config.model_config.model.lower() not in acceptable_models:
+            raise errors.ModelError(
                 f"Model {config.model_config.model} is not supported.")
         
         # --- Generate activations --------------------------------------------
@@ -130,6 +136,10 @@ class MILFeatures:
             device (Any): device backend for torch tensors
         """
         import torch
+
+        #If None, None initialization in from_df:
+        if not model and not bags:
+            return None, None, None, None
 
         # Auto-detect device.
         if device is None:
@@ -249,6 +259,8 @@ class MILFeatures:
 
     def _format(self, column):
         """Formats dataframe columns to numpy arrays of floats"""
+        if type(column) is not 'str' or column.dtype == 'float32':
+            return column
         numbers = re.findall(r'-?\d+\.\d+', column)
         # Convert numbers to floats
         return np.array([float(num) for num in numbers])
@@ -262,7 +274,7 @@ class MILFeatures:
     ) -> None:
         """Load MILFeatures of activations, as exported by 
         :meth:`MILFeatures.to_df()`"""
-        obj = cls(None, None, None, None)
+        obj = cls(None, None)
         if 'slide' in df.columns:
             obj.slides = df['slide'].values
         elif df.index.name == 'slide':

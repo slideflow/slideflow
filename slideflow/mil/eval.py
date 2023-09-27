@@ -377,7 +377,7 @@ def generate_mil_features(
     slides = [path_to_name(b) for b in bags]
 
     # Calculate and return last-layer features.
-    return MILFeatures(model, bags, slides, dataset.annotations)
+    return MILFeatures(model, bags, slides=slides, config=config, dataset=dataset)
 
 
 def generate_attention_heatmaps(
