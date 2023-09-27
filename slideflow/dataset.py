@@ -952,6 +952,11 @@ class Dataset:
         """
         if force:
             index_to_update = self.tfrecords()
+            # Remove existing indices
+            for tfr in self.tfrecords():
+                index = tfrecord2idx.find_index(tfr)
+                if index:
+                    os.remove(index)
         else:
             index_to_update = []
             for tfr in self.tfrecords():
