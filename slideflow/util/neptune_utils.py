@@ -71,9 +71,9 @@ class NeptuneLog:
             for key in hp_data.keys()
             if 'validation' in key
         }
-        self.run['backend'] = sf.backend()        
+        self.run['backend'] = sf.backend()
         self.run['project_info'] = {key: stringify_unsupported(hp_data[key]) for key in proj_keys}
-        self.run['outcomes'] = str(outcomes) #Why?
+        self.run['outcomes'] = outcomes
         self.run['model_params/validation'] = stringify_unsupported(validation_params)
         self._log_hp(hp_data, 'stage', 'stage')
         self._log_hp(hp_data, 'model_params/hp', 'hp')
