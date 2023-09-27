@@ -2348,17 +2348,26 @@ class Dataset:
         """Return list of \*.pt files with slide names in this dataset.
 
         Args:
-            path (str): Directory to search for \*.pt files.
+            path (str, list(str)): Directory(ies) to search for \*.pt files.
             warn_missing (bool): Raise a warning if any slides in this dataset
                 do not have a \*.pt file.
 
         """
         slides = self.slides()
-        bags = np.array([
-            join(path, f) for f in os.listdir(path)
-            if f.endswith('.pt') and path_to_name(f) in slides
-        ])
-        if (len(bags) != len(slides)) and warn_missing:
+        if isinstance(path, str):
+            path = [path]
+        bags = []
+        for p in path:
+            if not exists(p):
+                raise ValueError(f"Path {p} does not exist.")
+            bags_at_path = np.array([
+                join(path, f) for f in os.listdir(path)
+                if f.endswith('.pt') and path_to_name(f) in slides
+            ])
+            bags.append(bags_at_path)
+        bags = np.concatenate(bags)
+        unique_slides_with_bags = np.unique([path_to_name(b) for b in bags])
+        if (len(unique_slides_with_bags) != len(slides)) and warn_missing:
             log.warning(f"Bags missing for {len(slides) - len(bags)} slides.")
         return bags
 
