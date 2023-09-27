@@ -2345,7 +2345,9 @@ class Dataset:
         return result
 
     def pt_files(self, path, warn_missing=True):
-        """Return list of \*.pt files with slide names in this dataset.
+        """Return list of all \*.pt files with slide names in this dataset.
+
+        May return more than one *.pt file for each slide.
 
         Args:
             path (str, list(str)): Directory(ies) to search for \*.pt files.
@@ -2356,19 +2358,20 @@ class Dataset:
         slides = self.slides()
         if isinstance(path, str):
             path = [path]
+
         bags = []
         for p in path:
             if not exists(p):
                 raise ValueError(f"Path {p} does not exist.")
             bags_at_path = np.array([
-                join(path, f) for f in os.listdir(path)
+                join(p, f) for f in os.listdir(p)
                 if f.endswith('.pt') and path_to_name(f) in slides
             ])
             bags.append(bags_at_path)
         bags = np.concatenate(bags)
         unique_slides_with_bags = np.unique([path_to_name(b) for b in bags])
         if (len(unique_slides_with_bags) != len(slides)) and warn_missing:
-            log.warning(f"Bags missing for {len(slides) - len(bags)} slides.")
+            log.warning(f"Bags missing for {len(slides) - len(unique_slides_with_bags)} slides.")
         return bags
 
     def read_tfrecord_by_location(

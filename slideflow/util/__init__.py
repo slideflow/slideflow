@@ -631,7 +631,8 @@ def log_manifest(
     val_tfrecords: Optional[List[str]] = None,
     *,
     labels: Optional[Dict[str, Any]] = None,
-    filename: Optional[str] = None
+    filename: Optional[str] = None,
+    remove_extension: bool = True
 ) -> str:
     """Saves the training manifest in CSV format and returns as a string.
 
@@ -640,8 +641,12 @@ def log_manifest(
             Defaults to None.
         val_tfrecords (list(str)], optional): List of validation TFRecords.
             Defaults to None.
+
+    Keyword args:
         labels (dict, optional): TFRecord outcome labels. Defaults to None.
         filename (str, optional): Path to CSV file to save. Defaults to None.
+        remove_extension (bool, optional): Remove file extension from slide
+            names. Defaults to True.
 
     Returns:
         str: Saved manifest in str format.
@@ -654,14 +659,20 @@ def log_manifest(
     if train_tfrecords or val_tfrecords:
         if train_tfrecords:
             for tfrecord in train_tfrecords:
-                slide = sf.util.path_to_name(tfrecord)
+                if remove_extension:
+                    slide = sf.util.path_to_name(tfrecord)
+                else:
+                    slide = tfrecord
                 outcome_label = labels[slide] if labels else 'NA'
                 out += ' '.join([slide, 'training', str(outcome_label)])
                 if filename:
                     writer.writerow([slide, 'training', outcome_label])
         if val_tfrecords:
             for tfrecord in val_tfrecords:
-                slide = sf.util.path_to_name(tfrecord)
+                if remove_extension:
+                    slide = sf.util.path_to_name(tfrecord)
+                else:
+                    slide = tfrecord
                 outcome_label = labels[slide] if labels else 'NA'
                 out += ' '.join([slide, 'validation', str(outcome_label)])
                 if filename:
