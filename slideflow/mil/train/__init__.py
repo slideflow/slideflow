@@ -336,10 +336,10 @@ def build_fastai_learner(
 
         # Prepare training/validation indices
         train_idx = np.array([i for i, bag in enumerate(bags)
-                                if path_to_name(bag) in train_slides])
+                              if path_to_name(bag) in train_slides])
         val_idx = np.array([i for i, bag in enumerate(bags)
-                                if path_to_name(bag) in val_slides])
-        
+                            if path_to_name(bag) in val_slides])
+
         log.info("Training dataset: {} bags (from {} slides)".format(
             len(train_idx), len(train_slides)))
         log.info("Validation dataset: {} bags (from {} slides)".format(
@@ -354,33 +354,34 @@ def build_fastai_learner(
         )
 
     elif config.aggregation_level == 'patient':
-        # create dict for storing association between patients and their slides
-        slide_patients_dict = {
-            **train_dataset.patients(), **val_dataset.patients()}
-        patient_slide_association = {patient: [] for patient in slide_patients_dict.values()}
+        # Associate patients and their slides
+        slide_to_patient = { **train_dataset.patients(),
+                             **val_dataset.patients() }
+        patient_to_slide = {patient: [] for patient in slide_to_patient.values()}
         for slide_path in bags:
             slide_name = path_to_name(slide_path)
-            if slide_name in slide_patients_dict:
-                patient = slide_patients_dict[slide_name]
-                patient_slide_association[patient].append(slide_path)     
+            if slide_name in slide_to_patient:
+                patient = slide_to_patient[slide_name]
+                patient_to_slide[patient].append(slide_path)
 
-        # create array where each element contains the list of slides for a patient
-        bags = np.array([lst for lst in patient_slide_association.values()], dtype=object)
+        # Create array where each element contains the list of slides for a patient.
+        bags = np.array([lst for lst in patient_to_slide.values()], dtype=object)
 
-        # get patients labels
+        # Get patients' labels
         patients_labels = {}
         for patient_bag in bags:
             slide_name = path_to_name(patient_bag[0])
-            patient_code = slide_patients_dict[slide_name]
+            patient_code = slide_to_patient[slide_name]
             patients_labels[patient_code] = labels[slide_name]
 
-        targets = np.array([patients_labels[patient] for patient in slide_patients_dict.values()])
+        # Prepare targets
+        targets = np.array([patients_labels[patient] for patient in slide_to_patient.values()])
 
         # Prepare training/validation indices for patients
         train_idx = np.array([i for i, bag in enumerate(bags)
-                                if path_to_name(bag[0]) in train_slides])
+                              if path_to_name(bag[0]) in train_slides])
         val_idx = np.array([i for i, bag in enumerate(bags)
-                                if path_to_name(bag[0]) in val_slides])
+                            if path_to_name(bag[0]) in val_slides])
 
         log.info("Training dataset: {} bags (from {} slides)".format(
             len(train_idx), len(train_slides)))
@@ -389,8 +390,8 @@ def build_fastai_learner(
 
         # Write patient/bag manifest
         sf.util.log_manifest(
-            [slide_patients_dict[path_to_name(bag[0])] for bag in bags if path_to_name(bag[0]) in train_slides],
-            [slide_patients_dict[path_to_name(bag[0])] for bag in bags if path_to_name(bag[0]) in val_slides],
+            [slide_to_patient[path_to_name(bag[0])] for bag in bags if path_to_name(bag[0]) in train_slides],
+            [slide_to_patient[path_to_name(bag[0])] for bag in bags if path_to_name(bag[0]) in val_slides],
             labels=patients_labels,
             filename=join(outdir, 'slide_manifest.csv')
         )
