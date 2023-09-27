@@ -1,12 +1,11 @@
 import random
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
-import neptune as neptune
-from neptune.utils import stringify_unsupported
 
 import slideflow as sf
 from slideflow.util import log
 
 if TYPE_CHECKING:
+    import neptune
     from slideflow import Dataset
 
 
@@ -53,6 +52,8 @@ class NeptuneLog:
     def log_config(self, hp_data: Dict, stage: str) -> None:
         '''Logs model hyperparameter data according to the given stage
         ('train' or 'eval')'''
+
+        from neptune.utils import stringify_unsupported
 
         proj_keys = ['dataset_config', 'sources']
         model_keys = ['model_name', 'model_type', 'k_fold_i', 'outcomes']
