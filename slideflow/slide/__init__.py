@@ -2745,7 +2745,7 @@ class WSI(_BaseLoader):
         from slideflow.studio import Studio
 
         studio = Studio()
-        studio.load_slide(self.path, stride=self.stride_div)
+        studio.load_slide(self.path, stride=self.stride_div, tile_px=self.tile_px, tile_um=self.tile_um)
         studio.run()
 
 

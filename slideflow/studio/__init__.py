@@ -736,6 +736,8 @@ class Studio(ImguiWindow):
         path: Optional[str] = None,
         stride: Optional[int] = None,
         use_rois: bool = True,
+        tile_px: Optional[int] = None,
+        tile_um: Optional[Union[str, int]] = None,
         **kwargs
     ) -> bool:
         """Reload the currently loaded Whole-Slide Image.
@@ -766,11 +768,15 @@ class Studio(ImguiWindow):
             rois = None
         if sf.slide_backend() == 'cucim':
             kwargs['num_workers'] = sf.util.num_cpu(default=4)
+        if tile_px is None:
+            tile_px = (self.tile_px if self.tile_px else 256)
+        if tile_um is None:
+            tile_um = (self.tile_um if self.tile_um else 512)
         try:
             self.wsi = sf.WSI(
                 path,
-                tile_px=(self.tile_px if self.tile_px else 256),
-                tile_um=(self.tile_um if self.tile_um else 512),
+                tile_px=tile_px,
+                tile_um=tile_um,
                 stride_div=stride,
                 rois=rois,
                 cache_kw=dict(
