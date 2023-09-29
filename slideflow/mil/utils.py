@@ -137,6 +137,61 @@ def _load_bag(bag: Union[str, np.ndarray, "torch.Tensor"]) -> "torch.Tensor":
         )
 
 
+def _detect_device(
+    model: "torch.nn.Module",
+    device: Optional[str] = None,
+    verbose: bool = False
+) -> "torch.device":
+    """Auto-detect device from the given model."""
+    import torch
+
+    if device is None:
+        device = next(model.parameters()).device
+        # Alternative method:
+        # if next(model.parameters()).is_cuda: device = torch.device('cuda')
+        if verbose:
+            log.debug(f"Auto device detection: using {device}")
+    elif isinstance(device, str):
+        if verbose:
+            log.debug(f"Using {device}")
+        device = torch.device(device)
+    return device
+
+
+def _get_nested_bags(dataset, bag_directories):
+    # This is a nested list of bag paths, where each nested list contains
+    # the paths to bags at one magnification level.
+    _matching_bag_paths = [dataset.pt_files(b) for b in bag_directories]
+
+    # Convert the above to a nested list of slide names.
+    _nested_slides = [[path_to_name(b) for b in _bag] for _bag in _matching_bag_paths]
+
+    # Identify the subset of slide names present in all of the outer lists.
+    # These are the slides that have bags at all magnification levels.
+    slides = list(set.intersection(*[set(s) for s in _nested_slides]))
+
+    # Filter the bags to only those that have all magnification levels.
+    nested_bag_paths = [
+        [b for b in _bag if path_to_name(b) in slides]
+        for _bag in _matching_bag_paths
+    ]
+    assert(all([len(b) == len(slides) for b in nested_bag_paths]))
+    nested_bags = np.array(nested_bag_paths)  # shape: (num_modes, num_train_slides)
+    # Transpose the above, so that each row is a slide, and each column is a
+    # magnification level.
+    nested_bags = nested_bags.T  # shape: (num_train_slides, num_modes)
+
+    # Sort the slides by the bag order.
+    slides = np.array(slides)
+    slides = slides[np.argsort(slides)]
+    bag_to_slide = np.array([path_to_name(b) for b in nested_bags[:, 0]])
+    bag_order = np.argsort(bag_to_slide)
+    nested_bags = nested_bags[bag_order]
+    assert(np.all(bag_to_slide[bag_order] == slides))
+
+    return nested_bags, list(slides)
+
+
 def aggregate_bags_by_slide(
     bags: np.ndarray,
     labels: Dict[str, int],
