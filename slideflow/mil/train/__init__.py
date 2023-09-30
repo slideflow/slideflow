@@ -536,16 +536,36 @@ def build_multimodal_learner(
         remove_extension=False
     )
 
-    # Print a detailed multi-modal dataset summary.
-    log.info("Multi-modal MIL training summary:")
-    log.info("  - Modes: {}".format(num_modes))
-    log.info("  - Slides with bags: {}".format(len(np.unique(all_slides))))
-    log.info("  - Multi-modal bags: {}".format(all_bags.shape[0]))
-    log.info("  - Unique categories: {}".format(len(unique_categories)))
-    log.info("  - Training multi-modal bags: {}".format(len(train_idx)))
-    log.info("  - Training slides: {}".format(len(np.unique(train_slides))))
-    log.info("  - Validation multi-modal bags: {}".format(len(val_idx)))
-    log.info("  - Validation slides: {}".format(len(np.unique(val_slides))))
+    # Print a multi-modal dataset summary.
+    log.info(
+        "[bold]Multi-modal MIL training summary:[/]"
+        + "\n  - [blue]Modes[/]: {}".format(num_modes)
+        + "\n  - [blue]Slides with bags[/]: {}".format(len(np.unique(all_slides)))
+        + "\n  - [blue]Multi-modal bags[/]: {}".format(all_bags.shape[0])
+        + "\n  - [blue]Unique categories[/]: {}".format(len(unique_categories))
+        + "\n  - [blue]Training multi-modal bags[/]: {}".format(len(train_idx))
+        + "\n  - [blue]Training slides[/]: {}".format(len(np.unique(train_slides)))
+        + "\n  - [blue]Validation multi-modal bags[/]: {}".format(len(val_idx))
+        + "\n  - [blue]Validation slides[/]: {}".format(len(np.unique(val_slides)))
+    )
+
+    # Print a detailed summary of each mode.
+    for i, mode in enumerate(bags):
+        try:
+            bags_config = sf.util.load_json(join(mode, 'bags_config.json'))
+        except Exception:
+            log.info(
+                "Mode {i}: "
+                + "\n  - Bags: {}".format(mode)
+            )
+        else:
+            log.info(
+                f"[bold]Mode {i+1}[/]: [green]{mode}[/]"
+                + "\n  - Feature extractor: [purple]{}[/]".format(bags_config['extractor']['class'].split('.')[-1])
+                + "\n  - Tile size (px): {}".format(bags_config['tile_px'])
+                + "\n  - Tile size (um): {}".format(bags_config['tile_um'])
+                + "\n  - Normalizer: {}".format(bags_config['normalizer'])
+            )
 
     # --- Build FastAI Learner ------------------------------------------------
 

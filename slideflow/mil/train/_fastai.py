@@ -163,7 +163,7 @@ def _build_clam_learner(
     n_classes = batch[-1].shape[-1]
     config_size = config.model_fn.sizes[config.model_config.model_size]
     model_size = [n_features] + config_size[1:]
-    log.info(f"Training model {config.model_fn.__name__} "
+    log.info(f"Training model [bold]{config.model_fn.__name__}[/] "
              f"(size={model_size}, loss={config.loss_fn.__name__})")
     model = config.model_fn(size=model_size, n_classes=n_classes)
 
@@ -260,7 +260,7 @@ def _build_fastai_learner(
     # Prepare model.
     batch = train_dl.one_batch()
     n_in, n_out = batch[0].shape[-1], batch[-1].shape[-1]
-    log.info(f"Training model {config.model_fn.__name__} "
+    log.info(f"Training model [bold]{config.model_fn.__name__}[/] "
              f"(in={n_in}, out={n_out}, loss={config.loss_fn.__name__})")
     model = config.model_fn(n_in, n_out).to(device)
     if hasattr(model, 'relocate'):
@@ -372,7 +372,7 @@ def _build_multimodal_learner(
         n_in = [b.shape[-1] for b in batch[:-1][0]]
     n_out = batch[-1].shape[-1]
 
-    log.info(f"Training model {config.model_fn.__name__} "
+    log.info(f"Training model [bold]{config.model_fn.__name__}[/] "
              f"(in={n_in}, out={n_out}, loss={config.loss_fn.__name__})")
     model = config.model_fn(n_in, n_out).to(device)
     if hasattr(model, 'relocate'):
