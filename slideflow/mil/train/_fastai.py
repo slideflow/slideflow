@@ -358,7 +358,7 @@ def _build_multimodal_learner(
         val_dataset,
         batch_size=1,
         shuffle=False,
-        num_workers=8,
+        num_workers=1,
         persistent_workers=True,
         device=device,
         **dl_kwargs
@@ -366,7 +366,10 @@ def _build_multimodal_learner(
 
     # Prepare model.
     batch = train_dl.one_batch()  # batch returns features, lens, and targets
-    n_in = [b[0].shape[-1] for b in batch[:-1]]
+    if config.model_config.use_lens:
+        n_in = [b[0].shape[-1] for b in batch[:-1]]
+    else:
+        n_in = [b.shape[-1] for b in batch[:-1][0]]
     n_out = batch[-1].shape[-1]
 
     log.info(f"Training model {config.model_fn.__name__} "

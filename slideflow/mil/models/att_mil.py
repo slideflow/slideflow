@@ -105,6 +105,9 @@ class MultiModal_Attention_MIL(nn.Module):
     takes multiple bags as input, one for each magnification.
 
     """
+
+    multimodal = True
+
     def __init__(
         self,
         n_feats: List[int],
@@ -114,6 +117,9 @@ class MultiModal_Attention_MIL(nn.Module):
     ) -> None:
         super().__init__()
         self.n_input = len(n_feats)
+        self._z_dim = z_dim
+        self._dropout_p = dropout_p
+        self._n_out = n_out
         for i in range(self.n_input):
             setattr(self, f'encoder_{i}', nn.Sequential(nn.Linear(n_feats[i], z_dim), nn.ReLU()))
             setattr(self, f'attention_{i}', Attention(z_dim, n_latent=0))  # Simple, single-layer attention
@@ -235,13 +241,20 @@ class MultiModal_Attention_MIL(nn.Module):
         pass
 
 
-class _UQ_MultiModal_Attention_MIL(MultiModal_Attention_MIL):
+class UQ_MultiModal_Attention_MIL(MultiModal_Attention_MIL):
     """Variant of the MultiModal attention-MIL model with uncertainty-weighted fusion."""
 
-    def __init__(self, *args, dropout_p, **kwargs):
-        super().__init__(*args, dropout_p=dropout_p, **kwargs)
-        # Set a constituitively active dropout layer for uncertainty estimation.
-        self.uq_dropout = nn.Dropout(dropout_p)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.head = nn.Sequential(
+            nn.Linear(self._z_dim, self._z_dim),
+            nn.LayerNorm(self._z_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(self._z_dim, self._n_out)
+        )
+        self.uq_dropout = nn.Dropout(self._dropout_p)
 
     def forward(self, *bags_and_lens):
         """Return predictions using all bags and magnifications.

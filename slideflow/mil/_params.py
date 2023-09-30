@@ -391,6 +391,9 @@ class ModelConfigFastAI(DictConfig):
             return Attention_MIL
         elif self.model.lower() == 'mm_attention_mil':
             return MultiModal_Attention_MIL
+        elif self.model.lower() == 'uq_mm_attention_mil':
+            from slideflow.mil.models.att_mil import UQ_MultiModal_Attention_MIL
+            return UQ_MultiModal_Attention_MIL
         elif self.model.lower() == 'transmil':
             from .models import TransMIL
             return TransMIL
