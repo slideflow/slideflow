@@ -474,6 +474,7 @@ def build_fastai_learner(
         val_idx=val_idx,
         unique_categories=unique_categories,
         outdir=outdir,
+        pin_memory=True
     )
     if return_shape:
         return learner, (n_in, n_out)
@@ -557,7 +558,8 @@ def build_multimodal_learner(
         val_idx,
         unique_categories,
         num_modes,
-        outdir=outdir
+        outdir=outdir,
+        pin_memory=True,
     )
     if return_shape:
         return learner, (n_in, n_out)

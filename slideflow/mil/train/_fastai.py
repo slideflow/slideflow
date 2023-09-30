@@ -89,6 +89,7 @@ def _build_clam_learner(
     unique_categories: npt.NDArray,
     outdir: Optional[str] = None,
     device: Optional[Union[str, torch.device]] = None,
+    **dl_kwargs
 ) -> Tuple[Learner, Tuple[int, int]]:
     """Build a FastAI learner for a CLAM model.
 
@@ -137,7 +138,8 @@ def _build_clam_learner(
         shuffle=True,
         num_workers=1,
         drop_last=False,
-        device=device
+        device=device,
+        **dl_kwargs
     )
     val_dataset = data_utils.build_clam_dataset(
         bags[val_idx],
@@ -151,7 +153,8 @@ def _build_clam_learner(
         shuffle=False,
         num_workers=8,
         persistent_workers=True,
-        device=device
+        device=device,
+        **dl_kwargs
     )
 
     # Prepare model.
@@ -185,6 +188,7 @@ def _build_fastai_learner(
     unique_categories: npt.NDArray,
     outdir: Optional[str] = None,
     device: Optional[Union[str, torch.device]] = None,
+    **dl_kwargs
 ) -> Tuple[Learner, Tuple[int, int]]:
     """Build a FastAI learner for an MIL model.
 
@@ -233,7 +237,8 @@ def _build_fastai_learner(
         shuffle=True,
         num_workers=1,
         drop_last=False,
-        device=device
+        device=device,
+        **dl_kwargs
     )
     val_dataset = data_utils.build_dataset(
         bags[val_idx],
@@ -248,7 +253,8 @@ def _build_fastai_learner(
         shuffle=False,
         num_workers=8,
         persistent_workers=True,
-        device=device
+        device=device,
+        **dl_kwargs
     )
 
     # Prepare model.
@@ -287,6 +293,7 @@ def _build_multimodal_learner(
     *,
     outdir: Optional[str] = None,
     device: Optional[Union[str, torch.device]] = None,
+    **dl_kwargs
 ) -> Tuple[Learner, Tuple[int, int]]:
     """Build a FastAI learner for an MIL model.
 
@@ -336,7 +343,8 @@ def _build_multimodal_learner(
         shuffle=True,
         num_workers=1,
         drop_last=False,
-        device=device
+        device=device,
+        **dl_kwargs
     )
     val_dataset = data_utils.build_multibag_dataset(
         bags[val_idx],
@@ -352,7 +360,8 @@ def _build_multimodal_learner(
         shuffle=False,
         num_workers=8,
         persistent_workers=True,
-        device=device
+        device=device,
+        **dl_kwargs
     )
 
     # Prepare model.
