@@ -69,53 +69,33 @@ def eval_mil(
             separately. Defaults to None.
 
     """
-    import torch
-
-    # Prepare ground-truth labels
-    labels, unique = dataset.labels(outcomes, format='id')
-
-    # Prepare bags and targets
-    slides = list(labels.keys())
-    if isinstance(bags, str):
-        bags = dataset.pt_files(bags)
-    else:
-        bags = np.array([b for b in bags if path_to_name(b) in slides])
-
-    # Ensure slide names are sorted according to the bags.
-    slides = [path_to_name(b) for b in bags]
-
-    y_true = np.array([labels[s] for s in slides])
-
-    # Detect feature size from bags
-    n_features = torch.load(bags[0]).shape[-1]
-    n_out = len(unique)
-
-    # Load model
+    # Load model and configuration.
     model, config = utils.load_model_weights(weights, config)
 
-    # Inference.
-    if (isinstance(config, TrainerConfigCLAM)
-       or isinstance(config.model_config, ModelConfigCLAM)):
-        y_pred, y_att = _predict_clam(model, bags, attention=True)
-    else:
-        y_pred, y_att = _predict_mil(
-            model, bags, attention=True, use_lens=config.model_config.use_lens
-        )
+    # Generate predictions.
+    df, y_att = predict_from_model(
+        model,
+        config,
+        dataset,
+        outcomes=outcomes,
+        bags=bags,
+        attention=True, 
+    )
 
-    # Generate metrics
-    for idx in range(y_pred.shape[-1]):
-        m = ClassifierMetrics(y_true=(y_true == idx).astype(int), y_pred=y_pred[:, idx])
+    # Generate metrics.
+    y_pred_cols = [c for c in df.columns if c.startswith('y_pred')]
+    for idx in range(len(y_pred_cols)):
+        m = ClassifierMetrics(
+            y_true=(df.y_true.values == idx).astype(int), 
+            y_pred=df[f'y_pred{idx}'].values
+        )
         log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
         log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
 
-    # Save results
+    # Save results.
     if not exists(outdir):
         os.makedirs(outdir)
     model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
-    df_dict = dict(slide=slides, y_true=y_true)
-    for i in range(y_pred.shape[-1]):
-        df_dict[f'y_pred{i}'] = y_pred[:, i]
-    df = pd.DataFrame(df_dict)
     pred_out = join(model_dir, 'predictions.parquet')
     df.to_parquet(pred_out)
     log.info(f"Predictions saved to [green]{pred_out}[/]")
@@ -129,7 +109,13 @@ def eval_mil(
 
     # Export attention
     if y_att:
-        _export_attention(join(model_dir, 'attention'), y_att, slides)
+        if 'slide' in df.columns:
+            slides_or_patients = df.slide.values
+        elif 'patient' in df.columns:
+            slides_or_patients = df.patient.values
+        else:
+            raise ValueError("Malformed dataframe; cannot find 'slide' or 'patient' column.")
+        _export_attention(join(model_dir, 'attention'), y_att, slides_or_patients)
 
     # Attention heatmaps
     if y_att and attention_heatmaps:
