@@ -1822,6 +1822,7 @@ class Project:
             outcome_label_headers=outcomes,
             filters=dataset._filters,
             filter_blank=dataset._filter_blank,
+            min_tiles=dataset._min_tiles,
             tile_labels=tile_labels,
             crop=crop,
             resize=resize
