@@ -435,6 +435,7 @@ def build_fastai_learner(
 
     if config.aggregation_level == 'slide':
         # Aggregate feature bags across slides.
+        
         bags, targets, train_idx, val_idx = utils.aggregate_trainval_bags_by_slide(
             bags,  # type: ignore
             labels,
@@ -451,6 +452,7 @@ def build_fastai_learner(
                              **val_dataset.patients() }
 
         # Aggregate feature bags across patients.
+        n_slide_bags = len(bags)
         bags, targets, train_idx, val_idx = utils.aggregate_trainval_bags_by_patient(
             bags,  # type: ignore
             labels,
@@ -459,6 +461,7 @@ def build_fastai_learner(
             slide_to_patient=slide_to_patient,
             log_manifest=join(outdir, 'slide_manifest.csv')
         )
+        log.info(f"Aggregated {n_slide_bags} slide bags to {len(bags)} patient bags.")
 
     log.info("Training dataset: {} merged bags (from {} possible slides)".format(
         len(train_idx), len(train_slides)))

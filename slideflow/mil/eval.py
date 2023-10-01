@@ -391,7 +391,9 @@ def predict_from_model(
 
         # Get nested list of bags, aggregated by slide.
         slide_to_patient = dataset.patients()
+        n_slide_bags = len(bags)
         bags, y_true = utils.aggregate_bags_by_patient(bags, labels, slide_to_patient)
+        log.info(f"Aggregated {n_slide_bags} slide bags to {len(bags)} patient bags.")
 
         # Create prediction dataframe.
         patients = [slide_to_patient[path_to_name(b[0])] for b in bags]
