@@ -397,6 +397,9 @@ class ModelConfigFastAI(DictConfig):
         elif self.model.lower() == 'transmil':
             from .models import TransMIL
             return TransMIL
+        elif self.model.lower() == 'bistro.transformer':
+            from slideflow.mil.models.bistro import Transformer
+            return Transformer
         else:
             raise ValueError(f"Unrecognized model {self.model}")
 
