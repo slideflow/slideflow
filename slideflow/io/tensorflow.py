@@ -226,7 +226,7 @@ def process_image(
             ),
             false_fn=lambda: image
         )
-    if augment is True or (isinstance(augment, str) and 'i' in augment):
+    if isinstance(augment, str) and 'i' in augment:
         raise NotImplementedError("Random pixel interpolation not implemented.")
     if transform is not None:
         image = transform(image)
