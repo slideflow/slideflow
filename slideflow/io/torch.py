@@ -359,7 +359,7 @@ class StyleGAN2Interleaver(InterleaveIterator):
             self.img_size = resize
         elif crop is not None:
             self.img_size = crop
-        
+
         if normalizer:
             self.normalizer = sf.norm.autoselect(
                 normalizer,
@@ -416,6 +416,15 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
         self.incl_loc = True
         first_row  = next(self.df.itertuples())
         self._label_shape = first_row.label.shape
+        if self.num_tiles and self.num_tiles <= len(self.df):
+            self._can_use_random_label = True
+        else:
+            log.warning("Number of tiles is greater than the number of "
+                        "labels. Distribution of labels learned during "
+                        "training may not be representative of the "
+                        "distribution of labels in the dataset.")
+            self._can_use_random_label = False
+
 
     @property
     def label_shape(self) -> Union[int, Tuple[int, ...]]:
@@ -455,7 +464,12 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
 
     def get_label(self, idx: Any) -> Any:
         """Returns a random label. Used for compatibility with StyleGAN2."""
-        return self.df.sample(n=1).label.values[0]
+        if self._can_use_random_label:
+            idx = np.random.randint(self.num_tiles)
+            return self.df.iloc[idx].values[0]
+        else:
+            idx = np.random.randint(len(self.df))
+            return self.df.iloc[idx].values[0]
 
 # -------------------------------------------------------------------------
 
