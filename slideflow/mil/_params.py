@@ -2,7 +2,7 @@
 
 from torch import nn
 from typing import Optional, Union, Callable
-from slideflow.mil.models import Attention_MIL
+from slideflow.mil.models import Attention_MIL, MultiModal_Attention_MIL
 
 
 def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
@@ -103,6 +103,7 @@ class TrainerConfigFastAI(_TrainerConfig):
         self,
         model: Union[str, Callable] = 'attention_mil',
         *,
+        aggregation_level: str = 'slide',
         lr: Optional[float] = None,
         wd: float = 1e-5,
         bag_size: int = 512,
@@ -124,6 +125,9 @@ class TrainerConfigFastAI(_TrainerConfig):
                 ``"transmil"``.
 
         Keyword args:
+            aggregation_level (str): When equal to ``'slide'`` each bag
+                contains tiles from a single slide. When equal to ``'patient'``
+                tiles from all slides of a patient are grouped together.
             lr (float, optional): Learning rate. If ``fit_one_cycle=True``,
                 this is the maximum learning rate. If None, uses the Leslie
                 Smith `LR Range test <https://arxiv.org/abs/1506.01186>`_ to
@@ -140,6 +144,7 @@ class TrainerConfigFastAI(_TrainerConfig):
                 :class:`slideflow.mil.ModelConfigFastAI` for all other models.
 
         """
+        self.aggregation_level = aggregation_level
         self.lr = lr
         self.wd = wd
         self.bag_size = bag_size
@@ -344,13 +349,20 @@ class ModelConfigCLAM(DictConfig):
 
 class ModelConfigFastAI(DictConfig):
 
-    valid_models = ['attention_mil', 'transmil']
+    valid_models = [
+        'attention_mil',
+        'transmil',
+        'bistro.transformer',
+        'mm_attention_mil',
+        'uq_mm_attention_mil',
+    ]
 
     def __init__(
         self,
         model: Union[str, Callable] = 'attention_mil',
         *,
-        use_lens: Optional[bool] = None
+        use_lens: Optional[bool] = None,
+        apply_softmax: bool = True
     ) -> None:
         """Model configuration for a non-CLAM MIL model.
 
@@ -368,7 +380,11 @@ class ModelConfigFastAI(DictConfig):
 
         """
         self.model = model
-        if use_lens is None and (model == 'attention_mil' or model is Attention_MIL):
+        self.apply_softmax = apply_softmax
+        if use_lens is None and (model == 'attention_mil'
+                                 or model is Attention_MIL
+                                 or model == 'mm_attention_mil'
+                                 or model is MultiModal_Attention_MIL):
             self.use_lens = True
         elif use_lens is None:
             self.use_lens = False
@@ -380,11 +396,18 @@ class ModelConfigFastAI(DictConfig):
         if not isinstance(self.model, str):
             return self.model
         elif self.model.lower() == 'attention_mil':
-            from .models import Attention_MIL
             return Attention_MIL
+        elif self.model.lower() == 'mm_attention_mil':
+            return MultiModal_Attention_MIL
+        elif self.model.lower() == 'uq_mm_attention_mil':
+            from slideflow.mil.models.att_mil import UQ_MultiModal_Attention_MIL
+            return UQ_MultiModal_Attention_MIL
         elif self.model.lower() == 'transmil':
             from .models import TransMIL
             return TransMIL
+        elif self.model.lower() == 'bistro.transformer':
+            from slideflow.mil.models.bistro import Transformer
+            return Transformer
         else:
             raise ValueError(f"Unrecognized model {self.model}")
 

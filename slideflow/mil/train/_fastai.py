@@ -12,7 +12,7 @@ from fastai.vision.all import (
 )
 
 from slideflow import log
-from slideflow.mil.data import build_clam_dataset, build_dataset
+import slideflow.mil.data as data_utils
 from slideflow.model import torch_utils
 from .._params import TrainerConfigFastAI, ModelConfigCLAM
 
@@ -89,6 +89,7 @@ def _build_clam_learner(
     unique_categories: npt.NDArray,
     outdir: Optional[str] = None,
     device: Optional[Union[str, torch.device]] = None,
+    **dl_kwargs
 ) -> Tuple[Learner, Tuple[int, int]]:
     """Build a FastAI learner for a CLAM model.
 
@@ -125,7 +126,7 @@ def _build_clam_learner(
     encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
 
     # Build dataloaders.
-    train_dataset = build_clam_dataset(
+    train_dataset = data_utils.build_clam_dataset(
         bags[train_idx],
         targets[train_idx],
         encoder=encoder,
@@ -137,9 +138,10 @@ def _build_clam_learner(
         shuffle=True,
         num_workers=1,
         drop_last=False,
-        device=device
+        device=device,
+        **dl_kwargs
     )
-    val_dataset = build_clam_dataset(
+    val_dataset = data_utils.build_clam_dataset(
         bags[val_idx],
         targets[val_idx],
         encoder=encoder,
@@ -151,7 +153,8 @@ def _build_clam_learner(
         shuffle=False,
         num_workers=8,
         persistent_workers=True,
-        device=device
+        device=device,
+        **dl_kwargs
     )
 
     # Prepare model.
@@ -160,7 +163,7 @@ def _build_clam_learner(
     n_classes = batch[-1].shape[-1]
     config_size = config.model_fn.sizes[config.model_config.model_size]
     model_size = [n_features] + config_size[1:]
-    log.info(f"Training model {config.model_fn.__name__} "
+    log.info(f"Training model [bold]{config.model_fn.__name__}[/] "
              f"(size={model_size}, loss={config.loss_fn.__name__})")
     model = config.model_fn(size=model_size, n_classes=n_classes)
 
@@ -185,6 +188,7 @@ def _build_fastai_learner(
     unique_categories: npt.NDArray,
     outdir: Optional[str] = None,
     device: Optional[Union[str, torch.device]] = None,
+    **dl_kwargs
 ) -> Tuple[Learner, Tuple[int, int]]:
     """Build a FastAI learner for an MIL model.
 
@@ -220,7 +224,7 @@ def _build_fastai_learner(
     encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
 
     # Build dataloaders.
-    train_dataset = build_dataset(
+    train_dataset = data_utils.build_dataset(
         bags[train_idx],
         targets[train_idx],
         encoder=encoder,
@@ -233,9 +237,10 @@ def _build_fastai_learner(
         shuffle=True,
         num_workers=1,
         drop_last=False,
-        device=device
+        device=device,
+        **dl_kwargs
     )
-    val_dataset = build_dataset(
+    val_dataset = data_utils.build_dataset(
         bags[val_idx],
         targets[val_idx],
         encoder=encoder,
@@ -248,13 +253,126 @@ def _build_fastai_learner(
         shuffle=False,
         num_workers=8,
         persistent_workers=True,
-        device=device
+        device=device,
+        **dl_kwargs
     )
 
     # Prepare model.
     batch = train_dl.one_batch()
     n_in, n_out = batch[0].shape[-1], batch[-1].shape[-1]
-    log.info(f"Training model {config.model_fn.__name__} "
+    log.info(f"Training model [bold]{config.model_fn.__name__}[/] "
+             f"(in={n_in}, out={n_out}, loss={config.loss_fn.__name__})")
+    model = config.model_fn(n_in, n_out).to(device)
+    if hasattr(model, 'relocate'):
+        model.relocate()
+
+    # Loss should weigh inversely to class occurences.
+    counts = pd.value_counts(targets[train_idx])
+    weight = counts.sum() / counts
+    weight /= weight.sum()
+    weight = torch.tensor(
+        list(map(weight.get, encoder.categories_[0])), dtype=torch.float32
+    ).to(device)
+    loss_func = nn.CrossEntropyLoss(weight=weight)
+
+    # Create learning and fit.
+    dls = DataLoaders(train_dl, val_dl)
+    learner = Learner(dls, model, loss_func=loss_func, metrics=[RocAuc()], path=outdir)
+
+    return learner, (n_in, n_out)
+
+
+def _build_multimodal_learner(
+    config: TrainerConfigFastAI,
+    bags: List[List[str]],
+    targets: npt.NDArray,
+    train_idx: npt.NDArray[np.int_],
+    val_idx: npt.NDArray[np.int_],
+    unique_categories: npt.NDArray,
+    n_magnifications: int,
+    *,
+    outdir: Optional[str] = None,
+    device: Optional[Union[str, torch.device]] = None,
+    **dl_kwargs
+) -> Tuple[Learner, Tuple[int, int]]:
+    """Build a FastAI learner for an MIL model.
+
+    Args:
+        config (``TrainerConfigFastAI``): Trainer and model configuration.
+        bags (list(str)): Path to .pt files (bags) with features, one per patient.
+        targets (np.ndarray): Category labels for each patient, in the same
+            order as ``bags``.
+        train_idx (np.ndarray, int): Indices of bags/targets that constitutes
+            the training set.
+        val_idx (np.ndarray, int): Indices of bags/targets that constitutes
+            the validation set.
+        unique_categories (np.ndarray(str)): Array of all unique categories
+            in the targets. Used for one-hot encoding.
+        outdir (str): Location in which to save training history and best model.
+        device (torch.device or str): PyTorch device.
+
+    Returns:
+
+        FastAI Learner, (number of input features, number of classes).
+    """
+    # Prepare device.
+    device = torch_utils.get_device(device)
+
+    # Prepare data.
+    # Set oh_kw to a dictionary of keyword arguments for OneHotEncoder,
+    # using the argument sparse=False if the sklearn version is <1.2
+    # and sparse_output=False if the sklearn version is >=1.2.
+    if version.parse(sklearn_version) < version.parse("1.2"):
+        oh_kw = {"sparse": False}
+    else:
+        oh_kw = {"sparse_output": False}
+    encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
+
+    # Build dataloaders.
+    train_dataset = data_utils.build_multibag_dataset(
+        bags[train_idx],
+        targets[train_idx],
+        encoder=encoder,
+        bag_size=config.bag_size,
+        n_bags=n_magnifications,
+        use_lens=config.model_config.use_lens
+    )
+    train_dl = DataLoader(
+        train_dataset,
+        batch_size=config.batch_size,
+        shuffle=True,
+        num_workers=1,
+        drop_last=False,
+        device=device,
+        **dl_kwargs
+    )
+    val_dataset = data_utils.build_multibag_dataset(
+        bags[val_idx],
+        targets[val_idx],
+        encoder=encoder,
+        bag_size=None,
+        n_bags=n_magnifications,
+        use_lens=config.model_config.use_lens
+    )
+    val_dl = DataLoader(
+        val_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=1,
+        persistent_workers=True,
+        device=device,
+        **dl_kwargs
+    )
+
+    # Prepare model.
+    batch = train_dl.one_batch()  # batch returns features, lens, and targets
+    if config.model_config.use_lens:
+        n_in = [b[0].shape[-1] for b in batch[:-1]]
+    else:
+        n_in = [b.shape[-1] for b in batch[:-1][0]]
+    n_out = batch[-1].shape[-1]
+
+    log.info(f"Training model [bold]{config.model_fn.__name__}[/] "
              f"(in={n_in}, out={n_out}, loss={config.loss_fn.__name__})")
     model = config.model_fn(n_in, n_out).to(device)
     if hasattr(model, 'relocate'):

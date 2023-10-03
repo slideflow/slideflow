@@ -952,6 +952,11 @@ class Dataset:
         """
         if force:
             index_to_update = self.tfrecords()
+            # Remove existing indices
+            for tfr in self.tfrecords():
+                index = tfrecord2idx.find_index(tfr)
+                if index:
+                    os.remove(index)
         else:
             index_to_update = []
             for tfr in self.tfrecords():
@@ -2340,21 +2345,33 @@ class Dataset:
         return result
 
     def pt_files(self, path, warn_missing=True):
-        """Return list of \*.pt files with slide names in this dataset.
+        """Return list of all \*.pt files with slide names in this dataset.
+
+        May return more than one *.pt file for each slide.
 
         Args:
-            path (str): Directory to search for \*.pt files.
+            path (str, list(str)): Directory(ies) to search for \*.pt files.
             warn_missing (bool): Raise a warning if any slides in this dataset
                 do not have a \*.pt file.
 
         """
         slides = self.slides()
-        bags = np.array([
-            join(path, f) for f in os.listdir(path)
-            if f.endswith('.pt') and path_to_name(f) in slides
-        ])
-        if (len(bags) != len(slides)) and warn_missing:
-            log.warning(f"Bags missing for {len(slides) - len(bags)} slides.")
+        if isinstance(path, str):
+            path = [path]
+
+        bags = []
+        for p in path:
+            if not exists(p):
+                raise ValueError(f"Path {p} does not exist.")
+            bags_at_path = np.array([
+                join(p, f) for f in os.listdir(p)
+                if f.endswith('.pt') and path_to_name(f) in slides
+            ])
+            bags.append(bags_at_path)
+        bags = np.concatenate(bags)
+        unique_slides_with_bags = np.unique([path_to_name(b) for b in bags])
+        if (len(unique_slides_with_bags) != len(slides)) and warn_missing:
+            log.warning(f"Bags missing for {len(slides) - len(unique_slides_with_bags)} slides.")
         return bags
 
     def read_tfrecord_by_location(
@@ -2740,14 +2757,19 @@ class Dataset:
         # Assemble dict of patients linking to list of slides & outcome labels
         # dataset.labels() ensures no duplicate labels for a single patient
         tfr_dir_list = self.tfrecords() if not from_wsi else self.slide_paths()
+        skip_tfr_verification = False
         if not len(tfr_dir_list) and not from_wsi:
-            raise errors.TFRecordsNotFoundError
+            log.warning("No tfrecords found; splitting from annotations only.")
+            tfr_dir_list = tfr_dir_list_names = self.slides()
+            skip_tfr_verification = True
         elif not len(tfr_dir_list):
-            raise errors.SlideNotFoundError("No slides found.")
-
-        tfr_dir_list_names = [
-            sf.util.path_to_name(tfr) for tfr in tfr_dir_list
-        ]
+            log.warning("No slides found; splitting from annotations only.")
+            tfr_dir_list = tfr_dir_list_names = self.slides()
+            skip_tfr_verification = True
+        else:
+            tfr_dir_list_names = [
+                sf.util.path_to_name(tfr) for tfr in tfr_dir_list
+            ]
         patients_dict = {}
         num_warned = 0
         for slide in slide_list:
@@ -2970,11 +2992,11 @@ class Dataset:
         if val_strategy != 'none':
             val_tfr = [
                 tfr for tfr in tfr_dir_list
-                if path_to_name(tfr) in val_slides
+                if path_to_name(tfr) in val_slides or tfr in val_slides
             ]
             training_tfr = [
                 tfr for tfr in tfr_dir_list
-                if path_to_name(tfr) in train_slides
+                if path_to_name(tfr) in train_slides or tfr in train_slides
             ]
         if not len(val_tfr) == len(val_slides):
             raise errors.DatasetError(
@@ -2992,10 +3014,10 @@ class Dataset:
         training_dts = training_dts.filter(filters={'slide': train_slides})
         val_dts = copy.deepcopy(self)
         val_dts = val_dts.filter(filters={'slide': val_slides})
-        if not from_wsi:
+        if not skip_tfr_verification and not from_wsi:
             assert sorted(training_dts.tfrecords()) == sorted(training_tfr)
             assert sorted(val_dts.tfrecords()) == sorted(val_tfr)
-        else:
+        elif not skip_tfr_verification:
             assert sorted(training_dts.slide_paths()) == sorted(training_tfr)
             assert sorted(val_dts.slide_paths()) == sorted(val_tfr)
         return training_dts, val_dts

@@ -218,7 +218,8 @@ class MILWidget(Widget):
                 self.model,
                 bags,
                 attention=self.calculate_attention,
-                use_lens=self.mil_config.model_config.use_lens
+                use_lens=self.mil_config.model_config.use_lens,
+                apply_softmax=self.mil_config.model_config.apply_softmax
             )
         if self.attention:
             self.attention = self.attention[0]
