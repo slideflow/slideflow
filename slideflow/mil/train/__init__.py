@@ -425,8 +425,11 @@ def build_fastai_learner(
     # Prepare bags
     if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
         train_bags = train_dataset.pt_files(bags)
-        val_bags = val_dataset.pt_files(bags)
-        bags = np.concatenate((train_bags, val_bags))
+        if val_dataset is train_dataset:
+            bags = train_bags
+        else:
+            val_bags = val_dataset.pt_files(bags)
+            bags = np.concatenate((train_bags, val_bags))
     else:
         bags = np.array(bags)
 
