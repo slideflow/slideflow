@@ -10,6 +10,21 @@ from slideflow.model.torch_utils import get_device
 
 # -----------------------------------------------------------------------------
 
+def _compute_rollout(all_layer_matrices, start_layer=0):
+    # adding residual consideration- code adapted from https://github.com/samiraabnar/attention_flow
+    num_tokens = all_layer_matrices[0].shape[1]
+    batch_size = all_layer_matrices[0].shape[0]
+    eye = torch.eye(num_tokens).expand(batch_size, num_tokens, num_tokens).to(all_layer_matrices[0].device)
+    all_layer_matrices = [all_layer_matrices[i] + eye for i in range(len(all_layer_matrices))]
+    matrices_aug = [all_layer_matrices[i] / all_layer_matrices[i].sum(dim=-1, keepdim=True)
+                          for i in range(len(all_layer_matrices))]
+    joint_attention = matrices_aug[start_layer]
+    for i in range(start_layer+1, len(matrices_aug)):
+        joint_attention = matrices_aug[i].bmm(joint_attention)
+    return joint_attention
+
+# -----------------------------------------------------------------------------
+
 class TransformerBlocks(nn.Module):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout=0.):
         super().__init__()
@@ -66,7 +81,7 @@ class Transformer(nn.Module):
 
         self.pos_enc = pos_enc
 
-    def forward(self, x, coords=None, register_hook=False):
+    def forward(self, x, coords=None, register_hook=False, return_attention=False):
         b, _, _ = x.shape
 
         x = self.projection(x)
@@ -82,7 +97,26 @@ class Transformer(nn.Module):
         x = self.transformer(x, register_hook=register_hook)
         x = x.mean(dim=1) if self.pool == 'mean' else x[:, 0]
 
-        return self.mlp_head(self.norm(x))
+        output = self.mlp_head(self.norm(x))
+
+        if return_attention:
+            return output, self._calculate_rollout_attention()
+        else:
+            return output
+
+    def _calculate_rollout_attention(self, start_layer=0):
+        blocks = self.transformer.layers
+        all_layer_attentions = []
+        for blk in blocks:
+            attn_heads = blk[0].fn.get_attention_map()
+            avg_heads = (attn_heads.sum(dim=1) / attn_heads.shape[1]).detach()
+            all_layer_attentions.append(avg_heads)
+        rollout = _compute_rollout(all_layer_attentions, start_layer=start_layer)
+        return rollout[:,0, 1:]
+
+    def calculate_attention(self, x, coords=None, start_layer=0):
+        self(x, coords=coords)
+        return self._calculate_rollout_attention(start_layer=start_layer)
 
     def relocate(self):
         self.to(get_device())

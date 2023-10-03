@@ -349,13 +349,20 @@ class ModelConfigCLAM(DictConfig):
 
 class ModelConfigFastAI(DictConfig):
 
-    valid_models = ['attention_mil', 'transmil']
+    valid_models = [
+        'attention_mil',
+        'transmil',
+        'bistro.transformer',
+        'mm_attention_mil',
+        'uq_mm_attention_mil',
+    ]
 
     def __init__(
         self,
         model: Union[str, Callable] = 'attention_mil',
         *,
-        use_lens: Optional[bool] = None
+        use_lens: Optional[bool] = None,
+        apply_softmax: bool = True
     ) -> None:
         """Model configuration for a non-CLAM MIL model.
 
@@ -373,6 +380,7 @@ class ModelConfigFastAI(DictConfig):
 
         """
         self.model = model
+        self.apply_softmax = apply_softmax
         if use_lens is None and (model == 'attention_mil'
                                  or model is Attention_MIL
                                  or model == 'mm_attention_mil'

@@ -103,14 +103,7 @@ def load_model_weights(
         log.info(f"Building model {config.model_fn.__name__} "
                  f"(in={input_shape}, out={output_shape})")
     if isdir(weights):
-        if exists(join(weights, 'models', 'best_valid.pth')):
-            weights = join(weights, 'models', 'best_valid.pth')
-        elif exists(join(weights, 'results', 's_0_checkpoint.pt')):
-            weights = join(weights, 'results', 's_0_checkpoint.pt')
-        else:
-            raise errors.ModelError(
-                f"Could not find model weights at path {weights}"
-            )
+        weights = _find_weights_path(weights, mil_params)
     log.info(f"Loading model weights from [green]{weights}[/]")
     model.load_state_dict(torch.load(weights, map_location=get_device()))
 
@@ -119,6 +112,26 @@ def load_model_weights(
         model.relocate()  # type: ignore
     model.eval()
     return model, config
+
+
+def _find_weights_path(path: str, mil_params: Dict) -> str:
+    """Determine location of model weights from a given model directory."""
+    if exists(join(path, 'models', 'best_valid.pth')):
+        weights = join(path, 'models', 'best_valid.pth')
+    elif exists(join(path, 'results', 's_0_checkpoint.pt')):
+        weights = join(path, 'results', 's_0_checkpoint.pt')
+    elif 'weights' in mil_params and mil_params['weights']:
+        if mil_params['weights'].startswith('/'):
+            weights = mil_params['weights']
+        elif mil_params['weights'].startswith('./'):
+            weights = join(path, mil_params['weights'][2:])
+        else:
+            weights = join(path, mil_params['weights'])
+    else:
+        raise errors.ModelError(
+            f"Could not find model weights at path {weights}"
+        )
+    return weights
 
 
 def _load_bag(bag: Union[str, np.ndarray, "torch.Tensor"]) -> "torch.Tensor":

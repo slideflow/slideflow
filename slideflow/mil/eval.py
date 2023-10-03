@@ -79,14 +79,14 @@ def eval_mil(
         dataset,
         outcomes=outcomes,
         bags=bags,
-        attention=True, 
+        attention=True,
     )
 
     # Generate metrics.
     y_pred_cols = [c for c in df.columns if c.startswith('y_pred')]
     for idx in range(len(y_pred_cols)):
         m = ClassifierMetrics(
-            y_true=(df.y_true.values == idx).astype(int), 
+            y_true=(df.y_true.values == idx).astype(int),
             y_pred=df[f'y_pred{idx}'].values
         )
         log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
@@ -315,7 +315,11 @@ def predict_slide(
         y_pred, raw_att = _predict_clam(model_fn, bags, attention=attention)
     else:
         y_pred, raw_att = _predict_mil(
-            model_fn, bags, attention=attention, use_lens=config.model_config.use_lens
+            model_fn,
+            bags,
+            attention=attention,
+            use_lens=config.model_config.use_lens,
+            apply_softmax=config.model_config.apply_softmax
         )
 
     # Reshape attention to match original shape
@@ -399,7 +403,11 @@ def predict_from_model(
         y_pred, y_att = _predict_clam(model, bags, attention=attention)
     else:
         y_pred, y_att = _predict_mil(
-            model, bags, attention=attention, use_lens=config.model_config.use_lens
+            model,
+            bags,
+            attention=attention,
+            use_lens=config.model_config.use_lens,
+            apply_softmax=config.model_config.apply_softmax
         )
 
     # Update dataframe with predictions.
@@ -542,10 +550,12 @@ def _predict_clam(
 def _predict_mil(
     model: "torch.nn.Module",
     bags: Union[np.ndarray, List[str]],
+    *,
     attention: bool = False,
     attention_pooling: str = 'avg',
     use_lens: bool = False,
-    device: Optional[Any] = None
+    device: Optional[Any] = None,
+    apply_softmax: bool = True,
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
     """Generate MIL predictions for a list of bags."""
 
@@ -596,7 +606,9 @@ def _predict_mil(
                             )
                         )
                 y_att.append(att.cpu().numpy())
-            y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
+            if apply_softmax:
+                model_out = torch.nn.functional.softmax(model_out, dim=1)
+            y_pred.append(model_out.cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att
 
