@@ -100,17 +100,22 @@ def _umap_normalize(vector, clip_min, clip_max, norm_min, norm_max):
     vector /= (norm_max - norm_min)
     return vector
 
+def _prepare_args(args, kwargs):
+    args = locals()
+    del args['kwargs']
+    del args['self']
+    args.update(kwargs)
+    args['use_model'] = False
+    return args
+
 #----------------------------------------------------------------------------
 
 class Renderer:
     def __init__(self, device=None, buffer=None, extract_px=None, tile_px=None):
-        #self._device            = torch.device('cuda')
         self._pkl_data          = dict()    # {pkl: dict | CapturedException, ...}
         self._pinned_bufs       = dict()    # {(shape, dtype): torch.Tensor, ...}
         self._cmaps             = dict()    # {name: torch.Tensor, ...}
         self._is_timing         = False
-        #self._start_event       = torch.cuda.Event(enable_timing=True)
-        #self._end_event         = torch.cuda.Event(enable_timing=True)
         self._net_layers        = dict()
         self._uq_thread         = None
         self._model             = None
@@ -154,19 +159,16 @@ class Renderer:
 
     def render(self, **args):
         self._is_timing = True
-        #self._start_event.record(torch.cuda.current_stream(self._device))
         self._start_time = time.time()
         res = EasyDict()
         try:
             self._render_impl(res, **args)
         except:
             res.error = CapturedException()
-        #self._end_event.record(torch.cuda.current_stream(self._device))
         if 'error' in res:
             res.error = str(res.error)
         if self._is_timing:
-            #self._end_event.synchronize()
-            res.render_time = time.time() - self._start_time #self._start_event.elapsed_time(self._end_event) * 1e-3
+            res.render_time = time.time() - self._start_time
             self._is_timing = False
         return res
 
@@ -227,6 +229,106 @@ class Renderer:
             preds = self.process_tf_preds(preds)
         return preds, None
 
+    def _read_tile_from_viewer(self, x, y, viewer, use_model, img_format):
+        """Read a tile from the viewer at the given x/y coordinates."""
+        # Determine the target type.
+        if self.model_type in ('tensorflow', 'tflite'):
+            dtype = tf.uint8
+        elif self.model_type == 'torch':
+            dtype = torch.uint8
+
+        # Read the image tile.
+        use_jpeg = use_model and img_format is not None and img_format.lower() in ('jpg', 'jpeg')
+        img = viewer.read_tile(x, y, img_format='jpg' if use_jpeg else None, allow_errors=True)
+        if img is None:
+            return None, None
+
+        # Convert types.
+        if use_jpeg:
+            img = _decode_jpeg(img, self.model_type)
+            if self.model_type == 'torch':
+                result_img = sf.io.torch.cwh_to_whc(img).cpu().numpy()
+            else:
+                result_img = img.numpy()
+            img = sf.io.convert_dtype(img, dtype)
+        else:
+            result_img = img
+
+        return img, result_img
+
+    def _run_models(
+        self, 
+        img, 
+        res, 
+        *,
+        normalizer=None, 
+        use_saliency=False, 
+        saliency_method=None, 
+        saliency_overlay=None,
+        use_umap_encoders=False,
+        use_uncertainty=False
+    ):
+        """Run model pipelines on a rendered image."""
+
+        if self.model_type in ('tensorflow', 'tflite') and isinstance(img, np.ndarray):
+            proc_img = tf.convert_to_tensor(img)
+        elif isinstance(img, np.ndarray):
+            proc_img = sf.io.torch.whc_to_cwh(torch.from_numpy(img)).to(self.device)
+        else:
+            proc_img = img
+
+        # Pre-process image.
+        if normalizer:
+            _norm_start = time.time()
+            proc_img = normalizer.transform(proc_img)
+            if not isinstance(proc_img, np.ndarray):
+                if self.model_type == 'torch':
+                    res.normalized = sf.io.torch.cwh_to_whc(proc_img).cpu().numpy().astype(np.uint8)
+                else:
+                    res.normalized = proc_img.numpy().astype(np.uint8)
+            else:
+                res.normalized = proc_img.astype(np.uint8)
+            res.norm_time = time.time() - _norm_start
+        if self.model_type in ('tensorflow', 'tflite'):
+            proc_img = sf.io.tensorflow.preprocess_uint8(proc_img, standardize=True)['tile_image']
+        elif self.model_type == 'torch':
+            proc_img = sf.io.torch.preprocess_uint8(proc_img, standardize=True)
+            if self.device is not None:
+                proc_img = proc_img.to(self.device)
+
+        # Saliency.
+        if use_saliency:
+            mask = self._saliency.get(self.to_numpy(proc_img, as_whc=True), method=saliency_method)
+            if saliency_overlay:
+                res.image = sf.grad.plot_utils.overlay(res.image, mask)
+            else:
+                res.image = sf.grad.plot_utils.inferno(mask)
+            if res.image.shape[-1] == 4:
+                res.image = res.image[:, :, 0:3]
+
+        # Show predictions.
+        _inference_start = time.time()
+        if use_umap_encoders:
+            u = self._umap_encoders
+            encoder_out = u.encoder(tf.expand_dims(proc_img, axis=0))
+            res.umap_coords = {}
+            for i, layer in enumerate(u.layers):
+                res.umap_coords[layer] = _umap_normalize(
+                    encoder_out[i],
+                    clip_min=u.clip[layer][0],
+                    clip_max=u.clip[layer][1],
+                    norm_min=u.range[layer][0],
+                    norm_max=u.range[layer][1]
+                )[0]
+            res.predictions = self.process_tf_preds(encoder_out[-1])
+            res.uncertainty = None
+        else:
+            res.predictions, res.uncertainty = self._classify_img(
+                proc_img,
+                use_uncertainty=use_uncertainty
+            )
+        res.inference_time = time.time() - _inference_start
+
     def _render_impl(self, res,
         x                   = 0,
         y                   = 0,
@@ -244,18 +346,32 @@ class Renderer:
         use_umap_encoders   = False,
         **kwargs
     ):
-        args = locals()
-        del args['kwargs']
-        del args['self']
-        args.update(kwargs)
-        args['use_model'] = False
+        args = _prepare_args(locals(), kwargs)
+        
+        # Trigger other renderers in the pipeline.
         for renderer in self._addl_renderers:
             renderer._render_impl(**args)
+
+        # If coordinates are not provided and an image is not
+        # already stored in `res`, then skip.
         if (x is None or y is None) and 'image' not in res:
             return
+        
+        # If full_image is provided, use this instead of looking up
+        # a tile image from the viewer.
         if full_image is not None:
             img = cv2.resize(full_image, (tile_px, tile_px))
             res.image = img
+
+        # If image is in res, it was generated by one of the additional renderers.
+        # Check if any additional pre-processing needs to be done.
+        elif 'image' in res and use_model:
+            img = res.image
+            for renderer in self._addl_renderers:
+                if hasattr(renderer, 'preprocess'):
+                    img = renderer.preprocess(img, tile_px=tile_px, tile_um=tile_um)
+
+        # Otherwise, use the viewer to find the tile image.
         elif viewer is not None:
 
             if not self._model:
@@ -266,93 +382,30 @@ class Renderer:
             res.predictions = None
             res.uncertainty = None
 
-            if self.model_type in ('tensorflow', 'tflite'):
-                dtype = tf.uint8
-            elif self.model_type == 'torch':
-                dtype = torch.uint8
+            img, result_img = self._read_tile_from_viewer(
+                x, y, viewer, use_model=use_model, img_format=img_format
+            )
 
-            use_jpeg = use_model and img_format is not None and img_format.lower() in ('jpg', 'jpeg')
-            img = viewer.read_tile(x, y, img_format='jpg' if use_jpeg else None, allow_errors=True)
             if img is None:
                 res.message = "Invalid tile location."
                 print(res.message)
                 return
-            if use_jpeg:
-                img = _decode_jpeg(img, self.model_type)
-                if self.model_type == 'torch':
-                    res.image = sf.io.torch.cwh_to_whc(img).cpu().numpy()
-                else:
-                    res.image = img.numpy()
-                img = sf.io.convert_dtype(img, dtype)
             else:
-                res.image = img
-        elif 'image' in res and use_model:
-            # Image was generated by one of the additional renderers.
-            # Check if any additional pre-processing needs to be done.
-            img = res.image
-            for renderer in self._addl_renderers:
-                if hasattr(renderer, 'preprocess'):
-                    img = renderer.preprocess(img, tile_px=tile_px, tile_um=tile_um)
+                res.image = result_img
+
+        # ---------------------------------------------------------------------
 
         if use_model:
-            if self.model_type in ('tensorflow', 'tflite') and isinstance(img, np.ndarray):
-                proc_img = tf.convert_to_tensor(img)
-            elif isinstance(img, np.ndarray):
-                proc_img = sf.io.torch.whc_to_cwh(torch.from_numpy(img)).to(self.device)
-            else:
-                proc_img = img
-
-            # Pre-process image.
-            if normalizer:
-                _norm_start = time.time()
-                proc_img = normalizer.transform(proc_img)
-                if not isinstance(proc_img, np.ndarray):
-                    if self.model_type == 'torch':
-                        res.normalized = sf.io.torch.cwh_to_whc(proc_img).cpu().numpy().astype(np.uint8)
-                    else:
-                        res.normalized = proc_img.numpy().astype(np.uint8)
-                else:
-                    res.normalized = proc_img.astype(np.uint8)
-                res.norm_time = time.time() - _norm_start
-            if self.model_type in ('tensorflow', 'tflite'):
-                proc_img = sf.io.tensorflow.preprocess_uint8(proc_img, standardize=True)['tile_image']
-            elif self.model_type == 'torch':
-                proc_img = sf.io.torch.preprocess_uint8(proc_img, standardize=True)
-                if self.device is not None:
-                    proc_img = proc_img.to(self.device)
-
-            # Saliency.
-            if use_saliency:
-                mask = self._saliency.get(self.to_numpy(proc_img, as_whc=True), method=saliency_method)
-                if saliency_overlay:
-                    res.image = sf.grad.plot_utils.overlay(res.image, mask)
-                else:
-                    res.image = sf.grad.plot_utils.inferno(mask)
-                if res.image.shape[-1] == 4:
-                    res.image = res.image[:, :, 0:3]
-
-            # Show predictions.
-            _inference_start = time.time()
-            if use_umap_encoders:
-                u = self._umap_encoders
-                encoder_out = u.encoder(tf.expand_dims(proc_img, axis=0))
-                res.umap_coords = {}
-                for i, layer in enumerate(u.layers):
-                    res.umap_coords[layer] = _umap_normalize(
-                        encoder_out[i],
-                        clip_min=u.clip[layer][0],
-                        clip_max=u.clip[layer][1],
-                        norm_min=u.range[layer][0],
-                        norm_max=u.range[layer][1]
-                    )[0]
-                res.predictions = self.process_tf_preds(encoder_out[-1])
-                res.uncertainty = None
-            else:
-                res.predictions, res.uncertainty = self._classify_img(
-                    proc_img,
-                    use_uncertainty=use_uncertainty
-                )
-            res.inference_time = time.time() - _inference_start
+            self._run_models(
+                img, 
+                res,
+                normalizer=normalizer, 
+                use_saliency=use_saliency, 
+                saliency_method=saliency_method,
+                saliency_overlay=saliency_overlay,
+                use_umap_encoders=use_umap_encoders,
+                use_uncertainty=use_uncertainty
+            )
 
 #----------------------------------------------------------------------------
 
