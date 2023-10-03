@@ -1,15 +1,92 @@
 import imgui
 import numpy as np
-from PIL import Image
-from os.path import join, dirname, abspath
 from array import array
 from collections import defaultdict
 
-from ..gui import imgui_utils, gl_utils
+from ..gui import imgui_utils
 from ..gui.annotator import AnnotationCapture
 
 import slideflow.grad as grad
 
+# -----------------------------------------------------------------------------
+
+def _draw_tile_pred_result(viz, outcome, labels, is_categorical, pred_array, uq_array=None):
+    """Render a tile prediction result with Imgui."""
+
+    # Outcome name label
+    imgui.text_colored(outcome, *viz.theme.dim)
+
+    # Prediction string
+    if is_categorical:
+        pred_str = labels[str(np.argmax(pred_array))]
+    else:
+        pred_str = f'{pred_array:.3f}'
+    if viz._use_uncertainty and uq_array is not None:
+        pred_str += " (UQ: {:.4f})".format(uq_array)
+    imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
+    imgui.text(pred_str)
+
+    # Histogram
+    if is_categorical:
+        with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.spacing):
+            imgui.core.plot_histogram('##pred', array('f', pred_array), scale_min=0, scale_max=1)
+
+def draw_tile_predictions(viz, is_categorical, config=None, has_preds=None, using_model=None):
+    """Render tile predictions with Imgui."""
+    if config is None:
+        config = viz._model_config
+    if has_preds is None:
+        has_preds = viz._use_model and viz._predictions is not None
+    if using_model is None:
+        using_model = viz._use_model
+
+    if config is not None:
+        # Multiple categorical outcomes
+        if has_preds and isinstance(viz._predictions, list):
+            for p, _pred_array in enumerate(viz._predictions):
+                _draw_tile_pred_result(
+                    viz,
+                    outcome=config['outcomes'][p],
+                    labels=config['outcome_labels'][config['outcomes'][p]],
+                    is_categorical=is_categorical,
+                    pred_array=_pred_array,
+                    uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty[p]
+                )
+
+        # Single categorical outcome
+        elif has_preds and is_categorical:
+            _draw_tile_pred_result(
+                viz,
+                outcome=config['outcomes'][0],
+                labels=config['outcome_labels'],
+                is_categorical=is_categorical,
+                pred_array=viz._predictions,
+                uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty
+            )
+
+        # Linear outcome(s)
+        elif has_preds:
+            _out = config['outcomes']
+            _out = [_out] if not isinstance(_out, list) else _out
+            for o_idx, outcome in enumerate(_out):
+                _draw_tile_pred_result(
+                    viz,
+                    outcome=outcome,
+                    labels=None,
+                    is_categorical=is_categorical,
+                    pred_array=viz._predictions[o_idx],
+                    uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty
+                )
+
+        # Model not in use
+        elif using_model:
+            imgui_utils.padded_text('Right click for a focal prediction.', vpad=[int(viz.font_size/2), int(viz.font_size)])
+        else:
+            imgui_utils.padded_text('Model not in use.', vpad=[int(viz.font_size/2), int(viz.font_size)])
+
+        imgui_utils.vertical_break()
+
+# -----------------------------------------------------------------------------
 
 class ModelWidget:
     def __init__(self, viz, show_saliency=True):
@@ -207,28 +284,6 @@ class ModelWidget:
                         uq_array = None
                     self._apply_pred_histograms('linear', pred_array, uq_array)
 
-    def _draw_tile_pred_result(self, outcome, labels, pred_array, uq_array=None):
-        viz = self.viz
-        config = viz._model_config
-
-        # Outcome name label
-        imgui.text_colored(outcome, *viz.theme.dim)
-
-        # Prediction string
-        if self.is_categorical():
-            pred_str = labels[str(np.argmax(pred_array))]
-        else:
-            pred_str = f'{pred_array:.3f}'
-        if viz._use_uncertainty and uq_array is not None:
-            pred_str += " (UQ: {:.4f})".format(uq_array)
-        imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
-        imgui.text(pred_str)
-
-        # Histogram
-        if self.is_categorical():
-            with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.spacing):
-                imgui.core.plot_histogram('##pred', array('f', pred_array), scale_min=0, scale_max=1)
-
     def _draw_prediction_as_text(self, outcome, all_labels):
         viz = self.viz
         imgui.text_colored(outcome, *viz.theme.dim)
@@ -365,50 +420,6 @@ class ModelWidget:
                 else:
                     imgui.text(col)
         imgui.end()
-
-    def draw_tile_predictions(self):
-        viz = self.viz
-        config = viz._model_config
-        has_preds = viz._use_model and viz._predictions is not None
-
-        if config is not None:
-
-            # Multiple categorical outcomes
-            if has_preds and isinstance(viz._predictions, list):
-                for p, _pred_array in enumerate(viz._predictions):
-                    self._draw_tile_pred_result(
-                        outcome=config['outcomes'][p],
-                        labels=config['outcome_labels'][config['outcomes'][p]],
-                        pred_array=_pred_array,
-                        uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty[p]
-                    )
-
-            # Single categorical outcome
-            elif has_preds and self.is_categorical():
-                self._draw_tile_pred_result(
-                    outcome=config['outcomes'][0],
-                    labels=config['outcome_labels'],
-                    pred_array=viz._predictions,
-                    uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty
-                )
-
-            # Linear outcome(s)
-            elif has_preds:
-                for o_idx, outcome in enumerate(config['outcomes']):
-                    self._draw_tile_pred_result(
-                        outcome=outcome,
-                        labels=None,
-                        pred_array=viz._predictions[o_idx],
-                        uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty
-                    )
-
-            # Model not in use
-            elif viz._use_model:
-                imgui_utils.padded_text('Right click for a focal prediction.', vpad=[int(viz.font_size/2), int(viz.font_size)])
-            else:
-                imgui_utils.padded_text('Model not in use.', vpad=[int(viz.font_size/2), int(viz.font_size)])
-
-            imgui_utils.vertical_break()
 
     def draw_slide_predictions(self):
         viz = self.viz
@@ -556,7 +567,7 @@ class ModelWidget:
             if viz.collapsing_header('Info', default=True):
                 self.draw_info()
             if viz.collapsing_header('Tile Prediction', default=True):
-                self.draw_tile_predictions()
+                draw_tile_predictions(viz, self.is_categorical())
             if viz.collapsing_header('Slide Prediction', default=True):
                 self.draw_slide_predictions()
             if viz.collapsing_header('Saliency', default=False):

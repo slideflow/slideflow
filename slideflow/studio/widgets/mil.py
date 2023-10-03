@@ -5,6 +5,7 @@ import slideflow.mil
 import threading
 import traceback
 
+from array import array
 from tkinter.filedialog import askdirectory
 from os.path import join, exists, dirname, abspath
 from typing import Dict, Optional
@@ -13,7 +14,9 @@ from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
 from slideflow.mil.eval import _predict_clam, _predict_mil
 
 from ._utils import Widget
+from .model import draw_tile_predictions
 from ..gui import imgui_utils
+from .._mil_renderer import MILRenderer
 
 # -----------------------------------------------------------------------------
 
@@ -82,6 +85,7 @@ class MILWidget(Widget):
         self.viz = viz
         self._clicking      = None
         self._initialize_variables()
+        self.mil_renderer = MILRenderer()
 
     # --- Hooks, triggers, and internal functions -----------------------------
 
@@ -152,8 +156,11 @@ class MILWidget(Widget):
         del self.model
         del self.extractor
         del self.normalizer
+        self.viz._model_path = None
         self.viz.heatmap_widget.reset()
         self._initialize_variables()
+        if self.viz.get_renderer('mil'):
+            self.viz.remove_from_render_pipeline('mil')
 
     def ask_load_model(self) -> None:
         """Prompt the user to open an MIL model."""
@@ -174,6 +181,18 @@ class MILWidget(Widget):
             self.viz.close_model(True)  # Close a tile-based model, if one is loaded
             self.viz.tile_um = self.extractor_params['tile_um']
             self.viz.tile_px = self.extractor_params['tile_px']
+            self.viz._model_path = path
+
+            # Add MIL renderer to the render pipeline.
+            self.mil_renderer.load_mil_model(
+                mil_model=self.model,
+                mil_config=self.mil_config,
+                extractor=self.extractor,
+                normalizer=self.normalizer
+            )
+            if not self.viz.get_renderer('mil'):
+                self.viz.add_to_render_pipeline(self.mil_renderer, 'mil')
+
             self.viz.create_toast('MIL model loaded', icon='success')
         except Exception as e:
             if allow_errors:
@@ -271,6 +290,10 @@ class MILWidget(Widget):
             )
             return False
         return True
+
+    def is_categorical(self) -> bool:
+        return (('model_type' not in self.mil_params) 
+                or (self.mil_params['model_type'] == 'categorical'))
 
     def render_attention_heatmap(self, array):
         self.viz.heatmap = _AttentionHeatmapWrapper(array, self.viz.wsi)
@@ -416,7 +439,7 @@ class MILWidget(Widget):
                 self.draw_extractor_info()
             if viz.collapsing_header('MIL Model', default=True):
                 self.draw_mil_info()
-            if viz.collapsing_header('Prediction', default=True):
+            if viz.collapsing_header('Whole-slide Prediction', default=True):
                 self.draw_prediction()
                 predict_enabled = (viz.wsi is not None
                                    and self.model is not None
@@ -424,6 +447,14 @@ class MILWidget(Widget):
                 predict_text = "Predict Slide" if not self._triggered else f"Calculating{imgui_utils.spinner_text()}"
                 if viz.sidebar.full_button(predict_text, enabled=predict_enabled):
                     self.predict_slide()
+            if viz.collapsing_header('Tile Prediction', default=True):
+                draw_tile_predictions(
+                    viz,
+                    is_categorical=self.is_categorical(),
+                    config=self.mil_params,
+                    has_preds=(viz._predictions is not None),
+                    using_model=(self.model is not None)
+                )
         elif show:
             imgui_utils.padded_text('No MIL model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
             if viz.sidebar.full_button("Load an MIL Model"):

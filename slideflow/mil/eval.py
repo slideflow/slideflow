@@ -528,7 +528,6 @@ def _predict_clam(
     y_pred = []
     y_att  = []
     device = utils._detect_device(model, device, verbose=True)
-    log.info("Generating predictions...")
     for bag in bags:
         if isinstance(bag, list):
             # If bags are passed as a list of paths, load them individually.
@@ -564,7 +563,6 @@ def _predict_mil(
     y_pred = []
     y_att  = []
     device = utils._detect_device(model, device, verbose=True)
-    log.info("Generating predictions...")
 
     # Ensure the model has attention capabilities.
     if attention and not hasattr(model, 'calculate_attention'):
@@ -627,7 +625,6 @@ def _predict_multimodal_mil(
     n_mag = len(bags[0])
     y_att  = [[] for _ in range(n_mag)]
     device = utils._detect_device(model, device, verbose=True)
-    log.info("Generating predictions...")
 
     # Ensure the model has attention capabilities.
     if attention and not hasattr(model, 'calculate_attention'):

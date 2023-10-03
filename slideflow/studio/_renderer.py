@@ -29,6 +29,10 @@ if sf.util.torch_available:
 
 #----------------------------------------------------------------------------
 
+ABORT_RENDER = 10
+
+#----------------------------------------------------------------------------
+
 class CapturedException(Exception):
     def __init__(self, msg=None):
         if msg is None:
@@ -101,7 +105,6 @@ def _umap_normalize(vector, clip_min, clip_max, norm_min, norm_max):
     return vector
 
 def _prepare_args(args, kwargs):
-    args = locals()
     del args['kwargs']
     del args['self']
     args.update(kwargs)
@@ -346,11 +349,13 @@ class Renderer:
         use_umap_encoders   = False,
         **kwargs
     ):
-        args = _prepare_args(locals(), kwargs)
         
         # Trigger other renderers in the pipeline.
+        renderer_args = _prepare_args(locals(), kwargs)
         for renderer in self._addl_renderers:
-            renderer._render_impl(**args)
+            exit_code = renderer._render_impl(**renderer_args)
+            if exit_code == ABORT_RENDER:
+                return
 
         # If coordinates are not provided and an image is not
         # already stored in `res`, then skip.
