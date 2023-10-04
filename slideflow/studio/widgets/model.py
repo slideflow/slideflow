@@ -40,14 +40,19 @@ def draw_tile_predictions(viz, is_categorical, config=None, has_preds=None, usin
     if using_model is None:
         using_model = viz._use_model
 
+
     if config is not None:
+        # Process outcomes
+        out_names = config['outcomes']
+        out_names = [out_names] if not isinstance(out_names, list) else out_names
+
         # Multiple categorical outcomes
         if has_preds and isinstance(viz._predictions, list):
             for p, _pred_array in enumerate(viz._predictions):
                 _draw_tile_pred_result(
                     viz,
-                    outcome=config['outcomes'][p],
-                    labels=config['outcome_labels'][config['outcomes'][p]],
+                    outcome=out_names[p],
+                    labels=config['outcome_labels'][out_names[p]],
                     is_categorical=is_categorical,
                     pred_array=_pred_array,
                     uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty[p]
@@ -57,7 +62,7 @@ def draw_tile_predictions(viz, is_categorical, config=None, has_preds=None, usin
         elif has_preds and is_categorical:
             _draw_tile_pred_result(
                 viz,
-                outcome=config['outcomes'][0],
+                outcome=out_names[0],
                 labels=config['outcome_labels'],
                 is_categorical=is_categorical,
                 pred_array=viz._predictions,
@@ -66,9 +71,7 @@ def draw_tile_predictions(viz, is_categorical, config=None, has_preds=None, usin
 
         # Linear outcome(s)
         elif has_preds:
-            _out = config['outcomes']
-            _out = [_out] if not isinstance(_out, list) else _out
-            for o_idx, outcome in enumerate(_out):
+            for o_idx, outcome in enumerate(out_names):
                 _draw_tile_pred_result(
                     viz,
                     outcome=outcome,

@@ -28,7 +28,6 @@ class MILRenderer(Renderer):
     def load_mil_model(self, mil_model, mil_config, extractor, normalizer=None):
         from slideflow.model import torch_utils
         self.device = torch_utils.get_device()
-        print(f"Loading model to device {self.device}")
         self.mil_model = self._model = mil_model.to()
         self.mil_config = mil_config
         self.extractor = extractor
@@ -46,7 +45,7 @@ class MILRenderer(Renderer):
             img = img.to(self.device)
         bags = self.extractor(img)
         return bags
-    
+
     def _predict_bags(self, bags, attention=False):
         """Generate MIL predictions from bags."""
         from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
@@ -88,4 +87,3 @@ class MILRenderer(Renderer):
 
 
 
-    

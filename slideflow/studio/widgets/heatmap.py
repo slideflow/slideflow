@@ -52,6 +52,7 @@ class HeatmapWidget:
         self._heatmap_toast         = None
         self._colormaps             = plt.colormaps()
         self._rendering_message     = "Calculating whole-slide prediction..."
+        self._outcome_names         = None
 
     def _create_heatmap(self):
         viz = self.viz
@@ -135,8 +136,15 @@ class HeatmapWidget:
                 self._heatmap_toast = None
             self.viz.create_toast("Heatmap complete.", icon="success")
 
-    def render_heatmap(self):
+    def render_heatmap(self, outcome_names=None):
         """Render the current heatmap."""
+
+        if outcome_names and len(outcome_names) != self.predictions.shape[2]:
+            raise ValueError("Number of outcome names must match number of outcomes.")
+        if outcome_names:
+            self._outcome_names = outcome_names
+        elif self._outcome_names is None:
+            self._outcome_names = self._get_all_outcome_names()
 
         self._old_predictions = self.heatmap_predictions
         self._old_uncertainty = self.heatmap_uncertainty
@@ -166,6 +174,7 @@ class HeatmapWidget:
         self._generating            = False
         self.heatmap_predictions    = 0
         self.heatmap_uncertainty    = 0
+        self._outcome_names         = None
 
     def update_transparency(self):
         """Update transparency of the heatmap overlay."""
@@ -189,14 +198,18 @@ class HeatmapWidget:
         _thread.start()
         self.show = True
 
-    def _get_all_outcome_names(self):
-        config = self.viz._model_config
+    def _get_all_outcome_names(self, config=None):
+        if config is None:
+            config = self.viz._model_config
         if config is None:
             raise ValueError("Model is not loaded.")
-        if config['model_type'] != 'categorical':
-            return config['outcomes']
-        if len(config['outcomes']) > 1:
-            return [config['outcome_labels'][outcome][o] for outcome in config['outcomes'] for o in config['outcome_labels'][outcome]]
+
+        outcomes = config['outcomes']
+        outcomes = [outcomes] if isinstance(outcomes, str) else outcomes
+        if 'model_type' in config and config['model_type'] != 'categorical':
+            return outcomes
+        if len(outcomes) > 1:
+            return [config['outcome_labels'][outcome][o] for outcome in outcomes for o in config['outcome_labels'][outcome]]
         else:
             return [config['outcome_labels'][str(oidx)] for oidx in range(len(config['outcome_labels']))]
 
@@ -243,13 +256,12 @@ class HeatmapWidget:
             with imgui_utils.item_width(-1 - narrow_w * 2 - viz.spacing*2):
 
                 # Determine outcome name
-                outcome_names = self._get_all_outcome_names()
                 _, hpred = imgui.drag_int('##heatmap_predictions',
                                           self.heatmap_predictions+1,
                                           change_speed=0.05,
                                           min_value=1,
                                           max_value=heatmap_predictions_max+1,
-                                          format=f'{outcome_names[self.heatmap_predictions]} (%d/{heatmap_predictions_max+1})')
+                                          format=f'{self._outcome_names[self.heatmap_predictions]} (%d/{heatmap_predictions_max+1})')
                 self.heatmap_predictions = hpred - 1
             imgui.same_line()
             if imgui_utils.button('-##heatmap_predictions', width=narrow_w):
@@ -301,7 +313,7 @@ class HeatmapWidget:
         _uq_predictions_switched = False
 
         # Predictions and UQ.
-        if viz._model_config is not None:
+        if self.predictions is not None:
             imgui_utils.vertical_break()
             _uq_predictions_switched = self.draw_outcome_selection()
             imgui_utils.vertical_break()
