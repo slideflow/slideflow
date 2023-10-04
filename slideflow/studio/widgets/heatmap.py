@@ -319,7 +319,7 @@ class HeatmapWidget:
             imgui_utils.vertical_break()
 
         # Display options (colormap, opacity, etc).
-        if viz.collapsing_header('Display', default=False):
+        if viz.collapsing_header('Display', default=True):
             with imgui_utils.item_width(viz.font_size * 5):
                 _clicked, self.show = imgui.checkbox('##show_heatmap', self.show)
                 if _clicked:

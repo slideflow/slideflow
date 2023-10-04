@@ -44,6 +44,20 @@ def _draw_imgui_info(rows, viz):
                 with imgui_utils.clipped_with_tooltip(col, 22):
                     imgui.text(imgui_utils.ellipsis_clip(col, 22))
 
+def _reshape_as_heatmap(
+    predictions: np.ndarray,
+    unmasked_indices: Union[np.ndarray, List[int]],
+    original_shape: List[int],
+    total_elements: int
+) -> np.ndarray:
+    heatmap = np.full(total_elements, np.nan, dtype=predictions.dtype)
+    heatmap[unmasked_indices] = predictions
+
+    # Reshape and normalize
+    heatmap = heatmap.reshape(original_shape[:2])
+    heatmap = (heatmap - np.nanmin(heatmap)) / (np.nanmax(heatmap) - np.nanmin(heatmap))
+    return heatmap
+
 class _AttentionHeatmapWrapper:
 
     def __init__(self, attention: np.ndarray, slide: "sf.WSI"):
@@ -183,7 +197,6 @@ class MILWidget(Widget):
             self.viz.close_model(True)  # Close a tile-based model, if one is loaded
             self.viz.tile_um = self.extractor_params['tile_um']
             self.viz.tile_px = self.extractor_params['tile_px']
-            self.viz._model_path = path
 
             # Add MIL renderer to the render pipeline.
             self.mil_renderer.load_mil_model(
@@ -192,9 +205,12 @@ class MILWidget(Widget):
                 extractor=self.extractor,
                 normalizer=self.normalizer
             )
+
+            # Add tile-based predictions to render pipeline.
             if not self.viz.get_renderer('mil'):
                 self.viz.add_to_render_pipeline(self.mil_renderer, 'mil')
 
+            self.viz._model_path = path
             self._mil_path = path
             self.viz.create_toast('MIL model loaded', icon='success')
         except Exception as e:
@@ -224,24 +240,6 @@ class MILWidget(Widget):
                 apply_softmax=self.mil_config.model_config.apply_softmax
             )
         return predictions, attention
-
-    def _reshape_as_heatmap(
-        self,
-        predictions: np.ndarray,
-        unmasked_indices: Union[np.ndarray, List[int]],
-        original_shape: List[int],
-        n_bags: int
-    ):
-        # Create a fully masked array of shape (X, Y)
-        heatmap = np.ma.masked_all(n_bags, dtype=predictions.dtype)
-
-        # Unmask and fill the transformed data into the corresponding positions
-        heatmap[unmasked_indices] = predictions
-        heatmap = np.reshape(heatmap, original_shape[0:2])
-
-        # Normalize the heatmap
-        heatmap = (heatmap - heatmap.min()) / (heatmap.max() - heatmap.min())
-        return heatmap
 
     def _predict_slide(self):
         viz = self.viz
@@ -278,16 +276,16 @@ class MILWidget(Widget):
 
         # Create heatmaps from tile predictions and attention
         if len(tile_predictions.shape) == 2:
-            tile_heatmap = np.concatenate([
-                self._reshape_as_heatmap(tile_predictions[:, n], valid_indices, original_shape, masked_bags.shape[0])[:, :, None]
+            tile_heatmap = np.stack([
+                _reshape_as_heatmap(tile_predictions[:, n], valid_indices, original_shape, masked_bags.shape[0])
                 for n in range(tile_predictions.shape[1])
             ], axis=2)
         else:
-            tile_heatmap = self._reshape_as_heatmap(
+            tile_heatmap = _reshape_as_heatmap(
                 tile_predictions, valid_indices, original_shape, masked_bags.shape[0]
             )
         if self.attention is not None:
-            att_heatmap = self._reshape_as_heatmap(
+            att_heatmap = _reshape_as_heatmap(
                 self.attention, valid_indices, original_shape, masked_bags.shape[0]
             )
             self.render_dual_heatmap(att_heatmap, tile_heatmap)
