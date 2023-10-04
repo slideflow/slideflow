@@ -7,6 +7,8 @@ import pandas as pd
 import torchvision
 import torch
 import math
+
+from tqdm import tqdm
 from torchvision import transforms
 from os import listdir
 from os.path import dirname, exists, isfile, join
@@ -425,6 +427,34 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
                         "distribution of labels in the dataset.")
             self._can_use_random_label = False
 
+        self._prepare_tfrecord_subsample()
+
+    def _prepare_tfrecord_subsample(self):
+        """Prepare custom TFRecord indices to only read tiles in the labels dataframe."""
+
+        # Prepare TFRecord subsample if there are fewer tiles in the 
+        # tiles dataframe than there are in the TFRecords
+        if self.indices is None and (self.num_tiles < len(self.df)):
+
+            self.indices = []
+            desc = "Subsampling TFRecords using tile-level labels..."
+            log.debug(desc)
+            with mp.dummy.Pool(16) as pool:
+                
+                # Load the original (full) indices
+                for index, tfr in tqdm(zip(pool.imap(load_index, self.tfrecords), 
+                                           self.tfrecords), desc=desc):
+                    slide = sf.util.path_to_name(tfr)
+                    loc = sf.io.get_locations_from_tfrecord(tfr)
+
+                    # Check which TFRecord indices are in the labels dataframe
+                    in_df = np.array([f'{slide}-{x[0]}-{y[1]}' in self.df.index for (x,y) in loc])
+
+                    # Subsample indices based on what is in the labels dataframe
+                    ss_index = index[in_df]
+
+                    self.indices += [ss_index]
+            log.debug("TFRecord subsampling complete.")
 
     @property
     def label_shape(self) -> Union[int, Tuple[int, ...]]:
@@ -472,6 +502,16 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
             return self.df.iloc[idx].values[0]
 
 # -------------------------------------------------------------------------
+
+def load_index(tfr):
+    tfr = tfr.decode('utf-8')
+    try:
+        index = tfrecord2idx.load_index(tfr)
+    except OSError:
+        raise errors.TFRecordsError(
+            f"Could not find index path for TFRecord {tfr}"
+        )
+    return index
 
 def _get_images_by_dir(directory: str) -> List[str]:
     files = [
@@ -1205,17 +1245,6 @@ def interleave(
         # & having each create indices would result in conflicts / corruption.
         if indices is None:
             indices = []
-
-            def load_index(tfr):
-                tfr = tfr.decode('utf-8')
-                try:
-                    index = tfrecord2idx.load_index(tfr)
-                except OSError:
-                    raise errors.TFRecordsError(
-                        f"Could not find index path for TFRecord {tfr}"
-                    )
-                return index
-
             if pool is None:
                 pool = mp.dummy.Pool(16)
             log.debug("Loading indices...")
