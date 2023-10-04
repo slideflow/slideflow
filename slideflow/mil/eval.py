@@ -4,7 +4,8 @@ import os
 import pandas as pd
 import slideflow as sf
 import numpy as np
-from rich.progress import Progress
+
+from rich.progress import Progress, track
 from os.path import join, exists, dirname
 from typing import Union, List, Optional, Callable, Tuple, Any, TYPE_CHECKING
 from slideflow import Dataset, log
@@ -338,6 +339,55 @@ def predict_slide(
     return y_pred, y_att
 
 
+def save_mil_tile_predictions(
+    weights: str,
+    dataset: "sf.Dataset",
+    bags: Union[str, np.ndarray, List[str]],
+    config: Optional[_TrainerConfig] = None,
+    outdir: str = 'mil_tile_preds',
+):
+    # Load model and configuration.
+    model, config = utils.load_model_weights(weights, config)
+
+    # Prepare bags.
+    slides = dataset.slides()
+    if isinstance(bags, str):
+        bags = dataset.pt_files(bags)
+    else:
+        bags = np.array([b for b in bags if path_to_name(b) in slides])
+
+    # Ensure slide names are sorted according to the bags.
+    slides = [path_to_name(b) for b in bags]
+
+    is_clam = (isinstance(config, TrainerConfigCLAM)
+                or isinstance(config.model_config, ModelConfigCLAM))
+
+    if not exists(outdir):
+        os.makedirs(outdir)
+
+    # Generate tile predictions for each slide:
+    for bag, slide in track(zip(bags, slides),
+                            description="Generating tile predictions",
+                            total=len(bags)):
+        if is_clam:
+            y_pred = _predict_mil_tiles(model, bag, use_first_out=True)
+        else:
+            y_pred = _predict_mil_tiles(
+                model,
+                bag,
+                use_lens=config.model_config.use_lens,
+                apply_softmax=config.model_config.apply_softmax
+            )
+
+            if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
+                out_path = join(outdir, f'{slide}_tile_preds.npy')
+            else:
+                out_path = join(outdir, f'{slide}_tile_preds.npz')
+            np.savez(out_path, y_pred)
+
+    log.info(f"Tile predictions exported to [green]{out_path}[/]")
+
+
 def predict_from_model(
     model: Callable,
     config: _TrainerConfig,
@@ -609,6 +659,51 @@ def _predict_mil(
             y_pred.append(model_out.cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att
+
+
+def _predict_mil_tiles(
+    model: "torch.nn.Module",
+    bag: Union[str, List[str]],
+    *,
+    use_lens: bool = False,
+    device: Optional[Any] = None,
+    apply_softmax: bool = True,
+    use_first_out: bool = False
+) -> Tuple[np.ndarray, List[np.ndarray]]:
+    """Generate tile predictions from an MIL model from a bag."""
+
+    import torch
+
+    # Prepare bag.
+    device = utils._detect_device(model, device, verbose=True)
+    model.eval()
+    if isinstance(bag, list):
+        # If bags are passed as a list of paths, load them individually.
+        loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
+    else:
+        loaded = utils._load_bag(bag).to(device)
+
+    # Resize the bag dimension to the batch dimension.
+    loaded = torch.unsqueeze(loaded, dim=1)
+
+    # Inference.
+    y_pred = []
+    for n in range(loaded.shape[0]):
+        tile = torch.unsqueeze(loaded[n], dim=0)
+        with torch.no_grad():
+            if use_lens:
+                lens = torch.ones(tile.shape[0:2]).to(device)
+                model_args = (tile, lens)
+            else:
+                model_args = (tile,)
+            model_out = model(*model_args)
+            if use_first_out:  # CLAM models return attention scores as well
+                model_out = model_out[0]
+            if apply_softmax:
+                model_out = torch.nn.functional.softmax(model_out, dim=1)
+            y_pred.append(model_out.cpu().numpy())
+    y_pred = np.concatenate(y_pred, axis=0)
+    return y_pred
 
 
 def _predict_multimodal_mil(
