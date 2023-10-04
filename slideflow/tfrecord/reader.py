@@ -78,41 +78,89 @@ class TFRecordIterator:
         self.length_bytes = bytearray(8)
         self.crc_bytes = bytearray(4)
         self.index = index
+        self.index_is_sequential = None
         if self.index is not None:
             # For the case that there is only a single record in the file
             if len(self.index.shape) == 1:
                 self.index = np.expand_dims(self.index, axis=0)
+
+            # Check if the index file contains sequential records
+            self.index_is_nonsequential = (not np.all(np.cumsum(self.index[:, 1][:-1]) + self.index[0, 0] == self.index[:, 0][1:]))
+
+            # Only keep the starting bytes for the indices
             self.index = self.index[:, 0]  # type: ignore
+
+            # Ensure the starting bytes are in order
+            self.index = np.sort(self.index)
+
+    def _read_sequential_records(self, start_offset=None, end_offset=None):
+        """Read sequential records from the given starting byte."""
+        if start_offset is not None:
+            self.file.seek(start_offset)
+        if end_offset is None:
+            end_offset = os.path.getsize(self.data_path)
+        while self.file.tell() < end_offset:
+            yield self._read_next_data()
+
+    def _read_nonsequential_records(self, start_offset=None, end_offset=None):
+        """Read nonsequential records from the given starting byte.
+
+        Only read records with starting bytes reflected in the index file.
+        """
+        if start_offset not in self.index:
+            raise ValueError("Offset not in the tfrecord index.")
+        if start_offset is None:
+            start_offset = self.index[0]
+            index_loc = 0
+        else:
+            index_loc = np.argwhere(self.index == start_offset)[0][0]
+
+        if end_offset is None:
+            end_offset = os.path.getsize(self.data_path)
+
+        while self.index[index_loc] < end_offset:
+            if self.file.tell() != self.index[index_loc]:
+                self.file.seek(self.index[index_loc])
+
+            yield self._read_next_data()
+            index_loc += 1
+
+            # End the loop if we have reached the last index
+            if index_loc >= len(self.index):
+                break
+
+    def _read_next_data(self) -> bytes:
+        """Read the next record from the tfrecord file."""
+        if self.file.readinto(self.length_bytes) != 8:
+            raise RuntimeError("Failed to read the record size.")
+        if self.file.readinto(self.crc_bytes) != 4:
+            raise RuntimeError("Failed to read the start token.")
+        length, = struct.unpack("<Q", self.length_bytes)
+        if length > len(self.datum_bytes):
+            try:
+                _fill = int(length * 1.5)
+                self.datum_bytes = self.datum_bytes.zfill(_fill)
+            except OverflowError:
+                raise OverflowError('Error reading tfrecords; please '
+                                    'try regenerating index files')
+        datum_bytes_view = memoryview(self.datum_bytes)[:length]
+        if self.file.readinto(datum_bytes_view) != length:
+            raise RuntimeError("Failed to read the record.")
+        if self.file.readinto(self.crc_bytes) != 4:
+            raise RuntimeError("Failed to read the end token.")
+        return self.process(datum_bytes_view)
+
+    def read_records(self, start_offset=None, end_offset=None):
+        if self.index_is_nonsequential:
+            yield from self._read_nonsequential_records(start_offset, end_offset)
+        else:
+            yield from self._read_sequential_records(start_offset, end_offset)
 
     def __iter__(self) -> Iterable[memoryview]:
         """Create the iterator."""
-        def read_records(start_offset=None, end_offset=None):
-            if start_offset is not None:
-                self.file.seek(start_offset)
-            if end_offset is None:
-                end_offset = os.path.getsize(self.data_path)
-            while self.file.tell() < end_offset:
-                if self.file.readinto(self.length_bytes) != 8:
-                    raise RuntimeError("Failed to read the record size.")
-                if self.file.readinto(self.crc_bytes) != 4:
-                    raise RuntimeError("Failed to read the start token.")
-                length, = struct.unpack("<Q", self.length_bytes)
-                if length > len(self.datum_bytes):
-                    try:
-                        _fill = int(length * 1.5)
-                        self.datum_bytes = self.datum_bytes.zfill(_fill)
-                    except OverflowError:
-                        raise OverflowError('Error reading tfrecords; please '
-                                            'try regenerating index files')
-                datum_bytes_view = memoryview(self.datum_bytes)[:length]
-                if self.file.readinto(datum_bytes_view) != length:
-                    raise RuntimeError("Failed to read the record.")
-                if self.file.readinto(self.crc_bytes) != 4:
-                    raise RuntimeError("Failed to read the end token.")
-                yield self.process(datum_bytes_view)
 
         if self.index is None:
-            yield from read_records()
+            yield from self.read_records()
         else:
             if self.clip:
                 if self.clip == len(self.index):
@@ -125,10 +173,10 @@ class TFRecordIterator:
             if self.shard is None and self.random_start:
                 assert self.index is not None
                 offset = np.random.choice(self.index)
-                yield from read_records(offset, clip_offset)
-                yield from read_records(0, offset)
+                yield from self.read_records(offset, clip_offset)
+                yield from self.read_records(0, offset)
             elif self.shard is None:
-                yield from read_records(0, clip_offset)
+                yield from self.read_records(0, clip_offset)
             else:
                 shard_idx, shard_count = self.shard
                 all_shard_indices = np.array_split(self.index, shard_count)
@@ -137,7 +185,7 @@ class TFRecordIterator:
                     # only the first shard will read
                     if shard_idx == 0:
                         start_byte = all_shard_indices[shard_idx][0]
-                        yield from read_records(start_byte, clip_offset)
+                        yield from self.read_records(start_byte, clip_offset)
                         return
                     else:
                         return
@@ -146,7 +194,7 @@ class TFRecordIterator:
                 else:
                     end_byte = clip_offset
                 start_byte = all_shard_indices[shard_idx][0]
-                yield from read_records(start_byte, end_byte)
+                yield from self.read_records(start_byte, end_byte)
 
     def process(self, record):
         return record

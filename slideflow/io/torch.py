@@ -8,7 +8,6 @@ import torchvision
 import torch
 import math
 
-from tqdm import tqdm
 from torchvision import transforms
 from os import listdir
 from os.path import dirname, exists, isfile, join
@@ -418,7 +417,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
         self.incl_loc = True
         first_row  = next(self.df.itertuples())
         self._label_shape = first_row.label.shape
-        if self.num_tiles and self.num_tiles != len(self.df):
+        if self.rank == 0:
             log.warning(f"Number of tiles ({self.num_tiles}) does not equal the "
                         f"number of labels ({len(self.df)}). ")
 
@@ -432,24 +431,28 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
         if self.indices is None and (self.num_tiles != len(self.df)):
 
             self.indices = []
-            desc = "Subsampling TFRecords using tile-level labels..."
-            log.debug(desc)
+            worker_info = torch.utils.data.get_worker_info()
+            if self.rank == 0:
+                log.info("Subsampling TFRecords using tile-level labels...")
+
             with mp.dummy.Pool(16) as pool:
                 
                 # Load the original (full) indices
-                for index, tfr in tqdm(zip(pool.imap(load_index, self.tfrecords), 
-                                           self.tfrecords), desc=desc):
+                for index, tfr in zip(pool.imap(load_index, self.tfrecords), self.tfrecords):
+                    tfr = tfr.decode('utf-8')
                     slide = sf.util.path_to_name(tfr)
                     loc = sf.io.get_locations_from_tfrecord(tfr)
 
                     # Check which TFRecord indices are in the labels dataframe
-                    in_df = np.array([f'{slide}-{x[0]}-{y[1]}' in self.df.index for (x,y) in loc])
+                    in_df = np.array([f'{slide}-{x}-{y}' in self.df.index for (x,y) in loc])
 
                     # Subsample indices based on what is in the labels dataframe
                     ss_index = index[in_df]
 
                     self.indices += [ss_index]
-            log.debug("TFRecord subsampling complete.")
+            
+            if self.rank == 0:
+                log.info("TFRecord subsampling complete.")
 
     @property
     def label_shape(self) -> Union[int, Tuple[int, ...]]:
@@ -1242,6 +1245,8 @@ def interleave(
             for index in pool.imap(load_index, paths):
                 indices += [index]
             pool.close()
+        else:
+            log.debug("Using provided indices.")
 
         # ---- Interleave and batch datasets ----------------------------------
         random_sampler = MultiTFRecordDataset(
