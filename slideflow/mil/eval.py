@@ -385,7 +385,7 @@ def save_mil_tile_predictions(
                 out_path = join(outdir, f'{slide}_tile_preds.npz')
             np.savez(out_path, y_pred)
 
-    log.info(f"Tile predictions exported to [green]{out_path}[/]")
+    log.info(f"Tile predictions exported to [green]{outdir}[/]")
 
 
 def predict_from_model(
