@@ -344,10 +344,13 @@ def save_mil_tile_predictions(
     dataset: "sf.Dataset",
     bags: Union[str, np.ndarray, List[str]],
     config: Optional[_TrainerConfig] = None,
-    outdir: str = 'mil_tile_preds',
+    outcomes: Union[str, List[str]] = None,
+    dest: str = 'mil_tile_preds.parquet',
 ):
     # Load model and configuration.
     model, config = utils.load_model_weights(weights, config)
+    if outcomes is not None:
+        labels, unique = dataset.labels(outcomes, format='id')
 
     # Prepare bags.
     slides = dataset.slides()
@@ -362,30 +365,91 @@ def save_mil_tile_predictions(
     is_clam = (isinstance(config, TrainerConfigCLAM)
                 or isinstance(config.model_config, ModelConfigCLAM))
 
-    if not exists(outdir):
-        os.makedirs(outdir)
+    print("Generating predictions for {} slides and {} bags.".format(len(slides), len(bags)))
 
-    # Generate tile predictions for each slide:
-    for bag, slide in track(zip(bags, slides),
+    # First, start with slide-level inference and attention.
+    if (isinstance(config, TrainerConfigCLAM)
+       or isinstance(config.model_config, ModelConfigCLAM)):
+        slide_pred, attention = _predict_clam(model, bags, attention=True)
+    else:
+        slide_pred, attention = _predict_mil(
+            model,
+            bags,
+            attention=True,
+            use_lens=config.model_config.use_lens,
+            apply_softmax=config.model_config.apply_softmax
+        )
+
+    df_slides = []
+    df_attention = []
+    df_preds = []
+    df_true = []
+    df_loc_x = []
+    df_loc_y = []
+
+    # Then, generate tile predictions for each slide:
+    for i, (bag, slide) in track(enumerate(zip(bags, slides)),
                             description="Generating tile predictions",
                             total=len(bags)):
         if is_clam:
-            y_pred = _predict_mil_tiles(model, bag, use_first_out=True)
+            tile_pred = _predict_mil_tiles(model, bag, use_first_out=True)
         else:
-            y_pred = _predict_mil_tiles(
+            tile_pred = _predict_mil_tiles(
                 model,
                 bag,
                 use_lens=config.model_config.use_lens,
                 apply_softmax=config.model_config.apply_softmax
             )
 
-            if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
-                out_path = join(outdir, f'{slide}_tile_preds.npy')
-            else:
-                out_path = join(outdir, f'{slide}_tile_preds.npz')
-            np.savez(out_path, y_pred)
+        # Verify the shapes are consistent.
+        assert len(tile_pred) == len(attention[i])
+        n_bags = len(tile_pred)
 
-    log.info(f"Tile predictions exported to [green]{outdir}[/]")
+        # Find the associated locations.
+        bag_index = join(dirname(bag), f'{slide}.index.npz')
+        if exists(bag_index):
+            locations = np.load(bag_index)['arr_0']
+            assert len(locations) == n_bags
+            df_loc_x.append(locations[:, 0])
+            df_loc_y.append(locations[:, 1])
+        
+        # Add to dataframe lists.
+        df_preds.append(tile_pred)
+        if attention is not None:
+            df_attention.append(attention[i])
+        df_slides += [slide for _ in range(n_bags)]
+        if outcomes is not None:
+            _label = labels[slide]
+            df_true += [_label for _ in range(n_bags)]
+
+    # Update dataframe with predictions.
+    df_attention = np.concatenate(df_attention, axis=0)
+    df_preds = np.concatenate(df_preds, axis=0)
+    df_dict = dict(slide=df_slides)
+
+    if df_loc_x:
+        df_dict['loc_x'] = np.concatenate(df_loc_x, axis=0)
+        df_dict['loc_y'] = np.concatenate(df_loc_y, axis=0)
+
+    # Attention
+    if attention is not None:
+        df_dict['attention'] = df_attention
+    
+    # Ground truth
+    if outcomes is not None:
+        df_dict['y_true'] = df_true
+
+    # Predictions
+    for i in range(df_preds[0].shape[0]):
+        df_dict[f'y_pred{i}'] = df_preds[:, i]
+
+    # Final processing to dataframe & disk
+    df = pd.DataFrame(df_dict)
+    df.to_parquet(dest)
+    log.info("{} tile predictions exported to [green]{}[/]".format(
+        df_preds.shape[0],
+        dest
+    ))
 
 
 def predict_from_model(
