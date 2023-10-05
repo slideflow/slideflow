@@ -113,7 +113,7 @@ class Studio(ImguiWindow):
 
         # Interface.
         self._show_about                = False
-        self._show_tile_preview         = False
+        self._show_tile_preview         = True
         self._tile_preview_is_new       = True
         self._tile_preview_image_is_new = True
         self._show_overlays             = True

@@ -7,6 +7,7 @@ import pandas as pd
 import torchvision
 import torch
 import math
+
 from torchvision import transforms
 from os import listdir
 from os.path import dirname, exists, isfile, join
@@ -416,15 +417,42 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
         self.incl_loc = True
         first_row  = next(self.df.itertuples())
         self._label_shape = first_row.label.shape
-        if self.num_tiles and self.num_tiles <= len(self.df):
-            self._can_use_random_label = True
-        else:
-            log.warning("Number of tiles is greater than the number of "
-                        "labels. Distribution of labels learned during "
-                        "training may not be representative of the "
-                        "distribution of labels in the dataset.")
-            self._can_use_random_label = False
+        if self.rank == 0:
+            log.warning(f"Number of tiles ({self.num_tiles}) does not equal the "
+                        f"number of labels ({len(self.df)}). ")
 
+        self._prepare_tfrecord_subsample()
+
+    def _prepare_tfrecord_subsample(self):
+        """Prepare custom TFRecord indices to only read tiles in the labels dataframe."""
+
+        # Prepare TFRecord subsample if there are fewer tiles in the 
+        # tiles dataframe than there are in the TFRecords
+        if self.indices is None and (self.num_tiles != len(self.df)):
+
+            self.indices = []
+            worker_info = torch.utils.data.get_worker_info()
+            if self.rank == 0:
+                log.info("Subsampling TFRecords using tile-level labels...")
+
+            with mp.dummy.Pool(16) as pool:
+                
+                # Load the original (full) indices
+                for index, tfr in zip(pool.imap(load_index, self.tfrecords), self.tfrecords):
+                    tfr = tfr.decode('utf-8')
+                    slide = sf.util.path_to_name(tfr)
+                    loc = sf.io.get_locations_from_tfrecord(tfr)
+
+                    # Check which TFRecord indices are in the labels dataframe
+                    in_df = np.array([f'{slide}-{x}-{y}' in self.df.index for (x,y) in loc])
+
+                    # Subsample indices based on what is in the labels dataframe
+                    ss_index = index[in_df]
+
+                    self.indices += [ss_index]
+            
+            if self.rank == 0:
+                log.info("TFRecord subsampling complete.")
 
     @property
     def label_shape(self) -> Union[int, Tuple[int, ...]]:
@@ -464,14 +492,20 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
 
     def get_label(self, idx: Any) -> Any:
         """Returns a random label. Used for compatibility with StyleGAN2."""
-        if self._can_use_random_label:
-            idx = np.random.randint(self.num_tiles)
-            return self.df.iloc[idx].values[0]
-        else:
-            idx = np.random.randint(len(self.df))
-            return self.df.iloc[idx].values[0]
+        idx = np.random.randint(len(self.df))
+        return self.df.iloc[idx].values[0]
 
 # -------------------------------------------------------------------------
+
+def load_index(tfr):
+    tfr = tfr.decode('utf-8')
+    try:
+        index = tfrecord2idx.load_index(tfr)
+    except OSError:
+        raise errors.TFRecordsError(
+            f"Could not find index path for TFRecord {tfr}"
+        )
+    return index
 
 def _get_images_by_dir(directory: str) -> List[str]:
     files = [
@@ -1205,23 +1239,14 @@ def interleave(
         # & having each create indices would result in conflicts / corruption.
         if indices is None:
             indices = []
-
-            def load_index(tfr):
-                tfr = tfr.decode('utf-8')
-                try:
-                    index = tfrecord2idx.load_index(tfr)
-                except OSError:
-                    raise errors.TFRecordsError(
-                        f"Could not find index path for TFRecord {tfr}"
-                    )
-                return index
-
             if pool is None:
                 pool = mp.dummy.Pool(16)
             log.debug("Loading indices...")
             for index in pool.imap(load_index, paths):
                 indices += [index]
             pool.close()
+        else:
+            log.debug("Using provided indices.")
 
         # ---- Interleave and batch datasets ----------------------------------
         random_sampler = MultiTFRecordDataset(

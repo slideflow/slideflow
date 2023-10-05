@@ -4,7 +4,8 @@ import os
 import pandas as pd
 import slideflow as sf
 import numpy as np
-from rich.progress import Progress
+
+from rich.progress import Progress, track
 from os.path import join, exists, dirname
 from typing import Union, List, Optional, Callable, Tuple, Any, TYPE_CHECKING
 from slideflow import Dataset, log
@@ -338,6 +339,119 @@ def predict_slide(
     return y_pred, y_att
 
 
+def save_mil_tile_predictions(
+    weights: str,
+    dataset: "sf.Dataset",
+    bags: Union[str, np.ndarray, List[str]],
+    config: Optional[_TrainerConfig] = None,
+    outcomes: Union[str, List[str]] = None,
+    dest: str = 'mil_tile_preds.parquet',
+):
+    # Load model and configuration.
+    model, config = utils.load_model_weights(weights, config)
+    if outcomes is not None:
+        labels, unique = dataset.labels(outcomes, format='id')
+
+    # Prepare bags.
+    slides = dataset.slides()
+    if isinstance(bags, str):
+        bags = dataset.pt_files(bags)
+    else:
+        bags = np.array([b for b in bags if path_to_name(b) in slides])
+
+    # Ensure slide names are sorted according to the bags.
+    slides = [path_to_name(b) for b in bags]
+
+    is_clam = (isinstance(config, TrainerConfigCLAM)
+                or isinstance(config.model_config, ModelConfigCLAM))
+
+    print("Generating predictions for {} slides and {} bags.".format(len(slides), len(bags)))
+
+    # First, start with slide-level inference and attention.
+    if (isinstance(config, TrainerConfigCLAM)
+       or isinstance(config.model_config, ModelConfigCLAM)):
+        slide_pred, attention = _predict_clam(model, bags, attention=True)
+    else:
+        slide_pred, attention = _predict_mil(
+            model,
+            bags,
+            attention=True,
+            use_lens=config.model_config.use_lens,
+            apply_softmax=config.model_config.apply_softmax
+        )
+
+    df_slides = []
+    df_attention = []
+    df_preds = []
+    df_true = []
+    df_loc_x = []
+    df_loc_y = []
+
+    # Then, generate tile predictions for each slide:
+    for i, (bag, slide) in track(enumerate(zip(bags, slides)),
+                            description="Generating tile predictions",
+                            total=len(bags)):
+        if is_clam:
+            tile_pred = _predict_mil_tiles(model, bag, use_first_out=True)
+        else:
+            tile_pred = _predict_mil_tiles(
+                model,
+                bag,
+                use_lens=config.model_config.use_lens,
+                apply_softmax=config.model_config.apply_softmax
+            )
+
+        # Verify the shapes are consistent.
+        assert len(tile_pred) == len(attention[i])
+        n_bags = len(tile_pred)
+
+        # Find the associated locations.
+        bag_index = join(dirname(bag), f'{slide}.index.npz')
+        if exists(bag_index):
+            locations = np.load(bag_index)['arr_0']
+            assert len(locations) == n_bags
+            df_loc_x.append(locations[:, 0])
+            df_loc_y.append(locations[:, 1])
+        
+        # Add to dataframe lists.
+        df_preds.append(tile_pred)
+        if attention is not None:
+            df_attention.append(attention[i])
+        df_slides += [slide for _ in range(n_bags)]
+        if outcomes is not None:
+            _label = labels[slide]
+            df_true += [_label for _ in range(n_bags)]
+
+    # Update dataframe with predictions.
+    df_attention = np.concatenate(df_attention, axis=0)
+    df_preds = np.concatenate(df_preds, axis=0)
+    df_dict = dict(slide=df_slides)
+
+    if df_loc_x:
+        df_dict['loc_x'] = np.concatenate(df_loc_x, axis=0)
+        df_dict['loc_y'] = np.concatenate(df_loc_y, axis=0)
+
+    # Attention
+    if attention is not None:
+        df_dict['attention'] = df_attention
+    
+    # Ground truth
+    if outcomes is not None:
+        df_dict['y_true'] = df_true
+
+    # Predictions
+    for i in range(df_preds[0].shape[0]):
+        df_dict[f'y_pred{i}'] = df_preds[:, i]
+
+    # Final processing to dataframe & disk
+    df = pd.DataFrame(df_dict)
+    df.to_parquet(dest)
+    log.info("{} tile predictions exported to [green]{}[/]".format(
+        df_preds.shape[0],
+        dest
+    ))
+
+
 def predict_from_model(
     model: Callable,
     config: _TrainerConfig,
@@ -528,7 +642,6 @@ def _predict_clam(
     y_pred = []
     y_att  = []
     device = utils._detect_device(model, device, verbose=True)
-    log.info("Generating predictions...")
     for bag in bags:
         if isinstance(bag, list):
             # If bags are passed as a list of paths, load them individually.
@@ -564,7 +677,6 @@ def _predict_mil(
     y_pred = []
     y_att  = []
     device = utils._detect_device(model, device, verbose=True)
-    log.info("Generating predictions...")
 
     # Ensure the model has attention capabilities.
     if attention and not hasattr(model, 'calculate_attention'):
@@ -613,6 +725,51 @@ def _predict_mil(
     return yp, y_att
 
 
+def _predict_mil_tiles(
+    model: "torch.nn.Module",
+    bag: Union[str, List[str]],
+    *,
+    use_lens: bool = False,
+    device: Optional[Any] = None,
+    apply_softmax: bool = True,
+    use_first_out: bool = False
+) -> Tuple[np.ndarray, List[np.ndarray]]:
+    """Generate tile predictions from an MIL model from a bag."""
+
+    import torch
+
+    # Prepare bag.
+    device = utils._detect_device(model, device, verbose=True)
+    model.eval()
+    if isinstance(bag, list):
+        # If bags are passed as a list of paths, load them individually.
+        loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
+    else:
+        loaded = utils._load_bag(bag).to(device)
+
+    # Resize the bag dimension to the batch dimension.
+    loaded = torch.unsqueeze(loaded, dim=1)
+
+    # Inference.
+    y_pred = []
+    for n in range(loaded.shape[0]):
+        tile = torch.unsqueeze(loaded[n], dim=0)
+        with torch.no_grad():
+            if use_lens:
+                lens = torch.ones(tile.shape[0:2]).to(device)
+                model_args = (tile, lens)
+            else:
+                model_args = (tile,)
+            model_out = model(*model_args)
+            if use_first_out:  # CLAM models return attention scores as well
+                model_out = model_out[0]
+            if apply_softmax:
+                model_out = torch.nn.functional.softmax(model_out, dim=1)
+            y_pred.append(model_out.cpu().numpy())
+    y_pred = np.concatenate(y_pred, axis=0)
+    return y_pred
+
+
 def _predict_multimodal_mil(
     model: "torch.nn.Module",
     bags: Union[List[np.ndarray], List[List[str]]],
@@ -627,7 +784,6 @@ def _predict_multimodal_mil(
     n_mag = len(bags[0])
     y_att  = [[] for _ in range(n_mag)]
     device = utils._detect_device(model, device, verbose=True)
-    log.info("Generating predictions...")
 
     # Ensure the model has attention capabilities.
     if attention and not hasattr(model, 'calculate_attention'):
