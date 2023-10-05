@@ -101,6 +101,7 @@ class MILWidget(Widget):
         self._clicking      = None
         self._initialize_variables()
         self.mil_renderer = MILRenderer()
+        self.viz.mil_widget = self  #TODO: hacky, remove this
 
     # --- Hooks, triggers, and internal functions -----------------------------
 
@@ -520,7 +521,7 @@ class MILWidget(Widget):
 
         if (viz._predictions is not None) and (self.model is not None):
             pred_str = prediction_to_string(
-                predictions=viz._predictions, 
+                predictions=viz._predictions,
                 outcomes=self.mil_params['outcome_labels'],
                 is_categorical=self.is_categorical()
             )

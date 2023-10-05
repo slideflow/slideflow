@@ -15,7 +15,7 @@ import numpy as np
 import json
 from os.path import join, dirname, abspath, basename, exists
 from tkinter.filedialog import askopenfilename
-
+from .model import draw_tile_predictions
 from slideflow.gan.stylegan3.stylegan3.viz.renderer import (
     Renderer, CapturedException
 )
@@ -379,12 +379,21 @@ class StyleGANWidget(Widget):
     def draw_prediction(self):
         viz = self.viz
 
-        if not viz._model_config:
+        #TODO: Hacky workaround, fix later
+        if hasattr(viz, 'mil_widget') and viz.mil_widget.model is not None:
+            draw_tile_predictions(
+                viz,
+                is_categorical=viz.mil_widget.is_categorical(),
+                config=viz.mil_widget.mil_params,
+                has_preds=(viz._predictions is not None),
+                using_model=(viz.mil_widget.model is not None)
+            )
+        elif not viz._model_config:
             imgui_utils.padded_text('No model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
             if viz.sidebar.full_button("Load a Model"):
                 viz.ask_load_model()
         else:
-            viz.model_widget.draw_tile_predictions()
+            draw_tile_predictions(viz, viz.model_widget.is_categorical())
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
