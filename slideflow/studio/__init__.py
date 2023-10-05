@@ -27,7 +27,8 @@ from .widgets import (
     CaptureWidget, SettingsWidget, ExtensionsWidget, Widget
 )
 from .utils import EasyDict
-from ._renderer import AsyncRenderManager, Renderer, CapturedException
+from ._renderer import Renderer
+from ._render_manager import AsyncRenderManager, CapturedException
 
 OVERLAY_GRID    = 0
 OVERLAY_WSI     = 1
@@ -1173,7 +1174,8 @@ class Studio(ImguiWindow):
 
     def clear_model_results(self) -> None:
         """Clear all model results and associated images."""
-        self._render_manager.clear_result()
+        if self._render_manager is not None:
+            self._render_manager.clear_result()
         self._predictions       = None
         self._norm_tex_img      = None
         self._norm_tex_obj      = None
@@ -1397,17 +1399,24 @@ class Studio(ImguiWindow):
         from .widgets import MosaicWidget
         return [MosaicWidget]
 
-    def get_renderer(self, name: str) -> Optional[Renderer]:
+    def get_renderer(self, name: Optional[str] = None) -> Optional[Renderer]:
         """Check for the given additional renderer in the rendering pipeline.
 
         Args:
-            name (str): Name of the renderer to check for.
+            name (str): Name of the renderer to check for. If None,
+                returns the main renderer.
 
         Returns:
             Renderer if name is a recognized renderer, otherwise None
 
         """
-        if name in self._addl_renderers:
+        if name is None:
+            if (self._render_manager is not None
+                and self._render_manager._renderer_obj is not None):
+                return self._render_manager._renderer_obj
+            else:
+                return None
+        elif name in self._addl_renderers:
             return self._addl_renderers[name]
         else:
             return None
@@ -1498,6 +1507,12 @@ class Studio(ImguiWindow):
         self._render_manager.get_result() # Flush prior result
         self._render_manager.clear_result()
         try:
+
+            # Trigger user widgets
+            for widget in self.widgets:
+                if hasattr(widget, '_before_model_load'):
+                    widget._before_model_load()
+
             self.defer_rendering()
             self.model_widget.user_model = model
 

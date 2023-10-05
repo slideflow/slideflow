@@ -1,9 +1,11 @@
 import numpy as np
 import slideflow as sf
+from typing import Optional
 from rich import print
 
-from ._renderer import Renderer, ABORT_RENDER
+from ._renderer import Renderer
 from slideflow.mil.eval import _predict_mil, _predict_clam
+from slideflow.model.extractors import rebuild_extractor
 
 # -----------------------------------------------------------------------------
 
@@ -25,13 +27,28 @@ if sf.util.torch_available:
 
 class MILRenderer(Renderer):
 
-    def load_mil_model(self, mil_model, mil_config, extractor, normalizer=None):
-        from slideflow.model import torch_utils
-        self.device = torch_utils.get_device()
-        self.mil_model = self._model = mil_model.to()
-        self.mil_config = mil_config
-        self.extractor = extractor
-        self.normalizer = normalizer
+    def __init__(self, *args, mil_model_path: Optional[str] = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mil_model = None
+        self.mil_config = None
+        self.extractor = None
+        self.normalizer = None
+        if mil_model_path:
+            self.load_model(mil_model_path)
+
+    def load_model(self, mil_model_path: str, device: Optional[str] = None) -> None:
+        sf.log.info("Loading MIL model at {}".format(mil_model_path))
+        if device is None:
+            from slideflow.model import torch_utils
+            device = torch_utils.get_device()
+        self.device = device
+        self.extractor, self.normalizer = rebuild_extractor(
+            mil_model_path, native_normalizer=(sf.slide_backend()=='cucim')
+        )
+        self.mil_model, self.mil_config = sf.mil.utils.load_model_weights(mil_model_path)
+        self.mil_model.to(self.device)
+        self._model = self.mil_model
+        sf.log.info("Model loading successful")
 
     def _convert_img_to_bags(self, img):
         """Convert an image into bag format."""
@@ -75,15 +92,9 @@ class MILRenderer(Renderer):
         bags = self._convert_img_to_bags(img)
         preds, _ = self._predict_bags(bags)
         res.predictions = preds[0]
+        res.uncertainty = None
 
     def _render_impl(self, res, *args, **kwargs):
         if self.mil_model is not None:
             kwargs['use_model'] = True
         super()._render_impl(res, *args, **kwargs)
-        return ABORT_RENDER
-
-
-
-
-
-

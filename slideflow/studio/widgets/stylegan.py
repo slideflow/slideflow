@@ -78,8 +78,9 @@ class StyleGANWidget(Widget):
         self.viz._tex_img           = None
         self.viz._tex_obj           = None
         self.viz.clear_result()
-        self.viz._render_manager.get_result()
-        self.viz._render_manager.clear_result()
+        if self.viz._render_manager is not None:
+            self.viz._render_manager.get_result()
+            self.viz._render_manager.clear_result()
         self.viz.skip_frame()
 
     def load(self, pkl, ignore_errors=False) -> bool:
@@ -195,6 +196,11 @@ class StyleGANWidget(Widget):
     def class_selection(self, name, value):
         viz = self.viz
         return_val = None
+
+        # Skip if this is a non-conditioned GAN
+        if self.sf_opt['outcome_labels'] is None:
+            return
+
         with imgui_utils.item_width(viz.font_size * 5):
             _changed, _idx = imgui.input_int(name, value, step=1, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
             if _changed and self.sf_opt and _idx >= 0 and str(_idx) not in self.sf_opt['outcome_labels']:
@@ -262,7 +268,7 @@ class StyleGANWidget(Widget):
             outcomes = ', '.join(outcomes)
         imgui.text_colored('Outcome', *viz.theme.dim)
         imgui.same_line(viz.font_size * 6)
-        imgui.text(outcomes)
+        imgui.text(str(outcomes))
 
     def draw_latent(self):
         viz = self.viz

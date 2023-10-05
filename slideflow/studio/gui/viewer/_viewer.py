@@ -233,8 +233,8 @@ class Viewer:
                 f = (now-self._capture_start) / duration
                 alpha = (1-f) ** 3
                 gl_utils.draw_rect(
-                    pos=(self.x_offset, self.y_offset), 
-                    size=[self.width, self.height], 
+                    pos=(self.x_offset, self.y_offset),
+                    size=[self.width, self.height],
                     color=1,
                     alpha=alpha
                 )
