@@ -50,6 +50,12 @@ class MILRenderer(Renderer):
         """Generate MIL predictions from bags."""
         from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
 
+        # Convert to torch tensor
+        if sf.util.tf_available and isinstance(bags, tf.Tensor):
+            bags = bags.numpy()
+        if isinstance(bags, np.ndarray):
+            bags = torch.from_numpy(bags)
+
         # Add a batch dimension
         bags = torch.unsqueeze(bags, dim=0)
 
@@ -75,6 +81,7 @@ class MILRenderer(Renderer):
         bags = self._convert_img_to_bags(img)
         preds, _ = self._predict_bags(bags)
         res.predictions = preds[0]
+        res.uncertainty = None
 
     def _render_impl(self, res, *args, **kwargs):
         if self.mil_model is not None:

@@ -1167,7 +1167,7 @@ class Studio(ImguiWindow):
             self._message = None
             return True
         return False
-    
+
     def clear_prediction_message(self) -> None:
         self._pred_message = None
 
@@ -1362,14 +1362,14 @@ class Studio(ImguiWindow):
         self._draw_status_bar()
 
         # Draw prediction message next to box on main display.
-        if self._pred_message:
+        if self._pred_message and self.viewer is not None:
             self._render_prediction_message(self._pred_message)
         elif (self._use_model
            and self._predictions is not None
            and not isinstance(self._predictions, list)
            and self.viewer is not None):
             pred_str = prediction_to_string(
-                predictions=self._predictions, 
+                predictions=self._predictions,
                 outcomes=self._model_config['outcome_labels'],
                 is_categorical=(self._model_config['model_type'] == 'categorical')
             )
