@@ -412,6 +412,7 @@ class Studio(ImguiWindow):
             and inp.clicking
             and not inp.dragging
             and self.viewer.is_in_view(inp.cx, inp.cy)):
+
             wsi_x, wsi_y = self.viewer.display_coords_to_wsi_coords(inp.cx, inp.cy, offset=False)
             self.x = wsi_x - (self.viewer.full_extract_px/2)
             self.y = wsi_y - (self.viewer.full_extract_px/2)
@@ -1070,7 +1071,8 @@ class Studio(ImguiWindow):
         if name not in self._addl_renderers:
             raise ValueError(f'Could not find renderer "{name}"')
         renderer = self._addl_renderers[name]
-        self._async_renderer.remove_from_render_pipeline(renderer)
+        if self._async_renderer is not None:
+            self._async_renderer.remove_from_render_pipeline(renderer)
         del self._addl_renderers[name]
 
     def ask_load_heatmap(self):
@@ -1285,7 +1287,8 @@ class Studio(ImguiWindow):
         # Buffer tile view if using a live viewer.
         if self.has_live_viewer() and self.args.x and self.args.y:
 
-            if self._async_renderer._args_queue.qsize() > 2:
+            if (self._async_renderer.is_async 
+                and self._async_renderer._args_queue.qsize() > 2):
                 if self._defer_tile_refresh is None:
                     self._defer_tile_refresh = time.time()
                     self.defer_rendering()

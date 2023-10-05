@@ -326,7 +326,8 @@ class Renderer:
         saliency_overlay=None,
         use_umap_encoders=False,
         use_uncertainty=False,
-        focus_img=None
+        focus_img=None,
+        assess_focus=None,
     ):
         """Run model pipelines on a rendered image."""
 
@@ -487,7 +488,8 @@ class Renderer:
                 saliency_overlay=saliency_overlay,
                 use_umap_encoders=use_umap_encoders,
                 use_uncertainty=use_uncertainty,
-                focus_img=(None if not assess_focus else focus_img)
+                focus_img=(None if not assess_focus else focus_img),
+                assess_focus=assess_focus
             )
 
 #----------------------------------------------------------------------------
