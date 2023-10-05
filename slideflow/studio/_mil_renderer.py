@@ -33,7 +33,7 @@ class MILRenderer(Renderer):
         self.extractor = extractor
         self.normalizer = normalizer
 
-    def _convert_img_to_bags(self, img):
+    def _convert_img_to_bags(self, img, res):
         """Convert an image into bag format."""
         if self.extractor.backend == 'torch':
             dtype = torch.uint8
@@ -43,6 +43,9 @@ class MILRenderer(Renderer):
         img = sf.io.convert_dtype(img, dtype=dtype)
         if self.extractor.backend == 'torch':
             img = img.to(self.device)
+        if self.normalizer:
+            img  = self.normalizer.transform(img)
+            res.normalized = img.numpy()[0]
         bags = self.extractor(img)
         return bags
 
@@ -78,7 +81,8 @@ class MILRenderer(Renderer):
 
     def _run_models(self, img, res, **kwargs):
         """Generate an MIL single-bag prediction."""
-        bags = self._convert_img_to_bags(img)
+
+        bags = self._convert_img_to_bags(img, res)
         preds, _ = self._predict_bags(bags)
         res.predictions = preds[0]
         res.uncertainty = None
