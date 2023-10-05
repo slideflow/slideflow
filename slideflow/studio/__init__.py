@@ -26,7 +26,7 @@ from .widgets import (
     ProjectWidget, SlideWidget, ModelWidget, HeatmapWidget, PerformanceWidget,
     CaptureWidget, SettingsWidget, ExtensionsWidget, Widget
 )
-from .utils import EasyDict
+from .utils import EasyDict, prediction_to_string
 from ._renderer import AsyncRenderer, Renderer, CapturedException
 
 OVERLAY_GRID    = 0
@@ -109,6 +109,8 @@ class Studio(ImguiWindow):
         self._should_close_slide = False
         self._should_close_model = False
         self._bg_logo           = None
+        self._message           = None
+        self._pred_message      = None
         self.low_memory         = low_memory
 
         # Interface.
@@ -1165,6 +1167,9 @@ class Studio(ImguiWindow):
             self._message = None
             return True
         return False
+    
+    def clear_prediction_message(self) -> None:
+        self._pred_message = None
 
     def clear_model_results(self) -> None:
         """Clear all model results and associated images."""
@@ -1357,16 +1362,17 @@ class Studio(ImguiWindow):
         self._draw_status_bar()
 
         # Draw prediction message next to box on main display.
-        if (self._use_model
+        if self._pred_message:
+            self._render_prediction_message(self._pred_message)
+        elif (self._use_model
            and self._predictions is not None
            and not isinstance(self._predictions, list)
            and self.viewer is not None):
-            #TODO: support multi-outcome models
-            outcomes = self._model_config['outcome_labels']
-            if self._model_config['model_type'] == 'categorical':
-                pred_str = f'{outcomes[str(np.argmax(self._predictions))]} ({np.max(self._predictions)*100:.1f}%)'
-            else:
-                pred_str = f'{self._predictions[0]:.2f}'
+            pred_str = prediction_to_string(
+                predictions=self._predictions, 
+                outcomes=self._model_config['outcome_labels'],
+                is_categorical=(self._model_config['model_type'] == 'categorical')
+            )
             self._render_prediction_message(pred_str)
 
         # End frame.
@@ -1608,6 +1614,10 @@ class Studio(ImguiWindow):
     def set_message(self, msg: str) -> None:
         """Set a message for display."""
         self._message = msg
+
+    def set_prediction_message(self, msg: str) -> None:
+        """Set the prediction message to display under the tile outline."""
+        self._pred_message = msg
 
     def set_overlay(self, overlay: np.ndarray, method: int) -> None:
         """Configure the overlay to be applied to the current view screen.

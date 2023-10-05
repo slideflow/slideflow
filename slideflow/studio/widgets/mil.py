@@ -16,6 +16,7 @@ from slideflow.mil.eval import _predict_clam, _predict_mil
 from ._utils import Widget
 from .model import draw_tile_predictions
 from ..gui import imgui_utils
+from ..utils import prediction_to_string
 from .._mil_renderer import MILRenderer
 
 # -----------------------------------------------------------------------------
@@ -174,6 +175,7 @@ class MILWidget(Widget):
         del self.extractor
         del self.normalizer
         self.viz.heatmap_widget.reset()
+        self.viz.clear_prediction_message()
         self._initialize_variables()
         if self.viz.get_renderer('mil'):
             self.viz.remove_from_render_pipeline('mil')
@@ -515,3 +517,11 @@ class MILWidget(Widget):
 
         if self._show_mil_params and self.mil_params:
             self.draw_mil_params_popup()
+
+        if (viz._predictions is not None) and (self.model is not None):
+            pred_str = prediction_to_string(
+                predictions=viz._predictions, 
+                outcomes=self.mil_params['outcome_labels'],
+                is_categorical=self.is_categorical()
+            )
+            viz.set_prediction_message(pred_str)
