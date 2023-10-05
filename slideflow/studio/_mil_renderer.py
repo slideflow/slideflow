@@ -28,7 +28,8 @@ class MILRenderer(Renderer):
     def load_mil_model(self, mil_model, mil_config, extractor, normalizer=None):
         from slideflow.model import torch_utils
         self.device = torch_utils.get_device()
-        self.mil_model = self._model = mil_model.to()
+        sf.log.info("Setting up MIL renderer on device: {}".format(self.device))
+        self.mil_model = self._model = mil_model.to(self.device)
         self.mil_config = mil_config
         self.extractor = extractor
         self.normalizer = normalizer
@@ -41,11 +42,15 @@ class MILRenderer(Renderer):
             dtype = tf.uint8
         img = np.expand_dims(img, 0)
         img = sf.io.convert_dtype(img, dtype=dtype)
-        if self.extractor.backend == 'torch':
-            img = img.to(self.device)
         if self.normalizer:
             img  = self.normalizer.transform(img)
-            res.normalized = img.numpy()[0]
+            if self.extractor.backend == 'torch':
+                img = img.to(torch.uint8)
+            else:
+                img = tf.cast(img, tf.uint8)
+            res.normalized = img.numpy()[0].astype(np.uint8)
+        if self.extractor.backend == 'torch':
+            img = img.to(self.device)
         bags = self.extractor(img)
         return bags
 
@@ -59,8 +64,9 @@ class MILRenderer(Renderer):
         if isinstance(bags, np.ndarray):
             bags = torch.from_numpy(bags)
 
-        # Add a batch dimension
+        # Add a batch dimension & send to GPU
         bags = torch.unsqueeze(bags, dim=0)
+        bags = bags.to(self.device)
 
         if (isinstance(self.mil_config, TrainerConfigCLAM)
         or isinstance(self.mil_config.model_config, ModelConfigCLAM)):
