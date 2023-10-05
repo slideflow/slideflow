@@ -6,6 +6,7 @@ import numpy as np
 import multiprocessing
 import slideflow as sf
 import slideflow.grad
+from typing import Optional, List, Dict, Any
 from slideflow.util import model_backend
 from rich import print
 
@@ -161,7 +162,7 @@ class Renderer:
             # However, this does not work well with a live camera feed, probably because
             #   the brightness/contrast is lower.
             # Instead, I've found that tf.image.per_image_standardization() works better
-            #   on live camera images, as it scales the variance of the image to be 1, 
+            #   on live camera images, as it scales the variance of the image to be 1,
             #   which would be effectively similary to increasing contrast in the image.
             proc_img = tf.image.per_image_standardization(proc_img)
             proc_img = tf.expand_dims(proc_img, axis=0)
@@ -189,15 +190,18 @@ class Renderer:
             return x.cpu().detach().numpy()
 
     def add_renderer(self, renderer):
+        """Add a renderer to the rendering pipeline."""
         sf.log.debug(f"Adding renderer: {renderer}")
         self._addl_renderers += [renderer]
 
     def remove_renderer(self, renderer):
+        """Remove a renderer from the rendering pipeline."""
         sf.log.debug(f"Removing renderer: {renderer}")
         idx = self._addl_renderers.index(renderer)
         del self._addl_renderers[idx]
 
     def render(self, **args):
+        """Render predictions for an image and any post-processing."""
         self._is_timing = True
         self._start_time = time.time()
         res = EasyDict()
@@ -212,15 +216,25 @@ class Renderer:
             self._is_timing = False
         return res
 
+    def load_model(self, model_path: str, device: Optional[str] = None) -> None:
+        """Load a model."""
+        _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device)
+        self.set_model(_model, uq=sf.util.is_uq_model(model_path))
+        self.set_saliency(_saliency)
+        self.set_umap_encoders(_umap_encoders)
+
     def set_model(self, model, uq=False):
+        """Set a loaded model to the active model."""
         self._model = model
         if uq:
             self._uq_model = sf.model.tensorflow.build_uq_model(model)
 
     def set_saliency(self, saliency):
+        """Set a loaded saliency model to the active saliency model."""
         self._saliency = saliency
 
     def set_umap_encoders(self, umap_encoders):
+        """Set a loaded UMAP encoder to the active UMAP encoder."""
         self._umap_encoders = umap_encoders
 
     def _ignore_timing(self):
@@ -316,13 +330,13 @@ class Renderer:
         return img, result_img
 
     def _run_models(
-        self, 
-        img, 
-        res, 
+        self,
+        img,
+        res,
         *,
-        normalizer=None, 
-        use_saliency=False, 
-        saliency_method=None, 
+        normalizer=None,
+        use_saliency=False,
+        saliency_method=None,
         saliency_overlay=None,
         use_umap_encoders=False,
         use_uncertainty=False,
@@ -414,7 +428,7 @@ class Renderer:
         assess_focus        = False,
         **kwargs
     ):
-        
+
         # Trigger other renderers in the pipeline.
         renderer_args = _prepare_args(locals(), kwargs)
         for renderer in self._addl_renderers:
@@ -426,7 +440,7 @@ class Renderer:
         # already stored in `res`, then skip.
         if (x is None or y is None) and 'image' not in res:
             return
-        
+
         # If full_image is provided, use this instead of looking up
         # a tile image from the viewer.
         focus_img = None
@@ -480,10 +494,10 @@ class Renderer:
 
         if use_model:
             self._run_models(
-                img, 
+                img,
                 res,
-                normalizer=normalizer, 
-                use_saliency=use_saliency, 
+                normalizer=normalizer,
+                use_saliency=use_saliency,
                 saliency_method=saliency_method,
                 saliency_overlay=saliency_overlay,
                 use_umap_encoders=use_umap_encoders,
@@ -494,9 +508,9 @@ class Renderer:
 
 #----------------------------------------------------------------------------
 
-class AsyncRenderer:
+class AsyncRenderManager:
 
-    """Renderer to assist with tile-level model predictions."""
+    """Manager to assist with rendering tile-level model predictions."""
 
     def __init__(self):
         self._closed        = False
@@ -509,21 +523,22 @@ class AsyncRenderer:
         self._result_queue  = None
         self._process       = None
         self._model_path    = None
-        self._model         = None
-        self._saliency      = None
-        self._umap_encoders = None
         self._live_updates  = False
         self.tile_px        = None
         self.extract_px     = None
         self._addl_render   = []
+        self._set_device()
 
+    def _set_device(self) -> None:
+        """Set the device for the renderer."""
         if sf.util.torch_available:
             from slideflow.model import torch_utils
             self.device = torch_utils.get_device()
         else:
             self.device = None
 
-    def close(self):
+    def close(self) -> None:
+        """Close the renderer."""
         self._closed = True
         self._renderer_obj = None
         if self._process is not None:
@@ -533,10 +548,26 @@ class AsyncRenderer:
         self._result_queue = None
 
     @property
-    def is_async(self):
+    def is_async(self) -> bool:
+        """Return whether the renderer is in asynchronous mode.
+
+        Returns:
+            bool: Whether the renderer is in asynchronous mode.
+
+        """
         return self._is_async
 
-    def add_to_render_pipeline(self, renderer):
+    def add_to_render_pipeline(self, renderer: Renderer) -> None:
+        """Add a renderer to the rendering pipeline.
+
+        Args:
+            renderer (Renderer): Renderer to add to the pipeline.
+                This renderer will be triggered before the main renderer.
+
+        Raises:
+            ValueError: If the renderer is in asynchronous mode.
+
+        """
         if self.is_async:
             raise ValueError("Cannot add to rendering pipeline when in "
                              "asynchronous mode.")
@@ -544,7 +575,16 @@ class AsyncRenderer:
         if self._renderer_obj is not None:
             self._renderer_obj.add_renderer(renderer)
 
-    def remove_from_render_pipeline(self, renderer):
+    def remove_from_render_pipeline(self, renderer: Renderer) -> None:
+        """Remove a renderer from the rendering pipeline.
+
+        Args:
+            renderer (Renderer): Renderer to remove from the pipeline.
+
+        Raises:
+            ValueError: If the renderer is in asynchronous mode.
+
+        """
         if self.is_async:
             raise ValueError("Cannot remove rendering pipeline when in "
                              "asynchronous mode.")
@@ -554,9 +594,16 @@ class AsyncRenderer:
             self._renderer_obj.remove_renderer(renderer)
 
     def set_async(self, is_async):
+        """Set the renderer to synchronous or asynchronous mode.
+
+        Args:
+            is_async (bool): Whether to set the renderer to asynchronous mode.
+
+        """
         self._is_async = is_async
 
     def set_args(self, **args):
+        """Set the arguments for the renderer."""
         assert not self._closed
         if args != self._cur_args or self._live_updates:
             if self._is_async:
@@ -567,17 +614,22 @@ class AsyncRenderer:
                 self._cur_args = args
 
     def _set_args_async(self, **args):
+        """Set the arguments for the renderer in asynchronous mode."""
         if self._process is None:
             ctx = multiprocessing.get_context('spawn')
             self._args_queue = ctx.Queue()
             self._result_queue = ctx.Queue()
             self._process = ctx.Process(target=self._process_fn,
-                                        args=(self._args_queue, self._result_queue, self._model_path, self._live_updates),
+                                        args=(self._args_queue,
+                                              self._result_queue,
+                                              self._model_path,
+                                              self._live_updates),
                                         daemon=True)
             self._process.start()
         self._args_queue.put([args, self._cur_stamp])
 
     def _set_args_sync(self, **args):
+        """Set the arguments for the renderer in synchronous mode."""
         if self._renderer_obj is None:
             self._renderer_obj = Renderer(device=self.device)
             for _renderer in self._addl_render:
@@ -587,6 +639,12 @@ class AsyncRenderer:
         self._cur_result = self._renderer_obj.render(**args)
 
     def get_result(self):
+        """Get the result of the renderer.
+
+        Returns:
+            EasyDict: The result of the renderer.
+
+        """
         assert not self._closed
         if self._result_queue is not None:
             while self._result_queue.qsize() > 0:
@@ -596,12 +654,19 @@ class AsyncRenderer:
         return self._cur_result
 
     def clear_result(self):
+        """Clear the result of the renderer."""
         assert not self._closed
         self._cur_args = None
         self._cur_result = None
         self._cur_stamp += 1
 
-    def load_model(self, model_path):
+    def load_model(self, model_path: str) -> None:
+        """Load a model for the renderer.
+
+        Args:
+            model_path (str): Path to the model.
+
+        """
         if self._is_async:
             self._set_args_async(load_model=model_path)
         elif model_path != self._model_path:
@@ -610,39 +675,58 @@ class AsyncRenderer:
                 self._renderer_obj = Renderer(device=self.device)
                 for _renderer in self._addl_render:
                     self._renderer_obj.add_renderer(_renderer)
-            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
-            self._renderer_obj.set_model(self._model, uq=sf.util.is_uq_model(self._model_path))
-            self._renderer_obj.set_saliency(self._saliency)
-            if _umap_encoders is not None:
-                self._umap_encoders = _umap_encoders
-            self._renderer_obj._umap_encoders = self._umap_encoders
+            self._renderer_obj.load_model(model_path, device=self.device)
 
     def clear_model(self):
+        """Clear the model for the renderer."""
         self._model_path = None
-        self._model = None
-        self._saliency = None
+        if self._renderer_obj is not None:
+            self._renderer_obj._umap_encoders = None
+            self._renderer_obj._model = None
+            self._renderer_obj._saliency = None
+
+    @property
+    def _model(self):
+        if self._renderer_obj is not None:
+            return self._renderer_obj._model
+        else:
+            return None
+
+    @property
+    def _saliency(self):
+        if self._renderer_obj is not None:
+            return self._renderer_obj._saliency
+        else:
+            return None
+
+    @property
+    def _umap_encoders(self):
+        if self._renderer_obj is not None:
+            return self._renderer_obj._umap_encoders
+        else:
+            return None
 
     @staticmethod
-    def _process_fn(args_queue, result_queue, model_path, live_updates):
+    def _process_fn(
+        args_queue: multiprocessing.Queue,
+        result_queue: multiprocessing.Queue,
+        model_path: Optional[str] = None,
+        live_updates: bool = False,
+        renderer_class: type = Renderer
+    ):
         if sf.util.torch_available:
             from slideflow.model import torch_utils
             device = torch_utils.get_device()
         else:
             device = None
-        renderer_obj = Renderer(device=device)
+        renderer_obj = renderer_class(device=device)
         if model_path:
-            _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device)
-            renderer_obj.set_model(_model, uq=sf.util.is_uq_model(model_path))
-            renderer_obj.set_saliency(_saliency)
-            renderer_obj.set_umap_encoders(_umap_encoders)
+            renderer_obj.load_model(model_path, device=device)
         while True:
             while args_queue.qsize() > 0:
                 args, stamp = args_queue.get()
                 if 'load_model' in args:
-                    _model, _saliency, _umap_encoders = _load_model_and_saliency(args['load_model'], device=device)
-                    renderer_obj.set_model(_model, uq=sf.util.is_uq_model(args['load_model']))
-                    renderer_obj.set_saliency(_saliency)
-                    renderer_obj.set_umap_encoders(_umap_encoders)
+                    renderer_obj.load_model(args['load_model'], device=device)
                 if 'quit' in args:
                     return
             if (live_updates and not result_queue.qsize()):

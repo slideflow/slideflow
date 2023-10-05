@@ -27,7 +27,7 @@ from .widgets import (
     CaptureWidget, SettingsWidget, ExtensionsWidget, Widget
 )
 from .utils import EasyDict
-from ._renderer import AsyncRenderer, Renderer, CapturedException
+from ._renderer import AsyncRenderManager, Renderer, CapturedException
 
 OVERLAY_GRID    = 0
 OVERLAY_WSI     = 1
@@ -75,7 +75,7 @@ class Studio(ImguiWindow):
         self._dx                = 0
         self._dy                = 0
         self._last_error_print  = None
-        self._async_renderer    = AsyncRenderer()
+        self._render_manager    = AsyncRenderManager()
         self._addl_renderers    = dict()
         self._defer_rendering   = 0
         self._tex_img           = None
@@ -189,7 +189,7 @@ class Studio(ImguiWindow):
     @property
     def model(self):
         """Tensorflow/PyTorch model currently in use."""
-        return self._async_renderer._model
+        return self._render_manager._model
 
     @property
     def P(self):
@@ -237,7 +237,7 @@ class Studio(ImguiWindow):
 
     def _close_model_now(self) -> None:
         """Close the currently loaded model now."""
-        self._async_renderer.clear_result()
+        self._render_manager.clear_result()
         self._use_model         = False
         self._use_uncertainty   = False
         self._use_saliency      = False
@@ -249,7 +249,7 @@ class Studio(ImguiWindow):
         self.heatmap            = None
         self.x                  = None
         self.y                  = None
-        self._async_renderer.clear_model()
+        self._render_manager.clear_model()
         self.clear_model_results()
         self.heatmap_widget.reset()
 
@@ -263,7 +263,7 @@ class Studio(ImguiWindow):
         self.mouse_x = None
         self.mouse_y = None
         self.clear_result()
-        self._async_renderer._live_updates = False
+        self._render_manager._live_updates = False
         self._heatmap_tex_img   = None
         self._heatmap_tex_obj   = None
         self.heatmap_widget.reset()
@@ -1057,7 +1057,7 @@ class Studio(ImguiWindow):
         """Add a renderer to the rendering pipeline."""
         if name is not None:
             self._addl_renderers[name] = renderer
-        self._async_renderer.add_to_render_pipeline(renderer)
+        self._render_manager.add_to_render_pipeline(renderer)
 
     def remove_from_render_pipeline(self, name: str):
         """Remove a renderer from the render pipeline.
@@ -1071,8 +1071,8 @@ class Studio(ImguiWindow):
         if name not in self._addl_renderers:
             raise ValueError(f'Could not find renderer "{name}"')
         renderer = self._addl_renderers[name]
-        if self._async_renderer is not None:
-            self._async_renderer.remove_from_render_pipeline(renderer)
+        if self._render_manager is not None:
+            self._render_manager.remove_from_render_pipeline(renderer)
         del self._addl_renderers[name]
 
     def ask_load_heatmap(self):
@@ -1173,7 +1173,7 @@ class Studio(ImguiWindow):
 
     def clear_model_results(self) -> None:
         """Clear all model results and associated images."""
-        self._async_renderer.clear_result()
+        self._render_manager.clear_result()
         self._predictions       = None
         self._norm_tex_img      = None
         self._norm_tex_obj      = None
@@ -1185,9 +1185,9 @@ class Studio(ImguiWindow):
     def close(self) -> None:
         """Close the application and renderer."""
         super().close()
-        if self._async_renderer is not None:
-            self._async_renderer.close()
-            self._async_renderer = None
+        if self._render_manager is not None:
+            self._render_manager.close()
+            self._render_manager = None
         if hasattr(self.viewer, 'close'):
             self.viewer.close()
         for w in self.widgets:
@@ -1287,8 +1287,8 @@ class Studio(ImguiWindow):
         # Buffer tile view if using a live viewer.
         if self.has_live_viewer() and self.args.x and self.args.y:
 
-            if (self._async_renderer.is_async 
-                and self._async_renderer._args_queue.qsize() > 2):
+            if (self._render_manager.is_async
+                and self._render_manager._args_queue.qsize() > 2):
                 if self._defer_tile_refresh is None:
                     self._defer_tile_refresh = time.time()
                     self.defer_rendering()
@@ -1319,8 +1319,8 @@ class Studio(ImguiWindow):
         elif self._defer_rendering > 0:
             self._defer_rendering -= 1
         else:
-            self._async_renderer.set_args(**self.args)
-            result = self._async_renderer.get_result()
+            self._render_manager.set_args(**self.args)
+            result = self._render_manager.get_result()
             if result is not None:
                 self.result = result
                 if 'predictions' in result:
@@ -1495,8 +1495,8 @@ class Studio(ImguiWindow):
         self.clear_result()
         log.debug("Model result cleared")
         self.skip_frame() # The input field will change on next frame.
-        self._async_renderer.get_result() # Flush prior result
-        self._async_renderer.clear_result()
+        self._render_manager.get_result() # Flush prior result
+        self._render_manager.clear_result()
         try:
             self.defer_rendering()
             self.model_widget.user_model = model
@@ -1515,7 +1515,7 @@ class Studio(ImguiWindow):
             self._use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
             self.tile_um = config['tile_um']
             self.tile_px = config['tile_px']
-            self._async_renderer.load_model(model)
+            self._render_manager.load_model(model)
             if sf.util.torch_available and sf.util.path_to_ext(model) == 'zip':
                 self.model_widget.backend = 'torch'
             else:
@@ -1607,7 +1607,7 @@ class Studio(ImguiWindow):
 
     def reload_model(self) -> None:
         """Reload the current model."""
-        self._async_renderer.load_model(self._model_path)
+        self._render_manager.load_model(self._model_path)
 
     def reload_viewer(self) -> None:
         """Reload the current main viewer."""
@@ -1681,8 +1681,8 @@ class Studio(ImguiWindow):
         if self.viewer is not None:
             self.viewer.close()
         self.viewer = viewer
-        self._async_renderer._live_updates = viewer.live
-        self._async_renderer.set_async(viewer.live)
+        self._render_manager._live_updates = viewer.live
+        self._render_manager.set_async(viewer.live)
 
 # -----------------------------------------------------------------------------
 

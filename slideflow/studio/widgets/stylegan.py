@@ -78,8 +78,8 @@ class StyleGANWidget(Widget):
         self.viz._tex_img           = None
         self.viz._tex_obj           = None
         self.viz.clear_result()
-        self.viz._async_renderer.get_result()
-        self.viz._async_renderer.clear_result()
+        self.viz._render_manager.get_result()
+        self.viz._render_manager.clear_result()
         self.viz.skip_frame()
 
     def load(self, pkl, ignore_errors=False) -> bool:
