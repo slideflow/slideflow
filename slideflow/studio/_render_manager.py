@@ -72,7 +72,7 @@ class AsyncRenderManager:
 
     def close_renderer(self) -> None:
         if self.is_async:
-            self._set_args_async(quit=True)
+            self._set_args_async(close_renderer=True)
         else:
             self._renderer_obj = None
 
@@ -230,20 +230,21 @@ class AsyncRenderManager:
         args_queue: multiprocessing.Queue,
         result_queue: multiprocessing.Queue,
         model_path: Optional[str] = None,
-        live_updates: bool = False,
-        renderer_class: type = Renderer
+        live_updates: bool = False
     ):
         if sf.util.torch_available:
             from slideflow.model import torch_utils
             device = torch_utils.get_device()
         else:
             device = None
-        renderer_obj = renderer_class(device=device)
+        renderer_obj = Renderer(device=device)
         if model_path:
             renderer_obj.load_model(model_path, device=device)
         while True:
             while args_queue.qsize() > 0:
                 args, stamp = args_queue.get()
+                if 'close_renderer' in args:
+                    renderer_obj = Renderer(device=device)
                 if 'set_renderer' in args:
                     renderer_class, kwargs = args['set_renderer']
                     renderer_obj = renderer_class(**kwargs)

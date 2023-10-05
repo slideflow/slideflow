@@ -1121,7 +1121,7 @@ class Studio(ImguiWindow):
             ignore_errors (bool): Gracefully handle errors.
 
         """
-        sf.log.info(f"Loading [green]{path}[/]")
+        sf.log.info(f"Auto-loading [green]{path}[/]")
         if sf.util.is_project(path):
             self.load_project(path, ignore_errors=ignore_errors)
         elif sf.util.is_slide(path):
