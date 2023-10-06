@@ -426,7 +426,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
     def _prepare_tfrecord_subsample(self):
         """Prepare custom TFRecord indices to only read tiles in the labels dataframe."""
 
-        # Prepare TFRecord subsample if there are fewer tiles in the 
+        # Prepare TFRecord subsample if there are fewer tiles in the
         # tiles dataframe than there are in the TFRecords
         if self.indices is None and (self.num_tiles != len(self.df)):
 
@@ -436,7 +436,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
                 log.info("Subsampling TFRecords using tile-level labels...")
 
             with mp.dummy.Pool(16) as pool:
-                
+
                 # Load the original (full) indices
                 for index, tfr in zip(pool.imap(load_index, self.tfrecords), self.tfrecords):
                     tfr = tfr.decode('utf-8')
@@ -450,7 +450,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
                     ss_index = index[in_df]
 
                     self.indices += [ss_index]
-            
+
             if self.rank == 0:
                 log.info("TFRecord subsampling complete.")
 
@@ -573,6 +573,27 @@ def is_whc(img: torch.Tensor) -> torch.Tensor:
     """Check if Tensor is in W x H x C format."""
     return img.shape[-1] == 3
 
+def as_cwh(img: torch.Tensor) -> torch.Tensor:
+    """Convert torch tensor to C x W x H format."""
+    if is_cwh(img):
+        return img
+    elif is_whc(img):
+        return whc_to_cwh(img)
+    else:
+        raise ValueError(
+            "Invalid shape for channel conversion. Expected 3 or 4 dims, "
+            f"got {len(img.shape)} (shape={img.shape})")
+
+def as_whc(img: torch.Tensor) -> torch.Tensor:
+    """Convert torch tensor to W x H x C format."""
+    if is_whc(img):
+        return img
+    elif is_cwh(img):
+        return cwh_to_whc(img)
+    else:
+        raise ValueError(
+            "Invalid shape for channel conversion. Expected 3 or 4 dims, "
+            f"got {len(img.shape)} (shape={img.shape})")
 
 def cwh_to_whc(img: torch.Tensor) -> torch.Tensor:
     """Convert torch tensor from C x W x H => W x H x C"""

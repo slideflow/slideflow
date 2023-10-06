@@ -46,9 +46,10 @@ class MILRenderer(Renderer):
             img  = self.normalizer.transform(img)
             if self.extractor.backend == 'torch':
                 img = img.to(torch.uint8)
+                res.normalized = sf.io.torch.as_whc(img[0]).cpu().numpy()
             else:
                 img = tf.cast(img, tf.uint8)
-            res.normalized = img.numpy()[0].astype(np.uint8)
+                res.normalized = sf.io.convert_dtype(img[0], np.uint8)
         if self.extractor.backend == 'torch':
             img = img.to(self.device)
         bags = self.extractor(img)
