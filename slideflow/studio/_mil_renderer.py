@@ -90,7 +90,8 @@ class MILRenderer(Renderer):
             preds, att = _predict_clam(
                 self.mil_model,
                 bag,
-                attention=attention
+                attention=attention,
+                device=self.device
             )
         else:
             preds, att = _predict_mil(
@@ -98,7 +99,8 @@ class MILRenderer(Renderer):
                 bag,
                 attention=attention,
                 use_lens=self.mil_config.model_config.use_lens,
-                apply_softmax=self.mil_config.model_config.apply_softmax
+                apply_softmax=self.mil_config.model_config.apply_softmax,
+                device=self.device
             )
         return preds, att
 

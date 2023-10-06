@@ -258,7 +258,8 @@ class MILWidget(Widget):
             predictions, attention = _predict_clam(
                 self.model,
                 bags,
-                attention=self.calculate_attention
+                attention=self.calculate_attention,
+                device=self.viz._render_manager.device
             )
         else:
             predictions, attention = _predict_mil(
@@ -266,7 +267,8 @@ class MILWidget(Widget):
                 bags,
                 attention=self.calculate_attention,
                 use_lens=self.mil_config.model_config.use_lens,
-                apply_softmax=self.mil_config.model_config.apply_softmax
+                apply_softmax=self.mil_config.model_config.apply_softmax,
+                device=self.viz._render_manager.device
             )
         return predictions, attention
 

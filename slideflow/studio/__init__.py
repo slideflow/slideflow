@@ -1314,6 +1314,8 @@ class Studio(ImguiWindow):
         # --- Render arguments ------------------------------------------------
         self.args.x = self.x
         self.args.y = self.y
+        self.args.tile_px = self.tile_px
+        self.args.tile_um = self.tile_um
         if (self._model_config is not None and self._use_model):
             self.args.tile_px = self._model_config['tile_px']
             self.args.tile_um = self._model_config['tile_um']
