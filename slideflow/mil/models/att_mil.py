@@ -41,17 +41,21 @@ class Attention_MIL(nn.Module):
 
         embeddings = self.encoder(bags)
 
-        masked_attention_scores = self._masked_attention_scores(embeddings, lens)
-        weighted_embedding_sums = (masked_attention_scores * embeddings).sum(-2)
+        masked_attention_scores = self._masked_attention_scores(embeddings, lens, apply_softmax=False)
+        softmax_attention_scores = torch.softmax(masked_attention_scores, dim=1)
+        weighted_embedding_sums = (softmax_attention_scores * embeddings).sum(-2)
 
         scores = self.head(weighted_embedding_sums)
 
-        if return_attention:
+        if return_attention and bags.shape[1] > 1:
+            return scores, softmax_attention_scores
+        elif return_attention:
             return scores, masked_attention_scores
         else:
             return scores
 
     def calculate_attention(self, bags, lens, *, apply_softmax=None):
+        """Calculate attention scores for all bags."""
         if apply_softmax is None and bags.shape[1] > 1:
             apply_softmax = True
         embeddings = self.encoder(bags)
