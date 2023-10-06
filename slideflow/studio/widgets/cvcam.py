@@ -21,7 +21,7 @@ def center_crop(image, width, height):
 
 class OpenCVCamera:
 
-    def __init__(self, width, height):
+    def __init__(self, width, height, pipeline='/dev/video0'):
         self.width              = width
         self.height             = height
         self.should_stop        = False
@@ -40,15 +40,18 @@ class OpenCVCamera:
                      'format=(string)NV12, ' \
                      'framerate=(fraction)20/1'
 
-        self.cap = cv2.VideoCapture(
-            'nvarguscamerasrc '
-            f'! {format_str} '
-            '! nvvidconv '
-            '! video/x-raw, format=(string)BGRx '
-            '! videoconvert '
-            '! video/x-raw, format=(string)BGR '
-            '! appsink'
-        )
+        jetson_pipeline = ('nvarguscamerasrc '
+                           f'! {format_str} '
+                           '! nvvidconv '
+                           '! video/x-raw, format=(string)BGRx '
+                           '! videoconvert '
+                           '! video/x-raw, format=(string)BGR '
+                           '! appsink')
+
+        if pipeline == 'jetson':
+            self.cap = cv2.VideoCapture(jetson_pipeline)
+        else:
+            self.cap = cv2.VideoCapture(pipeline)
 
     def _thread_runner(self):
         while not self.should_stop:
@@ -106,14 +109,14 @@ class CameraViewer(Viewer):
     live        = True
     movable     = False
 
-    def __init__(self,  um_width, width=800, height=600, assess_focus='laplacian', **kwargs):
+    def __init__(self,  um_width, width=800, height=600, assess_focus='laplacian', pipeline='/dev/video0', **kwargs):
         super().__init__(width=width, height=height, **kwargs)
         self.um_width       = um_width
         self.full_width     = 4056
         self.full_height    = 3040
         self.x              = None
         self.y              = None
-        self._initialize(width, height)
+        self._initialize(width, height, pipeline)
         self._assess_focus  = assess_focus
         self.last_preds     = []
         self.autocapture    = False
@@ -154,7 +157,7 @@ class CameraViewer(Viewer):
         limg = cv2.merge((cl,a,b))
         return cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
 
-    def _initialize(self, width, height):
+    def _initialize(self, width, height, pipeline):
         self.width = width
         self.height = height
         preview_ratio = self.full_width / self.full_height
@@ -165,9 +168,10 @@ class CameraViewer(Viewer):
         self.preview_width = width
         self.preview_height = height
         self.view_zoom = self.full_width / width
-        self.camera = OpenCVCamera(width=width, height=height)
+        self.camera = OpenCVCamera(width=width, height=height, pipeline=pipeline)
         self.camera.start()
-        print("Initialized OpenCVCamera with p.width={} (window={}), p.height={} (window={})".format(
+        print("Initialized OpenCVCamera[{}] with p.width={} (window={}), p.height={} (window={})".format(
+            pipeline,
             width,
             height,
             self.width,
@@ -202,7 +206,7 @@ class CameraViewer(Viewer):
     def is_in_view(*args, **kwargs):
         return True
 
-    def reload(self, width=None, height=None, x_offset=None, y_offset=None, normalizer=None):
+    def reload(self, width=None, height=None, x_offset=None, y_offset=None, normalizer=None, pipeline=None):
         self.stop()
 
         if x_offset is not None:
@@ -213,7 +217,8 @@ class CameraViewer(Viewer):
             self._normalizer = normalizer
 
         self._initialize(self.width if width is None else width,
-                         self.height if height is None else height)
+                         self.height if height is None else height,
+                         self.pipeline if pipeline is None else pipeline)
 
     def render(self, max_w, max_h):
         # Optional: capture high-quality still image.
@@ -248,13 +253,13 @@ class CameraViewer(Viewer):
         # Track high-certainty images.
         # First, check that we have predicions and the image is in focus.
         if (self.autocapture
-            and viz._use_model 
+            and viz._use_model
             and viz._predictions is not None
             and viz._model_config is not None
-            and viz._use_uncertainty 
+            and viz._use_uncertainty
             and viz._uncertainty is not None
             and (not hasattr(viz.result, 'in_focus') or viz.result.in_focus)):
-            
+
             # Establish predictions, UQ, and thresholds.
             uq = viz._uncertainty
             pred = viz._predictions
@@ -270,7 +275,7 @@ class CameraViewer(Viewer):
                 if len(self.last_preds) >= 8:
                     self.last_preds.pop(0)
                 self.last_preds.append((uq, pred))
-                if (uq < uq_thresh 
+                if (uq < uq_thresh
                     and len([p for p in self.last_preds if p[0] < uq_thresh]) >= 5
                     and len([p for p in self.last_preds if p[0] >= uq_thresh*2]) == 0):
 
@@ -294,7 +299,7 @@ class CameraWidget:
     icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_camera.png')
     icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_camera_highlighted.png')
 
-    def __init__(self, viz):
+    def __init__(self, viz, pipeline='/dev/video0'):
         self.viz            = viz
         self.um_width       = 800
         self.content_height = 0
@@ -304,7 +309,12 @@ class CameraWidget:
         self.autocapture    = False
         self.enhance_contrast = False
 
-        viewer = CameraViewer(self.um_width, assess_focus=self.assess_focus, **viz._viewer_kwargs())
+        viewer = CameraViewer(
+            self.um_width,
+            assess_focus=self.assess_focus,
+            pipeline=pipeline,
+            **viz._viewer_kwargs()
+        )
         viz.set_viewer(viewer)
         viz._use_model_img_fmt = False
 
@@ -337,5 +347,3 @@ class CameraWidget:
                 viz.viewer.enhance_contrast = self.enhance_contrast
         else:
             self.content_height = 0
-
-#----------------------------------------------------------------------------

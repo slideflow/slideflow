@@ -13,7 +13,6 @@ from . import Studio
 @click.option('--picam', '-pc', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
 @click.option('--camera', '-c', is_flag=True, help='Enable Camera (OpenCV) view (experimental).', metavar=bool)
 @click.option('--cellpose', is_flag=True, help='Enable Cellpose segmentation (experimental).', metavar=bool)
-@click.option('--advanced', '-a', is_flag=True, help='Enable advanced StyleGAN options.', metavar=bool)
 def main(
     slide,
     model,
@@ -22,8 +21,7 @@ def main(
     stylegan,
     picam,
     camera,
-    cellpose,
-    advanced
+    cellpose
 ):
     """
     Whole-slide image viewer with deep learning model visualization tools.

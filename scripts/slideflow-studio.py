@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from functools import lru_cache
 from os.path import join, dirname
 
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 
 # -----------------------------------------------------------------------------
 
@@ -27,7 +27,6 @@ __version__ = "2.1.0"
 @click.option('--picam', '-pc', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
 @click.option('--camera', '-c', is_flag=True, help='Enable Camera (OpenCV) view (experimental).', metavar=bool)
 @click.option('--cellpose', is_flag=True, help='Enable Cellpose segmentation (experimental).', metavar=bool)
-@click.option('--advanced', '-a', is_flag=True, help='Enable advanced StyleGAN options.', metavar=bool)
 def main(
     slide,
     model,
@@ -36,15 +35,13 @@ def main(
     stylegan,
     picam,
     camera,
-    cellpose,
-    advanced
+    cellpose
 ):
     """
     Whole-slide image viewer with deep learning model visualization tools.
 
     Optional PATH argument can be used specify which slide to initially load.
     """
-
     # Start the splash screen
     import_with_splash()
 
@@ -88,9 +85,7 @@ def main(
     # Run.
     viz.run()
 
-
 #----------------------------------------------------------------------------
-
 
 
 def import_with_splash():
