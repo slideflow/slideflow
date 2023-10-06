@@ -34,6 +34,8 @@ setuptools.setup(
             'studio/gui/icons/warn.png',
             'studio/gui/splash.png',
             'studio/gui/logo_dark_outline.png',
+            'studio/gui/buttons/button_camera.png',
+            'studio/gui/buttons/button_camera_highlighted.png',
             'studio/gui/buttons/button_circle_plus.png',
             'studio/gui/buttons/button_slide_highlighted.png',
             'studio/gui/buttons/button_project_highlighted.png',

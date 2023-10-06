@@ -2,6 +2,7 @@ import imgui
 from picamera2 import Picamera2
 from picamera2.previews import NullPreview
 from typing import Tuple
+from os.path import dirname, join, abspath
 
 from ..gui import gl_utils, imgui_utils
 from ..gui.viewer import Viewer
@@ -167,6 +168,9 @@ class PicamViewer(Viewer):
 class PicamWidget:
 
     tag = 'camera'
+    description = 'Picam Viewer'
+    icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_extensions.png')
+    icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_extensions_highlighted.png')
 
     def __init__(self, viz):
         self.viz            = viz

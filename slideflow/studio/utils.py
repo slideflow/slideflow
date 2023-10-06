@@ -41,8 +41,8 @@ class EasyDict(dict):
 #----------------------------------------------------------------------------
 
 def prediction_to_string(
-    predictions: np.ndarray, 
-    outcomes: List[str], 
+    predictions: np.ndarray,
+    outcomes: List[str],
     is_categorical: bool
 ) -> str:
     """Convert a prediction array to a human-readable string."""
@@ -103,7 +103,8 @@ def _load_model_and_saliency(model_path, device=None):
     if sf.util.torch_available and sf.util.path_to_ext(model_path) == 'zip':
         import slideflow.model.torch
         _device = sf.model.torch.torch_utils.get_device()
-        _model = sf.model.torch.load(model_path, map_location=_device)
+        _model = sf.model.torch.load(model_path)
+        _model.to(_device)
         _model.eval()
         if device is not None:
             _model = _model.to(device)

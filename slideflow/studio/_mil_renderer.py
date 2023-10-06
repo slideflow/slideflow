@@ -1,9 +1,11 @@
 import numpy as np
 import slideflow as sf
+from typing import Optional
 from rich import print
 
-from ._renderer import Renderer, ABORT_RENDER
+from ._renderer import Renderer
 from slideflow.mil.eval import _predict_mil, _predict_clam
+from slideflow.model.extractors import rebuild_extractor
 
 # -----------------------------------------------------------------------------
 
@@ -25,16 +27,30 @@ if sf.util.torch_available:
 
 class MILRenderer(Renderer):
 
-    def load_mil_model(self, mil_model, mil_config, extractor, normalizer=None):
-        from slideflow.model import torch_utils
-        self.device = torch_utils.get_device()
-        sf.log.info("Setting up MIL renderer on device: {}".format(self.device))
-        self.mil_model = self._model = mil_model.to(self.device)
-        self.mil_config = mil_config
-        self.extractor = extractor
-        self.normalizer = normalizer
+    def __init__(self, *args, mil_model_path: Optional[str] = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mil_model = None
+        self.mil_config = None
+        self.extractor = None
+        self.normalizer = None
+        if mil_model_path:
+            self.load_model(mil_model_path)
 
-    def _convert_img_to_bags(self, img, res):
+    def load_model(self, mil_model_path: str, device: Optional[str] = None) -> None:
+        sf.log.info("Loading MIL model at {}".format(mil_model_path))
+        if device is None:
+            from slideflow.model import torch_utils
+            device = torch_utils.get_device()
+        self.device = device
+        self.extractor, self.normalizer = rebuild_extractor(
+            mil_model_path, native_normalizer=(sf.slide_backend()=='cucim')
+        )
+        self.mil_model, self.mil_config = sf.mil.utils.load_model_weights(mil_model_path)
+        self.mil_model.to(self.device)
+        self._model = self.mil_model
+        sf.log.info("Model loading successful")
+
+    def _convert_img_to_bag(self, img, res):
         """Convert an image into bag format."""
         if self.extractor.backend == 'torch':
             dtype = torch.uint8
@@ -52,56 +68,63 @@ class MILRenderer(Renderer):
                 res.normalized = sf.io.convert_dtype(img[0], np.uint8)
         if self.extractor.backend == 'torch':
             img = img.to(self.device)
-        bags = self.extractor(img)
-        return bags
+        bag = self.extractor(img)
+        return bag
 
-    def _predict_bags(self, bags, attention=False):
-        """Generate MIL predictions from bags."""
+    def _predict_bag(self, bag, attention=False):
+        """Generate MIL predictions from bag."""
         from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
 
         # Convert to torch tensor
-        if sf.util.tf_available and isinstance(bags, tf.Tensor):
-            bags = bags.numpy()
-        if isinstance(bags, np.ndarray):
-            bags = torch.from_numpy(bags)
+        if sf.util.tf_available and isinstance(bag, tf.Tensor):
+            bag = bag.numpy()
+        if isinstance(bag, np.ndarray):
+            bag = torch.from_numpy(bag)
 
         # Add a batch dimension & send to GPU
-        bags = torch.unsqueeze(bags, dim=0)
-        bags = bags.to(self.device)
+        bag = torch.unsqueeze(bag, dim=0)
+        bag = bag.to(self.device)
 
         if (isinstance(self.mil_config, TrainerConfigCLAM)
         or isinstance(self.mil_config.model_config, ModelConfigCLAM)):
             preds, att = _predict_clam(
                 self.mil_model,
-                bags,
-                attention=attention
+                bag,
+                attention=attention,
+                device=self.device
             )
         else:
             preds, att = _predict_mil(
                 self.mil_model,
-                bags,
+                bag,
                 attention=attention,
                 use_lens=self.mil_config.model_config.use_lens,
-                apply_softmax=self.mil_config.model_config.apply_softmax
+                apply_softmax=self.mil_config.model_config.apply_softmax,
+                device=self.device
             )
         return preds, att
 
-    def _run_models(self, img, res, **kwargs):
+    def _run_models(
+        self,
+        img,
+        res,
+        focus_img=None,
+        assess_focus=None,
+        **kwargs
+    ):
         """Generate an MIL single-bag prediction."""
+        # Check focus.
+        if focus_img is not None:
+            res.in_focus = self._image_in_focus(focus_img, method=assess_focus)
+            if not res.in_focus:
+                return
 
-        bags = self._convert_img_to_bags(img, res)
-        preds, _ = self._predict_bags(bags)
+        bag = self._convert_img_to_bag(img, res)
+        preds, att = self._predict_bag(bag, attention=True)
         res.predictions = preds[0]
-        res.uncertainty = None
+        res.uncertainty = att
 
     def _render_impl(self, res, *args, **kwargs):
         if self.mil_model is not None:
             kwargs['use_model'] = True
         super()._render_impl(res, *args, **kwargs)
-        return ABORT_RENDER
-
-
-
-
-
-

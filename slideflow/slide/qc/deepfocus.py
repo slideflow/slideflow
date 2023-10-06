@@ -84,8 +84,8 @@ class DeepFocus(StridedDL):
             tf.keras.mixed_precision.experimental.set_policy(policy)
 
     def preprocess(self, image: np.ndarray):
-        import tensorflow as tf
-        return tf.image.per_image_standardization(image).numpy()
+        image = image.astype(np.float32) / 255.
+        return image - np.mean(image)
 
 # -----------------------------------------------------------------------------
 

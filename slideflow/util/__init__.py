@@ -440,6 +440,16 @@ def is_simclr_model_path(path: Any) -> bool:
     return is_model or is_checkpoint
 
 
+def is_uq_model(model_path: str) -> bool:
+    """Checks if the given model path points to a UQ-enabled model."""
+    is_model_path = (is_tensorflow_model_path(model_path)
+                     or is_torch_model_path(model_path))
+    if not is_model_path:
+        return False
+    config = get_model_config(model_path)
+    return config['hp']['uq']
+
+
 def assert_is_mag(arg1: str):
     if not isinstance(arg1, str) or not is_mag(arg1):
         raise ValueError(

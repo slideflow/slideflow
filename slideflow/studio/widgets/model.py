@@ -1,5 +1,6 @@
 import imgui
 import numpy as np
+from typing import Union, List, Optional
 from array import array
 from collections import defaultdict
 
@@ -8,10 +9,29 @@ from ..gui.annotator import AnnotationCapture
 
 import slideflow.grad as grad
 
+
 # -----------------------------------------------------------------------------
 
-def _draw_tile_pred_result(viz, outcome, labels, is_categorical, pred_array, uq_array=None):
+def scale_uncertainty_bar(val, max_width, uq_threshold=0.033):
+    max_uq = uq_threshold * 3
+    return (min(val, max_uq) / max_uq) * max_width
+
+def _draw_tile_pred_result(
+    viz, 
+    outcome: Union[str, List[str]], 
+    labels: List[str], 
+    is_categorical: bool, 
+    pred_array: np.ndarray, 
+    uq_array: Optional[np.ndarray] = None,
+    uncertainty_color: Optional[List[int]] = None
+):
     """Render a tile prediction result with Imgui."""
+
+    config = viz._model_config
+    out_of_focus = hasattr(viz.result, 'in_focus') and not viz.result.in_focus
+
+    if uncertainty_color is None:
+        uncertainty_color = (0, 0, 0, 1)
 
     # Outcome name label
     imgui.text_colored(outcome, *viz.theme.dim)
@@ -21,17 +41,58 @@ def _draw_tile_pred_result(viz, outcome, labels, is_categorical, pred_array, uq_
         pred_str = labels[str(np.argmax(pred_array))]
     else:
         pred_str = f'{pred_array:.3f}'
-    if viz._use_uncertainty and uq_array is not None:
-        pred_str += " (UQ: {:.4f})".format(uq_array)
     imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
-    imgui.text(pred_str)
+    with viz.dim_text(out_of_focus):
+        imgui.text(pred_str)
 
     # Histogram
     if is_categorical:
+        if out_of_focus:
+            imgui.push_style_color(imgui.COLOR_PLOT_HISTOGRAM, 0.5, 0.5, 0.5)
+            imgui.push_style_color(imgui.COLOR_PLOT_HISTOGRAM_HOVERED, 0.6, 0.6, 0.6)
         with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.spacing):
-            imgui.core.plot_histogram('##pred', array('f', pred_array), scale_min=0, scale_max=1)
+            _histogram_size = imgui.get_content_region_max()[0] - viz.spacing, viz.font_size * 3
+            imgui.core.plot_histogram(
+                '##pred', 
+                array('f', pred_array), 
+                scale_min=0, 
+                scale_max=1, 
+                graph_size=_histogram_size
+            )
+        if out_of_focus:
+            imgui.pop_style_color(2)
 
-def draw_tile_predictions(viz, is_categorical, config=None, has_preds=None, using_model=None):
+    # Uncertainty bar
+    if viz._use_uncertainty and uq_array is not None:
+        # Uncertainty bar
+        draw_list = imgui.get_window_draw_list()
+        w = imgui.get_content_region_max()[0]
+        x, y = imgui.get_cursor_screen_position()
+        x += int(viz.spacing / 2)
+        w -= viz.spacing * 2
+        y -= viz.spacing
+        if 'thresholds' in config and 'tile_uq' in config['thresholds']:
+            uq_thresh = config['thresholds']['tile_uq']
+        else:
+            uq_thresh = 0.033
+        width = scale_uncertainty_bar(uq_array, max_width=w, uq_threshold=uq_thresh)
+        draw_list.add_rect_filled(x, y, x+width, y+7, imgui.get_color_u32_rgba(*uncertainty_color))
+
+        # Right-aligned text below bar
+        cx, cy = imgui.get_cursor_position()
+        uq_text = "Uncertainty: {:.4f} (threshold: {:.4f})".format(uq_array, uq_thresh)
+        with viz.dim_text(out_of_focus):
+            imgui.text(uq_text)
+
+
+def draw_tile_predictions(
+    viz, 
+    is_categorical: bool, 
+    config: "EasyDict" = None, 
+    has_preds: bool = None, 
+    using_model: bool = None,
+    uncertainty_color: Optional[List[int]] = None
+):
     """Render tile predictions with Imgui."""
     if config is None:
         config = viz._model_config
@@ -42,6 +103,10 @@ def draw_tile_predictions(viz, is_categorical, config=None, has_preds=None, usin
 
 
     if config is not None:
+
+        if hasattr(viz.result, 'in_focus') and not viz.result.in_focus:
+            imgui.text("Image out of focus.")
+
         # Process outcomes
         out_names = config['outcomes']
         out_names = [out_names] if not isinstance(out_names, list) else out_names
@@ -55,7 +120,10 @@ def draw_tile_predictions(viz, is_categorical, config=None, has_preds=None, usin
                     labels=config['outcome_labels'][out_names[p]],
                     is_categorical=is_categorical,
                     pred_array=_pred_array,
-                    uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty[p]
+                    uq_array=(None if not (viz._use_uncertainty 
+                                          and viz._uncertainty is not None) 
+                                   else viz._uncertainty[p]),
+                    uncertainty_color=uncertainty_color
                 )
 
         # Single categorical outcome
@@ -66,7 +134,10 @@ def draw_tile_predictions(viz, is_categorical, config=None, has_preds=None, usin
                 labels=config['outcome_labels'],
                 is_categorical=is_categorical,
                 pred_array=viz._predictions,
-                uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty
+                uq_array=(None if not (viz._use_uncertainty 
+                                       and viz._uncertainty is not None) 
+                               else viz._uncertainty),
+                uncertainty_color=uncertainty_color
             )
 
         # Linear outcome(s)
@@ -78,7 +149,10 @@ def draw_tile_predictions(viz, is_categorical, config=None, has_preds=None, usin
                     labels=None,
                     is_categorical=is_categorical,
                     pred_array=viz._predictions[o_idx],
-                    uq_array=None if not (viz._use_uncertainty and viz._uncertainty is not None) else viz._uncertainty
+                    uq_array=(None if not (viz._use_uncertainty 
+                                           and viz._uncertainty is not None) 
+                                   else viz._uncertainty),
+                    uncertainty_color=uncertainty_color
                 )
 
         # Model not in use
@@ -118,6 +192,7 @@ class ModelWidget:
         self._show_popup        = False
         self._show_download     = False
         self._last_preds        = None
+        self.uncertainty_color  = (0, 0, 0, 1)
 
         self._saliency_methods_all = {
             'Vanilla': grad.VANILLA,
@@ -544,10 +619,38 @@ class ModelWidget:
 
             imgui.end()
 
+    def update_uncertainty_color(self):
+        viz = self.viz
+        c = viz._model_config
+        val = viz._uncertainty
+        
+        if hasattr(viz.result, 'in_focus') and not viz.result.in_focus:
+            color = (0.5, 0.5, 0.5, 1)
+        elif viz._model_config is not None and isinstance(val, np.floating):
+            if 'thresholds' in c and 'tile_uq' in c['thresholds']:
+                uq_thresh = c['thresholds']['tile_uq']
+            else:
+                uq_thresh = 0.033
+            if val < uq_thresh:
+                color = (0, 1, 0, 1)
+            elif val < uq_thresh * 2:
+                color = (1, 1, 0, 1)
+            else:
+                color = (1, 0, 0, 1)
+        else:
+            color = (1, 0, 0, 1)
+
+        self.uncertainty_color = color
+        viz._box_color = color[0:3]
+            
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
         config = viz._model_config
+
+        # Color uncertainty
+        self.update_uncertainty_color()
 
         if show:
             with viz.header_with_buttons("Model"):
@@ -570,7 +673,11 @@ class ModelWidget:
             if viz.collapsing_header('Info', default=True):
                 self.draw_info()
             if viz.collapsing_header('Tile Prediction', default=True):
-                draw_tile_predictions(viz, self.is_categorical())
+                draw_tile_predictions(
+                    viz, 
+                    self.is_categorical(), 
+                    uncertainty_color=self.uncertainty_color
+                )
             if viz.collapsing_header('Slide Prediction', default=True):
                 self.draw_slide_predictions()
             if viz.collapsing_header('Saliency', default=False):

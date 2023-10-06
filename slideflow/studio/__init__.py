@@ -27,7 +27,8 @@ from .widgets import (
     CaptureWidget, SettingsWidget, ExtensionsWidget, Widget
 )
 from .utils import EasyDict, prediction_to_string
-from ._renderer import AsyncRenderer, Renderer, CapturedException
+from ._renderer import Renderer
+from ._render_manager import AsyncRenderManager, Renderer, CapturedException
 
 OVERLAY_GRID    = 0
 OVERLAY_WSI     = 1
@@ -75,7 +76,7 @@ class Studio(ImguiWindow):
         self._dx                = 0
         self._dy                = 0
         self._last_error_print  = None
-        self._async_renderer    = AsyncRenderer()
+        self._render_manager    = AsyncRenderManager()
         self._addl_renderers    = dict()
         self._defer_rendering   = 0
         self._tex_img           = None
@@ -121,6 +122,7 @@ class Studio(ImguiWindow):
         self._show_overlays             = True
         self._show_mpp_zoom_popup       = False
         self._input_mpp                 = 1.
+        self._box_color                 = [1, 0, 0]
         self.theme                      = theme
 
         # Widget interface.
@@ -190,7 +192,7 @@ class Studio(ImguiWindow):
     @property
     def model(self):
         """Tensorflow/PyTorch model currently in use."""
-        return self._async_renderer._model
+        return self._render_manager._model
 
     @property
     def P(self):
@@ -238,7 +240,7 @@ class Studio(ImguiWindow):
 
     def _close_model_now(self) -> None:
         """Close the currently loaded model now."""
-        self._async_renderer.clear_result()
+        self._render_manager.clear_result()
         self._use_model         = False
         self._use_uncertainty   = False
         self._use_saliency      = False
@@ -250,7 +252,7 @@ class Studio(ImguiWindow):
         self.heatmap            = None
         self.x                  = None
         self.y                  = None
-        self._async_renderer.clear_model()
+        self._render_manager.clear_model()
         self.clear_model_results()
         self.heatmap_widget.reset()
 
@@ -264,7 +266,7 @@ class Studio(ImguiWindow):
         self.mouse_x = None
         self.mouse_y = None
         self.clear_result()
-        self._async_renderer._live_updates = False
+        self._render_manager._live_updates = False
         self._heatmap_tex_img   = None
         self._heatmap_tex_obj   = None
         self.heatmap_widget.reset()
@@ -419,6 +421,7 @@ class Studio(ImguiWindow):
             and inp.clicking
             and not inp.dragging
             and self.viewer.is_in_view(inp.cx, inp.cy)):
+
             wsi_x, wsi_y = self.viewer.display_coords_to_wsi_coords(inp.cx, inp.cy, offset=False)
             self.x = wsi_x - (self.viewer.full_extract_px/2)
             self.y = wsi_y - (self.viewer.full_extract_px/2)
@@ -433,7 +436,7 @@ class Studio(ImguiWindow):
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
             gl.glLineWidth(3)
             box_pos = np.array([self.box_x, self.box_y])
-            gl_utils.draw_rect(pos=box_pos, size=np.array([tw, tw]), color=[1, 0, 0], mode=gl.GL_LINE_LOOP)
+            gl_utils.draw_rect(pos=box_pos, size=np.array([tw, tw]), color=self._box_color, mode=gl.GL_LINE_LOOP)
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
             gl.glLineWidth(1)
 
@@ -615,13 +618,13 @@ class Studio(ImguiWindow):
             imgui.text_colored("Low memory mode", 0.99, 0.75, 0.42, 1)
 
         # Location / MPP
-        if self.viewer and hasattr(self.viewer, 'mpp'):
+        if self.viewer and hasattr(self.viewer, 'mpp') and self.mouse_x is not None:
             imgui_utils.right_aligned_text('x={:<8} y={:<8} mpp={:.3f}'.format(
                 int(self.mouse_x), int(self.mouse_y), self.viewer.mpp)
             )
-        elif self.viewer:
-            imgui_utils.right_aligned_text('x={:<8} y={:<8}'.format(
-                int(self.mouse_x), int(self.mouse_y))
+        elif self.viewer and self.mouse_x is not None:
+            imgui_utils.right_aligned_text(
+                'x={:<8} y={:<8}'.format(int(self.mouse_x), int(self.mouse_y))
             )
 
         imgui.end()
@@ -907,7 +910,7 @@ class Studio(ImguiWindow):
     # --- Imgui methods -------------------------------------------------------
 
     @contextmanager
-    def dim_text(self):
+    def dim_text(self, dim=True):
         """Render dim text.
 
         Examples
@@ -919,9 +922,11 @@ class Studio(ImguiWindow):
                         imgui.text('This is dim')
 
         """
-        imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.dim)
+        if dim:
+            imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.dim)
         yield
-        imgui.pop_style_color(1)
+        if dim:
+            imgui.pop_style_color(1)
 
     @contextmanager
     def highlighted(self, enable: bool = True):
@@ -1088,7 +1093,7 @@ class Studio(ImguiWindow):
         """Add a renderer to the rendering pipeline."""
         if name is not None:
             self._addl_renderers[name] = renderer
-        self._async_renderer.add_to_render_pipeline(renderer)
+        self._render_manager.add_to_render_pipeline(renderer)
 
     def remove_from_render_pipeline(self, name: str):
         """Remove a renderer from the render pipeline.
@@ -1102,7 +1107,8 @@ class Studio(ImguiWindow):
         if name not in self._addl_renderers:
             raise ValueError(f'Could not find renderer "{name}"')
         renderer = self._addl_renderers[name]
-        self._async_renderer.remove_from_render_pipeline(renderer)
+        if self._render_manager is not None:
+            self._render_manager.remove_from_render_pipeline(renderer)
         del self._addl_renderers[name]
 
     def ask_load_heatmap(self):
@@ -1150,7 +1156,7 @@ class Studio(ImguiWindow):
             ignore_errors (bool): Gracefully handle errors.
 
         """
-        sf.log.info(f"Loading [green]{path}[/]")
+        sf.log.info(f"Auto-loading [green]{path}[/]")
         if sf.util.is_project(path):
             self.load_project(path, ignore_errors=ignore_errors)
         elif sf.util.is_slide(path):
@@ -1206,7 +1212,8 @@ class Studio(ImguiWindow):
 
     def clear_model_results(self) -> None:
         """Clear all model results and associated images."""
-        self._async_renderer.clear_result()
+        if self._render_manager is not None:
+            self._render_manager.clear_result()
         self._predictions       = None
         self._norm_tex_img      = None
         self._norm_tex_obj      = None
@@ -1218,9 +1225,14 @@ class Studio(ImguiWindow):
     def close(self) -> None:
         """Close the application and renderer."""
         super().close()
-        if self._async_renderer is not None:
-            self._async_renderer.close()
-            self._async_renderer = None
+        if self._render_manager is not None:
+            self._render_manager.close()
+            self._render_manager = None
+        if hasattr(self.viewer, 'close'):
+            self.viewer.close()
+        for w in self.widgets:
+            if hasattr(w, 'close'):
+                w.close()
 
     def close_model(self, now: bool = False) -> None:
         """Close the currently loaded model.
@@ -1302,6 +1314,8 @@ class Studio(ImguiWindow):
         # --- Render arguments ------------------------------------------------
         self.args.x = self.x
         self.args.y = self.y
+        self.args.tile_px = self.tile_px
+        self.args.tile_um = self.tile_um
         if (self._model_config is not None and self._use_model):
             self.args.tile_px = self._model_config['tile_px']
             self.args.tile_um = self._model_config['tile_um']
@@ -1315,7 +1329,8 @@ class Studio(ImguiWindow):
         # Buffer tile view if using a live viewer.
         if self.has_live_viewer() and self.args.x and self.args.y:
 
-            if self._async_renderer._args_queue.qsize() > 2:
+            if (self._render_manager.is_async
+                and self._render_manager._args_queue.qsize() > 2):
                 if self._defer_tile_refresh is None:
                     self._defer_tile_refresh = time.time()
                     self.defer_rendering()
@@ -1329,6 +1344,7 @@ class Studio(ImguiWindow):
             self.args.full_image = self.viewer.tile_view
             self.args.tile_px = self.viewer.tile_px
             self.args.tile_um = self.viewer.tile_um
+            self.viewer.apply_args(self.args)
 
         if self.has_live_viewer():
             self.args.viewer = None
@@ -1345,8 +1361,8 @@ class Studio(ImguiWindow):
         elif self._defer_rendering > 0:
             self._defer_rendering -= 1
         else:
-            self._async_renderer.set_args(**self.args)
-            result = self._async_renderer.get_result()
+            self._render_manager.set_args(**self.args)
+            result = self._render_manager.get_result()
             if result is not None:
                 self.result = result
                 if 'predictions' in result:
@@ -1401,12 +1417,13 @@ class Studio(ImguiWindow):
            and self._predictions is not None
            and not isinstance(self._predictions, list)
            and self.viewer is not None):
-            pred_str = prediction_to_string(
-                predictions=self._predictions,
-                outcomes=self._model_config['outcome_labels'],
-                is_categorical=(self._model_config['model_type'] == 'categorical')
-            )
-            self._render_prediction_message(pred_str)
+            if not hasattr(self.result, 'in_focus') or self.result.in_focus:
+                pred_str = prediction_to_string(
+                    predictions=self._predictions,
+                    outcomes=self._model_config['outcome_labels'],
+                    is_categorical=(self._model_config['model_type'] == 'categorical')
+                )
+                self._render_prediction_message(pred_str)
 
         # End frame.
         if self._should_close_model:
@@ -1423,17 +1440,24 @@ class Studio(ImguiWindow):
         from .widgets import MosaicWidget
         return [MosaicWidget]
 
-    def get_renderer(self, name: str) -> Optional[Renderer]:
+    def get_renderer(self, name: Optional[str] = None) -> Optional[Renderer]:
         """Check for the given additional renderer in the rendering pipeline.
 
         Args:
-            name (str): Name of the renderer to check for.
+            name (str): Name of the renderer to check for. If None,
+                returns the main renderer.
 
         Returns:
             Renderer if name is a recognized renderer, otherwise None
 
         """
-        if name in self._addl_renderers:
+        if name is None:
+            if (self._render_manager is not None
+                and self._render_manager._renderer_obj is not None):
+                return self._render_manager._renderer_obj
+            else:
+                return None
+        elif name in self._addl_renderers:
             return self._addl_renderers[name]
         else:
             return None
@@ -1521,9 +1545,15 @@ class Studio(ImguiWindow):
         self.clear_result()
         log.debug("Model result cleared")
         self.skip_frame() # The input field will change on next frame.
-        self._async_renderer.get_result() # Flush prior result
-        self._async_renderer.clear_result()
+        self._render_manager.get_result() # Flush prior result
+        self._render_manager.clear_result()
         try:
+
+            # Trigger user widgets
+            for widget in self.widgets:
+                if hasattr(widget, '_before_model_load'):
+                    widget._before_model_load()
+
             self.defer_rendering()
             self.model_widget.user_model = model
 
@@ -1541,7 +1571,7 @@ class Studio(ImguiWindow):
             self._use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
             self.tile_um = config['tile_um']
             self.tile_px = config['tile_px']
-            self._async_renderer.load_model(model)
+            self._render_manager.load_model(model)
             if sf.util.torch_available and sf.util.path_to_ext(model) == 'zip':
                 self.model_widget.backend = 'torch'
             else:
@@ -1633,7 +1663,7 @@ class Studio(ImguiWindow):
 
     def reload_model(self) -> None:
         """Reload the current model."""
-        self._async_renderer.load_model(self._model_path)
+        self._render_manager.load_model(self._model_path)
 
     def reload_viewer(self) -> None:
         """Reload the current main viewer."""
@@ -1711,8 +1741,8 @@ class Studio(ImguiWindow):
         if self.viewer is not None:
             self.viewer.close()
         self.viewer = viewer
-        self._async_renderer._live_updates = viewer.live
-        self._async_renderer.set_async(viewer.live)
+        self._render_manager._live_updates = viewer.live
+        self._render_manager.set_async(viewer.live)
 
 # -----------------------------------------------------------------------------
 

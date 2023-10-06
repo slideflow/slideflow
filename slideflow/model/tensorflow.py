@@ -27,7 +27,7 @@ from slideflow.util import log, NormFit
 
 from . import tensorflow_utils as tf_utils
 from .base import log_manifest, no_scope, BaseFeatureExtractor
-from .tensorflow_utils import unwrap, flatten, eval_from_model  # type: ignore
+from .tensorflow_utils import unwrap, flatten, eval_from_model, build_uq_model  # type: ignore
 
 # Set the tensorflow logger
 if sf.getLoggingLevel() == logging.DEBUG:

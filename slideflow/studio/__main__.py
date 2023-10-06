@@ -10,9 +10,9 @@ from . import Studio
 @click.option('--project', '-p', help='Slideflow project.', metavar='PATH')
 @click.option('--low_memory', '-l', is_flag=True, help='Low memory mode.', metavar=bool)
 @click.option('--stylegan', '-g', is_flag=True, help='Enable StyleGAN support (requires PyTorch).', metavar=bool)
-@click.option('--picam', '-c', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
+@click.option('--picam', '-pc', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
+@click.option('--camera', '-c', is_flag=True, help='Enable Camera (OpenCV) view (experimental).', metavar=bool)
 @click.option('--cellpose', is_flag=True, help='Enable Cellpose segmentation (experimental).', metavar=bool)
-@click.option('--advanced', '-a', is_flag=True, help='Enable advanced StyleGAN options.', metavar=bool)
 def main(
     slide,
     model,
@@ -20,8 +20,8 @@ def main(
     low_memory,
     stylegan,
     picam,
-    cellpose,
-    advanced
+    camera,
+    cellpose
 ):
     """
     Whole-slide image viewer with deep learning model visualization tools.
@@ -40,6 +40,10 @@ def main(
     if picam:
         from .widgets.picam import PicamWidget
         widgets += [PicamWidget]
+
+    if camera:
+        from .widgets.cvcam import CameraWidget
+        widgets += [CameraWidget]
 
     if cellpose:
         from .widgets.segment import SegmentWidget

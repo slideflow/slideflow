@@ -9,13 +9,13 @@ from array import array
 from tkinter.filedialog import askdirectory
 from os.path import join, exists, dirname, abspath
 from typing import Dict, Optional, List, Union
-from slideflow.model.extractors import rebuild_extractor
 from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
 from slideflow.mil.eval import _predict_clam, _predict_mil
 
 from ._utils import Widget
 from .model import draw_tile_predictions
 from ..gui import imgui_utils
+from ..gui.viewer import SlideViewer
 from ..utils import prediction_to_string
 from .._mil_renderer import MILRenderer
 
@@ -107,12 +107,9 @@ class MILWidget(Widget):
 
     def _initialize_variables(self):
         # Extractor, model, and config.
-        self.model = None
         self.mil_config = None
-        self.extractor = None
         self.mil_params = None
         self.extractor_params = None
-        self.normalizer = None
         self.calculate_attention = True
 
         # Predictions and attention.
@@ -149,7 +146,7 @@ class MILWidget(Widget):
                 self._toast = None
             self.viz.create_toast("Prediction complete.", icon='success')
 
-    def _on_model_load(self):
+    def _before_model_load(self):
         """Trigger for when the user loads a tile-based model."""
         self.close()
 
@@ -166,20 +163,56 @@ class MILWidget(Widget):
 
     # --- Public API ----------------------------------------------------------
 
-    def close(self):
+    @property
+    def extractor(self):
+        """Return the extractor used by the MIL model."""
+        if self.viz._render_manager.is_async:
+            raise RuntimeError("Cannot access MIL feature extractor while rendering in asynchronous mode.")
+        renderer = self.viz.get_renderer()
+        if isinstance(renderer, MILRenderer):
+            return renderer.extractor
+        else:
+            return None
+
+    @property
+    def model(self):
+        """Return the extractor used by the MIL model."""
+        if self.viz._render_manager.is_async:
+            raise RuntimeError("Cannot access MIL model while rendering in asynchronous mode.")
+        renderer = self.viz.get_renderer()
+        if isinstance(renderer, MILRenderer):
+            return renderer.mil_model
+        else:
+            return None
+
+    @property
+    def normalizer(self):
+        """Return the extractor used by the MIL model."""
+        if self.viz._render_manager.is_async:
+            raise RuntimeError("Cannot access MIL normalizer while rendering in asynchronous mode.")
+        renderer = self.viz.get_renderer()
+        if isinstance(renderer, MILRenderer):
+            return renderer.normalizer
+        else:
+            return None
+
+    @property
+    def model_loaded(self):
+        """Return True if a MIL model is loaded."""
+        return self.mil_params is not None
+
+    def close(self, close_renderer: bool = True):
         """Close the loaded MIL model."""
         if self._thread is not None and self._thread.is_alive():
             self._thread.join()
         if self._mil_path == self.viz._model_path:
             self.viz._model_path = None
-        del self.model
-        del self.extractor
-        del self.normalizer
         self.viz.heatmap_widget.reset()
         self.viz.clear_prediction_message()
         self._initialize_variables()
-        if self.viz.get_renderer('mil'):
-            self.viz.remove_from_render_pipeline('mil')
+        if self.viz._render_manager is not None:
+            if close_renderer:
+                self.viz._render_manager.close_renderer()
 
     def ask_load_model(self) -> None:
         """Prompt the user to open an MIL model."""
@@ -189,29 +222,22 @@ class MILWidget(Widget):
 
     def load(self, path: str, allow_errors: bool = True) -> bool:
         try:
-            self.close()
-            self.extractor, self.normalizer = rebuild_extractor(
-                path, native_normalizer=(sf.slide_backend()=='cucim')
-            )
+            self.close(close_renderer=False)
             self.mil_params = _get_mil_params(path)
             self.extractor_params = self.mil_params['bags_extractor']
             self._reload_wsi()
-            self.model, self.mil_config = sf.mil.utils.load_model_weights(path)
+            self.mil_config = sf.mil.mil_config(trainer=self.mil_params['trainer'],
+                                                **self.mil_params['params'])
             self.viz.close_model(True)  # Close a tile-based model, if one is loaded
             self.viz.tile_um = self.extractor_params['tile_um']
             self.viz.tile_px = self.extractor_params['tile_px']
 
-            # Add MIL renderer to the render pipeline.
-            self.mil_renderer.load_mil_model(
-                mil_model=self.model,
-                mil_config=self.mil_config,
-                extractor=self.extractor,
-                normalizer=self.normalizer
-            )
+            if self.viz.viewer and not isinstance(self.viz.viewer, SlideViewer):
+                self.viz.viewer.set_tile_px(self.viz.tile_px)
+                self.viz.viewer.set_tile_um(self.viz.tile_um)
 
-            # Add tile-based predictions to render pipeline.
-            if not self.viz.get_renderer('mil'):
-                self.viz.add_to_render_pipeline(self.mil_renderer, 'mil')
+            # Add MIL renderer to the render pipeline.
+            self.viz._render_manager.set_renderer(MILRenderer, mil_model_path=path)
 
             self.viz._model_path = path
             self._mil_path = path
@@ -232,7 +258,8 @@ class MILWidget(Widget):
             predictions, attention = _predict_clam(
                 self.model,
                 bags,
-                attention=self.calculate_attention
+                attention=self.calculate_attention,
+                device=self.viz._render_manager.device
             )
         else:
             predictions, attention = _predict_mil(
@@ -240,7 +267,8 @@ class MILWidget(Widget):
                 bags,
                 attention=self.calculate_attention,
                 use_lens=self.mil_config.model_config.use_lens,
-                apply_softmax=self.mil_config.model_config.apply_softmax
+                apply_softmax=self.mil_config.model_config.apply_softmax,
+                device=self.viz._render_manager.device
             )
         return predictions, attention
 
@@ -490,7 +518,7 @@ class MILWidget(Widget):
                     self._show_popup = not self._show_popup
                 self.draw_config_popup()
 
-        if show and self.model:
+        if show and self.model_loaded:
             if viz.collapsing_header('Feature Extractor', default=True):
                 self.draw_extractor_info()
             if viz.collapsing_header('MIL Model', default=True):
@@ -498,7 +526,7 @@ class MILWidget(Widget):
             if viz.collapsing_header('Whole-slide Prediction', default=True):
                 self.draw_prediction()
                 predict_enabled = (viz.wsi is not None
-                                   and self.model is not None
+                                   and self.model_loaded
                                    and not self._triggered)
                 predict_text = "Predict Slide" if not self._triggered else f"Calculating{imgui_utils.spinner_text()}"
                 if viz.sidebar.full_button(predict_text, enabled=predict_enabled):
@@ -509,7 +537,7 @@ class MILWidget(Widget):
                     is_categorical=self.is_categorical(),
                     config=self.mil_params,
                     has_preds=(viz._predictions is not None),
-                    using_model=(self.model is not None)
+                    using_model=self.model_loaded
                 )
         elif show:
             imgui_utils.padded_text('No MIL model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
@@ -519,7 +547,7 @@ class MILWidget(Widget):
         if self._show_mil_params and self.mil_params:
             self.draw_mil_params_popup()
 
-        if (viz._predictions is not None) and (self.model is not None):
+        if (viz._predictions is not None) and self.model_loaded:
             pred_str = prediction_to_string(
                 predictions=viz._predictions,
                 outcomes=self.mil_params['outcome_labels'],
