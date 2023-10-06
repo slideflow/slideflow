@@ -388,6 +388,21 @@ def as_list(arg1: Any) -> List[Any]:
         return arg1
 
 
+def isnumeric(val: Any) -> bool:
+    """Check if the given value is numeric.
+
+    Specifically checks if the value is a python int or float,
+    or if the value is a numpy array with a numeric dtype (int or float).
+
+    """
+    if isinstance(val, (int, float)):
+            return True
+    if isinstance(val, np.ndarray):
+            return val.dtype in (np.int32, np.int64, np.uint8, np.float16,
+                                 np.float32, np.float64)
+    return False
+
+
 def is_mag(arg1: str) -> bool:
     arg1_split = arg1.lower().split('x')
     if (len(arg1_split) != 2) or (arg1_split[1] != ''):

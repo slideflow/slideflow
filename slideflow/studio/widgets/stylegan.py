@@ -419,7 +419,10 @@ class StyleGANWidget(Widget):
                 is_categorical=viz.mil_widget.is_categorical(),
                 config=viz.mil_widget.mil_params,
                 has_preds=(viz._predictions is not None),
-                using_model=(viz.mil_widget.model is not None)
+                using_model=viz.mil_widget.model_loaded,
+                uncertainty_color=viz.mil_widget.uncertainty_color,
+                uncertainty_range=viz.mil_widget.uncertainty_range,
+                uncertainty_label="Attention",
             )
         elif not viz._model_config:
             imgui_utils.padded_text('No model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])

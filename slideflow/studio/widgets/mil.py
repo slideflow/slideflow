@@ -9,6 +9,7 @@ from array import array
 from tkinter.filedialog import askdirectory
 from os.path import join, exists, dirname, abspath
 from typing import Dict, Optional, List, Union
+from slideflow.util import isnumeric
 from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
 from slideflow.mil.eval import _predict_clam, _predict_mil
 
@@ -20,6 +21,14 @@ from ..utils import prediction_to_string
 from .._mil_renderer import MILRenderer
 
 # -----------------------------------------------------------------------------
+
+RED = (1, 0, 0, 1)
+GREEN = (0, 1, 0, 1)
+YELLOW = (1, 1, 0, 1)
+GRAY = (0.5, 0.5, 0.5, 1)
+
+# -----------------------------------------------------------------------------
+
 
 def _is_mil_model(path: str) -> bool:
     """Check if a given path is a valid MIL model."""
@@ -501,12 +510,52 @@ class MILWidget(Widget):
 
             imgui.end()
 
+    def update_attention_color(self):
+        viz = self.viz
+        val = viz._uncertainty
+        c = self.mil_params
+
+        if not self.model_loaded:
+            return
+
+        # DEFAULT
+        color = GRAY
+
+        # Out of focus.
+        if hasattr(viz.result, 'in_focus') and not viz.result.in_focus:
+            color = GRAY
+
+        # Has thresholds.
+        elif isnumeric(val):
+            if 'thresholds' in c and 'attention' in c['thresholds']:
+                thresh = c['thresholds']['attention']
+                if 'low' in thresh and val < thresh['low']:
+                    color = RED
+                elif 'high' in thresh and val > thresh['high']:
+                    color = GREEN
+                elif 'low' in thresh and 'high' in thresh:
+                    color = YELLOW
+                else:
+                    color = GRAY
+
+        if ('thresholds' in c
+            and 'attention' in c['thresholds']
+            and 'range' in c['thresholds']['attention']):
+            self.uncertainty_range = c['thresholds']['attention']['range']
+        else:
+            self.uncertainty_range = None
+
+        self.uncertainty_color = color
+        viz._box_color = color[0:3]
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
 
         if self._generating:
             self._refresh_generating_prediction()
+
+        self.update_attention_color()
 
         if show:
             with viz.header_with_buttons("Multiple-Instance Learning"):
@@ -537,7 +586,10 @@ class MILWidget(Widget):
                     is_categorical=self.is_categorical(),
                     config=self.mil_params,
                     has_preds=(viz._predictions is not None),
-                    using_model=self.model_loaded
+                    using_model=self.model_loaded,
+                    uncertainty_color=self.uncertainty_color,
+                    uncertainty_range=self.uncertainty_range,
+                    uncertainty_label="Attention",
                 )
         elif show:
             imgui_utils.padded_text('No MIL model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])

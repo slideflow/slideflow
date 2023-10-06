@@ -122,7 +122,7 @@ class MILRenderer(Renderer):
         bag = self._convert_img_to_bag(img, res)
         preds, att = self._predict_bag(bag, attention=True)
         res.predictions = preds[0]
-        res.uncertainty = att
+        res.uncertainty = None if att is None else att[0]
 
     def _render_impl(self, res, *args, **kwargs):
         if self.mil_model is not None:

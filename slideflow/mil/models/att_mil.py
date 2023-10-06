@@ -48,11 +48,15 @@ class Attention_MIL(nn.Module):
 
         return scores
 
-    def calculate_attention(self, bags, lens):
+    def calculate_attention(self, bags, lens, *, apply_softmax=None):
+        if apply_softmax is None and bags.shape[1] > 1:
+            apply_softmax = True
         embeddings = self.encoder(bags)
-        return self._masked_attention_scores(embeddings, lens)
+        return self._masked_attention_scores(
+            embeddings, lens, apply_softmax=apply_softmax
+        )
 
-    def _masked_attention_scores(self, embeddings, lens):
+    def _masked_attention_scores(self, embeddings, lens, *, apply_softmax=True):
         """Calculates attention scores for all bags.
         Returns:
             A tensor containing torch.concat([torch.rand(64, 256), torch.rand(64, 23)], -1)
@@ -71,7 +75,10 @@ class Attention_MIL(nn.Module):
         masked_attention = torch.where(
             attention_mask, attention_scores, torch.full_like(attention_scores, -torch.inf)
         )
-        return torch.softmax(masked_attention, dim=1)
+        if apply_softmax:
+            return torch.softmax(masked_attention, dim=1)
+        else:
+            return masked_attention
 
     def relocate(self):
         """Move model to GPU. Required for FastAI compatibility."""
@@ -158,7 +165,7 @@ class MultiModal_Attention_MIL(nn.Module):
         output = self.head(merged_embeddings)
         return output
 
-    def calculate_attention(self, *bags_and_lens):
+    def calculate_attention(self, *bags_and_lens, apply_softmax=True):
         """Calculate attention scores for all bags and magnifications."""
         self._verify_input(*bags_and_lens)
         bags, lenses = zip(*bags_and_lens)
@@ -167,7 +174,7 @@ class MultiModal_Attention_MIL(nn.Module):
         embeddings = self._calculate_embeddings(bags)
 
         # Calculate masked attention scores from the embeddings.
-        masked_attention_scores = self._all_masked_attention(embeddings, lenses)
+        masked_attention_scores = self._all_masked_attention(embeddings, lenses, apply_softmax=apply_softmax)
 
         return masked_attention_scores
 
@@ -203,14 +210,14 @@ class MultiModal_Attention_MIL(nn.Module):
             for i in range(self.n_input)
         ]
 
-    def _all_masked_attention(self, embeddings, lenses):
+    def _all_masked_attention(self, embeddings, lenses, *, apply_softmax=True):
         """Calculate masked attention scores for all magnification levels."""
         return [
-            self._masked_attention_scores(embeddings[i], lenses[i], i)
+            self._masked_attention_scores(embeddings[i], lenses[i], i, apply_softmax=apply_softmax)
             for i in range(self.n_input)
         ]
 
-    def _masked_attention_scores(self, embeddings, lens, mag_index):
+    def _masked_attention_scores(self, embeddings, lens, mag_index, *, apply_softmax=True):
         """Calculate masked attention scores at the given magnification.
 
         Returns:
@@ -228,7 +235,10 @@ class MultiModal_Attention_MIL(nn.Module):
         attention_mask = (idx < lens.unsqueeze(-1)).unsqueeze(-1)
 
         masked_attention = torch.where(attention_mask, attention_scores, -torch.inf)
-        return torch.softmax(masked_attention, dim=1)
+        if apply_softmax:
+            return torch.softmax(masked_attention, dim=1)
+        else:
+            return masked_attention
 
     # --- FastAI compatibility -------------------------------------------------
 
