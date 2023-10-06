@@ -13,6 +13,9 @@ import slideflow as sf
 import imgui
 import numpy as np
 import json
+import glfw
+import csv
+import re
 from os.path import join, dirname, abspath, basename, exists
 from tkinter.filedialog import askopenfilename
 
@@ -56,6 +59,7 @@ class StyleGANWidget(Widget):
         self.enables    = []
         self.mix_class  = -1
         self.mix_frac   = 0.5
+        self.saved_seeds = []
         self.enable_mix_class   = False
         self.enable_mix_seed    = False
 
@@ -201,7 +205,7 @@ class StyleGANWidget(Widget):
         if self.sf_opt['outcome_labels'] is None:
             return
 
-        with imgui_utils.item_width(viz.font_size * 5):
+        with imgui_utils.item_width(viz.font_size * 6):
             _changed, _idx = imgui.input_int(name, value, step=1, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
             if _changed and self.sf_opt and _idx >= 0 and str(_idx) not in self.sf_opt['outcome_labels']:
                 viz.create_toast(f'Invalid class index: {_idx}', icon='warn')
@@ -273,40 +277,58 @@ class StyleGANWidget(Widget):
     def draw_latent(self):
         viz = self.viz
 
-        # Class selection
+        # --- Class selection -------------------------------------------------
+        label_w = viz.label_w - (viz.font_size*1.5)
         imgui.text('Class')
-        imgui.same_line(viz.label_w)
+        imgui.same_line(label_w)
         _class_idx = self.class_selection('##class_idx', self.class_idx)
         if _class_idx is not None:
             self.class_idx = _class_idx
 
-        # Seed selection
+        # --- Seed selection --------------------------------------------------
         imgui.text('Seed')
-        imgui.same_line(viz.label_w)
+        imgui.same_line(label_w)
+
+        # Base seed selection
         seed = round(self.latent.x) + round(self.latent.y) * self.step_y
-        seed_width = imgui.get_content_region_max()[0] - viz.label_w - viz.font_size * 5 - viz.spacing
+        seed_width = viz.font_size * 6  #imgui.get_content_region_max()[0] - viz.label_w - viz.font_size * 4 - viz.spacing
         with imgui_utils.item_width(seed_width):
-            changed, seed = imgui.input_int('##seed', seed, step=0)
+            changed, seed = imgui.input_int('##seed', seed, step=1)
             if changed:
                 self.set_seed(seed)
-        imgui.same_line(viz.label_w + seed_width + viz.spacing)
+
+        # Seed fraction selection
+        imgui.same_line(label_w + seed_width + viz.spacing)
         frac_x = self.latent.x - round(self.latent.x)
         frac_y = self.latent.y - round(self.latent.y)
-        with imgui_utils.item_width(viz.font_size * 5):
+        with imgui_utils.item_width(-1):
             changed, (new_frac_x, new_frac_y) = imgui.input_float2('##frac', frac_x, frac_y, format='%+.2f', flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
             if changed:
                 self.latent.x += new_frac_x - frac_x
                 self.latent.y += new_frac_y - frac_y
-        _clicked, dragging, dx, dy = imgui_utils.drag_button('Drag', width=viz.label_w - viz.spacing*2)
+
+
+        # --- Buttons ---------------------------------------------------------
+        button_w = (imgui.get_content_region_max()[0] - viz.spacing*4) / 4
+        # Drag
+        _clicked, dragging, dx, dy = imgui_utils.drag_button('Drag', width=button_w)
         if dragging:
             self.drag_latent(dx, dy)
 
+        # Snap
         imgui.same_line()
         snapped = EasyDict(self.latent, x=round(self.latent.x), y=round(self.latent.y))
-        if imgui_utils.button('Snap', width=seed_width, enabled=(self.latent != snapped)):
+        if imgui_utils.button('Snap', width=button_w, enabled=(self.latent != snapped)):
             self.latent = snapped
+
+        # Save
         imgui.same_line()
-        if imgui_utils.button('Reset', width=-1, enabled=(self.latent != self.latent_def)):
+        if imgui_utils.button('Save', width=button_w):
+            self.saved_seeds.append((self.latent.x, self.latent.y))
+
+        # Reset
+        imgui.same_line()
+        if imgui_utils.button('Reset', width=button_w, enabled=(self.latent != self.latent_def)):
             self.latent = EasyDict(self.latent_def)
 
         imgui_utils.vertical_break()
@@ -392,6 +414,107 @@ class StyleGANWidget(Widget):
         else:
             viz.model_widget.draw_tile_predictions()
 
+        imgui_utils.vertical_break()
+
+    def draw_saved_seeds(self):
+        """Draw the saved seeds list box.
+
+        The list box displays the saved seeds in the (seed, frac_x, frac_y) format.
+        The seeds are saved in the (x, y) format.
+
+        """
+        viz = self.viz
+
+        if not self.saved_seeds:
+            imgui.text("No seeds have been saved.")
+            imgui_utils.vertical_break()
+            if viz.sidebar.full_button("Load Seeds"):
+                self.load_seeds()
+            return
+
+        selected_idx = None
+        with imgui.begin_list_box("##saved_seeds", -1, viz.font_size*10) as list_box:
+            if list_box.opened:
+                for idx, (x, y) in enumerate(self.saved_seeds):
+                    seed = round(x) + round(y) * self.step_y
+                    frac_x = x - round(x)
+                    frac_y = y - round(y)
+                    seed_str = f'{seed} ({frac_x:+.2f}, {frac_y:+.2f})'
+                    selected = (self.latent.x == x) and (self.latent.y == y)
+                    if selected:
+                        selected_idx = idx
+                    if imgui.selectable(seed_str, selected)[0]:
+                        self.latent.x = x
+                        self.latent.y = y
+
+        button_w = (imgui.get_content_region_max()[0] - viz.spacing*4) / 4
+        if imgui_utils.button('Export##export_seeds', width=button_w):
+            self.export_seeds()
+        imgui.same_line()
+        if imgui_utils.button('Load##load_seeds', width=button_w):
+            self.load_seeds()
+        imgui.same_line()
+        if imgui_utils.button('Remove##remove_seeds', width=button_w, enabled=(selected_idx is not None)):
+            if selected_idx is not None:
+                del self.saved_seeds[selected_idx]
+        imgui.same_line()
+        if imgui_utils.button('Reset##reset_button', width=button_w):
+            self.saved_seeds = []
+
+    def load_seeds(self):
+        """Load seeds from CSV.
+
+        Seeds should be in the (x, y) format, one seed per line.
+
+        This differs from the display format, which is (seed, frac_x, frac_y).
+
+        """
+        path = askopenfilename(title="Load Seeds...", filetypes=[("CSV", "*.csv",)])
+        if path:
+            with open(path, 'r', newline='') as csvfile:
+                reader = csv.reader(csvfile, delimiter=',')
+                self.saved_seeds = []
+                for row in reader:
+                    self.saved_seeds.append((float(row[0]), float(row[1])))
+            self.viz.create_toast(f'Loaded seeds from {path}', icon='success')
+
+    def export_seeds(self):
+        """Export seeds to CSV.
+
+        Seeds are saved in (x, y) format.
+        """
+
+        # Find filenames in the current directory matching "saved_seeds_00000.csv"
+        # and increment the number until we find a filename that doesn't exist.
+        # Then save the seeds to that file.
+        path = join(dirname(self.pkl), 'saved_seeds_00000.csv')
+        while exists(path):
+            match = re.match(r'saved_seeds_(\d{5}).csv', basename(path))
+            if match:
+                num = int(match.group(1))
+                path = join(dirname(self.pkl), f'saved_seeds_{num+1:05}.csv')
+            else:
+                path = join(dirname(self.pkl), 'saved_seeds_00001.csv')
+
+        # Save the seeds in CSV format to path.
+        # All seeds are saved in (x, y) format, stored in the variable self.saved_seeds
+        with open(path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile, delimiter=',')
+            for x, y in self.saved_seeds:
+                writer.writerow([x, y])
+
+        self.viz.create_toast(f'Saved seeds to {path}', icon='success')
+
+    # -------------------------------------------------------------------------
+
+    def keyboard_callback(self, key, action):
+        if action == glfw.PRESS and key == glfw.KEY_RIGHT:
+            self.set_seed(round(self.latent.x) + round(self.latent.y) * self.step_y + 1)
+        if action == glfw.PRESS and key == glfw.KEY_LEFT:
+            self.set_seed(round(self.latent.x) + round(self.latent.y) * self.step_y - 1)
+        if action == glfw.PRESS and key == glfw.KEY_S:
+            self.saved_seeds.append((self.latent.x, self.latent.y))
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
@@ -418,6 +541,9 @@ class StyleGANWidget(Widget):
 
             if viz.collapsing_header('Prediction', default=True):
                 self.draw_prediction()
+
+            if viz.collapsing_header('Saved Seeds', default=True):
+                self.draw_saved_seeds()
 
             if self._show_layers:
                 self.draw_layers_popup()

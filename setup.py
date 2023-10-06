@@ -128,7 +128,7 @@ setuptools.setup(
         'ninja',
         'rich',
         'pillow>=6.0.0',
-        'imgui',
+        'imgui>=2.0.0',
         'pyopengl',
         'glfw',
         'saliency',
