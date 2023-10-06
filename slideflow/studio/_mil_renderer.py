@@ -58,6 +58,14 @@ class MILRenderer(Renderer):
             dtype = tf.uint8
         img = np.expand_dims(img, 0)
         img = sf.io.convert_dtype(img, dtype=dtype)
+        if self.normalizer:
+            img  = self.normalizer.transform(img)
+            if self.extractor.backend == 'torch':
+                img = img.to(torch.uint8)
+                res.normalized = sf.io.torch.as_whc(img[0]).cpu().numpy()
+            else:
+                img = tf.cast(img, tf.uint8)
+                res.normalized = sf.io.convert_dtype(img[0], np.uint8)
         if self.extractor.backend == 'torch':
             img = img.to(self.device)
         bag = self.extractor(img)
@@ -67,8 +75,15 @@ class MILRenderer(Renderer):
         """Generate MIL predictions from bag."""
         from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
 
-        # Add a batch dimension
+        # Convert to torch tensor
+        if sf.util.tf_available and isinstance(bag, tf.Tensor):
+            bag = bag.numpy()
+        if isinstance(bag, np.ndarray):
+            bag = torch.from_numpy(bag)
+
+        # Add a batch dimension & send to GPU
         bag = torch.unsqueeze(bag, dim=0)
+        bag = bag.to(self.device)
 
         if (isinstance(self.mil_config, TrainerConfigCLAM)
         or isinstance(self.mil_config.model_config, ModelConfigCLAM)):

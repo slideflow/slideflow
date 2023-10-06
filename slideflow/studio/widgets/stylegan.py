@@ -18,7 +18,7 @@ import csv
 import re
 from os.path import join, dirname, abspath, basename, exists
 from tkinter.filedialog import askopenfilename
-
+from .model import draw_tile_predictions
 from slideflow.gan.stylegan3.stylegan3.viz.renderer import (
     Renderer, CapturedException
 )
@@ -407,12 +407,122 @@ class StyleGANWidget(Widget):
     def draw_prediction(self):
         viz = self.viz
 
-        if not viz._model_config:
+        #TODO: Hacky workaround, fix later
+        if hasattr(viz, 'mil_widget') and viz.mil_widget.model is not None:
+            draw_tile_predictions(
+                viz,
+                is_categorical=viz.mil_widget.is_categorical(),
+                config=viz.mil_widget.mil_params,
+                has_preds=(viz._predictions is not None),
+                using_model=(viz.mil_widget.model is not None)
+            )
+        elif not viz._model_config:
             imgui_utils.padded_text('No model has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
             if viz.sidebar.full_button("Load a Model"):
                 viz.ask_load_model()
         else:
-            viz.model_widget.draw_tile_predictions()
+            draw_tile_predictions(viz, viz.model_widget.is_categorical())
+
+        imgui_utils.vertical_break()
+
+    def draw_saved_seeds(self):
+        """Draw the saved seeds list box.
+
+        The list box displays the saved seeds in the (seed, frac_x, frac_y) format.
+        The seeds are saved in the (x, y) format.
+
+        """
+        viz = self.viz
+
+        if not self.saved_seeds:
+            imgui.text("No seeds have been saved.")
+            imgui_utils.vertical_break()
+            if viz.sidebar.full_button("Load Seeds"):
+                self.load_seeds()
+            return
+
+        selected_idx = None
+        with imgui.begin_list_box("##saved_seeds", -1, viz.font_size*10) as list_box:
+            if list_box.opened:
+                for idx, (x, y) in enumerate(self.saved_seeds):
+                    seed = round(x) + round(y) * self.step_y
+                    frac_x = x - round(x)
+                    frac_y = y - round(y)
+                    seed_str = f'{seed} ({frac_x:+.2f}, {frac_y:+.2f})'
+                    selected = (self.latent.x == x) and (self.latent.y == y)
+                    if selected:
+                        selected_idx = idx
+                    if imgui.selectable(seed_str, selected)[0]:
+                        self.latent.x = x
+                        self.latent.y = y
+
+        button_w = (imgui.get_content_region_max()[0] - viz.spacing*4) / 4
+        if imgui_utils.button('Export##export_seeds', width=button_w):
+            self.export_seeds()
+        imgui.same_line()
+        if imgui_utils.button('Load##load_seeds', width=button_w):
+            self.load_seeds()
+        imgui.same_line()
+        if imgui_utils.button('Remove##remove_seeds', width=button_w, enabled=(selected_idx is not None)):
+            if selected_idx is not None:
+                del self.saved_seeds[selected_idx]
+        imgui.same_line()
+        if imgui_utils.button('Reset##reset_button', width=button_w):
+            self.saved_seeds = []
+
+    def load_seeds(self):
+        """Load seeds from CSV.
+
+        Seeds should be in the (x, y) format, one seed per line.
+
+        This differs from the display format, which is (seed, frac_x, frac_y).
+
+        """
+        path = askopenfilename(title="Load Seeds...", filetypes=[("CSV", "*.csv",)])
+        if path:
+            with open(path, 'r', newline='') as csvfile:
+                reader = csv.reader(csvfile, delimiter=',')
+                self.saved_seeds = []
+                for row in reader:
+                    self.saved_seeds.append((float(row[0]), float(row[1])))
+            self.viz.create_toast(f'Loaded seeds from {path}', icon='success')
+
+    def export_seeds(self):
+        """Export seeds to CSV.
+
+        Seeds are saved in (x, y) format.
+        """
+
+        # Find filenames in the current directory matching "saved_seeds_00000.csv"
+        # and increment the number until we find a filename that doesn't exist.
+        # Then save the seeds to that file.
+        path = join(dirname(self.pkl), 'saved_seeds_00000.csv')
+        while exists(path):
+            match = re.match(r'saved_seeds_(\d{5}).csv', basename(path))
+            if match:
+                num = int(match.group(1))
+                path = join(dirname(self.pkl), f'saved_seeds_{num+1:05}.csv')
+            else:
+                path = join(dirname(self.pkl), 'saved_seeds_00001.csv')
+
+        # Save the seeds in CSV format to path.
+        # All seeds are saved in (x, y) format, stored in the variable self.saved_seeds
+        with open(path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile, delimiter=',')
+            for x, y in self.saved_seeds:
+                writer.writerow([x, y])
+
+        self.viz.create_toast(f'Saved seeds to {path}', icon='success')
+
+    # -------------------------------------------------------------------------
+
+    def keyboard_callback(self, key, action):
+        if action == glfw.PRESS and key == glfw.KEY_RIGHT:
+            self.set_seed(round(self.latent.x) + round(self.latent.y) * self.step_y + 1)
+        if action == glfw.PRESS and key == glfw.KEY_LEFT:
+            self.set_seed(round(self.latent.x) + round(self.latent.y) * self.step_y - 1)
+        if action == glfw.PRESS and key == glfw.KEY_S:
+            self.saved_seeds.append((self.latent.x, self.latent.y))
 
         imgui_utils.vertical_break()
 

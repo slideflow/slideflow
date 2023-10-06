@@ -16,6 +16,7 @@ from ._utils import Widget
 from .model import draw_tile_predictions
 from ..gui import imgui_utils
 from ..gui.viewer import SlideViewer
+from ..utils import prediction_to_string
 from .._mil_renderer import MILRenderer
 
 # -----------------------------------------------------------------------------
@@ -100,6 +101,7 @@ class MILWidget(Widget):
         self._clicking      = None
         self._initialize_variables()
         self.mil_renderer = MILRenderer()
+        self.viz.mil_widget = self  #TODO: hacky, remove this
 
     # --- Hooks, triggers, and internal functions -----------------------------
 
@@ -206,6 +208,7 @@ class MILWidget(Widget):
         if self._mil_path == self.viz._model_path:
             self.viz._model_path = None
         self.viz.heatmap_widget.reset()
+        self.viz.clear_prediction_message()
         self._initialize_variables()
         if self.viz._render_manager is not None:
             if close_renderer:
@@ -541,3 +544,11 @@ class MILWidget(Widget):
 
         if self._show_mil_params and self.mil_params:
             self.draw_mil_params_popup()
+
+        if (viz._predictions is not None) and (self.model is not None):
+            pred_str = prediction_to_string(
+                predictions=viz._predictions,
+                outcomes=self.mil_params['outcome_labels'],
+                is_categorical=self.is_categorical()
+            )
+            viz.set_prediction_message(pred_str)

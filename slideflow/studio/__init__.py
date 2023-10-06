@@ -26,9 +26,9 @@ from .widgets import (
     ProjectWidget, SlideWidget, ModelWidget, HeatmapWidget, PerformanceWidget,
     CaptureWidget, SettingsWidget, ExtensionsWidget, Widget
 )
-from .utils import EasyDict
+from .utils import EasyDict, prediction_to_string
 from ._renderer import Renderer
-from ._render_manager import AsyncRenderManager, CapturedException
+from ._render_manager import AsyncRenderManager, Renderer, CapturedException
 
 OVERLAY_GRID    = 0
 OVERLAY_WSI     = 1
@@ -110,6 +110,8 @@ class Studio(ImguiWindow):
         self._should_close_slide = False
         self._should_close_model = False
         self._bg_logo           = None
+        self._message           = None
+        self._pred_message      = None
         self.low_memory         = low_memory
 
         # Interface.
@@ -362,7 +364,13 @@ class Studio(ImguiWindow):
             bg_path = join(dirname(abspath(__file__)), 'gui', 'logo_dark_outline.png')
             img = np.array(Image.open(bg_path))
             self._bg_logo = gl_utils.Texture(image=img, bilinear=True)
-        self._bg_logo.draw(pos=(self.content_frame_width//2, self.content_frame_height//2), zoom=0.75, align=0.5, rint=True, anchor='center')
+        self._bg_logo.draw(
+            pos=(self.content_frame_width//2, self.content_frame_height//2),
+            zoom=0.75,
+            align=0.5,
+            rint=True,
+            anchor='center'
+        )
 
     def _draw_main_view(self, inp: EasyDict, window_changed: bool) -> None:
         """Update the main window view.
@@ -578,7 +586,11 @@ class Studio(ImguiWindow):
         imgui.push_style_color(imgui.COLOR_WINDOW_BACKGROUND, *self.theme.main_background)
         imgui.push_style_var(imgui.STYLE_WINDOW_PADDING, [10, 5])
 
-        imgui.begin('Status bar', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_SCROLLBAR))
+        imgui.begin('Status bar', closable=True, flags=(imgui.WINDOW_NO_RESIZE
+                                                        | imgui.WINDOW_NO_COLLAPSE
+                                                        | imgui.WINDOW_NO_TITLE_BAR
+                                                        | imgui.WINDOW_NO_MOVE
+                                                        | imgui.WINDOW_NO_SCROLLBAR))
 
         # Backend
         backend = sf.slide_backend()
@@ -607,9 +619,13 @@ class Studio(ImguiWindow):
 
         # Location / MPP
         if self.viewer and hasattr(self.viewer, 'mpp') and self.mouse_x is not None:
-            imgui_utils.right_aligned_text('x={:<8} y={:<8} mpp={:.3f}'.format(int(self.mouse_x), int(self.mouse_y), self.viewer.mpp))
+            imgui_utils.right_aligned_text('x={:<8} y={:<8} mpp={:.3f}'.format(
+                int(self.mouse_x), int(self.mouse_y), self.viewer.mpp)
+            )
         elif self.viewer and self.mouse_x is not None:
-            imgui_utils.right_aligned_text('x={:<8} y={:<8}'.format(int(self.mouse_x), int(self.mouse_y)))
+            imgui_utils.right_aligned_text(
+                'x={:<8} y={:<8}'.format(int(self.mouse_x), int(self.mouse_y))
+            )
 
         imgui.end()
         imgui.pop_style_color(1)
@@ -630,7 +646,7 @@ class Studio(ImguiWindow):
         """
         if self._show_tile_preview:
             has_raw_image = self._tex_obj is not None
-            has_norm_image = self.model_widget.use_model and self._normalizer is not None and self._norm_tex_obj is not None and self.tile_px
+            has_norm_image = 'normalized' in self.result and self._norm_tex_obj is not None  # self.model_widget.use_model and self._normalizer is not None and self._norm_tex_obj is not None and self.tile_px
             if not has_raw_image:
                 return
 
@@ -646,14 +662,26 @@ class Studio(ImguiWindow):
             imgui.set_next_window_size(width, height)
 
             if self._tile_preview_is_new:
-                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing - self.status_bar_height)
+                imgui.set_next_window_position(
+                    self.content_width - width - self.spacing,
+                    self.content_height - height - self.spacing - self.status_bar_height
+                )
                 self._tile_preview_is_new = False
 
             if self._tile_preview_image_is_new and (has_raw_image or has_norm_image):
-                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing - self.status_bar_height)
+                imgui.set_next_window_position(
+                    self.content_width - width - self.spacing,
+                    self.content_height - height - self.spacing - self.status_bar_height
+                    )
                 self._tile_preview_image_is_new = False
 
-            _, self._show_tile_preview = imgui.begin("##tile view", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_SCROLLBAR))
+            _, self._show_tile_preview = imgui.begin(
+                "##tile view",
+                closable=True,
+                flags=(imgui.WINDOW_NO_COLLAPSE
+                       | imgui.WINDOW_NO_RESIZE
+                       | imgui.WINDOW_NO_SCROLLBAR)
+            )
 
             # Image preview ===================================================
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
@@ -796,7 +824,8 @@ class Studio(ImguiWindow):
         except sf.errors.IncompatibleBackendError:
             self.create_toast(
                 title="Incompatbile slide",
-                message='Slide type "{}" is incompatible with the {} backend.'.format(sf.util.path_to_ext(path), sf.slide_backend()),
+                message='Slide type "{}" is incompatible with the {} backend.'.format(
+                    sf.util.path_to_ext(path), sf.slide_backend()),
                 icon='error'
             )
             return False
@@ -813,7 +842,13 @@ class Studio(ImguiWindow):
         """
         max_w = self.content_frame_width - self.offset_x_pixels
         max_h = self.content_frame_height - self.offset_y_pixels
-        tex = text_utils.get_texture(message, size=self.gl_font_size, max_width=max_w, max_height=max_h, outline=2)
+        tex = text_utils.get_texture(
+            message,
+            size=self.gl_font_size,
+            max_width=max_w,
+            max_height=max_h,
+            outline=2
+        )
         box_w = self.viewer.full_extract_px / self.viewer.view_zoom
         text_pos = np.array([self.box_x + (box_w/2), self.box_y + box_w + self.font_size])
         tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
@@ -1172,6 +1207,9 @@ class Studio(ImguiWindow):
             return True
         return False
 
+    def clear_prediction_message(self) -> None:
+        self._pred_message = None
+
     def clear_model_results(self) -> None:
         """Clear all model results and associated images."""
         if self._render_manager is not None:
@@ -1371,17 +1409,18 @@ class Studio(ImguiWindow):
         self._draw_status_bar()
 
         # Draw prediction message next to box on main display.
-        if (self._use_model
+        if self._pred_message and self.viewer is not None:
+            self._render_prediction_message(self._pred_message)
+        elif (self._use_model
            and self._predictions is not None
            and not isinstance(self._predictions, list)
            and self.viewer is not None):
             if not hasattr(self.result, 'in_focus') or self.result.in_focus:
-                #TODO: support multi-outcome models
-                outcomes = self._model_config['outcome_labels']
-                if self._model_config['model_type'] == 'categorical':
-                    pred_str = f'{outcomes[str(np.argmax(self._predictions))]} ({np.max(self._predictions)*100:.1f}%)'
-                else:
-                    pred_str = f'{self._predictions[0]:.2f}'
+                pred_str = prediction_to_string(
+                    predictions=self._predictions,
+                    outcomes=self._model_config['outcome_labels'],
+                    is_categorical=(self._model_config['model_type'] == 'categorical')
+                )
                 self._render_prediction_message(pred_str)
 
         # End frame.
@@ -1636,6 +1675,10 @@ class Studio(ImguiWindow):
     def set_message(self, msg: str) -> None:
         """Set a message for display."""
         self._message = msg
+
+    def set_prediction_message(self, msg: str) -> None:
+        """Set the prediction message to display under the tile outline."""
+        self._pred_message = msg
 
     def set_overlay(self, overlay: np.ndarray, method: int) -> None:
         """Configure the overlay to be applied to the current view screen.
