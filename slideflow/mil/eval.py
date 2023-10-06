@@ -1,5 +1,6 @@
 """Tools for evaluation MIL models."""
 
+import inspect
 import os
 import pandas as pd
 import slideflow as sf
@@ -412,7 +413,7 @@ def save_mil_tile_predictions(
             assert len(locations) == n_bags
             df_loc_x.append(locations[:, 0])
             df_loc_y.append(locations[:, 1])
-        
+
         # Add to dataframe lists.
         df_preds.append(tile_pred)
         if attention is not None:
@@ -434,7 +435,7 @@ def save_mil_tile_predictions(
     # Attention
     if attention is not None:
         df_dict['attention'] = df_attention
-    
+
     # Ground truth
     if outcomes is not None:
         df_dict['y_true'] = df_true
@@ -701,9 +702,18 @@ def _predict_mil(
                 model_args = (loaded, lens)
             else:
                 model_args = (loaded,)
-            model_out = model(*model_args)
+
+            # Run inference.
+            if attention and inspect.signature(model.forward).parameters['return_attention']:
+                model_out, att = model(*model_args, return_attention=True)
+            elif attention:
+                model_out = model(*model_args)
+                att = model.calculate_attention(*model_args)
+            else:
+                model_out = model(*model_args)
+
             if attention:
-                att = torch.squeeze(model.calculate_attention(*model_args))
+                att = torch.squeeze(att)
                 if len(att.shape) == 2:
                     log.warning("Pooling attention scores from 2D to 1D")
                     # Attention needs to be pooled

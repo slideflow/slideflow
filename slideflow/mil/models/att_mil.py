@@ -35,7 +35,7 @@ class Attention_MIL(nn.Module):
             nn.Flatten(), nn.BatchNorm1d(z_dim), nn.Dropout(dropout_p), nn.Linear(z_dim, n_out)
         )
 
-    def forward(self, bags, lens):
+    def forward(self, bags, lens, *, return_attention=False):
         assert bags.ndim == 3
         assert bags.shape[0] == lens.shape[0]
 
@@ -46,7 +46,10 @@ class Attention_MIL(nn.Module):
 
         scores = self.head(weighted_embedding_sums)
 
-        return scores
+        if return_attention:
+            return scores, masked_attention_scores
+        else:
+            return scores
 
     def calculate_attention(self, bags, lens, *, apply_softmax=None):
         if apply_softmax is None and bags.shape[1] > 1:
