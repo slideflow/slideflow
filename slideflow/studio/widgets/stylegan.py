@@ -9,6 +9,7 @@
 # Custom
 # .widgets.seed_map.SeedMapWidget
 
+import time
 import slideflow as sf
 import imgui
 import numpy as np
@@ -43,6 +44,8 @@ class StyleGANWidget(Widget):
         self._clicking      = False
         self._show_popup    = False
         self._show_layers   = False
+        self._pressing_left = False
+        self._pressing_right= False
         self.viz.close_gan  = self.close_gan
 
         # Latent variable factors
@@ -135,7 +138,6 @@ class StyleGANWidget(Widget):
             if not ignore_errors:
                 raise
         try:
-            import slideflow as sf
             self.viz._gan_config = sf.util.get_gan_config(pkl)
         except Exception:
             self.viz._gan_config = None
@@ -522,12 +524,20 @@ class StyleGANWidget(Widget):
     def keyboard_callback(self, key, action):
         if action == glfw.PRESS and key == glfw.KEY_RIGHT:
             self.set_seed(round(self.latent.x) + round(self.latent.y) * self.step_y + 1)
+            if not self._pressing_left:
+                self._start_press = time.time()
+                self._pressing_right = True
         if action == glfw.PRESS and key == glfw.KEY_LEFT:
             self.set_seed(round(self.latent.x) + round(self.latent.y) * self.step_y - 1)
+            if not self._pressing_right:
+                self._start_press = time.time()
+                self._pressing_left = True
         if action == glfw.PRESS and key == glfw.KEY_S:
             self.saved_seeds.append((self.latent.x, self.latent.y))
-
-        imgui_utils.vertical_break()
+        if action == glfw.RELEASE and key == glfw.KEY_RIGHT:
+            self._pressing_right = False
+        if action == glfw.RELEASE and key == glfw.KEY_LEFT:
+            self._pressing_left = False
 
     def draw_saved_seeds(self):
         """Draw the saved seeds list box.
@@ -620,13 +630,11 @@ class StyleGANWidget(Widget):
 
     # -------------------------------------------------------------------------
 
-    def keyboard_callback(self, key, action):
-        if action == glfw.PRESS and key == glfw.KEY_RIGHT:
-            self.set_seed(round(self.latent.x) + round(self.latent.y) * self.step_y + 1)
-        if action == glfw.PRESS and key == glfw.KEY_LEFT:
+    def fast_scroll(self):
+        if self._pressing_left and time.time() - self._start_press > 0.5:
             self.set_seed(round(self.latent.x) + round(self.latent.y) * self.step_y - 1)
-        if action == glfw.PRESS and key == glfw.KEY_S:
-            self.saved_seeds.append((self.latent.x, self.latent.y))
+        if self._pressing_right and time.time() - self._start_press > 0.5:
+            self.set_seed(round(self.latent.x) + round(self.latent.y) * self.step_y + 1)
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -666,4 +674,5 @@ class StyleGANWidget(Widget):
             if viz.sidebar.full_button("Load a GAN"):
                 self.ask_load_gan()
 
+        self.fast_scroll()
         self.set_render_args()
