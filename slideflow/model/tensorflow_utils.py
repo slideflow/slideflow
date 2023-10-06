@@ -628,14 +628,19 @@ class OneCycleScheduler(tf.keras.callbacks.Callback):
 
 # -----------------------------------------------------------------------------
 
-def build_uq_model(model):
+def build_uq_model(model, n_repeat=30):
     """Rebuild a dropout-based UQ model to return predictions and uncertainties."""
     layers = [l for l in model.layers]
+    n_dim = model.layers[2].output.shape[1]
+    n_out = model.output.shape[1]
+    log.info("Building UQ model with n_repeat={} (n_dim={}, n_out={})".format(
+        n_repeat, n_dim, n_out
+    ))
     new_layers = (layers[0:3]
-                  + [tf.keras.layers.RepeatVector(30),
-                     tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, 2048)))]
+                  + [tf.keras.layers.RepeatVector(n_repeat),
+                     tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, n_dim)))]
                   + layers[3:]
-                  + [tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, 30, 2)))])
+                  + [tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, n_repeat, n_out)))])
     new_core = tf.keras.models.Sequential(new_layers)
     yp_mean = tf.math.reduce_mean(new_core.output, axis=1)
     yp_std = tf.math.reduce_std(new_core.output, axis=1)

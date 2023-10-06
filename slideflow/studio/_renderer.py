@@ -30,6 +30,7 @@ if sf.util.torch_available:
 #----------------------------------------------------------------------------
 
 ABORT_RENDER = 10
+ENABLE_EXPERIMENTAL_UQ = True
 
 #----------------------------------------------------------------------------
 
@@ -225,7 +226,7 @@ class Renderer:
     def set_model(self, model, uq=False):
         """Set a loaded model to the active model."""
         self._model = model
-        if uq:
+        if uq and ENABLE_EXPERIMENTAL_UQ:
             self._uq_model = sf.model.tensorflow.build_uq_model(model)
 
     def set_saliency(self, saliency):
@@ -241,18 +242,20 @@ class Renderer:
 
     def _calc_preds_and_uncertainty(self, img, uq_n=30):
 
-        if self.model_type in ('tensorflow', 'tflite'):
-            #yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
-            #reduce_fn = _reduce_dropout_preds_tf
+        if self.model_type in ('tensorflow', 'tflite') and ENABLE_EXPERIMENTAL_UQ:
             yp_mean, yp_std = self._uq_model(img, training=False)
             yp_mean, yp_std = yp_mean.numpy()[0], yp_std.numpy()[0]
             num_outcomes = 1 if not isinstance(yp_std, list) else len(yp_std)
+        elif self.model_type in ('tensorflow', 'tflite'):
+            yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
+            reduce_fn = _reduce_dropout_preds_tf
         else:
             import torch
             with torch.no_grad():
                 yp = self._model(img.expand(uq_n, -1, -1, -1))
             reduce_fn = _reduce_dropout_preds_torch
 
+        if self.model_type == 'torch' or not ENABLE_EXPERIMENTAL_UQ:
             # Previously for both tf & torch
             num_outcomes = 1 if not isinstance(yp, list) else len(yp)
             yp_drop = {n: [] for n in range(num_outcomes)}

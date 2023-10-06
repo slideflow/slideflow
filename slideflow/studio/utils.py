@@ -41,8 +41,8 @@ class EasyDict(dict):
 #----------------------------------------------------------------------------
 
 def prediction_to_string(
-    predictions: np.ndarray, 
-    outcomes: List[str], 
+    predictions: np.ndarray,
+    outcomes: List[str],
     is_categorical: bool
 ) -> str:
     """Convert a prediction array to a human-readable string."""
