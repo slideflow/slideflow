@@ -37,7 +37,7 @@ tensorflow_probability<0.20
 tensorflow_datasets<4.9.0
 rich
 pillow>=6.0.0
-imgui
+imgui>=2.0.0
 pyopengl
 glfw
 saliency
