@@ -547,7 +547,7 @@ class MILWidget(Widget):
         if self._show_mil_params and self.mil_params:
             self.draw_mil_params_popup()
 
-        if (viz._predictions is not None) and (self.model is not None):
+        if (viz._predictions is not None) and self.model_loaded:
             pred_str = prediction_to_string(
                 predictions=viz._predictions,
                 outcomes=self.mil_params['outcome_labels'],

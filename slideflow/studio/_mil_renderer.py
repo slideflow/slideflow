@@ -104,8 +104,21 @@ class MILRenderer(Renderer):
             )
         return preds, att
 
-    def _run_models(self, img, res, **kwargs):
+    def _run_models(
+        self,
+        img,
+        res,
+        focus_img=None,
+        assess_focus=None,
+        **kwargs
+    ):
         """Generate an MIL single-bag prediction."""
+        # Check focus.
+        if focus_img is not None:
+            res.in_focus = self._image_in_focus(focus_img, method=assess_focus)
+            if not res.in_focus:
+                return
+
         bag = self._convert_img_to_bag(img, res)
         preds, att = self._predict_bag(bag, attention=True)
         res.predictions = preds[0]
