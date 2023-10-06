@@ -50,7 +50,7 @@ class MILRenderer(Renderer):
         self._model = self.mil_model
         sf.log.info("Model loading successful")
 
-    def _convert_img_to_bags(self, img):
+    def _convert_img_to_bag(self, img):
         """Convert an image into bag format."""
         if self.extractor.backend == 'torch':
             dtype = torch.uint8
@@ -60,27 +60,27 @@ class MILRenderer(Renderer):
         img = sf.io.convert_dtype(img, dtype=dtype)
         if self.extractor.backend == 'torch':
             img = img.to(self.device)
-        bags = self.extractor(img)
-        return bags
+        bag = self.extractor(img)
+        return bag
 
-    def _predict_bags(self, bags, attention=False):
-        """Generate MIL predictions from bags."""
+    def _predict_bag(self, bag, attention=False):
+        """Generate MIL predictions from bag."""
         from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
 
         # Add a batch dimension
-        bags = torch.unsqueeze(bags, dim=0)
+        bag = torch.unsqueeze(bag, dim=0)
 
         if (isinstance(self.mil_config, TrainerConfigCLAM)
         or isinstance(self.mil_config.model_config, ModelConfigCLAM)):
             preds, att = _predict_clam(
                 self.mil_model,
-                bags,
+                bag,
                 attention=attention
             )
         else:
             preds, att = _predict_mil(
                 self.mil_model,
-                bags,
+                bag,
                 attention=attention,
                 use_lens=self.mil_config.model_config.use_lens,
                 apply_softmax=self.mil_config.model_config.apply_softmax
@@ -89,10 +89,10 @@ class MILRenderer(Renderer):
 
     def _run_models(self, img, res, **kwargs):
         """Generate an MIL single-bag prediction."""
-        bags = self._convert_img_to_bags(img)
-        preds, _ = self._predict_bags(bags)
+        bag = self._convert_img_to_bag(img)
+        preds, att = self._predict_bag(bag, attention=True)
         res.predictions = preds[0]
-        res.uncertainty = None
+        res.uncertainty = att
 
     def _render_impl(self, res, *args, **kwargs):
         if self.mil_model is not None:
