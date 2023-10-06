@@ -50,7 +50,7 @@ class MILRenderer(Renderer):
         self._model = self.mil_model
         sf.log.info("Model loading successful")
 
-    def _convert_img_to_bag(self, img):
+    def _convert_img_to_bag(self, img, res):
         """Convert an image into bag format."""
         if self.extractor.backend == 'torch':
             dtype = torch.uint8
@@ -104,7 +104,7 @@ class MILRenderer(Renderer):
 
     def _run_models(self, img, res, **kwargs):
         """Generate an MIL single-bag prediction."""
-        bag = self._convert_img_to_bag(img)
+        bag = self._convert_img_to_bag(img, res)
         preds, att = self._predict_bag(bag, attention=True)
         res.predictions = preds[0]
         res.uncertainty = att
