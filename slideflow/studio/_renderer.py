@@ -170,7 +170,7 @@ class Renderer:
             return _focus_pred > 0.5
         elif method == 'laplacian':
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            laplacian_variance = cv2.Laplacian(img, cv2.CV_64F).var()
+            laplacian_variance = cv2.Laplacian(gray, cv2.CV_64F).var()
             return laplacian_variance > 80
         else:
             raise ValueError("Unrecognized focus method: {}".format(method))
@@ -445,7 +445,7 @@ class Renderer:
 
         # If full_image is provided, use this instead of looking up
         # a tile image from the viewer.
-        focus_img = None
+        focus_img, img = None, None
         if full_image is not None:
             if not tile_px:
                 return
@@ -499,6 +499,9 @@ class Renderer:
                 return
             else:
                 res.image = result_img
+
+        if assess_focus and focus_img is None:
+            focus_img = img
 
         # ---------------------------------------------------------------------
 
