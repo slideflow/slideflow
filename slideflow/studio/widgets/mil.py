@@ -111,6 +111,8 @@ class MILWidget(Widget):
         self._initialize_variables()
         self.mil_renderer = MILRenderer()
         self.viz.mil_widget = self  #TODO: hacky, remove this
+        self.uncertainty_color = GRAY
+        self.uncertainty_range = None
 
     # --- Hooks, triggers, and internal functions -----------------------------
 
