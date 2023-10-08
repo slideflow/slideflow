@@ -435,6 +435,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
             if self.rank == 0:
                 log.info("Subsampling TFRecords using tile-level labels...")
 
+            n_tiles = 0 
             with mp.dummy.Pool(16) as pool:
 
                 # Load the original (full) indices
@@ -448,11 +449,13 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
 
                     # Subsample indices based on what is in the labels dataframe
                     ss_index = index[in_df]
+                    n_tiles += len(ss_index)
 
                     self.indices += [ss_index]
+            self.num_tiles = n_tiles
 
             if self.rank == 0:
-                log.info("TFRecord subsampling complete.")
+                log.info("TFRecord subsampling complete (total tiles: {}).".format(self.num_tiles))
 
     @property
     def label_shape(self) -> Union[int, Tuple[int, ...]]:
