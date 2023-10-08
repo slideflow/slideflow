@@ -484,7 +484,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
 
         label_key = f'{slide}-{loc_x}-{loc_y}'
         df_idx = self.df.index.get_loc(label_key)
-        label = torch.tensor(self.df.iloc[df_idx].values[0])
+        label = torch.tensor(self.df.iloc[df_idx].label)
 
         image = whc_to_cwh(image)
         to_return = [image, label]  # type: List[Any]
@@ -496,7 +496,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
     def get_label(self, idx: Any) -> Any:
         """Returns a random label. Used for compatibility with StyleGAN2."""
         idx = np.random.randint(len(self.df))
-        return self.df.iloc[idx].values[0]
+        return self.df.iloc[idx].label
 
 # -------------------------------------------------------------------------
 
