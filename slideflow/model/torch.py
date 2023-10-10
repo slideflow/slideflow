@@ -8,9 +8,9 @@ import numpy as np
 import multiprocessing as mp
 import torch
 import torchvision
+
 from torch import Tensor
 from torch.nn.functional import softmax
-from torch.utils.tensorboard import SummaryWriter
 from packaging import version
 from rich.progress import Progress, TimeElapsedColumn
 from collections import defaultdict
@@ -479,7 +479,7 @@ class Trainer:
         self.mid_train_val_dts: Optional[Iterable] = None
         self.loss_fn: torch.nn.modules.loss._Loss
         self.use_tensorboard: bool
-        self.writer: SummaryWriter
+        self.writer = None  # type: Optional[torch.utils.tensorboard.SummaryWriter]
         self._reset_training_params()
 
         if custom_objects is not None:
@@ -948,16 +948,16 @@ class Trainer:
             if isinstance(acc, list):
                 for a, _acc in enumerate(acc):
                     sf.util.neptune_utils.list_log(
-                        run=self.neptune_run, 
-                        label=f'metrics/{label}/{phase}/accuracy-{a}', 
-                        val=_acc, 
+                        run=self.neptune_run,
+                        label=f'metrics/{label}/{phase}/accuracy-{a}',
+                        val=_acc,
                         step=step
                     )
             else:
                 sf.util.neptune_utils.list_log(
-                    run=self.neptune_run, 
-                    label=f'metrics/{label}/{phase}/accuracy', 
-                    val=acc, 
+                    run=self.neptune_run,
+                    label=f'metrics/{label}/{phase}/accuracy',
+                    val=acc,
                     step=step
                 )
 
@@ -1724,8 +1724,17 @@ class Trainer:
         self.validation_steps = validation_steps
         self.ema_observations = ema_observations
         self.ema_smoothing = ema_smoothing
-        self.use_tensorboard = use_tensorboard
         self.log_frequency = log_frequency
+        self.use_tensorboard = use_tensorboard
+
+        if self.use_tensorboard:
+            from google.protobuf import __version__ as protobuf_version
+            if version.parse(protobuf_version) >= version.parse('3.21'):
+                log.warning(
+                    "Tensorboard is incompatible with protobuf >= 3.21."
+                    "Downgrade protobuf to enable tensorboard logging."
+                )
+                self.use_tensorboard = False
 
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
@@ -1765,7 +1774,10 @@ class Trainer:
         else:
             self.steps_per_epoch = train_dts.num_tiles // self.hp.batch_size
             log.info(f"Steps per epoch = {self.steps_per_epoch}")
-        if use_tensorboard:
+        if self.use_tensorboard:
+            # Delayed import due to protobuf version conflicts.
+
+            from torch.utils.tensorboard import SummaryWriter
             self.writer = SummaryWriter(self.outdir, flush_secs=60)
         self._log_manifest(train_dts, val_dts)
 
