@@ -304,9 +304,13 @@ def predict_slide(
     masked_bags = extractor(slide, normalizer=normalizer, **extractor_kwargs)
     original_shape = masked_bags.shape
     masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
-    mask = masked_bags.mask.any(axis=1)
-    valid_indices = np.where(~mask)
-    bags = masked_bags[valid_indices]
+    if len(masked_bags.mask.shape):
+        mask = masked_bags.mask.any(axis=1)
+        valid_indices = np.where(~mask)
+        bags = masked_bags[valid_indices]
+    else:
+        valid_indices = np.arange(masked_bags.shape[0])
+        bags = masked_bags
     bags = np.expand_dims(bags, axis=0).astype(np.float32)
 
     sf.log.info("Generated feature bags for {} tiles".format(bags.shape[1]))
