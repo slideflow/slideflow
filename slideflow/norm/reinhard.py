@@ -255,10 +255,12 @@ class ReinhardFastNormalizer:
         norm3 = ((I3 - means[2]) * (target_stds[2] / stds[2])) + target_means[2]
 
         merged = merge_back(norm1, norm2, norm3)
+        clipped = np.clip(merged, 0, 255).astype(np.uint8)
+
         if self.threshold is not None:
-            return np.where(mask, merged, I)
+            return np.where(mask, clipped, I)
         else:
-            return merged
+            return clipped
 
     @contextmanager
     def image_context(self, I: np.ndarray):

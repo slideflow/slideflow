@@ -523,7 +523,7 @@ class StainNormalizer:
             image['tile_image'] = tf.py_function(
                 partial(self.tf_to_rgb, augment=augment),
                 [image['tile_image']],
-                tf.int32
+                tf.uint8
             )
         elif len(image.shape) == 4:
             image = tf.stack([self.tf_to_tf(_i, augment=augment) for _i in image])
@@ -531,7 +531,7 @@ class StainNormalizer:
             image = tf.py_function(
                 partial(self.tf_to_rgb, augment=augment),
                 [image],
-                tf.int32
+                tf.uint8
             )
         return detuple(image, args)
 
