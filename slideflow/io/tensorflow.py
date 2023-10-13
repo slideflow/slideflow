@@ -292,7 +292,7 @@ def decode_image(
     return image
 
 
-def _decode_image(img_string: bytes, *, img_type: Optional[str] = None):
+def auto_decode_image(img_string: bytes, *, img_type: Optional[str] = None):
     if img_type is None:
         import imghdr
         img_type = imghdr.what('', img_string)

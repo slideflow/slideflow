@@ -6,12 +6,37 @@ import gzip
 import io
 import os
 import struct
+import numpy as np
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
-import numpy as np
 
 from slideflow.tfrecord import iterator_utils
 from slideflow.util import example_pb2, extract_feature_dict, log
+
+# -----------------------------------------------------------------------------
+
+def _read_data(file, length_bytes, crc_bytes, datum_bytes) -> memoryview:
+    """Read the next record from the tfrecord file."""
+    if file.readinto(length_bytes) != 8:
+        raise RuntimeError("Failed to read the record size.")
+    if file.readinto(crc_bytes) != 4:
+        raise RuntimeError("Failed to read the start token.")
+    length, = struct.unpack("<Q", length_bytes)
+    if length > len(datum_bytes):
+        try:
+            _fill = int(length * 1.5)
+            datum_bytes = datum_bytes.zfill(_fill)
+        except OverflowError:
+            raise OverflowError('Error reading tfrecords; please '
+                                'try regenerating index files')
+    datum_bytes_view = memoryview(datum_bytes)[:length]
+    if file.readinto(datum_bytes_view) != length:
+        raise RuntimeError("Failed to read the record.")
+    if file.readinto(crc_bytes) != 4:
+        raise RuntimeError("Failed to read the end token.")
+    return datum_bytes_view
+
+# -----------------------------------------------------------------------------
 
 
 class TFRecordIterator:
@@ -85,7 +110,10 @@ class TFRecordIterator:
                 self.index = np.expand_dims(self.index, axis=0)
 
             # Check if the index file contains sequential records
-            self.index_is_nonsequential = (not np.all(np.cumsum(self.index[:, 1][:-1]) + self.index[0, 0] == self.index[:, 0][1:]))
+            self.index_is_nonsequential = (
+                not np.all(np.cumsum(self.index[:, 1][:-1])
+                           + self.index[0, 0] == self.index[:, 0][1:])
+            )
 
             # Only keep the starting bytes for the indices
             self.index = self.index[:, 0]  # type: ignore
@@ -129,26 +157,15 @@ class TFRecordIterator:
             if index_loc >= len(self.index):
                 break
 
-    def _read_next_data(self) -> bytes:
+    def _read_next_data(self) -> memoryview:
         """Read the next record from the tfrecord file."""
-        if self.file.readinto(self.length_bytes) != 8:
-            raise RuntimeError("Failed to read the record size.")
-        if self.file.readinto(self.crc_bytes) != 4:
-            raise RuntimeError("Failed to read the start token.")
-        length, = struct.unpack("<Q", self.length_bytes)
-        if length > len(self.datum_bytes):
-            try:
-                _fill = int(length * 1.5)
-                self.datum_bytes = self.datum_bytes.zfill(_fill)
-            except OverflowError:
-                raise OverflowError('Error reading tfrecords; please '
-                                    'try regenerating index files')
-        datum_bytes_view = memoryview(self.datum_bytes)[:length]
-        if self.file.readinto(datum_bytes_view) != length:
-            raise RuntimeError("Failed to read the record.")
-        if self.file.readinto(self.crc_bytes) != 4:
-            raise RuntimeError("Failed to read the end token.")
-        return self.process(datum_bytes_view)
+        data = _read_data(
+            self.file,
+            self.length_bytes,
+            self.crc_bytes,
+            self.datum_bytes
+        )
+        return self.process(data)
 
     def read_records(self, start_offset=None, end_offset=None):
         if self.index_is_nonsequential:
@@ -203,6 +220,85 @@ class TFRecordIterator:
         self.file.close()
 
 
+class IndexedTFRecordIterator:
+    typename_mapping = {
+        "byte": "bytes_list",
+        "float": "float_list",
+        "int": "int64_list"
+    }
+
+    def __init__(
+        self,
+        data_path: str,
+        index: np.ndarray,
+        shard: Optional[Tuple[int, int]] = None,
+        clip: Optional[int] = None,
+        compression_type: Optional[str] = None,
+        datum_bytes: Optional[bytearray] = None,
+        shuffle: bool = False,
+        seed: Optional[int] = None,
+    ) -> None:
+        if compression_type == "gzip":
+            self.file = gzip.open(data_path, 'rb')
+        elif compression_type is None:
+            self.file = io.open(data_path, 'rb')  # type: ignore
+        else:
+            raise ValueError("compression_type should be 'gzip' or None")
+
+        self.data_path = data_path
+        self.index = index  # type: np.ndarray
+        if datum_bytes is not None:
+            self.datum_bytes = datum_bytes
+        else:
+            self.datum_bytes = bytearray(1024 * 1024)
+        self.length_bytes = bytearray(8)
+        self.crc_bytes = bytearray(4)
+
+        # For the case that there is only a single record in the file.
+        if len(self.index.shape) == 1:
+            self.index = np.expand_dims(self.index, axis=0)
+
+        # Only keep the starting bytes for the indices.
+        self.index = self.index[:, 0]  # tpe: ignore
+
+        # Clip.
+        if clip:
+            self.index = self.index[:min(clip, len(self.index))]
+
+        # Shard.
+        if shard is not None:
+            shard_idx, shard_count = shard
+            self.index = np.array_split(self.index, shard_count)[shard_idx]
+
+        # Shuffle.
+        if shuffle:
+            self.index = np.random.RandomState(seed).permutation(self.index)
+
+    def __len__(self) -> int:
+        return len(self.index)
+
+    def __getitem__(self, idx) -> memoryview:
+        return self.get_item_at_index(idx)
+
+    def get_item_at_index(self, idx) -> memoryview:
+        start_byte = self.index[idx]
+        self.file.seek(start_byte)
+        data = _read_data(
+            self.file,
+            self.length_bytes,
+            self.crc_bytes,
+            self.datum_bytes
+        )
+        return self.process(data)
+
+    def process(self, record):
+        return record
+
+    def close(self):
+        self.file.close()
+
+
+
 class ExampleIterator(TFRecordIterator):
     def __init__(
         self,
@@ -232,6 +328,41 @@ class ExampleIterator(TFRecordIterator):
             compression_type,
             random_start,
             datum_bytes
+        )
+        self.description = description
+
+    def process(self, record):
+        example = example_pb2.Example()
+        example.ParseFromString(record)
+        return extract_feature_dict(
+            example.features,
+            self.description,
+            self.typename_mapping
+        )
+
+
+class IndexedExampleIterator(IndexedTFRecordIterator):
+    def __init__(
+        self,
+        data_path: str,
+        index: np.ndarray,
+        shard: Optional[Tuple[int, int]] = None,
+        clip: Optional[int] = None,
+        compression_type: Optional[str] = None,
+        datum_bytes: Optional[bytearray] = None,
+        shuffle: bool = False,
+        seed: Optional[int] = None,
+        description: Union[List[str], Dict[str, str], None] = None,
+    ):
+        super().__init__(
+            data_path,
+            index=index,
+            shard=shard,
+            clip=clip,
+            compression_type=compression_type,
+            datum_bytes=datum_bytes,
+            shuffle=shuffle,
+            seed=seed
         )
         self.description = description
 

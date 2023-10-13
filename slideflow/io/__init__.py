@@ -20,16 +20,16 @@ from rich.progress import Progress
 
 if sf.backend() == 'tensorflow':
     from slideflow.io.tensorflow import (
-        get_tfrecord_parser, read_and_return_record, serialized_record,
-        _decode_image
+        get_tfrecord_parser, read_and_return_record, serialized_record
     )
+    from slideflow.io.tensorflow import auto_decode_image as decode_image
     from tensorflow.data import TFRecordDataset
     from tensorflow.io import TFRecordWriter
 
 elif sf.backend() == 'torch':
     from slideflow.io.torch import (
         get_tfrecord_parser, read_and_return_record, serialized_record,
-        _decode_image
+        decode_image
     )
     from slideflow.tfrecord import TFRecordWriter
     from slideflow.tfrecord.torch.dataset import TFRecordDataset
@@ -151,7 +151,7 @@ def get_tfrecord_by_location(
             return False, False
         record = tfrecord2idx.get_tfrecord_by_index(tfrecord, idx)
         slide = record['slide']
-        image = sf.io._decode_image(record['image_raw'])
+        image = sf.io.decode_image(record['image_raw'])
         return slide, image
 
     else:

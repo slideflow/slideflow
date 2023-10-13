@@ -1,5 +1,4 @@
 import multiprocessing as mp
-import os
 import random
 import threading
 import numpy as np
@@ -9,8 +8,6 @@ import torch
 import math
 
 from torchvision import transforms
-from os import listdir
-from os.path import dirname, exists, isfile, join
 from queue import Queue
 from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Optional, Tuple, Union)
@@ -20,13 +17,22 @@ import slideflow as sf
 from slideflow import errors
 from slideflow.io import convert_dtype
 from slideflow.io.io_utils import detect_tfrecord_format
-from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
+from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset, IndexedMultiTFRecordDataset
 from slideflow.tfrecord.iterator_utils import RandomSampler
-from slideflow.util import Labels, log, to_onehot, tfrecord2idx
+from slideflow.util import Labels, log, to_onehot, tfrecord2idx, detuple
+
+from .img_utils import is_cwh, is_whc, as_cwh, as_whc, cwh_to_whc, whc_to_cwh
+from .augment import (
+    RandomCardinalRotation, RandomGaussianBlur, RandomJPEGCompression,
+    RandomColorDistortion, decode_augmentation_string, compose_augmentations,
+    random_jpeg_compression, compose_color_distortion
+)
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
     from torchvision.transforms import InterpolationMode
+
+# -----------------------------------------------------------------------------
 
 FEATURE_DESCRIPTION = {
     'image_raw': 'byte',
@@ -34,6 +40,217 @@ FEATURE_DESCRIPTION = {
     'loc_x': 'int',
     'loc_y': 'int'
 }
+
+# -----------------------------------------------------------------------------
+
+class IndexedInterleaver(IndexedMultiTFRecordDataset):
+
+    def __init__(
+        self,
+        tfrecords: List[str],
+        *,
+        labels: Optional[Labels] = None,
+        incl_slidenames: bool = False,
+        incl_loc: bool = False,
+        rank: int = 0,
+        num_replicas: int = 1,
+        augment: Union[bool, str] = False,
+        standardize: bool = True,
+        normalizer: Optional["StainNormalizer"] = None,
+        clip: Optional[Dict[str, int]] = None,
+        use_labels: bool = True,
+        onehot: bool = False,
+        indices: Optional[List[np.ndarray]] = None,
+        transform: Optional[Any] = None,
+        tfrecord_parser: Optional[Callable] = None,
+        **kwargs
+    ):
+        """Interleave TFRecords with an indexable ``torch.utils.data.Dataset``.
+
+        Provides an alternative TFRecord IO pipeline to ``InterleaveIterator``,
+        which only supports Iterable-style datasets. This class supports
+        both Iterable and Indexable datasets.
+
+        Differences from ``InterleaveIterator``:
+         - Supports direct indexing.
+         - Does not support infinite looping ("infinite" argument).
+         - Does not support weighted random sampling ("prob_weights" argument).
+         - Does not support dynamic reading from WSI ("from_wsi", "tile_um", "rois", "roi_method", and "pool" arguments).
+
+        Args:
+            tfrecords (list(str)): Path to tfrecord files to interleave.
+
+        Keyword Args:
+            labels (dict, optional): Dict mapping slide names to labels.
+                Defaults to None.
+            incl_slidenames (bool, optional): Include slide names when iterated
+                (returns image, label, slide). Defaults to False.
+            incl_loc (bool, optional): Include location info. Returns samples
+                in the form (returns ..., loc_x, loc_y). Defaults to False.
+            rank (int, optional): Which GPU replica this dataset is used for.
+                Assists with synchronization across GPUs. Defaults to 0.
+            num_replicas (int, optional): Total number of GPU replicas.
+                Defaults to 1.
+            augment (str or bool): Image augmentations to perform. Augmentations include:
+
+                * ``'x'``: Random horizontal flip
+                * ``'y'``: Random vertical flip
+                * ``'r'``: Random 90-degree rotation
+                * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
+                * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+                * ``'n'``: Random :ref:`stain_augmentation` (requires stain normalizer)
+
+                Combine letters to define augmentations, such as ``'xyrjn'``.
+                A value of True will use ``'xyrjb'``.
+            standardize (bool, optional): Standardize images to mean 0 and
+                variance of 1. Defaults to True.
+            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+                Normalizer. Defaults to None.
+            clip (list(int), optional): Array of maximum tiles to take for each
+                tfrecord. Defaults to None.
+            use_labels (bool, optional): Enable use of labels (disabled for
+                non-conditional GANs). Defaults to True.
+            onehot (bool, optional): Onehot encode outcomes. Defaults to False.
+            indices (numpy.ndarray, optional): Indices in form of array,
+                with np.loadtxt(index_path, dtype=np.int64) for each tfrecord.
+                Defaults to None.
+            transform (Callable, optional): Arbitrary torchvision transform
+                function. Performs transformation after augmentations but
+                before standardization. Defaults to None.
+            tfrecord_parser (Callable, optional): Custom parser for TFRecords.
+                Defaults to None.
+            compression_type (str, optional): Compression type for TFRecords.
+                Either 'gzip' or None. Defaults to None.
+            shuffle (bool): Shuffle records within TFRecord files during
+                reading. Defaults to False.
+            seed (int, optional): Seed for random TFRecord interleaving and
+                intra-tfrecord shuffling. Defaults to None.
+
+        """
+        self.tfrecords = np.array(tfrecords).astype(np.string_)
+        self.indices = self._load_indices(indices)
+        self.incl_slidenames = incl_slidenames
+        self.incl_loc = incl_loc
+        self.use_labels = use_labels
+        self.onehot = onehot
+        self.parser = self.build_parser(tfrecord_parser)
+        self.img_format = detect_tfrecord_format(self.tfrecords[0])[1]
+        (self.labels,
+         self.unique_labels,
+         self.label_prob,
+         self.num_outcomes) = _process_labels(labels, onehot=onehot)
+
+        # Automatically set shard to rank/num_replicas
+        self.rank = rank
+        self.num_replicas = num_replicas
+        if self.rank == 0:
+            log.info(
+                f'Interleaving {len(self.tfrecords)} tfrecords: '
+                f'num_replicas={self.num_replicas}'
+            )
+
+        # Clip tfrecords.
+        if clip is not None:
+            _clip = [clip[(t if isinstance(t, str) else t.decode('utf-8'))] for t in self.tfrecords]
+        else:
+            _clip = None
+
+        # Set up image transformations.
+        self._image_transform = compose_augmentations(
+            augment=augment,
+            standardize=standardize,
+            normalizer=normalizer,
+            transform=transform
+        )
+
+        # Prepare TFRecord interleaver.
+        super().__init__(
+            tfrecords,
+            indices=self.indices,
+            shard=(self.rank, self.num_replicas),
+            clip=_clip,
+            transform=self.parser,
+            **kwargs
+        )
+
+    def __repr__(self) -> str:
+        n_records = self.tfrecords.shape[0]
+        msg = f"<IndexedInterleaver object (num_records={n_records}, num_tiles"
+        msg += f"={self.num_tiles}, infinite={self.infinite}, rank=("
+        msg += f"{self.rank} of {self.num_replicas}), augment={self.augment}, "
+        msg += f"standardize={self.standardize})>"
+        return msg
+
+    def _load_indices(self, indices: Optional[List[np.ndarray]] = None) -> List[np.ndarray]:
+        """Load TFRecord index files."""
+        if indices is None:
+            indices = []
+            with mp.dummy.Pool(16) as pool:
+                log.debug("Loading indices...")
+                for index in pool.imap(load_index, self.tfrecords):
+                    indices += [index]
+            return indices
+        else:
+            log.debug("Using provided indices.")
+            return indices
+
+    def _label_parser(
+        self,
+        slide: str,
+        loc_x: Optional[int] = None,
+        loc_y: Optional[int] = None
+    ):
+        """Parse labels and location information from a record."""
+
+        # Label.
+        if self.labels is not None and self.num_outcomes > 1:
+            label = self.labels[slide]
+            label = {
+                f'out-{i}': torch.tensor(l)
+                for i, l in enumerate(label)  # type: ignore
+            }
+        elif self.labels is not None:
+            label = self.labels[slide]
+            label = torch.tensor(label)
+        else:
+            label = torch.tensor(0)
+
+        # Slide/location information.
+        if self.incl_slidenames and self.incl_loc:
+            return label, slide, loc_x, loc_y
+        elif self.incl_slidenames:
+            return label, slide
+        elif self.incl_loc:
+            return label, loc_x, loc_y
+        else:
+            return label,
+
+    def build_parser(
+        self,
+        tfrecord_parser: Optional[Callable] = None
+    ) -> Callable:
+        """Build a parser function for TFRecords.
+
+        The parser will be responsible for processing images and labels.
+
+        """
+        ftrs = ['image_raw', 'slide']
+        if self.incl_loc:
+            ftrs += ['loc_x', 'loc_y']
+        base_parser = tfrecord_parser or get_tfrecord_parser(self.tfrecords[0],
+                                                             ftrs,
+                                                             decode_images=False)
+
+        def parser(*args):
+            """Parse an image and slide/location information."""
+            img, *out = base_parser(*args)
+            img = decode_image(img, img_type=self.img_format)
+            img = whc_to_cwh(img)
+            img = self._image_transform(img)
+            out = self._label_parser(*out)
+            return detuple(img, out)
+
+        return parser
 
 
 class InterleaveIterator(torch.utils.data.IterableDataset):
@@ -46,6 +263,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self,
         tfrecords: List[str],
         img_size: int,
+        *,
         labels: Optional[Labels] = None,
         incl_slidenames: bool = False,
         incl_loc: bool = False,
@@ -63,7 +281,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         model_type: str = 'categorical',
         onehot: bool = False,
         indices: Optional[np.ndarray] = None,
-        max_size: int = 0,
         from_wsi: bool = False,
         tile_um: Optional[int] = None,
         rois: Optional[List[str]] = None,
@@ -78,6 +295,8 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         Args:
             tfrecords (list(str)): Path to tfrecord files to interleave.
             img_size (int): Image width in pixels.
+
+        Keyword Args:
             labels (dict, optional): Dict mapping slide names to labels.
                 Defaults to None.
             incl_slidenames (bool, optional): Include slide names when iterated
@@ -142,10 +361,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
                 Defaults to None.
         """
         self.tfrecords = np.array(tfrecords).astype(np.string_)
-        if prob_weights is not None:
-            self.prob_weights = np.array(prob_weights)
-        else:
-            self.prob_weights = None  # type: ignore
+        self.prob_weights = None if prob_weights is None else np.array(prob_weights)
         self.clip = clip
         self.indices = indices
         self.img_size = img_size
@@ -154,7 +370,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.augment = augment
         self.standardize = standardize
         self.infinite = infinite
-        self.max_size = max_size
         self.use_labels = use_labels
         self.chunk_size = chunk_size
         self.normalizer = normalizer
@@ -170,37 +385,10 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.pool = pool
         self.transform = transform
         self.interleave_kwargs = interleave_kwargs
-
-        # Values for random label generation, for GAN
-        if labels is not None:
-            if self.onehot:
-                _all_labels_raw = np.array(list(labels.values()))
-                _unique_raw = np.unique(_all_labels_raw)
-                max_label = np.max(_unique_raw)
-                labels = {
-                    k: to_onehot(v, max_label+1)  # type: ignore
-                    for k, v in labels.items()
-                }
-                self.num_outcomes = 1
-            else:
-                first_label = list(labels.values())[0]
-                if not isinstance(first_label, list):
-                    self.num_outcomes = 1
-                else:
-                    self.num_outcomes = len(first_label)
-
-            _all_labels = np.array(list(labels.values()))
-            self.unique_labels = np.unique(_all_labels, axis=0)
-            _lbls = np.array([
-                np.sum(_all_labels == i)
-                for i in self.unique_labels
-            ])
-            self.label_prob = _lbls / len(_all_labels)
-        else:
-            self.unique_labels = None
-            self.label_prob = None  # type: ignore
-            self.num_outcomes = 1
-        self.labels = labels
+        (self.labels,
+         self.unique_labels,
+         self.label_prob,
+         self.num_outcomes) = _process_labels(labels, onehot=onehot)
 
     @property
     def name(self) -> str:
@@ -208,14 +396,17 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
 
     @property
     def resolution(self) -> int:
+        """For use with StyleGAN2"""
         return self.img_size
 
     @property
     def image_shape(self) -> Tuple[int, int, int]:
+        """For use with StyleGAN2"""
         return (3, self.resolution, self.resolution)
 
     @property
     def num_channels(self) -> int:
+        """For use with StyleGAN2"""
         assert len(self.image_shape) == 3  # CHW
         return self.image_shape[0]
 
@@ -229,6 +420,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
 
     @property
     def label_dim(self) -> int:
+        """For use with StyleGAN2"""
         if self.use_labels:
             assert len(self.label_shape) == 1  # type: ignore
             return self.label_shape[0]  # type: ignore
@@ -237,6 +429,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
 
     @property
     def has_labels(self) -> bool:
+        """For use with StyleGAN2"""
         return (self.use_labels
                 and any(x != 0 for x in self.label_shape))  # type: ignore
 
@@ -326,9 +519,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
 
     def close(self) -> None:
         pass
-
-    def get_details(self, idx):
-        raise NotImplementedError
 
 
 class StyleGAN2Interleaver(InterleaveIterator):
@@ -435,7 +625,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
             if self.rank == 0:
                 log.info("Subsampling TFRecords using tile-level labels...")
 
-            n_tiles = 0 
+            n_tiles = 0
             with mp.dummy.Pool(16) as pool:
 
                 # Load the original (full) indices
@@ -500,8 +690,62 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
 
 # -------------------------------------------------------------------------
 
+def _process_labels(
+    labels: Optional[Dict[str, Any]] = None,
+    onehot: bool = False
+) -> Tuple[Optional[Dict[str, Any]],
+           Optional[np.ndarray],
+           Optional[np.ndarray],
+           int]:
+    """Analyze labels to determine unique labels, label probabilities, and
+    number of outcomes.
+
+    Args:
+        labels (dict): Dict mapping slide names to labels.
+        onehot (bool, optional): Onehot encode outcomes. Defaults to False.
+
+    Returns:
+        labels (dict): Dict mapping slide names to labels.
+        unique_labels (np.ndarray): Unique labels.
+        label_prob (np.ndarray): Label probabilities.
+        num_outcomes (int): Number of outcomes.
+
+    """
+    if labels is not None:
+        if onehot:
+            _all_labels_raw = np.array(list(labels.values()))
+            _unique_raw = np.unique(_all_labels_raw)
+            max_label = np.max(_unique_raw)
+            labels = {
+                k: to_onehot(v, max_label+1)  # type: ignore
+                for k, v in labels.items()
+            }
+            num_outcomes = 1
+        else:
+            first_label = list(labels.values())[0]
+            if not isinstance(first_label, list):
+                num_outcomes = 1
+            else:
+                num_outcomes = len(first_label)
+
+        _all_labels = np.array(list(labels.values()))
+        unique_labels = np.unique(_all_labels, axis=0)
+        _lbls = np.array([
+            np.sum(_all_labels == i)
+            for i in unique_labels
+        ])
+        label_prob = _lbls / len(_all_labels)
+    else:
+        unique_labels = None
+        label_prob = None  # type: ignore
+        num_outcomes = 1
+    return labels, unique_labels, label_prob, num_outcomes
+
+# -------------------------------------------------------------------------
+
 def load_index(tfr):
-    tfr = tfr.decode('utf-8')
+    if isinstance(tfr, bytes):
+        tfr = tfr.decode('utf-8')
     try:
         index = tfrecord2idx.load_index(tfr)
     except OSError:
@@ -509,14 +753,6 @@ def load_index(tfr):
             f"Could not find index path for TFRecord {tfr}"
         )
     return index
-
-def _get_images_by_dir(directory: str) -> List[str]:
-    files = [
-        f for f in listdir(directory)
-        if ((isfile(join(directory, f)))
-            and (sf.util.path_to_ext(f) in ("jpg", "jpeg", "png")))
-    ]
-    return files
 
 
 def _apply_otsu(wsi):
@@ -564,273 +800,6 @@ def multi_slide_loader(
                            **kwargs)
                for slide in slides]
     return RandomSampler(loaders, splits_list, shard=None)
-
-
-def is_cwh(img: torch.Tensor) -> torch.Tensor:
-    """Check if Tensor is in C x W x H format."""
-    return (len(img.shape) == 3 and img.shape[0] == 3
-            or (len(img.shape) == 4 and img.shape[1] == 3))
-
-
-def is_whc(img: torch.Tensor) -> torch.Tensor:
-    """Check if Tensor is in W x H x C format."""
-    return img.shape[-1] == 3
-
-def as_cwh(img: torch.Tensor) -> torch.Tensor:
-    """Convert torch tensor to C x W x H format."""
-    if is_cwh(img):
-        return img
-    elif is_whc(img):
-        return whc_to_cwh(img)
-    else:
-        raise ValueError(
-            "Invalid shape for channel conversion. Expected 3 or 4 dims, "
-            f"got {len(img.shape)} (shape={img.shape})")
-
-def as_whc(img: torch.Tensor) -> torch.Tensor:
-    """Convert torch tensor to W x H x C format."""
-    if is_whc(img):
-        return img
-    elif is_cwh(img):
-        return cwh_to_whc(img)
-    else:
-        raise ValueError(
-            "Invalid shape for channel conversion. Expected 3 or 4 dims, "
-            f"got {len(img.shape)} (shape={img.shape})")
-
-def cwh_to_whc(img: torch.Tensor) -> torch.Tensor:
-    """Convert torch tensor from C x W x H => W x H x C"""
-    if len(img.shape) == 3:
-        return img.permute(1, 2, 0)  # CWH -> WHC
-    elif len(img.shape) == 4:
-        return img.permute(0, 2, 3, 1)  # BCWH -> BWHC
-    else:
-        raise ValueError(
-            "Invalid shape for channel conversion. Expected 3 or 4 dims, "
-            f"got {len(img.shape)} (shape={img.shape})")
-
-
-def whc_to_cwh(img: torch.Tensor) -> torch.Tensor:
-    """Convert torch tensor from W x H x C => C x W x H"""
-    if len(img.shape) == 3:
-        return img.permute(2, 0, 1)  # WHC => CWH
-    elif len(img.shape) == 4:
-        return img.permute(0, 3, 1, 2)  # BWHC -> BCWH
-    else:
-        raise ValueError(
-            "Invalid shape for channel conversion. Expected 3 or 4 dims, "
-            f"got {len(img.shape)} (shape={img.shape})")
-
-# -------------------------------------------------------------------------
-
-class RandomCardinalRotation:
-    """Torchvision transform for random cardinal rotation."""
-    def __init__(self):
-        self.angles = [0, 90, 180, 270]
-
-    def __call__(self, x):
-        angle = random.choice(self.angles)
-        return transforms.functional.rotate(x, angle)
-
-
-class RandomGaussianBlur:
-    """Torchvision transform for random Gaussian blur."""
-    def __init__(self, sigma: List[float], weights: List[float]):
-        assert len(sigma) == len(weights)
-        self.sigma = sigma
-        self.weights = weights
-        self.blur_fn = {
-            s: (
-                transforms.GaussianBlur(self.calc_kernel(s), sigma=s)
-                if s else lambda x: x
-            ) for s in self.sigma
-        }
-
-    @staticmethod
-    def calc_kernel(sigma: float) -> int:
-        sigma = 0.5
-        opt_kernel = int((sigma * 4) + 1)
-        if opt_kernel % 2 == 0:
-            opt_kernel += 1
-        return opt_kernel
-
-    def __call__(self, x):
-        s = random.choices(self.sigma, weights=self.weights)[0]
-        return self.blur_fn[s](x)
-
-class RandomJPEGCompression:
-    """Torchvision transform for random JPEG compression."""
-    def __init__(self, p: float = 0.5, q_min: int = 50, q_max: int = 100):
-        self.p = p
-        self.q_min = q_min
-        self.q_max = q_max
-
-    def __call__(self, x):
-        return torch.where(
-            torch.rand(1)[0] < self.p,
-            random_jpeg_compression(x),
-            x
-        )
-
-
-class RandomColorDistortion:
-    """Torchvision transform for random color distortion."""
-    def __init__(self, s: float = 1.0):
-        self.color_distort = compose_color_distortion(s=s)
-
-    def __call__(self, x):
-        return self.color_distort(x)
-
-
-def random_jpeg_compression(
-    img: torch.Tensor,
-    q_min: int = 50,
-    q_max: int = 100
-):
-    """Perform random JPEG compression on an image.
-
-    Args:
-        img (torch.Tensor): Image tensor, shape C x W x H.
-
-    Returns:
-        torch.Tensor: Transformed image (C x W x H).
-
-    """
-    q = (torch.rand(1)[0] * q_min) + (q_max - q_min)
-    img = torchvision.io.encode_jpeg(img, quality=q)
-    return torchvision.io.decode_image(img)
-
-
-def compose_color_distortion(s=1.0):
-    """Compose augmentation for random color distortion.
-
-    Args:
-        s (float): Strength of the distortion.
-
-    Returns:
-        Callable: PyTorch transform
-
-    """
-    color_jitter = transforms.ColorJitter(0.8*s, 0.8*s, 0.8*s, 0.2*s)
-    rnd_color_jitter = transforms.RandomApply([color_jitter], p=0.8)
-    rnd_gray = transforms.RandomGrayscale(p=0.2)
-    color_distort = transforms.Compose(
-        [whc_to_cwh, rnd_color_jitter, rnd_gray, cwh_to_whc])
-    return color_distort
-
-
-def decode_augmentation_string(augment: str) -> List[Callable]:
-    """Decode a string of augmentation characters into a list of
-    augmentation functions.
-
-    Args:
-        augment (str): Augmentation string.
-
-    Returns:
-        List[Callable]: List of augmentation functions.
-
-    """
-    if not isinstance(augment, str):
-        raise ValueError(f"Invalid argument: {augment}; expected a str")
-
-    transformations = []  # type: List[Callable]
-    for a in augment:
-        if a == 'x':
-            # Random x-flip.
-            transformations.append(transforms.RandomHorizontalFlip(p=0.5))
-        elif a == 'y':
-            # Random y-flip.
-            transformations.append(transforms.RandomVerticalFlip(p=0.5))
-        elif a == 'r':
-            # Random cardinal rotation.
-            transformations.append(RandomCardinalRotation())
-        elif a == 'd':
-            # Random color distortion.
-            transformations.append(RandomColorDistortion(s=1.0))
-        elif a == 'b':
-            # Random Gaussian blur.
-            transformations.append(
-                RandomGaussianBlur(
-                    sigma=[0, 0.5, 1.0, 1.5, 2.0],
-                    weights=[0.9, 0.1, 0.05, 0.025, 0.0125]
-                )
-            )
-        elif a == 'j':
-            # Random JPEG compression.
-            transformations.append(RandomJPEGCompression(p=0.5, q_min=50, q_max=100))
-        else:
-            raise ValueError(f"Invalid augmentation: {a}")
-    return transformations
-
-
-def compose_augmentations(
-    augment: Union[str, bool] = False,
-    *,
-    standardize: bool = False,
-    normalizer: Optional["StainNormalizer"] = None,
-    transform: Optional[Callable] = None,
-    whc: bool = False
-):
-    """Compose an augmentation pipeline for image processing.
-
-    Args:
-        augment (str or bool): Image augmentations to perform. Augmentations include:
-
-            * ``'x'``: Random horizontal flip
-            * ``'y'``: Random vertical flip
-            * ``'r'``: Random 90-degree rotation
-            * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
-            * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
-
-            Combine letters to define augmentations, such as ``'xyrj'``.
-            A value of True will use ``'xyrjb'``.
-            Note: this function does not support stain augmentation.
-
-    Keyword args:
-        standardize (bool, optional): Standardize images into the range (0,1)
-            using img / (255/2) - 1. Defaults to False.
-        normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer
-            to use on images. Defaults to None.
-        transform (Callable, optional): Arbitrary torchvision transform function.
-            Performs transformation after augmentations but before standardization.
-            Defaults to None.
-        whc (bool): Images are in W x H x C format. Defaults to False.
-    """
-
-    transformations = []  # type: List[Callable]
-
-    if augment is True:
-        augment = 'xyrjb'
-
-    # Stain normalization.
-    if normalizer is not None:
-        transformations.append(
-            lambda img: normalizer.torch_to_torch(  # type: ignore
-                img,
-                augment=(isinstance(augment, str) and 'n' in augment)
-            )
-        )
-
-    # Assemble augmentation pipeline.
-    if isinstance(augment, str):
-        transformations += decode_augmentation_string(augment)
-    elif callable(augment):
-        transformations.append(augment)  # type: ignore
-
-    # Arbitrary transformations via `transform` argument.
-    if transform is not None:
-        transformations.append(transform)
-
-    # Image standardization.
-    # Note: not the same as tensorflow's per_image_standardization
-    # Convert back: image = (image + 1) * (255/2)
-    if standardize:
-        transformations.append(lambda img: img / (255/2) - 1)
-
-    if transformations and whc:
-        return transforms.Compose([whc_to_cwh] + transformations + [cwh_to_whc])
-    else:
-        return transforms.Compose(transformations)
 
 # -------------------------------------------------------------------------
 
@@ -920,7 +889,7 @@ def preprocess_uint8(
     return img
 
 
-def _decode_image(
+def decode_image(
     image: Union[bytes, str, torch.Tensor],
     *,
     img_type: Optional[str] = None,
@@ -1046,7 +1015,7 @@ def get_tfrecord_parser(
         if ('image_raw' in features_to_return):
             img = bytes(record['image_raw'])
             if decode_images:
-                features['image_raw'] = _decode_image(
+                features['image_raw'] = decode_image(
                     img,
                     img_type=img_type,
                     transform=transform
@@ -1219,7 +1188,6 @@ def interleave(
             paths.remove(path)
         for wsi in pool.imap(_apply_otsu, wsi_list):
             otsu_list += [wsi]
-        est_num_tiles = sum([wsi.estimated_num_tiles for wsi in otsu_list])
 
         # ---- Prepare parsing -----------------------------------------------
         img_type = 'numpy'
@@ -1254,8 +1222,7 @@ def interleave(
             base_parser = get_tfrecord_parser(
                 paths[0],
                 features_to_return,
-                decode_images=False,
-                to_numpy=False
+                decode_images=False
             )
         # ---- Set up TFRecord indexes for sharding ---------------------------
         # Index files not created in this interleave function, as there may be
@@ -1295,7 +1262,7 @@ def interleave(
     # Worker to decode images and process records
     def threading_worker(record):
         record = base_parser(record)
-        record[0] = _decode_image(
+        record[0] = decode_image(
             record[0],  # Image is the first returned variable
             img_type=img_type,
             transform=transform_fn,
@@ -1405,6 +1372,7 @@ def interleave_dataloader(
     persistent_workers: bool = False,
     drop_last: bool = False,
     from_wsi: bool = False,
+    collate_fn: Optional[Callable] = None,
     **kwargs
 ) -> torch.utils.data.DataLoader:
 
@@ -1529,7 +1497,8 @@ def interleave_dataloader(
         persistent_workers=persistent_workers,
         worker_init_fn=worker_init_fn,
         drop_last=drop_last,
-        prefetch_factor=prefetch_factor
+        prefetch_factor=prefetch_factor,
+        collate_fn=collate_fn
     )
     dataloader.num_tiles = iterator.num_tiles
     dataloader.dataset.dataloader = dataloader  # type: ignore
