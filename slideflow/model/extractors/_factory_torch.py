@@ -21,6 +21,11 @@ def build_torch_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_torch
+def dinov2(tile_px, **kwargs):
+    from .dinov2 import DinoV2Features
+    return DinoV2Features(center_crop=(tile_px != 224), **kwargs)
+
+@register_torch
 def ctranspath(tile_px, **kwargs):
     from .ctranspath import CTransPathFeatures
     return CTransPathFeatures(center_crop=(tile_px != 224), **kwargs)
