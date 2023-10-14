@@ -6,11 +6,10 @@ license found in the LICENSE file in the same directory as this source file.
 """
 import os
 import torch
-import tempfile
 import gdown
 import slideflow as sf
 import numpy as np
-
+from slideflow.util import make_cache_dir_path
 from torchvision import transforms
 
 from ...base import BaseFeatureExtractor
@@ -18,17 +17,6 @@ from .._slide import features_from_slide
 
 from .ibotvit import iBOTViT
 
-# -----------------------------------------------------------------------------
-
-def make_cache_dir_path(path: str) -> str:
-    if 'HOME' in os.environ:
-        dest = os.path.join(os.environ['HOME'], '.cache', path)
-    elif 'USERPROFILE' in os.environ:
-        dest = os.path.join(os.environ['USERPROFILE'], '.cache', path)
-    else:
-        dest = os.path.join(tempfile.gettempdir(), '.cache', path)
-    os.makedirs(dest, exist_ok=True)
-    return dest
 
 # -----------------------------------------------------------------------------
 
@@ -87,7 +75,7 @@ you agree to the terms of the license.
 
     def _download(self):
         """Download the pretrained model."""
-        dest = make_cache_dir_path('slideflow/histossl')
+        dest = make_cache_dir_path('histossl')
         dest = os.path.join(dest, 'ibot_vit_base_pancan.pth')
         if not os.path.exists(dest):
             gdown.download(self.url, dest, quiet=False)

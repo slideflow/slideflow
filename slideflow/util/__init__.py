@@ -11,6 +11,7 @@ import requests
 import tarfile
 import hashlib
 import pandas as pd
+import tempfile
 from rich import progress
 from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
@@ -22,7 +23,6 @@ from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
 from packaging import version
-from statistics import mean, median
 from tqdm import tqdm
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -292,10 +292,19 @@ def download_from_tcga(
                 pbar.update(file_size_mb - running_total_mb)
 
 
+def make_cache_dir_path(path: str) -> str:
+    if 'HOME' in os.environ:
+        dest = os.path.join(os.environ['HOME'], '.cache', 'slideflow', path)
+    elif 'USERPROFILE' in os.environ:
+        dest = os.path.join(os.environ['USERPROFILE'], '.cache', 'slideflow', path)
+    else:
+        dest = os.path.join(tempfile.gettempdir(), '.cache', 'slideflow', path)
+    os.makedirs(dest, exist_ok=True)
+    return dest
+
+
 def get_gdc_manifest() -> pd.DataFrame:
-    sf_cache = os.path.expanduser('~/.slideflow/')
-    if not exists(sf_cache):
-        os.makedirs(sf_cache)
+    sf_cache = make_cache_dir_path('gdc')
     manifest = join(sf_cache, 'gdc_manifest.tsv')
     if not exists(manifest):
         tar = 'gdc_manifest.tar.xz'
