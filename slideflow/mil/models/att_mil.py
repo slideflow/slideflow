@@ -34,6 +34,7 @@ class Attention_MIL(nn.Module):
         self.head = head or nn.Sequential(
             nn.Flatten(), nn.BatchNorm1d(z_dim), nn.Dropout(dropout_p), nn.Linear(z_dim, n_out)
         )
+        self._neg_inf = torch.tensor(-torch.inf)
 
     def forward(self, bags, lens, *, return_attention=False):
         assert bags.ndim == 3
@@ -80,7 +81,7 @@ class Attention_MIL(nn.Module):
         attention_mask = (idx < lens.unsqueeze(-1)).unsqueeze(-1)
 
         masked_attention = torch.where(
-            attention_mask, attention_scores, torch.full_like(attention_scores, -torch.inf)
+            attention_mask, attention_scores, torch.full_like(attention_scores, self._neg_inf)
         )
         if apply_softmax:
             return torch.softmax(masked_attention, dim=1)
@@ -89,7 +90,9 @@ class Attention_MIL(nn.Module):
 
     def relocate(self):
         """Move model to GPU. Required for FastAI compatibility."""
-        self.to(get_device())
+        device = get_device()
+        self.to(device)
+        self._neg_inf = self._neg_inf.to(device)
 
     def plot(*args, **kwargs):
         pass
@@ -151,6 +154,7 @@ class MultiModal_Attention_MIL(nn.Module):
             nn.Dropout(0.1),
             nn.Linear(z_dim, n_out)
         )
+        self._neg_inf = torch.tensor(-torch.inf)
 
     def forward(self, *bags_and_lens):
         """Return predictions using all bags and magnifications.
@@ -241,7 +245,7 @@ class MultiModal_Attention_MIL(nn.Module):
         # False for every instance of bag i with index(instance) >= lens[i]
         attention_mask = (idx < lens.unsqueeze(-1)).unsqueeze(-1)
 
-        masked_attention = torch.where(attention_mask, attention_scores, -torch.inf)
+        masked_attention = torch.where(attention_mask, attention_scores, self._neg_inf)
         if apply_softmax:
             return torch.softmax(masked_attention, dim=1)
         else:
@@ -251,7 +255,9 @@ class MultiModal_Attention_MIL(nn.Module):
 
     def relocate(self):
         """Move model to GPU. Required for FastAI compatibility."""
-        self.to(get_device())
+        device = get_device()
+        self.to(device)
+        self._neg_inf = self._neg_inf.to(device)
 
     def plot(*args, **kwargs):
         """Override to disable FastAI plotting."""
