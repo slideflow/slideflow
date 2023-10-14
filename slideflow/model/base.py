@@ -446,6 +446,8 @@ class BaseFeatureExtractor:
     """
 
     tag = 'generic_extractor'
+    license_statement = ''
+    citation = ''
 
     def __init__(self, backend: str, include_preds: bool = False) -> None:
         """Initialize the base feature extractor.
@@ -509,6 +511,34 @@ class BaseFeatureExtractor:
         'kwargs' is a dictionary of keyword arguments.
         """
         raise NotImplementedError
+
+    def show_license(self) -> None:
+        """Print the license statement for the pretrained model."""
+        if self.license_statement:
+            print(self.license_statement)
+        else:
+            print("No license available.")
+
+    def get_license(self) -> Optional[str]:
+        """Return the license statement for the pretrained model."""
+        if self.license_statement:
+            return self.license_statement
+        else:
+            return None
+
+    def get_citation(self) -> Optional[str]:
+        """Return the BibTeX citation for the pretrained model."""
+        if self.citation:
+            return self.citation
+        else:
+            return None
+
+    def cite(self):
+        """Print the citation for the pretrained model in Nature format."""
+        if self.citation:
+            print(self.citation)
+        else:
+            print("No citation available.")
 
 
 class HyperParameterError(Exception):

@@ -21,22 +21,35 @@ from .ibotvit import iBOTViT
 # -----------------------------------------------------------------------------
 
 class HistoSSLFeatures(BaseFeatureExtractor):
-    """HistoSSL feature extractor.
-
+    """
+    HistoSSL pretrained feature extractor.
     Feature dimensions: 768
-
     GitHub: https://github.com/owkin/HistoSSLscaling
     """
 
     tag = 'histossl'
     url = 'https://drive.google.com/uc?id=1uxsoNVhQFoIDxb4RYIiOtk044s6TTQXY'
-    license_statement = """\
+    license_statement = """
 This model is developed and licensed by Owkin, Inc. The license for use is
 provided in the LICENSE file in the same directory as this source file
 (slideflow/model/extractors/histossl/LICENSE), and is also available
 at https://github.com/owkin/HistoSSLscaling. By using this feature extractor,
 you agree to the terms of the license.
 """
+    citation = """
+@article{Filiot2023ScalingSSLforHistoWithMIM,
+	author       = {Alexandre Filiot and Ridouane Ghermi and Antoine Olivier and Paul Jacob and Lucas Fidon and Alice Mac Kain and Charlie Saillard and Jean-Baptiste Schiratti},
+	title        = {Scaling Self-Supervised Learning for Histopathology with Masked Image Modeling},
+	elocation-id = {2023.07.21.23292757},
+	year         = {2023},
+	doi          = {10.1101/2023.07.21.23292757},
+	publisher    = {Cold Spring Harbor Laboratory Press},
+	url          = {https://www.medrxiv.org/content/early/2023/07/26/2023.07.21.23292757},
+	eprint       = {https://www.medrxiv.org/content/early/2023/07/26/2023.07.21.23292757.full.pdf},
+	journal      = {medRxiv}
+}
+"""
+    MD5 = 'e7124eefc87fe6069bf4b864f9ed298c'
 
     def __init__(self, device=None, center_crop=False):
         super().__init__(backend='torch')
@@ -69,16 +82,16 @@ you agree to the terms of the license.
         self._center_crop = center_crop
         # ---------------------------------------------------------------------
 
-    def show_license(self):
-        """Print the license statement for the pretrained model."""
-        print(self.license_statement)
-
     def _download(self):
         """Download the pretrained model."""
         dest = make_cache_dir_path('histossl')
         dest = os.path.join(dest, 'ibot_vit_base_pancan.pth')
         if not os.path.exists(dest):
             gdown.download(self.url, dest, quiet=False)
+        if sf.util.md5(dest) != self.MD5:
+            raise sf.errors.ChecksumError(
+                f"Downloaded weights at {dest} failed MD5 checksum."
+            )
         return dest
 
     def __call__(self, obj, **kwargs):

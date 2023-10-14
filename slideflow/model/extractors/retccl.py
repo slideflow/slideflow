@@ -268,14 +268,25 @@ class ResNet50(nn.Module):
 # -----------------------------------------------------------------------------
 
 class RetCCLFeatures(BaseFeatureExtractor):
-    """RetCCl pretrained feature extractor.
-
+    """
+    RetCCl pretrained feature extractor.
     Feature dimensions: 2048
-
     GitHub: https://github.com/Xiyue-Wang/RetCCL
     """
 
     tag = 'retccl'
+    license_statement = "GNU General Public License v3.0"
+    citation = """
+@article{WANG2023102645,
+    title = {RetCCL: Clustering-guided contrastive learning for whole-slide image retrieval},
+    author = {Xiyue Wang and Yuexi Du and Sen Yang and Jun Zhang and Minghui Wang and Jing Zhang and Wei Yang and Junzhou Huang and Xiao Han},
+    journal = {Medical Image Analysis},
+    volume = {83},
+    pages = {102645},
+    year = {2023},
+    issn = {1361-8415}
+}
+"""
 
     def __init__(self, device=None, center_crop=False, ckpt=None):
         super().__init__(backend='torch')

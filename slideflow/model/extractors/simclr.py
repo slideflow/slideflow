@@ -28,17 +28,23 @@ def crop(image, size):
 
 
 class SimCLR_Features(BaseFeatureExtractor):
-    """SimCLR feature extractor.
-
-    Loads trained SimCLRv2 model and provides interface for generating
-    features from a batch of images or a WSI.
-
+    """
+    SimCLR feature extractor.
+    Load a trained SimCLRv2 model and generate features from images or a WSI.
     Feature dimensions: <variable>
-
     GitHub: https://github.com/jamesdolezal/simclr
     """
 
     tag = 'simclr'
+    license_statement = "Apache-2.0"
+    citation = """
+@article{chen2020big,
+  title={Big Self-Supervised Models are Strong Semi-Supervised Learners},
+  author={Chen, Ting and Kornblith, Simon and Swersky, Kevin and Norouzi, Mohammad and Hinton, Geoffrey},
+  journal={arXiv preprint arXiv:2006.10029},
+  year={2020}
+}
+"""
 
     def __init__(
         self,

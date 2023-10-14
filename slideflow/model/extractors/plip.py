@@ -29,14 +29,24 @@ class CLIPImageFeatures(torch.nn.Module):
 
 
 class PLIPFeatures(BaseFeatureExtractor):
-    """PLIP feature extractor.
-
+    """
+    PLIP pretrained feature extractor.
     Feature dimensions: 512
-
     GitHub: https://github.com/PathologyFoundation/plip
     """
 
     tag = 'plip'
+    license_statement = "No license provided by the authors."
+    citation = """
+@article{huang2023visual,
+    title={A visual--language foundation model for pathology image analysis using medical Twitter},
+    author={Huang, Zhi and Bianchi, Federico and Yuksekgonul, Mert and Montine, Thomas J and Zou, James},
+    journal={Nature Medicine},
+    pages={1--10},
+    year={2023},
+    publisher={Nature Publishing Group US New York}
+}
+"""
 
     def __init__(self, device=None, center_crop=False):
         super().__init__(backend='torch')

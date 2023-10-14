@@ -560,7 +560,8 @@ class ConvStem(torch.nn.Module):
 # -----------------------------------------------------------------------------
 
 class CTransPathFeatures(BaseFeatureExtractor):
-    """CTransPath pretrained feature extractor.
+    """
+    CTransPath pretrained feature extractor.
 
     The feature extractor is based on a modified swin transformer
     ("swin_tiny_patch4_window7_224"), pretrained on digital pathology images,
@@ -576,6 +577,16 @@ class CTransPathFeatures(BaseFeatureExtractor):
     """
 
     tag = 'ctranspath'
+    license_statement = """GNU General Public License v3.0."""
+    citation = """
+@{wang2022,
+  title={Transformer-based Unsupervised Contrastive Learning for Histopathological Image Classification},
+  author={Wang, Xiyue and Yang, Sen and Zhang, Jun and Wang, Minghui and Zhang, Jing  and Yang, Wei and Huang, Junzhou  and Han, Xiao},
+  journal={Medical Image Analysis},
+  year={2022},
+  publisher={Elsevier}
+}
+"""
 
     def __init__(self, device=None, center_crop=False):
         super().__init__(backend='torch')
