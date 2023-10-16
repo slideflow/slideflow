@@ -51,13 +51,14 @@ you agree to the terms of the license.
 """
     MD5 = 'e7124eefc87fe6069bf4b864f9ed298c'
 
-    def __init__(self, device=None, center_crop=False):
+    def __init__(self, device=None, center_crop=False, weights=None):
         super().__init__(backend='torch')
 
         from slideflow.model import torch_utils
 
         self.show_license()
-        weights = self._download()
+        if weights is None:
+            weights = self.download()
         self.device = torch_utils.get_device(device)
         self.model = iBOTViT(
             architecture='vit_base_pancan',
@@ -82,13 +83,14 @@ you agree to the terms of the license.
         self._center_crop = center_crop
         # ---------------------------------------------------------------------
 
-    def _download(self):
+    @staticmethod
+    def download():
         """Download the pretrained model."""
         dest = make_cache_dir_path('histossl')
         dest = os.path.join(dest, 'ibot_vit_base_pancan.pth')
         if not os.path.exists(dest):
-            gdown.download(self.url, dest, quiet=False)
-        if sf.util.md5(dest) != self.MD5:
+            gdown.download(HistoSSLFeatures.url, dest, quiet=False)
+        if sf.util.md5(dest) != HistoSSLFeatures.MD5:
             raise sf.errors.ChecksumError(
                 f"Downloaded weights at {dest} failed MD5 checksum."
             )
