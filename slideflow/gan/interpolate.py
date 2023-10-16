@@ -10,11 +10,14 @@ import torch
 import json
 from os.path import join, dirname, exists
 from PIL import Image
+from tqdm import tqdm
+from functools import partial
+
 from slideflow.gan.stylegan2.stylegan2 import embedding, utils
 from slideflow.gan.utils import crop
 from slideflow import errors
-from tqdm import tqdm
-from functools import partial
+from slideflow.model.torch_utils import get_device
+
 
 if TYPE_CHECKING:
     import tensorflow as tf
@@ -26,9 +29,10 @@ class StyleGAN2Interpolator:
         gan_pkl: str,
         start: int,
         end: int,
-        device: torch.device,
-        target_um: int,
-        target_px: int,
+        *,
+        device: Optional[torch.device] = None,
+        target_um: Optional[int] = None,
+        target_px: Optional[int] = None,
         gan_um: Optional[int] = None,
         gan_px: Optional[int] = None,
         noise_mode: str = 'const',
@@ -42,9 +46,28 @@ class StyleGAN2Interpolator:
             gan_pkl (str): Path to saved network pkl.
             start (int): Starting class index.
             end (int): Ending class index.
-            device (torch.device): Torch device.
-        """
 
+        Keyword Args:
+            device (torch.device, optional): Torch device. If None, will
+                automatically select a GPU if available. Defaults to None.
+            target_um (int, optional): Target size in microns for the
+                interpolated images. GAN output will be cropped/resized to match
+                this target. If None, will match GAN output. Defaults to None.
+            target_px (int, optional): Target size in pixels for the
+                interpolated images. GAN output will be cropped/resized to match
+                this target. If None, will match GAN output. Defaults to None.
+            gan_um (int, optional): Size in microns of the GAN output. If None,
+                will attempt to auto-detect from training_options.json.
+                Defaults to None.
+            gan_px (int, optional): Size in pixels of the GAN output. If None,
+                will attempt to auto-detect from training_options.json.
+                Defaults to None.
+            noise_mode (str, optional): Noise mode for GAN. Defaults to 'const'.
+            truncation_psi (int, optional): Truncation psi for GAN.
+                Defaults to 1.
+            **gan_kwargs: Additional keyword arguments for GAN inference.
+
+        """
         training_options = join(dirname(gan_pkl), 'training_options.json')
         if exists(training_options):
             with open(training_options, 'r') as f:
@@ -64,7 +87,12 @@ class StyleGAN2Interpolator:
             raise ValueError("Unable to auto-detect gan_px/gan_um from "
                              "training_options.json. Must be set with gan_um "
                              "and gan_px.")
-
+        if target_px is None:
+            target_px = gan_px
+        if target_um is None:
+            target_um = gan_um
+        if device is None:
+            device = get_device()
         self.E_G, self.G = embedding.load_embedding_gan(gan_pkl, device)
         self.device = device
         self.gan_kwargs = dict(
@@ -252,7 +280,6 @@ class StyleGAN2Interpolator:
             self._classifier_backend = 'torch'
         else:
             raise ValueError(f"Unrecognized backend for model {path}")
-
 
     def seed_search(
         self,
