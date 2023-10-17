@@ -289,6 +289,8 @@ class MILWidget(Widget):
         masked_bags = self.extractor(
             viz.wsi,
             normalizer=self.normalizer,
+            lazy_iter=self.viz.low_memory,
+            batch_size=(4 if self.viz.low_memory else 32),
             **viz.slide_widget.get_tile_filter_params(),
         )
         original_shape = masked_bags.shape
