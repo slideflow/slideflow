@@ -886,7 +886,6 @@ class SlideWidget:
                 self.stride = self._capturing_stride
                 self._capturing_stride = None
                 self.apply_tile_filter = False
-                self.apply_slide_filter = False
                 self.show_tile_filter = False
                 self.show_slide_filter = False
                 self._reset_tile_filter_and_join_thread()

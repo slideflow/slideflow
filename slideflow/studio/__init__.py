@@ -803,6 +803,7 @@ class Studio(ImguiWindow):
             tile_px = (self.tile_px if self.tile_px else 256)
         if tile_um is None:
             tile_um = (self.tile_um if self.tile_um else 512)
+        qc_mask = None if not self.wsi else self.wsi.qc_mask
         try:
             self.wsi = sf.WSI(
                 path,
@@ -830,8 +831,16 @@ class Studio(ImguiWindow):
             )
             return False
         else:
+            # Reapply QC
+            if qc_mask is not None:
+                self.wsi.apply_qc_mask(qc_mask)
+            # Update viewer
+            old_viewer = self.viewer
             self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
             self.set_title(os.path.basename(self.wsi.path))
+            if isinstance(old_viewer, SlideViewer):
+                self.viewer.show_thumbnail = old_viewer.show_thumbnail
+                self.viewer.show_scale = old_viewer.show_scale
             return True
 
     def _render_prediction_message(self, message: str) -> None:
@@ -1670,7 +1679,10 @@ class Studio(ImguiWindow):
         if self.viewer is not None:
             self.viewer.close()
             if isinstance(self.viewer, SlideViewer):
+                old_viewer = self.viewer
                 self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
+                self.viewer.show_thumbnail = old_viewer.show_thumbnail
+                self.viewer.show_scale = old_viewer.show_scale
             else:
                 self.viewer.reload(**self._viewer_kwargs())
 
@@ -1754,15 +1766,28 @@ class Sidebar:
         self.viz                = viz
         self.expanded           = False
         self.selected           = None
-        self.buttonbar_width    = 72
-        self.navbutton_width    = 70
-        self.imagebutton_width  = 64
+        self._buttonbar_width    = 72
+        self._navbutton_width    = 70
+        self._imagebutton_width  = 64
         self._button_tex        = dict()
         self._pane_w_div        = 15
         self.navbuttons         = ['project', 'slide', 'model', 'heatmap']
 
         self.add_widgets(viz.widgets)
         self._load_button_textures()
+
+    @property
+    def buttonbar_width(self):
+        return int(self._buttonbar_width * (self.viz.font_size / 22))
+
+    @property
+    def navbutton_width(self):
+        return int(self._navbutton_width * (self.viz.font_size / 22))
+
+    @property
+    def imagebutton_width(self):
+        w = int(self._imagebutton_width * (self.viz.font_size / 22))
+        return w
 
     @property
     def theme(self):

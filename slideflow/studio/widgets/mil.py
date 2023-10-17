@@ -137,14 +137,6 @@ class MILWidget(Widget):
         self._toast = None
         self._show_popup = False
 
-    def _reload_wsi(self):
-        """Reload a slide."""
-        viz = self.viz
-        if viz.wsi:
-            viz.tile_px = self.extractor_params['tile_px']
-            viz.tile_um = self.extractor_params['tile_um']
-            viz.slide_widget.load(viz.wsi.path, mpp=viz.slide_widget.manual_mpp)
-
     def _refresh_generating_prediction(self):
         """Refresh render of asynchronous MIL prediction / attention heatmap."""
         if self._thread is not None and not self._thread.is_alive():
@@ -236,7 +228,11 @@ class MILWidget(Widget):
             self.close(close_renderer=False)
             self.mil_params = _get_mil_params(path)
             self.extractor_params = self.mil_params['bags_extractor']
-            self._reload_wsi()
+            if self.viz.wsi:
+                self.viz._reload_wsi(
+                    tile_px=self.extractor_params['tile_px'],
+                    tile_um=self.extractor_params['tile_um']
+                )
             self.mil_config = sf.mil.mil_config(trainer=self.mil_params['trainer'],
                                                 **self.mil_params['params'])
             self.viz.close_model(True)  # Close a tile-based model, if one is loaded
