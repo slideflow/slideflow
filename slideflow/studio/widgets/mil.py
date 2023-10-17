@@ -136,6 +136,7 @@ class MILWidget(Widget):
         self._thread = None
         self._toast = None
         self._show_popup = False
+        self._progress_count = 0
 
     def _refresh_generating_prediction(self):
         """Refresh render of asynchronous MIL prediction / attention heatmap."""
@@ -279,6 +280,11 @@ class MILWidget(Widget):
             )
         return predictions, attention
 
+    def _progress_callback(self, grid_idx):
+        self._progress_count += len(grid_idx)
+        percent = self._progress_count / self.viz.wsi.estimated_num_tiles
+        self._toast.set_progress(min(percent, 1.))
+
     def _predict_slide(self):
         viz = self.viz
 
@@ -286,11 +292,13 @@ class MILWidget(Widget):
         self._triggered = True
 
         # Generate features with the loaded extractor.
+        self._progress_count = 0
         masked_bags = self.extractor(
             viz.wsi,
             normalizer=self.normalizer,
             lazy_iter=self.viz.low_memory,
             batch_size=(4 if self.viz.low_memory else 32),
+            callback=self._progress_callback,
             **viz.slide_widget.get_tile_filter_params(),
         )
         original_shape = masked_bags.shape
@@ -345,6 +353,7 @@ class MILWidget(Widget):
             title="Generating prediction",
             sticky=True,
             spinner=True,
+            progress=True,
             icon='info'
         )
         self._thread = threading.Thread(target=self._predict_slide)

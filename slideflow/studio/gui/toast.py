@@ -1,6 +1,7 @@
 import time
 import imgui
 import imgui.integrations.glfw
+from . import imgui_utils
 
 #----------------------------------------------------------------------------
 
@@ -9,7 +10,15 @@ class Toast:
     msg_duration = 4
     fade_duration = 0.25
 
-    def __init__(self, message, title, icon, sticky=False, spinner=False):
+    def __init__(
+        self, 
+        message, 
+        title, 
+        icon, 
+        sticky=False, 
+        spinner=False,
+        progress=False,
+    ):
         if icon and title is None:
             title = icon.capitalize()
         self._alpha = 0
@@ -17,20 +26,23 @@ class Toast:
         self._default_message_height = 75
         self._create_time = time.time()
         self._start_fade_time = None
+        self._progress_val = 0
         self.spinner = spinner
         self.message = message
         self.title = title
         self.icon = icon
         self.sticky = sticky
+        self.progress = progress
 
     def __str__(self):
-        return "<Toast message={!r}, title={!r}, icon={!r}, alpha={!r}, sticky={!r}, spinner={!r}".format(
+        return "<Toast message={!r}, title={!r}, icon={!r}, alpha={!r}, sticky={!r}, spinner={!r}, progress={!r}".format(
             self.message,
             self.title,
             self.icon,
             self.alpha,
             self.sticky,
-            self.spinner
+            self.spinner,
+            self.progress
         )
 
     @property
@@ -65,12 +77,16 @@ class Toast:
             return self._height
         else:
             line_height = imgui.get_text_line_height_with_spacing()
+            running_height = 0
             if self.title and self.message is None:
-                return line_height
+                running_height = line_height
             elif self.title and self.message:
-                return line_height * 1.5 + self._default_message_height
+                running_height = line_height * 1.5 + self._default_message_height
             else:
-                return self._default_message_height
+                running_height = self._default_message_height
+            if self.progress:
+                running_height += line_height
+            return running_height
 
     @property
     def width(self):
@@ -79,3 +95,57 @@ class Toast:
     def done(self):
         self.sticky = False
         self.msg_duration = 0
+
+    def set_progress(self, val):
+        self._progress_val = val
+
+    def render(self, viz, toast_id=0, height_offset=0, padding=20):
+        """Render a toast to the given window."""
+        
+        imgui.push_style_var(imgui.STYLE_ALPHA, self.alpha)
+        _old_rounding = imgui.get_style().window_rounding
+        imgui.get_style().window_rounding = 5
+
+        imgui.set_next_window_position(
+            viz.content_width - (self.width + padding),
+            viz.content_height - height_offset,
+        )
+        imgui.set_next_window_size(self.width, 0)
+        imgui.begin(
+            f'toast{toast_id}', 
+            flags=(imgui.WINDOW_NO_TITLE_BAR 
+                   | imgui.WINDOW_NO_RESIZE 
+                   | imgui.WINDOW_NO_SCROLLBAR)
+        )
+
+        # Icon.
+        if self.icon:
+            viz.icon(self.icon, sameline=True)
+        
+        # Title and spinner.
+        if self.title:
+            if self.spinner:
+                imgui.text(f"{self.title}{imgui_utils.spinner_text()}")
+            else:
+                imgui.text(self.title)
+            if self.message:
+                imgui.separator()
+        
+        # Message.
+        if self.message:
+            imgui.push_text_wrap_pos()
+            imgui.text(self.message)
+            if self.spinner and not self.title:
+                imgui.same_line()
+                imgui_utils.spinner()
+            imgui.pop_text_wrap_pos()
+
+        # Progress bar.
+        if self.progress:
+            imgui_utils.progress_bar(self._progress_val)
+        
+        # Cleanup.
+        self._height = imgui.get_window_height()
+        imgui.end()
+        imgui.pop_style_var()
+        imgui.get_style().window_rounding = _old_rounding

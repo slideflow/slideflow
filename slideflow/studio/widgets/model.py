@@ -82,7 +82,7 @@ def _draw_tile_pred_result(
                 uncertainty_range = (0, config['thresholds']['tile_uq'])
             else:
                 uncertainty_range = (0, 0.033)
-        width = scale_uncertainty_bar(uq_array, w, range=uncertainty_range)
+        width = scale_uncertainty_bar(uq_array, max_width=w, range=uncertainty_range)
         draw_list.add_rect_filled(x, y, x+width, y+7, imgui.get_color_u32_rgba(*uncertainty_color))
 
         # Right-aligned text below bar
