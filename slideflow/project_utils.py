@@ -37,12 +37,12 @@ def auto_dataset_allow_none(method: Callable):
     """Wrapper function to convert filter arguments to a dataset, allowing
     errors."""
     @wraps(method)
-    def _impl(obj, model=None, *args, **kwargs):
+    def _impl(obj, model=None, dataset=None, *args, **kwargs):
         try:
-            return _filters_to_dataset(obj, method, model, *args, **kwargs)
+            return _filters_to_dataset(obj, method, model, *args, dataset=dataset, **kwargs)
         except errors.ModelParamsNotFoundError:
             if 'dataset' not in kwargs:
-                return method(obj, model, *args, dataset=None, **kwargs)
+                return method(obj, model, dataset=None, *args, **kwargs)
             else:
                 raise
     return _impl

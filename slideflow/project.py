@@ -1923,8 +1923,8 @@ class Project:
     def generate_features(
         self,
         model: str,
+        dataset: Optional[Dataset] = None,
         *,
-        dataset: Dataset,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 0,
@@ -1938,12 +1938,12 @@ class Project:
 
         Args:
             model (str): Path to model
-
-        Keyword Args:
             dataset (:class:`slideflow.Dataset`, optional): Dataset
                 from which to generate activations. If not supplied, calculate
                 activations for all tfrecords compatible with the model,
                 optionally using provided filters and filter_blank.
+
+        Keyword Args:
             filters (dict, optional): Dataset filters to use for
                 selecting slides. See :meth:`slideflow.Dataset.filter` for
                 more information. Defaults to None.
@@ -2023,14 +2023,14 @@ class Project:
         Args:
             model (str): Path to model from which to generate activations.
                 May provide either this or "pt_files"
-            outdir (str, optional): Save exported activations in .pt format.
-                Defaults to 'auto' (project directory).
-
-        Keyword Args:
             dataset (:class:`slideflow.Dataset`, optional): Dataset
                 from which to generate activations. If not supplied, calculate
                 activations for all tfrecords compatible with the model,
                 optionally using provided filters and filter_blank.
+            outdir (str, optional): Save exported activations in .pt format.
+                Defaults to 'auto' (project directory).
+
+        Keyword Args:
             filters (dict, optional): Dataset filters to use for
                 selecting slides. See :meth:`slideflow.Dataset.filter` for
                 more information. Defaults to None.
@@ -2148,27 +2148,41 @@ class Project:
             log.info(f'Skipping {len(done)} files already done.')
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
 
+        # Set up progress bar.
+        pb = sf.util.TileExtractionProgress()
+        pb.add_task(
+            "Speed: ",
+            progress_type="speed",
+            total=None)
+        slide_task = pb.add_task(
+            "Generating...",
+            progress_type="slide_progress",
+            total=len(dataset.slides()))
+        pb.start()
+
         # Set up activations interface.
         # Calculate features one slide at a time to reduce memory consumption.
-        for slide_batch in tqdm(sf.util.batch(dataset.slides(), slide_batch_size),
-                                total=len(dataset.slides()) // slide_batch_size):
-            try:
-                _dataset = dataset.remove_filter(filters='slide')
-            except errors.DatasetFilterError:
-                _dataset = dataset
-            _dataset = _dataset.filter(filters={'slide': slide_batch})
-            df = sf.DatasetFeatures(
-                model=model,
-                dataset=_dataset,
-                include_preds=False,
-                include_uncertainty=False,
-                batch_size=batch_size,
-                verbose=False,
-                progress=False,
-                pool_sort=False,
-                **kwargs
-            )
-            df.to_torch(outdir, verbose=False)
+        with sf.util.cleanup_progress(pb):
+            for slide_batch in sf.util.batch(dataset.slides(), slide_batch_size):
+                try:
+                    _dataset = dataset.remove_filter(filters='slide')
+                except errors.DatasetFilterError:
+                    _dataset = dataset
+                _dataset = _dataset.filter(filters={'slide': slide_batch})
+                df = sf.DatasetFeatures(
+                    model=model,
+                    dataset=_dataset,
+                    include_preds=False,
+                    include_uncertainty=False,
+                    batch_size=batch_size,
+                    verbose=False,
+                    progress=False,
+                    pb=pb,
+                    pool_sort=False,
+                    **kwargs
+                )
+                df.to_torch(outdir, verbose=False)
+                pb.advance(slide_task, len(slide_batch))
 
         return outdir
 

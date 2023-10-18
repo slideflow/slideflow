@@ -419,6 +419,7 @@ class DatasetFeatures:
         progress: bool = True,
         verbose: bool = True,
         pool_sort: bool = True,
+        pb: Optional[Progress] = None,
         **kwargs
     ) -> None:
 
@@ -455,7 +456,7 @@ class DatasetFeatures:
         fla_start_time = time.time()
 
         activations, predictions, locations, uncertainty = fg.generate(
-            progress=progress, verbose=verbose
+            progress=progress, pb=pb, verbose=verbose
         )
 
         self.activations = {s: np.stack(v) for s, v in activations.items()}
@@ -483,7 +484,7 @@ class DatasetFeatures:
                 imap_iterable = map(
                     self.dataset.get_tfrecord_locations, slides_to_sort
                 )
-            if progress:
+            if progress and not pb:
                 iterable = track(
                     imap_iterable,
                     transient=False,
@@ -1466,7 +1467,7 @@ class _FeatureGenerator:
                 )
             else:
                 normalizer = norm
-            log.info(f"Normalizing with {normalizer.method}")
+            log.debug(f"Normalizing with {normalizer.method}")
             return normalizer, kwargs
         else:
             if 'normalizer_source' in kwargs:
@@ -1627,7 +1628,13 @@ class _FeatureGenerator:
         else:
             raise ValueError(f"Unrecognized model type: {type(self.model)}")
 
-    def generate(self, *, verbose: bool = True, progress: bool = True):
+    def generate(
+        self,
+        *,
+        verbose: bool = True,
+        progress: bool = True,
+        pb: Optional[Progress] = None,
+    ):
 
         # Get the dataloader for iterating through tfrecords
         dataset = self.build_dataset()
@@ -1671,19 +1678,22 @@ class _FeatureGenerator:
         batch_proc_thread = threading.Thread(target=batch_worker, daemon=True)
         batch_proc_thread.start()
 
-        if progress:
+        if progress and not pb:
             pb = Progress(*Progress.get_default_columns(),
                         ImgBatchSpeedColumn(),
                         transient=sf.getLoggingLevel()>20)
             task = pb.add_task("Generating...", total=estimated_tiles)
             pb.start()
+        elif pb:
+            task = 0
+            progress = False
         else:
             pb = None
-        with sf.util.cleanup_progress(pb):
+        with sf.util.cleanup_progress((pb if progress else None)):
             for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataset:
                 model_output = self._calculate_feature_batch(batch_img)
                 q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
-                if progress:
+                if pb:
                     pb.advance(task, self.batch_size)
         q.put((None, None, None))
         batch_proc_thread.join()
