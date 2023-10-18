@@ -3,6 +3,7 @@ import numpy as np
 import slideflow as sf
 import slideflow.mil
 import threading
+import importlib
 import traceback
 
 from array import array
@@ -15,10 +16,11 @@ from slideflow.mil.eval import _predict_clam, _predict_mil
 
 from ._utils import Widget
 from .model import draw_tile_predictions
+from .heatmap import convert_to_overlays, HeatmapOverlay
 from ..gui import imgui_utils
 from ..gui.viewer import SlideViewer
 from ..utils import prediction_to_string
-from .._mil_renderer import MILRenderer
+from .._mil_renderer import MILRenderer, MultimodalMILRenderer
 
 # -----------------------------------------------------------------------------
 
@@ -67,6 +69,22 @@ def _reshape_as_heatmap(
     heatmap = heatmap.reshape(original_shape[:2])
     heatmap = (heatmap - np.nanmin(heatmap)) / (np.nanmax(heatmap) - np.nanmin(heatmap))
     return heatmap
+
+def get_bags(extractor, normalizer, wsi):
+    masked_bags = extractor(wsi, normalizer=normalizer, grayspace_fraction=1)
+    original_shape = masked_bags.shape
+    masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
+    if len(masked_bags.mask.shape):
+        mask = masked_bags.mask.any(axis=1)
+        valid_indices = np.where(~mask)
+        bags = masked_bags[valid_indices]
+    else:
+        valid_indices = np.arange(masked_bags.shape[0])
+        bags = masked_bags
+    bags = np.expand_dims(bags, axis=0).astype(np.float32)
+    return bags, original_shape, valid_indices, masked_bags.shape[0]
+
+# -----------------------------------------------------------------------------
 
 class _AttentionHeatmapWrapper:
 
@@ -186,8 +204,14 @@ class MILWidget(Widget):
         renderer = self.viz.get_renderer()
         if isinstance(renderer, MILRenderer):
             return renderer.mil_model
+        elif isinstance(renderer, MultimodalMILRenderer):
+            return self._model
         else:
             return None
+
+    @property
+    def is_multimodal(self):
+        return isinstance(self.viz.get_renderer(), MultimodalMILRenderer)
 
     @property
     def normalizer(self):
@@ -224,18 +248,74 @@ class MILWidget(Widget):
         if mil_path:
             self.load(mil_path)
 
+    def _load_multimodal_model(self, path: str, allow_errors: bool = True) -> bool:
+        try:
+            self.viz.close_model(True)
+            self.viz._render_manager.set_renderer(MultimodalMILRenderer, mil_model_path=path)
+            self.viz._model_path = path
+            self._mil_path = path
+
+            # Load the model, extractors, and normalizers.
+            # This is a temporary workaround until loading can be done in the renderer.
+            from slideflow.model import torch_utils
+            device = torch_utils.get_device()
+            self._model, config = sf.mil.utils.load_model_weights(path)
+            self._model.to(device)
+            self.extractors = []
+            self.normalizers = []
+            self.extractor_params = []
+            for ext in self.mil_params['bags_extractor']:
+                # Rebuild extractor
+                ext_c = self.mil_params['bags_extractor'][ext]
+                self.extractor_params.append(ext_c)
+                extractor_name = ext_c['extractor']['class'].split('.')
+                extractor_class = extractor_name[-1]
+                extractor_kwargs = ext_c['extractor']['kwargs']
+                module = importlib.import_module('.'.join(extractor_name[:-1]))
+                extractor = getattr(module, extractor_class)(**extractor_kwargs)
+
+                # Rebuild normalizer
+                if ext_c['normalizer'] is not None:
+                    normalizer = sf.norm.autoselect(
+                        ext_c['normalizer']['method'],
+                        backend=extractor.backend
+                    )
+                    normalizer.set_fit(**ext_c['normalizer']['fit'])
+                else:
+                    normalizer = None
+                if hasattr(extractor, 'normalizer'):
+                    extractor.normalizer = normalizer
+
+                self.extractors.append(extractor)
+                self.normalizers.append(normalizer)
+
+            self.viz.create_toast('MIL model loaded', icon='success')
+        except Exception as e:
+            if allow_errors:
+                self.viz.create_toast('Error loading MIL model', icon='error')
+                sf.log.error(e)
+                sf.log.error(traceback.format_exc())
+                return False
+            raise e
+        return True
+
     def load(self, path: str, allow_errors: bool = True) -> bool:
         try:
             self.close(close_renderer=False)
             self.mil_params = _get_mil_params(path)
+            self.mil_config = sf.mil.mil_config(trainer=self.mil_params['trainer'],
+                                                **self.mil_params['params'])
             self.extractor_params = self.mil_params['bags_extractor']
+            is_multimodal = (self.mil_config.model_config.model == 'mm_attention_mil')
+            if is_multimodal:
+                return self._load_multimodal_model(path, allow_errors=allow_errors)
+
             if self.viz.wsi:
                 self.viz._reload_wsi(
                     tile_px=self.extractor_params['tile_px'],
                     tile_um=self.extractor_params['tile_um']
                 )
-            self.mil_config = sf.mil.mil_config(trainer=self.mil_params['trainer'],
-                                                **self.mil_params['params'])
+
             self.viz.close_model(True)  # Close a tile-based model, if one is loaded
             self.viz.tile_um = self.extractor_params['tile_um']
             self.viz.tile_px = self.extractor_params['tile_px']
@@ -285,21 +365,81 @@ class MILWidget(Widget):
         percent = self._progress_count / self.viz.wsi.estimated_num_tiles
         self._toast.set_progress(min(percent, 1.))
 
+    def _multimodal_predict_slide(self):
+        bags = []
+        orig_shape = []
+        valid_indices = []
+        grid_size = []
+        strides = {
+            151: 1,
+            453: 2
+        }
+        for extractor, params, normalizer in zip(self.extractors, self.extractor_params, self.normalizers):
+            # Load the slide.
+            stride = strides[params['tile_um']]
+            wsi = sf.WSI(self.viz.wsi.path, tile_um=params['tile_um'], tile_px=params['tile_px'], stride_div=stride)
+            if self.viz.wsi.qc_mask is not None:
+                wsi.apply_qc_mask(self.viz.wsi.qc_mask)
+            print("Loaded slide at tile_px={}, tile_um={}, stride_div={}".format(
+                wsi.tile_px, wsi.tile_um, stride
+            ))
+
+            # Generate bags.
+            ext_bags, ext_orig_shape, ext_valid_indices, n_total = get_bags(extractor, normalizer, wsi)
+            bags.append(np.squeeze(ext_bags))
+            orig_shape.append(ext_orig_shape)
+            valid_indices.append(ext_valid_indices)
+            grid_size.append(n_total)
+            print("Generated feature bags for {} tiles".format(ext_bags.shape[0]))
+
+        # Generate slide prediction & attention.
+        self.predictions, self.attention = sf.mil.eval._predict_multimodal_mil(
+            self.model, [bags], attention=True, use_lens=self.mil_config.model_config.use_lens
+        )
+        print("Slide prediction: {}".format(self.predictions[0]))
+        print("Attention shape: {}".format([a[0].shape for a in self.attention]))
+
+        # Reshape as heatmaps.
+        self.attention_heatmaps = [
+            _reshape_as_heatmap(att[0][:, 0], valid_indices[i], orig_shape[i], grid_size[i])
+            for i, att in enumerate(self.attention)
+        ]
+
+        # Render heatmaps.
+        self.viz.heatmap_widget.predictions = [
+            HeatmapOverlay(self.attention_heatmaps[i],
+                           tile_um=self.extractor_params[i]['tile_um'],
+                           stride_div=strides[self.extractor_params[i]['tile_um']],
+                           name=f"Attention{i}")
+            for i in range(len(self.attention_heatmaps))
+        ]
+        #TODO: extend for multi-attention
+        self.viz.heatmap = _AttentionHeatmapWrapper(None, self.viz.wsi)
+        self.viz.heatmap_widget.render_heatmap()
+
+
     def _predict_slide(self):
         viz = self.viz
 
         self._generating = True
         self._triggered = True
 
+        if self.is_multimodal:
+            return self._multimodal_predict_slide()
+
         # Generate features with the loaded extractor.
         self._progress_count = 0
+        if viz.low_memory:
+            mp_kw = dict(num_threads=1, batch_size=4)
+        else:
+            mp_kw = dict()
         masked_bags = self.extractor(
             viz.wsi,
             normalizer=self.normalizer,
             lazy_iter=self.viz.low_memory,
-            batch_size=(4 if self.viz.low_memory else 32),
             callback=self._progress_callback,
             **viz.slide_widget.get_tile_filter_params(),
+            **mp_kw
         )
         original_shape = masked_bags.shape
         masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
@@ -346,7 +486,7 @@ class MILWidget(Widget):
 
     def predict_slide(self):
         """Initiate a whole-slide prediction."""
-        if not self.verify_tile_size():
+        if not self.is_multimodal and not self.verify_tile_size():
             return
         self.viz.set_message(self._rendering_message)
         self._toast = self.viz.create_toast(
@@ -380,14 +520,12 @@ class MILWidget(Widget):
                 or (self.mil_params['model_type'] == 'categorical'))
 
     def render_attention_heatmap(self, attention: np.ndarray) -> None:
-        self.viz.heatmap = _AttentionHeatmapWrapper(array, self.viz.wsi)
-        self.viz.heatmap_widget.predictions = array[:, :, np.newaxis]
+        self.viz.heatmap = _AttentionHeatmapWrapper(attention, self.viz.wsi)
+        self.viz.heatmap_widget.predictions = convert_to_overlays(attention)
         self.viz.heatmap_widget.render_heatmap(outcome_names=["Attention"])
 
     def render_tile_prediction_heatmap(self, tile_preds: np.ndarray) -> None:
-        if len(tile_preds.shape) == 2:
-            tile_preds = tile_preds[:, :, np.newaxis]
-        self.viz.heatmap_widget.predictions = tile_preds
+        self.viz.heatmap_widget.predictions = convert_to_overlays(tile_preds)
         self.viz.heatmap_widget.render_heatmap(
             outcome_names=self.viz.heatmap_widget._get_all_outcome_names(self.mil_params)
         )
@@ -395,25 +533,21 @@ class MILWidget(Widget):
     def render_dual_heatmap(self, attention: np.ndarray, tile_preds: np.ndarray) -> None:
         if tile_preds.shape[0:2] != attention.shape[0:2]:
             raise ValueError("Attention and tile_preds must have the same shape.")
-        if len(tile_preds.shape) == 2:
-            tile_preds = tile_preds[:, :, np.newaxis]
 
-        self.viz.heatmap = _AttentionHeatmapWrapper(array, self.viz.wsi)
-        self.viz.heatmap_widget.predictions = np.concatenate(
-            (attention[:, :, np.newaxis], tile_preds),
-            axis=2
+        self.viz.heatmap = _AttentionHeatmapWrapper(attention, self.viz.wsi)
+        self.viz.heatmap_widget.predictions = convert_to_overlays(
+            np.concatenate((attention[:, :, np.newaxis], tile_preds), axis=2)
         )
         pred_outcomes = self.viz.heatmap_widget._get_all_outcome_names(self.mil_params)
         self.viz.heatmap_widget.render_heatmap(outcome_names=["Attention"] + pred_outcomes)
 
-    def draw_extractor_info(self):
+    def draw_extractor_info(self, c):
         """Draw a description of the extractor information."""
 
         viz = self.viz
-        if self.extractor_params is None:
+        if c is None:
             imgui.text("No extractor loaded.")
             return
-        c = self.extractor_params
 
         if 'normalizer' in c and c['normalizer']:
             normalizer = c['normalizer']['method']
@@ -582,7 +716,14 @@ class MILWidget(Widget):
 
         if show and self.model_loaded:
             if viz.collapsing_header('Feature Extractor', default=True):
-                self.draw_extractor_info()
+                if self.is_multimodal:
+                    for i, name in enumerate(self.mil_params['bags_extractor']):
+                        shortname = name.split('/')[-1]
+                        if viz.collapsing_header2(f'Extractor {i}: {shortname}', default=True):
+                            self.draw_extractor_info(self.mil_params['bags_extractor'][name])
+                    imgui_utils.vertical_break()
+                else:
+                    self.draw_extractor_info(self.extractor_params)
             if viz.collapsing_header('MIL Model', default=True):
                 self.draw_mil_info()
             if viz.collapsing_header('Whole-slide Prediction', default=True):

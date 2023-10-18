@@ -982,6 +982,30 @@ class Studio(ImguiWindow):
         imgui.pop_style_color(4)
         return expanded
 
+    def collapsing_header2(self, text, **kwargs):
+        """Render a second-level collapsing header using the active theme.
+
+        Examples
+            Render a collapsing header that is open by default.
+
+                .. code-block:: python
+
+                    if viz.collapsing_header("Header", default=True):
+                        imgui.text("Text underneath")
+
+        Args:
+            text (str): Header text.
+
+        """
+        imgui.push_style_color(imgui.COLOR_HEADER, *self.theme.header2)
+        imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, *self.theme.header2_hovered)
+        imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, *self.theme.header2_hovered)
+        imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.header2_text)
+        expanded = imgui_utils.collapsing_header(text.upper(), **kwargs)[0]
+        imgui.pop_style_color(4)
+        return expanded
+
+
     def header(self, text):
         """Render a header using the active theme.
 
@@ -1729,11 +1753,7 @@ class Studio(ImguiWindow):
             # Overlay was generated from the slide's grid, meaning
             # that we need to apply an offset to ensure the overlay
             # lines up apppropriately.
-            full_extract = int(self.wsi.tile_um / self.wsi.mpp)
-            wsi_stride = int(full_extract / self.wsi.stride_div)
-            self._overlay_wsi_dim = (wsi_stride * (self.overlay.shape[1]),
-                                     wsi_stride * (self.overlay.shape[0]))
-            self._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
+            self.set_grid_overlay(overlay)
         elif method == OVERLAY_VIEW:
             # Overlay should only apply to the area of the WSI
             # currently in view.
@@ -1741,6 +1761,47 @@ class Studio(ImguiWindow):
             self._overlay_offset_wsi_dim = self.viewer.origin
         else:
             raise ValueError(f"Unrecognized method {method}")
+
+    def set_grid_overlay(
+        self,
+        grid: np.ndarray,
+        *,
+        tile_um: Optional[int] = None,
+        stride_div: Optional[int] = None,
+        mpp: Optional[float] = None
+    ) -> None:
+        """Set the grid overlay to the given grid.
+
+        Args:
+            grid (np.ndarray): Grid to render as an overlay.
+
+        Keyword args:
+            tile_um (int, optional): Tile size, in microns. If None, uses
+                the tile size of the currently loaded slide.
+            stride_div (int, optional): Stride divisor. If None, uses
+                the stride divisor of the currently loaded slide.
+            mpp (float, optional): Microns per pixel. If None, uses
+                the MPP of the currently loaded slide.
+
+        """
+        if self.viewer is None:
+            raise ValueError("Unable to set grid overlay; viewer not loaded.")
+        if any(x is None for x in (tile_um, stride_div, mpp)) and self.wsi is None:
+            raise ValueError("Unable to set grid overlay; no slide loaded.")
+
+        self.overlay = grid
+        if tile_um is None:
+            tile_um = self.wsi.tile_um
+        if stride_div is None:
+            stride_div = self.wsi.stride_div
+        if mpp is None:
+            mpp = self.wsi.mpp
+        full_extract = int(tile_um / mpp)
+        wsi_stride = int(full_extract / stride_div)
+        self._overlay_wsi_dim = (wsi_stride * (grid.shape[1]),
+                                 wsi_stride * (grid.shape[0]))
+        self._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2,
+                                        full_extract/2 - wsi_stride/2)
 
     def set_viewer(self, viewer: Any) -> None:
         """Set the main viewer.

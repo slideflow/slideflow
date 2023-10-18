@@ -128,3 +128,17 @@ class MILRenderer(Renderer):
         if self.mil_model is not None:
             kwargs['use_model'] = True
         super()._render_impl(res, *args, **kwargs)
+
+
+class MultimodalMILRenderer(Renderer):
+
+    def __init__(self, *args, mil_model_path: Optional[str] = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mil_model = None
+        self.mil_config = None
+
+    def load_model(self, mil_model_path: str, device: Optional[str] = None) -> None:
+        print("Not loading multimodal MIL model.")
+
+    def _run_models(*args, **kwargs):
+        print("Not running multimodal MIL model.")
