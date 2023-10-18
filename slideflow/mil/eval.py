@@ -536,9 +536,9 @@ def predict_from_model(
             uq=uq
         )
         if uq:
-            y_pred, y_att = pred_out
-        else:
             y_pred, y_att, y_uq = pred_out
+        else:
+            y_pred, y_att = pred_out
 
     # Update dataframe with predictions.
     for i in range(y_pred.shape[-1]):
