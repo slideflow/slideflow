@@ -172,7 +172,9 @@ class HeatmapWidget:
         """Render the current heatmap."""
 
         if outcome_names and len(outcome_names) != len(self.predictions):
-            raise ValueError("Number of outcome names must match number of outcomes.")
+            raise ValueError("Number of outcome names ({}) must match number of outcomes ({}).".format(
+                len(outcome_names), len(self.predictions)
+            ))
         if outcome_names:
             self._outcome_names = outcome_names
         elif self._outcome_names is None:
@@ -231,7 +233,7 @@ class HeatmapWidget:
         self.show = True
 
     def get_outcome_names(self, config=None):
-        if self._outcome_names is not None:
+        if self._outcome_names is not None and config is None:
             return self._outcome_names
         if config is None:
             config = self.viz._model_config
