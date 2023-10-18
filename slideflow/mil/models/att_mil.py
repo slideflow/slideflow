@@ -36,7 +36,7 @@ class Attention_MIL(nn.Module):
         )
         self._neg_inf = torch.tensor(-torch.inf)
 
-    def forward(self, bags, lens, *, return_attention=False):
+    def forward(self, bags, lens, *, return_attention=False, uq=False):
         assert bags.ndim == 3
         assert bags.shape[0] == lens.shape[0]
 
@@ -46,7 +46,26 @@ class Attention_MIL(nn.Module):
         softmax_attention_scores = torch.softmax(masked_attention_scores, dim=1)
         weighted_embedding_sums = (softmax_attention_scores * embeddings).sum(-2)
 
-        scores = self.head(weighted_embedding_sums)
+        if uq:
+            # Expand embeddings 30-fold into second dimension.
+            flat = self.head[0](weighted_embedding_sums)
+            norm = self.head[1](flat)
+            expanded = norm.unsqueeze(1).expand(-1, 30, -1)
+
+            # Enable dropout and calculate predictions.
+            _prior_status = self.training
+            self.head[2].train()
+            post_dropout = self.head[2](expanded)
+            expanded_preds = self.head[3](post_dropout)
+            self.train(_prior_status)
+
+            # Average scores across 30 dropout replicates.
+            pred_stds = torch.std(expanded_preds, dim=1)
+            pred_means = expanded_preds.mean(axis=1)
+            scores = (pred_means, pred_stds)
+
+        else:
+            scores = self.head(weighted_embedding_sums)
 
         if return_attention and bags.shape[1] > 1:
             return scores, softmax_attention_scores

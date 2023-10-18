@@ -339,7 +339,7 @@ class MILWidget(Widget):
             raise e
         return True
 
-    def _calculate_predictions(self, bags):
+    def _calculate_predictions(self, bags, **kwargs):
         """Calculate MIL predictions and attention from a set of bags."""
         if (isinstance(self.mil_config, TrainerConfigCLAM)
         or isinstance(self.mil_config.model_config, ModelConfigCLAM)):
@@ -347,7 +347,8 @@ class MILWidget(Widget):
                 self.model,
                 bags,
                 attention=self.calculate_attention,
-                device=self.viz._render_manager.device
+                device=self.viz._render_manager.device,
+                **kwargs
             )
         else:
             predictions, attention = _predict_mil(
@@ -356,7 +357,8 @@ class MILWidget(Widget):
                 attention=self.calculate_attention,
                 use_lens=self.mil_config.model_config.use_lens,
                 apply_softmax=self.mil_config.model_config.apply_softmax,
-                device=self.viz._render_manager.device
+                device=self.viz._render_manager.device,
+                **kwargs
             )
         return predictions, attention
 
@@ -527,7 +529,7 @@ class MILWidget(Widget):
     def render_tile_prediction_heatmap(self, tile_preds: np.ndarray) -> None:
         self.viz.heatmap_widget.predictions = convert_to_overlays(tile_preds)
         self.viz.heatmap_widget.render_heatmap(
-            outcome_names=self.viz.heatmap_widget._get_all_outcome_names(self.mil_params)
+            outcome_names=self.viz.heatmap_widget.get_outcome_names(self.mil_params)
         )
 
     def render_dual_heatmap(self, attention: np.ndarray, tile_preds: np.ndarray) -> None:
@@ -538,7 +540,7 @@ class MILWidget(Widget):
         self.viz.heatmap_widget.predictions = convert_to_overlays(
             np.concatenate((attention[:, :, np.newaxis], tile_preds), axis=2)
         )
-        pred_outcomes = self.viz.heatmap_widget._get_all_outcome_names(self.mil_params)
+        pred_outcomes = self.viz.heatmap_widget.get_outcome_names(self.mil_params)
         self.viz.heatmap_widget.render_heatmap(outcome_names=["Attention"] + pred_outcomes)
 
     def draw_extractor_info(self, c):

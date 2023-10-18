@@ -34,6 +34,7 @@ def eval_mil(
     *,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
+    uq: bool = False,
     **heatmap_kwargs
 ) -> pd.DataFrame:
     """Evaluate a multi-instance learning model.
@@ -82,6 +83,7 @@ def eval_mil(
         outcomes=outcomes,
         bags=bags,
         attention=True,
+        uq=uq
     )
 
     # Generate metrics.
@@ -464,7 +466,8 @@ def predict_from_model(
     outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]],
     *,
-    attention: bool = False
+    attention: bool = False,
+    uq: bool = False
 ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, List[np.ndarray]]]:
     """Generate predictions for a dataset from a saved MIL model.
 
@@ -519,19 +522,30 @@ def predict_from_model(
     # Inference.
     if (isinstance(config, TrainerConfigCLAM)
        or isinstance(config.model_config, ModelConfigCLAM)):
+        if uq: 
+            #TODO: add UQ support for CLAM
+            raise RuntimeError("CLAM models do not support UQ.")
         y_pred, y_att = _predict_clam(model, bags, attention=attention)
     else:
-        y_pred, y_att = _predict_mil(
+        pred_out = _predict_mil(
             model,
             bags,
             attention=attention,
             use_lens=config.model_config.use_lens,
-            apply_softmax=config.model_config.apply_softmax
+            apply_softmax=config.model_config.apply_softmax,
+            uq=uq
         )
+        if uq:
+            y_pred, y_att = pred_out
+        else:
+            y_pred, y_att, y_uq = pred_out
 
     # Update dataframe with predictions.
     for i in range(y_pred.shape[-1]):
         df_dict[f'y_pred{i}'] = y_pred[:, i]
+    if uq:
+        for i in range(y_uq.shape[-1]):
+            df_dict[f'uncertainty{i}'] = y_uq[:, i]
     df = pd.DataFrame(df_dict)
 
     if attention:
@@ -674,6 +688,7 @@ def _predict_mil(
     use_lens: bool = False,
     device: Optional[Any] = None,
     apply_softmax: bool = True,
+    uq: bool = False
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
     """Generate MIL predictions for a list of bags."""
 
@@ -681,6 +696,7 @@ def _predict_mil(
 
     y_pred = []
     y_att  = []
+    uncertainty = []
     device = utils._detect_device(model, device, verbose=True)
 
     # Ensure the model has attention capabilities.
@@ -708,13 +724,22 @@ def _predict_mil(
                 model_args = (loaded,)
 
             # Run inference.
+            if uq and inspect.signature(model.forward).parameters['uq']:
+                kw = dict(uq=True)
+            elif uq:
+                raise RuntimeError("Model does not support UQ.")
+            else:
+                kw = dict()
             if attention and inspect.signature(model.forward).parameters['return_attention']:
-                model_out, att = model(*model_args, return_attention=True)
+                model_out, att = model(*model_args, return_attention=True, **kw)
             elif attention:
-                model_out = model(*model_args)
+                model_out = model(*model_args, **kw)
                 att = model.calculate_attention(*model_args)
             else:
-                model_out = model(*model_args)
+                model_out = model(*model_args, **kw)
+            if uq:
+                model_out, y_uncertainty = model_out
+                uncertainty.append(uncertainty.cpu().numpy())
 
             if attention:
                 att = torch.squeeze(att)
@@ -736,7 +761,11 @@ def _predict_mil(
                 model_out = torch.nn.functional.softmax(model_out, dim=1)
             y_pred.append(model_out.cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
-    return yp, y_att
+    if uq:
+        uncertainty = np.concatenate(uncertainty, axis=0)
+        return yp, y_att, uncertainty
+    else:
+        return yp, y_att
 
 
 def _predict_mil_tiles(
