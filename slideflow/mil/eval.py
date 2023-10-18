@@ -739,7 +739,7 @@ def _predict_mil(
                 model_out = model(*model_args, **kw)
             if uq:
                 model_out, y_uncertainty = model_out
-                uncertainty.append(uncertainty.cpu().numpy())
+                uncertainty.append(y_uncertainty.cpu().numpy())
 
             if attention:
                 att = torch.squeeze(att)
