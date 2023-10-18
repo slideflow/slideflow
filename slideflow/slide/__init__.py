@@ -683,6 +683,7 @@ class _BaseLoader:
         allow_errors: bool = True,
         mask_on_fail: bool = True,
         align_by: str = 'tile',
+        ignore_outliers = True,
         **kwargs
     ) -> np.ndarray:
 
@@ -756,8 +757,7 @@ class _BaseLoader:
                         int(np.round(z_on_plane(x, y, y_centroid, y_normal)))
                     )
 
-            remove_outliers = True
-            if remove_outliers:
+            if ignore_outliers:
                 # Calculate outlier threshold (90th percentile)
                 diff = np.abs(all_tile_alignment - fit_alignment)
                 diff = np.max(diff, axis=-1)
