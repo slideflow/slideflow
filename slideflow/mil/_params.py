@@ -2,7 +2,9 @@
 
 from torch import nn
 from typing import Optional, Union, Callable
-from slideflow.mil.models import Attention_MIL, MultiModal_Attention_MIL
+from slideflow.mil.models import (
+    Attention_MIL, MultiModal_Attention_MIL, UQ_MultiModal_Attention_MIL
+)
 
 
 def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
@@ -395,7 +397,9 @@ class ModelConfigFastAI(DictConfig):
         if use_lens is None and (model == 'attention_mil'
                                  or model is Attention_MIL
                                  or model == 'mm_attention_mil'
-                                 or model is MultiModal_Attention_MIL):
+                                 or model is MultiModal_Attention_MIL
+                                 or model == 'uq_mm_attention_mil'
+                                 or model is UQ_MultiModal_Attention_MIL):
             self.use_lens = True
         elif use_lens is None:
             self.use_lens = False
