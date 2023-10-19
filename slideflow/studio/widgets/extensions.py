@@ -30,10 +30,7 @@ class ExtensionsWidget:
             image=np.array(Image.open(_off_path)), bilinear=True, mipmap=True
         )
 
-    def update_extensions(self):
-        viz = self.viz
-
-    def update_stylegan(self):
+    def toggle_stylegan(self):
         viz = self.viz
         from ..widgets.stylegan import StyleGANWidget
         if not any(isinstance(w, StyleGANWidget) for w in viz.widgets):
@@ -41,7 +38,7 @@ class ExtensionsWidget:
         else:
             viz.remove_widget(StyleGANWidget)
 
-    def update_mosaic(self):
+    def toggle_mosaic(self):
         viz = self.viz
         from ..widgets.mosaic import MosaicWidget
         if not any(isinstance(w, MosaicWidget) for w in viz.widgets):
@@ -49,7 +46,7 @@ class ExtensionsWidget:
         else:
             viz.remove_widget(MosaicWidget)
 
-    def update_segment(self):
+    def toggle_segment(self):
         viz = self.viz
         from ..widgets.segment import SegmentWidget
         if not any(isinstance(w, SegmentWidget) for w in viz.widgets):
@@ -57,7 +54,7 @@ class ExtensionsWidget:
         else:
             viz.remove_widget(SegmentWidget)
 
-    def update_mil(self):
+    def toggle_mil(self):
         viz = self.viz
         from ..widgets.mil import MILWidget
         if not any(isinstance(w, MILWidget) for w in viz.widgets):
@@ -123,7 +120,7 @@ class ExtensionsWidget:
                 official=True
             )
             if _c2:
-                self.update_mosaic()
+                self.toggle_mosaic()
             imgui.separator()
 
             _c1, self.stylegan = self.extension_checkbox(
@@ -134,7 +131,7 @@ class ExtensionsWidget:
             )
             if _c1:
                 try:
-                    self.update_stylegan()
+                    self.toggle_stylegan()
                 except Exception as e:
                     self.show_extension_error(str(e), traceback.format_exc())
                     self.stylegan = False
@@ -148,7 +145,7 @@ class ExtensionsWidget:
             )
             if _c3:
                 try:
-                    self.update_segment()
+                    self.toggle_segment()
                 except ImportError as e:
                     self.show_extension_error(
                         'Cellpose is not installed. Cellpose can be installed '
@@ -167,7 +164,7 @@ class ExtensionsWidget:
             )
             if _c4:
                 try:
-                    self.update_mil()
+                    self.toggle_mil()
                 except Exception as e:
                     self.show_extension_error(str(e), traceback.format_exc())
                     self.mil = False

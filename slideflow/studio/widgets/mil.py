@@ -6,7 +6,7 @@ import threading
 import importlib
 import traceback
 
-from array import array
+from functools import partial
 from tkinter.filedialog import askdirectory
 from os.path import join, exists, dirname, abspath
 from typing import Dict, Optional, List, Union
@@ -70,8 +70,7 @@ def _reshape_as_heatmap(
     heatmap = (heatmap - np.nanmin(heatmap)) / (np.nanmax(heatmap) - np.nanmin(heatmap))
     return heatmap
 
-def get_bags(extractor, normalizer, wsi):
-    masked_bags = extractor(wsi, normalizer=normalizer, grayspace_fraction=1)
+def reshape_bags(masked_bags):
     original_shape = masked_bags.shape
     masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
     if len(masked_bags.mask.shape):
@@ -154,7 +153,7 @@ class MILWidget(Widget):
         self._thread = None
         self._toast = None
         self._show_popup = False
-        self._progress_count = 0
+        self._progress_count = [0]
 
     def _refresh_generating_prediction(self):
         """Refresh render of asynchronous MIL prediction / attention heatmap."""
@@ -212,6 +211,10 @@ class MILWidget(Widget):
     @property
     def is_multimodal(self):
         return isinstance(self.viz.get_renderer(), MultimodalMILRenderer)
+
+    @property
+    def num_modes(self):
+        return 1 if not self.is_multimodal else len(self.extractor_params)
 
     @property
     def normalizer(self):
@@ -362,10 +365,12 @@ class MILWidget(Widget):
             )
         return predictions, attention
 
-    def _progress_callback(self, grid_idx):
-        self._progress_count += len(grid_idx)
-        percent = self._progress_count / self.viz.wsi.estimated_num_tiles
-        self._toast.set_progress(min(percent, 1.))
+    def _progress_callback(self, grid_idx, bar_id=0, max_val=None):
+        self._progress_count[bar_id] += len(grid_idx)
+        if max_val is None:
+            max_val = self.viz.wsi.estimated_num_tiles
+        percent = self._progress_count[bar_id] / max_val
+        self._toast.set_progress(min(percent, 1.), bar_id=bar_id)
 
     def _multimodal_predict_slide(self):
         bags = []
@@ -376,7 +381,12 @@ class MILWidget(Widget):
             151: 1,
             453: 2
         }
-        for extractor, params, normalizer in zip(self.extractors, self.extractor_params, self.normalizers):
+        for i in range(self.num_modes):
+            # Get the extractors, parameters, and normalizers.
+            extractor = self.extractors[i]
+            params = self.extractor_params[i]
+            normalizer = self.normalizers[i]
+
             # Load the slide.
             stride = strides[params['tile_um']]
             wsi = sf.WSI(self.viz.wsi.path, tile_um=params['tile_um'], tile_px=params['tile_px'], stride_div=stride)
@@ -387,7 +397,13 @@ class MILWidget(Widget):
             ))
 
             # Generate bags.
-            ext_bags, ext_orig_shape, ext_valid_indices, n_total = get_bags(extractor, normalizer, wsi)
+            masked_bags = extractor(
+                wsi,
+                normalizer=normalizer,
+                callback=partial(self._progress_callback, bar_id=i, max_val=wsi.estimated_num_tiles),
+                **self.viz.slide_widget.get_tile_filter_params(),
+            )
+            ext_bags, ext_orig_shape, ext_valid_indices, n_total = reshape_bags(masked_bags)
             bags.append(np.squeeze(ext_bags))
             orig_shape.append(ext_orig_shape)
             valid_indices.append(ext_valid_indices)
@@ -425,12 +441,12 @@ class MILWidget(Widget):
 
         self._generating = True
         self._triggered = True
+        self._progress_count = [0] * self.num_modes
 
         if self.is_multimodal:
             return self._multimodal_predict_slide()
 
         # Generate features with the loaded extractor.
-        self._progress_count = 0
         if viz.low_memory:
             mp_kw = dict(num_threads=1, batch_size=4)
         else:
@@ -495,7 +511,7 @@ class MILWidget(Widget):
             title="Generating prediction",
             sticky=True,
             spinner=True,
-            progress=True,
+            progress=[0 for _ in range(self.num_modes)],
             icon='info'
         )
         self._thread = threading.Thread(target=self._predict_slide)
