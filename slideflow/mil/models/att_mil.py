@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from typing import Optional, List
 
+from slideflow import log
 from slideflow.model.torch_utils import get_device
 
 # -----------------------------------------------------------------------------
@@ -46,6 +47,10 @@ class Attention_MIL(nn.Module):
         self._neg_inf = torch.tensor(-torch.inf)
         self.attention_gate = attention_gate
         self.temperature = temperature
+        if temperature != 1.:
+            log.debug("Using attention softmax temperature: {}".format(temperature))
+        if attention_gate:
+            log.debug("Using attention gate: {} percentile".format(attention_gate))
 
     def forward(self, bags, lens, *, return_attention=False, uq=False):
         assert bags.ndim == 3

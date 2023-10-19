@@ -481,11 +481,11 @@ class MILWidget(Widget):
 
         # Only show prediction and attention for tiles with non-zero
         # attention values (tiles that passed the attention gate)
-        log.debug("Masking {} zero-attention tiles:".format((self.attention == 0).sum()))
+        sf.log.debug("Masking {} zero-attention tiles:".format((self.attention == 0).sum()))
         bags = np.expand_dims(bags[0][self.attention != 0], axis=0)
         valid_indices = valid_indices[self.attention != 0]
         self.attention = self.attention[self.attention != 0]
-        log.debug("Total tiles after masking: {}".format(len(self.attention)))
+        sf.log.debug("Total tiles after masking: {}".format(len(self.attention)))
 
         # Generate tile-level predictions.
         # Reshape the bags from (1, n_bags, n_feats) to (n_bags, 1, n_feats)

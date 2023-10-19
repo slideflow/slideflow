@@ -45,7 +45,7 @@ class DictConfig:
 
     def to_dict(self):
         return {k:v for k,v in vars(self).items()
-                if k not in ('self', 'model_fn', 'loss_fn') and not k.startswith('_')}
+                if k not in ('self', 'model_fn', 'loss_fn', 'build_model') and not k.startswith('_')}
 
 
 class _TrainerConfig(DictConfig):
@@ -78,6 +78,14 @@ class _TrainerConfig(DictConfig):
     def loss_fn(self):
         """MIL loss function."""
         return self.model_config.loss_fn
+
+    def build_model(self, *args, **kwargs):
+        """Build the mode."""
+        if self.model_config.model_kwargs:
+            model_kw = self.model_config.model_kwargs
+        else:
+            model_kw = dict()
+        return self.model_config.model_fn(*args, **kwargs, **model_kw)
 
     def to_dict(self):
         """Converts this training configuration to a dictionary."""
@@ -246,6 +254,7 @@ class ModelConfigCLAM(DictConfig):
         inst_loss: str = 'ce',
         no_inst_cluster: bool = False,
         B: int = 8,
+        model_kwargs: Optional[dict] = None
     ):
         """Model configuration for CLAM models.
 
@@ -362,7 +371,8 @@ class ModelConfigFastAI(DictConfig):
         model: Union[str, Callable] = 'attention_mil',
         *,
         use_lens: Optional[bool] = None,
-        apply_softmax: bool = True
+        apply_softmax: bool = True,
+        model_kwargs: Optional[dict] = None
     ) -> None:
         """Model configuration for a non-CLAM MIL model.
 
@@ -381,6 +391,7 @@ class ModelConfigFastAI(DictConfig):
         """
         self.model = model
         self.apply_softmax = apply_softmax
+        self.model_kwargs = model_kwargs
         if use_lens is None and (model == 'attention_mil'
                                  or model is Attention_MIL
                                  or model == 'mm_attention_mil'
