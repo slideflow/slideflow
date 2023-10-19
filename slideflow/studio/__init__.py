@@ -138,6 +138,7 @@ class Studio(ImguiWindow):
         self.heatmap            = None
         self.rendered_heatmap   = None
         self.overlay            = None
+        self.overlay_original   = None
         self.rendered_qc        = None
         self.overlay_qc         = None
         self.args               = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
@@ -150,6 +151,8 @@ class Studio(ImguiWindow):
         self.y                  = None
         self.mouse_x            = None
         self.mouse_y            = None
+        self._mouse_screen_x    = 0
+        self._mouse_screen_y    = 0
         self.menu_bar_height    = self.font_size + self.spacing
 
         # Control sidebar.
@@ -415,6 +418,10 @@ class Studio(ImguiWindow):
                 self.overlay,
                 dim=self._overlay_wsi_dim,
                 offset=self._overlay_offset_wsi_dim)
+
+        # Render overlay tooltip, if hovered.
+        if self.overlay_original is not None and self.show_overlay:
+            self.viewer.render_overlay_tooltip(self.overlay_original)
 
         # Calculate location for model display.
         if (self._model_path
@@ -737,6 +744,7 @@ class Studio(ImguiWindow):
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
 
+        self._mouse_screen_x, self._mouse_screen_y = imgui.get_mouse_pos()
         # Detect right mouse click in the main display.
         clicking, cx, cy, wheel = imgui_utils.click_hidden_window(
             '##result_area',
@@ -1213,6 +1221,7 @@ class Studio(ImguiWindow):
     def clear_overlay(self) -> None:
         """Remove the current overlay image, include heatmaps and masks."""
         self.overlay = None
+        self.overlay_original = None
         if self.viewer is not None:
             self.viewer.clear_overlay()
 
@@ -1718,7 +1727,13 @@ class Studio(ImguiWindow):
         """Set the prediction message to display under the tile outline."""
         self._pred_message = msg
 
-    def set_overlay(self, overlay: np.ndarray, method: int) -> None:
+    def set_overlay(
+        self,
+        overlay: np.ndarray,
+        method: int,
+        *,
+        original: Optional[np.ndarray] = None
+    ) -> None:
         """Configure the overlay to be applied to the current view screen.
 
         Overlay is a numpy array, and method is a flag indicating the
@@ -1740,10 +1755,19 @@ class Studio(ImguiWindow):
             method (int): Mapping method for linking the overlay to the
                 whole-slide image.
 
+        Keyword args:
+            original (np.ndarray, optional): Original grid values before any
+                colorization or other modifications. Used for displaying the
+                tooltip when alt-hovering. Defaults to None.
+
         """
         if self.viewer is None:
             raise ValueError("Unable to set overlay; viewer not loaded.")
+        if original is not None and original.shape != overlay.shape:
+            raise ValueError("Unable to set grid overlay; original grid shape "
+                             "does not match grid shape.")
         self.overlay = overlay
+        self.overlay_original = original
         if method == OVERLAY_WSI:
             # Overlay maps to the entire whole-slide image,
             # with no offset needed.
@@ -1768,7 +1792,8 @@ class Studio(ImguiWindow):
         *,
         tile_um: Optional[int] = None,
         stride_div: Optional[int] = None,
-        mpp: Optional[float] = None
+        mpp: Optional[float] = None,
+        original: Optional[np.ndarray] = None
     ) -> None:
         """Set the grid overlay to the given grid.
 
@@ -1782,14 +1807,23 @@ class Studio(ImguiWindow):
                 the stride divisor of the currently loaded slide.
             mpp (float, optional): Microns per pixel. If None, uses
                 the MPP of the currently loaded slide.
+            original (np.ndarray, optional): Original grid values before any
+                colorization or other modifications. Used for displaying the
+                tooltip when alt-hovering. Defaults to None.
 
         """
         if self.viewer is None:
             raise ValueError("Unable to set grid overlay; viewer not loaded.")
         if any(x is None for x in (tile_um, stride_div, mpp)) and self.wsi is None:
             raise ValueError("Unable to set grid overlay; no slide loaded.")
+        if original is not None and original.shape[0:2] != grid.shape[0:2]:
+            raise ValueError("Unable to set grid overlay; original grid shape "
+                             "({}) does not match grid shape ({}).".format(
+                                original.shape, grid.shape
+                             ))
 
         self.overlay = grid
+        self.overlay_original = original
         if tile_um is None:
             tile_um = self.wsi.tile_um
         if stride_div is None:

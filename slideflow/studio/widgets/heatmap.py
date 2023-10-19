@@ -47,7 +47,11 @@ class HeatmapOverlay:
 
     @property
     def overlay_kwargs(self):
-        return dict(tile_um=self.tile_um, stride_div=self.stride_div)
+        return dict(
+            tile_um=self.tile_um,
+            stride_div=self.stride_div,
+            original=self.grid
+        )
 
 
 #----------------------------------------------------------------------------
@@ -218,7 +222,10 @@ class HeatmapWidget:
                                     int(self.alpha * 255),
                                     dtype=np.uint8)
             overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
-            self.viz.set_grid_overlay(overlay, **self._active_overlay.overlay_kwargs)
+            self.viz.set_grid_overlay(
+                overlay,
+                **self._active_overlay.overlay_kwargs
+            )
 
     def generate(self):
         self.viz.set_message(self._rendering_message)

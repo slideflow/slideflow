@@ -620,12 +620,7 @@ class SlideWidget:
         black = np.zeros(list(mask.shape) + [3], dtype=np.uint8)
         overlay = np.dstack((black, alpha))
         if correct_wsi_dim:
-            self.viz.overlay = overlay
-            full_extract = int(self.viz.wsi.tile_um / self.viz.wsi.mpp)
-            wsi_stride = int(full_extract / self.viz.wsi.stride_div)
-            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay.shape[1]),
-                                         wsi_stride * (self.viz.overlay.shape[0]))
-            self.viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
+            self.viz.set_grid_overlay(overlay)
 
         else:
             # Cap the maximum size, to fit in GPU memory of smaller devices (e.g. Raspberry Pi)
