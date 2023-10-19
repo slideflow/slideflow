@@ -463,7 +463,7 @@ class MILWidget(Widget):
         masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
         if len(masked_bags.mask.shape):
             mask = masked_bags.mask.any(axis=1)
-            valid_indices = np.where(~mask)
+            valid_indices = np.where(~mask)[0]
             bags = masked_bags[valid_indices]
         else:
             valid_indices = np.arange(masked_bags.shape[0])
@@ -478,6 +478,14 @@ class MILWidget(Widget):
             self.attention = self.attention[0]
         else:
             self.attention = None
+
+        # Only show prediction and attention for tiles with non-zero
+        # attention values (tiles that passed the attention gate)
+        log.debug("Masking {} zero-attention tiles:".format((self.attention == 0).sum()))
+        bags = np.expand_dims(bags[0][self.attention != 0], axis=0)
+        valid_indices = valid_indices[self.attention != 0]
+        self.attention = self.attention[self.attention != 0]
+        log.debug("Total tiles after masking: {}".format(len(self.attention)))
 
         # Generate tile-level predictions.
         # Reshape the bags from (1, n_bags, n_feats) to (n_bags, 1, n_feats)

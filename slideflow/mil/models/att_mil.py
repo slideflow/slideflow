@@ -21,12 +21,21 @@ class Attention_MIL(nn.Module):
         encoder: Optional[nn.Module] = None,
         attention: Optional[nn.Module] = None,
         head: Optional[nn.Module] = None,
+        *,
+        attention_gate: float = 0,
+        temperature: float = 1.
     ) -> None:
         """Create a new attention MIL model.
         Args:
-            n_feats:  The number of features each bag instance has.
-            n_out:  The number of output layers of the model.
-            encoder:  A network transforming bag instances into feature vectors.
+            n_feats (int):  The number of features each bag instance has.
+            n_out (int):  The number of output layers of the model.
+            encoder (nn.Module, optional):  A network transforming bag instances into feature vectors.
+        
+        Keyword args:
+            temperature (float): Softmax temperature. Defaults to 1.
+            attention_gate (float): Gate predictions prior to attention softmax based on this percentile.
+                Defaults to 0 (disabled).
+
         """
         super().__init__()
         self.encoder = encoder or nn.Sequential(nn.Linear(n_feats, z_dim), nn.ReLU())
@@ -35,6 +44,8 @@ class Attention_MIL(nn.Module):
             nn.Flatten(), nn.BatchNorm1d(z_dim), nn.Dropout(dropout_p), nn.Linear(z_dim, n_out)
         )
         self._neg_inf = torch.tensor(-torch.inf)
+        self.attention_gate = attention_gate
+        self.temperature = temperature
 
     def forward(self, bags, lens, *, return_attention=False, uq=False):
         assert bags.ndim == 3
@@ -43,12 +54,32 @@ class Attention_MIL(nn.Module):
         embeddings = self.encoder(bags)
 
         masked_attention_scores = self._masked_attention_scores(embeddings, lens, apply_softmax=False)
-        softmax_attention_scores = torch.softmax(masked_attention_scores, dim=1)
-        weighted_embedding_sums = (softmax_attention_scores * embeddings).sum(-2)
+        
+        if self.attention_gate and bags.shape[1] > 1:
+
+            # Attention threshold (75th percentile). Shape = (batch, )
+            attention_threshold = torch.quantile(masked_attention_scores, q=self.attention_gate, dim=1, keepdim=True)
+
+            # Indices of high-attention bags (above threshold). 
+            high_attention_mask = (masked_attention_scores > attention_threshold)[:, :]
+        
+            # Weighted embeddings from only high-attention bags.
+            masked_attention_scores = torch.where(
+                high_attention_mask, masked_attention_scores, torch.full_like(masked_attention_scores, self._neg_inf)
+            )
+
+        # Softmax attention. Shape = (batch, n_bags, 1)
+        softmax_attention_scores = torch.softmax(masked_attention_scores / self.temperature, dim=1)
+
+        # Weighted embeddings (attention * embeddings). Shape = (batch, n_bags, n_feats)
+        weighted_embeddings = (softmax_attention_scores * embeddings)
+
+        # Sum of weighted embeddings.
+        weighted_embeddings_sum = weighted_embeddings.sum(-2)
 
         if uq:
             # Expand embeddings 30-fold into second dimension.
-            flat = self.head[0](weighted_embedding_sums)
+            flat = self.head[0](weighted_embeddings_sum)
             norm = self.head[1](flat)
             expanded = norm.unsqueeze(1).expand(-1, 30, -1)
 
@@ -65,7 +96,7 @@ class Attention_MIL(nn.Module):
             scores = (pred_means, pred_stds)
 
         else:
-            scores = self.head(weighted_embedding_sums)
+            scores = self.head(weighted_embeddings_sum)
 
         if return_attention and bags.shape[1] > 1:
             return scores, softmax_attention_scores

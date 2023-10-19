@@ -753,6 +753,12 @@ class Studio(ImguiWindow):
             width=self.content_width - self.offset_x,
             height=self.content_height - self.offset_y,
             mouse_idx=1)
+            
+        # Ignore right click if the slide widget
+        # is capturing an ROI.
+        if self.slide_widget.capturing:
+            clicking = False
+
         # Detect dragging with left mouse in the main display.
         dragging, dx, dy = imgui_utils.drag_hidden_window(
             '##result_area',
