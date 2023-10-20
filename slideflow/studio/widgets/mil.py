@@ -413,7 +413,7 @@ class MILWidget(Widget):
             orig_shape.append(ext_orig_shape)
             valid_indices.append(ext_valid_indices)
             grid_size.append(n_total)
-            print("Generated feature bags for {} tiles".format(ext_bags.shape[0]))
+            print("Generated feature bags for {} tiles".format(ext_bags.shape[1]))
 
         # Generate slide prediction & attention.
         self.predictions, self.attention = sf.mil.eval._predict_multimodal_mil(
