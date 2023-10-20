@@ -17,6 +17,7 @@ from slideflow.mil.eval import _predict_clam, _predict_mil
 from ._utils import Widget
 from .model import draw_tile_predictions
 from .heatmap import convert_to_overlays, HeatmapOverlay
+from .slide import stride_capture
 from ..gui import imgui_utils
 from ..gui.viewer import SlideViewer
 from ..utils import prediction_to_string
@@ -154,6 +155,8 @@ class MILWidget(Widget):
         self._toast = None
         self._show_popup = False
         self._progress_count = [0]
+        self._multimodal_stride = [1]
+        self._capturing_stride = [None]
 
     def _refresh_generating_prediction(self):
         """Refresh render of asynchronous MIL prediction / attention heatmap."""
@@ -240,6 +243,7 @@ class MILWidget(Widget):
             self.viz._model_path = None
         self.viz.heatmap_widget.reset()
         self.viz.clear_prediction_message()
+        self.viz.slide_widget.enable_stride_capture = True
         self._initialize_variables()
         if self.viz._render_manager is not None:
             if close_renderer:
@@ -292,6 +296,9 @@ class MILWidget(Widget):
                 self.extractors.append(extractor)
                 self.normalizers.append(normalizer)
 
+            self._multimodal_stride = [1] * len(self.mil_params['bags_extractor'])
+            self._capturing_stride = [None] * len(self.mil_params['bags_extractor'])
+            self.viz.slide_widget.enable_stride_capture = False
             self.viz.create_toast('MIL model loaded', icon='success')
         except Exception as e:
             if allow_errors:
@@ -377,10 +384,6 @@ class MILWidget(Widget):
         orig_shape = []
         valid_indices = []
         grid_size = []
-        strides = {
-            151: 1,
-            453: 2
-        }
         for i in range(self.num_modes):
             # Get the extractors, parameters, and normalizers.
             extractor = self.extractors[i]
@@ -392,7 +395,7 @@ class MILWidget(Widget):
                 self.viz.wsi.path,
                 tile_um=params['tile_um'],
                 tile_px=params['tile_px'],
-                stride_div=strides[params['tile_um']]
+                stride=self._multimodal_stride[i]
             )
             print("Loaded slide at tile_px={}, tile_um={}, stride_div={}".format(
                 wsi.tile_px, wsi.tile_um, wsi.stride_div
@@ -429,7 +432,7 @@ class MILWidget(Widget):
         self.viz.heatmap_widget.predictions = [
             HeatmapOverlay(self.attention_heatmaps[i],
                            tile_um=self.extractor_params[i]['tile_um'],
-                           stride_div=strides[self.extractor_params[i]['tile_um']],
+                           stride_div=self._multimodal_stride[i],
                            name=f"Attention{i}")
             for i in range(len(self.attention_heatmaps))
         ]
@@ -593,6 +596,12 @@ class MILWidget(Widget):
         _draw_imgui_info(rows, viz)
         imgui_utils.vertical_break()
 
+    def draw_extractor_stride(self, i):
+        """Draw a stride capture widget for changing the stride of each extractor."""
+        self._multimodal_stride[i], self._capturing_stride[i], capture_success = stride_capture(
+            self.viz, self._multimodal_stride[i], self._capturing_stride[i], label=f'mm_{i}'
+        )
+
     def draw_mil_info(self):
         """Draw a description of the MIL model."""
 
@@ -749,6 +758,7 @@ class MILWidget(Widget):
                         shortname = name.split('/')[-1]
                         if viz.collapsing_header2(f'Extractor {i}: {shortname}', default=True):
                             self.draw_extractor_info(self.mil_params['bags_extractor'][name])
+                            self.draw_extractor_stride(i)
                     imgui_utils.vertical_break()
                 else:
                     self.draw_extractor_info(self.extractor_params)

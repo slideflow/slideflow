@@ -7,7 +7,7 @@ import glfw
 from shapely.geometry import Point
 from shapely.geometry import Polygon
 from tkinter.filedialog import askopenfilename
-from typing import Optional
+from typing import Optional, Tuple
 
 from .._renderer import CapturedException
 from ..utils import EasyDict
@@ -15,6 +15,37 @@ from ..gui import imgui_utils, text_utils, gl_utils
 from ..gui.annotator import AnnotationCapture
 
 import slideflow as sf
+
+#----------------------------------------------------------------------------
+
+def stride_capture(
+    viz: "sf.studio.Studio",
+    current_val: int,
+    capturing: Optional[int],
+    label: str = '0'
+) -> Tuple[int, Optional[int], bool]:
+    """Draw a stride capture widget."""
+    imgui.text('Stride')
+    imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+    with imgui_utils.item_width(viz.font_size * 7):
+        _stride_changed, _stride = imgui.slider_int(f'##stride_{label}',
+                                                    current_val,
+                                                    min_value=1,
+                                                    max_value=8,
+                                                    format=f'Stride %d')
+
+        # If the stride was changed by the user, update the capturing value
+        if _stride_changed:
+            capturing = _stride
+
+        # If the user released the mouse and they were capturing a value, finalize the capture
+        capture_success = imgui.is_mouse_released() and capturing is not None
+
+        if capture_success:
+            current_val = capturing  # type: ignore
+            capturing = None
+
+    return current_val, capturing, capture_success
 
 #----------------------------------------------------------------------------
 
@@ -37,11 +68,12 @@ class SlideWidget:
         self.alpha                  = 1.0
         self.stride                 = 1
         self.num_total_rois         = 0
+        self.enable_stride_capture  = True
         self._filter_grid           = None
         self._filter_thread         = None
         self._capturing_ws_thresh   = None
         self._capturing_gs_thresh   = None
-        self._capturing_stride      = None
+        self._capturing_stride      = None  # type: Optional[int]
         self._use_rois              = True
         self._rendering_message     = "Calculating tile filter..."
         self._show_filter_controls  = False
@@ -50,8 +82,8 @@ class SlideWidget:
         self._mpp_reload_kwargs     = dict()
 
         # Tile & slide filtering
-        self.apply_tile_filter      = True
-        self.apply_slide_filter     = False
+        self.apply_tile_filter      = False
+        self.apply_slide_filter     = True
         self.show_tile_filter       = False
         self.show_slide_filter      = False
         self.gs_fraction            = sf.slide.DEFAULT_GRAYSPACE_FRACTION
@@ -558,6 +590,10 @@ class SlideWidget:
             # Load tile coordinates.
             self._update_tile_coords()
 
+            # Update the slide filter.
+            if self.apply_slide_filter:
+                self.update_slide_filter(method=self._qc_methods[self.qc_idx])
+
         except Exception as e:
             self.cur_slide = None
             self.user_slide = slide
@@ -866,27 +902,20 @@ class SlideWidget:
         viz = self.viz
 
         # Stride
-        imgui.text('Stride')
-        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
-        with imgui_utils.item_width(viz.font_size * 7):
-            _stride_changed, _stride = imgui.slider_int('##stride',
-                                                        self.stride,
-                                                        min_value=1,
-                                                        max_value=16,
-                                                        format='Stride %d')
-            if _stride_changed:
-                self._capturing_stride = _stride
-            if imgui.is_mouse_released() and self._capturing_stride:
-                # Refresh stride
-                self.stride = self._capturing_stride
-                self._capturing_stride = None
-                self.apply_tile_filter = False
-                self.show_tile_filter = False
-                self.show_slide_filter = False
-                self._reset_tile_filter_and_join_thread()
-                self.viz.clear_overlay()
-                self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
-                self._update_tile_coords()
+        with imgui_utils.grayed_out(not self.enable_stride_capture):
+            stride, _capturing, capture_success = stride_capture(
+                viz, self.stride, self._capturing_stride, label='Stride'
+            )
+            if self.enable_stride_capture:
+                self.stride, self._capturing_stride = stride, _capturing
+        if self.enable_stride_capture and capture_success:
+            self.apply_tile_filter = False
+            self.show_tile_filter = False
+            self.show_slide_filter = False
+            self._reset_tile_filter_and_join_thread()
+            self.viz.clear_overlay()
+            self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
+            self._update_tile_coords()
 
         # Tile filtering
         _filter_clicked, self.apply_tile_filter = imgui.checkbox('Tile filter', self.apply_tile_filter)

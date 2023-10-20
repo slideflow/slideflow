@@ -157,7 +157,11 @@ class Toast:
         # Progress bar.
         if self.progress:
             for val in self._progress_vals:
-                imgui_utils.progress_bar(val, y_pad=2)
+                imgui_utils.progress_bar(
+                    val,
+                    y_pad=2,
+                    color=(0.55, 1, 0.47, 1)
+                )
 
         # Cleanup.
         self._height = imgui.get_window_height()
