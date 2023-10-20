@@ -3126,7 +3126,7 @@ class Project:
 
                 # Interpret results.
                 model_name = list(results.keys())[0]
-                last_epoch = sorted(list(results[model_name]['epochs'].keys()))[-1]
+                last_epoch = sorted(list(results[model_name]['epochs'].keys()), key=lambda x: int(x.replace("epoch", "")))[-1]
                 if len(results[model_name]['epochs']) > 1:
                     log.warning(f"Ambiguous epoch for SMAC. Using '{last_epoch}'.")
                 epoch_results = results[model_name]['epochs'][last_epoch]
