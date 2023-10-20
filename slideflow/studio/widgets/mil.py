@@ -388,12 +388,14 @@ class MILWidget(Widget):
             normalizer = self.normalizers[i]
 
             # Load the slide.
-            stride = strides[params['tile_um']]
-            wsi = sf.WSI(self.viz.wsi.path, tile_um=params['tile_um'], tile_px=params['tile_px'], stride_div=stride)
-            if self.viz.wsi.qc_mask is not None:
-                wsi.apply_qc_mask(self.viz.wsi.qc_mask)
+            wsi = self.viz._reload_and_return_wsi(
+                self.viz.wsi.path,
+                tile_um=params['tile_um'],
+                tile_px=params['tile_px'],
+                stride_div=strides[params['tile_um']]
+            )
             print("Loaded slide at tile_px={}, tile_um={}, stride_div={}".format(
-                wsi.tile_px, wsi.tile_um, stride
+                wsi.tile_px, wsi.tile_um, wsi.stride_div
             ))
 
             # Generate bags.

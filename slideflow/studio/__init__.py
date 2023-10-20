@@ -753,7 +753,7 @@ class Studio(ImguiWindow):
             width=self.content_width - self.offset_x,
             height=self.content_height - self.offset_y,
             mouse_idx=1)
-            
+
         # Ignore right click if the slide widget
         # is capturing an ROI.
         if self.slide_widget.capturing:
@@ -775,6 +775,104 @@ class Studio(ImguiWindow):
             dx=int(dx * self.pixel_ratio),
             dy=int(dy * self.pixel_ratio)
         )
+
+    def _reload_and_return_wsi(
+        self,
+        path: Optional[str] = None,
+        stride: Optional[int] = None,
+        use_rois: bool = True,
+        tile_px: Optional[int] = None,
+        tile_um: Optional[Union[str, int]] = None,
+        **kwargs
+    ) -> Optional[sf.WSI]:
+        """Reload and return a Whole-Slide Image, with modified parameters.
+
+        Args:
+            path (str, optional): Path to the slide to reload. If not provided,
+                will reload the currently loaded slide.
+            stride (int, optional): Stride to use for the loaded slide. If not
+                provided, will use the stride value from the currently loaded
+                slide.
+            use_rois (bool): Use ROIs from the loaded project, if available.
+
+        Returns:
+            slideflow.WSI: Reloaded slide.
+
+        """
+        if self.wsi is None and path is None:
+            return None
+
+        # Path to slide.
+        if path is None:
+            path = self.wsi.path
+
+        # Stride.
+        if stride is None and self.wsi is None:
+            stride = 1
+        elif stride is None:
+            stride = self.wsi.stride_div
+
+        # ROIs.
+        if self.wsi is not None:
+            roi_method = self.wsi.roi_method
+            prior_rois = self.wsi.rois
+            rois = None
+        elif self.P and use_rois:
+            rois = self.P.dataset().rois()
+            roi_method, prior_rois = None, None
+        else:
+            roi_method, prior_rois, rois = None, None, None
+
+        # Cap the number of workers in the CUCIM backend.
+        if sf.slide_backend() == 'cucim':
+            kwargs['num_workers'] = sf.util.num_cpu(default=4)
+
+        # Tile size.
+        if tile_px is None:
+            tile_px = (self.tile_px if self.tile_px else 256)
+        if tile_um is None:
+            tile_um = (self.tile_um if self.tile_um else 512)
+
+        # Pass through QC mask if the slide is already loaded.
+        qc_mask = None if not self.wsi else self.wsi.qc_mask
+
+        try:
+            wsi = sf.WSI(
+                path,
+                tile_px=tile_px,
+                tile_um=tile_um,
+                stride_div=stride,
+                rois=rois,
+                cache_kw=dict(
+                    tile_width=512,
+                    tile_height=512,
+                    max_tiles=-1,
+                    threaded=True,
+                    persistent=True
+                ),
+                verbose=False,
+                mpp=self.slide_widget.manual_mpp,
+                use_bounds=self.settings_widget.use_bounds,
+                **kwargs)
+        except sf.errors.IncompatibleBackendError:
+            self.create_toast(
+                title="Incompatbile slide",
+                message='Slide type "{}" is incompatible with the {} backend.'.format(
+                    sf.util.path_to_ext(path), sf.slide_backend()),
+                icon='error'
+            )
+            return None
+        else:
+            # Reapply QC
+            if qc_mask is not None:
+                wsi.apply_qc_mask(qc_mask)
+
+            # Reapply ROIs
+            if prior_rois is not None:
+                wsi.rois = prior_rois
+                wsi.roi_method = roi_method
+                wsi.process_rois()
+            return wsi
 
     def _reload_wsi(
         self,
@@ -799,63 +897,18 @@ class Studio(ImguiWindow):
             bool: True if slide loaded successfully, False otherwise.
 
         """
-        if self.wsi is None and path is None:
-            return
-        if path is None:
-            path = self.wsi.path
-        if stride is None and self.wsi is None:
-            stride = 1
-        elif stride is None:
-            stride = self.wsi.stride_div
-        if self.P and use_rois:
-            rois = self.P.dataset().rois()
-        else:
-            rois = None
-        if sf.slide_backend() == 'cucim':
-            kwargs['num_workers'] = sf.util.num_cpu(default=4)
-        if tile_px is None:
-            tile_px = (self.tile_px if self.tile_px else 256)
-        if tile_um is None:
-            tile_um = (self.tile_um if self.tile_um else 512)
-        qc_mask = None if not self.wsi else self.wsi.qc_mask
-        try:
-            self.wsi = sf.WSI(
-                path,
-                tile_px=tile_px,
-                tile_um=tile_um,
-                stride_div=stride,
-                rois=rois,
-                cache_kw=dict(
-                    tile_width=512,
-                    tile_height=512,
-                    max_tiles=-1,
-                    threaded=True,
-                    persistent=True
-                ),
-                verbose=False,
-                mpp=self.slide_widget.manual_mpp,
-                use_bounds=self.settings_widget.use_bounds,
-                **kwargs)
-        except sf.errors.IncompatibleBackendError:
-            self.create_toast(
-                title="Incompatbile slide",
-                message='Slide type "{}" is incompatible with the {} backend.'.format(
-                    sf.util.path_to_ext(path), sf.slide_backend()),
-                icon='error'
-            )
-            return False
-        else:
-            # Reapply QC
-            if qc_mask is not None:
-                self.wsi.apply_qc_mask(qc_mask)
-            # Update viewer
+        wsi = self._reload_and_return_wsi(path, stride, use_rois, tile_px, tile_um, **kwargs)
+        if wsi:
+            self.wsi = wsi
             old_viewer = self.viewer
-            self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
-            self.set_title(os.path.basename(self.wsi.path))
+            self.set_viewer(SlideViewer(wsi, **self._viewer_kwargs()))
+            self.set_title(os.path.basename(wsi.path))
             if isinstance(old_viewer, SlideViewer):
                 self.viewer.show_thumbnail = old_viewer.show_thumbnail
                 self.viewer.show_scale = old_viewer.show_scale
             return True
+        else:
+            return False
 
     def _render_prediction_message(self, message: str) -> None:
         """Render a prediction string to below the tile bounding box.
