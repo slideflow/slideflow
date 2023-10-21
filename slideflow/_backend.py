@@ -1,7 +1,7 @@
 """Configure the deep learning and slide reading backends."""
 
 import os
-import importlib
+import importlib.util
 
 # Deep learning backend - use Tensorflow if available.
 _valid_backends = ('tensorflow', 'torch')
