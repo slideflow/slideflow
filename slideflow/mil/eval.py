@@ -9,7 +9,7 @@ import numpy as np
 from rich.progress import Progress, track
 from os.path import join, exists, dirname
 from typing import Union, List, Optional, Callable, Tuple, Any, TYPE_CHECKING
-from slideflow import Dataset, log
+from slideflow import Dataset, log, errors
 from slideflow.util import path_to_name
 from slideflow.model.extractors import rebuild_extractor
 from slideflow.stats.metrics import ClassifierMetrics
@@ -20,10 +20,12 @@ from . import utils
 
 if TYPE_CHECKING:
     import torch
+    from .features import MILFeatures
     from slideflow.norm import StainNormalizer
     from slideflow.model.base import BaseFeatureExtractor
 
 # -----------------------------------------------------------------------------
+
 
 def eval_mil(
     weights: str,
@@ -538,6 +540,54 @@ def predict_from_model(
         return df, y_att
     else:
         return df
+
+
+def generate_mil_features(
+    weights: str,
+    config: _TrainerConfig,
+    dataset: "sf.Dataset",
+    bags: Union[str, np.ndarray, List[str]]
+) -> "MILFeatures":
+    """Generate activations weights from the last layer of an MIL model.
+
+    Returns MILFeatures object.
+
+    Args:
+        weights (str): Path to model weights to load.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or
+        :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for building model. If ``weights`` is a path to a
+            model directory, will attempt to read ``mil_params.json`` from this
+            location and load saved configuration. Defaults to None.
+        dataset (:class:`slideflow.Dataset`): Dataset.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+    """
+    from .features import MILFeatures
+
+    # Load model weights.
+    model, config = load_model_weights(weights, config)
+
+    # Ensure the model is valid for generating features.
+    acceptable_models = ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
+    if config.model_config.model.lower() not in acceptable_models:
+        raise errors.ModelError(
+            f"Model {config.model_config.model} is not supported.")
+
+    # Prepare bags and targets.
+    slides = dataset.slides()
+    if isinstance(bags, str):
+        bags = dataset.pt_files(bags)
+    else:
+        bags = np.array([b for b in bags if path_to_name(b) in slides])
+
+    # Ensure slide names are sorted according to the bags.
+    slides = [path_to_name(b) for b in bags]
+
+    # Calculate and return last-layer features.
+    return MILFeatures(model, bags, slides=slides, config=config, dataset=dataset)
 
 
 def generate_attention_heatmaps(
