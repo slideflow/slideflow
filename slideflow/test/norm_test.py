@@ -1,6 +1,6 @@
 import unittest
 
-import importlib
+import importlib.util
 import sys
 import os
 import numpy as np

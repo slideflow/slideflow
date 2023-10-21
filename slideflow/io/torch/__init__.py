@@ -128,6 +128,8 @@ class IndexedInterleaver(IndexedMultiTFRecordDataset):
 
         """
         self.tfrecords = np.array(tfrecords).astype(np.string_)
+        if not len(self.tfrecords):
+            raise ValueError("No tfrecords provided.")
         self.indices = self._load_indices(indices)
         self.incl_slidenames = incl_slidenames
         self.incl_loc = incl_loc
