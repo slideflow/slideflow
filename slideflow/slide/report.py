@@ -8,8 +8,9 @@ import tempfile
 import pandas as pd
 import numpy as np
 import cv2
+
 from fpdf import FPDF
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from datetime import datetime
 from os.path import join, exists
 from types import SimpleNamespace
@@ -438,7 +439,7 @@ class ExtractionReport:
                             h=19,
                             type='jpg'
                         )
-                    except RuntimeError as e:
+                    except (RuntimeError, UnidentifiedImageError) as e:
                         log.error(f"Error writing image to PDF: {e}")
             pdf.ln(20)
         self.pdf = pdf
