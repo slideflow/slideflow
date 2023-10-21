@@ -83,7 +83,9 @@ class DinoV2Features(BaseFeatureExtractor):
         cls_name = self.__class__.__name__
         return {
             'class': f'slideflow.model.extractors.dinov2.{cls_name}',
-            'kwargs': {'center_crop': self._center_crop},
-            'cfg': self.cfg,
-            'weights': self.weights,
+            'kwargs': {
+                'center_crop': self._center_crop,
+                'cfg': self.cfg,
+                'weights': self.weights,
+            },
         }
