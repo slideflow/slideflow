@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer, BaseFeatureExtractor
     from slideflow.slide import SlideReport
     from slideflow import simclr, mil
+    from slideflow.mil.features import MILFeatures
     from ConfigSpace import ConfigurationSpace, Configuration
     from smac.facade.smac_bb_facade import SMAC4BB  # noqa: F401
 
@@ -1457,17 +1458,17 @@ class Project:
         Logs classifier metrics (AUROC and AP) to the console.
 
         Args:
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
-                Training configuration, as obtained by
-                :func:`slideflow.mil.mil_config()`.
-            train_dataset (:class:`slideflow.Dataset`): Training dataset.
-            val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+            model (str): Path to MIL model.
             outcomes (str): Outcome column (annotation header) from which to
                 derive category labels.
+            dataset (:class:`slideflow.Dataset`): Dataset.
             bags (str): Either a path to directory with \*.pt files, or a list
                 of paths to individual \*.pt files. Each file should contain
                 exported feature vectors, with each file containing all tile
                 features for one patient.
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+                Training configuration, as obtained by
+                :func:`slideflow.mil.mil_config()`.
 
         Keyword args:
             exp_label (str): Experiment label, used for naming the subdirectory
@@ -2331,6 +2332,38 @@ class Project:
             process.start()
             process.join()
 
+    def generate_mil_features(
+        weights: str,
+        config: "mil._TrainerConfig",
+        dataset: "sf.Dataset",
+        outcomes: Union[str, List[str]],
+        bags: Union[str, np.ndarray, List[str]]
+    ) -> "MILFeatures":
+        """Generate activations weights from the last layer of an MIL model.
+
+        Returns MILFeatures object.
+
+        Args:
+            weights (str): Path to model weights to load.
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or 
+                :class:`slideflow.mil.TrainerConfigCLAM`): Configuration for
+                building model. If ``weights`` is a path to a model directory,
+                will attempt to read ``mil_params.json`` from this location and
+                load saved configuration. Defaults to None.
+            dataset (:class:`slideflow.Dataset`): Dataset.
+            outcomes (str, list(str)): Outcomes.
+            bags (str, list(str)): Path to bags, or list of bag file paths.
+                Each bag should contain PyTorch array of features from all tiles
+                in a slide, with the shape ``(n_tiles, n_features)``.
+
+        Returns:
+            :class:`MILFeatures`: Object containing MIL layer activations.
+
+        """
+        from .mil import generate_mil_features
+
+        return generate_mil_features(weights, config, dataset, outcomes, bags)
+
     def generate_mosaic(
         self,
         df: "DatasetFeatures",
@@ -3173,7 +3206,7 @@ class Project:
                     result = metric(epoch_results)
                 elif metric not in epoch_results:
                     raise errors.SMACError(f"Metric '{metric}' not returned from "
-                                        "training, unable to optimize.")
+                                           "training, unable to optimize.")
                 else:
                     if outcomes not in epoch_results[metric]:
                         raise errors.SMACError(
