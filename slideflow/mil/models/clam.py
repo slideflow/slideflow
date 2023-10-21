@@ -30,7 +30,7 @@ class Attn_Net(nn.Module):
         self.module = nn.Sequential(*self.module)
 
     def forward(self, x):
-        return self.module(x), x # N x n_classes
+        return self.module(x), x  # N x n_classes
 
 
 class Attn_Net_Gated(nn.Module):
@@ -63,6 +63,7 @@ class Attn_Net_Gated(nn.Module):
         return A, x
 
 # -----------------------------------------------------------------------------
+
 
 class _CLAM_Base(nn.Module):
     """
@@ -97,7 +98,7 @@ class _CLAM_Base(nn.Module):
         super().__init__()
 
         if instance_loss_fn is None:
-            instance_loss_fn  = nn.CrossEntropyLoss()
+            instance_loss_fn = nn.CrossEntropyLoss()
         self.size = self.sizes[size] if isinstance(size, str) else size
 
         # Encoder
@@ -108,7 +109,8 @@ class _CLAM_Base(nn.Module):
         # Attention net
         att_fn = Attn_Net_Gated if gate else Attn_Net
         n_att = 1 if not multi_head_attention else n_classes
-        fc.append(att_fn(L=self.size[1], D=self.size[2], dropout=dropout, n_classes=n_att))
+        fc.append(
+            att_fn(L=self.size[1], D=self.size[2], dropout=dropout, n_classes=n_att))
         self.attention_net = nn.Sequential(*fc)
 
         # Classifier head
@@ -156,7 +158,7 @@ class _CLAM_Base(nn.Module):
         all_targets = torch.cat([p_targets, n_targets], dim=0)
         all_instances = torch.cat([top_p, top_n], dim=0)
         logits = classifier(all_instances)
-        all_preds = torch.topk(logits, 1, dim = 1)[1].squeeze(1)
+        all_preds = torch.topk(logits, 1, dim=1)[1].squeeze(1)
         instance_loss = self.instance_loss_fn(logits, all_targets)
         return instance_loss, all_preds, all_targets
 
@@ -176,7 +178,7 @@ class _CLAM_Base(nn.Module):
         top_p = torch.index_select(h, dim=0, index=top_p_ids)
         p_targets = self.create_negative_targets(self.k_sample, device)
         logits = classifier(top_p)
-        p_preds = torch.topk(logits, 1, dim = 1)[1].squeeze(1)
+        p_preds = torch.topk(logits, 1, dim=1)[1].squeeze(1)
         instance_loss = self.instance_loss_fn(logits, p_targets)
         return instance_loss, p_preds, p_targets
 
@@ -217,19 +219,22 @@ class _CLAM_Base(nn.Module):
             all_preds = []
             all_targets = []
             if label.ndim < 2 or label.shape[1] != self.n_classes:
-                inst_labels = F.one_hot(label, num_classes=self.n_classes).squeeze() #binarize label
+                inst_labels = F.one_hot(
+                    label, num_classes=self.n_classes).squeeze()  # binarize label
             else:
                 inst_labels = label[0]
             for i in range(len(self.instance_classifiers)):
                 inst_label = inst_labels[i].item()
                 classifier = self.instance_classifiers[i]
-                if inst_label == 1: #in-the-class:
-                    instance_loss, preds, targets = self._inst_eval(A, h, classifier, i)
+                if inst_label == 1:  # in-the-class:
+                    instance_loss, preds, targets = self._inst_eval(
+                        A, h, classifier, i)
                     all_preds.extend(preds.cpu().numpy())
                     all_targets.extend(targets.cpu().numpy())
-                else: #out-of-the-class
+                else:  # out-of-the-class
                     if self.subtyping:
-                        instance_loss, preds, targets = self._inst_eval_out(A, h, classifier, i)
+                        instance_loss, preds, targets = self._inst_eval_out(
+                            A, h, classifier, i)
                         all_preds.extend(preds.cpu().numpy())
                         all_targets.extend(targets.cpu().numpy())
                     else:
@@ -243,7 +248,7 @@ class _CLAM_Base(nn.Module):
         logits = self._logits_from_m(M)
         if instance_eval:
             inst_loss_dict = {'instance_loss': total_inst_loss, 'inst_labels': np.array(all_targets),
-            'inst_preds': np.array(all_preds)}
+                              'inst_preds': np.array(all_preds)}
         else:
             inst_loss_dict = {}
         if return_attention:
@@ -267,10 +272,10 @@ class CLAM_SB(_CLAM_Base):
 
     sizes = {
         "small":          [1024, 512, 256],
-        "big":            [1024, 512, 384] ,
+        "big":            [1024, 512, 384],
         "multiscale":     [2048, 512, 256],
-        "xception":       [2048,256,128],
-        "xception_multi": [1880,128,64],
+        "xception":       [2048, 256, 128],
+        "xception_multi": [1880, 128, 64],
         "xception_3800":  [3800, 512, 256]
     }
 
