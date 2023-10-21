@@ -178,6 +178,7 @@ class IndexedMultiTFRecordDataset(torch.utils.data.Dataset):
         self.clip = clip
         self.seed = seed
         self.shuffle = shuffle
+        self.readers = []
         self._init_worker = _get_worker_id()
 
         # Initialize readers
