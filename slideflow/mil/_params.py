@@ -236,6 +236,7 @@ class TrainerConfigCLAM(_TrainerConfig):
         all_kw['drop_out'] = all_kw['dropout']
         del all_kw['model']
         del all_kw['dropout']
+        del all_kw['model_kwargs']
         return CLAM_Args(**all_kw)
 
 # -----------------------------------------------------------------------------
