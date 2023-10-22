@@ -41,9 +41,9 @@ class MIL_fc(nn.Module):
         self.classifier.to(get_device())
 
     def forward(self, h):
-        if isinstance(h, tuple) and len(h) == 2:
+        if isinstance(h, (tuple, list)) and len(h) == 2:
             h, label = h
-        elif isinstance(h, tuple) and len(h) == 3:
+        elif isinstance(h, (tuple, list)) and len(h) == 3:
             h, label, instance_eval = h
         if h.ndim == 3:
             h = h.squeeze()
@@ -97,9 +97,9 @@ class MIL_fc_mc(nn.Module):
         self.classifiers = self.classifiers.to(device)
 
     def forward(self, h):
-        if isinstance(h, tuple) and len(h) == 2:
+        if isinstance(h, (tuple, list)) and len(h) == 2:
             h, label = h
-        elif isinstance(h, tuple) and len(h) == 3:
+        elif isinstance(h, (tuple, list)) and len(h) == 3:
             h, label, instance_eval = h
         if h.ndim == 3:
             h = h.squeeze()

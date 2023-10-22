@@ -191,9 +191,9 @@ class _CLAM_Base(nn.Module):
         return_attention=False,
         attention_only=False
     ):
-        if isinstance(h, tuple) and len(h) == 2:
+        if isinstance(h, (tuple, list)) and len(h) == 2:
             h, label = h
-        elif isinstance(h, tuple) and len(h) == 3:
+        elif isinstance(h, (tuple, list)) and len(h) == 3:
             h, label, instance_eval = h
 
         if h.ndim == 3:
