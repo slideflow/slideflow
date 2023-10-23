@@ -160,8 +160,6 @@ def _detect_device(
 
     if device is None:
         device = next(model.parameters()).device
-        # Alternative method:
-        # if next(model.parameters()).is_cuda: device = torch.device('cuda')
         if verbose:
             log.debug(f"Auto device detection: using {device}")
     elif isinstance(device, str):

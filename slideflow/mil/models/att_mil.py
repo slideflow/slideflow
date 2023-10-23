@@ -119,6 +119,14 @@ class Attention_MIL(nn.Module):
             embeddings, lens, apply_softmax=apply_softmax
         )
 
+    def get_last_layer_activations(self, bags, lens):
+        assert bags.ndim == 3
+        assert bags.shape[0] == lens.shape[0]
+        embeddings = self.encoder(bags)
+        masked_attention_scores = self._masked_attention_scores(embeddings, lens)
+        weighted_embedding_sums = (masked_attention_scores * embeddings).sum(-2)
+        return weighted_embedding_sums
+
     def _masked_attention_scores(self, embeddings, lens, *, apply_softmax=True):
         """Calculates attention scores for all bags.
         Returns:

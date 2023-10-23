@@ -1457,17 +1457,17 @@ class Project:
         Logs classifier metrics (AUROC and AP) to the console.
 
         Args:
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
-                Training configuration, as obtained by
-                :func:`slideflow.mil.mil_config()`.
-            train_dataset (:class:`slideflow.Dataset`): Training dataset.
-            val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+            model (str): Path to MIL model.
             outcomes (str): Outcome column (annotation header) from which to
                 derive category labels.
+            dataset (:class:`slideflow.Dataset`): Dataset.
             bags (str): Either a path to directory with \*.pt files, or a list
                 of paths to individual \*.pt files. Each file should contain
                 exported feature vectors, with each file containing all tile
                 features for one patient.
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+                Training configuration, as obtained by
+                :func:`slideflow.mil.mil_config()`.
 
         Keyword args:
             exp_label (str): Experiment label, used for naming the subdirectory
@@ -3173,7 +3173,7 @@ class Project:
                     result = metric(epoch_results)
                 elif metric not in epoch_results:
                     raise errors.SMACError(f"Metric '{metric}' not returned from "
-                                        "training, unable to optimize.")
+                                           "training, unable to optimize.")
                 else:
                     if outcomes not in epoch_results[metric]:
                         raise errors.SMACError(
