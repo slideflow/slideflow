@@ -544,9 +544,10 @@ def predict_from_model(
 
 def generate_mil_features(
     weights: str,
-    config: _TrainerConfig,
     dataset: "sf.Dataset",
-    bags: Union[str, np.ndarray, List[str]]
+    bags: Union[str, np.ndarray, List[str]],
+    *,
+    config: Optional[_TrainerConfig] = None,
 ) -> "MILFeatures":
     """Generate activations weights from the last layer of an MIL model.
 

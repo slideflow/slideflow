@@ -17,12 +17,6 @@ from .models.att_mil import Attention_MIL
 from .models.transmil import TransMIL
 from .utils import load_model_weights
 
-if TYPE_CHECKING:
-    try:
-        import tensorflow as tf
-    except ImportError:
-        pass
-
 # -----------------------------------------------------------------------------
 
 class MILFeatures:
@@ -31,7 +25,7 @@ class MILFeatures:
 
     def __init__(
         self,
-        model: Optional[Union[str, "tf.keras.models.Model", "torch.nn.Module"]],
+        model: Optional[Union[str, "torch.nn.Module"]],
         bags: Union[np.ndarray, List[str], str],
         *,
         slides: Optional[list] = None,
@@ -77,6 +71,8 @@ class MILFeatures:
         if model is not None:
             # Load or build the model.
             self.model, self.use_lens = self._load_model(model, config)
+            self.set_device(device)
+            self.model.to(self.device)  # type: ignore
 
             # Ensure model is compatible.
             if not hasattr(self.model, 'get_last_layer_activations'):
@@ -92,13 +88,11 @@ class MILFeatures:
         else:
             self.model = None  # type: ignore
             self.use_lens = None  # type: ignore
+            self.device = None
             self.num_features = None
             self.predictions = None
             self.attentions = None
             self.activations = None
-
-        # Set the device.
-        self.device = self.set_device(device)
 
     def _find_bags(
         self,
@@ -140,7 +134,7 @@ class MILFeatures:
 
     def _load_model(
         self,
-        model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
+        model: Union[str, "torch.nn.Module"],
         config: Optional[_TrainerConfig]
     ) -> Tuple[Callable, bool]:
         """Loads in model from Callable or path to model weights and config.
@@ -180,9 +174,8 @@ class MILFeatures:
                 _get_mil_activations, generate activations.
             device (Any): device backend for torch tensors
         """
-        import torch
 
-        #If None, None initialization in from_df:
+        # If initialized using classmethod ``MILFeatures.from_df()``:
         if not self.model:
             return None, None, None, None
 
@@ -298,7 +291,7 @@ class MILFeatures:
 
     def _format(self, column):
         """Formats dataframe columns to numpy arrays of floats"""
-        if type(column) is not 'str' or column.dtype == 'float32':
+        if type(column) != 'str' or column.dtype == 'float32':
             return column
         numbers = re.findall(r'-?\d+\.\d+', column)
         # Convert numbers to floats
@@ -311,8 +304,8 @@ class MILFeatures:
         elif self.model is None:
             self.device = None
         else:
-            device = next(self.model.parameters()).device  # type: ignore
-        log.debug(f"Using {device}")
+            self.device = next(self.model.parameters()).device  # type: ignore
+        log.debug(f"Using device {self.device}")
 
     @classmethod
     def from_df(
