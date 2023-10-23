@@ -181,7 +181,86 @@ class _CLAM_Base(nn.Module):
         return instance_loss, p_preds, p_targets
 
     def _logits_from_m(self, M):
+        """Calculate logits from M.
+
+        Args:
+            M: attention-weighted features
+
+        Returns:
+            logits: logits
+
+        """
         return self.classifiers(M)
+
+    def _process_inputs(self, h, label=None, instance_eval=False):
+        """Process inputs to forward pass.
+
+        Args:
+            h: input features
+            label: ground truth label
+            instance_eval: whether to perform instance-level evaluation
+
+        Returns:
+            h: input features
+            label: ground truth label
+            instance_eval: whether to perform instance-level evaluation
+
+        """
+        if isinstance(h, tuple) and len(h) == 2:
+            h, label = h
+        elif isinstance(h, tuple) and len(h) == 3:
+            h, label, instance_eval = h
+        if h.ndim == 3:
+            h = h.squeeze()
+        if h.shape[1] != self.size[0]:
+            raise RuntimeError(
+                f"Input feature size ({h.shape[1]}) does not match size of "
+                f"model first linear layer ({self.size[0]}). "
+            )
+
+        return h, label, instance_eval
+
+    def instance_loss(self, A, h, label):
+        """Calculate instance loss.
+
+        Args:
+            A: attention weights
+            h: input features
+            label: ground truth label
+
+        Returns:
+            total_inst_loss: total instance loss
+            all_preds: all predictions
+            all_targets: all targets
+
+        """
+        total_inst_loss = 0.0
+        all_preds = []
+        all_targets = []
+        if label.ndim < 2 or label.shape[1] != self.n_classes:
+            inst_labels = F.one_hot(label, num_classes=self.n_classes).squeeze() #binarize label
+        else:
+            inst_labels = label[0]
+        for i in range(len(self.instance_classifiers)):
+            inst_label = inst_labels[i].item()
+            classifier = self.instance_classifiers[i]
+            if inst_label == 1: #in-the-class:
+                instance_loss, preds, targets = self._inst_eval(A, h, classifier, i)
+                all_preds.extend(preds.cpu().numpy())
+                all_targets.extend(targets.cpu().numpy())
+            else: #out-of-the-class
+                if self.subtyping:
+                    instance_loss, preds, targets = self._inst_eval_out(A, h, classifier, i)
+                    all_preds.extend(preds.cpu().numpy())
+                    all_targets.extend(targets.cpu().numpy())
+                else:
+                    continue
+            total_inst_loss += instance_loss
+
+        if self.subtyping:
+            total_inst_loss /= len(self.instance_classifiers)
+
+        return total_inst_loss, np.array(all_preds), np.array(all_targets)
 
     def forward(
         self,
@@ -189,127 +268,80 @@ class _CLAM_Base(nn.Module):
         label=None,
         instance_eval=False,
         return_attention=False,
-        attention_only=False
     ):
-        if isinstance(h, tuple) and len(h) == 2:
-            h, label = h
-        elif isinstance(h, tuple) and len(h) == 3:
-            h, label, instance_eval = h
+        """Forward pass.
 
-        if h.ndim == 3:
-            h = h.squeeze()
-        try:
-            A, h = self.attention_net(h)  # NxK
-        except RuntimeError as e:
-            raise RuntimeError(
-                f"Input feature size ({h.shape[1]}) does not match size of "
-                f"model first linear layer ({self.size[0]}). "
-                f"Error raised: {e}"
-            )
-        A = torch.transpose(A, 1, 0)  # KxN
-        if attention_only:
-            return A
-        A_raw = A
+        Args:
+            h: input features
+            label: ground truth label
+            instance_eval: whether to perform instance-level evaluation
+            return_attention: whether to return attention weights
+
+        Returns:
+            logits: logits
+            inst_loss_dict: instance loss dictionary
+            A_raw: attention weights
+
+        """
+        # Process inputs
+        h, label, instance_eval = self._process_inputs(h, label, instance_eval)
+
+        # Attention net
+        A, h = self.attention_net(h)  # NxK
+        A_raw = A = torch.transpose(A, 1, 0)  # KxN
         A = F.softmax(A, dim=1)  # softmax over N
 
+        # Instance-level evaluation
         if instance_eval:
-            total_inst_loss = 0.0
-            all_preds = []
-            all_targets = []
-            if label.ndim < 2 or label.shape[1] != self.n_classes:
-                inst_labels = F.one_hot(label, num_classes=self.n_classes).squeeze() #binarize label
-            else:
-                inst_labels = label[0]
-            for i in range(len(self.instance_classifiers)):
-                inst_label = inst_labels[i].item()
-                classifier = self.instance_classifiers[i]
-                if inst_label == 1: #in-the-class:
-                    instance_loss, preds, targets = self._inst_eval(A, h, classifier, i)
-                    all_preds.extend(preds.cpu().numpy())
-                    all_targets.extend(targets.cpu().numpy())
-                else: #out-of-the-class
-                    if self.subtyping:
-                        instance_loss, preds, targets = self._inst_eval_out(A, h, classifier, i)
-                        all_preds.extend(preds.cpu().numpy())
-                        all_targets.extend(targets.cpu().numpy())
-                    else:
-                        continue
-                total_inst_loss += instance_loss
-
-            if self.subtyping:
-                total_inst_loss /= len(self.instance_classifiers)
-
-        M = torch.mm(A, h)
-        logits = self._logits_from_m(M)
-        if instance_eval:
-            inst_loss_dict = {'instance_loss': total_inst_loss, 'inst_labels': np.array(all_targets),
-            'inst_preds': np.array(all_preds)}
+            inst_loss, inst_targets, inst_preds = self.instance_loss(A, h, label)
+            inst_loss_dict = {
+                'instance_loss': inst_loss,
+                'inst_labels': inst_targets,
+                'inst_preds': inst_preds
+            }
         else:
             inst_loss_dict = {}
+
+        # Calculate logits
+        M = torch.mm(A, h)
+        logits = self._logits_from_m(M)
+
         if return_attention:
             return logits, A_raw, inst_loss_dict
         else:
             return logits, inst_loss_dict
-    
-    def get_last_layer_activations(
-        self,
-        h,
-        label=None,
-        instance_eval=False,
-        return_attention=False,
-        attention_only=False
-    ):
-        if isinstance(h, tuple) and len(h) == 2:
-            h, label = h
-        elif isinstance(h, tuple) and len(h) == 3:
-            h, label, instance_eval = h
 
-        if h.ndim == 3:
-            h = h.squeeze()
-        try:
-            A, h = self.attention_net(h)  # NxK
-        except RuntimeError as e:
-            raise RuntimeError(
-                f"Input feature size ({h.shape[1]}) does not match size of "
-                f"model first linear layer ({self.size[0]}). "
-                f"Error raised: {e}"
-            )
-        A = torch.transpose(A, 1, 0)  # KxN
-        if attention_only:
-            return A
-        A_raw = A
+    def calculate_attention(self, h):
+        """Calculate attention weights.
+
+        Args:
+            h: input features
+            label: ground truth label
+            instance_eval: whether to perform instance-level evaluation
+
+        Returns:
+            A: attention weights
+
+        """
+        h, *_ = self._process_inputs(h, None, None)
+        A, h = self.attention_net(h)  # NxK
+        return torch.transpose(A, 1, 0)  # KxN
+
+
+
+    def get_last_layer_activations(self, h):
+        """Get activations from last layer.
+
+        Args:
+            h: input features
+
+        Returns:
+            activations: activations from last layer
+
+        """
+        h, *_ = self._process_inputs(h, None, None)
+        A, h = self.attention_net(h)  # NxK
         A = F.softmax(A, dim=1)  # softmax over N
-
-        if instance_eval:
-            total_inst_loss = 0.0
-            all_preds = []
-            all_targets = []
-            if label.ndim < 2 or label.shape[1] != self.n_classes:
-                inst_labels = F.one_hot(
-                    label, num_classes=self.n_classes).squeeze()  
-            else:
-                inst_labels = label[0]
-            for i in range(len(self.instance_classifiers)):
-                inst_label = inst_labels[i].item()
-                classifier = self.instance_classifiers[i]
-                if inst_label == 1:  # in-the-class:
-                    instance_loss, preds, targets = self._inst_eval(
-                        A, h, classifier, i)
-                    all_preds.extend(preds.cpu().numpy())
-                    all_targets.extend(targets.cpu().numpy())
-                else:  # out-of-the-class
-                    if self.subtyping:
-                        instance_loss, preds, targets = self._inst_eval_out(
-                            A, h, classifier, i)
-                        all_preds.extend(preds.cpu().numpy())
-                        all_targets.extend(targets.cpu().numpy())
-                    else:
-                        continue
-                total_inst_loss += instance_loss
-
-            if self.subtyping:
-                total_inst_loss /= len(self.instance_classifiers)
-
         M = torch.mm(A, h)
         return M, A
 
