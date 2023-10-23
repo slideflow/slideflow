@@ -336,7 +336,7 @@ class SlideMap:
             ])
             data_dict['location'] = pd.Series([l for l in locations]).astype(object)
 
-        if self.ftrs.predictions:
+        if self.ftrs.predictions and isinstance(self.ftrs, sf.DatasetFeatures):
             predictions = np.concatenate([
                 self.ftrs.predictions[slide] for slide in self.slides
             ])

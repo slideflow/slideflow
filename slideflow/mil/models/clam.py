@@ -289,7 +289,7 @@ class _CLAM_Base(nn.Module):
 
         # Attention net
         A, h = self.attention_net(h)  # NxK
-        A_raw = A = torch.transpose(A, 1, 0)  # KxN
+        A = A_raw = torch.transpose(A, 1, 0)  # KxN
         A = F.softmax(A, dim=1)  # softmax over N
 
         # Instance-level evaluation
@@ -328,8 +328,6 @@ class _CLAM_Base(nn.Module):
         A, h = self.attention_net(h)  # NxK
         return torch.transpose(A, 1, 0)  # KxN
 
-
-
     def get_last_layer_activations(self, h):
         """Get activations from last layer.
 
@@ -343,6 +341,7 @@ class _CLAM_Base(nn.Module):
         h, *_ = self._process_inputs(h, None, None)
         A, h = self.attention_net(h)  # NxK
         A = F.softmax(A, dim=1)  # softmax over N
+        A = torch.transpose(A, 1, 0)  # KxN
         M = torch.mm(A, h)
         return M, A
 

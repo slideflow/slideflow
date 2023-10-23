@@ -4,8 +4,8 @@ import pandas as pd
 import torch
 import slideflow as sf
 import os
-from typing import Union, List, Optional, Callable, Tuple, Any, TYPE_CHECKING
-from os.path import join
+from typing import Union, List, Optional, Callable, Tuple, Any, Dict
+from os.path import join, dirname, exists
 from slideflow import log, errors
 from slideflow.util import log, path_to_name
 
@@ -22,6 +22,8 @@ from .utils import load_model_weights
 class MILFeatures:
     """Loads annotations, saved layer activations / features, predictions,
     and prepares output pandas DataFrame."""
+
+    uq = None
 
     def __init__(
         self,
@@ -80,11 +82,14 @@ class MILFeatures:
                     f"Model {model.__class__.__name__} is not supported; could not "
                     "find method 'get_last_layer_activations'")
 
-            # Generat activations.
+            # Generate activations.
             (self.num_features,
              self.predictions,
              self.attentions,
              self.activations) = self._get_mil_activations(bags)
+
+            # Find tile locations from bags.
+            self.locations = self._get_bag_locations(bags)  # type: ignore
         else:
             self.model = None  # type: ignore
             self.use_lens = None  # type: ignore
@@ -93,6 +98,7 @@ class MILFeatures:
             self.predictions = None
             self.attentions = None
             self.activations = None
+            self.locations = None
 
     def _find_bags(
         self,
@@ -131,6 +137,30 @@ class MILFeatures:
                              if path_to_name(b) in dataset.slides()])
         else:
             return np.array(bags)
+
+    def _get_bag_locations(self, bags: List[str]) -> Optional[Dict[str, np.ndarray]]:
+        """Get tile locations from bags.
+
+        Args:
+            bags (list): List of feature bags.
+
+        Returns:
+            dict: Dictionary mapping slide names to tile locations.
+
+        """
+        if bags is None:
+            return None
+        locations = {}
+        for bag in bags:
+            slide = path_to_name(bag)
+            bag_index = join(dirname(bag), f'{slide}.index.npz')
+            if not exists(bag_index):
+                log.warning(
+                    f"Could not find index file for bag {bag}. Unable to determine "
+                    "tile location information.")
+                return None
+            locations[slide] = np.load(bag_index)['arr_0']
+        return locations
 
     def _load_model(
         self,
@@ -444,3 +474,15 @@ class MILFeatures:
         df = pd.DataFrame.from_dict(df_dict)
         df['slide'] = df.index
         return df
+
+    def map_activations(self, **kwargs) -> "sf.SlideMap":
+        """Map activations with UMAP.
+
+        Keyword args:
+            ...
+
+        Returns:
+            sf.SlideMap
+
+        """
+        return sf.SlideMap.from_features(self, **kwargs)
