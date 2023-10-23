@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 import slideflow as sf
 import os
-from typing import Union, List, Optional, Callable, Any, TYPE_CHECKING
+from typing import Union, List, Optional, Callable, Tuple, Any, TYPE_CHECKING
 from os.path import join
 from slideflow import log, errors
 from slideflow.util import log, path_to_name
@@ -26,12 +26,12 @@ if TYPE_CHECKING:
 # -----------------------------------------------------------------------------
 
 class MILFeatures:
-    """Loads annotations, saved layer activations / features, predictions, 
+    """Loads annotations, saved layer activations / features, predictions,
     and prepares output pandas DataFrame."""
 
     def __init__(
         self,
-        model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
+        model: Optional[Union[str, "tf.keras.models.Model", "torch.nn.Module"]],
         bags: Union[np.ndarray, List[str], str],
         *,
         slides: Optional[list] = None,
@@ -41,89 +41,134 @@ class MILFeatures:
         device: Optional[Any] = None
     ) -> None:
         """Loads in model from Callable or path to model weights and config.
-        Saves activations from last hidden layer weights, predictions, and 
+        Saves activations from last hidden layer weights, predictions, and
         attention weight, storing to internal parameters ``self.activations``,
-         ``self.predictions``, ``self.attentions`` dictionaries 
+         ``self.predictions``, ``self.attentions`` dictionaries
         mapping slides to arrays of weights.
         Converts annotations to DataFrame if necessary.
 
         Args:
             model (str): Path to model from which to calculate activations.
             bags (str, list): Path or list of feature bags.
-            slides (list): List of slides. 
+            slides (list): List of slides.
         Keyword Args:
             config (:class:`TrainerConfig`]: Trainer for MIL model,
             dataset (:class:`slideflow.Dataset`): Dataset from which to
                 generate activations.
-            outcomes (str, List[str]): Outcome(s) of the model, 
+            outcomes (str, List[str]): Outcome(s) of the model,
             attention_pooling (str): pooling strategy for MIL model layers,
             device (Any): device backend for torch tensors
         """
 
         # --- Prepare data ----------------------------------------------------
+        if attention_pooling is not None and attention_pooling not in ('avg', 'max'):
+            raise ValueError(
+                "Unrecognized attention pooling strategy '{}'".format(
+                    attention_pooling))
+        self.attention_pooling = attention_pooling
+
         # Find bags.
+        bags = self._find_bags(bags, dataset, slides)
+
+        # Determine slides.
+        self.slides = np.array([path_to_name(b) for b in bags])
+
+        # --- Prepare model ---------------------------------------------------
+        if model is not None:
+            # Load or build the model.
+            self.model, self.use_lens = self._load_model(model, config)
+
+            # Ensure model is compatible.
+            if not hasattr(self.model, 'get_last_layer_activations'):
+                raise errors.ModelError(
+                    f"Model {model.__class__.__name__} is not supported; could not "
+                    "find method 'get_last_layer_activations'")
+
+            # Generat activations.
+            (self.num_features,
+             self.predictions,
+             self.attentions,
+             self.activations) = self._get_mil_activations(bags)
+        else:
+            self.model = None  # type: ignore
+            self.use_lens = None  # type: ignore
+            self.num_features = None
+            self.predictions = None
+            self.attentions = None
+            self.activations = None
+
+        # Set the device.
+        self.device = self.set_device(device)
+
+    def _find_bags(
+        self,
+        bags: Union[np.ndarray, List[str], str],
+        dataset: Optional["sf.Dataset"],
+        slides: Optional[List[str]]
+    ) -> np.ndarray:
+        """Find bags from path, dataset, or slides.
+
+        Args:
+            bags (str): Path to bags.
+            dataset (:class:`slideflow.Dataset`): Dataset from which to
+                generate activations.
+            slides (list): List of slides.
+
+        Returns:
+            np.ndarray: Array of bag paths.
+
+        """
         if isinstance(bags, str) and dataset is not None:
-            bags = dataset.pt_files(bags)
+            return dataset.pt_files(bags)
         elif isinstance(bags, str) and slides:
-            bags = np.array([
+            return np.array([
                 join(bags, f) for f in os.listdir(bags)
                 if f.endswith('.pt') and path_to_name(f) in slides
             ])
         elif isinstance(bags, str):
-            bags = np.array([
+            return np.array([
                 join(bags, f) for f in os.listdir(bags)
                 if f.endswith('.pt')
             ])
         elif slides:
-            bags = np.array([b for b in bags if path_to_name(b) in slides])
+            return np.array([b for b in bags if path_to_name(b) in slides])
         elif dataset:
-            bags = np.array([b for b in bags 
+            return np.array([b for b in bags
                              if path_to_name(b) in dataset.slides()])
-
-        # Determine slides.
-        if bags:
-            self.slides = np.array([path_to_name(b) for b in bags])
         else:
-            self.slides = None
+            return np.array(bags)
 
-        # --- Prepare model ---------------------------------------------------
-        # Load or build the model.
+    def _load_model(
+        self,
+        model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
+        config: Optional[_TrainerConfig]
+    ) -> Tuple[Callable, bool]:
+        """Loads in model from Callable or path to model weights and config.
+
+        Returns model and use_lens spec for generating model args in
+        _get_mil_activations.
+
+        Args:
+            model (str): Path to model from which to calculate activations.
+            config (:class:`TrainerConfig`): Trainer for MIL model,
+
+        Returns:
+            model (Callable): Model from which to calculate activations.
+            use_lens (bool): Spec used for generating model args in
+                _get_mil_activations.
+
+        """
         if isinstance(model, str):
-            self.model, config = load_model_weights(model, config)
-            if isinstance(self.model, Attention_MIL) or isinstance(self.model, TransMIL):
+            model, config = load_model_weights(model, config)
+            if isinstance(model, Attention_MIL) or isinstance(model, TransMIL):
                 use_lens = config.model_config.use_lens
             else:
                 use_lens = False
         else:
-            self.model = model
-            if isinstance(model, Attention_MIL):
-                use_lens = True
-            else:
-                use_lens = False
+            use_lens = isinstance(model, Attention_MIL)
+        return model, use_lens  # type: ignore
 
-        # Ensure model is compatible.
-        acceptable_models = ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
-        if config and config.model_config.model.lower() not in acceptable_models:
-            raise errors.ModelError(
-                f"Model {config.model_config.model} is not supported.")
-        
-        # --- Generate activations --------------------------------------------
-        n_feat, preds, attention, act = self._get_mil_activations(
-            self.model, bags, attention_pooling, use_lens, device
-        )
-        self.num_features = n_feat
-        self.predictions = preds
-        self.attentions = attention
-        self.activations = act
-
-    def _get_mil_activations(
-        self,
-        model: Callable,
-        bags: Union[np.ndarray, List[str]],
-        attention_pooling: str,
-        use_lens: bool,
-        device: Optional[Any]
-    ):
+    def _get_mil_activations(self, bags: Union[np.ndarray, List[str]]):
         """Loads in model from Callable and calculates predictions,
         attentions, and activations weights.
 
@@ -131,81 +176,65 @@ class MILFeatures:
             model (Callable): Model from which to calculate activations.
             bags (list): List of feature bags,
             attention_pooling (str): pooling strategy for MIL model layers,
-            use_lens (bool): Spec used for generating model args in 
+            use_lens (bool): Spec used for generating model args in
                 _get_mil_activations, generate activations.
             device (Any): device backend for torch tensors
         """
         import torch
 
         #If None, None initialization in from_df:
-        if not model and not bags:
+        if not self.model:
             return None, None, None, None
-
-        # Auto-detect device.
-        if device is None:
-            if next(model.parameters()).is_cuda:
-                log.debug("Auto device detection: using CUDA")
-                device = torch.device('cuda')
-            else:
-                log.debug("Auto device detection: using CPU")
-                device = torch.device('cpu')
-        elif isinstance(device, str):
-            log.debug(f"Using {device}")
-            device = torch.device(device)
 
         y_pred = []
         y_att = []
         hs = []
-        log.info("Generating predictions...")
+        log.info("Calculating layer activations...")
 
         for bag in bags:
-            loaded = torch.load(bag).to(device)
+            # Load the bag.
+            loaded = torch.load(bag).to(self.device)
             loaded = torch.unsqueeze(loaded, dim=0)
+
             with torch.no_grad():
-                if use_lens:
+
+                # Apply lens to model input.
+                if self.use_lens:
                     lens = torch.from_numpy(
-                        np.array([loaded.shape[1]])).to(device)
+                        np.array([loaded.shape[1]])).to(self.device)
                     model_args = (loaded, lens)
                 else:
                     model_args = (loaded,)
 
-                if isinstance(model, (Attention_MIL, TransMIL)):
-                    model_out = model(*model_args)
-                    h = model.get_last_layer_activations(*model_args)
-                    att = torch.squeeze(model.calculate_attention(*model_args))
-                    if len(att.shape) == 2:
-                        # Attention needs to be pooled
-                        if attention_pooling == 'avg':
-                            att = torch.mean(att, dim=-1)
-                        elif attention_pooling == 'max':
-                            att = torch.amax(att, dim=-1)
-                        else:
-                            raise ValueError(
-                                "Unrecognized attention pooling strategy \
-                                    '{}'".format(
-                                    attention_pooling
-                                )
-                            )
+                # Attention MIL and TransMIL.
+                if isinstance(self.model, (Attention_MIL, TransMIL)):
+                    model_out = self.model(*model_args)
+                    h = self.model.get_last_layer_activations(*model_args)  # type: ignore
+                    att = torch.squeeze(self.model.calculate_attention(*model_args))  # type: ignore
+                    if len(att.shape) == 2 and not self.attention_pooling:
+                        raise ValueError("Attention pooling required for 2D attention")
+                    elif len(att.shape) == 2:
+                        att = self._attention_pool(att)
                     y_att.append(att.cpu().numpy())
-                elif isinstance(model, (MIL_fc, MIL_fc_mc)):
-                    model_out = model(*model_args)
-                    h = model.get_last_layer_activations(*model_args)
-                    y_att = None
-                else:
-                    model_out = model(*model_args)[0]
-                    h, A = model.get_last_layer_activations(*model_args)
 
+                # FC MIL (CLAM implementation)
+                elif isinstance(self.model, (MIL_fc, MIL_fc_mc)):
+                    model_out = self.model(*model_args)
+                    h = self.model.get_last_layer_activations(*model_args)  # type: ignore
+                    y_att = None
+
+                # CLAM models.
+                else:
+                    model_out = self.model(*model_args)[0]
+                    h, A = self.model.get_last_layer_activations(*model_args)  # type: ignore
                     if A.shape[0] == 1:
                         y_att.append(A.cpu().numpy()[0])
                     else:
                         y_att.append(A.cpu().numpy())
 
-                if device == torch.device('cuda'):
-                    h = h.to(torch.device("cpu"))
-                hs.append(h)
-
-                y_pred.append(torch.nn.functional.softmax(
-                    model_out, dim=1).cpu().numpy())
+                hs.append(h.cpu())
+                yp = torch.nn.functional.softmax(model_out, dim=1).cpu().numpy()
+                y_pred.append(yp)
         yp = np.concatenate(y_pred, axis=0)
 
         num_features, acts = self._get_activations(hs)
@@ -214,8 +243,18 @@ class MILFeatures:
 
         return num_features, preds, atts, acts
 
+    def _attention_pool(self, att):
+        """Pools attention weights according to attention_pooling strategy"""
+        assert len(att.shape) == 2
+        if self.attention_pooling == 'avg':
+            return torch.mean(att, dim=-1)
+        elif self.attention_pooling == 'max':
+            return torch.amax(att, dim=-1)
+        else:
+            raise ValueError(f"Unknown attention pooling strategy {self.attention_pooling}")
+
     def _get_activations(self, hlw):
-        """Formats list of activation weights into dictionary of lists, 
+        """Formats list of activation weights into dictionary of lists,
         matched by slide."""
         if hlw is None or self.slides is None:
             return None, {}
@@ -238,7 +277,7 @@ class MILFeatures:
             return annotations
 
     def _get_attentions(self, atts):
-        """Formats list of attention weights into dictionary of lists, 
+        """Formats list of attention weights into dictionary of lists,
         matched by slide."""
         if atts is None or self.slides is None:
             return None
@@ -248,7 +287,7 @@ class MILFeatures:
         return attentions
 
     def _get_predictions(self, preds):
-        """Formats list of prediction weights into dictionary of lists, 
+        """Formats list of prediction weights into dictionary of lists,
         matched by slide."""
         if preds is None or self.slides is None:
             return None
@@ -265,15 +304,26 @@ class MILFeatures:
         # Convert numbers to floats
         return np.array([float(num) for num in numbers])
 
+    def set_device(self, device: Any) -> None:
+        """Auto-detect device."""
+        if device is not None:
+            self.device = device
+        elif self.model is None:
+            self.device = None
+        else:
+            device = next(self.model.parameters()).device  # type: ignore
+        log.debug(f"Using {device}")
+
     @classmethod
     def from_df(
-        cls, 
-        df: "pd.core.frame.DataFrame", 
+        cls,
+        df: "pd.core.frame.DataFrame",
         *,
         annotations: Union[str, "pd.core.frame.DataFrame"] = None
     ) -> None:
-        """Load MILFeatures of activations, as exported by 
+        """Load MILFeatures of activations, as exported by
         :meth:`MILFeatures.to_df()`"""
+
         obj = cls(None, None)
         if 'slide' in df.columns:
             obj.slides = df['slide'].values
@@ -336,14 +386,14 @@ class MILFeatures:
         return obj
 
     def to_df(
-        self, 
-        predictions: bool = True, 
+        self,
+        predictions: bool = True,
         attentions: bool = True
     ) -> pd.core.frame.DataFrame:
         """Export activations to a pandas DataFrame.
 
         Returns:
-            pd.core.frame.DataFrame: Dataframe with columns 'slide', 
+            pd.core.frame.DataFrame: Dataframe with columns 'slide',
                 'activations', 'predictions', and 'attentions'.
 
         """

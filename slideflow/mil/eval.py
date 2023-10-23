@@ -568,11 +568,10 @@ def generate_mil_features(
     from .features import MILFeatures
 
     # Load model weights.
-    model, config = load_model_weights(weights, config)
+    model, config = utils.load_model_weights(weights, config)
 
     # Ensure the model is valid for generating features.
-    acceptable_models = ['transmil', 'attention_mil', 'clam_sb', 'clam_mb']
-    if config.model_config.model.lower() not in acceptable_models:
+    if not hasattr(model, 'get_last_layer_activations'):
         raise errors.ModelError(
             f"Model {config.model_config.model} is not supported.")
 
