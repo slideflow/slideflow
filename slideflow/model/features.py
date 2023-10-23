@@ -1317,7 +1317,10 @@ class _FeatureGenerator:
 
         self.num_features = self.generator.num_features
         self.num_classes = 0 if not include_preds else self.generator.num_classes
-        if self.is_torch():
+        if self.is_torch() and hasattr(self.model, 'device'):
+            from slideflow.model import torch_utils
+            self.device = self.model.device or torch_utils.get_device(device)
+        elif self.is_torch():
             from slideflow.model import torch_utils
             self.device = torch_utils.get_device(device)
         else:
