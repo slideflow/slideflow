@@ -208,9 +208,9 @@ class _CLAM_Base(nn.Module):
             instance_eval: whether to perform instance-level evaluation
 
         """
-        if isinstance(h, tuple) and len(h) == 2:
+        if isinstance(h, (list, tuple)) and len(h) == 2:
             h, label = h
-        elif isinstance(h, tuple) and len(h) == 3:
+        elif isinstance(h, (list, tuple)) and len(h) == 3:
             h, label, instance_eval = h
         if h.ndim == 3:
             h = h.squeeze()
