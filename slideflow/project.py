@@ -43,7 +43,6 @@ if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer, BaseFeatureExtractor
     from slideflow.slide import SlideReport
     from slideflow import simclr, mil
-    from slideflow.mil.features import MILFeatures
     from ConfigSpace import ConfigurationSpace, Configuration
     from smac.facade.smac_bb_facade import SMAC4BB  # noqa: F401
 
