@@ -2332,38 +2332,6 @@ class Project:
             process.start()
             process.join()
 
-    def generate_mil_features(
-        weights: str,
-        config: "mil._TrainerConfig",
-        dataset: "sf.Dataset",
-        outcomes: Union[str, List[str]],
-        bags: Union[str, np.ndarray, List[str]]
-    ) -> "MILFeatures":
-        """Generate activations weights from the last layer of an MIL model.
-
-        Returns MILFeatures object.
-
-        Args:
-            weights (str): Path to model weights to load.
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or 
-                :class:`slideflow.mil.TrainerConfigCLAM`): Configuration for
-                building model. If ``weights`` is a path to a model directory,
-                will attempt to read ``mil_params.json`` from this location and
-                load saved configuration. Defaults to None.
-            dataset (:class:`slideflow.Dataset`): Dataset.
-            outcomes (str, list(str)): Outcomes.
-            bags (str, list(str)): Path to bags, or list of bag file paths.
-                Each bag should contain PyTorch array of features from all tiles
-                in a slide, with the shape ``(n_tiles, n_features)``.
-
-        Returns:
-            :class:`MILFeatures`: Object containing MIL layer activations.
-
-        """
-        from .mil import generate_mil_features
-
-        return generate_mil_features(weights, config, dataset, outcomes, bags)
-
     def generate_mosaic(
         self,
         df: "DatasetFeatures",
