@@ -26,7 +26,6 @@ if TYPE_CHECKING:
 
 # -----------------------------------------------------------------------------
 
-
 def eval_mil(
     weights: str,
     dataset: Dataset,
@@ -39,7 +38,7 @@ def eval_mil(
     uq: bool = False,
     **heatmap_kwargs
 ) -> pd.DataFrame:
-    """Evaluate a multi-instance learning model.
+    """Evaluate a multiple-instance learning model.
 
     Saves results for the evaluation in the target folder, including
     predictions (parquet format), attention (Numpy format for each slide),
@@ -62,6 +61,80 @@ def eval_mil(
     Keyword arguments:
         outdir (str): Path at which to save results.
         attention_heatmaps (bool): Generate attention heatmaps for slides.
+            Not available for multi-modal MIL models. Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
+
+    """
+    model, config = utils.load_model_weights(weights, config)
+
+    eval_kwargs = dict(
+        dataset=dataset,
+        outcomes=outcomes,
+        bags=bags,
+        config=config,
+        outdir=outdir
+    )
+
+    if config.is_multimodal:
+        if attention_heatmaps:
+            raise ValueError(
+                "Attention heatmaps cannot yet be exported for multi-modal "
+                "models. Please use Slideflow Studio for visualization of "
+                "multi-modal attention."
+            )
+        if heatmap_kwargs:
+            kwarg_names = ', '.join(list(heatmap_kwargs.keys()))
+            raise ValueError(
+                f"Unrecognized keyword arguments: '{kwarg_names}'. Attention "
+                "heatmap keyword arguments are not currently supported for "
+                "multi-modal models."
+            )
+        return _eval_multimodal_mil(model, **eval_kwargs)
+    else:
+        return _eval_mil(
+            model,
+            attention_heatmaps=attention_heatmaps,
+            uq=uq,
+            **heatmap_kwargs,
+            **eval_kwargs
+        )
+
+
+def _eval_mil(
+    model: "torch.nn.Module",
+    dataset: Dataset,
+    outcomes: Union[str, List[str]],
+    bags: Union[str, List[str]],
+    config: _TrainerConfig,
+    *,
+    outdir: str = 'mil',
+    attention_heatmaps: bool = False,
+    uq: bool = False,
+    **heatmap_kwargs
+) -> pd.DataFrame:
+    """Evaluate a standard, single-mode multi-instance learning model.
+
+    Args:
+        model (torch.nn.Module): Loaded PyTorch MIL model.
+        dataset (sf.Dataset): Dataset to evaluation.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for building model.
+
+    Keyword arguments:
+        outdir (str): Path at which to save results.
+        attention_heatmaps (bool): Generate attention heatmaps for slides.
             Defaults to False.
         interpolation (str, optional): Interpolation strategy for smoothing
             attention heatmaps. Defaults to 'bicubic'.
@@ -74,8 +147,14 @@ def eval_mil(
             separately. Defaults to None.
 
     """
-    # Load model and configuration.
-    model, config = utils.load_model_weights(weights, config)
+
+    # Prepare lists of bags.
+    labels, _ = dataset.labels(outcomes, format='id')
+    slides = list(labels.keys())
+    if isinstance(bags, str):
+        bags = dataset.pt_files(bags)
+    else:
+        bags = np.array([b for b in bags if path_to_name(b) in slides])
 
     # Generate predictions.
     df, y_att = predict_from_model(
@@ -128,7 +207,7 @@ def eval_mil(
         generate_attention_heatmaps(
             outdir=join(model_dir, 'heatmaps'),
             dataset=dataset,
-            bags=bags,
+            bags=bags,  # type: ignore
             attention=y_att,
             **heatmap_kwargs
         )
@@ -136,34 +215,48 @@ def eval_mil(
     return df
 
 
-def eval_multimodal_mil(
-    weights: str,
+def _eval_multimodal_mil(
+    model: "torch.nn.Module",
     dataset: Dataset,
     outcomes: Union[str, List[str]],
     bags: List[List[str]],
-    config: Optional[_TrainerConfig] = None,
+    config: _TrainerConfig,
     *,
     outdir: str = 'mil',
-    attention_heatmaps: bool = False,
-    **heatmap_kwargs
 ) -> pd.DataFrame:
-    """Evaluate a multi-modal (e.g. multi-magnification) MIL model."""
+    """Evaluate a multi-modal (e.g. multi-magnification) MIL model.
 
-    import torch
+    Args:
+        model (torch.nn.Module): Loaded PyTorch MIL model.
+        dataset (sf.Dataset): Dataset to evaluation.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for building model.
 
+    Keyword arguments:
+        outdir (str): Path at which to save results.
+        attention_heatmaps (bool): Generate attention heatmaps for slides.
+            Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
+
+    """
      # Prepare ground-truth labels
     labels, unique = dataset.labels(outcomes, format='id')
 
     # Prepare bags and targets
     bags, slides = utils._get_nested_bags(dataset, bags)
     y_true = np.array([labels[s] for s in slides])
-
-    # Detect feature size from bags
-    n_features = torch.load(bags[0][0]).shape[-1]
-    n_out = len(unique)
-
-    # Load model
-    model, config = utils.load_model_weights(weights, config)
 
     # Inference.
     y_pred, y_att = _predict_multimodal_mil(
@@ -172,7 +265,10 @@ def eval_multimodal_mil(
 
     # Generate metrics
     for idx in range(y_pred.shape[-1]):
-        m = ClassifierMetrics(y_true=(y_true == idx).astype(int), y_pred=y_pred[:, idx])
+        m = ClassifierMetrics(
+            y_true=(y_true == idx).astype(int),
+            y_pred=y_pred[:, idx]
+        )
         log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
         log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
 
@@ -196,10 +292,8 @@ def eval_multimodal_mil(
     sf.stats.metrics.categorical_metrics(metrics_df, level='slide')
 
     # Export attention
-    # TODO: implement this for multi-modal models
-
-    # Attention heatmaps
-    # TODO: implement this for multi-modal models
+    if y_att:
+        _export_attention(join(model_dir, 'attention'), y_att, df.slide.values)
 
     return df
 
@@ -524,7 +618,7 @@ def predict_from_model(
     # Inference.
     if (isinstance(config, TrainerConfigCLAM)
        or isinstance(config.model_config, ModelConfigCLAM)):
-        if uq: 
+        if uq:
             #TODO: add UQ support for CLAM
             raise RuntimeError("CLAM models do not support UQ.")
         y_pred, y_att = _predict_clam(model, bags, attention=attention)
@@ -675,19 +769,33 @@ def generate_attention_heatmaps(
 
 def _export_attention(
     dest: str,
-    y_att: List[np.ndarray],
+    y_att: Union[List[np.ndarray], List[List[np.ndarray]]],
     slides: List[str]
 ) -> None:
     """Export attention scores to a directory."""
     if not exists(dest):
         os.makedirs(dest)
     for slide, att in zip(slides, y_att):
-        if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
-            out_path = join(dest, f'{slide}_att.npy')
-            np.save(out_path, att)
-        else:
+
+        if isinstance(att, (list, tuple)) and not sf.util.zip_allowed():
+            raise RuntimeError(
+                "Cannot export multimodal attention scores to a directory (NPZ) "
+                "when ZIP functionality is disabled. Enable zip functionality "
+                "by setting 'SF_ALLOW_ZIP=1' in your environment, or by "
+                "wrapping your script in 'with sf.util.enable_zip():'.")
+
+        elif isinstance(att, (list, tuple)):
+            out_path = join(dest, f'{slide}_att.npz')
+            np.savez(out_path, *att)
+
+        elif sf.util.zip_allowed():
             out_path = join(dest, f'{slide}_att.npz')
             np.savez(out_path, att)
+
+        else:
+            out_path = join(dest, f'{slide}_att.npy')
+            np.save(out_path, att)
+
     log.info(f"Attention scores exported to [green]{out_path}[/]")
 
 

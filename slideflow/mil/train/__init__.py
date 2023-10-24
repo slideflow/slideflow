@@ -53,6 +53,64 @@ def train_mil(
             in the ``{project root}/mil`` folder, where training history
             and the model will be saved.
         attention_heatmaps (bool): Generate attention heatmaps for slides.
+            Not available for multi-modal MIL models. Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
+
+    """
+    mil_kwargs = dict(
+        train_dataset=train_dataset,
+        val_dataset=val_dataset,
+        outcomes=outcomes,
+        bags=bags,
+        outdir=outdir,
+        exp_label=exp_label,
+        **kwargs
+    )
+    if config.is_multimodal:
+        return _train_multimodal_mil(config, **mil_kwargs)  # type: ignore
+    else:
+        return _train_mil(config, **mil_kwargs)
+
+
+def _train_mil(
+    config: _TrainerConfig,
+    train_dataset: Dataset,
+    val_dataset: Optional[Dataset],
+    outcomes: Union[str, List[str]],
+    bags: Union[str, List[str]],
+    *,
+    outdir: str = 'mil',
+    exp_label: Optional[str] = None,
+    **kwargs
+):
+    """Train a multiple-instance learning (MIL) model.
+
+    Args:
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Trainer and model configuration.
+        train_dataset (:class:`slideflow.Dataset`): Training dataset.
+        val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+        outcomes (str): Outcome column (annotation header) from which to
+            derive category labels.
+        bags (str): Either a path to directory with \*.pt files, or a list
+            of paths to individual \*.pt files. Each file should contain
+            exported feature vectors, with each file containing all tile
+            features for one patient.
+
+    Keyword args:
+        outdir (str): Directory in which to save model and results.
+        exp_label (str): Experiment label, used for naming the subdirectory
+            in the ``{project root}/mil`` folder, where training history
+            and the model will be saved.
+        attention_heatmaps (bool): Generate attention heatmaps for slides.
             Defaults to False.
         interpolation (str, optional): Interpolation strategy for smoothing
             attention heatmaps. Defaults to 'bicubic'.
@@ -106,7 +164,7 @@ def train_mil(
     )
 
 
-def train_multimodal_mil(
+def _train_multimodal_mil(
     config: TrainerConfigFastAI,
     train_dataset: Dataset,
     val_dataset: Optional[Dataset],
@@ -115,11 +173,19 @@ def train_multimodal_mil(
     *,
     outdir: str = 'mil',
     exp_label: Optional[str] = None,
-    **kwargs
+    attention_heatmaps: bool = False,
 ):
     """Train a multi-modal (e.g. multi-magnification) MIL model."""
 
     from . import _fastai
+
+    # Export attention & heatmaps.
+    if attention_heatmaps:
+        raise ValueError(
+                "Attention heatmaps cannot yet be exported for multi-modal "
+                "models. Please use Slideflow Studio for visualization of "
+                "multi-modal attention."
+            )
 
     log.info("Training FastAI Multi-modal MIL model with config:")
     log.info(f"{config}")
@@ -200,7 +266,9 @@ def train_multimodal_mil(
     df.to_parquet(pred_out)
     log.info(f"Predictions saved to [green]{pred_out}[/]")
 
-    # TODO: export multi-magnification attention & attention heatmaps.
+    # Export attention.
+    if y_att:
+        _export_attention(join(outdir, 'attention'), y_att, df.slide.values)
 
     return learner
 
@@ -438,7 +506,7 @@ def build_fastai_learner(
 
     if config.aggregation_level == 'slide':
         # Aggregate feature bags across slides.
-        
+
         bags, targets, train_idx, val_idx = utils.aggregate_trainval_bags_by_slide(
             bags,  # type: ignore
             labels,

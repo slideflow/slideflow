@@ -2,9 +2,6 @@
 
 from torch import nn
 from typing import Optional, Union, Callable
-from slideflow.mil.models import (
-    Attention_MIL, MultiModal_Attention_MIL, UQ_MultiModal_Attention_MIL
-)
 
 
 def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
@@ -47,7 +44,13 @@ class DictConfig:
 
     def to_dict(self):
         return {k:v for k,v in vars(self).items()
-                if k not in ('self', 'model_fn', 'loss_fn', 'build_model') and not k.startswith('_')}
+                if k not in (
+                    'self',
+                    'model_fn',
+                    'loss_fn',
+                    'build_model',
+                    'is_multimodal'
+                ) and not k.startswith('_')}
 
 
 class _TrainerConfig(DictConfig):
@@ -80,6 +83,11 @@ class _TrainerConfig(DictConfig):
     def loss_fn(self):
         """MIL loss function."""
         return self.model_config.loss_fn
+
+    @property
+    def is_multimodal(self):
+        """Whether the model is multimodal."""
+        return self.model_config.is_multimodal
 
     def build_model(self, *args, **kwargs):
         """Build the mode."""
@@ -244,6 +252,7 @@ class TrainerConfigCLAM(_TrainerConfig):
 class ModelConfigCLAM(DictConfig):
 
     valid_models = ['clam_sb', 'clam_mb', 'mil_fc_mc', 'mil_fc']
+    is_multimodal = False
 
     def __init__(
         self,
@@ -366,7 +375,6 @@ class ModelConfigFastAI(DictConfig):
         'transmil',
         'bistro.transformer',
         'mm_attention_mil',
-        'uq_mm_attention_mil',
     ]
 
     def __init__(
@@ -395,12 +403,8 @@ class ModelConfigFastAI(DictConfig):
         self.model = model
         self.apply_softmax = apply_softmax
         self.model_kwargs = model_kwargs
-        if use_lens is None and (model == 'attention_mil'
-                                 or model is Attention_MIL
-                                 or model == 'mm_attention_mil'
-                                 or model is MultiModal_Attention_MIL
-                                 or model == 'uq_mm_attention_mil'
-                                 or model is UQ_MultiModal_Attention_MIL):
+        if use_lens is None and (hasattr(self.model_fn, 'use_lens')
+                                 and self.model_fn.use_lens):
             self.use_lens = True
         elif use_lens is None:
             self.use_lens = False
@@ -412,12 +416,11 @@ class ModelConfigFastAI(DictConfig):
         if not isinstance(self.model, str):
             return self.model
         elif self.model.lower() == 'attention_mil':
+            from .models import Attention_MIL
             return Attention_MIL
         elif self.model.lower() == 'mm_attention_mil':
+            from .models import MultiModal_Attention_MIL
             return MultiModal_Attention_MIL
-        elif self.model.lower() == 'uq_mm_attention_mil':
-            from slideflow.mil.models.att_mil import UQ_MultiModal_Attention_MIL
-            return UQ_MultiModal_Attention_MIL
         elif self.model.lower() == 'transmil':
             from .models import TransMIL
             return TransMIL
@@ -430,6 +433,12 @@ class ModelConfigFastAI(DictConfig):
     @property
     def loss_fn(self):
         return nn.CrossEntropyLoss
+
+    @property
+    def is_multimodal(self):
+        return (self.model.lower() == 'mm_attention_mil'
+                or (hasattr(self.model_fn, 'is_multimodal')
+                    and self.model_fn.is_multimodal))
 
     def to_dict(self):
         d = super().to_dict()

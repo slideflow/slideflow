@@ -96,9 +96,7 @@ def save_index(
     locations: Optional[np.ndarray] = None
 ) -> None:
     """Save an array as an index file."""
-    if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
-        np.save(index_file + '.npy', index_array)
-    else:
+    if sf.util.zip_allowed():
         loc_kw = dict()
         if locations is not None:
             loc_kw['locations'] = locations
@@ -107,6 +105,8 @@ def save_index(
             arr_0=index_array,
             **loc_kw
         )
+    else:
+        np.save(index_file + '.npy', index_array)
 
 
 def find_index(tfrecord: str) -> Optional[str]:

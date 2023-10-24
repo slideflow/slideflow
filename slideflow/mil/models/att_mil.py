@@ -13,6 +13,9 @@ class Attention_MIL(nn.Module):
     Implementation from: https://github.com/KatherLab/marugoto
 
     """
+
+    use_lens = True
+
     def __init__(
         self,
         n_feats: int,
@@ -31,7 +34,7 @@ class Attention_MIL(nn.Module):
             n_feats (int):  The number of features each bag instance has.
             n_out (int):  The number of output layers of the model.
             encoder (nn.Module, optional):  A network transforming bag instances into feature vectors.
-        
+
         Keyword args:
             temperature (float): Softmax temperature. Defaults to 1.
             attention_gate (float): Gate predictions prior to attention softmax based on this percentile.
@@ -59,15 +62,15 @@ class Attention_MIL(nn.Module):
         embeddings = self.encoder(bags)
 
         masked_attention_scores = self._masked_attention_scores(embeddings, lens, apply_softmax=False)
-        
+
         if self.attention_gate and bags.shape[1] > 1:
 
             # Attention threshold (75th percentile). Shape = (batch, )
             attention_threshold = torch.quantile(masked_attention_scores, q=self.attention_gate, dim=1, keepdim=True)
 
-            # Indices of high-attention bags (above threshold). 
+            # Indices of high-attention bags (above threshold).
             high_attention_mask = (masked_attention_scores > attention_threshold)[:, :]
-        
+
             # Weighted embeddings from only high-attention bags.
             masked_attention_scores = torch.where(
                 high_attention_mask, masked_attention_scores, torch.full_like(masked_attention_scores, self._neg_inf)
@@ -187,6 +190,7 @@ class MultiModal_Attention_MIL(nn.Module):
     """
 
     multimodal = True
+    use_lens = True
 
     def __init__(
         self,
