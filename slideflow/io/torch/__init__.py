@@ -765,7 +765,7 @@ def _apply_otsu(wsi):
 
 def multi_slide_loader(
     slides: List["sf.WSI"],
-    splits: Optional[Dict[str, float]] = None,
+    weights: Optional[Union[List[float], np.ndarray]] = None,
     shard: Optional[Tuple[int, int]] = None,
     infinite: bool = True,
     **kwargs
@@ -776,9 +776,8 @@ def multi_slide_loader(
 
     Args:
         slides (list of str): List of slide paths.
-        splits (dict):  Dictionary of (key, value) pairs, where the key is used
-            to construct the data and index path(s) and the value determines
-            the contribution of each split to the batch.
+        weights (list of float):  Weights for sampling from each slide.
+            If not provided, will perform uniform sampling.
         shard (tuple(int, int), optional): If provided, will only extract
             tiles from the shard with index `shard[0]` out of `shard[1]`
             shards. Defaults to None.
@@ -791,10 +790,10 @@ def multi_slide_loader(
         interleaving from the provided slides.
 
     """
-    if splits is not None:
-        splits_list = splits
+    if weights is not None:
+        weights_list = weights
     else:
-        splits_list = np.array(  # type: ignore
+        weights_list = np.array(  # type: ignore
             [0.5 for t in range(len(slides))]
         )
     loaders = [slide.torch(lazy_iter=True,
@@ -802,7 +801,7 @@ def multi_slide_loader(
                            infinite=infinite,
                            **kwargs)
                for slide in slides]
-    return RandomSampler(loaders, splits_list, shard=None)
+    return RandomSampler(loaders, weights_list, shard=None)
 
 # -------------------------------------------------------------------------
 
@@ -1208,7 +1207,7 @@ def interleave(
         random_sampler = multi_slide_loader(
             otsu_list,
             pool=pool,
-            splits=prob_weights,
+            weights=prob_weights,
             shard=(rank, num_replicas),
             incl_slidenames=True,
             incl_loc=incl_loc,

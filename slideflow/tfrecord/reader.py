@@ -7,11 +7,12 @@ import io
 import os
 import struct
 import numpy as np
+import slideflow as sf
+
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
-
 from slideflow.tfrecord import iterator_utils
-from slideflow.util import example_pb2, extract_feature_dict, log
+from slideflow.util import example_pb2, extract_feature_dict, tfrecord2idx, log
 
 # -----------------------------------------------------------------------------
 
@@ -35,6 +36,117 @@ def _read_data(file, length_bytes, crc_bytes, datum_bytes) -> memoryview:
     if file.readinto(crc_bytes) != 4:
         raise RuntimeError("Failed to read the end token.")
     return datum_bytes_view
+
+# -----------------------------------------------------------------------------
+
+class TFRecord:
+
+    """Convenience class for reading/inspecting a tfrecord.
+
+    This class provides a convenicence wrapper for quickly inspecting and
+    indexing a TFRecord, but is less efficient than using `tfrecord_loader`.
+
+    """
+    def __init__(
+        self,
+        path: str,
+        index: Optional[Union[str, np.ndarray]] = None,
+        *,
+        create_index: bool = True
+    ) -> None:
+        self.path = path
+        self._fields = None  # type: Optional[str]
+        self._img_format = None  # type: Optional[str]
+        self._length = None # type: Optional[int]
+
+        # Load the index.
+        if index is None and not tfrecord2idx.find_index(path):
+            if create_index_on_missing:
+                tfrecord2idx.create_index(path)
+                self.index = tfrecord2idx.load_index(path)
+            else:
+                self.index = None
+        elif index is None:
+            self.index = tfrecord2idx.load_index(path)
+        elif isinstance(index, str):
+            self.index = tfrecord2idx.load_index(index)
+        elif isinstance(index, np.ndarray):
+            self.index = index
+        else:
+            raise ValueError("Index must be None, str, or np.ndarray")
+
+        # Load the locations if the index is not None.
+        index_path = tfrecord2idx.find_index(path)
+        if index_path:
+            self.locations = tfrecord2idx.get_locations_from_index(index_path)
+        else:
+            self.locations = None
+
+    def __len__(self) -> int:
+        if self.index is not None:
+            return len(self.index)
+        elif self._length is not None:
+            return self._length
+        else:
+            self._length = sf.io.get_tfrecord_length(self.path)
+            return self._length
+
+    def __getitem__(self, idx):
+        return sf.io.get_tfrecord_by_index(
+            self.path, idx, index_array=self.index
+        )
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+    @property
+    def img_format(self) -> str:
+        """Return the image format of the tfrecord."""
+        if self._img_format is None:
+            tfr_format = sf.io.detect_tfrecord_format(self.path)
+            if tfr_format is None:
+                raise ValueError("Unable to detect tfrecord format; file is empty.")
+            self._fields, self._img_format = tfr_format
+        return self._img_format  # type: ignore
+
+    @property
+    def fields(self) -> str:
+        """Return the image format of the tfrecord."""
+        if self._fields is None:
+            tfr_format = sf.io.detect_tfrecord_format(self.path)
+            if tfr_format is None:
+                raise ValueError("Unable to detect tfrecord fields; file is empty.")
+            self._fields, self._img_format = tfr_format
+        return self._fields  # type: ignore
+
+    def __repr__(self) -> str:
+        return f"<TFRecord(path='{self.path}') length={len(self)}>"
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+    def get_size(self) -> int:
+        """Return the size of the tfrecord file."""
+        return os.path.getsize(self.path)
+
+    def get_record_by_xy(self, x: int, y: int, decode: bool = False):
+        """Return the record at the given x, y coordinates.
+
+        Args:
+            x (int): x-coordinate of the record.
+            y (int): y-coordinate of the record.
+            decode (bool, optional): Decode the image. Defaults to False.
+
+        """
+        return sf.io.get_tfrecord_by_location(
+            self.path,
+            (x, y),
+            locations_array=self.locations,
+            index_array=self.index,
+            decode=decode
+        )
+
 
 # -----------------------------------------------------------------------------
 
@@ -298,7 +410,6 @@ class IndexedTFRecordIterator:
         self.file.close()
 
 
-
 class ExampleIterator(TFRecordIterator):
     def __init__(
         self,
@@ -428,7 +539,7 @@ class SequenceIterator(TFRecordIterator):
 
 def tfrecord_loader(
     data_path: str,
-    index: None,
+    index: Optional[np.ndarray] = None,
     description: Union[List[str], Dict[str, str], None] = None,
     shard: Optional[Tuple[int, int]] = None,
     clip: Optional[int] = None,
@@ -449,8 +560,8 @@ def tfrecord_loader(
     data_path: str
         TFRecord file path.
 
-    index_path: str or None
-        Index file path. Can be set to None if no file is available.
+    index_path: np.ndarray or None
+        Loaded index. Can be set to None if no file is available.
 
     description: list or dict of str, optional, default=None
         List of keys or dict of (key, value) pairs to extract from each
@@ -508,8 +619,8 @@ def tfrecord_loader(
 
 def multi_tfrecord_loader(
     paths: List[bytes],
-    indices,
-    splits: Optional[Dict[str, float]],
+    indices: Optional[List[np.ndarray]],
+    weights: Optional[Union[List[float], np.ndarray]],
     description: Union[List[str], Dict[str, str], None] = None,
     sequence_description: Union[List[str], Dict[str, str], None] = None,
     compression_type: Optional[str] = None,
@@ -526,13 +637,12 @@ def multi_tfrecord_loader(
     paths: list of str
         List of tfrecord paths.
 
-    indices: dict mapping tfrecord names to index paths.
-        Input index path pattern.
+    indices: list of np.ndarray
+        Loaded index files for each tfrecord.
 
-    splits: dict
-        Dictionary of (key, value) pairs, where the key is used to
-        construct the data and index path(s) and the value determines
-        the contribution of each split to the batch.
+    weights: list of float
+        Weights for sampling from each tfrecord. If not provided, will
+        perform uniform sampling.
 
     description: list or dict of str, optional, default=None
         List of keys or dict of (key, value) pairs to extract from each
@@ -579,12 +689,12 @@ def multi_tfrecord_loader(
             datum_bytes=datum_bytes)
         for i, tfr_path in enumerate(paths)
     ]
-    if splits is not None:
-        splits_list = splits
+    if weights is not None:
+        weights_list = weights_list
     else:
-        splits_list = np.array(  # type: ignore
+        weights_list = np.array(  # type: ignore
             [0.5 for t in range(len(paths))]
         )
     return iterator_utils.RandomSampler(
-        loaders, splits_list, infinite=infinite, shard=None
+        loaders, weights_list, infinite=infinite, shard=None
     )

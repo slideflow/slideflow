@@ -264,10 +264,9 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
     index_pattern: str or None
         Input index path pattern.
 
-    splits: dict
-        Dictionary of (key, value) pairs, where the key is used to
-        construct the data and index path(s) and the value determines
-        the contribution of each split to the batch.
+    weights: list of float
+        Weights for sampling from each tfrecord. If not provided, will
+        perform uniform sampling.
 
     description: list or dict of str, optional, default=None
         List of keys or dict of (key, value) pairs to extract from each
@@ -310,7 +309,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self,
         paths: List[str],
         indices: List[str],
-        splits: Optional[Dict[str, float]],
+        weights: Optional[Union[List[float], np.ndarray]],
         description: Union[List[str], Dict[str, str], None] = None,
         shuffle_queue_size: Optional[int] = None,
         transform: Callable[[dict], Any] = None,
@@ -323,7 +322,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         super(MultiTFRecordDataset, self).__init__()
         self.paths = paths
         self.indices = indices
-        self.splits = splits
+        self.weights = weights
         self.description = description
         self.sequence_description = sequence_description
         self.shuffle_queue_size = shuffle_queue_size
@@ -338,7 +337,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self.loader = reader.multi_tfrecord_loader(
             paths=self.paths,
             indices=self.indices,
-            splits=self.splits,
+            weights=self.weights,
             description=self.description,
             sequence_description=self.sequence_description,
             compression_type=self.compression_type,

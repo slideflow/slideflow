@@ -27,7 +27,10 @@ FEATURE_DESCRIPTION = {
 
 # -----------------------------------------------------------------------------
 
-def create_index(tfrecord_file: str, index_file: str) -> None:
+def create_index(
+    tfrecord_file: str,
+    index_file: Optional[str] = None
+) -> str:
     """Create index from the tfrecords file.
 
     Stores starting location (byte) and length (in bytes) of each
@@ -41,6 +44,10 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
     index_file: str
         Path where to store the index file.
     """
+    if index_file is None:
+        index_file = join(dirname(tfrecord_file),
+                          sf.util.path_to_name(tfrecord_file) + '.index')
+
     infile = open(tfrecord_file, "rb")
     start_bytes_array = []
     loc_array = []
@@ -87,14 +94,14 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
     infile.close()
     if loc_array:
         loc_array = np.array(loc_array)
-    save_index(np.array(start_bytes_array), index_file, locations=loc_array)
+    return save_index(np.array(start_bytes_array), index_file, locations=loc_array)
 
 
 def save_index(
     index_array: np.ndarray,
     index_file: str,
     locations: Optional[np.ndarray] = None
-) -> None:
+) -> str:
     """Save an array as an index file."""
     if sf.util.zip_allowed():
         loc_kw = dict()
@@ -105,8 +112,10 @@ def save_index(
             arr_0=index_array,
             **loc_kw
         )
+        return index_file + '.npz'
     else:
         np.save(index_file + '.npy', index_array)
+        return index_file + '.npy'
 
 
 def find_index(tfrecord: str) -> Optional[str]:
@@ -143,6 +152,7 @@ def index_has_locations(index: str) -> bool:
         return False
     else:
         return 'locations' in np.load(index).files
+
 
 def get_locations_from_index(index: str):
     if index.endswith('npy'):
@@ -209,7 +219,9 @@ def read_tfrecord_length(tfrecord: str) -> int:
 def get_tfrecord_by_index(
     tfrecord: str,
     index: int,
+    *,
     compression_type: Optional[str] = None,
+    index_array: Optional[np.ndarray] = None
 ) -> Dict:
     """Read a specific record in a TFRecord file.
 
@@ -243,7 +255,7 @@ def get_tfrecord_by_index(
 
     # Load the TFRecord index file.
     if index:
-        idx = load_index(tfrecord)
+        idx = index_array if index_array is not None else load_index(tfrecord)
         if idx is None:
             raise ValueError(f"Could not find tfrecord index for {tfrecord}")
         if index >= idx.shape[0]:
