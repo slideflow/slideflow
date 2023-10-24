@@ -577,7 +577,7 @@ class CTransPathFeatures(BaseFeatureExtractor):
     """
 
     tag = 'ctranspath'
-    license_statement = """GNU General Public License v3.0."""
+    license = """GNU General Public License v3.0"""
     citation = """
 @{wang2022,
   title={Transformer-based Unsupervised Contrastive Learning for Histopathological Image Classification},

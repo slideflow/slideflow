@@ -78,10 +78,22 @@ For example, to create a dataset from a set of slides, with a configured TFRecor
         tile_um='10x'
     )
 
+When creating a :class:`Dataset` manually from paths, tfrecords should be organized into subdirectories named according to tile size. Using the above example, the tfrecords directory should look like:
+
+.. code-block:: none
+
+    /tfrecords
+    └── 299px_10x
+        ├── slide1.tfrecords
+        ├── slide2.tfrecords
+        ├── slide3.tfrecords
+        └── ...
+
+
 Filtering
 *********
 
-Datasets can be filtered (by slides or patients) through several mechanisms:
+Datasets can be filtered through several mechanisms:
 
 - **filters**: A dictionary, where keys are clinical annotation headers and values are the variable states which should be included. All remaining slides are removed from the dataset.
 - **filter_blank**: A list of headers; any slide with a blank value in the clinical annotations in one of these columns will be excluded.

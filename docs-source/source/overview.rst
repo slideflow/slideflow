@@ -3,11 +3,11 @@ Overview
 
 Slideflow provides tools for easily building and testing a variety of deep learning models for digital pathology.
 
-This section provides a high-level overview of the most common application: building and testing a weakly supervised predictive model. Slideflow supports many other tasks, including :ref:`self-supervised learning <simclr_ssl>`, :ref:`generative adversarial networks <stylegan>`, and :ref:`deployment & visualization <studio>`, which are discussed in subsequent sections.
+This section provides a high-level overview of the most common application: building and testing a weakly supervised predictive model. Slideflow supports many other tasks, including :ref:`multiple-instance learning (MIL) <mil>`, :ref:`self-supervised learning (SSL) <simclr_ssl>`, :ref:`generative adversarial networks (GANs) <stylegan>`, and :ref:`deployment & visualization <studio>`, which are discussed in subsequent sections.
 
 .. figure:: overview.png
 
-    *High-level overview of common tasks.*
+    *High-level overview of model building.*
 
 The pipeline for a deep learning classification experiment is separated into three phases.
 
@@ -33,7 +33,9 @@ Step 1: Prepare a dataset
 Step 2: Train a model
 *********************
 
-- **Choose hyperparameters**. Choose a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done manually, or :ref:`hyperparameters can be optimized <hyperparameter_optimization>` via grid search or Bayesian optimization.
+- **Choose model type**. Choose the endpoint (e.g. classification, regression, time-to-event) and type of model (tile-based or multiple-instance learning).
+
+- **Set hyperparameters**. Choose a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done manually, or :ref:`hyperparameters can be optimized <hyperparameter_optimization>` via grid search or Bayesian optimization.
 
 - **Initiate training**. :ref:`Train your model <training>`, taking note of training and validation performance (e.g. accuracy, AUROC, AP, R-squared, C-index).
 
@@ -45,7 +47,7 @@ Step 3: Evaluate the model
 Step 4: Generate heatmaps
 *************************
 
-- **Generate heatmaps**: :ref:`Generate heatmaps <generate_heatmaps>` of predictions across slides in the held-out dataset to assist with interpretability.
+- **Generate heatmaps**: :ref:`Generate heatmaps <generate_heatmaps>` of predictions across slides in the held-out dataset to assist with interpretability. For MIL models, heatmaps of both predictions and attention can be generated.
 
 .. image:: heatmap_example.png
 

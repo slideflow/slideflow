@@ -265,7 +265,7 @@ Use the control panel to increase or decrease the mosaic grid size, or to change
 Multiple-Instance Learning
 --------------------------
 
-Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see :ref:`clam_mil` for more information.
+Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see :ref:`mil` for more information.
 
 Start by navigating to the Extensions tab in the bottom-left corner, and enable the "Multiple-instance Learning" extension. A new icon will appear in the left-hand toolbar, which can be used to open the MIL widget. Models are loaded by either clicking the "Load MIL model" button, selecting "File -> Load MIL Model...", or by dragging-and-dropping an MIL model folder onto the window.
 

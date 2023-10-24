@@ -19,7 +19,7 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
 ## Requirements
 - Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
 - [Tensorflow](https://www.tensorflow.org/) 2.5-2.11 _or_ [PyTorch](https://pytorch.org/) 1.9-2.0
-  - GAN and MIL functions require PyTorch <1.13
+  - GAN functions require PyTorch <1.13
 
 ### Optional
 - [Libvips](https://libvips.github.io/libvips/) >= 8.9 (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files).
@@ -193,7 +193,7 @@ Dolezal, J. M., Kochanny, S., Dyer, E., *et al*. Slideflow: Deep Learning for Di
 
 ```
 @misc{dolezal2023slideflow,
-      title={Slideflow: Deep Learning for Digital Histopathology with Real-Time Whole-Slide Visualization}, 
+      title={Slideflow: Deep Learning for Digital Histopathology with Real-Time Whole-Slide Visualization},
       author={James M. Dolezal and Sara Kochanny and Emma Dyer and Andrew Srisuwananukorn and Matteo Sacco and Frederick M. Howard and Anran Li and Prajval Mohan and Alexander T. Pearson},
       year={2023},
       eprint={2304.04142},

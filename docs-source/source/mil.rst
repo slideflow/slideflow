@@ -1,9 +1,9 @@
-.. _clam_mil:
+.. _mil:
 
 Multiple-Instance Learning (MIL)
 ================================
 
-In addition to standard tile-based neural networks, Slideflow also supports training multiple-instance learning (MIL) models. Several architectures are available, including `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), and `transformer MIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``). Custom architectures can also be trained. MIL training requires PyTorch.
+In addition to standard tile-based neural networks, Slideflow also supports training multiple-instance learning (MIL) models. Several architectures are available, including `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), `TransMIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``), and `HistoBistro Transformer <https://github.com/peng-lab/HistoBistro>`_ (``"bistro.transformer"``). Custom architectures can also be trained. MIL training requires PyTorch.
 
 Generating features
 *******************
@@ -28,8 +28,6 @@ This will calculate features using activations from the post-convolutional layer
 
 .. code-block:: python
 
-    from slideflow.model import build_feature_extractor
-
     resnet50 = build_feature_extractor(
         'resnet50_imagenet',
         layers=['conv1_relu', 'conv3_block1_2_relu'],
@@ -37,7 +35,7 @@ This will calculate features using activations from the post-convolutional layer
         tile_px=299
     )
 
-If a model architecture is available in both the Tensorflow and PyTorch backends, Slideflow will default to using the active backend. You can manually set the feature extractor backend using `backend`.
+If a model architecture is available in both the Tensorflow and PyTorch backends, Slideflow will default to using the active backend. You can manually set the feature extractor backend using ``backend``.
 
 .. code-block:: python
 
@@ -59,8 +57,6 @@ You can also calculate features from any model trained in Slideflow. The first a
 
 .. code-block:: python
 
-    from slideflow.model import build_feature_extractor
-
     # Calculate features from trained model.
     features = build_feature_extractor(
         '/path/to/model',
@@ -70,26 +66,41 @@ You can also calculate features from any model trained in Slideflow. The first a
 Pretrained Feature Extractor
 ----------------------------
 
-Slideflow includes two pathology-specific pretrained feature extractors, RetCCL and CTransPath. Use :func:`slideflow.model.build_feature_extractor` to build one of these feature extractors by name. Weights for these pretrained networks will be automatically downloaded from `HuggingFace <https://github.com/jamesdolezal/slideflow/blob/untagged-bf8d980a34d2a9ddfde5/huggingface.co/jamesdolezal/retccl>`_.
+Slideflow includes several pathology-specific pretrained feature extractors:
+
+- `CTransPath <https://github.com/Xiyue-Wang/TransPath>`_
+- `RetCCL <https://github.com/Xiyue-Wang/RetCCL>`_
+- `HistoSSL <https://github.com/owkin/HistoSSLscaling>`_
+- `PLIP <https://github.com/PathologyFoundation/plip>`_
+
+Use :func:`slideflow.model.build_feature_extractor` to build one of these feature extractors by name. Weights for these pretrained networks will be automatically downloaded.
 
 .. code-block:: python
 
-    from slideflow.model import build_feature_extractor
-
-    retccl = build_feature_extractor('retccl', tile_px=299)
+    ctranspath = build_feature_extractor('ctranspath', tile_px=299)
 
 Self-Supervised Learning
 ------------------------
 
-Finally, you can also generate features from a :ref:`self-supervised learning <simclr_ssl>` model. Use ``'simclr'`` as the first argument to ``build_feature_extractor()``, and pass the path to a saved model (or saved checkpoint file) via the keyword argument ``ckpt``.
+Finally, you can also generate features from a trained :ref:`self-supervised learning <simclr_ssl>` model (either `SimCLR <https://github.com/jamesdolezal/simclr>`_ or `DinoV2 <https://github.com/jamesdolezal/dinov2>`_).
+
+For SimCLR models, use ``'simclr'`` as the first argument to ``build_feature_extractor()``, and pass the path to a saved model (or saved checkpoint file) via the keyword argument ``ckpt``.
 
 .. code-block:: python
-
-    from slideflow.model import build_feature_extractor
 
     simclr = build_feature_extractor(
         'simclr',
         ckpt='/path/to/simclr.ckpt'
+    )
+
+For DinoV2 models, use ``'dinov2'`` as the first argument, and pass the model configuration YAML file to ``cfg`` and the teacher checkpoint weights to ``weights``.
+
+.. code-block:: python
+
+    dinov2 = build_feature_extractor(
+        'dinov2',
+        weights='/path/to/teacher_checkpoint.pth',
+        cfg='/path/to/config.yaml'
     )
 
 Exporting Features
@@ -104,10 +115,10 @@ Once you have prepared a feature extractor, features can be generated for a data
     dataset = P.dataset(tile_px=299, tile_um=302)
 
     # Create a feature extractor.
-    retccl = build_feature_extractor('retccl', tile_px=299)
+    ctranspath = build_feature_extractor('ctranspath', tile_px=299)
 
     # Calculate & export feature bags.
-    P.generate_feature_bags(retccl, dataset)
+    P.generate_feature_bags(ctranspath, dataset)
 
 .. note::
 
@@ -121,7 +132,7 @@ Alternatively, you can calculate features for a dataset using :class:`slideflow.
 .. code-block:: python
 
     # Calculate features for the entire dataset.
-    features = sf.DatasetFeatures(retccl, dataset)
+    features = sf.DatasetFeatures(ctranspath, dataset)
 
     # Export feature bags.
     features.to_torch('/path/to/bag_directory/')
@@ -137,7 +148,7 @@ When image features are exported for a dataset, the feature extractor configurat
 
     {
      "extractor": {
-      "class": "slideflow.model.extractors.retccl.RetCCLFeatures",
+      "class": "slideflow.model.extractors.ctranspath.CTransPathFeatures",
       "kwargs": {
        "center_crop": true
       }
@@ -179,6 +190,25 @@ The feature extractor can be manually rebuilt using :func:`slideflow.model.rebui
     # Recreate the feature extractor
     # and stain normalizer, if applicable
     extractor, normalizer = rebuild_extractor('/path/to/bags_config.json')
+
+License & Citation
+------------------
+
+Licensing and citation information for the pretrained feature extractors is accessible with the ``.license`` and ``.citation`` attributes.
+
+.. code-block:: python
+
+    >>> ctranspath.license
+    'GNU General Public License v3.0'
+    >>> print(ctranspath.citation)
+
+    @{wang2022,
+      title={Transformer-based Unsupervised Contrastive Learning for Histopathological Image Classification},
+      author={Wang, Xiyue and Yang, Sen and Zhang, Jun and Wang, Minghui and Zhang, Jing  and Yang, Wei and Huang, Junzhou  and Han, Xiao},
+      journal={Medical Image Analysis},
+      year={2022},
+      publisher={Elsevier}
+    }
 
 
 Training

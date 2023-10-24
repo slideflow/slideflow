@@ -29,7 +29,7 @@ class HistoSSLFeatures(BaseFeatureExtractor):
 
     tag = 'histossl'
     url = 'https://drive.google.com/uc?id=1uxsoNVhQFoIDxb4RYIiOtk044s6TTQXY'
-    license_statement = """
+    license = """
 This model is developed and licensed by Owkin, Inc. The license for use is
 provided in the LICENSE file in the same directory as this source file
 (slideflow/model/extractors/histossl/LICENSE), and is also available
@@ -56,7 +56,7 @@ you agree to the terms of the license.
 
         from slideflow.model import torch_utils
 
-        self.show_license()
+        self.print_license()
         if weights is None:
             weights = self.download()
         self.device = torch_utils.get_device(device)

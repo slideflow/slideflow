@@ -3,7 +3,7 @@
 slideflow.mil
 ==============
 
-This submodule contains tools for multiple-instance learning (MIL) model training and evaluation. See :ref:`clam_mil` for more information.
+This submodule contains tools for multiple-instance learning (MIL) model training and evaluation. See :ref:`mil` for more information.
 
 Main functions
 **************

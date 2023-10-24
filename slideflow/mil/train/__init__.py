@@ -289,7 +289,7 @@ def train_clam(
     """Train a CLAM model from layer activations exported with
     :meth:`slideflow.project.generate_features_for_clam`.
 
-    See :ref:`clam_mil` for more information.
+    See :ref:`mil` for more information.
 
     Args:
         train_dataset (:class:`slideflow.Dataset`): Training dataset.

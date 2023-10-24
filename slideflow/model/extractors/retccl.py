@@ -275,7 +275,7 @@ class RetCCLFeatures(BaseFeatureExtractor):
     """
 
     tag = 'retccl'
-    license_statement = "GNU General Public License v3.0"
+    license = "GNU General Public License v3.0"
     citation = """
 @article{WANG2023102645,
     title = {RetCCL: Clustering-guided contrastive learning for whole-slide image retrieval},

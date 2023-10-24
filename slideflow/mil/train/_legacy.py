@@ -28,7 +28,7 @@ def legacy_train_clam(
 
     Preferred API is :meth:`slideflow.Project.train_mil()`.
 
-    See :ref:`clam_mil` for more information.
+    See :ref:`mil` for more information.
 
     Args:
         exp_name (str): Name of experiment. Makes clam/{exp_name} folder.

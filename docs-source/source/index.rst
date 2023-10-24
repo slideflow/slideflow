@@ -11,10 +11,10 @@ Slideflow is a Python package that provides a unified API for building and testi
 
 Slideflow includes tools for efficient whole-slide image processing, easy and highly customizable model training with uncertainty quantification (UQ), and a number of functional tools to assist with analysis and interpretability, including predictive heatmaps, mosaic maps, GANs, saliency maps, and more. It is built with both `Tensorflow/Keras <https://www.tensorflow.org/>`_ and `PyTorch <https://pytorch.org>`_ backends, with fully cross-compatible TFRecord data storage.
 
-The ``slideflow`` package includes a ``Project`` class to help coordinate project organization and supervise execution of the pipeline.  This documentation starts with a high-level overview of the pipeline, and will include examples of how to perform common tasks using the ``Project`` class. We also provide several tutorials with examples of how Slideflow can be used on your own data.
+This documentation starts with a high-level overview of the pipeline and includes examples of how to perform common tasks using the ``Project`` helper class. We also provide several tutorials with examples of how Slideflow can be used and extended for additional functionality.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Introduction
 
    installation

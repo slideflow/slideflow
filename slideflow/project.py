@@ -3773,7 +3773,7 @@ class Project:
 
         Preferred API is :meth:`slideflow.Project.train_mil()`.
 
-        See :ref:`clam_mil` for more information.
+        See :ref:`mil` for more information.
 
         Examples
             Train with basic settings:

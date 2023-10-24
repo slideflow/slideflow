@@ -3,10 +3,10 @@ import slideflow as sf
 import numpy as np
 
 from torchvision import transforms
-from huggingface_hub import hf_hub_download
-
 from omegaconf import OmegaConf
-from dinov2.eval.setup import build_model_for_eval
+
+import slideflow.dinov2
+from slideflow.dinov2.eval.setup import build_model_for_eval
 
 from ..base import BaseFeatureExtractor
 from ._slide import features_from_slide
@@ -23,7 +23,7 @@ class DinoV2Features(BaseFeatureExtractor):
     """
 
     tag = 'dinov2'
-    license_statement = "Apache-2.0"
+    license = "Apache-2.0"
     citation = """
 @misc{oquab2023dinov2,
   title={DINOv2: Learning Robust Visual Features without Supervision},

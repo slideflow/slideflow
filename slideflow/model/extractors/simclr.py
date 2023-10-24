@@ -36,7 +36,7 @@ class SimCLR_Features(BaseFeatureExtractor):
     """
 
     tag = 'simclr'
-    license_statement = "Apache-2.0"
+    license = "Apache-2.0"
     citation = """
 @article{chen2020big,
   title={Big Self-Supervised Models are Strong Semi-Supervised Learners},

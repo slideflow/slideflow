@@ -36,7 +36,7 @@ class PLIPFeatures(BaseFeatureExtractor):
     """
 
     tag = 'plip'
-    license_statement = "No license provided by the authors."
+    license = "No license provided by the authors."
     citation = """
 @article{huang2023visual,
     title={A visual--language foundation model for pathology image analysis using medical Twitter},

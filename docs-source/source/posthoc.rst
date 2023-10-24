@@ -92,7 +92,7 @@ Alternatively, you can create an instance of this class directly:
 
 Tile-level feature activations for each slide can be accessed directly from ``DatasetFeatures.activations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_features)``. Predictions are stored in ``DatasetFeatures.predictions``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_classes)``. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in ``DatasetFeatures.locations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, 2)`` (``x``, ``y``).
 
-Activations can be exported to a Pandas DataFrame with :meth:`slideflow.DatasetFeatures.to_df` or exported into PyTorch format with :meth:`slideflow.DatasetFeatures.to_torch`. See :ref:`clam_mil` for more information about generating and exporting features for MIL models.
+Activations can be exported to a Pandas DataFrame with :meth:`slideflow.DatasetFeatures.to_df` or exported into PyTorch format with :meth:`slideflow.DatasetFeatures.to_torch`. See :ref:`mil` for more information about generating and exporting features for MIL models.
 
 Read the API documentation for :class:`slideflow.DatasetFeatures` for more information.
 
