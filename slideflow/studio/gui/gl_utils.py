@@ -250,6 +250,7 @@ def draw_rect(*, pos=0, pos2=None, size=None, align=0, rint=False, color=1, alph
     vertices = _setup_center_rect(float(rounding[0]), float(rounding[1]))
     draw_shape(vertices, pos=pos, size=size, color=color, alpha=alpha, mode=mode, anchor=anchor)
 
+draw_line = functools.partial(draw_rect, rounding=0, mode=gl.GL_LINE_STRIP)
 
 @functools.lru_cache(maxsize=10000)
 def _setup_center_rect(rx, ry):

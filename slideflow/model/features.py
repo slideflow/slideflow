@@ -323,6 +323,27 @@ class DatasetFeatures:
         return obj
 
     @classmethod
+    def from_bags(cls, bags: str) -> "DatasetFeatures":
+        """Load a DatasetFeatures object from a directory of bags.
+
+        Args:
+            bags (str): Path to bags, as exported by :meth:`DatasetFeatures.to_torch()`
+
+        Returns:
+            :class:`DatasetFeatures`: DatasetFeatures object
+
+        """
+        import torch
+        slides = [sf.util.path_to_name(b) for b in os.listdir(bags) if b.endswith('.pt')]
+        obj = cls(None, None)
+        obj.slides = slides
+        for slide in slides:
+            activations = torch.load(join(bags, f'{slide}.pt'))
+            obj.activations[slide] = activations.numpy()
+            obj.locations[slide] = tfrecord2idx.load_index(join(bags, f'{slide}.index'))
+        return obj
+
+    @classmethod
     def concat(
         cls,
         args: Iterable["DatasetFeatures"],

@@ -24,7 +24,9 @@ from glob import glob
 from os.path import dirname, exists, isdir, join
 from packaging import version
 from tqdm import tqdm
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (
+    Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, Iterator
+)
 
 import numpy as np
 import slideflow as sf
@@ -335,6 +337,15 @@ class EasyDict(dict):
     def __delattr__(self, name: str) -> None:
         del self[name]
 
+def zip_allowed() -> bool:
+    return not ('SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0')
+
+@contextmanager
+def enable_zip(enable: bool) -> Iterator[None]:
+    _zip_allowed = zip_allowed()
+    os.environ['SF_ALLOW_ZIP'] = '1' if enable else '0'
+    yield
+    os.environ['SF_ALLOW_ZIP'] = '0' if not _zip_allowed else '1'
 
 def md5(path: str) -> str:
     """Calculate and return MD5 checksum for a file."""

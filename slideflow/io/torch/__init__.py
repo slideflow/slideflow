@@ -127,6 +127,7 @@ class IndexedInterleaver(IndexedMultiTFRecordDataset):
                 intra-tfrecord shuffling. Defaults to None.
 
         """
+        self.readers = []
         self.tfrecords = np.array(tfrecords).astype(np.string_)
         if not len(self.tfrecords):
             raise ValueError("No tfrecords provided.")

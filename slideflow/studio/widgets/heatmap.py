@@ -1,9 +1,7 @@
-import os
 import numpy as np
 import imgui
 import threading
-from typing import Union
-from array import array
+from typing import Union, Optional
 from ..gui import imgui_utils
 
 import slideflow as sf
@@ -16,13 +14,45 @@ def _apply_cmap(img, cmap):
     cmap = plt.get_cmap(cmap)
     return (cmap(img) * 255).astype(np.uint8)
 
-def process_grid(_heatmap, _grid):
-    if _heatmap.uq:
-        predictions = _grid[:, :, :-(_heatmap.num_uncertainty)]
-        uncertainty = _grid[:, :, -(_heatmap.num_uncertainty):]
+
+def process_grid(heatmap, grid):
+    if heatmap.uq:
+        predictions = grid[:, :, :-(heatmap.num_uncertainty)]
+        uncertainty = grid[:, :, -(heatmap.num_uncertainty):]
         return predictions, uncertainty
     else:
-        return _grid, None
+        return grid, None
+
+
+def convert_to_overlays(arr):
+    if len(arr.shape) == 2:
+        return [HeatmapOverlay(arr)]
+    else:
+        return [HeatmapOverlay(arr[:, :, i]) for i in range(arr.shape[2])]
+
+#----------------------------------------------------------------------------
+
+class HeatmapOverlay:
+    def __init__(
+        self,
+        grid: np.ndarray,
+        tile_um: Optional[int] = None,
+        stride_div: Optional[int] = None,
+        name: Optional[str] = None
+    ) -> None:
+        self.grid = grid
+        self.tile_um = tile_um
+        self.stride_div = stride_div
+        self.name = name
+
+    @property
+    def overlay_kwargs(self):
+        return dict(
+            tile_um=self.tile_um,
+            stride_div=self.stride_div,
+            original=self.grid
+        )
+
 
 #----------------------------------------------------------------------------
 
@@ -53,6 +83,11 @@ class HeatmapWidget:
         self._colormaps             = plt.colormaps()
         self._rendering_message     = "Calculating whole-slide prediction..."
         self._outcome_names         = None
+        self._active_overlay        = None
+
+    @property
+    def cmap(self):
+        return self._colormaps[self.cmap_idx]
 
     def _create_heatmap(self):
         viz = self.viz
@@ -112,15 +147,16 @@ class HeatmapWidget:
             )
         else:
             self.viz.heatmap = obj
-        self.predictions = self.viz.heatmap.predictions
-        self.uncertainty = self.viz.heatmap.uncertainty
+        self.predictions = convert_to_overlays(self.viz.heatmap.predictions)
+        self.uncertainty = convert_to_overlays(self.viz.heatmap.uncertainty)
         self.render_heatmap()
 
     def refresh_heatmap_grid(self, grid_idx=None):
         if self.viz.heatmap is not None and self._heatmap_grid is not None:
-            predictions, uncertainty = process_grid(self.viz.heatmap, self._heatmap_grid)
-            self.predictions = predictions
-            self.uncertainty = uncertainty
+            predictions, uncertainty = process_grid(self.viz.heatmap,
+                                                    self._heatmap_grid)
+            self.predictions = convert_to_overlays(predictions)
+            self.uncertainty = convert_to_overlays(uncertainty)
             self.render_heatmap()
             self.viz.model_widget._update_slide_preds()
 
@@ -139,24 +175,26 @@ class HeatmapWidget:
     def render_heatmap(self, outcome_names=None):
         """Render the current heatmap."""
 
-        if outcome_names and len(outcome_names) != self.predictions.shape[2]:
-            raise ValueError("Number of outcome names must match number of outcomes.")
+        if outcome_names and len(outcome_names) != len(self.predictions):
+            raise ValueError("Number of outcome names ({}) must match number of outcomes ({}).".format(
+                len(outcome_names), len(self.predictions)
+            ))
         if outcome_names:
             self._outcome_names = outcome_names
         elif self._outcome_names is None:
-            self._outcome_names = self._get_all_outcome_names()
+            self._outcome_names = self.get_outcome_names()
 
         self._old_predictions = self.heatmap_predictions
         self._old_uncertainty = self.heatmap_uncertainty
         if self.viz.heatmap is None:
             return
         if self.use_predictions:
-            heatmap_arr = self.predictions[:, :, self.heatmap_predictions]
+            self._active_overlay = self.predictions[self.heatmap_predictions]
             gain = self._predictions_gain
         else:
-            heatmap_arr = self.uncertainty[:, :, self.heatmap_uncertainty]
+            self._active_overlay = self.uncertainty[self.heatmap_uncertainty]
             gain = self._uq_gain
-        self.viz.rendered_heatmap = _apply_cmap(heatmap_arr * gain, self._colormaps[self.cmap_idx])[:, :, 0:3]
+        self.viz.rendered_heatmap = _apply_cmap(self._active_overlay.grid * gain, self.cmap)[:, :, 0:3]
         self.update_transparency()
 
     def reset(self):
@@ -184,7 +222,10 @@ class HeatmapWidget:
                                     int(self.alpha * 255),
                                     dtype=np.uint8)
             overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
-            self.viz.set_overlay(overlay, method=sf.studio.OVERLAY_GRID)
+            self.viz.set_grid_overlay(
+                overlay,
+                **self._active_overlay.overlay_kwargs
+            )
 
     def generate(self):
         self.viz.set_message(self._rendering_message)
@@ -198,10 +239,14 @@ class HeatmapWidget:
         _thread.start()
         self.show = True
 
-    def _get_all_outcome_names(self, config=None):
+    def get_outcome_names(self, config=None):
+        if self._outcome_names is not None and config is None:
+            return self._outcome_names
         if config is None:
             config = self.viz._model_config
         if config is None:
+            if len(self.predictions) and all(p.name for p in self.predictions):
+                return [p.name for p in self.predictions]
             raise ValueError("Model is not loaded.")
 
         outcomes = config['outcomes']
@@ -242,7 +287,7 @@ class HeatmapWidget:
         viz = self.viz
         changed = False
 
-        heatmap_predictions_max = 0 if self.predictions is None else self.predictions.shape[2]-1
+        heatmap_predictions_max = 0 if self.predictions is None else len(self.predictions)-1
         self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
         narrow_w = imgui.get_text_line_height_with_spacing()
         with imgui_utils.grayed_out(heatmap_predictions_max == 0):
@@ -256,12 +301,13 @@ class HeatmapWidget:
             with imgui_utils.item_width(-1 - narrow_w * 2 - viz.spacing*2):
 
                 # Determine outcome name
+                outcome_names = self.get_outcome_names()
                 _, hpred = imgui.drag_int('##heatmap_predictions',
                                           self.heatmap_predictions+1,
                                           change_speed=0.05,
                                           min_value=1,
                                           max_value=heatmap_predictions_max+1,
-                                          format=f'{self._outcome_names[self.heatmap_predictions]} (%d/{heatmap_predictions_max+1})')
+                                          format=f'{outcome_names[self.heatmap_predictions]} (%d/{heatmap_predictions_max+1})')
                 self.heatmap_predictions = hpred - 1
             imgui.same_line()
             if imgui_utils.button('-##heatmap_predictions', width=narrow_w):
@@ -275,7 +321,7 @@ class HeatmapWidget:
         if viz.heatmap is None or self.uncertainty is None:
             heatmap_uncertainty_max = 0
         else:
-            heatmap_uncertainty_max = self.uncertainty.shape[2]-1
+            heatmap_uncertainty_max = len(self.uncertainty)-1
 
         self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
         narrow_w = imgui.get_text_line_height_with_spacing()

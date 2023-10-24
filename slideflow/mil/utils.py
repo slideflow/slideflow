@@ -91,15 +91,15 @@ def load_model_weights(
     if isinstance(config, TrainerConfigCLAM):
         config_size = config.model_fn.sizes[config.model_config.model_size]
         _size = [input_shape] + config_size[1:]
-        model = config.model_fn(size=_size)
+        model = config.build_model(size=_size)
         log.info(f"Building model {config.model_fn.__name__} (size={_size})")
     elif isinstance(config.model_config, ModelConfigCLAM):
         config_size = config.model_fn.sizes[config.model_config.model_size]
         _size = [input_shape] + config_size[1:]
-        model = config.model_fn(size=_size)
+        model = config.build_model(size=_size)
         log.info(f"Building model {config.model_fn.__name__} (size={_size})")
     else:
-        model = config.model_fn(input_shape, output_shape)
+        model = config.build_model(input_shape, output_shape)
         log.info(f"Building model {config.model_fn.__name__} "
                  f"(in={input_shape}, out={output_shape})")
     if isdir(weights):

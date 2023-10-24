@@ -39,6 +39,7 @@ class GlfwWindow:
         self._captured_frame        = None
         self._shift_down            = False
         self._control_down          = False
+        self._alt_down              = False
         self._is_fullscreen         = False
         self._background_color      = background
 
@@ -276,6 +277,10 @@ class GlfwWindow:
             self._shift_down = True
         if action == glfw.RELEASE and key in (glfw.KEY_LEFT_SHIFT, glfw.KEY_RIGHT_SHIFT):
             self._shift_down = False
+        if action == glfw.PRESS and key in (glfw.KEY_LEFT_ALT, glfw.KEY_RIGHT_ALT):
+            self._alt_down = True
+        if action == glfw.RELEASE and key in (glfw.KEY_LEFT_ALT, glfw.KEY_RIGHT_ALT):
+            self._alt_down = False
 
         # Key combinations
         if action == glfw.PRESS and key == glfw.KEY_ESCAPE:

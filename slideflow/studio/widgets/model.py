@@ -309,18 +309,18 @@ class ModelWidget:
             # Multiple categorical outcomes
             if multiple_outcomes and self.is_categorical():
                 for outcome in config['outcomes']:
-                    pred_array = hw.predictions[:, :, self.outcome_indices(outcome)]
+                    pred_array = hw.predictions[self.outcome_indices(outcome)].grid
                     self._apply_pred_means(outcome, pred_array)
 
             # Single categorical or linear outcome
             elif not multiple_outcomes:
                 outcome = config['outcomes'][0]
-                self._apply_pred_means(outcome, hw.predictions)
+                self._apply_pred_means(outcome, np.dstack(overlay.grid for overlay in hw.predictions))
 
             # Multiple linear outcome(s)
             else:
                 for o_idx, outcome in enumerate(config['outcomes']):
-                    self._apply_pred_means(outcome, hw.predictions[:, :, o_idx])
+                    self._apply_pred_means(outcome, hw.predictions[o_idx].grid)
 
     def _update_slide_pred_histograms(self):
         config = self.viz._model_config
@@ -335,9 +335,9 @@ class ModelWidget:
             if multiple_outcomes and self.is_categorical():
                 for outcome in config['outcomes']:
                     if self.viz.heatmap:
-                        pred_array = hw.predictions[:, :, self.outcome_index_start(outcome)+self.pred_idx[outcome]]
+                        pred_array = hw.predictions[self.outcome_index_start(outcome)+self.pred_idx[outcome]].grid
                         if hw.uncertainty is not None:
-                            uq_array = hw.uncertainty[:, :, self.outcome_index_start(outcome)+self.pred_idx[outcome]]
+                            uq_array = hw.uncertainty[self.outcome_index_start(outcome)+self.pred_idx[outcome]].grid
                         else:
                             uq_array = None
                         self._apply_pred_histograms(outcome, pred_array, uq_array)
@@ -346,9 +346,9 @@ class ModelWidget:
             elif not multiple_outcomes:
                 outcome = config['outcomes'][0]
                 if self.viz.heatmap:
-                    pred_array = hw.predictions[:, :, self.pred_idx[config['outcomes'][0]]]
+                    pred_array = hw.predictions[self.pred_idx[config['outcomes'][0]]].grid
                     if hw.uncertainty is not None:
-                        uq_array = hw.uncertainty
+                        uq_array = hw.uncertainty[0].grid
                     else:
                         uq_array = None
                     self._apply_pred_histograms(outcome, pred_array, uq_array)
@@ -356,9 +356,9 @@ class ModelWidget:
             # Multiple linear outcome(s)
             else:
                 if self.viz.heatmap:
-                    pred_array = hw.predictions[:, :, self.pred_idx['linear']]
+                    pred_array = hw.predictions[self.pred_idx['linear']].grid
                     if hw.uncertainty is not None:
-                        uq_array = hw.uncertainty[:, :, self.pred_idx['linear']]
+                        uq_array = hw.uncertainty[self.pred_idx['linear']].grid
                     else:
                         uq_array = None
                     self._apply_pred_histograms('linear', pred_array, uq_array)

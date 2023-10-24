@@ -103,7 +103,7 @@ class TFRecordIterator:
         self.length_bytes = bytearray(8)
         self.crc_bytes = bytearray(4)
         self.index = index
-        self.index_is_sequential = None
+        self.index_is_nonsequential = None
         if self.index is not None:
             # For the case that there is only a single record in the file
             if len(self.index.shape) == 1:
