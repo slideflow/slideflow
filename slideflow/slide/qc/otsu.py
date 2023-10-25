@@ -122,7 +122,7 @@ class Otsu:
 
         # Only apply Otsu thresholding within ROI, if present
         if len(wsi.annPolys):
-            ofact = wsi.roi_scale / wsi.slide.level_downsamples[level]
+            ofact = 1 / wsi.slide.level_downsamples[level]
             roi_mask = np.zeros((thumb.shape[0], thumb.shape[1]))
             scaled_polys = [
                 sa.scale(poly, xfact=ofact, yfact=ofact, origin=(0, 0))

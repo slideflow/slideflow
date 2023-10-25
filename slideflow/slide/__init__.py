@@ -270,7 +270,6 @@ class _BaseLoader:
         self.rois = []  # type: List
         self.qc_mpp = None  # type: Optional[float]
         self.blur_burden = None  # type: Optional[float]
-        self.roi_scale = 1  # type: float
         self.roi_method = None  # type: Optional[str]
         self.annPolys = []  # type: ignore
         self.filetype = sf.util.path_to_ext(path)
@@ -1488,7 +1487,6 @@ class WSI(_BaseLoader):
         self.extracted_y_size = 0  # type: int
         self.estimated_num_tiles = 0  # type: int
         self.annPolys = []  # type: List
-        self.roi_scale = 1  # type: float
         self.roi_method = roi_method
         self.roi_filter_method = roi_filter_method
         self.verbose = verbose
@@ -1648,8 +1646,6 @@ class WSI(_BaseLoader):
                 full_extract_px=self.full_extract_px,
                 mpp_override=self._mpp_override,
                 reader_kwargs=self._reader_kwargs,
-                roi_scale=self.roi_scale,
-                rois=self.rois,
                 grid=self.grid,
                 downsample_level=self.downsample_level,
                 path=self.path,
@@ -1722,8 +1718,8 @@ class WSI(_BaseLoader):
 
             # Degree to which the ROIs will need to be scaled
             # to match the extracted image tile grid
-            xfact = self.grid.shape[0] / (xtrim / self.roi_scale)
-            yfact = self.grid.shape[1] / (ytrim / self.roi_scale)
+            xfact = self.grid.shape[0] / xtrim
+            yfact = self.grid.shape[1] / ytrim
 
             # Offset to align the ROI polygons with the image tile grid
             x_offset = - (full_extract/2 - stride/2)
@@ -1731,7 +1727,7 @@ class WSI(_BaseLoader):
 
             # Translate ROI polygons
             translated = [
-                sa.translate(poly, x_offset/self.roi_scale, y_offset/self.roi_scale)
+                sa.translate(poly, x_offset, y_offset)
                 for poly in self.annPolys
             ]
 
@@ -1805,7 +1801,7 @@ class WSI(_BaseLoader):
         # Filter out masks outside of ROIs, if present.
         if self.has_rois():
             log.debug(f"Applying {len(self.annPolys)} ROIs to segmentation.")
-            segmentation.apply_rois(self.roi_scale, self.annPolys)
+            segmentation.apply_rois(1, self.annPolys)
 
         self.segmentation = segmentation
         if self.segmentation.slide is None:
@@ -2195,8 +2191,6 @@ class WSI(_BaseLoader):
             'full_extract_px': self.full_extract_px,
             'mpp_override': self._mpp_override,
             'reader_kwargs': self._reader_kwargs,
-            'roi_scale': self.roi_scale,
-            'rois': self.rois,
             'grid': self.grid,
             'downsample_level': self.downsample_level,
             'filter_downsample_level': filter_lev,
@@ -2432,7 +2426,6 @@ class WSI(_BaseLoader):
         self,
         array: np.ndarray,
         *,
-        scale: int = 1,
         process: bool = True
     ) -> None:
         """Load an ROI from a numpy array.
@@ -2442,7 +2435,6 @@ class WSI(_BaseLoader):
                 the coordinates of the ROI shape, in base (level=0) dimension.
 
         Keyword Args:
-            scale (int): Scale factor to apply to ROI coordinates. Defaults to 1.
             process (bool): Process ROIs after loading. Defaults to True.
 
         """
@@ -2451,9 +2443,7 @@ class WSI(_BaseLoader):
             if r.name.startswith('ROI_') and r.name[4:].isnumeric()
         ]
         roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
-        scaled = array * (scale/self.roi_scale)
-        scaled = array.astype(np.int64)
-        self.rois.append(ROI(f'ROI_{roi_id}', scaled))
+        self.rois.append(ROI(f'ROI_{roi_id}', array))
         if self.roi_method == 'auto':
             self.roi_method = 'inside'
         if process:
@@ -2502,8 +2492,8 @@ class WSI(_BaseLoader):
                 )
             for row in reader:
                 roi_name = row[index_name]
-                x_coord = int(float(row[index_x]) * (scale/self.roi_scale))
-                y_coord = int(float(row[index_y]) * (scale/self.roi_scale))
+                x_coord = int(float(row[index_x]) * scale)
+                y_coord = int(float(row[index_y]) * scale)
 
                 if roi_name not in roi_dict:
                     roi_dict.update({roi_name: ROI(roi_name)})
@@ -2540,7 +2530,7 @@ class WSI(_BaseLoader):
         with open(path, "r") as json_file:
             json_data = json.load(json_file)['shapes']
         for shape in json_data:
-            area_reduced = np.multiply(shape['points'], (scale/self.roi_scale))
+            area_reduced = np.multiply(shape['points'], scale)
             area_reduced = area_reduced.astype(np.int64)
             self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
@@ -2656,7 +2646,7 @@ class WSI(_BaseLoader):
             self.annPolys = []
             for i, annotation in enumerate(self.rois):
                 try:
-                    poly = sv.make_valid(sg.Polygon(annotation.scaled_area(self.roi_scale)))
+                    poly = sv.make_valid(sg.Polygon(annotation.coordinates))
                     self.annPolys += [poly]
                 except ValueError:
                     log.warning(
@@ -2683,8 +2673,7 @@ class WSI(_BaseLoader):
             roi_area = sum([poly.area for poly in self.annPolys])
         else:
             roi_area = 1
-        total_area = ((self.dimensions[0]/self.roi_scale)
-                      * (self.dimensions[1]/self.roi_scale))
+        total_area = (self.dimensions[0] * self.dimensions[1])
         self.roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
         # Regenerate the grid to reflect the newly-loaded ROIs.
@@ -2929,7 +2918,6 @@ class TMA(_BaseLoader):
         self.box_areas = []  # type: List
         self.DIM = self.slide.dimensions
         self.roi_method = 'ignore'
-        self.roi_scale = 1  # type: float
         target_thumb_width = self.DIM[0] / 100
         target_thumb_mpp = self.dim_to_mpp((target_thumb_width, -1))
         self.thumb_image = np.array(self.thumb(mpp=target_thumb_mpp))

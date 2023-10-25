@@ -102,9 +102,7 @@ class SegmentWidget(Widget):
 
         # Apply ROIs to the segmentation, if applicable.
         if self.viz.wsi.roi_method != 'ignore' and self.viz.wsi.annPolys is not None:
-            self.segmentation.apply_rois(
-                self.viz.wsi.roi_scale,
-                self.viz.wsi.annPolys)
+            self.segmentation.apply_rois(1, self.viz.wsi.annPolys)
 
         self.refresh_segmentation_view()
         self._load_toast.done()
