@@ -819,6 +819,7 @@ class Dataset:
         self,
         headers: Optional[Union[str, List[str]]] = None,
         strategy: Optional[str] = 'category',
+        *,
         force: bool = False,
     ) -> "Dataset":
         """Return a dataset with mini-batch balancing configured.

@@ -131,6 +131,28 @@ def nasnet_large_imagenet(tile_px, **kwargs):
 
 # -----------------------------------------------------------------------------
 
+class TorchFeatureExtractor(BaseFeatureExtractor):
+    """Feature extractor for PyTorch models."""
+
+    def __init__(self):
+        super().__init__(backend='torch')
+
+    def __call__(self, obj, **kwargs):
+        """Generate features for a batch of images or a WSI."""
+        import torch
+        if isinstance(obj, sf.WSI):
+            grid = features_from_slide(self, obj, **kwargs)
+            return np.ma.masked_where(grid == -99, grid)
+        elif kwargs:
+            raise ValueError(
+                f"{self.__class__.__name__} does not accept keyword arguments "
+                "when extracting features from a batch of images."
+            )
+        assert obj.dtype == torch.uint8
+        obj = self.transform(obj)
+        return self.model(obj)
+
+
 class TorchImagenetLayerExtractor(BaseFeatureExtractor):
     """Feature extractor that calculates layer activations for
     imagenet-pretrained PyTorch models."""
@@ -150,7 +172,6 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
         self.ftrs = Features.from_model(model, tile_px=tile_px, **kwargs)
         self.tag = model_name + "_" + '-'.join(self.ftrs.layers)
         self.num_features = self.ftrs.num_features
-        self.num_classes = 0
         self._tile_px = tile_px
 
         # Normalization for Imagenet pretrained models

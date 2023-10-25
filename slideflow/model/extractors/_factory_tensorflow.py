@@ -109,7 +109,6 @@ class TensorflowImagenetLayerExtractor(BaseFeatureExtractor):
         self.ftrs = Features.from_model(model, **kwargs)
         self.tag = model_name + "_" + '-'.join(self.ftrs.layers)
         self.num_features = self.ftrs.num_features
-        self.num_classes = 0
         self._tile_px = tile_px
 
         @tf.function

@@ -122,8 +122,6 @@ A number of functions can be applied to Datasets to manipulate patient filters (
 
 Each of these manipulations is performed in memory and will not affect data stored on disk.
 
-.. _balancing:
-
 
 Dataset Inspection
 ******************

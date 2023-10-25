@@ -2,15 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn as nn
-import slideflow as sf
-import numpy as np
 
 from torch.nn import Parameter
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
 
-from ..base import BaseFeatureExtractor
-from ._slide import features_from_slide
+from ._factory_torch import TorchFeatureExtractor
 
 # -----------------------------------------------------------------------------
 
@@ -267,7 +264,7 @@ class ResNet50(nn.Module):
 
 # -----------------------------------------------------------------------------
 
-class RetCCLFeatures(BaseFeatureExtractor):
+class RetCCLFeatures(TorchFeatureExtractor):
     """
     RetCCl pretrained feature extractor.
     Feature dimensions: 2048
@@ -289,7 +286,7 @@ class RetCCLFeatures(BaseFeatureExtractor):
 """
 
     def __init__(self, device=None, center_crop=False, ckpt=None):
-        super().__init__(backend='torch')
+        super().__init__()
 
         from slideflow.model import torch_utils
         self.device = torch_utils.get_device(device)
@@ -316,7 +313,6 @@ class RetCCLFeatures(BaseFeatureExtractor):
 
         # ---------------------------------------------------------------------
         self.num_features = 2048
-        self.num_classes = 0
         all_transforms = [transforms.CenterCrop(256)] if center_crop else []
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
@@ -328,20 +324,6 @@ class RetCCLFeatures(BaseFeatureExtractor):
         self.preprocess_kwargs = dict(standardize=False)
         self._center_crop = center_crop
         # ---------------------------------------------------------------------
-
-    def __call__(self, obj, **kwargs):
-        """Generate features for a batch of images or a WSI."""
-        if isinstance(obj, sf.WSI):
-            grid = features_from_slide(self, obj, **kwargs)
-            return np.ma.masked_where(grid == -99, grid)
-        elif kwargs:
-            raise ValueError(
-                f"{self.__class__.__name__} does not accept keyword arguments "
-                "when extracting features from a batch of images."
-            )
-        assert obj.dtype == torch.uint8
-        obj = self.transform(obj)
-        return self.model(obj)
 
     def dump_config(self):
         """Return a dictionary of configuration parameters.

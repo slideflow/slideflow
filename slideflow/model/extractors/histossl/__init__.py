@@ -8,19 +8,17 @@ import os
 import torch
 import gdown
 import slideflow as sf
-import numpy as np
 from slideflow.util import make_cache_dir_path
 from torchvision import transforms
 
-from ...base import BaseFeatureExtractor
-from .._slide import features_from_slide
+from .._factory_torch import TorchFeatureExtractor
 
 from .ibotvit import iBOTViT
 
 
 # -----------------------------------------------------------------------------
 
-class HistoSSLFeatures(BaseFeatureExtractor):
+class HistoSSLFeatures(TorchFeatureExtractor):
     """
     HistoSSL pretrained feature extractor.
     Feature dimensions: 768
@@ -52,7 +50,7 @@ you agree to the terms of the license.
     MD5 = 'e7124eefc87fe6069bf4b864f9ed298c'
 
     def __init__(self, device=None, center_crop=False, weights=None):
-        super().__init__(backend='torch')
+        super().__init__()
 
         from slideflow.model import torch_utils
 
@@ -65,12 +63,10 @@ you agree to the terms of the license.
             encoder='student',
             weights_path=weights
         )
-        self.model.fc = torch.nn.Identity().to(self.device)
         self.model.to(self.device)
 
         # ---------------------------------------------------------------------
         self.num_features = 768
-        self.num_classes = 0
         all_transforms = [transforms.CenterCrop(224)] if center_crop else []
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
@@ -95,20 +91,6 @@ you agree to the terms of the license.
                 f"Downloaded weights at {dest} failed MD5 checksum."
             )
         return dest
-
-    def __call__(self, obj, **kwargs):
-        """Generate features for a batch of images or a WSI."""
-        if isinstance(obj, sf.WSI):
-            grid = features_from_slide(self, obj, **kwargs)
-            return np.ma.masked_where(grid == -99, grid)
-        elif kwargs:
-            raise ValueError(
-                f"{self.__class__.__name__} does not accept keyword arguments "
-                "when extracting features from a batch of images."
-            )
-        assert obj.dtype == torch.uint8
-        obj = self.transform(obj)
-        return self.model(obj)
 
     def dump_config(self):
         """Return a dictionary of configuration parameters.

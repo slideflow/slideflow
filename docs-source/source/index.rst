@@ -38,6 +38,14 @@ This documentation starts with a high-level overview of the pipeline and include
 
 .. toctree::
    :maxdepth: 1
+   :caption: Developer Notes
+
+   tfrecords
+   dataloaders
+   custom_extractors
+
+.. toctree::
+   :maxdepth: 1
    :caption: API
 
    slideflow

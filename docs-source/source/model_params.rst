@@ -30,6 +30,8 @@ If **category-based balancing** ("category") is used, batches will contain equal
 
 If **no balancing** is performed, batches will be assembled by randomly selecting from TFRecords. This is equivalent to slide-based balancing if each slide has its own TFRecord (default behavior).
 
+See :ref:`balancing` for more discussion on sampling and mini-batch balancing.
+
 .. note::
 
     If you are :ref:`using a Trainer <training_with_trainer>` to train your models, you can further customize the mini-batch balancing strategy by using :meth:`slideflow.Dataset.balance` on your training and/or validation datasets.
