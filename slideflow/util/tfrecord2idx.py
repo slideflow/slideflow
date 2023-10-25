@@ -151,7 +151,13 @@ def index_has_locations(index: str) -> bool:
     if index.endswith('npy'):
         return False
     else:
-        return 'locations' in np.load(index).files
+        try:
+            return 'locations' in np.load(index).files
+        except ValueError as e:
+            raise ValueError(
+                f"Failed to load TFRecord index. Try regenerating index files "
+                f"with Dataset.rebuild_index(). Error received: {e}"
+            )
 
 
 def get_locations_from_index(index: str):

@@ -680,13 +680,44 @@ class _BaseLoader:
         self,
         slide: "_BaseLoader",
         normalizer: Optional[str] = 'reinhard_mask',
+        *,
         allow_errors: bool = True,
         mask_on_fail: bool = True,
         align_by: str = 'tile',
         ignore_outliers = True,
         **kwargs
     ) -> np.ndarray:
+        """Align tiles to another slide.
 
+        Differs from :meth:`slideflow.WSI.align_to` in that it aligns each
+        tile individually, rather than the slide as a whole. This is useful
+        when aligning slides with distortion, whose alignment may drift across
+        the slide.
+
+        Args:
+            slide (:class:`slideflow.WSI`): Slide to align to.
+            normalizer (str, optional): Stain normalization method to use.
+
+        Keyword Args:
+            allow_errors (bool): Whether to allow and ignore alignment errors
+                when finetuning alignment fails at any magnification and
+                ``allow_errors`` is False. Defaults to True.
+            mask_on_fail (bool): Whether to mask tiles that fail alignment.
+                Defaults to True.
+            align_by (str): Either 'tile' or 'fit'. If 'tile', tiles are
+                aligned individually. If 'fit', tiles are aligned by fitting
+                a plane to the alignment of all tiles. Defaults to 'tile'.
+            ignore_outliers (bool): Whether to ignore outliers when fitting
+                a plane to tile alignment. Defaults to True.
+            **kwargs: Keyword arguments passed to :meth:`slideflow.WSI.align_to`.
+
+        Raises:
+            ValueError: If ``align_by`` is not 'tile' or 'fit'.
+
+        Returns:
+            np.ndarray: Alignment grid, with shape = (grid_x, grid_y, 2).
+
+        """
         if align_by not in ('tile', 'fit'):
             raise ValueError("align_by must be 'tile' or 'median'")
 
@@ -812,7 +843,6 @@ class _BaseLoader:
         # aligned to this slide.
         return Image.fromarray(align_image(their_thumb, our_thumb))
 
-
     def verify_alignment(
         self,
         slide: "_BaseLoader",
@@ -832,7 +862,6 @@ class _BaseLoader:
         ours_gray = cv2.cvtColor(our_thumb, cv2.COLOR_BGR2GRAY)
 
         return compute_alignment_mse(theirs_gray, ours_gray)
-
 
     def mpp_to_dim(self, mpp: float) -> Tuple[int, int]:
         width = int((self.mpp * self.dimensions[0]) / mpp)
@@ -1459,7 +1488,7 @@ class WSI(_BaseLoader):
         self.extracted_y_size = 0  # type: int
         self.estimated_num_tiles = 0  # type: int
         self.annPolys = []  # type: List
-        self.roi_scale = 10  # type: float
+        self.roi_scale = 1  # type: float
         self.roi_method = roi_method
         self.roi_filter_method = roi_filter_method
         self.verbose = verbose
@@ -1568,7 +1597,16 @@ class WSI(_BaseLoader):
         base += ")"
         return base
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> Optional[np.ndarray]:
+        """Returns a tile at the given index.
+
+        Args:
+            index (tuple): (x, y) grid coordinates of tile to extract.
+
+        Returns:
+            Optional[numpy.ndarray]: Image tile, or None if tile is filtered.
+
+        """
         # Verify indices are valid
         if (not isinstance(index, (tuple, list, np.ndarray))
            or not len(index) == 2):
@@ -1633,7 +1671,7 @@ class WSI(_BaseLoader):
         return image_dict['image']
 
     def _build_coord(self) -> None:
-        '''Set up coordinate grid.'''
+        """Set up coordinate grid for image tiles."""
 
         # Calculate window sizes, strides, and coordinates for windows
         self.extracted_x_size = self.dimensions[0] - self.full_extract_px
@@ -1751,9 +1789,19 @@ class WSI(_BaseLoader):
 
     @property
     def shape(self):
+        """Returns the shape of the tile grid."""
         return self.grid.shape
 
-    def apply_segmentation(self, segmentation):
+    def apply_segmentation(self, segmentation: "sf.cellseg.Segmentation") -> None:
+        """Apply cell segmentation to the slide.
+
+        This sets the coordinates to the centroids of the segmentation.
+
+        Args:
+            segmentation (slideflow.cellseg.Segmentation): Segmentation object
+                to apply.
+
+        """
         # Filter out masks outside of ROIs, if present.
         if self.has_rois():
             log.debug(f"Applying {len(self.annPolys)} ROIs to segmentation.")
@@ -1783,8 +1831,28 @@ class WSI(_BaseLoader):
         area_in_sq_mm = area_in_sq_microns * 1e-6
         return area_in_sq_mm
 
-    def get_tile_mask(self, index, sparse_mask):
+    def get_tile_mask(self, index, sparse_mask) -> np.ndarray:
+        """Get a mask for a tile, given a sparse mask.
 
+        Examples
+            Get a mask for a tile, given a sparse mask.
+
+                >>> from slideflow.cellseg import seg_utils, Segmentation
+                >>> segmentation = Segmentation(...)
+                >>> wsi = sf.WSI(...)
+                >>> wsi.apply_segmentation(segmentation)
+                >>> sparse_mask = seg_utils.sparse_mask(segmentation.masks)
+                >>> wsi.get_tile_mask(0, sparse_mask)
+                <numpy.ndarray>
+
+        Args:
+            index (int): Index of tile.
+            sparse_mask (scipy.sparse.csr_matrix): Sparse mask.
+
+        Returns:
+            numpy.ndarray: Mask for tile.
+
+        """
         # Get the corresponding segmentation mask, reading from the sparse matrix
         seg = self.segmentation
         mask_idx = self.seg_coord[index][2] + 1  # sparse mask index starts at 1
@@ -1826,6 +1894,9 @@ class WSI(_BaseLoader):
 
     def export_rois(self, dest: Optional[str] = None) -> str:
         """Export loaded ROIs to a given destination, in CSV format.
+
+        ROIs are exported with the columns 'roi_name', 'x_base', and 'y_base'.
+        Coordinates are in base dimension (level 0) of the slide.
 
         Args:
             dest (str): Path to destination folder. If not provided, will
@@ -1985,7 +2056,7 @@ class WSI(_BaseLoader):
         apply_masks: bool = True,
         deterministic: bool = True
     ) -> Optional[Callable]:
-        """Builds tile generator to extract tiles from this slide.
+        """Builds a tile generator to extract tiles from this slide.
 
         Keyword args:
             shuffle (bool): Shuffle images during extraction.
@@ -2047,9 +2118,11 @@ class WSI(_BaseLoader):
                 shards. Defaults to None.
 
         Returns:
-            dict: Dict with keys 'image' (image data), 'yolo' (optional
-            yolo-formatted annotations, (x_center, y_center,
-            width, height)) and 'grid' ((x, y) slide or grid coordinates)
+            A generator that yields:
+
+                dict: Dict with keys 'image' (image data), 'yolo' (optional
+                yolo-formatted annotations, (x_center, y_center,
+                width, height)) and 'grid' ((x, y) slide or grid coordinates)
 
         """
         if (isinstance(num_threads, int)
@@ -2296,7 +2369,7 @@ class WSI(_BaseLoader):
         low_res: bool = False,
         **kwargs
     ) -> Image.Image:
-        """Returns PIL Image of thumbnail with ROI overlay.
+        """Generate a PIL Image of the slide thumbnail, with ROI overlay.
 
         Args:
             mpp (float, optional): Microns-per-pixel, used to determine
@@ -2355,21 +2428,58 @@ class WSI(_BaseLoader):
         else:
             return thumb
 
-    def load_roi_array(self, array: np.ndarray, process: bool = True):
+    def load_roi_array(
+        self,
+        array: np.ndarray,
+        *,
+        scale: int = 1,
+        process: bool = True
+    ) -> None:
+        """Load an ROI from a numpy array.
+
+        Args:
+            array (np.ndarray): Array of shape (n_points, 2) containing
+                the coordinates of the ROI shape, in base (level=0) dimension.
+
+        Keyword Args:
+            scale (int): Scale factor to apply to ROI coordinates. Defaults to 1.
+            process (bool): Process ROIs after loading. Defaults to True.
+
+        """
         existing = [
             int(r.name[4:]) for r in self.rois
             if r.name.startswith('ROI_') and r.name[4:].isnumeric()
         ]
         roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
-        self.rois.append(ROI(f'ROI_{roi_id}', array))
+        scaled = array * (scale/self.roi_scale)
+        scaled = array.astype(np.int64)
+        self.rois.append(ROI(f'ROI_{roi_id}', scaled))
         if self.roi_method == 'auto':
             self.roi_method = 'inside'
         if process:
             self.process_rois()
 
-    def load_csv_roi(self, path: str, process: bool = True) -> int:
-        '''Loads CSV ROI from a given path.'''
+    def load_csv_roi(
+        self,
+        path: str,
+        *,
+        process: bool = True,
+        scale: int = 1
+    ) -> int:
+        """Load ROIs from a CSV file.
 
+        CSV file must contain headers 'ROI_name', 'X_base', and 'Y_base'.
+
+        Any previously loaded ROIs are cleared prior to loading.
+
+        Args:
+            path (str): Path to CSV file.
+
+        Keyword Args:
+            process (bool): Process ROIs after loading. Defaults to True.
+            scale (int): Scale factor to apply to ROI coordinates. Defaults to 1.
+
+        """
         # Clear any previously loaded ROIs.
         self.rois = []
         self.annPolys = []
@@ -2392,8 +2502,8 @@ class WSI(_BaseLoader):
                 )
             for row in reader:
                 roi_name = row[index_name]
-                x_coord = int(float(row[index_x]))
-                y_coord = int(float(row[index_y]))
+                x_coord = int(float(row[index_x]) * (scale/self.roi_scale))
+                y_coord = int(float(row[index_y]) * (scale/self.roi_scale))
 
                 if roi_name not in roi_dict:
                     roi_dict.update({roi_name: ROI(roi_name)})
@@ -2408,15 +2518,30 @@ class WSI(_BaseLoader):
     def load_json_roi(
         self,
         path: str,
-        scale: int = 10,
+        *,
+        scale: int = 1,
         process: bool = True
     ) -> int:
-        '''Loads ROI from a JSON file.'''
+        """Load ROIs from a JSON file.
+
+        JSON file must contain a 'shapes' key, with a list of dictionaries
+        containing a 'points' key, whose value is a list of (x, y) coordinates.
+
+        Args:
+            path (str): Path to JSON file.
+            scale (int): Scale factor to apply to ROI coordinates. Defaults to 1.
+            process (bool): Process ROIs after loading. Defaults to True.
+
+        """
+        # Clear any previously loaded ROIs.
+        self.rois = []
+        self.annPolys = []
 
         with open(path, "r") as json_file:
             json_data = json.load(json_file)['shapes']
         for shape in json_data:
-            area_reduced = np.multiply(shape['points'], scale)
+            area_reduced = np.multiply(shape['points'], (scale/self.roi_scale))
+            area_reduced = area_reduced.astype(np.int64)
             self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
         if process:
