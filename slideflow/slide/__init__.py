@@ -2542,7 +2542,16 @@ class WSI(_BaseLoader):
 
     def masked_thumb(self, background: str = 'white', **kwargs) -> np.ndarray:
         """Return a masked thumbnail of a slide, using QC and/or ROI masks.
-        Masked areas will be white.
+
+        Args:
+            background (str, optional): Background color. Defaults to 'white'.
+
+        Keyword args:
+            **kwargs: Keyword arguments passed to :meth:`WSI.thumb()`.
+
+        Returns:
+            np.ndarray: Masked thumbnail image.
+
         """
         if background not in ('white', 'black'):
             raise ValueError(
@@ -2555,7 +2564,7 @@ class WSI(_BaseLoader):
         if qc_mask is None and roi_mask is None:
             # Apply Otsu's threshold to background area
             # to prevent whitespace from interfering with normalization
-            from slideflow.slide.qc import Otsu, Gaussian
+            from slideflow.slide.qc import Otsu, GaussianV2
             sf.log.debug(
                 "Applying Otsu's thresholding & Gaussian blur filter "
                 "to stain norm context"
@@ -2639,8 +2648,12 @@ class WSI(_BaseLoader):
             return preds
 
     def process_rois(self):
-        """Process loaded ROIs and apply to the slide grid."""
+        """Process loaded ROIs and apply to the slide grid.
 
+        Returns:
+            int: Number of ROIs processed.
+
+        """
         # Load annotations as shapely.geometry objects.
         if self.roi_method != 'ignore':
             self.annPolys = []
@@ -2685,7 +2698,16 @@ class WSI(_BaseLoader):
 
         return len(self.rois)
 
-    def remove_roi(self, idx: int, process: bool = True) -> None:
+    def remove_roi(self, idx: int, *, process: bool = True) -> None:
+        """Remove an ROI from the slide.
+
+        Args:
+            idx (int): Index of the ROI to remove.
+
+        Keyword Args:
+            process (bool): Process ROIs after removing. Defaults to True.
+
+        """
         del self.rois[idx]
         if process:
             self.process_rois()
