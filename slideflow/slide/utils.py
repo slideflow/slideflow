@@ -53,7 +53,7 @@ def OPS_LEVEL_DOWNSAMPLE(level: int) -> str:
 # Classes
 
 class ROI:
-    """Object container for ROI annotations."""
+    """Object container for a single ROI annotation."""
 
     def __init__(self, name: str, coordinates: List[Tuple[int, int]] = None) -> None:
         self.name = name
@@ -79,6 +79,31 @@ class ROI:
         for point in shape:
             self.add_coord(point)
 
+class ROIPoly:
+    """Rendered ROI shape.
+
+    Supports holes.
+
+    """
+    def __init__(self, poly: sg.Polygon, name: str) -> None:
+        self.poly = poly
+        self._name = name
+        self._hole_names = []  # type: List[str]
+
+    def __repr__(self) -> str:
+        return f"<ROIPoly (name={self.name})>"
+
+    @property
+    def name(self) -> str:
+        if not self._hole_names:
+            return self._name
+        else:
+            return self._name + ' (holes: {})'.format(', '.join(self._hole_names))
+
+    def set_hole(self, roi: "ROIPoly") -> None:
+        self.poly = self.poly.difference(roi.poly)
+        self._hole_names.append(roi.name)
+
 class QCMask:
 
     def __init__(self, mask: np.ndarray, filter_threshold: float = 0.6) -> None:
@@ -94,6 +119,9 @@ class QCMask:
 
         self.mask = mask
         self.filter_threshold = filter_threshold
+
+    def __repr__(self):
+        return f"<QCMask (shape={self.shape}), filter_threshold={self.filter_threshold}>"
 
     @property
     def shape(self):

@@ -3079,8 +3079,8 @@ class Dataset:
                 parsed = parser(record)
                 loc_x, loc_y = parsed['loc_x'], parsed['loc_y']
                 tile_in_roi = any([
-                    annPoly.contains(sg.Point(loc_x, loc_y))
-                    for annPoly in slide.annPolys
+                    roi.poly.contains(sg.Point(loc_x, loc_y))
+                    for roi in slide.annPolys
                 ])
                 # Convert from a Tensor -> Numpy array
                 if hasattr(record, 'numpy'):

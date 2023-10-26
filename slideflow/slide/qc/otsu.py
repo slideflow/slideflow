@@ -125,8 +125,8 @@ class Otsu:
             ofact = 1 / wsi.slide.level_downsamples[level]
             roi_mask = np.zeros((thumb.shape[0], thumb.shape[1]))
             scaled_polys = [
-                sa.scale(poly, xfact=ofact, yfact=ofact, origin=(0, 0))
-                for poly in wsi.annPolys
+                sa.scale(roi.poly, xfact=ofact, yfact=ofact, origin=(0, 0))
+                for roi in wsi.annPolys
             ]
             roi_mask = rasterio.features.rasterize(
                 scaled_polys,

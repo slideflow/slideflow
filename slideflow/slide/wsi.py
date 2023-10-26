@@ -133,11 +133,14 @@ class WSI:
         self.extracted_x_size = 0  # type: int
         self.extracted_y_size = 0  # type: int
         self.estimated_num_tiles = 0  # type: int
-        self.annPolys = []  # type: List
-        self.qc_masks = []  # type: List[QCMask]
-        self.rois = []  # type: List
+        self.annPolys = []  # type: List   # List of rendered ROI polygons.
+                                           # May be shorter than self.rois
+                                           # If some ROIs are rendered as holes.
+        self.rois = []  # type: List[ROI]  # List of individual ROI annotations
         self.roi_method = roi_method
+        self.roi_grid = None  # type: Optional[np.ndarray]
         self.roi_filter_method = roi_filter_method
+        self.qc_masks = []  # type: List[QCMask]
         self.verbose = verbose
         self.segmentation = None
         self.use_edge_tiles = use_edge_tiles
@@ -407,8 +410,8 @@ class WSI:
 
             # Translate ROI polygons
             translated = [
-                sa.translate(poly, x_offset, y_offset)
-                for poly in self.annPolys
+                sa.translate(roi.poly, x_offset, y_offset)
+                for roi in self.annPolys
             ]
 
             # Set scale to 50 times greater than grid size
@@ -421,11 +424,19 @@ class WSI:
                 for poly in translated
             ]
 
-            # Rasterize polygons to the size of the tile extraction grid
-            self.roi_mask = rasterio.features.rasterize(
-                scaled,
-                out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
-                all_touched=False).astype(bool)
+            # Rasterize polygons to the size of the tile extraction grid.
+            # Rasterize polygons for ROIs individually, to keep track of
+            # which ROI each tile belongs to, then merge.
+            self.roi_grid = np.stack([
+                rasterio.features.rasterize(
+                    [scaled_roi],
+                    out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
+                    all_touched=False).astype(bool).astype(int) * (i + 1)
+                for i, scaled_roi in enumerate(scaled)
+            ], axis=0).max(axis=0)
+
+            # Create a merged boolean mask.
+            self.roi_mask = self.roi_grid.astype(bool)  # type: ignore
         else:
             self.roi_mask = None
 
@@ -1028,10 +1039,12 @@ class WSI:
         """Apply custom slide-level QC by filtering grid coordinates.
 
         Args:
-            mask (np.ndarray, optional): Boolean QC mask. If None, will
-                re-apply the current mask. Defaults to None.
+            mask (np.ndarray or :class:`slideflow.slide.QCMask`, optional):
+                Boolean QC mask array or ``QCMask`` object. If None, will
+                re-apply the current masks. Defaults to None.
             filter_threshold (float): Percent of a tile detected as
                 background that will trigger a tile to be discarded.
+                Only used if ``mask`` is an np.ndarray.
                 Defaults to 0.6.
 
         Returns:
@@ -1057,6 +1070,10 @@ class WSI:
         # Otherwise, default to 0.6.
         if not isinstance(mask, QCMask) and filter_threshold is None:
             filter_threshold = 0.6
+        elif filter_threshold is not None and isinstance(mask, QCMask):
+            raise ValueError(
+                "filter_threshold cannot be provided if mask is a QCMask"
+            )
         elif filter_threshold is None:
             filter_threshold = mask.filter_threshold  # type: ignore
 
@@ -1095,7 +1112,7 @@ class WSI:
         # Filter out masks outside of ROIs, if present.
         if self.has_rois():
             log.debug(f"Applying {len(self.annPolys)} ROIs to segmentation.")
-            segmentation.apply_rois(1, self.annPolys)
+            segmentation.apply_rois(1, [r.poly for r in self.annPolys])
 
         if segmentation.slide is None:
             segmentation.slide = self
@@ -1896,12 +1913,13 @@ class WSI:
 
         if rois and len(self.rois):
             annPolys = [
-                sg.Polygon(annotation.scaled_area(roi_scale))
+                ROIPoly(sg.Polygon(annotation.scaled_area(roi_scale)),
+                        annotation.name)
                 for annotation in self.rois
             ]
             draw = ImageDraw.Draw(thumb)
-            for poly in annPolys:
-                x, y = poly.exterior.coords.xy
+            for roi in annPolys:
+                x, y = roi.poly.exterior.coords.xy
                 zipped = list(zip(x.tolist(), y.tolist()))
                 draw.line(zipped, joint='curve', fill=color, width=linewidth)
             return thumb
@@ -2209,12 +2227,13 @@ class WSI:
             for i, annotation in enumerate(self.rois):
                 try:
                     poly = sv.make_valid(sg.Polygon(annotation.coordinates))
-                    self.annPolys += [poly]
                 except ValueError:
                     log.warning(
                         f"Unable to use ROI {i} for [green]{self.name}[/]."
                         " At least 3 points required to create a shape."
                     )
+                else:
+                    self.annPolys.append(ROIPoly(poly, annotation.name))
             # Handle polygon holes.
             outers, inners = [], []
             for o, outer in enumerate(self.annPolys):
@@ -2223,9 +2242,9 @@ class WSI:
                         continue
                     if (i in inners) or (o in inners) or (i in outers):
                         continue
-                    if outer.contains(inner):
+                    if outer.poly.contains(inner.poly):
                         log.debug(f"Rendering ROI polygon {i} as hole in {o}")
-                        self.annPolys[o] = self.annPolys[o].difference(inner)
+                        self.annPolys[o].set_hole(inner)
                         if o not in outers:
                             outers.append(o)
                         if i not in inners:
