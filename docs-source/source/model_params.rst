@@ -1,5 +1,7 @@
 .. currentmodule:: slideflow
 
+.. _model_params:
+
 slideflow.ModelParams
 =====================
 

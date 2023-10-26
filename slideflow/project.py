@@ -818,29 +818,75 @@ class Project:
                 from_wsi=from_wsi
             )
 
-        # ---- Balance and clip datasets --------------------------------------
+        # ---- Balance datasets --------------------------------------
+        # Training
         if s_args.bal_headers is None:
             s_args.bal_headers = s_args.outcomes
-        if not from_wsi:
+        if train_dts.prob_weights and hp.training_balance not in ('none', None):
+            log.warning(
+                "Training dataset already balanced; ignoring hyperparameter "
+                "training_balance={!r}".format(hp.training_balance)
+            )
+        elif not from_wsi:
             train_dts = train_dts.balance(
                 s_args.bal_headers,
                 hp.training_balance,
                 force=(hp.model_type() == 'categorical')
             )
-            train_dts = train_dts.clip(s_args.max_tiles)
-        elif hp.training_balance not in ('none', None) or s_args.max_tiles:
+        elif from_wsi and hp.training_balance not in ('none', None):
             log.warning(
                 "Balancing / clipping is disabled when `from_wsi=True`"
             )
 
-        if val_dts and not from_wsi:
+        # Validation
+        if val_dts and val_dts.prob_weights and hp.validation_balance not in (
+            'none', None
+        ):
+            log.warning(
+                "Validation dataset already balanced; ignoring hyperparameter "
+                "validation_balance={!r}".format(hp.validation_balance)
+            )
+        elif val_dts and not from_wsi:
             val_dts = val_dts.balance(
                 s_args.bal_headers,
                 hp.validation_balance,
                 force=(hp.model_type() == 'categorical')
             )
-            val_dts = val_dts.clip(s_args.max_tiles)
+        elif val_dts and from_wsi and hp.validation_balance not in (
+            'none', None
+        ):
+            log.warning(
+                "Balancing / clipping is disabled when `from_wsi=True`"
+            )
 
+        # ---- Clip datasets -----------------------------------------
+        # Training
+        if s_args.max_tiles and train_dts._clip:
+            log.warning(
+                "Training dataset already clipped; ignoring parameter "
+                "max_tiles={!r}".format(s_args.max_tiles)
+            )
+        elif s_args.max_tiles and not from_wsi:
+            train_dts = train_dts.clip(s_args.max_tiles)
+        elif s_args.max_tiles and from_wsi:
+            log.warning(
+                "Clipping is disabled when `from_wsi=True`"
+            )
+
+        # Validation
+        if val_dts and s_args.max_tiles and val_dts._clip:
+            log.warning(
+                "Validation dataset already clipped; ignoring parameter "
+                "max_tiles={!r}".format(s_args.max_tiles)
+            )
+        elif s_args.max_tiles and val_dts and not from_wsi:
+            val_dts = val_dts.clip(s_args.max_tiles)
+        elif s_args.max_tiles and val_dts and from_wsi:
+            log.warning(
+                "Clipping is disabled when `from_wsi=True`"
+            )
+
+        # ---- Determine tile counts ---------------------------------------
         if from_wsi:
             num_train = len(train_dts.slide_paths())
             num_val = 0 if not val_dts else len(val_dts.slide_paths())

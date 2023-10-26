@@ -1,45 +1,47 @@
 Custom Feature Extractors
 =========================
 
-Slideflow includes several :ref:`pretrained feature extractors <mil>` for converting image tiles into feature vectors, but also provides tools to assist with building your own feature extractor. In this note, we'll walk through the process of building a custom feature extractor from both a PyTorch and Tensorflow model.
+Slideflow includes several :ref:`pretrained feature extractors <mil>` for converting image tiles into feature vectors as well as tools to assist with building your own feature extractor. In this note, we'll walk through the process of building a custom feature extractor from both a PyTorch and Tensorflow model.
 
 PyTorch
 *******
 
 Feature extractors are implemented as a subclass of :class:`slideflow.model.extractors._factory_torch.TorchFeatureExtractor`. The base class provides core functionality and helper methods for generating features from image tiles (dtype uint8) or whole-slide images (type :class:`slideflow.WSI`).
 
-The initializer should create the model and move it to the appropriate device.
+The initializer should create the feature extraction model and move it to the appropriate device (*i.e.* GPU). The model should be a :class:`torch.nn.Module` that accepts an image tensor as input and returns a feature tensor as output.
 
 .. code-block:: python
 
+    # Import your custom torch.nn.Module,
+    # which generates features from an image.
     from my_module import MyModel
-    from slideflow.model.extractors._factory_torch import TorchFeatureExtractor
-    from slideflow.model import torch_utils
 
+    from slideflow.model.extractors._factory_torch import TorchFeatureExtractor
 
     class MyFeatureExtractor(TorchFeatureExtractor):
 
-        tag = 'my_feature_extractor'  # Unique identifier
+        tag = 'my_feature_extractor'  # Human-readable identifier
 
         def __init__(self):
             super().__init__()
 
             # Create the device, move to GPU, and set in evaluation mode.
             self.model = MyModel()
-            self.device = torch_utils.get_device('cuda')
-            self.model.to(self.device)
+            self.model.to('cuda')
             self.model.eval()
 
 Next, the initializer should set the number of features expected to be returned by the model.
 
 .. code-block:: python
 
+    ...
+
         def __init__(self):
             ...
 
             self.num_features = 1024
 
-The initializer is also responsible for registering image preprocessing and transformations. The composed image transformation should be stored in ``self.transform``. If the transformation standardizes the images, then the parameter ``self.preprocess_kwargs`` should be set to ``{'standardize': False}``, indicating that Slideflow should not perform any additional standardization.
+The initializer is also responsible for registering image preprocessing. The image preprocessing transformation, a function which converts a raw ``uint8`` image to a ``float32`` tensor for model input, should be stored in ``self.transform``. If the transformation standardizes the images, then the parameter ``self.preprocess_kwargs`` should be set to ``{'standardize': False}``, indicating that Slideflow should not perform any additional standardization.
 
 .. code-block:: python
 
@@ -67,6 +69,8 @@ The final required method is ``.dump_config()``, which returns a dictionary of c
 
 .. code-block:: python
 
+    ...
+
         def dump_config(self):
             return {
                 'class': 'MyFeatureExtractor',
@@ -79,20 +83,18 @@ The final class should look like this:
 
     from my_module import MyModel
     from slideflow.model.extractors._factory_torch import TorchFeatureExtractor
-    from slideflow.model import torch_utils
     from torchvision import transforms
 
     class MyFeatureExtractor(TorchFeatureExtractor):
 
-        tag = 'my_feature_extractor'  # Unique identifier
+        tag = 'my_feature_extractor'  # Human-readable identifier
 
         def __init__(self):
             super().__init__()
 
             # Create the device, move to GPU, and set in evaluation mode.
             self.model = MyModel()
-            self.device = torch_utils.get_device('cuda')
-            self.model.to(self.device)
+            self.model.to('cuda')
             self.model.eval()
             self.num_features = 1024
 
@@ -129,7 +131,7 @@ You can then use the feature extractor for generating bags for MIL training, as 
     # Generate bags.
     project.generate_feature_bags(myfeatures, dataset)
 
-You can also generate features across whole-slide images, returning a grid of features for each slide:
+You can also generate features across whole-slide images, returning a grid of features for each slide. The size of the returned grid reflects the slide's tile grid. For example, for a slide with 24 columns and 33 rows of tiles, the returned grid will have shape ``(24, 33, n_features)``.
 
 .. code-block:: python
 
@@ -139,7 +141,7 @@ You can also generate features across whole-slide images, returning a grid of fe
     >>> features.shape
     (24, 33, 1024)
 
-...and perform feature space analysis, as described in :ref:`activations`.
+Finally, the feature extractor can also be used to perform latent space analysis and generate mosaic maps, as described in :ref:`activations`.
 
 Slideflow includes a registration system for keeping track of all available feature extractors. To register your feature extractor, use the :func:`slideflow.model.extractors.register_torch` decorator.
 
@@ -192,6 +194,8 @@ For example, to only perform standardization and no further preprocessing:
 
 .. code-block:: python
 
+    ...
+
         def __init__(self):
             ...
 
@@ -225,6 +229,8 @@ To perform standardization and resize images to 256x256:
 The ``.dump_config()`` method should then be set, which is expected to return a dictionary of configuration parameters needed to regenerate this class. It should return a dictionary with ``"class"`` and ``"kwargs"`` attributes. This configuration is saved to a JSON configuration file when generating bags for MIL training.
 
 .. code-block:: python
+
+    ...
 
         def dump_config(self):
             return {

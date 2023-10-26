@@ -29,6 +29,15 @@ If you encounter any issues with the initialization scripts, you can also start 
 
     python -m slideflow.studio
 
+If you are using a Docker image, additional arguments are required to launch Studio. Start your docker container using the arguments ``-e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix``. For example:
+
+.. code-block:: bash
+
+    docker run -it --rm \
+        -e DISPLAY=$DISPLAY \
+        -v /tmp/.X11-unix:/tmp/.X11-unix \
+        jamesdolezal/slideflow:latest-tf
+
 A path to a whole-slide image can optionally be provided as the first argument. Use the ``--help`` flag to see a list of available arguments.
 
 You can also launch Studio by using the ``.view()`` function of :class:`slideflow.WSI`, :class:`slideflow.Heatmap`, and :class:`slideflow.Mosaic` functions.

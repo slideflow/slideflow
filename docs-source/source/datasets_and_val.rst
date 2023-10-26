@@ -282,11 +282,9 @@ Re-using splits
 
 For all validation strategies, training/validation splits can be logged to a JSON file automatically if a splits configuration file is provided to the argument ``splits``. When provided, :meth:`Dataset.split` will prioritize using previously-generated training/validation splits rather than generating a new split. This aids with experiment reproducibility and hyperparameter tuning. If training/validation splits are being prepared by a :ref:`Project-level function <project>`, splits will be automatically logged to a ``splits.json`` file in the project root directory.
 
-.. _dataloaders:
-
 Creating Dataloaders
 ********************
 
-Finally, Datasets can also return either a ``tf.data.Datasets`` or ``torch.utils.data.Dataloader`` object to quickly and easily create a deep learning dataset ready to be used as model input, with the :meth:`Dataset.tensorflow` and :meth:`Dataset.torch` methods, respectively.
+Finally, Datasets can also return either a ``tf.data.Datasets`` or ``torch.utils.data.Dataloader`` object to quickly and easily create a deep learning dataset ready to be used as model input, with the :meth:`Dataset.tensorflow` and :meth:`Dataset.torch` methods, respectively.  See :ref:`dataloaders` for more detailed information and examples.
 
 Datasets have many other utility functions for working with and processing data. Read more in the :ref:`Dataset API documentation <dataset>`.

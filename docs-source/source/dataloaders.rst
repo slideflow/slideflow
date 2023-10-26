@@ -174,7 +174,7 @@ The ``label`` argument to the ``.tensorflow()`` and ``.torch()`` methods accept 
 
 .. warning::
 
-    Labels are assigned to image tiles based on the slide names inside a :ref:`tfrecord` file, not by the filename of the tfrecord. This means that renaming a TFRecord file will not change the label of the tiles inside the file. If you need to change the slide names associated with tiles inside a TFRecord, the TFRecord file must be regenerated.
+    Labels are assigned to image tiles based on the slide names inside a :ref:`tfrecord <tfrecords>` file, not by the filename of the tfrecord. This means that renaming a TFRecord file will not change the label of the tiles inside the file. If you need to change the slide names associated with tiles inside a TFRecord, the TFRecord file must be regenerated.
 
 The most common way to generate labels is to use the :meth:`slideflow.Dataset.labels()` method, which returns a dictionary mapping slide names to numeric labels. For categorical labels, the numeric labels correspond to the index of the label in the ``unique_labels`` list. For example, if the ``unique_labels`` list is ``['HPV-', 'HPV+']``, then the mapping of numeric labels would be ``{ 'HPV-': 0, 'HPV+': 1 }``.
 
@@ -290,6 +290,58 @@ Datasets can also be configured to undersample TFRecords using :meth:`slideflow.
     >>> dataset._clip = {...}
 
 Undersampling via dataset clipping is automatically applied to dataloaders created with ``.tensorflow()`` and ``.torch()``.
+
+During training
+---------------
+
+If you are training a Slideflow model by directly providing a training and validation dataset to the :meth:`slideflow.Project.train` method, you can configure the datasets to perform oversampling and undersampling as described above. For example:
+
+.. code-block:: python
+
+    import slideflow as sf
+
+    # Load a project
+    project = sf.load_project(...)
+
+    # Configure a training dataset with tile-level balancing
+    # and clipping to max 100 tiles per TFRecord
+    train = project.dataset(...).balance(strategy='tile').clip(100)
+
+    # Get a validation dataset
+    val = project.dataset(...)
+
+    # Train a model
+    project.train(
+        ...,
+        dataset=train,
+        val_dataset=val,
+    )
+
+Alternatively, you can configure oversampling during training through the ``training_balance`` and ``validation_balance`` hyperparameters, as described in the :ref:`ModelParams <model_params>` documentation. Undersampling with dataset clipping can be performed with the ``max_tiles`` argument. Configuring oversampling/undersampling with this method propagates the configuration to all datasets generated during cross-validation.
+
+.. code-block:: python
+
+    import slideflow as sf
+
+    # Load a project
+    project = sf.load_project(...)
+
+    # Configure hyperparameters with tile-level
+    # balancing/oversampling for the training data
+    hp = sf.ModelParams(
+        ...,
+        training_balance='tile',
+        validation_balance=None,
+    )
+
+    # Train a model.
+    # Undersample/clip data to max 100 tiles per TFRecord.
+    project.train(
+        ...,
+        params=hp,
+        max_tiles=100
+    )
+
 
 .. _indexable_dataloader:
 
