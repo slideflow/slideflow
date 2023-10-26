@@ -1339,6 +1339,43 @@ class Dataset:
                         n_converted += 1
         log.info(f'Converted {n_converted} XML ROIs -> CSV')
 
+    def export_tile_rois(
+        self,
+        roi_method: str = 'auto',
+        stride_div: int = 1,
+    ) -> pd.DataFrame:
+        """Generate a pandas dataframe with tile-level ROI labels.
+        
+        Returns:
+            Pandas dataframe of all tiles, with the following columns:
+            - ``loc_x``: X-coordinate of tile center
+            - ``loc_y``: Y-coordinate of tile center
+            - ``grid_x``: X grid index of the tile 
+            - ``grid_y``: Y grid index of the tile
+            - ``qc_pass``: Boolean, whether tile passed QC
+            - ``roi_name``: Name of the ROI if tile is in an ROI, else None
+            - ``roi_description``: Description of the ROI if tile is in ROI, else None
+            - ``label``: ROI label, if present.
+        
+        """
+        df = None
+        for slide_path in tqdm(self.slide_paths()):
+            wsi = sf.WSI(
+                slide_path,
+                self.tile_px,
+                self.tile_um,
+                rois=self.rois(),
+                stride_div=stride_div,
+                roi_method=roi_method,
+                verbose=False
+            )
+            _df = wsi.export_tile_rois()
+            if df is None:
+                df = _df
+            else:
+                df = pd.concat([df, _df], axis=0, join='outer')
+        return df        
+
     def extract_cells(
         self,
         masks_path: str,

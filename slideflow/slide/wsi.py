@@ -1531,6 +1531,7 @@ class WSI:
             - ``qc_pass``: Boolean, whether tile passed QC
             - ``roi_name``: Name of the ROI if tile is in an ROI, else None
             - ``roi_description``: Description of the ROI if tile is in ROI, else None
+            - ``label``: ROI label, if present.
 
         """    
         roi_names = []
