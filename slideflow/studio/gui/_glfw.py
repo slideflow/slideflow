@@ -17,8 +17,8 @@ class GlfwWindow:
         self,
         *,
         title: str = 'GlfwWindow',
-        window_width: int = 1920,
-        window_height: int = 1080,
+        window_width: int = 1024,
+        window_height: int = 768,
         deferred_show: bool = True,
         background: Optional[Tuple[float, float, float, float]] = None
     ) -> None:
