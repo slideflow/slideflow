@@ -1464,7 +1464,7 @@ class WSI:
         return generator
 
     def coord_to_grid(self, coord_x: int, coord_y: int) -> Tuple[int, int]:
-        """Finds the grid index of a tile by its base-level coordinates.
+        """Find the grid index of a tile by its base-level coordinates.
 
         Args:
             coord_x (int): x-coordinate of the tile, in base (level=0) dimension.
@@ -1518,38 +1518,44 @@ class WSI:
         df.to_csv(dest, index=False)
         log.info(f"{len(self.rois)} ROIs exported to {dest}")
         return dest
-   
+
     def export_tile_rois(self) -> pd.DataFrame:
         """Export dataframe of tiles and associated ROI labels.
-        
+
         Returns:
             Pandas dataframe of all tiles, with the following columns:
             - ``loc_x``: X-coordinate of tile center
             - ``loc_y``: Y-coordinate of tile center
-            - ``grid_x``: X grid index of the tile 
+            - ``grid_x``: X grid index of the tile
             - ``grid_y``: Y grid index of the tile
             - ``roi_name``: Name of the ROI if tile is in an ROI, else None
             - ``roi_description``: Description of the ROI if tile is in ROI, else None
             - ``label``: ROI label, if present.
 
-        """    
+        """
         roi_names = []
         roi_desc = []
         labels = []
         index = []
+        loc = []
+        grid = []
         for x, y, xi, yi in self.coord:
             if not self.grid[xi, yi]:
                 continue
             _, roi = self.get_tile_roi(grid=(xi, yi))
+            loc.append([x, y])
+            grid.append([xi, yi])
             roi_names.append(None if not roi else roi.name)
             roi_desc.append(None if not roi else roi.description)
             labels.append(None if not roi else roi.label)
             index.append(f'{self.name}-{x}-{y}')
+        loc = np.array(loc)
+        grid = np.array(grid)
         df = pd.DataFrame({
-            'loc_x': self.coord[:, 0],
-            'loc_y': self.coord[:, 1],
-            'grid_x': self.coord[:, 2],
-            'grid_y': self.coord[:, 3],
+            'loc_x': loc[:, 0],
+            'loc_y': loc[:, 1],
+            'grid_x': grid[:, 0],
+            'grid_y': grid[:, 1],
             'roi_name': roi_names,
             'roi_description': roi_desc,
             'label': labels
@@ -1801,7 +1807,7 @@ class WSI:
         coord: Optional[Tuple[int, int]] = None,
         grid: Optional[Tuple[int, int]] = None,
     ) -> Tuple[Optional[int], Optional[str]]:
-        """Finds the ROI that contains a given tile.
+        """Find the ROI that contains a given tile.
 
         Args:
             coord (Tuple[int, int], optional): Base-level coordinates of the
@@ -1810,8 +1816,8 @@ class WSI:
                 Cannot supply both ``coord`` and ``grid``. Defaults to None.
 
         Returns:
-            Tuple[int, ROIPoly]: ROI index (index of WSI.roi_polys) and 
-                the :class:`slideflow.slide.ROIPoly` that contains the tile. 
+            Tuple[int, ROIPoly]: ROI index (index of WSI.roi_polys) and
+                the :class:`slideflow.slide.ROIPoly` that contains the tile.
                 If no ROI contains the tile, returns (None, None).
 
         """
@@ -1831,7 +1837,7 @@ class WSI:
             return roi_idx, self.roi_polys[roi_idx]
 
     def grid_to_coord(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
-        """Finds the base-level coordinates of a tile by its grid index.
+        """Find the base-level coordinates of a tile by its grid index.
 
         Args:
             grid_x (int): x-index of the tile in the grid.
