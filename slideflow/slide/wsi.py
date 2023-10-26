@@ -1606,10 +1606,10 @@ class WSI:
         ws_fractions = []
         gs_fractions = []
         num_wrote_to_tfr = 0
-        slidename_bytes = bytes(self.name, 'utf-8')
+        slide_bytes = bytes(self.name, 'utf-8')
 
         for index, tile_dict in enumerate(generator_iterator):
-            location = tile_dict['loc']
+            x, y = location = tile_dict['loc']
             locations += [location]
             grid_locations += [tile_dict['grid']]
             if 'ws_fraction' in tile_dict:
@@ -1620,20 +1620,20 @@ class WSI:
             if dry_run:
                 continue
 
-            image_string = tile_dict['image']
+            img_str = tile_dict['image']
             if len(sample_tiles) < 10:
-                sample_tiles += [image_string]
+                sample_tiles += [img_str]
             elif (not tiles_dir and not tfrecord_dir) and not dry_run:
                 break
             if tiles_dir:
                 img_f = join(
                     tiles_dir,
-                    f'{self.shortname}_{index}.{img_format}'
+                    f'{self.shortname}-{x}-{y}.{img_format}'
                 )
                 with open(img_f, 'wb') as outfile:
-                    outfile.write(image_string)
+                    outfile.write(img_str)
                 if 'yolo' in tile_dict and len(tile_dict['yolo']):
-                    yolo_f = join(tiles_dir, f'{self.shortname}_{index}.txt')
+                    yolo_f = join(tiles_dir, f'{self.shortname}-{x}-{y}.txt')
                     with open(yolo_f, 'w') as outfile:
                         for ann in tile_dict['yolo']:
                             yolo_str_fmt = "0 {:.3f} {:.3f} {:.3f} {:.3f}\n"
@@ -1644,12 +1644,7 @@ class WSI:
                                 ann[3]
                             ))
             if tfrecord_dir:
-                record = sf.io.serialized_record(
-                    slidename_bytes,
-                    image_string,
-                    location[0],
-                    location[1]
-                )
+                record = sf.io.serialized_record(slide_bytes, img_str, x, y)
                 writer.write(record)
                 num_wrote_to_tfr += 1
         if tfrecord_dir and not dry_run:
