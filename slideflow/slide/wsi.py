@@ -1464,6 +1464,48 @@ class WSI:
 
         return generator
 
+    def coord_to_grid(self, coord_x: int, coord_y: int) -> Tuple[int, int]:
+        """Finds the grid index of a tile by its base-level coordinates.
+
+        Args:
+            coord_x (int): x-coordinate of the tile, in base (level=0) dimension.
+            coord_y (int): y-coordinate of the tile, in base (level=0) dimension.
+
+        Returns:
+            Tuple[int, int]: Grid index of the tile.
+
+        """
+        coord_idx, = np.where((
+            (self.coord[:, 0] == coord_x)
+            & (self.coord[:, 1] == coord_y)
+        ))
+        if not len(coord_idx):
+            raise ValueError(f"Tile at coord=({coord_x}, {coord_y}) not found")
+        assert len(coord_idx) == 1
+        x, y, grid_x, grid_y = self.coord[coord_idx[0]]
+        return grid_x, grid_y
+
+    def grid_to_coord(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
+        """Finds the base-level coordinates of a tile by its grid index.
+
+        Args:
+            grid_x (int): x-index of the tile in the grid.
+            grid_y (int): y-index of the tile in the grid.
+
+        Returns:
+            Tuple[int, int]: Base-level coordinates of the tile.
+
+        """
+        grid_idx, = np.where((
+            (self.coord[:, 2] == grid_x)
+            & (self.coord[:, 3] == grid_y)
+        ))
+        if not len(grid_idx):
+            raise ValueError(f"Tile at grid=({grid_x}, {grid_y}) not found")
+        assert len(grid_idx) == 1
+        x, y, grid_x, grid_y = self.coord[grid_idx[0]]
+        return x, y
+
     def dim_to_mpp(self, dimensions: Tuple[float, float]) -> float:
         return (self.dimensions[0] * self.mpp) / dimensions[0]
 
