@@ -121,12 +121,12 @@ class Otsu:
             thumb = thumb[:, :, :3]
 
         # Only apply Otsu thresholding within ROI, if present
-        if len(wsi.annPolys):
+        if len(wsi.roiPolys):
             ofact = 1 / wsi.slide.level_downsamples[level]
             roi_mask = np.zeros((thumb.shape[0], thumb.shape[1]))
             scaled_polys = [
                 sa.scale(roi.poly, xfact=ofact, yfact=ofact, origin=(0, 0))
-                for roi in wsi.annPolys
+                for roi in wsi.roiPolys
             ]
             roi_mask = rasterio.features.rasterize(
                 scaled_polys,

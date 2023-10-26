@@ -133,7 +133,7 @@ class WSI:
         self.extracted_x_size = 0  # type: int
         self.extracted_y_size = 0  # type: int
         self.estimated_num_tiles = 0  # type: int
-        self.annPolys = []  # type: List   # List of rendered ROI polygons.
+        self.roiPolys = []  # type: List   # List of rendered ROI polygons.
                                            # May be shorter than self.rois
                                            # If some ROIs are rendered as holes.
         self.rois = []  # type: List[ROI]  # List of individual ROI annotations
@@ -411,7 +411,7 @@ class WSI:
             # Translate ROI polygons
             translated = [
                 sa.translate(roi.poly, x_offset, y_offset)
-                for roi in self.annPolys
+                for roi in self.roiPolys
             ]
 
             # Set scale to 50 times greater than grid size
@@ -1111,8 +1111,8 @@ class WSI:
         """
         # Filter out masks outside of ROIs, if present.
         if self.has_rois():
-            log.debug(f"Applying {len(self.annPolys)} ROIs to segmentation.")
-            segmentation.apply_rois(1, [r.poly for r in self.annPolys])
+            log.debug(f"Applying {len(self.roiPolys)} ROIs to segmentation.")
+            segmentation.apply_rois(1, [r.poly for r in self.roiPolys])
 
         if segmentation.slide is None:
             segmentation.slide = self
@@ -1506,6 +1506,40 @@ class WSI:
         x, y, grid_x, grid_y = self.coord[grid_idx[0]]
         return x, y
 
+    def get_tile_roi(
+        self,
+        coord: Optional[Tuple[int, int]] = None,
+        grid: Optional[Tuple[int, int]] = None,
+    ) -> Tuple[Optional[int], Optional[str]]:
+        """Finds the ROI that contains a given tile.
+
+        Args:
+            coord (Tuple[int, int], optional): Base-level coordinates of the
+                tile. Cannot supply both ``coord`` and ``grid``. Defaults to None.
+            grid (Tuple[int, int], optional): Grid index of the tile.
+                Cannot supply both ``coord`` and ``grid``. Defaults to None.
+
+        Returns:
+            Tuple[int, str]: ROI index (index of WSI.roiPolys) and name of
+                the ROI that contains the tile. If no ROI contains the tile,
+                returns (None, None).
+
+        """
+        if coord is not None and grid is not None:
+            raise ValueError("Cannot specify both coord and grid")
+        if coord is not None:
+            grid = self.coord_to_grid(*coord)
+        elif grid is None:
+            raise ValueError("Must specify either coord or grid")
+        if self.roi_grid is None:
+            return None, None
+        grid_x, grid_y = grid
+        roi_idx = self.roi_grid[grid_y, grid_x] - 1
+        if roi_idx == -1:
+            return None, None
+        else:
+            return roi_idx, self.roiPolys[roi_idx].name
+
     def dim_to_mpp(self, dimensions: Tuple[float, float]) -> float:
         return (self.dimensions[0] * self.mpp) / dimensions[0]
 
@@ -1848,7 +1882,7 @@ class WSI:
         """Checks if the slide has loaded ROIs and they are not being ignored."""
         return (self.roi_method != 'ignore'
                 and len(self.rois)
-                and self.annPolys is not None)
+                and self.roiPolys is not None)
 
     def thumb(
         self,
@@ -1949,13 +1983,13 @@ class WSI:
                 draw.rectangle(coords, outline=rect_color, width=rect_linewidth)
 
         if rois and len(self.rois):
-            annPolys = [
+            roiPolys = [
                 ROIPoly(sg.Polygon(annotation.scaled_area(roi_scale)),
                         annotation.name)
                 for annotation in self.rois
             ]
             draw = ImageDraw.Draw(thumb)
-            for roi in annPolys:
+            for roi in roiPolys:
                 x, y = roi.poly.exterior.coords.xy
                 zipped = list(zip(x.tolist(), y.tolist()))
                 draw.line(zipped, joint='curve', fill=color, width=linewidth)
@@ -2013,7 +2047,7 @@ class WSI:
         """
         # Clear any previously loaded ROIs.
         self.rois = []
-        self.annPolys = []
+        self.roiPolys = []
 
         roi_dict = {}
         with open(path, "r") as csvfile:
@@ -2066,7 +2100,7 @@ class WSI:
         """
         # Clear any previously loaded ROIs.
         self.rois = []
-        self.annPolys = []
+        self.roiPolys = []
 
         with open(path, "r") as json_file:
             json_data = json.load(json_file)['shapes']
@@ -2260,7 +2294,7 @@ class WSI:
         """
         # Load annotations as shapely.geometry objects.
         if self.roi_method != 'ignore':
-            self.annPolys = []
+            self.roiPolys = []
             for i, annotation in enumerate(self.rois):
                 try:
                     poly = sv.make_valid(sg.Polygon(annotation.coordinates))
@@ -2270,23 +2304,23 @@ class WSI:
                         " At least 3 points required to create a shape."
                     )
                 else:
-                    self.annPolys.append(ROIPoly(poly, annotation.name))
+                    self.roiPolys.append(ROIPoly(poly, annotation.name))
             # Handle polygon holes.
             outers, inners = [], []
-            for o, outer in enumerate(self.annPolys):
-                for i, inner in enumerate(self.annPolys):
+            for o, outer in enumerate(self.roiPolys):
+                for i, inner in enumerate(self.roiPolys):
                     if o == i:
                         continue
                     if (i in inners) or (o in inners) or (i in outers):
                         continue
                     if outer.poly.contains(inner.poly):
                         log.debug(f"Rendering ROI polygon {i} as hole in {o}")
-                        self.annPolys[o].set_hole(inner)
+                        self.roiPolys[o].set_hole(inner)
                         if o not in outers:
                             outers.append(o)
                         if i not in inners:
                             inners.append(i)
-            self.annPolys = [ann for (i, ann) in enumerate(self.annPolys)
+            self.roiPolys = [ann for (i, ann) in enumerate(self.roiPolys)
                              if i not in inners]
 
         # Regenerate the grid to reflect the newly-loaded ROIs.
