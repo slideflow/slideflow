@@ -96,7 +96,8 @@ class SlideWidget:
         self.capturing              = False
         self.editing                = False
         self.annotations            = []
-        self._mouse_down            = False
+        self._left_mouse_down       = False
+        self._right_mouse_down      = False
         self._late_render           = []
 
         # Tile extraction preview
@@ -385,23 +386,30 @@ class SlideWidget:
             return None
         elif not imgui.is_mouse_down(0):
             # Mouse is newly up
-            self._mouse_down = False
+            self._left_mouse_down = False
             return None
-        elif self._mouse_down:
+        elif self._left_mouse_down:
             # Mouse is already down
             return None
         else:
             # Mouse is newly down
-            self._mouse_down = True
+            self._left_mouse_down = True
             mouse_point = Point(imgui.get_mouse_pos())
+            possible_rois = []
             for roi_idx, roi_array in self.viz.viewer.rois:
                 try:
                     roi_poly = Polygon(roi_array)
                 except ValueError:
                     continue
                 if roi_poly.contains(mouse_point):
-                    return roi_idx
-            return None
+                    possible_rois.append(roi_idx)
+            if len(possible_rois) > 1:
+                return [r for r in possible_rois 
+                        if not self.viz.viewer.roi_is_selected(r)][0]
+            elif len(possible_rois) == 1:
+                return possible_rois[0]
+            else:
+                return None
 
     def _process_roi_capture(self) -> None:
         """Process a newly captured ROI.

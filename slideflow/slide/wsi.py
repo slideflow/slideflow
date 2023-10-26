@@ -1528,7 +1528,6 @@ class WSI:
             - ``loc_y``: Y-coordinate of tile center
             - ``grid_x``: X grid index of the tile 
             - ``grid_y``: Y grid index of the tile
-            - ``qc_pass``: Boolean, whether tile passed QC
             - ``roi_name``: Name of the ROI if tile is in an ROI, else None
             - ``roi_description``: Description of the ROI if tile is in ROI, else None
             - ``label``: ROI label, if present.
@@ -1537,10 +1536,10 @@ class WSI:
         roi_names = []
         roi_desc = []
         labels = []
-        all_qc_pass = []
         index = []
         for x, y, xi, yi in self.coord:
-            all_qc_pass.append(self.grid[xi, yi])
+            if not self.grid[xi, yi]:
+                continue
             _, roi = self.get_tile_roi(grid=(xi, yi))
             roi_names.append(None if not roi else roi.name)
             roi_desc.append(None if not roi else roi.description)
@@ -1551,7 +1550,6 @@ class WSI:
             'loc_y': self.coord[:, 1],
             'grid_x': self.coord[:, 2],
             'grid_y': self.coord[:, 3],
-            'qc_pass': all_qc_pass,
             'roi_name': roi_names,
             'roi_description': roi_desc,
             'label': labels

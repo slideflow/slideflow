@@ -559,6 +559,9 @@ class SlideViewer(Viewer):
             del self.selected_rois[self.selected_rois.index(idx)]
         else:
             raise IndexError(f"ROI {idx} is not selected.")
+        
+    def roi_is_selected(self, idx: int) -> bool:
+        return idx in self.selected_rois
 
     def set_tile_px(self, tile_px: int):
         if tile_px != self.tile_px:

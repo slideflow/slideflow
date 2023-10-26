@@ -1352,7 +1352,6 @@ class Dataset:
             - ``loc_y``: Y-coordinate of tile center
             - ``grid_x``: X grid index of the tile 
             - ``grid_y``: Y grid index of the tile
-            - ``qc_pass``: Boolean, whether tile passed QC
             - ``roi_name``: Name of the ROI if tile is in an ROI, else None
             - ``roi_description``: Description of the ROI if tile is in ROI, else None
             - ``label``: ROI label, if present.
