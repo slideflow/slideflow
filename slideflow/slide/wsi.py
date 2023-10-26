@@ -251,7 +251,6 @@ class WSI:
         # Summarize slide information
         self._log_slide_summary()
 
-
     def __repr__(self) -> str:
         base = "WSI(\n"
         base += "  path = {!r},\n".format(self.path)
@@ -1520,7 +1519,7 @@ class WSI:
         log.info(f"{len(self.rois)} ROIs exported to {dest}")
         return dest
    
-    def export_tile_roi(self) -> pd.DataFrame:
+    def export_tile_rois(self) -> pd.DataFrame:
         """Export dataframe of tiles and associated ROI labels.
         
         Returns:
@@ -1536,12 +1535,16 @@ class WSI:
         """    
         roi_names = []
         roi_desc = []
+        labels = []
         all_qc_pass = []
+        index = []
         for x, y, xi, yi in self.coord:
             all_qc_pass.append(self.grid[xi, yi])
             _, roi = self.get_tile_roi(grid=(xi, yi))
             roi_names.append(None if not roi else roi.name)
             roi_desc.append(None if not roi else roi.description)
+            labels.append(None if not roi else roi.label)
+            index.append(f'{self.name}-{x}-{y}')
         df = pd.DataFrame({
             'loc_x': self.coord[:, 0],
             'loc_y': self.coord[:, 1],
@@ -1549,8 +1552,9 @@ class WSI:
             'grid_y': self.coord[:, 3],
             'qc_pass': all_qc_pass,
             'roi_name': roi_names,
-            'roi_description': roi_desc
-        })
+            'roi_description': roi_desc,
+            'label': labels
+        }, index=index)
         return df
 
     def extract_tiles(
@@ -1921,7 +1925,9 @@ class WSI:
         self,
         array: np.ndarray,
         *,
-        process: bool = True
+        process: bool = True,
+        label: Optional[str] = None,
+        name: Optional[str] = None
     ) -> None:
         """Load an ROI from a numpy array.
 
@@ -1937,8 +1943,10 @@ class WSI:
             int(r.name[4:]) for r in self.rois
             if r.name.startswith('ROI_') and r.name[4:].isnumeric()
         ]
-        roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
-        self.rois.append(ROI(f'ROI_{roi_id}', array))
+        if name is None:
+            roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
+            name = f'ROI_{roi_id}'
+        self.rois.append(ROI(name, array, label=label))
         if self.roi_method == 'auto':
             self.roi_method = 'inside'
         if process:
@@ -1985,13 +1993,15 @@ class WSI:
                     f'Unable to read CSV ROI [green]{path}[/]. Please ensure '
                     'headers contain "ROI_name", "X_base and "Y_base".'
                 )
+            index_label = None if not "label" in headers else headers.index("label")
             for row in reader:
                 roi_name = row[index_name]
                 x_coord = int(float(row[index_x]) * scale)
                 y_coord = int(float(row[index_y]) * scale)
+                label = None if index_label is None else row[index_label]
 
                 if roi_name not in roi_dict:
-                    roi_dict.update({roi_name: ROI(roi_name)})
+                    roi_dict.update({roi_name: ROI(roi_name, label=label)})
                 roi_dict[roi_name].add_coord((x_coord, y_coord))
 
             for roi_object in roi_dict.values():
@@ -2224,7 +2234,7 @@ class WSI:
                         " At least 3 points required to create a shape."
                     )
                 else:
-                    self.roi_polys.append(ROIPoly(poly, annotation.name))
+                    self.roi_polys.append(ROIPoly(poly, annotation.name, annotation.label))
             # Handle polygon holes.
             outers, inners = [], []
             for o, outer in enumerate(self.roi_polys):
@@ -2492,7 +2502,8 @@ class WSI:
         if rois and len(self.rois):
             roi_polys = [
                 ROIPoly(sg.Polygon(annotation.scaled_area(roi_scale)),
-                        annotation.name)
+                        annotation.name,
+                        annotation.label)
                 for annotation in self.rois
             ]
             draw = ImageDraw.Draw(thumb)
