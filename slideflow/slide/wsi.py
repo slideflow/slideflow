@@ -133,7 +133,7 @@ class WSI:
         self.extracted_x_size = 0  # type: int
         self.extracted_y_size = 0  # type: int
         self.estimated_num_tiles = 0  # type: int
-        self.roiPolys = []  # type: List   # List of rendered ROI polygons.
+        self.roi_polys = []  # type: List   # List of rendered ROI polygons.
                                            # May be shorter than self.rois
                                            # If some ROIs are rendered as holes.
         self.rois = []  # type: List[ROI]  # List of individual ROI annotations
@@ -411,7 +411,7 @@ class WSI:
             # Translate ROI polygons
             translated = [
                 sa.translate(roi.poly, x_offset, y_offset)
-                for roi in self.roiPolys
+                for roi in self.roi_polys
             ]
 
             # Set scale to 50 times greater than grid size
@@ -433,10 +433,10 @@ class WSI:
                     out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
                     all_touched=False).astype(bool).astype(int) * (i + 1)
                 for i, scaled_roi in enumerate(scaled)
-            ], axis=0).max(axis=0)
+            ], axis=0).max(axis=0).T
 
             # Create a merged boolean mask.
-            self.roi_mask = self.roi_grid.astype(bool)  # type: ignore
+            self.roi_mask = self.roi_grid.T.astype(bool)  # type: ignore
         else:
             self.roi_mask = None
 
@@ -1111,8 +1111,8 @@ class WSI:
         """
         # Filter out masks outside of ROIs, if present.
         if self.has_rois():
-            log.debug(f"Applying {len(self.roiPolys)} ROIs to segmentation.")
-            segmentation.apply_rois(1, [r.poly for r in self.roiPolys])
+            log.debug(f"Applying {len(self.roi_polys)} ROIs to segmentation.")
+            segmentation.apply_rois(1, [r.poly for r in self.roi_polys])
 
         if segmentation.slide is None:
             segmentation.slide = self
@@ -1485,61 +1485,6 @@ class WSI:
         x, y, grid_x, grid_y = self.coord[coord_idx[0]]
         return grid_x, grid_y
 
-    def grid_to_coord(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
-        """Finds the base-level coordinates of a tile by its grid index.
-
-        Args:
-            grid_x (int): x-index of the tile in the grid.
-            grid_y (int): y-index of the tile in the grid.
-
-        Returns:
-            Tuple[int, int]: Base-level coordinates of the tile.
-
-        """
-        grid_idx, = np.where((
-            (self.coord[:, 2] == grid_x)
-            & (self.coord[:, 3] == grid_y)
-        ))
-        if not len(grid_idx):
-            raise ValueError(f"Tile at grid=({grid_x}, {grid_y}) not found")
-        assert len(grid_idx) == 1
-        x, y, grid_x, grid_y = self.coord[grid_idx[0]]
-        return x, y
-
-    def get_tile_roi(
-        self,
-        coord: Optional[Tuple[int, int]] = None,
-        grid: Optional[Tuple[int, int]] = None,
-    ) -> Tuple[Optional[int], Optional[str]]:
-        """Finds the ROI that contains a given tile.
-
-        Args:
-            coord (Tuple[int, int], optional): Base-level coordinates of the
-                tile. Cannot supply both ``coord`` and ``grid``. Defaults to None.
-            grid (Tuple[int, int], optional): Grid index of the tile.
-                Cannot supply both ``coord`` and ``grid``. Defaults to None.
-
-        Returns:
-            Tuple[int, str]: ROI index (index of WSI.roiPolys) and name of
-                the ROI that contains the tile. If no ROI contains the tile,
-                returns (None, None).
-
-        """
-        if coord is not None and grid is not None:
-            raise ValueError("Cannot specify both coord and grid")
-        if coord is not None:
-            grid = self.coord_to_grid(*coord)
-        elif grid is None:
-            raise ValueError("Must specify either coord or grid")
-        if self.roi_grid is None:
-            return None, None
-        grid_x, grid_y = grid
-        roi_idx = self.roi_grid[grid_y, grid_x] - 1
-        if roi_idx == -1:
-            return None, None
-        else:
-            return roi_idx, self.roiPolys[roi_idx].name
-
     def dim_to_mpp(self, dimensions: Tuple[float, float]) -> float:
         return (self.dimensions[0] * self.mpp) / dimensions[0]
 
@@ -1574,6 +1519,39 @@ class WSI:
         df.to_csv(dest, index=False)
         log.info(f"{len(self.rois)} ROIs exported to {dest}")
         return dest
+   
+    def export_tile_roi(self) -> pd.DataFrame:
+        """Export dataframe of tiles and associated ROI labels.
+        
+        Returns:
+            Pandas dataframe of all tiles, with the following columns:
+            - ``loc_x``: X-coordinate of tile center
+            - ``loc_y``: Y-coordinate of tile center
+            - ``grid_x``: X grid index of the tile 
+            - ``grid_y``: Y grid index of the tile
+            - ``qc_pass``: Boolean, whether tile passed QC
+            - ``roi_name``: Name of the ROI if tile is in an ROI, else None
+            - ``roi_description``: Description of the ROI if tile is in ROI, else None
+
+        """    
+        roi_names = []
+        roi_desc = []
+        all_qc_pass = []
+        for x, y, xi, yi in self.coord:
+            all_qc_pass.append(self.grid[xi, yi])
+            _, roi = self.get_tile_roi(grid=(xi, yi))
+            roi_names.append(None if not roi else roi.name)
+            roi_desc.append(None if not roi else roi.description)
+        df = pd.DataFrame({
+            'loc_x': self.coord[:, 0],
+            'loc_y': self.coord[:, 1],
+            'grid_x': self.coord[:, 2],
+            'grid_y': self.coord[:, 3],
+            'qc_pass': all_qc_pass,
+            'roi_name': roi_names,
+            'roi_description': roi_desc
+        })
+        return df
 
     def extract_tiles(
         self,
@@ -1815,6 +1793,61 @@ class WSI:
             **kwargs
         )
 
+    def get_tile_roi(
+        self,
+        coord: Optional[Tuple[int, int]] = None,
+        grid: Optional[Tuple[int, int]] = None,
+    ) -> Tuple[Optional[int], Optional[str]]:
+        """Finds the ROI that contains a given tile.
+
+        Args:
+            coord (Tuple[int, int], optional): Base-level coordinates of the
+                tile. Cannot supply both ``coord`` and ``grid``. Defaults to None.
+            grid (Tuple[int, int], optional): Grid index of the tile.
+                Cannot supply both ``coord`` and ``grid``. Defaults to None.
+
+        Returns:
+            Tuple[int, ROIPoly]: ROI index (index of WSI.roi_polys) and 
+                the :class:`slideflow.slide.ROIPoly` that contains the tile. 
+                If no ROI contains the tile, returns (None, None).
+
+        """
+        if coord is not None and grid is not None:
+            raise ValueError("Cannot specify both coord and grid")
+        if coord is not None:
+            grid = self.coord_to_grid(*coord)
+        elif grid is None:
+            raise ValueError("Must specify either coord or grid")
+        if self.roi_grid is None:
+            return None, None
+        grid_x, grid_y = grid
+        roi_idx = self.roi_grid[grid_x, grid_y] - 1
+        if roi_idx == -1:
+            return None, None
+        else:
+            return roi_idx, self.roi_polys[roi_idx]
+
+    def grid_to_coord(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
+        """Finds the base-level coordinates of a tile by its grid index.
+
+        Args:
+            grid_x (int): x-index of the tile in the grid.
+            grid_y (int): y-index of the tile in the grid.
+
+        Returns:
+            Tuple[int, int]: Base-level coordinates of the tile.
+
+        """
+        grid_idx, = np.where((
+            (self.coord[:, 2] == grid_x)
+            & (self.coord[:, 3] == grid_y)
+        ))
+        if not len(grid_idx):
+            raise ValueError(f"Tile at grid=({grid_x}, {grid_y}) not found")
+        assert len(grid_idx) == 1
+        x, y, grid_x, grid_y = self.coord[grid_idx[0]]
+        return x, y
+
     def get_tile_mask(self, index, sparse_mask) -> np.ndarray:
         """Get a mask for a tile, given a sparse mask.
 
@@ -1882,120 +1915,7 @@ class WSI:
         """Checks if the slide has loaded ROIs and they are not being ignored."""
         return (self.roi_method != 'ignore'
                 and len(self.rois)
-                and self.roiPolys is not None)
-
-    def thumb(
-        self,
-        mpp: Optional[float] = None,
-        width: Optional[int] = None,
-        *,
-        coords: Optional[List[int]] = None,
-        rect_linewidth: int = 2,
-        rect_color: str = 'black',
-        rois: bool = False,
-        linewidth: int = 2,
-        color: str = 'black',
-        use_associated_image: bool = False,
-        low_res: bool = False,
-    ) -> Image.Image:
-        """Generate a PIL Image of the slide thumbnail, with ROI overlay.
-
-        Args:
-            mpp (float, optional): Microns-per-pixel, used to determine
-                thumbnail size.
-            width (int, optional): Goal thumbnail width (alternative to mpp).
-            coords (list(int), optional): List of tile extraction coordinates
-                to show as rectangles on the thumbnail, in [(x_center,
-                y_center), ...] format. Defaults to None.
-            rois (bool, optional): Draw ROIs onto thumbnail. Defaults to False.
-            linewidth (int, optional): Width of ROI line. Defaults to 2.
-            color (str, optional): Color of ROI. Defaults to black.
-            use_associated_image (bool): Use the associated thumbnail image
-                in the slide, rather than reading from a pyramid layer.
-            low_res (bool): Create thumbnail from the lowest-mangnification
-                pyramid layer. Defaults to False.
-
-        Returns:
-            PIL image
-
-        """
-        if rois and len(self.rois):
-            if (mpp is not None and width is not None):
-                raise ValueError(
-                    "Either mpp or width must be given, but not both"
-                    f" (got mpp={mpp}, width={width})"
-                )
-            # If no values provided, create thumbnail of width 1024
-            if mpp is None and width is None:
-                width = 1024
-            if mpp is not None:
-                roi_scale = (self.dimensions[0]
-                             / (int((self.mpp * self.dimensions[0]) / mpp)))
-            else:
-                roi_scale = self.dimensions[0] / width  # type: ignore
-
-        # If no values provided, create thumbnail of width 1024
-        if mpp is None and width is None:
-            width = 1024
-        if (mpp is not None and width is not None):
-            raise ValueError(
-                "Either mpp or width must be given, but not both"
-                f" (got mpp={mpp}, width={width})"
-            )
-
-        # Calculate goal width/height according to specified microns-per-pixel
-        if mpp:
-            width = int((self.mpp * self.dimensions[0]) / mpp)
-        # Otherwise, calculate approximate mpp based on provided width
-        # (to generate proportional height)
-        else:
-            assert width is not None
-            mpp = (self.mpp * self.dimensions[0]) / width
-        # Calculate appropriate height
-        height = int((self.mpp * self.dimensions[1]) / mpp)
-
-        if use_associated_image:
-            log.debug("Requesting thumbnail using associated image")
-            thumb_kw = dict(associated='thumbnail')
-        elif low_res:
-            log.debug("Requesting thumbnail at level={}, width={}".format(
-                self.slide.level_count-1, width
-            ))
-            thumb_kw = dict(level=self.slide.level_count-1, width=width)
-        else:
-            ds = self.dimensions[0] / width
-            level = self.slide.best_level_for_downsample(ds)
-            log.debug("Requesting thumbnail at level={}, width={}".format(
-                level, width
-            ))
-            thumb_kw = dict(level=level, width=width)
-
-        np_thumb = self.slide.thumbnail(**thumb_kw)
-        thumb = Image.fromarray(np_thumb).resize((width, height))
-
-        if coords:
-            draw = ImageDraw.Draw(thumb)
-            ratio = width / self.dimensions[0]
-            wh = (self.full_extract_px * ratio) / 2
-            for (x, y) in coords:  # type: ignore
-                x, y = x * ratio, y * ratio  # type: ignore
-                coords = (x-wh, y-wh, x+wh, y+wh)  # type: ignore
-                draw.rectangle(coords, outline=rect_color, width=rect_linewidth)
-
-        if rois and len(self.rois):
-            roiPolys = [
-                ROIPoly(sg.Polygon(annotation.scaled_area(roi_scale)),
-                        annotation.name)
-                for annotation in self.rois
-            ]
-            draw = ImageDraw.Draw(thumb)
-            for roi in roiPolys:
-                x, y = roi.poly.exterior.coords.xy
-                zipped = list(zip(x.tolist(), y.tolist()))
-                draw.line(zipped, joint='curve', fill=color, width=linewidth)
-            return thumb
-        else:
-            return thumb
+                and self.roi_polys is not None)
 
     def load_roi_array(
         self,
@@ -2047,7 +1967,7 @@ class WSI:
         """
         # Clear any previously loaded ROIs.
         self.rois = []
-        self.roiPolys = []
+        self.roi_polys = []
 
         roi_dict = {}
         with open(path, "r") as csvfile:
@@ -2100,7 +2020,7 @@ class WSI:
         """
         # Clear any previously loaded ROIs.
         self.rois = []
-        self.roiPolys = []
+        self.roi_polys = []
 
         with open(path, "r") as json_file:
             json_data = json.load(json_file)['shapes']
@@ -2294,7 +2214,7 @@ class WSI:
         """
         # Load annotations as shapely.geometry objects.
         if self.roi_method != 'ignore':
-            self.roiPolys = []
+            self.roi_polys = []
             for i, annotation in enumerate(self.rois):
                 try:
                     poly = sv.make_valid(sg.Polygon(annotation.coordinates))
@@ -2304,23 +2224,23 @@ class WSI:
                         " At least 3 points required to create a shape."
                     )
                 else:
-                    self.roiPolys.append(ROIPoly(poly, annotation.name))
+                    self.roi_polys.append(ROIPoly(poly, annotation.name))
             # Handle polygon holes.
             outers, inners = [], []
-            for o, outer in enumerate(self.roiPolys):
-                for i, inner in enumerate(self.roiPolys):
+            for o, outer in enumerate(self.roi_polys):
+                for i, inner in enumerate(self.roi_polys):
                     if o == i:
                         continue
                     if (i in inners) or (o in inners) or (i in outers):
                         continue
                     if outer.poly.contains(inner.poly):
                         log.debug(f"Rendering ROI polygon {i} as hole in {o}")
-                        self.roiPolys[o].set_hole(inner)
+                        self.roi_polys[o].set_hole(inner)
                         if o not in outers:
                             outers.append(o)
                         if i not in inners:
                             inners.append(i)
-            self.roiPolys = [ann for (i, ann) in enumerate(self.roiPolys)
+            self.roi_polys = [ann for (i, ann) in enumerate(self.roi_polys)
                              if i not in inners]
 
         # Regenerate the grid to reflect the newly-loaded ROIs.
@@ -2470,6 +2390,119 @@ class WSI:
         square_thumb = Image.new("RGB", (width, width))
         square_thumb.paste(thumb, (0, int((width-height)/2)))
         return square_thumb
+
+    def thumb(
+        self,
+        mpp: Optional[float] = None,
+        width: Optional[int] = None,
+        *,
+        coords: Optional[List[int]] = None,
+        rect_linewidth: int = 2,
+        rect_color: str = 'black',
+        rois: bool = False,
+        linewidth: int = 2,
+        color: str = 'black',
+        use_associated_image: bool = False,
+        low_res: bool = False,
+    ) -> Image.Image:
+        """Generate a PIL Image of the slide thumbnail, with ROI overlay.
+
+        Args:
+            mpp (float, optional): Microns-per-pixel, used to determine
+                thumbnail size.
+            width (int, optional): Goal thumbnail width (alternative to mpp).
+            coords (list(int), optional): List of tile extraction coordinates
+                to show as rectangles on the thumbnail, in [(x_center,
+                y_center), ...] format. Defaults to None.
+            rois (bool, optional): Draw ROIs onto thumbnail. Defaults to False.
+            linewidth (int, optional): Width of ROI line. Defaults to 2.
+            color (str, optional): Color of ROI. Defaults to black.
+            use_associated_image (bool): Use the associated thumbnail image
+                in the slide, rather than reading from a pyramid layer.
+            low_res (bool): Create thumbnail from the lowest-mangnification
+                pyramid layer. Defaults to False.
+
+        Returns:
+            PIL image
+
+        """
+        if rois and len(self.rois):
+            if (mpp is not None and width is not None):
+                raise ValueError(
+                    "Either mpp or width must be given, but not both"
+                    f" (got mpp={mpp}, width={width})"
+                )
+            # If no values provided, create thumbnail of width 1024
+            if mpp is None and width is None:
+                width = 1024
+            if mpp is not None:
+                roi_scale = (self.dimensions[0]
+                             / (int((self.mpp * self.dimensions[0]) / mpp)))
+            else:
+                roi_scale = self.dimensions[0] / width  # type: ignore
+
+        # If no values provided, create thumbnail of width 1024
+        if mpp is None and width is None:
+            width = 1024
+        if (mpp is not None and width is not None):
+            raise ValueError(
+                "Either mpp or width must be given, but not both"
+                f" (got mpp={mpp}, width={width})"
+            )
+
+        # Calculate goal width/height according to specified microns-per-pixel
+        if mpp:
+            width = int((self.mpp * self.dimensions[0]) / mpp)
+        # Otherwise, calculate approximate mpp based on provided width
+        # (to generate proportional height)
+        else:
+            assert width is not None
+            mpp = (self.mpp * self.dimensions[0]) / width
+        # Calculate appropriate height
+        height = int((self.mpp * self.dimensions[1]) / mpp)
+
+        if use_associated_image:
+            log.debug("Requesting thumbnail using associated image")
+            thumb_kw = dict(associated='thumbnail')
+        elif low_res:
+            log.debug("Requesting thumbnail at level={}, width={}".format(
+                self.slide.level_count-1, width
+            ))
+            thumb_kw = dict(level=self.slide.level_count-1, width=width)
+        else:
+            ds = self.dimensions[0] / width
+            level = self.slide.best_level_for_downsample(ds)
+            log.debug("Requesting thumbnail at level={}, width={}".format(
+                level, width
+            ))
+            thumb_kw = dict(level=level, width=width)
+
+        np_thumb = self.slide.thumbnail(**thumb_kw)
+        thumb = Image.fromarray(np_thumb).resize((width, height))
+
+        if coords:
+            draw = ImageDraw.Draw(thumb)
+            ratio = width / self.dimensions[0]
+            wh = (self.full_extract_px * ratio) / 2
+            for (x, y) in coords:  # type: ignore
+                x, y = x * ratio, y * ratio  # type: ignore
+                coords = (x-wh, y-wh, x+wh, y+wh)  # type: ignore
+                draw.rectangle(coords, outline=rect_color, width=rect_linewidth)
+
+        if rois and len(self.rois):
+            roi_polys = [
+                ROIPoly(sg.Polygon(annotation.scaled_area(roi_scale)),
+                        annotation.name)
+                for annotation in self.rois
+            ]
+            draw = ImageDraw.Draw(thumb)
+            for roi in roi_polys:
+                x, y = roi.poly.exterior.coords.xy
+                zipped = list(zip(x.tolist(), y.tolist()))
+                draw.line(zipped, joint='curve', fill=color, width=linewidth)
+            return thumb
+        else:
+            return thumb
 
     def tensorflow(
         self,

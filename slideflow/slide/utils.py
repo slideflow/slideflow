@@ -87,18 +87,18 @@ class ROIPoly:
     """
     def __init__(self, poly: sg.Polygon, name: str) -> None:
         self.poly = poly
-        self._name = name
+        self.name = name
         self._hole_names = []  # type: List[str]
 
     def __repr__(self) -> str:
         return f"<ROIPoly (name={self.name})>"
 
     @property
-    def name(self) -> str:
+    def description(self) -> str:
         if not self._hole_names:
-            return self._name
+            return self.name
         else:
-            return self._name + ' (holes: {})'.format(', '.join(self._hole_names))
+            return self.name + ' (holes: {})'.format(', '.join(self._hole_names))
 
     def set_hole(self, roi: "ROIPoly") -> None:
         self.poly = self.poly.difference(roi.poly)
