@@ -31,6 +31,6 @@ from slideflow.mosaic import Mosaic
 from slideflow.project import Project
 from slideflow.project import create as create_project
 from slideflow.project import load as load_project
-from slideflow.slide import TMA, WSI
+from slideflow.slide import WSI
 from slideflow.stats import SlideMap
 from slideflow.tfrecord import TFRecord, tfrecord_loader, multi_tfrecord_loader

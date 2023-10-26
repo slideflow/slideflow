@@ -18,6 +18,7 @@ def legacy_train_clam(
     dataset: Dataset,
     train_slides: Union[str, List[str]] = 'auto',
     val_slides: Union[str, List[str]] = 'auto',
+    *,
     splits: str = 'splits.json',
     clam_args: Optional["CLAM_Args"] = None,
     attention_heatmaps: bool = True,

@@ -61,40 +61,6 @@ Methods
 .. autofunction:: slideflow.WSI.verify_alignment
 .. autofunction:: slideflow.WSI.view
 
-
-slideflow.TMA
-*************
-
-.. autoclass:: TMA
-
-Attributes
-----------
-
-.. autosummary::
-
-    TMA.dimensions
-    TMA.qc_mask
-    TMA.levels
-    TMA.level_dimensions
-    TMA.level_downsamples
-    TMA.level_mpp
-    TMA.properties
-    TMA.slide
-    TMA.vendor
-
-Methods
--------
-
-.. autofunction:: slideflow.TMA.apply_qc_mask
-.. autofunction:: slideflow.TMA.build_generator
-.. autofunction:: slideflow.TMA.dim_to_mpp
-.. autofunction:: slideflow.TMA.extract_tiles
-.. autofunction:: slideflow.TMA.mpp_to_dim
-.. autofunction:: slideflow.TMA.preview
-.. autofunction:: slideflow.TMA.qc
-.. autofunction:: slideflow.TMA.remove_qc
-.. autofunction:: slideflow.TMA.thumb
-
 Other functions
 ***************
 

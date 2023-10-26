@@ -1651,9 +1651,8 @@ class Project:
                 will be excluded. Defaults to 'center'.
             skip_extracted (bool): Skip slides that have already
                 been extracted. Defaults to True.
-            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),
-                detecting and extracting tumor cores. Defaults to False.
-                Experimental function with limited testing.
+            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs).
+                Deprecated argument; all slides are now read as standard WSIs.
             randomize_origin (bool): Randomize pixel starting
                 position during extraction. Defaults to False.
             buffer (str, optional): Slides will be copied to this directory
@@ -1687,10 +1686,6 @@ class Project:
             img_format (str, optional): 'png' or 'jpg'. Defaults to 'jpg'.
                 Image format to use in tfrecords. PNG (lossless) for fidelity,
                 JPG (lossy) for efficiency.
-            full_core (bool, optional): Only used if extracting from TMA.
-                If True, will save entire TMA core as image.
-                Otherwise, will extract sub-images from each core using the
-                given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in
                 tfrecords. Defaults to True.
             num_threads (int, optional): Number of worker processes for each
@@ -3130,7 +3125,7 @@ class Project:
                                  enable_downsample=enable_downsample,
                                  roi_dir=roi_dir,
                                  roi_method=roi_method,
-                                 randomize_origin=randomize_origin)
+                                 origin='random' if randomize_origin else (0,0))
                 except errors.SlideLoadError as e:
                     log.error(e)
                     continue
@@ -4057,7 +4052,7 @@ def create(
             cfg.rois = join(dirname(cfg_path), cfg.rois)
     elif cfg is None:
         cfg = sf.util.EasyDict(kwargs)
-    elif issubclass(cfg, project_utils._ProjectConfig):
+    elif issubclass(type(cfg), project_utils._ProjectConfig):
         cfg = sf.util.EasyDict(cfg.to_dict())
     if 'name' not in cfg:
         cfg.name = "MyProject"

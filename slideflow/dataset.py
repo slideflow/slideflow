@@ -129,24 +129,13 @@ if TYPE_CHECKING:
 def _prepare_slide(
     path: str,
     report_dir: Optional[str],
-    tma: bool,
     wsi_kwargs: Dict,
     qc: Optional[str],
     qc_kwargs: Dict,
-) -> Optional[sf.slide._BaseLoader]:
+) -> Optional["sf.WSI"]:
 
     try:
-        if tma:
-            slide = sf.TMA(
-                path=path,
-                tile_px=wsi_kwargs['tile_px'],
-                tile_um=wsi_kwargs['tile_um'],
-                stride_div=wsi_kwargs['stride_div'],
-                enable_downsample=wsi_kwargs['enable_downsample'],
-                report_dir=report_dir
-            )  # type: sf.slide._BaseLoader
-        else:
-            slide = sf.WSI(path, **wsi_kwargs)
+        slide = sf.WSI(path, **wsi_kwargs)
         if qc:
             slide.qc(method=qc, **qc_kwargs)
         return slide
@@ -182,7 +171,6 @@ def _tile_extractor(
     tfrecord_dir: str,
     tiles_dir: str,
     reports: Dict,
-    tma: bool,
     qc: str,
     wsi_kwargs: Dict,
     generator_kwargs: Dict,
@@ -197,7 +185,6 @@ def _tile_extractor(
         tfrecord_dir (str): Path to TFRecord directory.
         tiles_dir (str): Path to tiles directory (loose format).
         reports (dict): Multiprocessing-enabled dict.
-        tma (bool): Slides are in TMA format.
         qc (bool): Quality control method.
         wsi_kwargs (dict): Keyword arguments for sf.WSI.
         generator_kwargs (dict): Keyword arguments for WSI.extract_tiles()
@@ -208,7 +195,6 @@ def _tile_extractor(
         slide = _prepare_slide(
             path,
             report_dir=tfrecord_dir,
-            tma=tma,
             wsi_kwargs=wsi_kwargs,
             qc=qc,
             qc_kwargs=qc_kwargs)
@@ -1458,9 +1444,8 @@ class Dataset:
                 will be excluded. Defaults to 'center'.
             skip_extracted (bool): Skip slides that have already
                 been extracted. Defaults to True.
-            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),
-                detecting and extracting tumor cores. Defaults to False.
-                Experimental function with limited testing.
+            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs).
+                Deprecated argument; all slides are now read as standard WSIs.
             randomize_origin (bool): Randomize pixel starting
                 position during extraction. Defaults to False.
             buffer (str, optional): Slides will be copied to this directory
@@ -1494,10 +1479,6 @@ class Dataset:
             img_format (str, optional): 'png' or 'jpg'. Defaults to 'jpg'.
                 Image format to use in tfrecords. PNG (lossless) for fidelity,
                 JPG (lossy) for efficiency.
-            full_core (bool, optional): Only used if extracting from TMA.
-                If True, will save entire TMA core as image.
-                Otherwise, will extract sub-images from each core using the
-                given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in
                 tfrecords. Defaults to True.
             num_threads (int, optional): Number of worker processes for each
@@ -1526,6 +1507,11 @@ class Dataset:
             Dictionary mapping slide paths to each slide's SlideReport
             (:class:`slideflow.slide.report.SlideReport`)
         """
+        if tma:
+            warnings.warn(
+                "tma=True is deprecated and will be removed in a future "
+                "version. Tumor micro-arrays are read as standard slides. "
+            )
         if not self.tile_px or not self.tile_um:
             raise errors.DatasetError(
                 "Dataset tile_px and tile_um must be != 0 to extract tiles"
@@ -1655,14 +1641,13 @@ class Dataset:
                     'roi_dir': roi_dir,
                     'roi_method': roi_method,
                     'roi_filter_method': roi_filter_method,
-                    'randomize_origin': randomize_origin,
+                    'origin': 'random' if randomize_origin else (0, 0),
                     'pb': pb
                 }
                 extraction_kwargs = {
                     'tfrecord_dir': tfrecord_dir,
                     'tiles_dir': tiles_dir,
                     'reports': reports,
-                    'tma': tma,
                     'qc': qc,
                     'generator_kwargs': kwargs,
                     'qc_kwargs': qc_kwargs,
@@ -1694,7 +1679,6 @@ class Dataset:
                             wsi = _prepare_slide(
                                 slide,
                                 report_dir=tfrecord_dir,
-                                tma=tma,
                                 wsi_kwargs=wsi_kwargs,
                                 qc=qc,
                                 qc_kwargs=qc_kwargs)
@@ -2529,7 +2513,8 @@ class Dataset:
                 A stride of 1 will extract non-overlapping tiles.
                 A stride_div of 2 will extract overlapping tiles, with a stride
                 equal to 50% of the tile width. Defaults to 1.
-            tma (bool): Slides are in TMA format.
+            tma (bool): Deprecated argument. Tumor micro-arrays are read as
+                standard slides. Defaults to False.
             source (str, optional): Dataset source name.
                 Defaults to None (using all sources).
             low_memory (bool): Operate in low-memory mode at the cost of
@@ -2540,6 +2525,11 @@ class Dataset:
             estimated non-background tiles in the slide.
 
         """
+        if tma:
+            warnings.warn(
+                "tma=True is deprecated and will be removed in a future "
+                "version. Tumor micro-arrays are read as standard slides. "
+            )
         if self.tile_px is None or self.tile_um is None:
             raise errors.DatasetError(
                 "tile_px and tile_um must be set to calculate a slide manifest"
@@ -2559,22 +2549,14 @@ class Dataset:
         counts = []
         for path in paths:
             try:
-                if tma:
-                    wsi = sf.TMA(
-                        path,
-                        self.tile_px,
-                        self.tile_um,
-                        stride_div=stride_div,
-                    )
-                else:
-                    wsi = sf.WSI(  # type: ignore
-                        path,
-                        self.tile_px,
-                        self.tile_um,
-                        rois=self.rois(),
-                        stride_div=stride_div,
-                        roi_method=roi_method,
-                        verbose=False)
+                wsi = sf.WSI(
+                    path,
+                    self.tile_px,
+                    self.tile_um,
+                    rois=self.rois(),
+                    stride_div=stride_div,
+                    roi_method=roi_method,
+                    verbose=False)
                 if low_memory:
                     wsi.qc('otsu')
                     counts += [wsi.estimated_num_tiles]
