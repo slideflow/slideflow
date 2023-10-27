@@ -692,7 +692,7 @@ def multi_tfrecord_loader(
         for i, tfr_path in enumerate(paths)
     ]
     if weights is not None:
-        weights_list = weights_list
+        weights_list = weights
     else:
         weights_list = np.array(  # type: ignore
             [0.5 for t in range(len(paths))]
