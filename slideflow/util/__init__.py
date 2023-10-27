@@ -697,6 +697,7 @@ def log_manifest(
         str: Saved manifest in str format.
     """
     out = ''
+    has_labels = (labels and isinstance(labels, dict))
     if filename:
         save_file = open(os.path.join(filename), 'w')
         writer = csv.writer(save_file)
@@ -708,7 +709,7 @@ def log_manifest(
                     slide = sf.util.path_to_name(tfrecord)
                 else:
                     slide = tfrecord
-                outcome_label = labels[slide] if isinstance(labels, dict) else 'NA'
+                outcome_label = labels[slide] if has_labels else 'NA'
                 out += ' '.join([slide, 'training', str(outcome_label)])
                 if filename:
                     writer.writerow([slide, 'training', outcome_label])
@@ -718,7 +719,7 @@ def log_manifest(
                     slide = sf.util.path_to_name(tfrecord)
                 else:
                     slide = tfrecord
-                outcome_label = labels[slide] if isinstance(labels, dict) else 'NA'
+                outcome_label = labels[slide] if has_labels else 'NA'
                 out += ' '.join([slide, 'validation', str(outcome_label)])
                 if filename:
                     writer.writerow([slide, 'validation', outcome_label])

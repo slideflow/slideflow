@@ -338,8 +338,8 @@ class WSI:
         # Remove the unpicklable entries.
         if '__slide' in state:
             state['__slide'] = None
-        if 'SlideLoader__slide' in state:
-            state['SlideLoader__slide'] = None
+        if '_WSI__slide' in state:
+            state['_WSI__slide'] = None
         if 'pb' in state:
             state['pb'] = None
         return state
