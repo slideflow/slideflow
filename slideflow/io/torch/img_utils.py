@@ -1,4 +1,12 @@
 import torch
+import torchvision
+import numpy as np
+from slideflow.io import convert_dtype
+from typing import Any, Optional, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from slideflow.norm import StainNormalizer
+    from torchvision.transforms import InterpolationMode
 
 # -----------------------------------------------------------------------------
 
@@ -61,3 +69,85 @@ def whc_to_cwh(img: torch.Tensor) -> torch.Tensor:
             f"got {len(img.shape)} (shape={img.shape})")
 
 # -----------------------------------------------------------------------------
+
+
+def preprocess_uint8(
+    img: torch.Tensor,
+    normalizer: Optional["StainNormalizer"] = None,
+    standardize: bool = True,
+    resize_px: Optional[int] = None,
+    resize_method: Optional["InterpolationMode"] = None,
+    resize_aa: bool = True,
+) -> torch.Tensor:
+    """Process batch of tensorflow images, resizing, normalizing,
+    and standardizing.
+
+    Args:
+        img (tf.Tensor): Batch of tensorflow images (uint8).
+        normalizer (sf.norm.StainNormalizer, optional): Normalizer.
+            Defaults to None.
+        standardize (bool, optional): Standardize images. Defaults to True.
+        resize_px (Optional[int], optional): Resize images. Defaults to None.
+        resize_method (str, optional): Interpolation mode for resizing. Must
+            be a valid torchvision.transforms.InterpolationMode. Defaults to
+            BICUBIC.
+        resize_aa (bool, optional): Apply antialiasing during resizing.
+            Defaults to True.
+
+    Returns:
+        Dict[str, tf.Tensor]: Processed image.
+    """
+    if resize_px is not None:
+        if resize_method is None:
+            resize_method = torchvision.transforms.InterpolationMode.BICUBIC
+        img = torchvision.transforms.functional.resize(
+            img,
+            size=resize_px,
+            interpolation=resize_method,
+            antialias=resize_aa
+        )
+    if normalizer is not None:
+        img = normalizer.torch_to_torch(img)  # type: ignore
+    if standardize:
+        img = convert_dtype(img, torch.float32)
+    return img
+
+
+def decode_image(
+    image: Union[bytes, str, torch.Tensor],
+    *,
+    img_type: Optional[str] = None,
+    device: Optional[torch.device] = None,
+    transform: Optional[Any] = None,
+) -> torch.Tensor:
+    """Decodes image string/bytes to Tensor (W x H x C).
+
+    Torch implementation; different than sf.io.tensorflow.
+
+    Args:
+        image (Union[bytes, str, torch.Tensor]): Image to decode.
+
+    Keyword args:
+        img_type (str, optional): Image type. Defaults to None.
+        device (torch.device, optional): Device to move image to.
+            Defaults to None.
+        transform (Callable, optional): Arbitrary torchvision transform function.
+            Performs transformation after augmentations but before standardization.
+            Defaults to None.
+
+    """
+    if img_type != 'numpy':
+        np_data = torch.from_numpy(np.fromstring(image, dtype=np.uint8))
+        image = cwh_to_whc(torchvision.io.decode_image(np_data))
+        # Alternative method using PIL decoding:
+        # image = np.array(Image.open(BytesIO(img_string)))
+
+    assert isinstance(image, torch.Tensor)
+
+    if device is not None:
+        image = image.to(device)
+
+    if transform is not None:
+        image = transform(image)
+
+    return image

@@ -3762,6 +3762,7 @@ class Dataset:
             tfrecords = self.slide_paths()
             kwargs['rois'] = self.rois()
             kwargs['tile_um'] = self.tile_um
+            kwargs['img_size'] = self.tile_px
             indices = None
             clip = None
         else:
@@ -3780,7 +3781,6 @@ class Dataset:
             prob_weights = None
 
         return interleave_dataloader(tfrecords=tfrecords,
-                                     img_size=self.tile_px,
                                      batch_size=batch_size,
                                      labels=labels,
                                      num_tiles=self.num_tiles,

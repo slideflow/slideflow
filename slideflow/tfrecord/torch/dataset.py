@@ -236,8 +236,8 @@ class IndexedMultiTFRecordDataset(torch.utils.data.Dataset):
             self.close()
             self._initialize_readers()
 
-        arr_idx, idx = self.interleave_index[idx]
-        item = self.readers[arr_idx][idx]
+        reader_idx, tile_idx = self.interleave_index[idx]
+        item = self.readers[reader_idx][tile_idx]
 
         if self.parser:
             item = self.parser(item)
