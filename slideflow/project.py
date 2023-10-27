@@ -2031,7 +2031,6 @@ class Project:
                                 **kwargs)
         return df
 
-    @auto_dataset_allow_none
     def generate_features_for_clam(self, *args, **kwargs):
         warnings.warn(
             "Project.generate_features_for_clam() is deprecated. "

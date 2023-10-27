@@ -160,8 +160,8 @@ def interleave_dataloader(
         persistent_workers=persistent_workers,
         worker_init_fn=worker_init_fn,
         drop_last=drop_last,
-        prefetch_factor=prefetch_factor,
         collate_fn=collate_fn,
+        **({'prefetch_factor': prefetch_factor} if num_workers else {})
     )
     dataloader.num_tiles = dataset.num_tiles
     dataloader.dataset.dataloader = dataloader  # type: ignore
