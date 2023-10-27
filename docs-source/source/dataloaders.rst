@@ -350,7 +350,7 @@ Direct indexing
 
 An indexable, map-style dataloader can be created for PyTorch using :class:`slideflow.io.IndexedInterleaver`, which returns a ``torch.utils.data.Dataset``. Indexable datasets are only available for the PyTorch backend.
 
-This indexable dataset is created from a list of TFRecords and accepts many arguments for controlling labeling, augmentation and image transformations.
+This indexable dataset is created from a list of TFRecords and accepts many arguments for controlling labels, augmentation and image transformations.
 
 .. code-block:: python
 

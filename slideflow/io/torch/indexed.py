@@ -1,7 +1,9 @@
 """Indexable, map-style multi-TFRecord dataset & weighted sampler."""
 
+import slideflow as sf
 import multiprocessing as mp
 import numpy as np
+import pandas as pd
 import torch
 
 from typing import Any, Callable, Dict, List, Optional, Union, TYPE_CHECKING
@@ -145,16 +147,18 @@ class IndexedInterleaver(IndexedMultiTFRecordDataset):
         self.incl_loc = incl_loc
         self.use_labels = use_labels
         self.onehot = onehot
+        self.rank = rank
+        self.num_replicas = num_replicas
         self.parser = self.build_parser(tfrecord_parser)
         self.img_format = detect_tfrecord_format(self.tfrecords[0])[1]
         (self.labels,
          self.unique_labels,
          self.label_prob,
          self.num_outcomes) = process_labels(labels, onehot=onehot)
+        if isinstance(self.labels, pd.DataFrame):
+            self._prepare_tfrecord_subsample()
 
         # Automatically set shard to rank/num_replicas
-        self.rank = rank
-        self.num_replicas = num_replicas
         if self.rank == 0:
             log.info(
                 f'Interleaving {len(self.tfrecords)} tfrecords: '
@@ -219,6 +223,9 @@ class IndexedInterleaver(IndexedMultiTFRecordDataset):
                 f'out-{i}': torch.tensor(l)
                 for i, l in enumerate(label)  # type: ignore
             }
+        elif isinstance(self.labels, pd.DataFrame):
+            label = self.labels.loc[f'{slide}-{loc_x}-{loc_y}'].label
+            label = torch.tensor(label)
         elif self.labels is not None:
             label = self.labels[slide]
             label = torch.tensor(label)
@@ -235,6 +242,57 @@ class IndexedInterleaver(IndexedMultiTFRecordDataset):
         else:
             return label,
 
+    def _prepare_tfrecord_subsample(self):
+        """Prepare custom TFRecord indices to only read tiles in the labels dataframe."""
+
+        # Prepare TFRecord subsample if there are fewer tiles in the
+        # tiles dataframe than there are in the TFRecords
+
+        self.indices = []
+        if self.rank == 0:
+            log.debug("Subsampling TFRecords using tile-level labels...")
+
+        n_tiles = 0
+        orig_n_tiles = 0
+        with mp.dummy.Pool(16) as pool:
+
+            # Load the original (full) indices
+            for index, tfr in zip(pool.imap(load_index, self.tfrecords), self.tfrecords):
+                orig_n_tiles += len(index)
+                tfr = tfr.decode('utf-8')
+                slide = sf.util.path_to_name(tfr)
+                loc = sf.io.get_locations_from_tfrecord(tfr)
+
+                # Check which TFRecord indices are in the labels dataframe
+                in_df = np.array([f'{slide}-{x}-{y}' in self.labels.index for (x,y) in loc])
+
+                # Subsample indices based on what is in the labels dataframe
+                ss_index = index[in_df]
+                n_tiles += len(ss_index)
+
+                self.indices += [ss_index]
+
+        if not n_tiles:
+            raise ValueError("No tiles found in TFRecords matching the "
+                                "labels dataframe.")
+
+        if self.rank == 0:
+            diff = orig_n_tiles - n_tiles
+            log.debug(
+                "TFRecord subsampling complete (kept: {}, removed: {}).".format(
+                    n_tiles, diff
+            ))
+            if len(self.labels) - n_tiles:
+                log.debug(
+                    "{} labels in the dataframe have no corresponding tile.".format(
+                        len(self.labels) - n_tiles
+                    )
+                )
+            if diff:
+                log.warning(f"Labels not found for {diff} tiles. These "
+                            "tiles will be skipped.")
+
+
     def build_parser(
         self,
         tfrecord_parser: Optional[Callable] = None
@@ -244,9 +302,7 @@ class IndexedInterleaver(IndexedMultiTFRecordDataset):
         The parser will be responsible for processing images and labels.
 
         """
-        ftrs = ['image_raw', 'slide']
-        if self.incl_loc:
-            ftrs += ['loc_x', 'loc_y']
+        ftrs = ['image_raw', 'slide', 'loc_x', 'loc_y']
         base_parser = tfrecord_parser or get_tfrecord_parser(self.tfrecords[0],
                                                              ftrs,
                                                              decode_images=False)

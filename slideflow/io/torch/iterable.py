@@ -457,6 +457,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
         idx = np.random.randint(len(self.labels))
         return self.labels.iloc[idx].label
 
+# -----------------------------------------------------------------------------
 
 def _apply_otsu(wsi):
     wsi.qc('otsu')
