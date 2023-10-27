@@ -61,7 +61,7 @@ class TFRecord:
 
         # Load the index.
         if index is None and not tfrecord2idx.find_index(path):
-            if create_index_on_missing:
+            if create_index:
                 tfrecord2idx.create_index(path)
                 self.index = tfrecord2idx.load_index(path)
             else:
@@ -216,7 +216,7 @@ class TFRecordIterator:
         self.crc_bytes = bytearray(4)
         self.index = index
         self.index_is_nonsequential = None
-        if self.index is not None:
+        if self.index is not None and len(self.index) != 0:
             # For the case that there is only a single record in the file
             if len(self.index.shape) == 1:
                 self.index = np.expand_dims(self.index, axis=0)
@@ -290,6 +290,8 @@ class TFRecordIterator:
 
         if self.index is None:
             yield from self.read_records()
+        elif not len(self.index):
+            return
         else:
             if self.clip:
                 if self.clip == len(self.index):

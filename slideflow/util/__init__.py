@@ -708,7 +708,7 @@ def log_manifest(
                     slide = sf.util.path_to_name(tfrecord)
                 else:
                     slide = tfrecord
-                outcome_label = labels[slide] if labels else 'NA'
+                outcome_label = labels[slide] if isinstance(labels, dict) else 'NA'
                 out += ' '.join([slide, 'training', str(outcome_label)])
                 if filename:
                     writer.writerow([slide, 'training', outcome_label])
@@ -718,7 +718,7 @@ def log_manifest(
                     slide = sf.util.path_to_name(tfrecord)
                 else:
                     slide = tfrecord
-                outcome_label = labels[slide] if labels else 'NA'
+                outcome_label = labels[slide] if isinstance(labels, dict) else 'NA'
                 out += ' '.join([slide, 'validation', str(outcome_label)])
                 if filename:
                     writer.writerow([slide, 'validation', outcome_label])

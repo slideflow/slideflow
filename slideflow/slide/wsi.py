@@ -348,8 +348,17 @@ class WSI:
         self.__dict__.update(state)
 
     def _build_coord(self) -> None:
-        """Set up coordinate grid for image tiles."""
+        """Set up coordinate grid for image tiles.
 
+        The coordinate grid, stored in ``self.coord``, is a list of lists,
+        where each sublist contains the following information:
+
+        - 0: **x**: x-coordinate of the top-left corner of the tile.
+        - 1: **y**: x-coordinate of the top-left corner of the tile.
+        - 2: **grid_x**: x-coordinate of the tile in self.grid.
+        - 3: **grid_y**: y-coordinate of the tile in self.grid.
+
+        """
         # Calculate window sizes, strides, and coordinates for windows
         self.extracted_x_size = self.dimensions[0] - self.full_extract_px
         self.extracted_y_size = self.dimensions[1] - self.full_extract_px
@@ -364,7 +373,8 @@ class WSI:
         log.debug("Slide origin: ({}, {})".format(start_x, start_y))
 
         # Coordinates must be in level 0 (full) format
-        # for the read_region function
+        # for the read_region function.
+        # Coordinates correspond to top-left corner of the tile.
         self.coord = []  # type: Union[List, np.ndarray]
         edge_buffer = 0 if self.use_edge_tiles else self.full_extract_px
         y_range = np.arange(
@@ -1086,6 +1096,7 @@ class WSI:
         qc_ratio = 1 / downsample
         qc_width = int(np.round(self.full_extract_px * qc_ratio))
         for x, y, xi, yi in self.coord:  # type: ignore
+            # x and y are top-left coordinates for the tile.
             qc_x = int(np.round(x * qc_ratio))
             qc_y = int(np.round(y * qc_ratio))
             submask = mask.mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
@@ -1226,11 +1237,12 @@ class WSI:
                 shards. Defaults to None.
 
         Returns:
-            A generator that yields:
+            A generator that yields a dictionary with the keys:
 
-                dict: Dict with keys 'image' (image data), 'yolo' (optional
-                yolo-formatted annotations, (x_center, y_center,
-                width, height)) and 'grid' ((x, y) slide or grid coordinates)
+                - ``"image"``: image data.
+                - ``"yolo"``: yolo-formatted annotations, (x_center, y_center, width, height), optional.
+                - ``"grid"``: (x, y) grid coordinates of the tile.
+                - ``"loc"``: (x, y) coordinates of tile center, in base (level=0) dimension.
 
         """
         if (isinstance(num_threads, int)
@@ -1463,23 +1475,42 @@ class WSI:
 
         return generator
 
-    def coord_to_grid(self, coord_x: int, coord_y: int) -> Tuple[int, int]:
+    def coord_to_grid(
+        self,
+        x: int,
+        y: int,
+        *,
+        anchor: str = 'center'
+    ) -> Tuple[int, int]:
         """Find the grid index of a tile by its base-level coordinates.
 
         Args:
-            coord_x (int): x-coordinate of the tile, in base (level=0) dimension.
-            coord_y (int): y-coordinate of the tile, in base (level=0) dimension.
+            x (int): x-coordinate of the tile, in base (level=0) dimension.
+            y (int): y-coordinate of the tile, in base (level=0) dimension.
+
+        Keyword args:
+            anchor (str): Anchor point for the coordinates. Either 'topleft'
+                or 'center'. Defaults to 'center'.
 
         Returns:
             Tuple[int, int]: Grid index of the tile.
 
+        Raises:
+            ValueError: If anchor is not 'topleft' or 'center'.
+            IndexError: If tile is not found at the given coordinates.
+
         """
+        if anchor not in ('topleft', 'center'):
+            raise ValueError("anchor must be 'topleft' or 'center'")
+        if anchor == 'center':
+            x -= int(self.full_extract_px/2)
+            y -= int(self.full_extract_px/2)
         coord_idx, = np.where((
-            (self.coord[:, 0] == coord_x)
-            & (self.coord[:, 1] == coord_y)
+            (self.coord[:, 0] == x)
+            & (self.coord[:, 1] == y)
         ))
         if not len(coord_idx):
-            raise ValueError(f"Tile at coord=({coord_x}, {coord_y}) not found")
+            raise IndexError(f"Tile at coord=({x}, {y}) not found")
         assert len(coord_idx) == 1
         x, y, grid_x, grid_y = self.coord[coord_idx[0]]
         return grid_x, grid_y
@@ -1543,6 +1574,11 @@ class WSI:
             if not self.grid[xi, yi]:
                 continue
             _, roi = self.get_tile_roi(grid=(xi, yi))
+
+            # Convert from top-left to center coordinates
+            x += int(self.full_extract_px/2)
+            y += int(self.full_extract_px/2)
+
             loc.append([x, y])
             grid.append([xi, yi])
             roi_names.append(None if not roi else roi.name)
@@ -1836,25 +1872,44 @@ class WSI:
         else:
             return roi_idx, self.roi_polys[roi_idx]
 
-    def grid_to_coord(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
+    def grid_to_coord(
+        self,
+        grid_x: int,
+        grid_y: int,
+        *,
+        anchor: str = 'center'
+    ) -> Tuple[int, int]:
         """Find the base-level coordinates of a tile by its grid index.
 
         Args:
             grid_x (int): x-index of the tile in the grid.
             grid_y (int): y-index of the tile in the grid.
 
+        Keyword args:
+            anchor (str): Anchor point for the coordinates. Either 'topleft'
+                or 'center'. Defaults to 'center'.
+
         Returns:
             Tuple[int, int]: Base-level coordinates of the tile.
 
+        Raises:
+            ValueError: If anchor is not 'topleft' or 'center'.
+            IndexError: If tile is not found at the given coordinates.
+
         """
+        if anchor not in ('topleft', 'center'):
+            raise ValueError("anchor must be 'topleft' or 'center'")
         grid_idx, = np.where((
             (self.coord[:, 2] == grid_x)
             & (self.coord[:, 3] == grid_y)
         ))
         if not len(grid_idx):
-            raise ValueError(f"Tile at grid=({grid_x}, {grid_y}) not found")
+            raise IndexError(f"Tile at grid=({grid_x}, {grid_y}) not found")
         assert len(grid_idx) == 1
         x, y, grid_x, grid_y = self.coord[grid_idx[0]]
+        if anchor == 'topleft':
+            x -= int(self.full_extract_px/2)
+            y -= int(self.full_extract_px/2)
         return x, y
 
     def get_tile_mask(self, index, sparse_mask) -> np.ndarray:
@@ -2537,7 +2592,7 @@ class WSI:
                 image tile. Defaults to False.
             incl_loc (Optional[str], optional): Yield image tile location
                 with each image tile. Options include True, 'coord', or 'grid'.
-                If True or 'coord', will return X/Y coordinates of the tile
+                If True or 'coord', will return X/Y coordinates of the tile center
                 in the slide's highest magnification layer. If 'grid', returns
                 the grid indices for the tile. Defaults to None.
             shuffle (bool, optional): Shuffle image tiles. Defaults to True.
@@ -2551,8 +2606,8 @@ class WSI:
 
             'image_raw':    Contains the image (jpg, png, or numpy)
             'slide':        Slide name (if ``incl_slidenames=True``)
-            'loc_x'         Image tile x location (if ``incl_loc`` provided)
-            'loc_y'         Image tile y location (if ``incl_loc`` provided)
+            'loc_x'         Image tile center x location (if ``incl_loc`` provided)
+            'loc_y'         Image tile center y location (if ``incl_loc`` provided)
         """
 
         import tensorflow as tf
@@ -2629,7 +2684,7 @@ class WSI:
                 image tile. Defaults to False.
             incl_loc (Optional[str], optional): Yield image tile location
                 with each image tile. Options include True, 'coord', or 'grid'.
-                If True or 'coord', will return X/Y coordinates of the tile
+                If True or 'coord', will return X/Y coordinates of the tile center
                 in the slide's highest magnification layer. If 'grid', returns
                 the grid indices for the tile. Defaults to None.
             shuffle (bool, optional): Shuffle image tiles. Defaults to True.
@@ -2643,8 +2698,8 @@ class WSI:
 
             'image_raw':    Contains the image as a Tensor (jpg, png, or numpy)
             'slide':        Slide name (if ``incl_slidenames=True``)
-            'loc_x'         Image tile x location (if ``incl_loc`` provided)
-            'loc_y'         Image tile y location (if ``incl_loc`` provided)
+            'loc_x'         Image tile center x location (if ``incl_loc`` provided)
+            'loc_y'         Image tile center y location (if ``incl_loc`` provided)
         """
         import torch
 

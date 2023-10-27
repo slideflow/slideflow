@@ -1,10 +1,10 @@
 '''Submodule that includes base classes to be extended by framework-specific implementations.'''
 
-import csv
 import json
-import os
+import pandas as pd
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from pandas.api.types import is_float_dtype, is_integer_dtype
 
 import numpy as np
 import slideflow as sf
@@ -304,17 +304,43 @@ class _ModelParams:
         self,
         labels: Dict
     ) -> Union[int, Dict[int, int]]:
-        outcome_labels = np.array(list(labels.values()))
-        if len(outcome_labels.shape) == 1:
-            outcome_labels = np.expand_dims(outcome_labels, axis=1)
 
-        if self.model_type() == 'categorical':
-            return {i: np.unique(outcome_labels[:, i]).shape[0] for i in range(outcome_labels.shape[1])}
+        if isinstance(labels, dict):
+            outcome_labels = np.array(list(labels.values()))
+            if len(outcome_labels.shape) == 1:
+                outcome_labels = np.expand_dims(outcome_labels, axis=1)
+
+            if self.model_type() == 'categorical':
+                return {i: np.unique(outcome_labels[:, i]).shape[0] for i in range(outcome_labels.shape[1])}
+            else:
+                try:
+                    return outcome_labels.shape[1]
+                except TypeError:
+                    raise errors.ModelParamsError('Incorrect formatting of outcomes for linear model; expected ndarray.')
+        elif isinstance(labels, pd.DataFrame):
+            if 'label' not in labels.columns:
+                raise errors.ModelError("Expected DataFrame with 'label' "
+                                        "column.")
+            if is_float_dtype(labels.label):
+                return 1
+
+            elif is_integer_dtype(labels.label):
+                unique = np.unique(labels.label)
+                if unique.min() != 0 or unique.max() != len(unique) - 1:
+                    raise errors.ModelError("Expected integer labels to be "
+                                            "0-indexed and continuous.")
+                return {0: len(unique)}
+            else:
+                raise errors.ModelError(
+                    "Expected integer or float labels. Got: {}".format(
+                        labels.label.dtype
+                    )
+                )
         else:
-            try:
-                return outcome_labels.shape[1]
-            except TypeError:
-                raise errors.ModelParamsError('Incorrect formatting of outcomes for linear model; expected ndarray.')
+            raise errors.ModelError(
+                "Expected dict or DataFrame. Got: {}".format(type(labels))
+            )
+
 
     def validate(self) -> bool:
         """Check that hyperparameter combinations are valid."""

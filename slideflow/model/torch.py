@@ -6,6 +6,7 @@ import os
 import types
 import numpy as np
 import multiprocessing as mp
+import pandas as pd
 import torch
 import torchvision
 
@@ -506,21 +507,9 @@ class Trainer:
         self.normalizer = self.hp.get_normalizer()
         if self.normalizer:
             log.info(f'Using realtime {self.hp.normalizer} normalization')
-        outcome_labels = np.array(list(labels.values()))
-        if len(outcome_labels.shape) == 1:
-            outcome_labels = np.expand_dims(outcome_labels, axis=1)
-        if not outcome_names:
-            self.outcome_names = [
-                f'Outcome {i}'
-                for i in range(outcome_labels.shape[1])
-            ]
-        else:
-            self.outcome_names = outcome_names
-        if not len(self.outcome_names) == outcome_labels.shape[1]:
-            n_names = len(self.outcome_names)
-            n_out = outcome_labels.shape[1]
-            raise errors.ModelError(f"Number of outcome names ({n_names}) does"
-                                    f" not match number of outcomes ({n_out})")
+
+        self._process_outcome_labels(labels, outcome_names)
+
         if not os.path.exists(outdir):
             os.makedirs(outdir)
 
@@ -558,6 +547,53 @@ class Trainer:
     @property
     def multi_outcome(self) -> bool:
         return (self.num_outcomes > 1)
+
+    def _process_outcome_labels(
+        self,
+        labels: Dict[str, Any],
+        outcome_names: Optional[List[str]] = None,
+    ) -> None:
+        """Process outcome labels to determine number of outcomes and names.
+
+        Supports experimental tile-level labels provided via pandas DataFrame.
+
+        Args:
+            labels (dict): Dict mapping slide names to outcome labels (int or
+                float format). Experimental funtionality: if labels is a
+                pandas DataFrame, the 'label' column will be used as the
+                outcome labels.
+            outcome_names (list, optional): Name of each outcome. Defaults to
+                "Outcome {X}" for each outcome.
+
+        """
+        # Process DataFrame tile-level labels
+        if isinstance(labels, pd.DataFrame):
+            if 'label' not in labels.columns:
+                raise errors.ModelError("Expected DataFrame with 'label' "
+                                        "column.")
+            if outcome_names and len(outcome_names) > 1:
+                raise errors.ModelError(
+                    "Expected single outcome name for labels from a pandas dataframe."
+                )
+            self.outcome_names = outcome_names or ['Outcome 0']
+            return
+
+        # Process dictionary slide-level labels
+        outcome_labels = np.array(list(labels.values()))
+        if len(outcome_labels.shape) == 1:
+            outcome_labels = np.expand_dims(outcome_labels, axis=1)
+        if not outcome_names:
+            self.outcome_names = [
+                f'Outcome {i}'
+                for i in range(outcome_labels.shape[1])
+            ]
+        else:
+            self.outcome_names = outcome_names
+        if not len(self.outcome_names) == outcome_labels.shape[1]:
+            n_names = len(self.outcome_names)
+            n_out = outcome_labels.shape[1]
+            raise errors.ModelError(f"Number of outcome names ({n_names}) does"
+                                    f" not match number of outcomes ({n_out})")
 
     def _reset_training_params(self) -> None:
         self.global_step = 0

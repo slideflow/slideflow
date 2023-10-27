@@ -490,7 +490,7 @@ def interleave(
             extracted from whole-slide images, rather than TFRecords.
             Defaults to False (use TFRecords).
         incl_loc (str, optional): 'coord', 'grid', or None. Return (x,y)
-            origin coordinates ('coord') for each tile along with tile
+            coordinates ('coord') for each tile center along with tile
             images, or the (x,y) grid coordinates for each tile.
             Defaults to 'coord'.
         incl_slidenames (bool, optional): Include slidenames as third returned

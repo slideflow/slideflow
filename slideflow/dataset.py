@@ -1345,17 +1345,17 @@ class Dataset:
         stride_div: int = 1,
     ) -> pd.DataFrame:
         """Generate a pandas dataframe with tile-level ROI labels.
-        
+
         Returns:
             Pandas dataframe of all tiles, with the following columns:
             - ``loc_x``: X-coordinate of tile center
             - ``loc_y``: Y-coordinate of tile center
-            - ``grid_x``: X grid index of the tile 
+            - ``grid_x``: X grid index of the tile
             - ``grid_y``: Y grid index of the tile
             - ``roi_name``: Name of the ROI if tile is in an ROI, else None
             - ``roi_description``: Description of the ROI if tile is in ROI, else None
             - ``label``: ROI label, if present.
-        
+
         """
         df = None
         for slide_path in tqdm(self.slide_paths()):
@@ -1369,11 +1369,12 @@ class Dataset:
                 verbose=False
             )
             _df = wsi.export_tile_rois()
+            _df['slide'] = wsi.name
             if df is None:
                 df = _df
             else:
                 df = pd.concat([df, _df], axis=0, join='outer')
-        return df        
+        return df
 
     def extract_cells(
         self,
@@ -3227,7 +3228,7 @@ class Dataset:
                 extracted from whole-slide images, rather than TFRecords.
                 Defaults to False (use TFRecords).
             incl_loc (str, optional): 'coord', 'grid', or None. Return (x,y)
-                origin coordinates ('coord') for each tile along with tile
+                origin coordinates ('coord') for each tile center along with tile
                 images, or the (x,y) grid coordinates for each tile.
                 Defaults to 'coord'.
             incl_slidenames (bool, optional): Include slidenames as third returned
@@ -3662,7 +3663,7 @@ class Dataset:
 
     def torch(
         self,
-        labels: Optional[Dict[str, Any]] = None,
+        labels: Optional[Union[Dict[str, Any], str, pd.DataFrame]] = None,
         batch_size: Optional[int] = None,
         rebuild_index: bool = False,
         from_wsi: bool = False,
@@ -3673,11 +3674,12 @@ class Dataset:
         The returned dataloader yields a batch of (image, label) for each tile.
 
         Args:
-            labels (dict or str): If a dict is provided, expect a dict mapping
-                slide names to outcome labels. If a str, will intepret as
-                categorical annotation header. For linear outcomes, or outcomes
-                with manually assigned labels, pass the first result of
-                dataset.labels(...). If None, returns slide instead of label.
+            labels (dict, str, or pd.DataFrame, optional): If a dict is provided,
+                expect a dict mapping slide names to outcome labels. If a str,
+                will intepret as categorical annotation header. For linear
+                outcomes, or outcomes with manually assigned labels, pass the
+                first result of dataset.labels(...). If None, returns slide
+                instead of label.
             batch_size (int): Batch size.
             rebuild_index (bool): Re-build index files even if already present.
                 Defaults to True.
@@ -3701,7 +3703,8 @@ class Dataset:
             from_wsi (bool): Generate predictions from tiles dynamically
                 extracted from whole-slide images, rather than TFRecords.
                 Defaults to False (use TFRecords).
-            incl_loc (bool, optional): Include loc_x and loc_y as additional
+            incl_loc (bool, optional): Include loc_x and loc_y (image tile
+                center coordinates, in base / level=0 dimension) as additional
                 returned variables. Defaults to False.
             incl_slidenames (bool, optional): Include slidenames as third returned
                 variable. Defaults to False.
@@ -3747,7 +3750,7 @@ class Dataset:
         """
         from slideflow.io.torch import interleave_dataloader
 
-        if isinstance(labels, str):
+        if isinstance(labels, str) and not exists(labels):
             labels = self.labels(labels)[0]
         if self.tile_px is None:
             raise errors.DatasetError("tile_px and tile_um must be non-zero"
