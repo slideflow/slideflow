@@ -86,12 +86,12 @@ class ImguiWindow(GlfwWindow):
             if toast.expired:
                 _to_del.append(toast)
                 continue
-            
+
             _cur_height += toast.height + padding
             toast.render(
-                self, 
-                toast_id=_id, 
-                height_offset=_cur_height, 
+                self,
+                toast_id=_id,
+                height_offset=_cur_height,
                 padding=padding
             )
 
@@ -117,12 +117,14 @@ class ImguiWindow(GlfwWindow):
         self._render_toasts()
 
     @contextlib.contextmanager
-    def bold_font(self):
-        imgui.pop_font()
-        imgui.push_font(self._imgui_fonts_bold[self._cur_font_size])
+    def bold_font(self, bold=True):
+        if bold:
+            imgui.pop_font()
+            imgui.push_font(self._imgui_fonts_bold[self._cur_font_size])
         yield
-        imgui.pop_font()
-        imgui.push_font(self._imgui_fonts[self._cur_font_size])
+        if bold:
+            imgui.pop_font()
+            imgui.push_font(self._imgui_fonts[self._cur_font_size])
 
     def center_text(self, text):
         size = imgui.calc_text_size(text)

@@ -25,7 +25,7 @@ from rich.progress import Progress
 from skimage import img_as_ubyte
 from slideflow import errors
 from functools import partial
-from os.path import exists, join
+from os.path import exists, join, abspath
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Sequence
 
@@ -1532,23 +1532,25 @@ class WSI:
             None
 
         """
-        labels, x, y = [], [], []
+        names, labels, x, y = [], [], [], []
         for roi in self.rois:
             c = np.array(roi.coordinates)
             assert len(c.shape) == 2
-            labels += [roi.name] * c.shape[0]
+            names += [roi.name] * c.shape[0]
+            labels += [roi.label] * c.shape[0]
             x += list(c[:, 0])
             y += list(c[:, 1])
         df = pd.DataFrame({
-            'roi_name': labels,
+            'roi_name': names,
+            'label': labels,
             'x_base': x,
             'y_base': y
         })
         if dest is None:
             dest = f'{self.name}.csv'
         df.to_csv(dest, index=False)
-        log.info(f"{len(self.rois)} ROIs exported to {dest}")
-        return dest
+        log.info(f"{len(self.rois)} ROIs exported to {abspath(dest)}")
+        return abspath(dest)
 
     def export_tile_rois(self) -> pd.DataFrame:
         """Export dataframe of tiles and associated ROI labels.

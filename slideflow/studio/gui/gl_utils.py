@@ -213,12 +213,12 @@ def draw_rois(vertices, *, color=1, alpha=1, linewidth=2, vbo=None):
     gl.glLineWidth(1)
 
 
-def draw_roi(vertices, *, color=1, alpha=1, linewidth=2):
+def draw_roi(vertices, *, color=1, alpha=1, linewidth=2, mode=gl.GL_LINE_STRIP):
     """Draw a single ROI using the fixed render pipeline."""
     assert vertices.ndim == 2 and vertices.shape[1] == 2
     color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
     gl.glLineWidth(linewidth)
-    gl.glBegin(gl.GL_LINE_STRIP)
+    gl.glBegin(mode)
     gl.glColor4f(color[0] * alpha, color[1] * alpha, color[2] * alpha, alpha)
     for vertex in vertices:
         gl.glVertex2f(*vertex)
@@ -229,7 +229,6 @@ def draw_roi(vertices, *, color=1, alpha=1, linewidth=2):
     gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
     gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, 0)
     gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
-
 
 # -----------------------------------------------------------------------------
 

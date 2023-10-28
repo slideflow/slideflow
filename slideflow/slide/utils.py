@@ -55,21 +55,21 @@ def OPS_LEVEL_DOWNSAMPLE(level: int) -> str:
 class ROI:
     """Object container for a single ROI annotation."""
 
-    def __init__(    
-        self, 
-        name: str, 
+    def __init__(
+        self,
+        name: str,
         coordinates: List[Tuple[int, int]] = None,
         label: Optional[str] = None
     ) -> None:
         self.name = name
-        self.label = label
+        self.label = label if label else None
         if coordinates is None:
             self.coordinates = []  # type: List[Tuple[int, int]]
         else:
             self.coordinates = coordinates
 
     def __repr__(self):
-        return f"<ROI (coords={len(self.coordinates)})>"
+        return f"<ROI (coords={len(self.coordinates)} label={self.label})>"
 
     def add_coord(self, coord: Tuple[int, int]) -> None:
         self.coordinates.append(coord)
@@ -92,18 +92,18 @@ class ROIPoly:
 
     """
     def __init__(
-        self, 
-        poly: sg.Polygon, 
-        name: str, 
+        self,
+        poly: sg.Polygon,
+        name: str,
         label: Optional[str] = None
     ) -> None:
         self.poly = poly
         self.name = name
-        self.label = label
+        self.label = label if label else None
         self._hole_names = []  # type: List[str]
 
     def __repr__(self) -> str:
-        return f"<ROIPoly (name={self.name})>"
+        return f"<ROIPoly (name={self.name} label={self.label})>"
 
     @property
     def description(self) -> str:

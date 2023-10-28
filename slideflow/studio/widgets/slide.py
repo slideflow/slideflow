@@ -3,16 +3,12 @@ import cv2
 import imgui
 import numpy as np
 import threading
-import glfw
-from shapely.geometry import Point
-from shapely.geometry import Polygon
-from tkinter.filedialog import askopenfilename
 from typing import Optional, Tuple
 
+from .roi import ROIWidget
 from .._renderer import CapturedException
 from ..utils import EasyDict
-from ..gui import imgui_utils, text_utils, gl_utils
-from ..gui.annotator import AnnotationCapture
+from ..gui import imgui_utils, gl_utils
 
 import slideflow as sf
 
@@ -59,6 +55,7 @@ class SlideWidget:
 
         """
         self.viz                    = viz
+        self.roi_widget             = ROIWidget(viz)
         self.cur_slide              = None
         self.user_slide             = ''
         self.normalize_wsi          = False
@@ -67,14 +64,12 @@ class SlideWidget:
         self.qc_mask                = None
         self.alpha                  = 1.0
         self.stride                 = 1
-        self.num_total_rois         = 0
         self.enable_stride_capture  = True
         self._filter_grid           = None
         self._filter_thread         = None
         self._capturing_ws_thresh   = None
         self._capturing_gs_thresh   = None
         self._capturing_stride      = None  # type: Optional[int]
-        self._use_rois              = True
         self._rendering_message     = "Calculating tile filter..."
         self._show_filter_controls  = False
         self._show_mpp_popup        = False
@@ -91,24 +86,14 @@ class SlideWidget:
         self.ws_fraction            = sf.slide.DEFAULT_WHITESPACE_FRACTION
         self.ws_threshold           = sf.slide.DEFAULT_WHITESPACE_THRESHOLD
 
-        # ROI Annotation params
-        self.annotator              = AnnotationCapture(named=False)
-        self.capturing              = False
-        self.editing                = False
-        self.annotations            = []
-        self._left_mouse_down       = False
-        self._right_mouse_down      = False
-        self._late_render           = []
-
         # Tile extraction preview
         self.preview_tiles          = False
         self.tile_color             = 0
         self._tile_box_coords       = []
         self._vbo                   = None
-        self._scaled_rois           = None
+        self._scaled_boxes          = None
         self._last_processing_params = None
         self._last_rois             = None
-
         self._all_normalizer_methods = [
             'reinhard',
             'reinhard_fast',
@@ -147,6 +132,10 @@ class SlideWidget:
     def _thread_is_running(self) -> bool:
         """Whether a thread is currently running."""
         return self._filter_thread is not None and self._filter_thread.is_alive()
+
+    @property
+    def capturing(self) -> bool:
+        return self.roi_widget.capturing
 
     # --- Internal ------------------------------------------------------------
 
@@ -262,12 +251,12 @@ class SlideWidget:
             return
         if not len(self._tile_box_coords):
             return
-        scaled_rois = self.viz.viewer._scale_rois_to_view(self._tile_box_coords).astype(np.float32)
-        if self._scaled_rois is None or not np.all(self._scaled_rois == scaled_rois):
-            self._scaled_rois = scaled_rois
-            self._vbo = gl_utils.create_buffer(scaled_rois.flatten())
+        scaled_boxes = self.viz.viewer._scale_rois_to_view(self._tile_box_coords).astype(np.float32)
+        if self._scaled_boxes is None or not np.all(self._scaled_boxes == scaled_boxes):
+            self._scaled_boxes = scaled_boxes
+            self._vbo = gl_utils.create_buffer(scaled_boxes.flatten())
         c = self._tile_colors_rgb[self.tile_color]
-        gl_utils.draw_rois(scaled_rois, color=c, linewidth=2, alpha=1, vbo=self._vbo)
+        gl_utils.draw_rois(scaled_boxes, color=c, linewidth=2, alpha=1, vbo=self._vbo)
 
     def _update_tile_coords(self) -> None:
         """Update the expected coordinates for tiles that will be extracted.
@@ -291,7 +280,7 @@ class SlideWidget:
         if _coords.size:
             self._tile_box_coords = _coords
         else:
-            self._tile_box_coords = np.array()
+            self._tile_box_coords = np.array([])
 
     # --- Callbacks and render triggers ---------------------------------------
 
@@ -304,27 +293,6 @@ class SlideWidget:
         if self.preview_tiles:
             self._render_tile_boxes()
 
-    def late_render(self) -> None:
-        """Render elements with OpenGL (after other UI elements are drawn).
-
-        Triggers after the slide has been rendered and all other UI elements
-        are drawn.
-
-        """
-        for _ in range(len(self._late_render)):
-            annotation, name, kwargs = self._late_render.pop()
-            gl_utils.draw_roi(annotation, **kwargs)
-            if isinstance(name, str):
-                tex = text_utils.get_texture(
-                    name,
-                    size=self.viz.gl_font_size,
-                    max_width=self.viz.viewer.width,
-                    max_height=self.viz.viewer.height,
-                    outline=2
-                )
-                text_pos = (annotation.mean(axis=0))
-                tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
-
     def keyboard_callback(self, key: int, action: int) -> None:
         """Handle keyboard events.
 
@@ -334,132 +302,18 @@ class SlideWidget:
                 ``glfw.RELEASE``, ``glfw.REPEAT``).
 
         """
-        if (key == glfw.KEY_DELETE and action == glfw.PRESS):
-            if (self.editing
-               and self.viz.viewer is not None
-               and hasattr(self.viz.viewer, 'selected_rois')):
-                for idx in self.viz.viewer.selected_rois:
-                    self.viz.wsi.remove_roi(idx)
-                self.viz.viewer.deselect_roi()
-                self.viz.viewer.refresh_view()
-                self.num_total_rois = len(self.viz.wsi.rois)
+        self.roi_widget.keyboard_callback(key, action)
 
-    # --- ROI annotation functions --------------------------------------------
-
-    def render_annotation(
-        self,
-        annotation: np.ndarray,
-        origin: np.ndarray,
-        name: Optional[str] = None,
-        color: float = 1,
-        alpha: float = 1,
-        linewidth: int = 3
-    ):
-        """Render an annotation with OpenGL.
-
-        Annotation is prepared and appended to a list of annotations to be
-        rendered at the end of frame generation.
-
-        Args:
-            annotation (np.ndarray): An array of shape (N, 2) containing the
-                coordinates of the vertices of the annotation.
-            origin (np.ndarray): An array of shape (2,) containing the
-                coordinates of the origin of the annotation.
-            name (str): A name to display with the annotation.
-            color (float, tuple[float, float, float]): The color of the
-                annotation. Defaults to 1 (white).
-            alpha (float): The opacity of the annotation. Defaults to 1.
-            linewidth (int): The width of the annotation. Defaults to 3.
-
-        """
-        kwargs = dict(color=color, linewidth=linewidth, alpha=alpha)
-        self._late_render.append((np.array(annotation) + origin, name, kwargs))
-
-    def _check_for_selected_roi(self) -> Optional[int]:
-        """Check if a ROI is selected and return its index.
-
-        Returns:
-            int: The index of the selected ROI, or None if no ROI is selected.
-
-        """
-        if self.viz.viewer is None:
-            return None
-        elif not imgui.is_mouse_down(0):
-            # Mouse is newly up
-            self._left_mouse_down = False
-            return None
-        elif self._left_mouse_down:
-            # Mouse is already down
-            return None
-        else:
-            # Mouse is newly down
-            self._left_mouse_down = True
-            mouse_point = Point(imgui.get_mouse_pos())
-            possible_rois = []
-            for roi_idx, roi_array in self.viz.viewer.rois:
-                try:
-                    roi_poly = Polygon(roi_array)
-                except ValueError:
-                    continue
-                if roi_poly.contains(mouse_point):
-                    possible_rois.append(roi_idx)
-            if len(possible_rois) > 1:
-                return [r for r in possible_rois 
-                        if not self.viz.viewer.roi_is_selected(r)][0]
-            elif len(possible_rois) == 1:
-                return possible_rois[0]
-            else:
-                return None
-
-    def _process_roi_capture(self) -> None:
-        """Process a newly captured ROI.
-
-        If the ROI is valid, it is added to the slide and rendered.
-
-        """
-        viz = self.viz
-        if self.capturing:
-            new_annotation, annotation_name = self.annotator.capture(
-                x_range=(viz.viewer.x_offset, viz.viewer.x_offset + viz.viewer.width),
-                y_range=(viz.viewer.y_offset, viz.viewer.y_offset + viz.viewer.height),
-                pixel_ratio=viz.pixel_ratio
-            )
-
-            # Render in-progress annotations
-            if new_annotation is not None:
-                self.render_annotation(new_annotation, origin=(viz.viewer.x_offset, viz.viewer.y_offset))
-            if annotation_name:
-                wsi_coords = []
-                for c in new_annotation:
-                    _x, _y = viz.viewer.display_coords_to_wsi_coords(c[0], c[1], offset=False)
-                    int_coords = (int(_x), int(_y))
-                    if int_coords not in wsi_coords:
-                        wsi_coords.append(int_coords)
-                wsi_coords = np.array(wsi_coords)
-                viz.wsi.load_roi_array(wsi_coords)
-                self.num_total_rois = len(viz.wsi.rois)
-                viz.viewer.refresh_view()
-
-        # Edit ROIs
-        if self.editing:
-            selected_roi = self._check_for_selected_roi()
-            if imgui.is_mouse_down(1):
-                viz.viewer.deselect_roi()
-            elif selected_roi is not None:
-                viz.viewer.deselect_roi()
-                viz.viewer.select_roi(selected_roi)
-
-    def _set_roi_button_style(self) -> None:
-        """Set the style for the ROI buttons."""
-        imgui.push_style_color(imgui.COLOR_BUTTON, 0, 0, 0, 0)
-        imgui.push_style_var(imgui.STYLE_ITEM_SPACING, [0, 0])
-
-    def _end_roi_button_style(self) -> None:
-        """End the style for the ROI buttons."""
-        imgui.pop_style_color(1)
-        imgui.pop_style_var(1)
+    def late_render(self) -> None:
+        self.roi_widget.late_render()
 
     # --- Public interface ----------------------------------------------------
+
+    def is_moving(self) -> bool:
+        """Check if the current view is moving (within the last 0.5 sec)."""
+        if self.viz.viewer is None:
+            return False
+        return self.viz.viewer.is_moving()
 
     def get_tile_filter_params(self) -> dict:
         """Return the current tile filter (whitespace/grayspace) parameters.
@@ -556,7 +410,6 @@ class SlideWidget:
             self.cur_slide = slide
             self.user_slide = slide
             self.manual_mpp = mpp
-            self._use_rois = True
             viz.set_message(f'Loading {name}...')
             sf.log.debug(f"Loading slide {slide}...")
             viz.defer_rendering()
@@ -566,7 +419,7 @@ class SlideWidget:
                 success = viz._reload_wsi(
                     slide,
                     stride=self.stride,
-                    use_rois=self._use_rois,
+                    use_rois=self.roi_widget.use_rois,
                     ignore_missing_mpp=False,
                     **kwargs
                 )
@@ -584,7 +437,6 @@ class SlideWidget:
                 )
                 return
             viz.heatmap_widget.reset()
-            self.num_total_rois = len(viz.wsi.rois)
 
             # Generate WSI thumbnail.
             hw_ratio = (viz.wsi.dimensions[0] / viz.wsi.dimensions[1])
@@ -922,7 +774,7 @@ class SlideWidget:
             self.show_slide_filter = False
             self._reset_tile_filter_and_join_thread()
             self.viz.clear_overlay()
-            self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
+            self.viz._reload_wsi(stride=self.stride, use_rois=self.roi_widget.use_rois)
             self._update_tile_coords()
 
         # Tile filtering
@@ -995,12 +847,21 @@ class SlideWidget:
 
         # Show slide-level filtering
         with imgui_utils.grayed_out(not self.apply_slide_filter):
-            _show_qc_clicked, self.show_slide_filter = imgui.checkbox("Show QC", self.show_slide_filter)
+            _show_qc_clicked, self.show_slide_filter = imgui.checkbox("QC Mask", self.show_slide_filter)
         if _show_qc_clicked and self.show_slide_filter and self.apply_slide_filter:
             self.show_tile_filter = False
             self.update_slide_filter_display()
         if imgui.is_item_hovered():
             imgui.set_tooltip("Show slide filter (quality control) mask")
+        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+
+        # Show ROI outlines
+        with imgui_utils.grayed_out(not viz.wsi.has_rois()):
+            _roi_clicked, _show_rois = imgui.checkbox("ROIs", viz.viewer.show_rois)
+            if _roi_clicked and viz.wsi.has_rois():
+                viz.viewer.show_rois = _show_rois
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Show ROI outlines")
 
         # Show only extracted tiles
         with imgui_utils.grayed_out(not self.apply_tile_filter):
@@ -1060,6 +921,7 @@ class SlideWidget:
 
         """
         viz = self.viz
+        self.roi_widget.update(show=show)
 
         if show:
             viz.header("Slide")
@@ -1068,73 +930,16 @@ class SlideWidget:
             imgui_utils.padded_text('No slide has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
             if viz.sidebar.full_button("Load a Slide"):
                 viz.ask_load_slide()
-            self.capturing = False
-            self.editing = False
 
         elif show:
             if viz.collapsing_header('Info', default=True):
                 self.draw_info()
             if viz.collapsing_header('ROIs', default=True):
-                imgui.text_colored('ROIs', *viz.theme.dim)
-                imgui.same_line(viz.font_size * 8)
-                imgui.text(str(self.num_total_rois))
-                self._set_roi_button_style()
-
-                # Add button.
-                with viz.highlighted(self.capturing):
-                    if viz.sidebar.large_image_button('circle_plus', size=viz.font_size*3):
-                        self.capturing = not self.capturing
-                        self.editing = False
-                        if self.capturing:
-                            viz.create_toast(f'Capturing new ROIs. Right click and drag to create a new ROI.', icon='info')
-                    if imgui.is_item_hovered():
-                        imgui.set_tooltip("Add ROI")
-                imgui.same_line()
-
-                # Edit button.
-                with viz.highlighted(self.editing):
-                    if viz.sidebar.large_image_button('pencil', size=viz.font_size*3):
-                        self.editing = not self.editing
-                        if self.editing:
-                            viz.create_toast(f'Editing ROIs. Click to select an ROI, and press <Del> to remove.', icon='info')
-                        else:
-                            viz.viewer.deselect_roi()
-                        self.capturing = False
-                    if imgui.is_item_hovered():
-                        imgui.set_tooltip("Edit ROIs")
-                imgui.same_line()
-
-                # Save button.
-                if viz.sidebar.large_image_button('floppy', size=viz.font_size*3):
-                    dest = viz.wsi.export_rois()
-                    viz.create_toast(f'ROIs saved to {dest}', icon='success')
-                    self.editing = False
-                    self.capturing = False
-                if imgui.is_item_hovered():
-                    imgui.set_tooltip("Save ROIs")
-                imgui.same_line()
-
-                # Load button.
-                if viz.sidebar.large_image_button('folder', size=viz.font_size*3):
-                    path = askopenfilename(title="Load ROIs...", filetypes=[("CSV", "*.csv",)])
-                    if path:
-                        viz.wsi.load_csv_roi(path)
-                        viz.viewer.refresh_view()
-                    self.editing = False
-                    self.capturing = False
-                if imgui.is_item_hovered():
-                    imgui.set_tooltip("Load ROIs")
-                self._end_roi_button_style()
-
-                imgui_utils.vertical_break()
+                self.roi_widget.draw()
             if viz.collapsing_header('Slide Processing', default=False):
                 self.draw_slide_processing()
             if viz.collapsing_header('Display', default=False):
                 self.draw_display_options()
-            self._process_roi_capture()
-        else:
-            self.capturing = False
-            self.editing = False
 
         if self._show_mpp_popup:
             self.draw_mpp_popup()
