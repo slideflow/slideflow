@@ -813,7 +813,7 @@ class Studio(ImguiWindow):
             stride = self.wsi.stride_div
 
         # ROIs.
-        if self.wsi is not None:
+        if self.wsi is not None and path == self.wsi.path:
             roi_method = self.wsi.roi_method
             prior_rois = self.wsi.rois
             rois = None
@@ -897,7 +897,9 @@ class Studio(ImguiWindow):
             bool: True if slide loaded successfully, False otherwise.
 
         """
-        wsi = self._reload_and_return_wsi(path, stride, use_rois, tile_px, tile_um, **kwargs)
+        wsi = self._reload_and_return_wsi(
+            path, stride, use_rois, tile_px, tile_um, **kwargs
+        )
         if wsi:
             self.wsi = wsi
             old_viewer = self.viewer
