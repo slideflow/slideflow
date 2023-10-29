@@ -95,7 +95,7 @@ class Toast:
     def _parse_progress(self, val):
         if isinstance(val, bool):
             return val
-        elif isinstance(val, float):
+        elif isinstance(val, (int, float)):
             self._progress_vals[0] = val
             return True
         elif isinstance(val, list):

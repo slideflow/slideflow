@@ -25,7 +25,9 @@ def process_grid(heatmap, grid):
 
 
 def convert_to_overlays(arr):
-    if len(arr.shape) == 2:
+    if arr is None:
+        return arr
+    elif len(arr.shape) == 2:
         return [HeatmapOverlay(arr)]
     else:
         return [HeatmapOverlay(arr[:, :, i]) for i in range(arr.shape[2])]
@@ -159,6 +161,10 @@ class HeatmapWidget:
             self.uncertainty = convert_to_overlays(uncertainty)
             self.render_heatmap()
             self.viz.model_widget._update_slide_preds()
+            prog_grid = predictions if len(predictions.shape) == 2 else predictions[:, :, 0]
+            percent = (prog_grid != sf.heatmap.MASK).sum() / self.viz.wsi.grid.sum()
+            self._heatmap_toast.set_progress(min(percent, 1.))
+
 
     def refresh_generating_heatmap(self):
         """Refresh render of the asynchronously generating heatmap."""
@@ -233,6 +239,7 @@ class HeatmapWidget:
             title="Calculating heatmap",
             icon='info',
             sticky=True,
+            progress=True,
             spinner=True
         )
         _thread = threading.Thread(target=self._generate)

@@ -2211,10 +2211,10 @@ class WSI:
         log.info("Calculating whole-slide prediction...")
         heatmap = Heatmap(self, model, generate=True, **kwargs)
         preds = heatmap.predictions.reshape(-1, heatmap.predictions.shape[-1])
-        preds = np.nanmean(np.ma.masked_where(preds == -99, preds), axis=0).filled()
+        preds = np.nanmean(np.ma.masked_where(preds == sf.heatmap.MASK, preds), axis=0).filled()
         if heatmap.uncertainty is not None:
             unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
-            unc = np.nanmean(np.ma.masked_where(unc == -99, unc), axis=0).filled()
+            unc = np.nanmean(np.ma.masked_where(unc == sf.heatmap.MASK, unc), axis=0).filled()
             return preds, unc
         else:
             return preds

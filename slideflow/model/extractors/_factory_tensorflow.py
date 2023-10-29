@@ -145,7 +145,7 @@ class TensorflowImagenetLayerExtractor(BaseFeatureExtractor):
         """Generate features for a batch of images or a WSI."""
         if isinstance(obj, sf.WSI):
             grid = features_from_slide(self, obj, preprocess_fn=self.transform, **kwargs)
-            return np.ma.masked_where(grid == -99, grid)
+            return np.ma.masked_where(grid == sf.heatmap.MASK, grid)
         elif kwargs:
             raise ValueError(
                 f"{self.__class__.__name__} does not accept keyword arguments "

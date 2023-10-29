@@ -756,7 +756,7 @@ class Studio(ImguiWindow):
 
         # Ignore right click if the slide widget
         # is capturing an ROI.
-        if self.slide_widget.capturing:
+        if self.slide_widget.editing_rois:
             clicking = False
 
         # Detect dragging with left mouse in the main display.

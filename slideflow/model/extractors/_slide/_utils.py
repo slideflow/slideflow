@@ -1,6 +1,7 @@
 """Utility functions for slide feature extraction."""
 
 import numpy as np
+import slideflow as sf
 from slideflow import log
 
 # -----------------------------------------------------------------------------
@@ -17,7 +18,7 @@ def _build_grid(extractor, slide, grid=None, dtype=np.float16):
                 slide.grid.shape[0],
                 total_out),
             dtype=dtype)
-        features_grid *= -99
+        features_grid *= sf.heatmap.MASK
     else:
         assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
         features_grid = grid

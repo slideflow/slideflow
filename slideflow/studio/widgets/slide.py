@@ -134,8 +134,8 @@ class SlideWidget:
         return self._filter_thread is not None and self._filter_thread.is_alive()
 
     @property
-    def capturing(self) -> bool:
-        return self.roi_widget.capturing
+    def editing_rois(self) -> bool:
+        return self.roi_widget.capturing or self.roi_widget.editing
 
     # --- Internal ------------------------------------------------------------
 

@@ -1,5 +1,6 @@
 import imgui
 import numpy as np
+import slideflow as sf
 import slideflow.grad as grad
 from typing import Union, List, Optional, Tuple
 from array import array
@@ -269,7 +270,7 @@ class ModelWidget:
     def _masked_histogram(arr):
         # Prediction histogram
         flattened = arr.flatten()
-        flattened = flattened[flattened != -99]
+        flattened = flattened[flattened != sf.heatmap.MASK]
         hist, _ = np.histogram(flattened, range=(0, 1))
         if flattened.shape[0] > 0:
             hist_arr = array('f', hist/np.sum(hist))
@@ -282,7 +283,7 @@ class ModelWidget:
         return (hist_avg, hist_arr, hist_scale_max)
 
     def _apply_pred_means(self, outcome, pred_array):
-        masked = np.ma.masked_where(((pred_array == -99) | (pred_array == np.nan)), pred_array)
+        masked = np.ma.masked_where(((pred_array == sf.heatmap.MASK) | (pred_array == np.nan)), pred_array)
         if self.is_categorical():
             self.pred_means[outcome] = masked.mean(axis=(0,1)).filled()
         else:

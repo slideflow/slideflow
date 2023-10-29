@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     except ImportError:
         pass
 
-
+MASK = -99
 Inset = namedtuple("Inset", "x y zoom loc mark1 mark2 axes")
 
 # -----------------------------------------------------------------------------
@@ -313,7 +313,7 @@ class Heatmap:
                     self.slide.grid.shape[0],
                     it.num_features + it.num_classes + it.num_uncertainty),
                 dtype=np.float32)
-            grid *= -99
+            grid *= MASK
             heatmap_thread = Thread(target=_generate, args=(grid,))
             heatmap_thread.start()
             return grid, heatmap_thread
@@ -566,7 +566,7 @@ class Heatmap:
             vmax=self.uncertainty.max()
         )
         masked_uncertainty = np.ma.masked_where(
-            self.uncertainty == -99,
+            self.uncertainty == MASK,
             self.uncertainty
         )
         extent = calculate_heatmap_extent(
@@ -655,7 +655,7 @@ class Heatmap:
             vmax=vmax
         )
         masked_arr = np.ma.masked_where(
-            self.predictions[:, :, class_idx] == -99,
+            self.predictions[:, :, class_idx] == MASK,
             self.predictions[:, :, class_idx]
         )
         extent = calculate_heatmap_extent(
