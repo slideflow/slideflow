@@ -9,7 +9,7 @@ However, it is also possible to train models with strong supervision, where the 
 image tiles are determined through :ref:`Region of Interest (ROI) <roi_labels>` labels. This note describes the process by which such labels are generated, and how they can be used to train a model. Training models with strong supervision requires PyTorch and is not supported in TensorFlow.
 
 Labeling ROIs
-************
+*************
 
 The first step is to create regions of interest (ROIs). The fastest way to create labeled ROIs is with :ref:`Slideflow Studio <studio_roi>`, which includes integrated tools for quickly assigning labels to both new and existing ROIs. However, it is also possible to create ROIs with other tools, such as QuPath or ImageScope (as described :ref:`here <roi_labels>`), and modify the generated ROI CSV file to add labels.
 

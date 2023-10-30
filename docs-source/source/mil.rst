@@ -10,6 +10,22 @@ Generating features
 
 The first step in MIL model development is generating features from image tiles. Many types of feature extractors can be used, including imagenet-pretrained models, models finetuned in Slideflow, histology-specific pretrained feature extractors (such as CTransPath or RetCCL), or fine-tuned SSL models.  In all cases, feature extractors are built with :func:`slideflow.model.build_feature_extractor`, and features are generated for a dataset using either with :ref:`slideflow.DatasetFeatures.to_torch() <activations>` or :meth:`slideflow.Project.generate_feature_bags`.
 
+Pretrained Feature Extractor
+----------------------------
+
+Slideflow includes several pathology-specific pretrained feature extractors:
+
+- `CTransPath <https://github.com/Xiyue-Wang/TransPath>`_
+- `RetCCL <https://github.com/Xiyue-Wang/RetCCL>`_
+- `HistoSSL <https://github.com/owkin/HistoSSLscaling>`_
+- `PLIP <https://github.com/PathologyFoundation/plip>`_
+
+Use :func:`slideflow.model.build_feature_extractor` to build one of these feature extractors by name. Weights for these pretrained networks will be automatically downloaded.
+
+.. code-block:: python
+
+    ctranspath = build_feature_extractor('ctranspath', tile_px=299)
+
 ImageNet Features
 -----------------
 
@@ -62,22 +78,6 @@ You can also calculate features from any model trained in Slideflow. The first a
         '/path/to/model',
         layers='sepconv3_bn'
     )
-
-Pretrained Feature Extractor
-----------------------------
-
-Slideflow includes several pathology-specific pretrained feature extractors:
-
-- `CTransPath <https://github.com/Xiyue-Wang/TransPath>`_
-- `RetCCL <https://github.com/Xiyue-Wang/RetCCL>`_
-- `HistoSSL <https://github.com/owkin/HistoSSLscaling>`_
-- `PLIP <https://github.com/PathologyFoundation/plip>`_
-
-Use :func:`slideflow.model.build_feature_extractor` to build one of these feature extractors by name. Weights for these pretrained networks will be automatically downloaded.
-
-.. code-block:: python
-
-    ctranspath = build_feature_extractor('ctranspath', tile_px=299)
 
 Self-Supervised Learning
 ------------------------
