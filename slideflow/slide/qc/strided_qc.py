@@ -267,6 +267,10 @@ class _StridedQC_V2:
 
     def concatenate_and_crop(self, mask: np.ndarray, dim: Tuple[int, int]):
         """Concatenate masks into a single 2D array."""
+        for j in range(mask.shape[1]):
+            for i in range(mask.shape[0]):
+                if isinstance(mask[i, j], int):
+                    mask[i, j] = self._calc_empty_mask(i, j, mask.shape)
         mask = np.concatenate(
             [
                 np.concatenate([a for a in b], axis=-1)
@@ -321,6 +325,25 @@ class _StridedQC_V2:
         g_mask = self.apply(image)
         return grid_i, grid_j, g_mask
 
+    def _calc_empty_mask(self, grid_i, grid_j, grid_shape):
+        """Build an empty (1s) mask for a given tile."""
+        # Handle edge tiles.
+        start_i = start_j = self.overlap
+        end_i = end_j = self.tile_px - self.overlap
+        if grid_i == 0:
+            start_i = 0
+        if grid_j == 0:
+            start_j = 0
+        if grid_i >= grid_shape[1]:
+            end_i = None
+        if grid_j >= grid_shape[0]:
+            end_j = None
+
+        g_mask = np.ones((self.tile_px, self.tile_px))
+        g_mask = g_mask[start_i: end_i, start_j: end_j]
+        g_mask = g_mask.astype(bool)
+        return g_mask
+
     def get_slide_and_mpp(self, wsi: "sf.WSI") -> Tuple["sf.WSI", float]:
         """Get a WSI object with the proper tile extraction size and stride."""
         stride_div = self.tile_px / (self.tile_px - self.overlap*2)
@@ -331,6 +354,7 @@ class _StridedQC_V2:
             stride_div=stride_div,
             verbose=False,
             use_edge_tiles=True,
+            roi_method='ignore'
         )
         mpp = qc_wsi.tile_um / self.tile_px
         return qc_wsi, mpp

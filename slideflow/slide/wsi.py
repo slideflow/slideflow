@@ -202,10 +202,6 @@ class WSI:
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
             self.load_csv_roi(join(roi_dir, self.name + ".csv"), process=False)
-
-        # Else try loading ROI from same folder as slide
-        elif exists(self.name + ".csv"):
-            self.load_csv_roi(path_to_name(path) + ".csv", process=False)
         elif rois and self.name in [path_to_name(r) for r in rois]:
             matching_rois = []
             for rp in rois:
@@ -473,9 +469,9 @@ class WSI:
         # If roi_filter_method is a float, then perform tile selection
         # based on what proportion of the tile is in an ROI,
         # rather than choosing a tile by centroid (roi_filter_method='center')
-        if self.has_rois() and not roi_by_center:
+        if self.roi_method != 'ignore' and self.has_rois() and not roi_by_center:
             self.apply_qc_mask(
-                ~self.roi_mask,
+                (~self.roi_mask if self.roi_method == 'inside' else self.roi_mask),
                 filter_threshold=(1-self.roi_filter_method)  # type: ignore
             )
 
@@ -2070,6 +2066,7 @@ class WSI:
                 self.rois.append(roi_object)
         if process:
             self.process_rois()
+        log.debug(f"Loaded ROIs from {path}")
         return len(self.rois)
 
     def load_json_roi(
