@@ -316,7 +316,7 @@ class ModelWidget:
             # Single categorical or linear outcome
             elif not multiple_outcomes:
                 outcome = config['outcomes'][0]
-                self._apply_pred_means(outcome, np.dstack(overlay.grid for overlay in hw.predictions))
+                self._apply_pred_means(outcome, np.dstack([overlay.grid for overlay in hw.predictions]))
 
             # Multiple linear outcome(s)
             else:

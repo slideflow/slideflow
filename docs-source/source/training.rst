@@ -7,10 +7,11 @@ Slideflow offers tools for training many types of neural networks, including:
 
 - **Weakly supervised, tile-based models**: Models trained on image tiles, with labels inherited from the parent slide.
 - **Weakly supervised, multi-instance learning**: Models trained on feature vectors, with labels inherited from the parent slide.
+- **Strongly supervised models**: Models trained on image tiles, with labels assigned by ROI.
 - **Self-supervised pretraining**: Contrastive pretraining with or without labels (e.g. `SimCLR <https://arxiv.org/abs/2002.05709>`_).
 - **Generative adversarial networks**: Models trained to create synthetic images, with optional class conditioning (e.g. `StyleGAN2/3 <https://arxiv.org/abs/1912.04958>`_).
 
-In this section, we will walk through the process of training a weakly supervised tile-based model. :ref:`Multi-instance learning (MIL) <mil>`, :ref:`self-supervised pretraining (SSL) <simclr_ssl>`, and :ref:`generative adversarial networks (GAN) <stylegan>` are described in other sections.
+In this section, we will walk through the process of training a weakly supervised tile-based model. :ref:`Strong supervision <tile_labels>`, :ref:`Multi-instance learning (MIL) <mil>`, :ref:`self-supervised pretraining (SSL) <simclr_ssl>`, and :ref:`generative adversarial networks (GAN) <stylegan>` are described in other sections.
 
 Prepare hyperparameters
 ***********************

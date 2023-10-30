@@ -291,6 +291,27 @@ def _create_index(tfrecord, force=False):
     if not tfrecord2idx.find_index(tfrecord) or force:
         tfrecord2idx.create_index(tfrecord, index_name)
 
+def _get_tile_df(
+    slide_path: str,
+    tile_px: int,
+    tile_um: Union[int, str],
+    rois: Optional[List[str]],
+    stride_div: int,
+    roi_method: str
+) -> pd.DataFrame:
+    wsi = sf.WSI(
+        slide_path,
+        tile_px,
+        tile_um,
+        rois=rois,
+        stride_div=stride_div,
+        roi_method=roi_method,
+        verbose=False
+    )
+    _df = wsi.get_tile_dataframe()
+    _df['slide'] = wsi.name
+    return _df
+
 # -----------------------------------------------------------------------------
 
 def split_patients_preserved_site(
@@ -1358,22 +1379,24 @@ class Dataset:
 
         """
         df = None
-        for slide_path in tqdm(self.slide_paths()):
-            wsi = sf.WSI(
-                slide_path,
-                self.tile_px,
-                self.tile_um,
+        with mp.Pool(4, initializer=sf.util.set_ignore_sigint) as pool:
+            fn = partial(
+                _get_tile_df,
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
                 rois=self.rois(),
                 stride_div=stride_div,
-                roi_method=roi_method,
-                verbose=False
+                roi_method=roi_method
             )
-            _df = wsi.export_tile_rois()
-            _df['slide'] = wsi.name
-            if df is None:
-                df = _df
-            else:
-                df = pd.concat([df, _df], axis=0, join='outer')
+            for _df in track(pool.imap_unordered(fn, self.slide_paths()),
+                            description=f'Building...',
+                            total=len(self.slide_paths()),
+                            transient=True):
+                if df is None:
+                    df = _df
+                else:
+                    df = pd.concat([df, _df], axis=0, join='outer')
+
         return df
 
     def extract_cells(
@@ -1864,6 +1887,23 @@ class Dataset:
             ret._min_tiles = kwargs['min_tiles']
         return ret
 
+    def find_rois(self, slide: str) -> Optional[str]:
+        """Find an ROI path from a given slide.
+
+        Args:
+            slide (str): Slide name.
+
+        Returns:
+            str: Matching path to ROI, if found. If not found, returns None
+        """
+        rois = self.rois()
+        if not rois:
+            return None
+        for roi in rois:
+            if path_to_name(roi) == slide:
+                return roi
+        return None
+
     def find_slide(
         self,
         *,
@@ -1923,6 +1963,23 @@ class Dataset:
             return None
         else:
             return matching[0]
+
+    def get_slide_source(self, slide: str) -> str:
+        """Return the source of a given slide.
+
+        Args:
+            slide (str): Slide name.
+
+        Returns:
+            str: Source name.
+
+        """
+        for source in self.sources:
+            paths = self.slide_paths(source=source)
+            names = [path_to_name(path) for path in paths]
+            if slide in paths or slide in names:
+                return source
+        raise errors.DatasetError(f"Could not find slide '{slide}'")
 
     def get_tfrecord_locations(self, slide: str) -> List[Tuple[int, int]]:
         """Return a list of locations stored in an associated TFRecord.

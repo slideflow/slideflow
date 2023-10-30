@@ -15,7 +15,7 @@ from packaging import version
 from os.path import dirname, exists, join
 from types import SimpleNamespace
 from typing import (
-    TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Callable
+    TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Callable, Iterable
 )
 from tensorflow.keras import applications as kapps
 
@@ -1213,8 +1213,19 @@ class Trainer:
         if config is None:
             config = {
                 'slideflow_version': sf.__version__,
-                'hp': self.hp.to_dict(),
-                'backend': sf.backend()
+                'backend': sf.backend(),
+                'git_commit': sf.__gitcommit__,
+                'model_name': self.name,
+                'full_model_name': self.name,
+                'outcomes': self.outcome_names,
+                'model_type': self.hp.model_type(),
+                'img_format': None,
+                'tile_px': self.hp.tile_px,
+                'tile_um': self.hp.tile_um,
+                'input_features': None,
+                'input_feature_sizes': None,
+                'input_feature_labels': None,
+                'hp': self.hp.to_dict()
             }
         sf.util.write_json(config, join(self.outdir, 'params.json'))
         self.config = config
@@ -1388,15 +1399,37 @@ class Trainer:
         )
         return vars(args)
 
-    def _verify_img_format(self, dataset: "sf.Dataset") -> None:
-        if self.img_format and not dataset.img_format:
+    def _verify_img_format(self, dataset, *datasets: Optional["sf.Dataset"]) -> str:
+        """Verify that the image format of the dataset matches the model config.
+
+        Args:
+            dataset (sf.Dataset): Dataset to check.
+            *datasets (sf.Dataset): Additional datasets to check. May be None.
+
+        Returns:
+            str: Image format, either 'png' or 'jpg', if a consistent image
+                format was found, otherwise None.
+
+        """
+        # First, verify all datasets have the same image format
+        img_formats = set([d.img_format for d in datasets if d])
+        if len(img_formats) > 1:
+            log.error("Multiple image formats detected: {}.".format(
+                ', '.join(img_formats)
+            ))
+            return None
+        elif self.img_format and not dataset.img_format:
             log.warning("Unable to verify image format (PNG/JPG) of dataset.")
+            return None
         elif self.img_format and dataset.img_format != self.img_format:
             log.error(
                 "Mismatched image formats. Expected '{}' per model config, "
                 "but dataset has format '{}'.".format(
                     self.img_format,
                     dataset.img_format))
+            return None
+        else:
+            return dataset.img_format
 
     def load(self, model: str, **kwargs) -> tf.keras.Model:
         self.model = load(
@@ -1724,6 +1757,12 @@ class Trainer:
                                     f"{self._model_type} (model)")
 
         self._detect_patients(train_dts, val_dts)
+
+        # Verify image format across datasets.
+        img_format = self._verify_img_format(train_dts, val_dts)
+        if img_format and self.config['img_format'] is None:
+            self.config['img_format'] = img_format
+            sf.util.write_json(self.config, join(self.outdir, 'params.json'))
 
         # Clear prior Tensorflow graph to free memory
         tf.keras.backend.clear_session()

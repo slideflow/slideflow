@@ -1,6 +1,7 @@
 import imgui
 import numpy as np
 import glfw
+from os.path import join
 from shapely.geometry import Point
 from shapely.geometry import Polygon
 from tkinter.filedialog import askopenfilename
@@ -168,6 +169,16 @@ class ROIWidget:
             self._last_view_params = view.view_params
         elif view.is_moving():
             self.roi_grid = None
+
+    def get_roi_dest(self, slide: str) -> str:
+        """Get the destination for a ROI file."""
+        viz = self.viz
+        if viz.P is None:
+            return None
+        dataset = viz.P.dataset()
+        source = dataset.get_slide_source(slide)
+        return (dataset.find_rois(slide)
+                or join(dataset.sources[source]['roi'], f'{slide}.csv'))
 
     # --- Callbacks -----------------------------------------------------------
 
@@ -492,7 +503,7 @@ class ROIWidget:
 
         # Save button.
         if viz.sidebar.large_image_button('floppy', size=viz.font_size*3):
-            dest = viz.wsi.export_rois()
+            dest = viz.wsi.export_rois(self.get_roi_dest(viz.wsi.name))
             viz.create_toast(f'ROIs saved to {dest}', icon='success')
             self.reset_edit_state()
         if imgui.is_item_hovered():

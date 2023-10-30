@@ -324,13 +324,14 @@ class _ModelParams:
             if is_float_dtype(labels.label):
                 return 1
 
-            elif is_integer_dtype(labels.label):
-                unique = np.unique(labels.label)
-                if unique.min() != 0 or unique.max() != len(unique) - 1:
-                    raise errors.ModelError("Expected integer labels to be "
-                                            "0-indexed and continuous.")
-                return {0: len(unique)}
+            elif self.model_type() == 'categorical':
+                unique = labels.label.unique()
+                if is_integer_dtype(labels.label):
+                    return {0: unique.max()+1}
+                else:
+                    return {0: len(unique)}
             else:
+                print(self.model_type)
                 raise errors.ModelError(
                     "Expected integer or float labels. Got: {}".format(
                         labels.label.dtype

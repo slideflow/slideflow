@@ -77,14 +77,13 @@ The output directory, ``/bags/path``, should look like:
 
 The ``*.pt`` files contain the feature vectors for tiles in each slide, and the ``*.index.npz`` files contain the corresponding X, Y coordinates for each tile.  The ``bags_config.json`` file contains the feature extractor configuration.
 
-The next step is to create an MIL model configuration using :func:`slideflow.mil.mil_config`, specifying the architecture and relevant hyperparameters. For the architecture, we'll use an :class:`slideflow.mil.models.Attention_MIL` model with a latent dimension size of 256. For the hyperparameters, we'll use a learning rate of 1e-4, a batch size of 32, 1cycle learning rate scheduling, and train for 10 epochs.
+The next step is to create an MIL model configuration using :func:`slideflow.mil.mil_config`, specifying the architecture and relevant hyperparameters. For the architecture, we'll use :class:`slideflow.mil.models.Attention_MIL`. For the hyperparameters, we'll use a learning rate of 1e-4, a batch size of 32, 1cycle learning rate scheduling, and train for 10 epochs.
 
 .. code-block:: python
 
     >>> from slideflow.mil import mil_config
     >>> config = mil_config(
-    ...     model='Attention_MIL',
-    ...     z_dim=256,
+    ...     model='attention_mil',
     ...     lr=1e-4,
     ...     batch_size=32,
     ...     epochs=10,
@@ -105,6 +104,57 @@ Finally, we can train the model using :func:`slideflow.mil.train_mil`. We'll spl
     ...     bags='/bags/path',
     ...     outdir='/model/path'
     ... )
+
+During training, you'll see the training/validation loss and validation AUROC for each epoch. At the end of training, you'll see the validation metrics for each outcome.
+
+.. rst-class:: sphx-glr-script-out
+
+ .. code-block:: none
+
+    [18:51:01] INFO     Training FastAI MIL model with config:
+               INFO     TrainerConfigFastAI(
+                            aggregation_level='slide'
+                            lr=0.0001
+                            wd=1e-05
+                            bag_size=512
+                            fit_one_cycle=True
+                            epochs=10
+                            batch_size=32
+                            model='attention_mil'
+                            apply_softmax=True
+                            model_kwargs=None
+                            use_lens=True
+                        )
+    [18:51:02] INFO     Training dataset: 272 merged bags (from 272 possible slides)
+               INFO     Validation dataset: 116 merged bags (from 116 possible slides)
+    [18:51:04] INFO     Training model Attention_MIL (in=1024, out=2, loss=CrossEntropyLoss)
+    epoch     train_loss  valid_loss  roc_auc_score  time
+    0         0.328032    0.285096    0.580233       00:01
+    Better model found at epoch 0 with valid_loss value: 0.2850962281227112.
+    1         0.319219    0.266496    0.733721       00:01
+    Better model found at epoch 1 with valid_loss value: 0.266496479511261.
+    2         0.293969    0.230561    0.859690       00:01
+    Better model found at epoch 2 with valid_loss value: 0.23056122660636902.
+    3         0.266627    0.190546    0.927519       00:01
+    Better model found at epoch 3 with valid_loss value: 0.1905461698770523.
+    4         0.236985    0.165320    0.939147       00:01
+    Better model found at epoch 4 with valid_loss value: 0.16532012820243835.
+    5         0.215019    0.153572    0.946512       00:01
+    Better model found at epoch 5 with valid_loss value: 0.153572216629982.
+    6         0.199093    0.144464    0.948837       00:01
+    Better model found at epoch 6 with valid_loss value: 0.1444639265537262.
+    7         0.185597    0.141776    0.952326       00:01
+    Better model found at epoch 7 with valid_loss value: 0.14177580177783966.
+    8         0.173794    0.141409    0.951938       00:01
+    Better model found at epoch 8 with valid_loss value: 0.14140936732292175.
+    9         0.167547    0.140791    0.952713       00:01
+    Better model found at epoch 9 with valid_loss value: 0.14079126715660095.
+    [18:51:18] INFO     Predictions saved to {...}/predictions.parquet
+               INFO     Validation metrics for outcome brs_class:
+    [18:51:18] INFO     slide-level AUC (cat # 0): 0.953 AP: 0.984 (opt. threshold: 0.544)
+               INFO     slide-level AUC (cat # 1): 0.953 AP: 0.874 (opt. threshold: 0.458)
+               INFO     Category 0 acc: 88.4% (76/86)
+               INFO     Category 1 acc: 83.3% (25/30)
 
 After training has completed, the output directory, ``/model/path``, should look like:
 

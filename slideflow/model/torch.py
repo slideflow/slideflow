@@ -16,6 +16,7 @@ from packaging import version
 from rich.progress import Progress, TimeElapsedColumn
 from collections import defaultdict
 from os.path import join
+from pandas.api.types import is_float_dtype, is_integer_dtype
 from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple,
                     Union, Callable)
 
@@ -523,16 +524,32 @@ class Trainer:
         if not os.path.exists(outdir):
             os.makedirs(outdir)
 
-        self._process_outcome_labels(labels, outcome_names)
         self._process_transforms(transform)
+        self._process_outcome_labels(outcome_names)
+        if isinstance(labels, pd.DataFrame):
+            cat_assign = self._process_category_assignments()
 
         # Log parameters
         if config is None:
             config = {
                 'slideflow_version': sf.__version__,
+                'backend': sf.backend(),
+                'git_commit': sf.__gitcommit__,
+                'model_name': self.name,
+                'full_model_name': self.name,
+                'outcomes': self.outcome_names,
+                'model_type': self.hp.model_type(),
+                'img_format': None,
+                'tile_px': self.hp.tile_px,
+                'tile_um': self.hp.tile_um,
+                'input_features': None,
+                'input_feature_sizes': None,
+                'input_feature_labels': None,
                 'hp': self.hp.to_dict(),
-                'backend': sf.backend()
             }
+            if isinstance(labels, pd.DataFrame):
+                config['outcome_labels'] = {str(k): v for k,v in cat_assign.items()}
+
         sf.util.write_json(config, join(self.outdir, 'params.json'))
 
         # Neptune logging
@@ -561,6 +578,34 @@ class Trainer:
     def multi_outcome(self) -> bool:
         return (self.num_outcomes > 1)
 
+    def _process_category_assignments(self) -> Dict[int, str]:
+        """Get category assignments for categorical outcome labels.
+
+        Dataframes with integer labels are assumed to be categorical if
+        if hp.model_type is 'categorical'.
+        Dataframes with float labels are assumed to be linear.
+        Dataframes with other labels are assumed to be categorical, and will
+        be assigned an integer label based on the order of unique values.
+
+        """
+        if not isinstance(self.labels, pd.DataFrame):
+            raise ValueError("Expected DataFrame with 'label' column.")
+        if 'label' not in self.labels.columns:
+            raise ValueError("Expected DataFrame with 'label' column.")
+        if self.hp.model_type() == 'categorical':
+            if is_integer_dtype(self.labels['label']) or is_float_dtype(self.labels['label']):
+                return {i: str(i) for i in sorted(self.labels['label'].unique())}
+            else:
+                int_to_str = dict(enumerate(sorted(self.labels['label'].unique())))
+                str_to_int = {v: k for k, v in int_to_str.items()}
+                log.info("Assigned integer labels to categories:")
+                log.info(str_to_int)
+                self.labels['label'] = self.labels['label'].map(str_to_int)
+                return int_to_str
+        else:
+            return {}
+
+
     def _process_transforms(
         self,
         transform: Optional[Union[Callable, Dict[str, Callable]]] = None
@@ -579,7 +624,6 @@ class Trainer:
 
     def _process_outcome_labels(
         self,
-        labels: Dict[str, Any],
         outcome_names: Optional[List[str]] = None,
     ) -> None:
         """Process outcome labels to determine number of outcomes and names.
@@ -596,8 +640,8 @@ class Trainer:
 
         """
         # Process DataFrame tile-level labels
-        if isinstance(labels, pd.DataFrame):
-            if 'label' not in labels.columns:
+        if isinstance(self.labels, pd.DataFrame):
+            if 'label' not in self.labels.columns:
                 raise errors.ModelError("Expected DataFrame with 'label' "
                                         "column.")
             if outcome_names and len(outcome_names) > 1:
@@ -608,7 +652,7 @@ class Trainer:
             return
 
         # Process dictionary slide-level labels
-        outcome_labels = np.array(list(labels.values()))
+        outcome_labels = np.array(list(self.labels.values()))
         if len(outcome_labels.shape) == 1:
             outcome_labels = np.expand_dims(outcome_labels, axis=1)
         if not outcome_names:
@@ -1447,15 +1491,37 @@ class Trainer:
                 "in model params."
             )
 
-    def _verify_img_format(self, dataset: "sf.Dataset") -> None:
-        if self.img_format and not dataset.img_format:
+    def _verify_img_format(self, dataset, *datasets: Optional["sf.Dataset"]) -> str:
+        """Verify that the image format of the dataset matches the model config.
+
+        Args:
+            dataset (sf.Dataset): Dataset to check.
+            *datasets (sf.Dataset): Additional datasets to check. May be None.
+
+        Returns:
+            str: Image format, either 'png' or 'jpg', if a consistent image
+                format was found, otherwise None.
+
+        """
+        # First, verify all datasets have the same image format
+        img_formats = set([d.img_format for d in datasets if d])
+        if len(img_formats) > 1:
+            log.error("Multiple image formats detected: {}.".format(
+                ', '.join(img_formats)
+            ))
+            return None
+        elif self.img_format and not dataset.img_format:
             log.warning("Unable to verify image format (PNG/JPG) of dataset.")
+            return None
         elif self.img_format and dataset.img_format != self.img_format:
             log.error(
                 "Mismatched image formats. Expected '{}' per model config, "
                 "but dataset has format '{}'.".format(
                     self.img_format,
                     dataset.img_format))
+            return None
+        else:
+            return dataset.img_format
 
     def load(self, model: str, training=True) -> None:
         """Loads a state dict at the given model location. Requires that the
@@ -1793,6 +1859,12 @@ class Trainer:
         self.ema_smoothing = ema_smoothing
         self.log_frequency = log_frequency
         self.use_tensorboard = use_tensorboard
+
+        # Verify image format across datasets.
+        img_format = self._verify_img_format(train_dts, val_dts)
+        if img_format and self.config['img_format'] is None:
+            self.config['img_format'] = img_format
+            sf.util.write_json(self.config, join(self.outdir, 'params.json'))
 
         if self.use_tensorboard:
             from google.protobuf import __version__ as protobuf_version

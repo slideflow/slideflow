@@ -697,7 +697,7 @@ def log_manifest(
         str: Saved manifest in str format.
     """
     out = ''
-    has_labels = (labels and isinstance(labels, dict))
+    has_labels = (isinstance(labels, dict) and len(labels))
     if filename:
         save_file = open(os.path.join(filename), 'w')
         writer = csv.writer(save_file)

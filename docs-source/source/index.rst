@@ -43,6 +43,7 @@ This documentation starts with a high-level overview of the pipeline and include
    tfrecords
    dataloaders
    custom_extractors
+   tile_labels
 
 .. toctree::
    :maxdepth: 1

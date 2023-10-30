@@ -70,7 +70,9 @@ outcome labels to the ``outcomes`` argument of :meth:`slideflow.Project.gan_trai
 Tile-level labels
 -----------------
 
-In addition to class conditioning with slide-level labels, StyleGAN2/StyleGAN3 can be trained with tile-level class conditioning. Prepare a pandas dataframe, indexed with the format ``{slide}-{x}-{y}``, where ``slide`` is the name of the slide (without extension), ``x`` is the corresponding tile x-coordinate, and ``y`` is the tile y-coordinate. The dataframe should have a single column, ``label``, containing onehot-encoded category labels. For example:
+In addition to class conditioning with slide-level labels, StyleGAN2/StyleGAN3 can be trained with tile-level class conditioning. Tile-level labels can be generated through ROI annotations, as described in :ref:`tile_labels`.
+
+Prepare a pandas dataframe, indexed with the format ``{slide}-{x}-{y}``, where ``slide`` is the name of the slide (without extension), ``x`` is the corresponding tile x-coordinate, and ``y`` is the tile y-coordinate. The dataframe should have a single column, ``label``, containing onehot-encoded category labels. For example:
 
 .. code-block:: python
 
@@ -93,7 +95,9 @@ In addition to class conditioning with slide-level labels, StyleGAN2/StyleGAN3 c
       }
     )
 
-Export the pandas dataframe into parquet format:
+This dataframe can be generated, as described in :ref:`tile_labels`, through the :meth:`slideflow.Dataset.get_tile_dataframe` function. For GAN conditioning, the ``label`` column should be onehot-encoded.
+
+Once the dataframe is complete, save it in parquet format:
 
 .. code-block:: python
 
