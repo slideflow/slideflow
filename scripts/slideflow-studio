@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from functools import lru_cache
 from os.path import join, dirname
 
-__version__ = "2.1.1"
+__version__ = "2.2.0"
 
 # -----------------------------------------------------------------------------
 

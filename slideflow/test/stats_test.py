@@ -16,15 +16,15 @@ class TestSlideMap(unittest.TestCase):
         cls._orig_logging_level = sf.getLoggingLevel()  # type: ignore
         sf.setLoggingLevel(40)
         cls.slides = [f'slide{s}' for s in range(cls.n_slides)]  # type: ignore
-        cls.DummyDatasetFeatures = SimpleNamespace(
-            slides=cls.slides,
-            predictions={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
-            activations={s: np.random.rand(cls.n_tiles, 10) for s in cls.slides},
-            locations={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
-            uncertainty={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
-            num_features=10,
-            uq=True
-        )
+        ftrs = sf.DatasetFeatures(None, None)
+        ftrs.slides = cls.slides
+        ftrs.predictions = {s: np.random.rand(cls.n_tiles, 2) for s in cls.slides}
+        ftrs.activations = {s: np.random.rand(cls.n_tiles, 10) for s in cls.slides}
+        ftrs.locations = {s: np.random.rand(cls.n_tiles, 2) for s in cls.slides}
+        ftrs.uncertainty = {s: np.random.rand(cls.n_tiles, 2) for s in cls.slides}
+        ftrs.num_features = 10
+        ftrs.feature_generator = SimpleNamespace(uq=True)
+        cls.DummyDatasetFeatures = ftrs
         cls.umap_kw = dict(n_neighbors=5)
         cls.slidemap = sf.SlideMap.from_features(
             cls.DummyDatasetFeatures,  # type:ignore
