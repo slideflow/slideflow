@@ -180,7 +180,8 @@ class HeatmapWidget:
 
     def render_heatmap(self, outcome_names=None):
         """Render the current heatmap."""
-
+        if self.predictions is None:
+            return
         if outcome_names and len(outcome_names) != len(self.predictions):
             raise ValueError("Number of outcome names ({}) must match number of outcomes ({}).".format(
                 len(outcome_names), len(self.predictions)
@@ -219,6 +220,7 @@ class HeatmapWidget:
         self.heatmap_predictions    = 0
         self.heatmap_uncertainty    = 0
         self._outcome_names         = None
+        self.use_predictions        = True
 
     def update_transparency(self):
         """Update transparency of the heatmap overlay."""
@@ -252,7 +254,9 @@ class HeatmapWidget:
         if config is None:
             config = self.viz._model_config
         if config is None:
-            if len(self.predictions) and all(p.name for p in self.predictions):
+            if (self.predictions is not None
+                and len(self.predictions)
+                and all(p.name for p in self.predictions)):
                 return [p.name for p in self.predictions]
             raise ValueError("Model is not loaded.")
 

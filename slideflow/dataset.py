@@ -2426,7 +2426,7 @@ class Dataset:
     def pt_files(self, path, warn_missing=True):
         """Return list of all \*.pt files with slide names in this dataset.
 
-        May return more than one *.pt file for each slide.
+        May return more than one \*.pt file for each slide.
 
         Args:
             path (str, list(str)): Directory(ies) to search for \*.pt files.

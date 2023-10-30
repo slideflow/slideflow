@@ -225,7 +225,7 @@ class MultiModal_Attention_MIL(nn.Module):
             nn.Linear(z_dim * self.n_input, z_dim),
             nn.LayerNorm(z_dim),
             nn.ReLU(),
-            nn.Dropout(0.1),
+            nn.Dropout(dropout_p),
             nn.Linear(z_dim, n_out)
         )
         self._neg_inf = torch.tensor(-torch.inf)

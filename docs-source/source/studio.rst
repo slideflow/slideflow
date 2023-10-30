@@ -197,7 +197,13 @@ Heatmaps
 
 |
 
-The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click "Generate" in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the "Display" subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap.
+The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click "Generate" in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the "Display" subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap. Press the left ALT key while hovering over the heatmap to show the raw heatmap values.
+
+.. video:: heatmap.mp4
+    :width: 100%
+    :autoplay:
+
+|
 
 By default, heatmaps are calculated with multiprocessing pools, which may increase memory utilization. To decrease memory utilization at the cost of slower heatmap calculation, switch to low memory mode in the Settings section (described below), or by using the launch flag ``--low_memory``.
 
@@ -271,11 +277,29 @@ Slideflow Studio includes support for multiple-instance learning (MIL) models wi
 
 Start by navigating to the Extensions tab in the bottom-left corner, and enable the "Multiple-instance Learning" extension. A new icon will appear in the left-hand toolbar, which can be used to open the MIL widget. Models are loaded by either clicking the "Load MIL model" button, selecting "File -> Load MIL Model...", or by dragging-and-dropping an MIL model folder onto the window.
 
-Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the "HP" button. Click "Predict Slide" to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.
-
-.. image:: https://github-production-user-asset-6210df.s3.amazonaws.com/48372806/257356236-d5a838df-a654-4538-bd94-1aa6a63de32d.png
+.. video:: mil_attention.mp4
+    :width: 100%
+    :autoplay:
 
 |
+
+Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the "HP" button. Click "Predict Slide" to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.
+
+Right-clicking for a focal prediction when an MIL model is loaded will display the tile-level attention along with the tile prediction. Tile-level attention can be displayed as a scaled colorbar, as shown in the video above, by specifying an attention range and thresholds in the MIL ``mil_params.json`` file.
+
+.. code-block:: python
+
+    {
+        ...
+        "thresholds": {
+            "attention": {
+                "low": 0.3,
+                "high": 0.5,
+                "range": [0, 1]
+            }
+        },
+        ...
+    }
 
 
 Mosaic maps

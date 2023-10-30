@@ -77,12 +77,14 @@ And you can also optionally provide labels for training the supervised head. To 
 
 The SimCLR model checkpoints and final saved model will be saved in the ``simclr/`` folder within the project root directory.
 
-Training DinoV2
+.. _dinov2:
+
+Training DINOv2
 ***************
 
-A lightly modified version of `DinoV2 <https://arxiv.org/abs/2304.07193>`_ with Slideflow integration is available on `GitHub <https://github.com/jamesdolezal/dinov2>`_. This version facilitates training DinoV2 with Slideflow datasets and adds stain augmentation to the training pipeline.
+A lightly modified version of `DINOv2 <https://arxiv.org/abs/2304.07193>`_ with Slideflow integration is available on `GitHub <https://github.com/jamesdolezal/dinov2>`_. This version facilitates training DINOv2 with Slideflow datasets and adds stain augmentation to the training pipeline.
 
-To train DinoV2, first install the package:
+To train DINOv2, first install the package:
 
 .. code-block:: bash
 
@@ -109,9 +111,9 @@ Next, configure the training parameters and datsets by providing a configuration
         normalizer: "reinhard_mask"
         interleave_kwargs: null
 
-See the `DinoV2 README <https://github.com/jamesdolezal/dinov2>`_ for more details on the configuration file format.
+See the `DINOv2 README <https://github.com/jamesdolezal/dinov2>`_ for more details on the configuration file format.
 
-Finally, train DinoV2 using the same command-line interface as the original DinoV2 implementation. For example, to train DinoV2 on 4 GPUs on a single node:
+Finally, train DINOv2 using the same command-line interface as the original DINOv2 implementation. For example, to train DINOv2 on 4 GPUs on a single node:
 
 .. code-block:: bash
 
@@ -139,7 +141,7 @@ Generating features from a trained SSL is straightforward - use the same :meth:`
     # Calculate SimCLR features for a dataset
     features = P.generate_features(simclr, ...)
 
-For DinoV2 models, use ``'dinov2'`` as the first argument, and pass the model configuration YAML file to ``cfg`` and the teacher checkpoint weights to ``weights``.
+For DINOv2 models, use ``'dinov2'`` as the first argument, and pass the model configuration YAML file to ``cfg`` and the teacher checkpoint weights to ``weights``.
 
 .. code-block:: python
 

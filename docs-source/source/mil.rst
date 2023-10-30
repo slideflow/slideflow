@@ -234,7 +234,7 @@ To train an MIL model on exported features, first prepare an MIL configuration u
 
 The first argument to this function is the model architecture (which can be a name or a custom ``torch.nn.Module`` model), and the remaining arguments are used to configure the training process (including learning rate and epochs).
 
-By default, training is executed using `FastAI <https://docs.fast.ai/>`_ with `1cycle learning rate scheduling <https://arxiv.org/pdf/1803.09820.pdf%E5%92%8CSylvain>`_. Available models out-of-the-box include `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), and `transformer MIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``).
+By default, training is executed using `FastAI <https://docs.fast.ai/>`_ with `1cycle learning rate scheduling <https://arxiv.org/pdf/1803.09820.pdf%E5%92%8CSylvain>`_. Available models out-of-the-box include `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), `transformer MIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``), and `HistoBistro Transformer <https://github.com/peng-lab/HistoBistro>`_ (``"bistro.transformer"``).
 
 .. code-block:: python
 
@@ -339,6 +339,40 @@ Hyperparameters, model configuration, and feature extractor information is logge
       "tile_um": 302
      }
     }
+
+See :ref:`tutorial8` for a complete example of training an MIL model.
+
+.. _multimag:
+
+Multi-Magnification MIL
+-----------------------
+
+Slideflow 2.2 introduced a multi-magnification, multi-modal MIL model, ``MultiModal_Attention_MIL`` (``"mm_attention_mil"``). This late-fusion multimodal model is based on standard attention-based MIL, but accepts multiple input modalities (e.g., multiple magnifications) simultaneously. Each input modality is processed by a separate encoder network and a separate attention module. The attention-weighted features from each modality are then concatenated and passed to a fully-connected layer.
+
+Multimodal models are trained using the same API as standard MIL models. Modalities are specified using the ``bags`` argument to :func:`slideflow.Project.train_mil`, where the number of modes is determined by the number of bag directories provided. Within each bag directory, bags should be generated using the same feature extractor and at the same magnification, but feature extractors and magnifications can vary between bag directories.
+
+For example, to train a multimodal model using two magnifications, you would pass two bag paths to the model. In this case, the ``/path/to/bags_10x`` directory contains bags generated from a 10x feature extractor, and the ``/path/to/bags_40x`` directory contains bags generated from a 40x feature extractor.
+
+.. code-block:: python
+
+    # Configure a multimodal MIL model.
+    config = mil_config('mm_attention_mil', lr=1e-4)
+
+    # Set the bags paths for each modality.
+    bags_10x = '/path/to/bags_10x'
+    bags_40x = '/path/to/bags_40x'
+
+    P.train_mil(
+        config=config,
+        outcomes='HPV_status',
+        train_dataset=train,
+        val_dataset=val,
+        bags=[bags_10x, bags_40x]
+    )
+
+You can use any number of modalities, and the feature extractors for each modality can be different. For example, you could train a multimodal model using features from a custom SimCLR model at 5x and features from a pretrained CTransPath model at 20x.
+
+The feature extractors used for each modality, as specified in the ``bags_config.json`` files in the bag directories, will be logged in the final ``mil_params.json`` file. Multimodal MIL models can be interactively viewed in :ref:`Slideflow Studio <studio>`, allowing you to visualize the attention weights for each modality separately.
 
 Evaluation
 **********

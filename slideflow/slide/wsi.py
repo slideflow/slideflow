@@ -116,6 +116,19 @@ class WSI:
                 (key 65326), set the MPP to a default value
                 (``sf.slide.DEFAULG_JPG_MPP``). If False and MPP data is
                 missing, raises ``sf.errors.SlideMissingMPPError``.
+            use_bounds (bool): If True, use the slide bounds to determine
+                the slide dimensions. This will crop out unscanned white space.
+                If a tuple of int, interprets the bounds as ``(top_left_x,
+                top_left_y, width, height)``. If False, use the full slide
+                dimensions. **Only available when using Libvips**
+                (``SF_SLIDE_BACKEND=libvips``). Defaults to False.
+            transforms (list(int), optional): List of transforms to apply to
+                the slide before establishing coordinate grid. Options include
+                any combination of ``ROTATE_90_CLOCKWISE``,
+                ``ROTATE_180_CLOCKWISE``, ``ROTATE_270_CLOCKWISE``,
+                ``FLIP_HORIZONTAL``, and ``FLIP_VERTICAL``. **Only available
+                when using Libvips** (``SF_SLIDE_BACKEND=libvips``).
+                Defaults to None.
 
         """
         # Initialize calculated variables
