@@ -19,36 +19,5 @@ _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'example_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
-  DESCRIPTOR._options = None
-  DESCRIPTOR._serialized_options = b'\370\001\001'
-  _FLOATLIST.fields_by_name['value']._options = None
-  _FLOATLIST.fields_by_name['value']._serialized_options = b'\020\001'
-  _INT64LIST.fields_by_name['value']._options = None
-  _INT64LIST.fields_by_name['value']._serialized_options = b'\020\001'
-  _FEATURES_FEATUREENTRY._options = None
-  _FEATURES_FEATUREENTRY._serialized_options = b'8\001'
-  _FEATURELISTS_FEATURELISTENTRY._options = None
-  _FEATURELISTS_FEATURELISTENTRY._serialized_options = b'8\001'
-  _globals['_BYTESLIST']._serialized_start=27
-  _globals['_BYTESLIST']._serialized_end=53
-  _globals['_FLOATLIST']._serialized_start=55
-  _globals['_FLOATLIST']._serialized_end=85
-  _globals['_INT64LIST']._serialized_start=87
-  _globals['_INT64LIST']._serialized_end=117
-  _globals['_FEATURE']._serialized_start=120
-  _globals['_FEATURE']._serialized_end=266
-  _globals['_FEATURES']._serialized_start=268
-  _globals['_FEATURES']._serialized_end=395
-  _globals['_FEATURES_FEATUREENTRY']._serialized_start=330
-  _globals['_FEATURES_FEATUREENTRY']._serialized_end=395
-  _globals['_FEATURELIST']._serialized_start=397
-  _globals['_FEATURELIST']._serialized_end=446
-  _globals['_FEATURELISTS']._serialized_start=449
-  _globals['_FEATURELISTS']._serialized_end=601
-  _globals['_FEATURELISTS_FEATURELISTENTRY']._serialized_start=528
-  _globals['_FEATURELISTS_FEATURELISTENTRY']._serialized_end=601
-  _globals['_EXAMPLE']._serialized_start=603
-  _globals['_EXAMPLE']._serialized_end=650
-  _globals['_SEQUENCEEXAMPLE']._serialized_start=652
-  _globals['_SEQUENCEEXAMPLE']._serialized_end=753
+    raise ValueError('Invalid protobuf module descriptor for example_pb2')
 # @@protoc_insertion_point(module_scope)
