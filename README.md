@@ -182,6 +182,7 @@ Slideflow has been used by:
 - [Howard et al](https://www.nature.com/articles/s41523-023-00530-5) _npj Breast Cancer_, 2023
 - [Dolezal et al](https://www.nature.com/articles/s41698-023-00399-4) _npj Precision Oncology_, 2023
 - [Hieromnimon et al](https://doi.org/10.1101/2023.03.22.533810) [bioRxiv], 2023
+- [Carrillo-Perez et al](https://doi.org/10.1186/s40644-023-00586-3) _Cancer Imaging_, 2023
 
 ## License
 This code is made available under the GPLv3 License and is available for non-commercial academic purposes.

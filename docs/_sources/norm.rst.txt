@@ -184,7 +184,7 @@ You can use contextual normalization when manually using a ``StainNormalizer`` o
     import slideflow as sf
 
     # Get a Macenko normalizer
-    maceno = sf.norm.autoselect('macenko')
+    macenko = sf.norm.autoselect('macenko')
 
     # Use a given slide as context
     slide = sf.WSI('slide.svs', ...)
