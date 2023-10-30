@@ -431,6 +431,7 @@ class Trainer:
         load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
         device: Optional[str] = None,
+        transform: Optional[Union[Callable, Dict[str, Callable]]] = None
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -467,6 +468,17 @@ class Trainer:
                 detected in ``params.json``, then loading weights with
                 ``torch.nn.Module.load_state_dict()``. Defaults to
                 'full' (ignored).
+            transform (callable or dict, optional): Optional transform to
+                apply to input images. If dict, must have the keys 'train'
+                and/or 'val', mapping to callables that takes a single
+                image Tensor as input and returns a single image Tensor.
+                If None, no transform is applied. If a single callable is
+                provided, it will be applied to both training and validation
+                data. If a dict is provided, the 'train' transform will be
+                applied to training data and the 'val' transform will be
+                applied to validation data. If a dict is provided and either
+                'train' or 'val' is None, no transform will be applied to
+                that data. Defaults to None.
         """
         self.hp = hp
         self.outdir = outdir
@@ -508,10 +520,11 @@ class Trainer:
         if self.normalizer:
             log.info(f'Using realtime {self.hp.normalizer} normalization')
 
-        self._process_outcome_labels(labels, outcome_names)
-
         if not os.path.exists(outdir):
             os.makedirs(outdir)
+
+        self._process_outcome_labels(labels, outcome_names)
+        self._process_transforms(transform)
 
         # Log parameters
         if config is None:
@@ -547,6 +560,22 @@ class Trainer:
     @property
     def multi_outcome(self) -> bool:
         return (self.num_outcomes > 1)
+
+    def _process_transforms(
+        self,
+        transform: Optional[Union[Callable, Dict[str, Callable]]] = None
+    ) -> None:
+        """Process custom transformations for training and/or validation."""
+        if not isinstance(transform, dict):
+            transform = {'train': transform, 'val': transform}
+        if any([t not in ('train', 'val') for t in transform]):
+            raise ValueError("transform must be a callable or dict with keys "
+                             "'train' and/or 'val'")
+        if 'train' not in transform:
+            transform['train'] = None
+        if 'val' not in transform:
+            transform['val'] = None
+        self.transform = transform
 
     def _process_outcome_labels(
         self,
@@ -1263,6 +1292,7 @@ class Trainer:
                     infinite=True,
                     batch_size=self.hp.batch_size,
                     augment=self.hp.augment,
+                    transform=self.transform['train'],
                     drop_last=True,
                     **vars(interleave_args)
                 ))
@@ -1276,6 +1306,7 @@ class Trainer:
                 infinite=False,
                 batch_size=validation_batch_size,
                 augment=False,
+                transform=self.transform['val'],
                 incl_loc=True,
                 **vars(interleave_args)
             )

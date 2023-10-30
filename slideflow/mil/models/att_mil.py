@@ -21,11 +21,11 @@ class Attention_MIL(nn.Module):
         n_feats: int,
         n_out: int,
         z_dim: int = 256,
+        *,
         dropout_p: float = 0.5,
         encoder: Optional[nn.Module] = None,
         attention: Optional[nn.Module] = None,
         head: Optional[nn.Module] = None,
-        *,
         attention_gate: float = 0,
         temperature: float = 1.
     ) -> None:
@@ -33,9 +33,16 @@ class Attention_MIL(nn.Module):
         Args:
             n_feats (int):  The number of features each bag instance has.
             n_out (int):  The number of output layers of the model.
-            encoder (nn.Module, optional):  A network transforming bag instances into feature vectors.
+            z_dim (int):  The dimensionality of the latent space. Defaults to 256.
 
         Keyword args:
+            dropout_p (float):  The dropout probability. Defaults to 0.5.
+            encoder (nn.Module, optional):  A network transforming bag instances into feature vectors.
+                If None, a single-layer network with a ReLU activation is used.
+            attention (nn.Module, optional):  A network calculating an embedding's importance weight.
+                If None, a single-layer network with a tanh activation is used.
+            head (nn.Module, optional):  A network calculating the final prediction from the weighted
+                embeddings. If None, a single-layer network batch norm and dropout is used.
             temperature (float): Softmax temperature. Defaults to 1.
             attention_gate (float): Gate predictions prior to attention softmax based on this percentile.
                 Defaults to 0 (disabled).

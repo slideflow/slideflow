@@ -103,6 +103,8 @@ For DinoV2 models, use ``'dinov2'`` as the first argument, and pass the model co
         cfg='/path/to/config.yaml'
     )
 
+.. _bags:
+
 Exporting Features
 ------------------
 
@@ -141,6 +143,17 @@ Alternatively, you can calculate features for a dataset using :class:`slideflow.
 .. warning::
 
     Using :class:`slideflow.DatasetFeatures` directly may result in a large amount of memory usage, particularly for sizable datasets. When generating feature bags for training MIL models, it is recommended to use :meth:`slideflow.Project.generate_feature_bags` instead.
+
+Feature "bags" are PyTorch tensors of features for all images in a slide, saved to disk as ``.pt`` files. These bags are used to train MIL models. Bags can be manually loaded and inspected using :func:`torch.load`.
+
+.. code-block:: python
+
+    >>> import torch
+    >>> bag = torch.load('/path/to/bag.pt')
+    >>> bag.shape
+    torch.Size([2310, 768])
+    >>> bag.dtype
+    torch.float32
 
 When image features are exported for a dataset, the feature extractor configuration is saved to ``bags_config.json`` in the same directory as the exported features. This configuration file can be used to rebuild the feature extractor. An example file is shown below.
 

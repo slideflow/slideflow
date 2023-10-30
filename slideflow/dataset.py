@@ -1339,7 +1339,7 @@ class Dataset:
                         n_converted += 1
         log.info(f'Converted {n_converted} XML ROIs -> CSV')
 
-    def export_tile_rois(
+    def get_tile_dataframe(
         self,
         roi_method: str = 'auto',
         stride_div: int = 1,
@@ -1353,7 +1353,7 @@ class Dataset:
             - ``grid_x``: X grid index of the tile
             - ``grid_y``: Y grid index of the tile
             - ``roi_name``: Name of the ROI if tile is in an ROI, else None
-            - ``roi_description``: Description of the ROI if tile is in ROI, else None
+            - ``roi_desc``: Description of the ROI if tile is in ROI, else None
             - ``label``: ROI label, if present.
 
         """

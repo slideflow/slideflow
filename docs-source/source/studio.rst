@@ -98,6 +98,8 @@ The Slide section of the control panel shows slide properties, including dimensi
 
 A thumbnail of the loaded slide is shown in the upper right corner of the main view, and can be hidden with View -> Show -> Thumbnail. A magnification scale is shown in the bottom-left corner of the main view, and can be hidden with View -> Show -> Scale.
 
+.. _studio_roi:
+
 ROI Annotations
 ---------------
 
@@ -105,11 +107,19 @@ ROI Annotations
 
 |
 
-Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow project has been loaded (File -> Open Project), then all available ROIs for the loaded slide will be shown. You can use Studio to add or remove additional ROIs with the annotation tool, under the subheader "ROIs".
+Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow project has been loaded (File -> Open Project), ROIs will be automatically loaded. You can use Studio to add, label, or remove ROIs with the annotation tool, under the subheader "ROIs".
 
-Click the plus (Add) icon to draw new ROIs with a lasso tool; right click and drag to create a new ROI. The pencil (Edit) icon allows you to select any existing ROIs, which can then be removed by pressing the Delete key. Once finished, ROIs can be exported in CSV format by clicking the floppy disk icon (Save). You can manually load an existing ROI file by clicking the folder icon (Load).
+Click the plus (Add) icon to draw new ROIs with a lasso tool; right click and drag to create a new ROI. The pencil (Edit) icon allows you to edit any existing ROIs; right click an ROI while editing to delete the ROI or change its label. Once finished, ROIs can be exported in CSV format by clicking the floppy disk icon (Save). You can manually load an existing ROI file by clicking the folder icon (Load).
 
-At present, ROIs can only be added with lasso selection. More advanced functionality will be added in an future release. Slideflow can also import ROIs generated from external applications such as QuPath and ImageScope (see :ref:`regions_of_interest` for more information).
+.. video:: roi_label.mp4
+    :width: 100%
+    :autoplay:
+
+|
+
+Labels can be optionally supplied for each ROI. Labels can be set after creating an ROI and changed by right clicking an ROI while editing. Hover over an existing ROI to see its name and label. Labels are exported when saving ROIs.
+
+Slideflow can import ROIs generated from external applications such as QuPath and ImageScope; see :ref:`regions_of_interest` for more information.
 
 Preview tile filter
 -------------------
@@ -270,6 +280,8 @@ Alternatively, a mosaic map can be saved to disk with :meth:`slideflow.Mosaic.ex
 Once loaded,the mosaic map can be navigated using the same controls as WSI navigation - click and drag to pan, and use the mouse wheel to zoom. The UMAP used to generate the mosaic map will be shown in a window in the bottom-right corner, with a red box indicating the section of the UMAP currently in view. If a Project is loaded, hovering over an image tile will reveal a popup containing a larger corresponding section from the associated whole-slide image. This popup also contains the name of the slide and tile location coordinates.
 
 Use the control panel to increase or decrease the mosaic grid size, or to change the background color.
+
+.. _studio_mil:
 
 Multiple-Instance Learning
 --------------------------

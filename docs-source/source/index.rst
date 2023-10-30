@@ -85,3 +85,5 @@ This documentation starts with a high-level overview of the pipeline and include
    tutorial4
    tutorial5
    tutorial6
+   tutorial7
+   tutorial8

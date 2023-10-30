@@ -974,7 +974,7 @@ class Studio(ImguiWindow):
         """Update the minimum window size limits based on loaded widgets."""
 
         minheight = (((len(self.sidebar.navbuttons) + 3)
-                       * self.sidebar.navbutton_width)
+                       * (self.sidebar.navbutton_width / (self.font_size / 22)))
                      + self.status_bar_height
                      + self.menu_bar_height)
 

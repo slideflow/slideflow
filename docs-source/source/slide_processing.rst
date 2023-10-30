@@ -50,7 +50,7 @@ Regions of Interest
 
 Tile extraction can be optionally restricted based on pathologist-annotated Regions of Interest (ROI), allowing you to enrich your dataset by only using relevant sections of a slide.
 
-We offer two methods for annotating ROIs - :ref:`Slideflow Studio <studio>` and `QuPath <https://qupath.github.io/>`_. Please see the Slideflow Studio section for instructions on generating ROI annotations using the Slideflow interface.
+We offer two methods for annotating ROIs - :ref:`Slideflow Studio <studio_roi>` and `QuPath <https://qupath.github.io/>`_. Please see the Slideflow Studio section for instructions on generating ROI annotations using the Slideflow interface.
 
 If you are using QuPath, annotate whole-slide images using the Polygon tool. Then, click **Automate** -> **Show script editor**. In the box that comes up, click **File** -> **Open** and load the ``qupath_roi.groovy`` script (QuPath 0.2 or greater) or ``qupath_roi_legacy.groovy`` (QuPath 0.1.x), scripts `available on GitHub <https://github.com/jamesdolezal/slideflow>`_. Click **Run** -> **Run** if using QuPath 0.2 or greater, or **Run** -> **Run for Project** if using QuPath 0.1.x. ROIs will be exported in CSV format in the QuPath project directory, in the subdirectory "ROI".
 
@@ -63,11 +63,34 @@ The ``roi_method`` argument to the ``extract_tiles()`` functions allow you to co
 - ``'outside'``: Extract from outside ROIs, and skip any slides missing ROIs.
 - ``'ignore'``: Ignore all ROIs, extracting from whole-slide images.
 
+.. note::
+
+    Nested ROIs will be rendered as holes.
+
 By default, ROIs filter tiles based on the center point of the tile. Alternatively, you can filter tiles based on the proportion of the tile inside an ROI by using the argument ``roi_filter_method``. If ``roi_filter_method`` is set to a float (0-1), this value will be interpreted as a proportion threshold. If the proportion of a tile inside an ROI is greater than this number, the tile is included. For example, if ``roi_filter_method=0.7``, a tile that is 80% inside of an ROI will be included, but a tile that is only 60% inside of an ROI will be excluded.
 
 .. image:: roi_filter.jpg
 
 |
+
+.. _roi_labels:
+
+ROIs can optionally be assigned a label. Labels can be added or changed using :ref:`Slideflow Studio <studio_roi>`, or by adding a "label" column in the ROI CSV file. Labels can be used to train strongly supervised models, where each tile is assigned a label based on the ROI it is extracted from, rather than inheriting the label of the whole-slide image. See the developer note :ref:`tile_labels` for more information.
+
+To retrieve the ROI name (and label, if present) for all tiles in a slide, use :meth:`slideflow.WSI.get_tile_dataframe`. This will return a Pandas DataFrame with the following columns:
+
+    - **loc_x**: X-coordinate of tile center
+    - **loc_y**: Y-coordinate of tile center
+    - **grid_x**: X grid index of the tile
+    - **grid_y**: Y grid index of the tile
+    - **roi_name**: Name of the ROI if tile is in an ROI, else None
+    - **roi_desc**: Description of the ROI if tile is in ROI, else None
+    - **label**: ROI label, if present.
+
+The **loc_x** and **loc_y** columns contain the same tile location information :ref:`stored in TFRecords <tfrecords>`.
+
+You can also retrieve this information for all slides in a dataset by using :meth:`slideflow.Dataset.get_tile_dataframe`, which will return a DataFrame with the same columns as above, plus ``slide`` column.
+
 
 Masking & Filtering
 *******************

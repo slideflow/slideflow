@@ -1552,8 +1552,8 @@ class WSI:
         log.info(f"{len(self.rois)} ROIs exported to {abspath(dest)}")
         return abspath(dest)
 
-    def export_tile_rois(self) -> pd.DataFrame:
-        """Export dataframe of tiles and associated ROI labels.
+    def get_tile_dataframe(self) -> pd.DataFrame:
+        """Build a dataframe of tiles and associated ROI labels.
 
         Returns:
             Pandas dataframe of all tiles, with the following columns:
@@ -1562,7 +1562,7 @@ class WSI:
             - ``grid_x``: X grid index of the tile
             - ``grid_y``: Y grid index of the tile
             - ``roi_name``: Name of the ROI if tile is in an ROI, else None
-            - ``roi_description``: Description of the ROI if tile is in ROI, else None
+            - ``roi_desc``: Description of the ROI if tile is in ROI, else None
             - ``label``: ROI label, if present.
 
         """
@@ -1595,7 +1595,7 @@ class WSI:
             'grid_x': grid[:, 0],
             'grid_y': grid[:, 1],
             'roi_name': roi_names,
-            'roi_description': roi_desc,
+            'roi_desc': roi_desc,
             'label': labels
         }, index=index)
         return df

@@ -39,6 +39,7 @@ Methods
 .. autofunction:: slideflow.WSI.build_generator
 .. autofunction:: slideflow.WSI.dim_to_mpp
 .. autofunction:: slideflow.WSI.get_tile_mask
+.. autofunction:: slideflow.WSI.get_tile_dataframe
 .. autofunction:: slideflow.WSI.extract_cells
 .. autofunction:: slideflow.WSI.extract_tiles
 .. autofunction:: slideflow.WSI.export_rois
