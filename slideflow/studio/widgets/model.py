@@ -7,6 +7,7 @@ from array import array
 from collections import defaultdict
 from slideflow.util import isnumeric
 
+from ..utils import EasyDict
 from ..gui import imgui_utils
 from ..gui.annotator import AnnotationCapture
 

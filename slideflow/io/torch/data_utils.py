@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 from slideflow import errors
-from slideflow.util import tfrecord2idx
+from slideflow.util import tfrecord2idx, to_onehot
 from slideflow.io.io_utils import detect_tfrecord_format
 from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable,
                     Optional, Tuple, Union)
