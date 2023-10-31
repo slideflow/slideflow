@@ -67,7 +67,7 @@ class ROIWidget:
         # is contained within the ROI polygon.
         # We do this if the rasterized ROI grid is not available.
         if self.roi_grid is None:
-            mouse_point = Point(imgui.get_mouse_pos())
+            mouse_point = Point(self.viz.get_mouse_pos())
             possible_rois = []
             for roi_idx, roi_array in self.viz.viewer.rois:
                 try:
@@ -84,7 +84,7 @@ class ROIWidget:
         # available. The ROI grid rasterization is done in the background
         # thread, so we need to check if it is available.
         else:
-            mx, my = map(int, imgui.get_mouse_pos())
+            mx, my = map(int, self.viz.get_mouse_pos())
             mx -= self.viz.viewer.x_offset
             my -= self.viz.viewer.y_offset
             if (mx >= self.roi_grid.shape[0]
@@ -330,7 +330,7 @@ class ROIWidget:
             return
 
         if self._ctx_mouse_pos is None:
-            self._ctx_mouse_pos = imgui.get_mouse_pos()
+            self._ctx_mouse_pos = self.viz.get_mouse_pos(scale=False)
         imgui.set_next_window_position(*self._ctx_mouse_pos)
         imgui.begin(
             "##roi_context_menu-{}".format('-'.join(map(str, self._show_roi_ctx_menu))),
@@ -368,7 +368,7 @@ class ROIWidget:
         if self._show_roi_label_menu is None:
             return
         if self._ctx_mouse_pos is None:
-            self._ctx_mouse_pos = imgui.get_mouse_pos()
+            self._ctx_mouse_pos = self.viz.get_mouse_pos(scale=False)
         imgui.set_next_window_position(*self._ctx_mouse_pos)
         imgui.begin(
             "##roi_label_menu-{}".format((str(self._show_roi_label_menu))),

@@ -70,6 +70,12 @@ class ImguiWindow(GlfwWindow):
     def spacing(self):
         return round(self._cur_font_size * 0.4)
 
+    def get_mouse_pos(self, scale: bool = True):
+        mx, my = imgui.get_mouse_pos()
+        if not scale:
+            return mx, my
+        return (int(mx * self.pixel_ratio), int(my * self.pixel_ratio))
+
     def _glfw_key_callback(self, _window, key, _scancode, action, _mods):
         super()._glfw_key_callback(_window, key, _scancode, action, _mods)
         self._imgui_renderer.keyboard_callback(_window, key, _scancode, action, _mods)

@@ -336,7 +336,7 @@ class Viewer:
     def render_overlay_tooltip(self, overlay: np.ndarray) -> Optional[str]:
         # If hovering with ALT key, draw a crosshair and pixel value.
         if self.viz._alt_down:
-            mx, my = imgui.get_mouse_pos()
+            mx, my = self.viz.get_mouse_pos()
             # Draw crosshair
             gl_utils.draw_line(
                 pos=(mx, self.y_offset),
