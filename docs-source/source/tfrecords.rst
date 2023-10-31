@@ -81,7 +81,7 @@ The quickest way to inspect a TFRecord is to use :class:`slideflow.TFRecord`:
 .. code-block:: python
 
     >>> import slideflow as sf
-    >>> tfr = sf.tfrecord.TFRecord('/path/to/tfrecord')
+    >>> tfr = sf.TFRecord('/path/to/tfrecord')
 
 An index file will be automatically created if one is not found. To disable automatic index creation, set ``create_index=False``.
 
@@ -200,7 +200,7 @@ To get a single parsed record according to its index, use :meth:`slideflow.TFRec
 .. code-block:: python
 
     >>> import slideflow as sf
-    >>> tfr = sf.tfrecord.TFRecord('/path/to/tfrecord')
+    >>> tfr = sf.TFRecord('/path/to/tfrecord')
     >>> tfr[0]
     {'image_raw': b'...', 'slide': 'SLIDE_NAME', 'loc_x': 0, 'loc_y': 0}
 
