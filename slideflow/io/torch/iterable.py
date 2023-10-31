@@ -331,6 +331,7 @@ class StyleGAN2Interleaver(InterleaveIterator):
         normalizer_source=None,
         crop=None,
         resize=None,
+        max_size=None,    #ignore argument, for StyleGAN2/3 compatibility.
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -427,7 +428,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
         tile_labels: str,
         resolution: Any = None,  # Ignored, for StyleGAN2/3 compatibility.
         xflip: Any = None,       # Ignored, for StyleGAN2/3 compatibility.
-        *args: Any,
+        labels: Any = None,      # Ignored, for StyleGAN2/3 compatibility.
         **kwargs: Any,
     ) -> None:
         """Initializes an InterleaveIterator modified to use tile-level labels.
@@ -439,7 +440,7 @@ class TileLabelInterleaver(StyleGAN2Interleaver):
                 Labels are determined by the `label` columns. Labels should
                 be onehot encoded.
         """
-        super().__init__(*args, labels=tile_labels, **kwargs)
+        super().__init__(labels=tile_labels, **kwargs)
         self._process_labels_df()
         if not isinstance(self.labels, pd.DataFrame):
             raise ValueError("Labels must be a pandas DataFrame.")
