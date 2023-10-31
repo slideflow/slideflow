@@ -5,6 +5,8 @@ Multiple-Instance Learning (MIL)
 
 In addition to standard tile-based neural networks, Slideflow also supports training multiple-instance learning (MIL) models. Several architectures are available, including `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), `TransMIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``), and `HistoBistro Transformer <https://github.com/peng-lab/HistoBistro>`_ (``"bistro.transformer"``). Custom architectures can also be trained. MIL training requires PyTorch.
 
+Skip to :ref:`tutorial8` for a complete example of MIL training.
+
 Generating features
 *******************
 
@@ -339,8 +341,6 @@ Hyperparameters, model configuration, and feature extractor information is logge
       "tile_um": 302
      }
     }
-
-See :ref:`tutorial8` for a complete example of training an MIL model.
 
 .. _multimag:
 
