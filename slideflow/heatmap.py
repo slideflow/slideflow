@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     except ImportError:
         pass
 
-
+MASK = -99
 Inset = namedtuple("Inset", "x y zoom loc mark1 mark2 axes")
 
 # -----------------------------------------------------------------------------
@@ -154,13 +154,26 @@ class Heatmap:
             int_kw.update(dict(load_method=load_method))
 
         if self.uq:
-            self.interface = sf.model.UncertaintyInterface(model, **int_kw)  # type: ignore
+            if sf.util.is_torch_model_path(model):
+                import slideflow.model.torch
+                interface_fn = sf.model.torch.UncertaintyInterface
+            else:
+                import slideflow.model.tensorflow
+                interface_fn = sf.model.tensorflow.UncertaintyInterface  # type: ignore
+            self.interface = interface_fn(model, **int_kw)
         else:
-            self.interface = sf.model.Features(  # type: ignore
+            if sf.util.is_torch_model_path(model):
+                import slideflow.model.torch
+                interface_fn = sf.model.torch.Features
+            else:
+                import slideflow.model.tensorflow
+                interface_fn = sf.model.tensorflow.Features  # type: ignore
+            self.interface = interface_fn(  # type: ignore
                 model,
                 layers=None,
                 include_preds=True,
                 **int_kw)
+
         self.model_path = model
         self.num_threads = num_threads
         self.num_processes = num_processes
@@ -300,7 +313,7 @@ class Heatmap:
                     self.slide.grid.shape[0],
                     it.num_features + it.num_classes + it.num_uncertainty),
                 dtype=np.float32)
-            grid *= -99
+            grid *= MASK
             heatmap_thread = Thread(target=_generate, args=(grid,))
             heatmap_thread.start()
             return grid, heatmap_thread
@@ -553,7 +566,7 @@ class Heatmap:
             vmax=self.uncertainty.max()
         )
         masked_uncertainty = np.ma.masked_where(
-            self.uncertainty == -99,
+            self.uncertainty == MASK,
             self.uncertainty
         )
         extent = calculate_heatmap_extent(
@@ -642,7 +655,7 @@ class Heatmap:
             vmax=vmax
         )
         masked_arr = np.ma.masked_where(
-            self.predictions[:, :, class_idx] == -99,
+            self.predictions[:, :, class_idx] == MASK,
             self.predictions[:, :, class_idx]
         )
         extent = calculate_heatmap_extent(

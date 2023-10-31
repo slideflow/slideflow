@@ -11,6 +11,7 @@ import requests
 import tarfile
 import hashlib
 import pandas as pd
+import tempfile
 from rich import progress
 from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
@@ -22,9 +23,10 @@ from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
 from packaging import version
-from statistics import mean, median
 from tqdm import tqdm
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (
+    Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, Iterator
+)
 
 import numpy as np
 import slideflow as sf
@@ -292,10 +294,19 @@ def download_from_tcga(
                 pbar.update(file_size_mb - running_total_mb)
 
 
+def make_cache_dir_path(path: str) -> str:
+    if 'HOME' in os.environ:
+        dest = os.path.join(os.environ['HOME'], '.cache', 'slideflow', path)
+    elif 'USERPROFILE' in os.environ:
+        dest = os.path.join(os.environ['USERPROFILE'], '.cache', 'slideflow', path)
+    else:
+        dest = os.path.join(tempfile.gettempdir(), '.cache', 'slideflow', path)
+    os.makedirs(dest, exist_ok=True)
+    return dest
+
+
 def get_gdc_manifest() -> pd.DataFrame:
-    sf_cache = os.path.expanduser('~/.slideflow/')
-    if not exists(sf_cache):
-        os.makedirs(sf_cache)
+    sf_cache = make_cache_dir_path('gdc')
     manifest = join(sf_cache, 'gdc_manifest.tsv')
     if not exists(manifest):
         tar = 'gdc_manifest.tar.xz'
@@ -326,6 +337,15 @@ class EasyDict(dict):
     def __delattr__(self, name: str) -> None:
         del self[name]
 
+def zip_allowed() -> bool:
+    return not ('SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0')
+
+@contextmanager
+def enable_zip(enable: bool) -> Iterator[None]:
+    _zip_allowed = zip_allowed()
+    os.environ['SF_ALLOW_ZIP'] = '1' if enable else '0'
+    yield
+    os.environ['SF_ALLOW_ZIP'] = '0' if not _zip_allowed else '1'
 
 def md5(path: str) -> str:
     """Calculate and return MD5 checksum for a file."""
@@ -388,6 +408,21 @@ def as_list(arg1: Any) -> List[Any]:
         return arg1
 
 
+def isnumeric(val: Any) -> bool:
+    """Check if the given value is numeric.
+
+    Specifically checks if the value is a python int or float,
+    or if the value is a numpy array with a numeric dtype (int or float).
+
+    """
+    if isinstance(val, (int, float)):
+            return True
+    if isinstance(val, np.ndarray):
+            return val.dtype in (np.int32, np.int64, np.uint8, np.float16,
+                                 np.float32, np.float64)
+    return False
+
+
 def is_mag(arg1: str) -> bool:
     arg1_split = arg1.lower().split('x')
     if (len(arg1_split) != 2) or (arg1_split[1] != ''):
@@ -438,6 +473,16 @@ def is_simclr_model_path(path: Any) -> bool:
                      and path.endswith('.ckpt')
                      and exists(join(dirname(path), 'args.json')))
     return is_model or is_checkpoint
+
+
+def is_uq_model(model_path: str) -> bool:
+    """Checks if the given model path points to a UQ-enabled model."""
+    is_model_path = (is_tensorflow_model_path(model_path)
+                     or is_torch_model_path(model_path))
+    if not is_model_path:
+        return False
+    config = get_model_config(model_path)
+    return config['hp']['uq']
 
 
 def assert_is_mag(arg1: str):
@@ -631,7 +676,8 @@ def log_manifest(
     val_tfrecords: Optional[List[str]] = None,
     *,
     labels: Optional[Dict[str, Any]] = None,
-    filename: Optional[str] = None
+    filename: Optional[str] = None,
+    remove_extension: bool = True
 ) -> str:
     """Saves the training manifest in CSV format and returns as a string.
 
@@ -640,13 +686,18 @@ def log_manifest(
             Defaults to None.
         val_tfrecords (list(str)], optional): List of validation TFRecords.
             Defaults to None.
+
+    Keyword args:
         labels (dict, optional): TFRecord outcome labels. Defaults to None.
         filename (str, optional): Path to CSV file to save. Defaults to None.
+        remove_extension (bool, optional): Remove file extension from slide
+            names. Defaults to True.
 
     Returns:
         str: Saved manifest in str format.
     """
     out = ''
+    has_labels = (isinstance(labels, dict) and len(labels))
     if filename:
         save_file = open(os.path.join(filename), 'w')
         writer = csv.writer(save_file)
@@ -654,15 +705,21 @@ def log_manifest(
     if train_tfrecords or val_tfrecords:
         if train_tfrecords:
             for tfrecord in train_tfrecords:
-                slide = sf.util.path_to_name(tfrecord)
-                outcome_label = labels[slide] if labels else 'NA'
+                if remove_extension:
+                    slide = sf.util.path_to_name(tfrecord)
+                else:
+                    slide = tfrecord
+                outcome_label = labels[slide] if has_labels else 'NA'
                 out += ' '.join([slide, 'training', str(outcome_label)])
                 if filename:
                     writer.writerow([slide, 'training', outcome_label])
         if val_tfrecords:
             for tfrecord in val_tfrecords:
-                slide = sf.util.path_to_name(tfrecord)
-                outcome_label = labels[slide] if labels else 'NA'
+                if remove_extension:
+                    slide = sf.util.path_to_name(tfrecord)
+                else:
+                    slide = tfrecord
+                outcome_label = labels[slide] if has_labels else 'NA'
                 out += ' '.join([slide, 'validation', str(outcome_label)])
                 if filename:
                     writer.writerow([slide, 'validation', outcome_label])

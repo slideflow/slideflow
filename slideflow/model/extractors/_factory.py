@@ -179,7 +179,8 @@ def build_feature_extractor(
 
 def rebuild_extractor(
     bags_or_model: str,
-    allow_errors: bool = False
+    allow_errors: bool = False,
+    native_normalizer: bool = True
 ) -> Tuple[Optional["BaseFeatureExtractor"], Optional["StainNormalizer"]]:
     """Recreate the extractor used to generate features stored in bags.
 
@@ -189,6 +190,9 @@ def rebuild_extractor(
             the extractor used to generate features will be recreated.
         allow_errors (bool): If True, return None if the extractor
             cannot be rebuilt. If False, raise an error. Defaults to False.
+        native_normalizer (bool, optional): Whether to use PyTorch/Tensorflow-native
+            stain normalization, if applicable. If False, will use the OpenCV/Numpy
+            implementations. Defaults to True.
 
     Returns:
         Optional[BaseFeatureExtractor]: Extractor function, or None if ``allow_errors`` is
@@ -255,7 +259,7 @@ def rebuild_extractor(
     if bags_config['normalizer'] is not None:
         normalizer = sf.norm.autoselect(
             bags_config['normalizer']['method'],
-            backend=extractor.backend
+            backend=(extractor.backend if native_normalizer else 'opencv')
         )
         normalizer.set_fit(**bags_config['normalizer']['fit'])
     else:

@@ -17,8 +17,8 @@ class GlfwWindow:
         self,
         *,
         title: str = 'GlfwWindow',
-        window_width: int = 1920,
-        window_height: int = 1080,
+        window_width: int = 1280,
+        window_height: int = 800,
         deferred_show: bool = True,
         background: Optional[Tuple[float, float, float, float]] = None
     ) -> None:
@@ -39,6 +39,7 @@ class GlfwWindow:
         self._captured_frame        = None
         self._shift_down            = False
         self._control_down          = False
+        self._alt_down              = False
         self._is_fullscreen         = False
         self._background_color      = background
 
@@ -157,7 +158,10 @@ class GlfwWindow:
             self._vsync = vsync
 
     def set_fps_limit(self, fps_limit):
-        self._fps_limit = int(fps_limit)
+        if fps_limit is not None:
+            self._fps_limit = int(fps_limit)
+        else:
+            self._fps_limit = None
 
     def should_close(self):
         return glfw.window_should_close(self._glfw_window) or self._exit_trigger
@@ -236,7 +240,7 @@ class GlfwWindow:
 
         # Clear.
         gl.glClearColor(*self._background_color)
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT)# | gl.GL_DEPTH_BUFFER_BIT)
 
     def end_frame(self):
         assert self._drawing_frame
@@ -273,6 +277,10 @@ class GlfwWindow:
             self._shift_down = True
         if action == glfw.RELEASE and key in (glfw.KEY_LEFT_SHIFT, glfw.KEY_RIGHT_SHIFT):
             self._shift_down = False
+        if action == glfw.PRESS and key in (glfw.KEY_LEFT_ALT, glfw.KEY_RIGHT_ALT):
+            self._alt_down = True
+        if action == glfw.RELEASE and key in (glfw.KEY_LEFT_ALT, glfw.KEY_RIGHT_ALT):
+            self._alt_down = False
 
         # Key combinations
         if action == glfw.PRESS and key == glfw.KEY_ESCAPE:

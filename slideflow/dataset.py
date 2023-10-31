@@ -129,24 +129,13 @@ if TYPE_CHECKING:
 def _prepare_slide(
     path: str,
     report_dir: Optional[str],
-    tma: bool,
     wsi_kwargs: Dict,
     qc: Optional[str],
     qc_kwargs: Dict,
-) -> Optional[sf.slide._BaseLoader]:
+) -> Optional["sf.WSI"]:
 
     try:
-        if tma:
-            slide = sf.TMA(
-                path=path,
-                tile_px=wsi_kwargs['tile_px'],
-                tile_um=wsi_kwargs['tile_um'],
-                stride_div=wsi_kwargs['stride_div'],
-                enable_downsample=wsi_kwargs['enable_downsample'],
-                report_dir=report_dir
-            )  # type: sf.slide._BaseLoader
-        else:
-            slide = sf.WSI(path, **wsi_kwargs)
+        slide = sf.WSI(path, **wsi_kwargs)
         if qc:
             slide.qc(method=qc, **qc_kwargs)
         return slide
@@ -182,7 +171,6 @@ def _tile_extractor(
     tfrecord_dir: str,
     tiles_dir: str,
     reports: Dict,
-    tma: bool,
     qc: str,
     wsi_kwargs: Dict,
     generator_kwargs: Dict,
@@ -197,7 +185,6 @@ def _tile_extractor(
         tfrecord_dir (str): Path to TFRecord directory.
         tiles_dir (str): Path to tiles directory (loose format).
         reports (dict): Multiprocessing-enabled dict.
-        tma (bool): Slides are in TMA format.
         qc (bool): Quality control method.
         wsi_kwargs (dict): Keyword arguments for sf.WSI.
         generator_kwargs (dict): Keyword arguments for WSI.extract_tiles()
@@ -208,7 +195,6 @@ def _tile_extractor(
         slide = _prepare_slide(
             path,
             report_dir=tfrecord_dir,
-            tma=tma,
             wsi_kwargs=wsi_kwargs,
             qc=qc,
             qc_kwargs=qc_kwargs)
@@ -304,6 +290,27 @@ def _create_index(tfrecord, force=False):
     )
     if not tfrecord2idx.find_index(tfrecord) or force:
         tfrecord2idx.create_index(tfrecord, index_name)
+
+def _get_tile_df(
+    slide_path: str,
+    tile_px: int,
+    tile_um: Union[int, str],
+    rois: Optional[List[str]],
+    stride_div: int,
+    roi_method: str
+) -> pd.DataFrame:
+    wsi = sf.WSI(
+        slide_path,
+        tile_px,
+        tile_um,
+        rois=rois,
+        stride_div=stride_div,
+        roi_method=roi_method,
+        verbose=False
+    )
+    _df = wsi.get_tile_dataframe()
+    _df['slide'] = wsi.name
+    return _df
 
 # -----------------------------------------------------------------------------
 
@@ -819,6 +826,7 @@ class Dataset:
         self,
         headers: Optional[Union[str, List[str]]] = None,
         strategy: Optional[str] = 'category',
+        *,
         force: bool = False,
     ) -> "Dataset":
         """Return a dataset with mini-batch balancing configured.
@@ -1352,6 +1360,45 @@ class Dataset:
                         n_converted += 1
         log.info(f'Converted {n_converted} XML ROIs -> CSV')
 
+    def get_tile_dataframe(
+        self,
+        roi_method: str = 'auto',
+        stride_div: int = 1,
+    ) -> pd.DataFrame:
+        """Generate a pandas dataframe with tile-level ROI labels.
+
+        Returns:
+            Pandas dataframe of all tiles, with the following columns:
+            - ``loc_x``: X-coordinate of tile center
+            - ``loc_y``: Y-coordinate of tile center
+            - ``grid_x``: X grid index of the tile
+            - ``grid_y``: Y grid index of the tile
+            - ``roi_name``: Name of the ROI if tile is in an ROI, else None
+            - ``roi_desc``: Description of the ROI if tile is in ROI, else None
+            - ``label``: ROI label, if present.
+
+        """
+        df = None
+        with mp.Pool(4, initializer=sf.util.set_ignore_sigint) as pool:
+            fn = partial(
+                _get_tile_df,
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
+                rois=self.rois(),
+                stride_div=stride_div,
+                roi_method=roi_method
+            )
+            for _df in track(pool.imap_unordered(fn, self.slide_paths()),
+                            description=f'Building...',
+                            total=len(self.slide_paths()),
+                            transient=True):
+                if df is None:
+                    df = _df
+                else:
+                    df = pd.concat([df, _df], axis=0, join='outer')
+
+        return df
+
     def extract_cells(
         self,
         masks_path: str,
@@ -1457,9 +1504,8 @@ class Dataset:
                 will be excluded. Defaults to 'center'.
             skip_extracted (bool): Skip slides that have already
                 been extracted. Defaults to True.
-            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),
-                detecting and extracting tumor cores. Defaults to False.
-                Experimental function with limited testing.
+            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs).
+                Deprecated argument; all slides are now read as standard WSIs.
             randomize_origin (bool): Randomize pixel starting
                 position during extraction. Defaults to False.
             buffer (str, optional): Slides will be copied to this directory
@@ -1493,10 +1539,6 @@ class Dataset:
             img_format (str, optional): 'png' or 'jpg'. Defaults to 'jpg'.
                 Image format to use in tfrecords. PNG (lossless) for fidelity,
                 JPG (lossy) for efficiency.
-            full_core (bool, optional): Only used if extracting from TMA.
-                If True, will save entire TMA core as image.
-                Otherwise, will extract sub-images from each core using the
-                given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in
                 tfrecords. Defaults to True.
             num_threads (int, optional): Number of worker processes for each
@@ -1525,6 +1567,11 @@ class Dataset:
             Dictionary mapping slide paths to each slide's SlideReport
             (:class:`slideflow.slide.report.SlideReport`)
         """
+        if tma:
+            warnings.warn(
+                "tma=True is deprecated and will be removed in a future "
+                "version. Tumor micro-arrays are read as standard slides. "
+            )
         if not self.tile_px or not self.tile_um:
             raise errors.DatasetError(
                 "Dataset tile_px and tile_um must be != 0 to extract tiles"
@@ -1654,14 +1701,13 @@ class Dataset:
                     'roi_dir': roi_dir,
                     'roi_method': roi_method,
                     'roi_filter_method': roi_filter_method,
-                    'randomize_origin': randomize_origin,
+                    'origin': 'random' if randomize_origin else (0, 0),
                     'pb': pb
                 }
                 extraction_kwargs = {
                     'tfrecord_dir': tfrecord_dir,
                     'tiles_dir': tiles_dir,
                     'reports': reports,
-                    'tma': tma,
                     'qc': qc,
                     'generator_kwargs': kwargs,
                     'qc_kwargs': qc_kwargs,
@@ -1693,7 +1739,6 @@ class Dataset:
                             wsi = _prepare_slide(
                                 slide,
                                 report_dir=tfrecord_dir,
-                                tma=tma,
                                 wsi_kwargs=wsi_kwargs,
                                 qc=qc,
                                 qc_kwargs=qc_kwargs)
@@ -1723,7 +1768,7 @@ class Dataset:
                     num_slides = len(slide_list)
                     img_kwargs = defaultdict(lambda: None)  # type: Dict
                     img_kwargs.update(kwargs)
-                    img_kwargs = sf.slide._update_kw_with_defaults(img_kwargs)
+                    img_kwargs = sf.slide.utils._update_kw_with_defaults(img_kwargs)
                     report_meta = types.SimpleNamespace(
                         tile_px=self.tile_px,
                         tile_um=self.tile_um,
@@ -1842,6 +1887,23 @@ class Dataset:
             ret._min_tiles = kwargs['min_tiles']
         return ret
 
+    def find_rois(self, slide: str) -> Optional[str]:
+        """Find an ROI path from a given slide.
+
+        Args:
+            slide (str): Slide name.
+
+        Returns:
+            str: Matching path to ROI, if found. If not found, returns None
+        """
+        rois = self.rois()
+        if not rois:
+            return None
+        for roi in rois:
+            if path_to_name(roi) == slide:
+                return roi
+        return None
+
     def find_slide(
         self,
         *,
@@ -1901,6 +1963,23 @@ class Dataset:
             return None
         else:
             return matching[0]
+
+    def get_slide_source(self, slide: str) -> str:
+        """Return the source of a given slide.
+
+        Args:
+            slide (str): Slide name.
+
+        Returns:
+            str: Source name.
+
+        """
+        for source in self.sources:
+            paths = self.slide_paths(source=source)
+            names = [path_to_name(path) for path in paths]
+            if slide in paths or slide in names:
+                return source
+        raise errors.DatasetError(f"Could not find slide '{slide}'")
 
     def get_tfrecord_locations(self, slide: str) -> List[Tuple[int, int]]:
         """Return a list of locations stored in an associated TFRecord.
@@ -2345,21 +2424,33 @@ class Dataset:
         return result
 
     def pt_files(self, path, warn_missing=True):
-        """Return list of \*.pt files with slide names in this dataset.
+        """Return list of all \*.pt files with slide names in this dataset.
+
+        May return more than one \*.pt file for each slide.
 
         Args:
-            path (str): Directory to search for \*.pt files.
+            path (str, list(str)): Directory(ies) to search for \*.pt files.
             warn_missing (bool): Raise a warning if any slides in this dataset
                 do not have a \*.pt file.
 
         """
         slides = self.slides()
-        bags = np.array([
-            join(path, f) for f in os.listdir(path)
-            if f.endswith('.pt') and path_to_name(f) in slides
-        ])
-        if (len(bags) != len(slides)) and warn_missing:
-            log.warning(f"Bags missing for {len(slides) - len(bags)} slides.")
+        if isinstance(path, str):
+            path = [path]
+
+        bags = []
+        for p in path:
+            if not exists(p):
+                raise ValueError(f"Path {p} does not exist.")
+            bags_at_path = np.array([
+                join(p, f) for f in os.listdir(p)
+                if f.endswith('.pt') and path_to_name(f) in slides
+            ])
+            bags.append(bags_at_path)
+        bags = np.concatenate(bags)
+        unique_slides_with_bags = np.unique([path_to_name(b) for b in bags])
+        if (len(unique_slides_with_bags) != len(slides)) and warn_missing:
+            log.warning(f"Bags missing for {len(slides) - len(unique_slides_with_bags)} slides.")
         return bags
 
     def read_tfrecord_by_location(
@@ -2516,7 +2607,8 @@ class Dataset:
                 A stride of 1 will extract non-overlapping tiles.
                 A stride_div of 2 will extract overlapping tiles, with a stride
                 equal to 50% of the tile width. Defaults to 1.
-            tma (bool): Slides are in TMA format.
+            tma (bool): Deprecated argument. Tumor micro-arrays are read as
+                standard slides. Defaults to False.
             source (str, optional): Dataset source name.
                 Defaults to None (using all sources).
             low_memory (bool): Operate in low-memory mode at the cost of
@@ -2527,6 +2619,11 @@ class Dataset:
             estimated non-background tiles in the slide.
 
         """
+        if tma:
+            warnings.warn(
+                "tma=True is deprecated and will be removed in a future "
+                "version. Tumor micro-arrays are read as standard slides. "
+            )
         if self.tile_px is None or self.tile_um is None:
             raise errors.DatasetError(
                 "tile_px and tile_um must be set to calculate a slide manifest"
@@ -2546,22 +2643,14 @@ class Dataset:
         counts = []
         for path in paths:
             try:
-                if tma:
-                    wsi = sf.TMA(
-                        path,
-                        self.tile_px,
-                        self.tile_um,
-                        stride_div=stride_div,
-                    )
-                else:
-                    wsi = sf.WSI(  # type: ignore
-                        path,
-                        self.tile_px,
-                        self.tile_um,
-                        rois=self.rois(),
-                        stride_div=stride_div,
-                        roi_method=roi_method,
-                        verbose=False)
+                wsi = sf.WSI(
+                    path,
+                    self.tile_px,
+                    self.tile_um,
+                    rois=self.rois(),
+                    stride_div=stride_div,
+                    roi_method=roi_method,
+                    verbose=False)
                 if low_memory:
                     wsi.qc('otsu')
                     counts += [wsi.estimated_num_tiles]
@@ -2745,14 +2834,19 @@ class Dataset:
         # Assemble dict of patients linking to list of slides & outcome labels
         # dataset.labels() ensures no duplicate labels for a single patient
         tfr_dir_list = self.tfrecords() if not from_wsi else self.slide_paths()
+        skip_tfr_verification = False
         if not len(tfr_dir_list) and not from_wsi:
-            raise errors.TFRecordsNotFoundError
+            log.warning("No tfrecords found; splitting from annotations only.")
+            tfr_dir_list = tfr_dir_list_names = self.slides()
+            skip_tfr_verification = True
         elif not len(tfr_dir_list):
-            raise errors.SlideNotFoundError("No slides found.")
-
-        tfr_dir_list_names = [
-            sf.util.path_to_name(tfr) for tfr in tfr_dir_list
-        ]
+            log.warning("No slides found; splitting from annotations only.")
+            tfr_dir_list = tfr_dir_list_names = self.slides()
+            skip_tfr_verification = True
+        else:
+            tfr_dir_list_names = [
+                sf.util.path_to_name(tfr) for tfr in tfr_dir_list
+            ]
         patients_dict = {}
         num_warned = 0
         for slide in slide_list:
@@ -2975,11 +3069,11 @@ class Dataset:
         if val_strategy != 'none':
             val_tfr = [
                 tfr for tfr in tfr_dir_list
-                if path_to_name(tfr) in val_slides
+                if path_to_name(tfr) in val_slides or tfr in val_slides
             ]
             training_tfr = [
                 tfr for tfr in tfr_dir_list
-                if path_to_name(tfr) in train_slides
+                if path_to_name(tfr) in train_slides or tfr in train_slides
             ]
         if not len(val_tfr) == len(val_slides):
             raise errors.DatasetError(
@@ -2997,10 +3091,10 @@ class Dataset:
         training_dts = training_dts.filter(filters={'slide': train_slides})
         val_dts = copy.deepcopy(self)
         val_dts = val_dts.filter(filters={'slide': val_slides})
-        if not from_wsi:
+        if not skip_tfr_verification and not from_wsi:
             assert sorted(training_dts.tfrecords()) == sorted(training_tfr)
             assert sorted(val_dts.tfrecords()) == sorted(val_tfr)
-        else:
+        elif not skip_tfr_verification:
             assert sorted(training_dts.slide_paths()) == sorted(training_tfr)
             assert sorted(val_dts.slide_paths()) == sorted(val_tfr)
         return training_dts, val_dts
@@ -3079,8 +3173,8 @@ class Dataset:
                 parsed = parser(record)
                 loc_x, loc_y = parsed['loc_x'], parsed['loc_y']
                 tile_in_roi = any([
-                    annPoly.contains(sg.Point(loc_x, loc_y))
-                    for annPoly in slide.annPolys
+                    roi.poly.contains(sg.Point(loc_x, loc_y))
+                    for roi in slide.roi_polys
                 ])
                 # Convert from a Tensor -> Numpy array
                 if hasattr(record, 'numpy'):
@@ -3191,7 +3285,7 @@ class Dataset:
                 extracted from whole-slide images, rather than TFRecords.
                 Defaults to False (use TFRecords).
             incl_loc (str, optional): 'coord', 'grid', or None. Return (x,y)
-                origin coordinates ('coord') for each tile along with tile
+                origin coordinates ('coord') for each tile center along with tile
                 images, or the (x,y) grid coordinates for each tile.
                 Defaults to 'coord'.
             incl_slidenames (bool, optional): Include slidenames as third returned
@@ -3626,7 +3720,7 @@ class Dataset:
 
     def torch(
         self,
-        labels: Optional[Dict[str, Any]] = None,
+        labels: Optional[Union[Dict[str, Any], str, pd.DataFrame]] = None,
         batch_size: Optional[int] = None,
         rebuild_index: bool = False,
         from_wsi: bool = False,
@@ -3637,11 +3731,12 @@ class Dataset:
         The returned dataloader yields a batch of (image, label) for each tile.
 
         Args:
-            labels (dict or str): If a dict is provided, expect a dict mapping
-                slide names to outcome labels. If a str, will intepret as
-                categorical annotation header. For linear outcomes, or outcomes
-                with manually assigned labels, pass the first result of
-                dataset.labels(...). If None, returns slide instead of label.
+            labels (dict, str, or pd.DataFrame, optional): If a dict is provided,
+                expect a dict mapping slide names to outcome labels. If a str,
+                will intepret as categorical annotation header. For linear
+                outcomes, or outcomes with manually assigned labels, pass the
+                first result of dataset.labels(...). If None, returns slide
+                instead of label.
             batch_size (int): Batch size.
             rebuild_index (bool): Re-build index files even if already present.
                 Defaults to True.
@@ -3665,7 +3760,8 @@ class Dataset:
             from_wsi (bool): Generate predictions from tiles dynamically
                 extracted from whole-slide images, rather than TFRecords.
                 Defaults to False (use TFRecords).
-            incl_loc (bool, optional): Include loc_x and loc_y as additional
+            incl_loc (bool, optional): Include loc_x and loc_y (image tile
+                center coordinates, in base / level=0 dimension) as additional
                 returned variables. Defaults to False.
             incl_slidenames (bool, optional): Include slidenames as third returned
                 variable. Defaults to False.
@@ -3711,7 +3807,7 @@ class Dataset:
         """
         from slideflow.io.torch import interleave_dataloader
 
-        if isinstance(labels, str):
+        if isinstance(labels, str) and not exists(labels):
             labels = self.labels(labels)[0]
         if self.tile_px is None:
             raise errors.DatasetError("tile_px and tile_um must be non-zero"
@@ -3723,6 +3819,7 @@ class Dataset:
             tfrecords = self.slide_paths()
             kwargs['rois'] = self.rois()
             kwargs['tile_um'] = self.tile_um
+            kwargs['img_size'] = self.tile_px
             indices = None
             clip = None
         else:
@@ -3741,7 +3838,6 @@ class Dataset:
             prob_weights = None
 
         return interleave_dataloader(tfrecords=tfrecords,
-                                     img_size=self.tile_px,
                                      batch_size=batch_size,
                                      labels=labels,
                                      num_tiles=self.num_tiles,

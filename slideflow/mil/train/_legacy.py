@@ -18,6 +18,7 @@ def legacy_train_clam(
     dataset: Dataset,
     train_slides: Union[str, List[str]] = 'auto',
     val_slides: Union[str, List[str]] = 'auto',
+    *,
     splits: str = 'splits.json',
     clam_args: Optional["CLAM_Args"] = None,
     attention_heatmaps: bool = True,
@@ -28,7 +29,7 @@ def legacy_train_clam(
 
     Preferred API is :meth:`slideflow.Project.train_mil()`.
 
-    See :ref:`clam_mil` for more information.
+    See :ref:`mil` for more information.
 
     Args:
         exp_name (str): Name of experiment. Makes clam/{exp_name} folder.

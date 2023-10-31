@@ -100,7 +100,7 @@ def clam_feature_generator_tester(
     """
     sf.setLoggingLevel(verbosity)
     outdir = join(project.root, 'clam')
-    project.generate_features_for_clam(
+    project.generate_feature_bags(
         model,
         outdir=outdir,
         force_regenerate=True

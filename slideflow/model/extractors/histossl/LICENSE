@@ -1,0 +1,403 @@
+License Terms and Conditions
+
+
+By exercising the Licensed Rights (defined below), You accept and agree to be bound by the terms and conditions of this License Terms and Conditions ("License") from Owkin Inc, 831 Broadway, Unit 3R, New York, NY 10003 (the “Licensor”). You are granted with the Licensed Rights in consideration of Your acceptance of these terms and conditions, and the Licensor grants You such rights in consideration of benefits the Licensor receives from making the Licensed Material available under these terms and conditions.
+If You are an individual and are agreeing to be bound by the terms of this License on behalf of your employer or other entity, You represent and warrant to the Licensor that you have full legal authority to bind your employer or such entity to this License. Failing this authority, You may not accept the License or access the Licensed Material on behalf of Your employer or other entity.
+For the sake of clarity, this License is limited to grant non-profit entities with the rights defined hereunder. If You are a for-profit entity, You are invited to directly contact the Licensor for negotiating a separate agreement.
+
+
+SECTION 1 – DEFINITIONS
+
+1. For the purposes of this License:
+
+    “Derivative Work”
+
+
+	means any work or material subject to Copyright and Similar Rights that is derived from or based upon the Licensed Material and in which the Licensed Material is translated, altered, arranged, transformed, or otherwise modified or included in a manner requiring permission under the Copyright and Similar Rights held by the Licensor.
+
+
+	“Derived License”
+
+
+	means the license You apply to Your Derivative Work and/or Results in accordance with the terms and conditions of this License.
+
+
+	“Documentation”
+
+
+	means any owner's manuals, user's manuals, installation instructions, operating instructions, concepts of operations, and other similar items, related to the Licensed Material, regardless of storage medium, that explain the capabilities of the computer software or algorithm or provide instructions for using the software or algorithm.
+
+
+	“Copyright and Similar Rights”
+
+
+	means copyright and/or similar rights closely related to copyright including, without limitation, performance, broadcast, sound recording, and Sui Generis Database Rights, without regard to how the rights are labeled or categorized. For purposes of this License, the rights specified in Section 2(b)(1)-(2) are not Copyright and Similar Rights.
+
+
+	“Effective Technological Measures”
+
+
+	means those measures that, in the absence of proper authority, may not be circumvented under laws fulfilling obligations under Article 11 of the WIPO Copyright Treaty adopted on December 20, 1996, and/or similar international agreements.
+
+
+	“Licensed Material”
+
+
+	means any software, algorithm, source code, object code, software, database, or other material that is made available by the Licensor under the terms of this License. Licensed Material excludes any material, algorithm, software, source code, object code, database, document, information and/or any data of or related to the Licensor that is not expressly made available by the Licensor under this License, whether or not related to the Licensed Material
+
+
+	“Licensed Rights”
+
+
+	means the rights granted to You subject to the terms and conditions of this License, which are limited to all Copyright and Similar Rights that apply to Your use of the Licensed Material and that the Licensor has authority to license.
+
+
+	“Licensor”
+
+
+	means the individual(s) or entity(ies) granting rights under this License, as stated above.
+
+
+	“Non-Commercial”
+
+
+	Means for non-commercial (research) purposes by non-profit entity only. Non-Commercial excludes any use, sale, lease, license, or other transfer of the Licensed Material, Derivative Works or Results by or to a for-profit organization. Non-Commercial shall also exclude uses of the Licensed Material, Derivative Works or Results by any organization, including You, to perform contract research, to screen compound libraries, to produce or manufacture product for general sales, or to conduct research activities that result in any sale, lease, license, or transfer of the Licensed Material, Derivative Works or Results to a for-profit organization.
+
+
+	“Results”
+
+
+	means any results, discovery or creation, of any kind and in any form whatsoever, whether patentable or not, which results from the use of the Licensed Material, excluding Derivative Works.
+
+
+	“Share”
+
+
+	means to provide to a third party or the public by any means or process that requires permission under the Licensed Rights, such as reproduction, public display, public performance, distribution, dissemination, communication, or importation, and to make available to a third party or the public including in ways that members of the public may access from a place and at a time individually chosen by them.
+
+
+	“Sui Generis Database Rights”
+
+
+	means rights other than copyright resulting from Directive 96/9/EC of the European Parliament and of the Council of 11 March 1996 on the legal protection of databases, as amended and/or succeeded, as well as other essentially equivalent rights anywhere in the world.
+
+
+	“Third Party Material”
+
+
+	means any third-party software, algorithm, source code, object code, data, database, material or other components (including free and open source software).
+
+
+	“You”
+
+
+	means the individual or entity exercising the Licensed Rights under this License. Your has a corresponding meaning.
+
+
+2. The definitions referred to in this Section apply to both singular and plural terms.
+
+
+SECTION 2 – SCOPE
+
+a.        License grant
+
+    1.        Scope.
+
+Subject to the terms and conditions of this License and to Your compliance with the Documentation, the Licensor hereby grants You a worldwide, royalty-free, non-sublicensable, non-transferable, non-exclusive, revocable and limited license to exercise the Licensed Rights in the Licensed Material to:
+
+        A.        reproduce and Share the Licensed Material, in whole or in part, for Non-Commercial purposes only; and
+
+        B.        produce, reproduce, and Share Derivative Work for Non-Commercial purposes only; and
+
+        C.        produce, reproduce, and Share the Results for Non-Commercial purposes only. Any use of the Results other than Non-Commercial use shall be prior approved by the Licensor.
+
+In any case, and without limiting the foregoing, You may not use the Licensed Material for any commercial purpose, or in connection with any patent application (or similar attempts to claim an intellectual property right). You may make a reasonable number of copies of the Documentation solely for use in connection with the license to the Licensed Material granted above
+The grant of rights expressly set forth in this Section 2 are the complete grant of rights to you in the Licensed Material, and no other licenses are granted, whether by waiver, estoppel, implication, equity or otherwise. Licensor reserve all rights not expressly granted by this License. Should you want to obtain other rights on the License Material, including commercial rights, You are invited to directly contact the Licensor for negotiating a separate agreement, including financial conditions of such rights.
+The foregoing License is personal to you, and you may not assign or sublicense this License or any other rights or obligations under this License without Owkin’s prior written consent; any such assignment or sublicense will be void and will automatically and immediately terminate this License.
+
+    2.        Exceptions and Limitations.
+
+For the avoidance of doubt, this License is not intended to limit fair use, fair dealing, and/or any other exception or limitation to Copyright and Similar Rights that applies to Your use of the Licensed Material in accordance with applicable laws.
+
+    3.        Media and formats; technical modifications allowed.
+
+The Licensor authorizes You to exercise the Licensed Rights in all media and formats whether now known or hereafter created, and to make technical modifications necessary to do so. The Licensor waives and/or agrees not to assert any right or authority to forbid You from making technical modifications necessary to exercise the Licensed Rights, including technical modifications necessary to circumvent Effective Technological Measures. For purposes of this License, simply making modifications authorized by this Section 2(a)(3) never produces Derivative Work.
+
+    4.        Downstream recipients.
+
+        A.        Offer from the Licensor – Licensed Material. Every recipient of the Licensed Material automatically receives an offer from the Licensor to exercise the Licensed Rights under the terms and conditions of this License.
+
+        B.        Additional offer from the Licensor – Derivative Works. Every recipient of Derivative Work from You automatically receives an offer from the Licensor to exercise the Licensed Rights in the Derivative Work under the conditions of this License.
+
+        C.        No downstream restrictions. You may not offer or impose any additional or different terms or conditions on, or apply any Effective Technological Measures to, the Licensed Material if doing so restricts exercise of the Licensed Rights by any recipient of the Licensed Material.
+
+    5.        No endorsement. Nothing in this License constitutes or may be construed as permission to assert or imply that You are, or that Your use of the Licensed Material is, connected with, or sponsored, endorsed, or granted official status by, the Licensor or others designated to receive attribution as provided in Section 3(b)(1)(A)(i).
+
+b.        Other rights
+
+    1.        Moral Rights. Moral rights, such as the right of integrity, are not licensed under this License, nor are publicity, privacy, and/or other similar personality rights; however, to the extent possible, the Licensor waives and/or agrees not to assert any such rights held by the Licensor to the limited extent necessary to allow You to exercise the Licensed Rights, but not otherwise.
+
+    2.        Industrial Property Rights. Patent and trademark rights are not licensed under this License.
+
+    3.        Royalties. To the extent possible, the Licensor waives any right to collect royalties from You for the exercise of the Licensed Rights, whether directly or through a collecting society under any voluntary or waivable statutory or compulsory licensing scheme. In all other cases the Licensor expressly reserves any right to collect such royalties, including when the Licensed Material is used other than for Non-Commercial purposes.
+
+
+SECTION 3 – LICENSE CONDITIONS
+Your exercise of the Licensed Rights is expressly made subject to the following conditions.
+
+a. Use
+
+    1. Scope limitation.
+
+    You will not, and will not permit, assist or cause any third party:
+
+        A. to use, modify, copy, reproduce, create derivative works of, or distribute the Licensed Material and Derivative Works (or any works linked thereof or incorporating the Licensed Material), in whole or in part, for any purposes other than Non-Commercial, including for commercial or production purposes,
+
+        B. to use, produce, reproduce or Share the Results for other purposes than Non-Commercial, without the prior written approval of the Licensor.
+
+    2. Infringement.
+
+    You will not, and will not permit, assist or cause any third party, to use, modify, copy, reproduce, create derivative works of, or distribute the Licensed Material, and any Third Party Material included therein, and Derivative Works (or any works linked thereof or incorporating the Licensed Material), in whole or in part, in any manner that infringes, misappropriates, or otherwise violates any third-party rights, You will not, and will not permit, assist or cause any third party to alter or remove copyright and other proprietary notices which appear on or in the License Material.3.
+
+    3. Compliance.
+
+    You will not, and will not permit, assist or cause any third party to use, modify, copy, reproduce, create derivative works of, or distribute the Licensed Material, and any Third Party Material included therein, and Derivative Works (or any works linked thereof or incorporating the Licensed Material), in whole or in part, in any manner that violates any applicable law and violating any privacy or security laws, rules, regulations, directives, or governmental requirements (including the General Data Privacy Regulation (Regulation (EU) 2016/679), as well as all amendments and successor laws to any of the foregoing.
+
+b.        Attribution
+
+    1.        If You Share the Licensed Material (including in modified form), You must:
+
+        A.        retain the following if it is supplied by the Licensor with the Licensed Material:
+
+            i.        identification of the creator(s) of the Licensed Material and any others designated to receive attribution, in any reasonable manner requested by the Licensor (including by pseudonym if designated);
+            ii.        a copyright notice;
+            iii.       a notice that refers to this License;
+            iv.        a notice that refers to the disclaimer of warranties;
+            v.         a URI or hyperlink to the Licensed Material to the extent reasonably practicable;
+
+        B.        indicate if You modified the Licensed Material and retain an indication of any previous modifications; and
+
+        C.        indicate the Licensed Material is licensed under this License, and include the text of, or the URI or hyperlink to, this License.
+
+    2.        You may satisfy the conditions in Section 3(b)(1) in any reasonable manner based on the medium, means, and context in which You Share the Licensed Material. For example, it may be reasonable to satisfy the conditions by providing a URI or hyperlink to a resource that includes the required information.
+
+    3.        If requested by the Licensor, You must remove any of the information required by Section 3(b)(1)(A) to the extent reasonably practicable.
+
+    4.        If You Share Derivative Works You produce, the Derived License You apply must not prevent recipients of the Derivative Work from complying with this License.
+
+c.        ShareAlike
+
+    1.        In addition to the conditions in Section 3 (a) and 3(b), if You Share Licensed Material and/or Derivative Works or Results You produce, the following conditions also apply.
+
+    2.        The Derived License You apply must have the same terms and conditions than the License, this version or later. In particular, recipients of the Licensed Material, of Your Derivatives Work or of Your Results shall not use them, or any work or material subject to Copyright and Similar Rights that is derived from or based upon them, or results obtained through their use, for any purposes other than Non-Commercial.
+
+    3.        You must include the text of, or the URI or hyperlink to, the Derived License You apply. You may satisfy this condition in any reasonable manner based on the medium, means, and context in which You Share Derivative Works or Results.
+
+    4.        You may not offer or impose any additional or different terms or conditions on, or apply any Effective Technological Measures to, Derivative Works or Results that modify the rights granted under this License.
+
+
+SECTION 4 – SUI GENERIS DATABASE RIGHTS
+
+Where the Licensed Rights include Sui Generis Database Rights that apply to Your use of the Licensed Material:
+
+a.        for the avoidance of doubt, Section 2(a)(1) grants You the right to extract, reuse, reproduce, and Share all or a substantial portion of the contents of the database for Non-Commercial purposes only, subject to the provision of the Section 6;
+
+b.        if You include all or a substantial portion of the database contents in a database in which You have Sui Generis Database Rights, then the database in which You have Sui Generis Database Rights (but not its individual contents) is Derivative Work; and
+
+c.        You must comply with the conditions in Section 3(b) and (c) and in Section 6 if You Share all or a substantial portion of the contents of the database.
+For the avoidance of doubt, this Section 4 supplements and does not replace Your obligations under this License where the Licensed Rights include other Copyright and Similar Rights.
+
+
+SECTION 5 – DISCLAIMER OF WARRANTIES - LIMITATION OF LIABILITY - INDEMNIFICATION
+
+a. Disclaimer.
+
+You acknowledge that the Licensed Material is offered and made available “as-is”, and that the Licensor makes no representations or warranties of any kind concerning the Licensed Material, whether express, implied, statutory, or other. This includes, without limitation, warranties of title, merchantability, fitness for a particular purpose, produce any particular results, non-infringement, absence of latent or other defects, accuracy, or the presence or absence of errors or free of viruses or other harmful component, whether or not known or discoverable.
+
+
+b. Liability.
+
+You are responsible for your use of the Licensed Material, any Derivative Works or Results and shall bear all risks associated with this use, including but not limited to: instability, malfunctioning, loss of content and in particular data, and other damage or loss. To the extent possible, in no event will the Licensor be liable to You on any legal theory (including, without limitation, negligence) or otherwise for any direct, special, indirect, incidental, consequential, punitive, exemplary, or other losses, costs, expenses, or damages arising out of this License or use of the Licensed Material, any Derivative Works or Results even if the Licensor has been advised of the possibility of such losses, costs, expenses, or damages.
+
+c.        The disclaimer of warranties and limitation of liability provided above shall be interpreted in a manner that, to the extent possible, most closely approximates an absolute disclaimer and waiver of all liability.
+
+d.        Indemnification. You agree to indemnify, defend, and hold harmless the Licensor, its affiliates, and their respective officers, directors, employees, and agents from and against any and all claims, liabilities, damages, losses, or expenses, including reasonable attorneys'' fees and costs, arising out of or in any way connected with Your access to or use of the Licensed Material, Derivative Works or Results.
+
+
+SECTION 6 – THIRD PARTY MATERIALS
+
+a. Third Party Materials.
+
+The Licensed Material may contain Third Party Materials, which are subject to the license terms of the respective third-party licensors and on which the provisions of the License do not apply. In particular, and without limitation, You acknowledge that the Licensed Material includes the Third Party Materials listed in Annex 1 of this License, and their respective license terms indicated therein.
+
+
+b. Disclaimer.
+
+You are solely responsible for the use of any Third Party Material, whether or not listed in this License, for compliance with the associated license terms and to obtain the necessary rights to use such Third Party Material if any. Your dealings or correspondence with third parties and Your use of or interaction with any Third Party Materials are solely between You and the third party. Licensor does not control or endorse, and makes no representations or warranties regarding any Third Party Materials, and Your access to and use of such Third Party Materials are at your own risk.
+
+
+SECTION 7 – TERM AND TERMINATION
+
+a.        This License applies for the term of the Copyright and Similar Rights licensed here. However, if You fail to comply with this License, then Your rights under this License terminate automatically.
+
+b.        Where Your right to use the Licensed Material has terminated under Section 7(a), it reinstates:
+
+    1.        automatically as of the date the violation is cured, provided it is cured within thirty (30) days of Your discovery of the violation; or
+
+    2.        upon express reinstatement by the Licensor.
+
+    For the avoidance of doubt, this Section 7(b) does not affect any right the Licensor may have to seek remedies for Your violations of this License.
+
+c.        For the avoidance of doubt, the Licensor may offer the Licensed Material under separate terms or conditions or stop distributing the Licensed Material at any time. Licensor may also specifically terminate this License, in whole or in part, at any time upon notice (including electronic) to you. Licensor may also modify the terms contained herein at any time without notice. You are responsible for periodically reviewing this License for any updates or changes, and continued use of the Licensed Materials constitutes acceptance of any such modifications of the License terms.
+
+d.        Sections 1, 5, 6, 7, 8 and 9 survive termination of this License.
+
+
+SECTION 8 – OTHER TERMS AND CONDITIONS
+
+a.        The Licensor shall not be bound by any additional or different terms or conditions communicated by You unless expressly agreed.
+
+b.        Any arrangements, understandings, or agreements regarding the Licensed Material not stated herein are separate from and independent of the terms and conditions of this License.
+
+
+SECTION 9 – INTERPRETATION
+
+a.        For the avoidance of doubt, this License does not, and shall not be interpreted to, reduce, limit, restrict, or impose conditions on any use of the Licensed Material that could lawfully be made without permission under this License.
+
+b.        To the extent possible, if any provision of this License is deemed unlawful, void or unenforceable, it shall be automatically reformed to the minimum extent necessary to make it enforceable. If the provision cannot be reformed, it shall be severed from this License without affecting the enforceability of the remaining terms and conditions.
+
+c.        No term or condition of this License will be waived and no failure to comply consented to unless expressly agreed to by the Licensor. Waiver of the performance of any of the provisions of the License in no way entails or implies waiver of performance of the other obligations.
+
+d.        This License shall be governed by and construed in accordance with the laws of the State of New York, without regard to its conflict of law provisions. Any and all disputes and controversies arising out of or in connection with this License shall be finally submitted to courts located in the State of New York, as the exclusive jurisdiction.
+
+e.        This License constitutes the entire agreement between You and the Licensor with respect to the Licensed Material, and supersede all prior or contemporaneous communications and proposals, whether oral or written relating to the subject matter hereof.
+
+
+________________
+
+Annex 1 – Third Party Materials
+
+Third Party Code Libraries.
+
+    ---------------------------------------------------------------------------
+    Name of the code library
+	Version
+	License
+	Licensor
+	Github repository
+    ---------------------------------------------------------------------------
+	HIPT
+	-
+	Apache License 2.0 with Commons Clause
+	Mahmood Lab
+	https://github.com/mahmoodlab/HIPT/
+    ---------------------------------------------------------------------------
+	dino
+	-
+	Apache License 2.0
+	Not specified
+	https://github.com/facebookresearch/dino/
+    ---------------------------------------------------------------------------
+	pytorch-image-models
+	0.9.0
+	Apache License 2.0
+	Ross Wightman
+	https://github.com/huggingface/pytorch-image-models/
+    ---------------------------------------------------------------------------
+	nystrom-attention
+	0.0.11
+	MIT License
+	Phil Wang
+	https://github.com/lucidrains/nystrom-attention/
+    ---------------------------------------------------------------------------
+	einops
+	0.6.1
+	MIT License
+	Alex Rogozhnikov
+	https://github.com/arogozhnikov/einops/
+    ---------------------------------------------------------------------------
+	hydra-core
+	1.3.2
+	MIT License
+	Facebook, Inc. and its affiliates
+	https://github.com/facebookresearch/hydra/
+    ---------------------------------------------------------------------------
+	imageio
+	2.31.1
+	BSD-2 Clause
+	Imageio developers
+	https://github.com/imageio/imageio/
+    ---------------------------------------------------------------------------
+	lifelines
+	0.27.7
+	MIT License
+	Cameron Davidson-Pilon
+	https://github.com/CamDavidsonPilon/lifelines/
+    ---------------------------------------------------------------------------
+	loguru
+	0.7.0
+	MIT License
+	Not specified
+	https://github.com/Delgan/loguru/
+    ---------------------------------------------------------------------------
+	openslide-python
+	1.3.0
+	GNU LGPL v2.1
+	Free Software Foundation
+	https://github.com/openslide/openslide-python/
+    ---------------------------------------------------------------------------
+	PyYAML
+	6.0.1
+	MIT License
+	Ingy döt Net and Kirill Simonov
+	https://github.com/yaml/pyyaml/
+    ---------------------------------------------------------------------------
+	scikit-learn
+	1.3.0
+	BSD-3 Clause
+	Scikit-learn developers
+	https://github.com/scikit-learn/scikit-learn/
+    ---------------------------------------------------------------------------
+	torch
+	1.13.1
+	Modified BSD Clause
+	See LICENSE
+	https://github.com/pytorch/pytorch/
+    ---------------------------------------------------------------------------
+	torchvision
+	0.14.1
+	BSD-3 Clause
+	Soumith Chintala
+	https://github.com/pytorch/vision
+    ---------------------------------------------------------------------------
+	tqdm
+	4.66.1
+	MIT and Mozilla Public License
+	See LICENSE
+	https://github.com/tqdm/tqdm/
+    ---------------------------------------------------------------------------
+	dill
+	0.37.1
+	BSD-3 Clause
+	The Uncertainty Quantification Foundation
+	https://github.com/uqfoundation/dill/
+
+
+Third Party Datasets.
+
+    ---------------------------------------------------------------------------
+    Name of the dataset
+	License
+	Dataset home page
+    ---------------------------------------------------------------------------
+	NCT-CRC-HE-100K
+	CC-BY 4.0 License
+	https://zenodo.org/record/1214456
+    ---------------------------------------------------------------------------
+	Camelyon16
+	CC0 1.0 License
+	https://camelyon17.grand-challenge.org/Data/
+    ---------------------------------------------------------------------------
+	Camelyon17-WILDS
+	CC0 1.0 License
+	https://wilds.stanford.edu/datasets/#camelyon17

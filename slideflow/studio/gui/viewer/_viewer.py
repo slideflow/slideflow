@@ -1,7 +1,9 @@
 """Whole-slide imaging viewer for graphical interfaces."""
 
 import cv2
+import time
 import numpy as np
+import imgui
 import slideflow as sf
 from typing import Tuple, Optional, Union, Callable
 from .. import gl_utils
@@ -46,6 +48,7 @@ class Viewer:
         self.mipmap             = mipmap
         self.view_zoom          = 1
         self.viz                = viz
+        self._capture_start     = None
 
         # Window offset for the display
         self.x_offset           = x_offset
@@ -95,6 +98,12 @@ class Viewer:
                 mipmap=self.mipmap)
         else:
             self._tex_obj.update(self._tex_img)
+
+    def apply_args(self, args):
+        pass
+
+    def capture_animation(self):
+        self._capture_start = time.time()
 
     def clear(self):
         """Remove the displayed image."""
@@ -215,7 +224,21 @@ class Viewer:
         return x_in_view and y_in_view
 
     def late_render(self):
-        pass
+        # Draw the capturing animation (flash on screen)
+        if self._capture_start:
+            now = time.time()
+            duration = 1
+            if (now - self._capture_start) > duration:
+                self._capture_start = None
+            else:
+                f = (now-self._capture_start) / duration
+                alpha = (1-f) ** 3
+                gl_utils.draw_rect(
+                    pos=(self.x_offset, self.y_offset),
+                    size=[self.width, self.height],
+                    color=1,
+                    alpha=alpha
+                )
 
     def refresh_view(self):
         pass
@@ -248,6 +271,7 @@ class Viewer:
         """
         if dim is None:
             dim = self.dimensions
+
         overlay_params = EasyDict(
             dim=tuple(dim),
             offset=tuple(offset),
@@ -306,7 +330,46 @@ class Viewer:
             self._overlay_tex_obj.update(self._overlay_tex_img)
         assert self._overlay_tex_obj is not None
         self._overlay_tex_obj.draw(pos=self.overlay_pos, zoom=self.h_zoom, align=0.5, rint=True, anchor='topleft')
+
         return self._overlay_tex_obj.gl_id
+
+    def render_overlay_tooltip(self, overlay: np.ndarray) -> Optional[str]:
+        # If hovering with ALT key, draw a crosshair and pixel value.
+        if self.viz._alt_down:
+            mx, my = imgui.get_mouse_pos()
+            # Draw crosshair
+            gl_utils.draw_line(
+                pos=(mx, self.y_offset),
+                size=(0, self.height),
+                color=1,
+                alpha=0.5
+            )
+            gl_utils.draw_line(
+                pos=(self.x_offset, my),
+                size=(self.width, 0),
+                color=1,
+                alpha=0.5
+            )
+
+            # Draw pixel value
+            x, y = self.display_coords_to_wsi_coords(mx, my)
+
+            # Dimensions of the overlay: overlay_params.dim
+            # Offset over the overlay: overlay_params.offset
+            # Now, adjust the x, y coordinates to be relative to the overlay
+            x -= self._overlay_params.offset[0]
+            y -= self._overlay_params.offset[1]
+
+            # Scale the x, y coordinates to be relative to the overlay
+            x = int(x * (overlay.shape[1] / self._overlay_params.dim[0]))
+            y = int(y * (overlay.shape[0] / self._overlay_params.dim[1]))
+
+            if (0 <= x < overlay.shape[1] and 0 <= y < overlay.shape[0]):
+                text = str(overlay[y, x])
+                text += "\nIndex: ({}, {})".format(x, y)
+                imgui.set_tooltip(text)
+                return text
+        return None
 
     def set_normalizer(self, normalizer: sf.norm.StainNormalizer) -> None:
         """Set the internal WSI normalizer.

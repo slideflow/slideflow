@@ -1,9 +1,14 @@
 """Utility for an efficient, tiled Whole-slide image viewer."""
 
+import time
 import imgui
 import numpy as np
+
+import shapely.affinity as sa
+from shapely.geometry import Polygon
+from rasterio.features import rasterize
 from contextlib import contextmanager
-from typing import Tuple, Optional, TYPE_CHECKING
+from typing import Tuple, Optional, TYPE_CHECKING, Union, List
 from ._viewer import Viewer
 from .. import gl_utils, text_utils
 from ...utils import EasyDict
@@ -26,14 +31,19 @@ class SlideViewer(Viewer):
 
         # WSI parameters.
         self.rois           = []
-        self.selected_rois  = []
+        self.selected_rois  = {}
         self.wsi            = wsi
         self._tile_px       = wsi.tile_px
         self._tile_um       = wsi.tile_um
         self._max_w         = None  # Used for late rendering
         self._max_h         = None  # Used for late rendering
+        self._last_update   = time.time()  # Used for tracking movement
         self.show_scale     = True
         self.show_thumbnail = True
+        self.show_rois      = True
+
+        self.thumb_max_width = 12
+        self.thumb_max_height = 8
 
         # Create initial display
         wsi_ratio = self.dimensions[0] / self.dimensions[1]
@@ -164,8 +174,8 @@ class SlideViewer(Viewer):
     def _draw_thumbnail(self):
         viz = self.viz
 
-        width = viz.font_size * 20
-        height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing
+        width = viz.font_size * self.thumb_max_width
+        height = imgui.get_text_line_height_with_spacing() * self.thumb_max_height + viz.spacing
 
         if viz.wsi_thumb is not None:
             hw_ratio = (viz.wsi_thumb.shape[0] / viz.wsi_thumb.shape[1])
@@ -385,6 +395,7 @@ class SlideViewer(Viewer):
             self.view_params = view_params
             self.origin = tuple(view_params.top_left)
             self._refresh_rois()
+            self._update_view_timer()
 
     def _refresh_view_full(self, view_params: Optional[EasyDict] = None):
         """Refresh the slide viewer with the given view parameters.
@@ -415,6 +426,11 @@ class SlideViewer(Viewer):
 
         # Refresh ROIs
         self._refresh_rois()
+        self._update_view_timer()
+
+    def _update_view_timer(self) -> None:
+        """Update the view timer."""
+        self._last_update = time.time()
 
     def _refresh_rois(self) -> None:
         """Refresh the ROIs for the given location and zoom."""
@@ -424,12 +440,30 @@ class SlideViewer(Viewer):
             if c is not None:
                 self.rois += [(roi_idx, c)]
 
+    def rasterize_rois_in_view(self) -> Optional[np.ndarray]:
+        """Rasterize the ROIs in the current view."""
+        if not len(self.rois):
+            return None
+        return np.stack([
+            rasterize(
+                [sa.translate(Polygon(roi), -self.x_offset, -self.y_offset)],
+                out_shape=(self.height, self.width),
+                all_touched=False).astype(bool).astype(int).T * (roi_idx + 1)
+            for roi_idx, roi in self.rois
+            if len(roi) > 2
+        ], axis=-1)
+
     def _render_rois(self) -> None:
         """Render the ROIs with OpenGL."""
         for roi_idx, roi in self.rois:
-            c = [1, 0, 0] if roi_idx in self.selected_rois else 0
+            if roi_idx in self.selected_rois:
+                outline = self.selected_rois[roi_idx]['outline']
+                if len(outline) == 4:
+                    outline = (outline[0], outline[1], outline[2])
+            else:
+                outline = 0
             gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
-            gl_utils.draw_roi(roi, color=c, alpha=1, linewidth=3)
+            gl_utils.draw_roi(roi, color=outline, alpha=1, linewidth=3)
 
     def _scale_roi_to_view(self, roi: np.ndarray) -> Optional[np.ndarray]:
         roi = np.copy(roi)
@@ -457,6 +491,9 @@ class SlideViewer(Viewer):
         out_of_view_max = np.any(np.amax(rois, axis=1) < 0, axis=1)
         out_of_view_min = np.any(np.amin(rois, axis=1) > np.array([self.width+self.x_offset, self.height+self.y_offset]), axis=1)
         return rois[~(out_of_view_min | out_of_view_max)]
+
+    def is_moving(self, thresh: float = 0.2):
+        return (time.time() - self._last_update) < thresh
 
     def grid_in_view(self, wsi=None):
         """Returns coordinates of WSI grid currently in view."""
@@ -513,7 +550,8 @@ class SlideViewer(Viewer):
                 raise
 
     def late_render(self):
-        self._render_rois()
+        if self.show_rois:
+            self._render_rois()
         if self.show_scale:
             self._draw_scale(self._max_w, self._max_h)
         if self.show_thumbnail:
@@ -548,17 +586,29 @@ class SlideViewer(Viewer):
             self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
         self._max_w, self._max_h = max_w, max_h
 
-    def select_roi(self, idx: int) -> None:
-        if idx not in self.selected_rois:
-            self.selected_rois.append(idx)
+    def select_roi(
+        self,
+        idx: Union[int, List[int]],
+        outline: Optional[Tuple[float, float, float]] = None
+    ) -> None:
+        if not isinstance(idx, list):
+            idx = [idx]
+        if outline is None:
+            outline = (1, 0, 0)
+        for i in idx:
+            if i not in self.selected_rois:
+                self.selected_rois[i] = {'outline': outline}
 
     def deselect_roi(self, idx: Optional[int] = None):
         if idx is None:
-            self.selected_rois = []
+            self.selected_rois = {}
         elif idx in self.selected_rois:
-            del self.selected_rois[self.selected_rois.index(idx)]
+            del self.selected_rois[idx]
         else:
             raise IndexError(f"ROI {idx} is not selected.")
+
+    def roi_is_selected(self, idx: int) -> bool:
+        return idx in self.selected_rois
 
     def set_tile_px(self, tile_px: int):
         if tile_px != self.tile_px:

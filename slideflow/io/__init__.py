@@ -20,16 +20,16 @@ from rich.progress import Progress
 
 if sf.backend() == 'tensorflow':
     from slideflow.io.tensorflow import (
-        get_tfrecord_parser, read_and_return_record, serialized_record,
-        _decode_image
+        get_tfrecord_parser, read_and_return_record, serialized_record
     )
+    from slideflow.io.tensorflow import auto_decode_image as decode_image
     from tensorflow.data import TFRecordDataset
     from tensorflow.io import TFRecordWriter
 
 elif sf.backend() == 'torch':
     from slideflow.io.torch import (
         get_tfrecord_parser, read_and_return_record, serialized_record,
-        _decode_image
+        decode_image
     )
     from slideflow.tfrecord import TFRecordWriter
     from slideflow.tfrecord.torch.dataset import TFRecordDataset
@@ -112,7 +112,10 @@ def update_manifest_at_dir(
 def get_tfrecord_by_location(
     tfrecord: str,
     location: Tuple[int, int],
-    decode: bool = True
+    decode: bool = True,
+    *,
+    locations_array: Optional[List[Tuple[int, int]]] = None,
+    index_array: Optional[np.ndarray] = None
 ) -> Any:
     '''Reads and returns an individual record from a tfrecord by index,
     including slide name and processed image data.
@@ -140,8 +143,11 @@ def get_tfrecord_by_location(
 
     # Use index files, if available.
     index = tfrecord2idx.find_index(tfrecord)
-    if decode and index and tfrecord2idx.index_has_locations(index):
-        locations = tfrecord2idx.get_locations_from_index(index)
+    if locations_array is not None or (index and tfrecord2idx.index_has_locations(index)):
+        if locations_array is None:
+            locations = tfrecord2idx.get_locations_from_index(index)
+        else:
+            locations = locations_array
         try:
             idx = locations.index(location)
         except ValueError:
@@ -149,9 +155,9 @@ def get_tfrecord_by_location(
                 f"Unable to find record with location {location} in {tfrecord}"
             )
             return False, False
-        record = tfrecord2idx.get_tfrecord_by_index(tfrecord, idx)
+        record = tfrecord2idx.get_tfrecord_by_index(tfrecord, idx, index_array=index_array)
         slide = record['slide']
-        image = sf.io._decode_image(record['image_raw'])
+        image = sf.io.decode_image(record['image_raw']) if decode else record['image_raw']
         return slide, image
 
     else:
@@ -167,7 +173,9 @@ def get_tfrecord_by_location(
                 if decode:
                     return slide, image
                 else:
-                    return record
+                    slide = bytes(record['slide']).decode('utf-8')
+                    images = bytes(record['image_raw'])
+                    return slide, images
 
         log.error(
             f"Unable to find record with location {location} in {tfrecord}"
@@ -176,11 +184,18 @@ def get_tfrecord_by_location(
 
 
 def write_tfrecords_multi(input_directory: str, output_directory: str) -> None:
-    '''Scans a folder for subfolders, assumes subfolders are slide names.
-    Assembles all image tiles within subfolders and labels using the provided
-    annotation_dict, assuming the subfolder is the slide name. Collects all
-    image tiles and exports into multiple tfrecord files, one for each slide.
-    '''
+    """Write multiple tfrecords, one for each slide, from a directory of images.
+
+    Scans a folder for subfolders, assumes subfolders are slide names.
+    Assembles all image tiles within subfolders, assuming the subfolder is the
+    slide name. Collects all image tiles and exports into multiple tfrecord
+    files, one for each slide.
+
+    Args:
+        input_directory (str): Directory of images.
+        output_directory (str): Directory in which to write TFRecord files.
+
+    """
     log.info("No location data available; writing (0,0) for all locations.")
     slide_dirs = [
         _dir for _dir in os.listdir(input_directory)
@@ -217,6 +232,7 @@ def write_tfrecords_single(
 
     Returns:
         int: Number of records written.
+
     """
     if not exists(output_directory):
         os.makedirs(output_directory)

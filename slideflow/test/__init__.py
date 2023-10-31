@@ -767,7 +767,7 @@ class TestSuite:
                     dataset = self.project.dataset(self.tile_px, 1208)
                     train_dts, val_dts = dataset.split(val_fraction=0.3)
                     import slideflow.mil
-                    config = sf.mil.mil_config('clam_sb', epochs=5)
+                    config = sf.mil.mil_config('clam_sb', epochs=5, lr=1e-4)
                     self.project.train_mil(
                         config,
                         train_dts,

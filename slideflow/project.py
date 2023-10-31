@@ -818,29 +818,75 @@ class Project:
                 from_wsi=from_wsi
             )
 
-        # ---- Balance and clip datasets --------------------------------------
+        # ---- Balance datasets --------------------------------------
+        # Training
         if s_args.bal_headers is None:
             s_args.bal_headers = s_args.outcomes
-        if not from_wsi:
+        if train_dts.prob_weights and hp.training_balance not in ('none', None):
+            log.warning(
+                "Training dataset already balanced; ignoring hyperparameter "
+                "training_balance={!r}".format(hp.training_balance)
+            )
+        elif not from_wsi:
             train_dts = train_dts.balance(
                 s_args.bal_headers,
                 hp.training_balance,
                 force=(hp.model_type() == 'categorical')
             )
-            train_dts = train_dts.clip(s_args.max_tiles)
-        elif hp.training_balance not in ('none', None) or s_args.max_tiles:
+        elif from_wsi and hp.training_balance not in ('none', None):
             log.warning(
                 "Balancing / clipping is disabled when `from_wsi=True`"
             )
 
-        if val_dts and not from_wsi:
+        # Validation
+        if val_dts and val_dts.prob_weights and hp.validation_balance not in (
+            'none', None
+        ):
+            log.warning(
+                "Validation dataset already balanced; ignoring hyperparameter "
+                "validation_balance={!r}".format(hp.validation_balance)
+            )
+        elif val_dts and not from_wsi:
             val_dts = val_dts.balance(
                 s_args.bal_headers,
                 hp.validation_balance,
                 force=(hp.model_type() == 'categorical')
             )
-            val_dts = val_dts.clip(s_args.max_tiles)
+        elif val_dts and from_wsi and hp.validation_balance not in (
+            'none', None
+        ):
+            log.warning(
+                "Balancing / clipping is disabled when `from_wsi=True`"
+            )
 
+        # ---- Clip datasets -----------------------------------------
+        # Training
+        if s_args.max_tiles and train_dts._clip:
+            log.warning(
+                "Training dataset already clipped; ignoring parameter "
+                "max_tiles={!r}".format(s_args.max_tiles)
+            )
+        elif s_args.max_tiles and not from_wsi:
+            train_dts = train_dts.clip(s_args.max_tiles)
+        elif s_args.max_tiles and from_wsi:
+            log.warning(
+                "Clipping is disabled when `from_wsi=True`"
+            )
+
+        # Validation
+        if val_dts and s_args.max_tiles and val_dts._clip:
+            log.warning(
+                "Validation dataset already clipped; ignoring parameter "
+                "max_tiles={!r}".format(s_args.max_tiles)
+            )
+        elif s_args.max_tiles and val_dts and not from_wsi:
+            val_dts = val_dts.clip(s_args.max_tiles)
+        elif s_args.max_tiles and val_dts and from_wsi:
+            log.warning(
+                "Clipping is disabled when `from_wsi=True`"
+            )
+
+        # ---- Determine tile counts ---------------------------------------
         if from_wsi:
             num_train = len(train_dts.slide_paths())
             num_val = 0 if not val_dts else len(val_dts.slide_paths())
@@ -1457,17 +1503,17 @@ class Project:
         Logs classifier metrics (AUROC and AP) to the console.
 
         Args:
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
-                Training configuration, as obtained by
-                :func:`slideflow.mil.mil_config()`.
-            train_dataset (:class:`slideflow.Dataset`): Training dataset.
-            val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+            model (str): Path to MIL model.
             outcomes (str): Outcome column (annotation header) from which to
                 derive category labels.
+            dataset (:class:`slideflow.Dataset`): Dataset.
             bags (str): Either a path to directory with \*.pt files, or a list
                 of paths to individual \*.pt files. Each file should contain
                 exported feature vectors, with each file containing all tile
                 features for one patient.
+            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+                Training configuration, as obtained by
+                :func:`slideflow.mil.mil_config()`.
 
         Keyword args:
             exp_label (str): Experiment label, used for naming the subdirectory
@@ -1605,9 +1651,8 @@ class Project:
                 will be excluded. Defaults to 'center'.
             skip_extracted (bool): Skip slides that have already
                 been extracted. Defaults to True.
-            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),
-                detecting and extracting tumor cores. Defaults to False.
-                Experimental function with limited testing.
+            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs).
+                Deprecated argument; all slides are now read as standard WSIs.
             randomize_origin (bool): Randomize pixel starting
                 position during extraction. Defaults to False.
             buffer (str, optional): Slides will be copied to this directory
@@ -1641,10 +1686,6 @@ class Project:
             img_format (str, optional): 'png' or 'jpg'. Defaults to 'jpg'.
                 Image format to use in tfrecords. PNG (lossless) for fidelity,
                 JPG (lossy) for efficiency.
-            full_core (bool, optional): Only used if extracting from TMA.
-                If True, will save entire TMA core as image.
-                Otherwise, will extract sub-images from each core using the
-                given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in
                 tfrecords. Defaults to True.
             num_threads (int, optional): Number of worker processes for each
@@ -1695,6 +1736,9 @@ class Project:
         dry_run: bool = False,
         normalizer: Optional[str] = None,
         normalizer_source: Optional[str] = None,
+        tile_labels: Optional[str] = None,
+        crop: Optional[int] = None,
+        resize: Optional[int] = None,
         **kwargs
     ) -> None:
         """Train a GAN network.
@@ -1764,6 +1808,22 @@ class Project:
             outcomes (str, list(str), optional): Class conditioning outcome
                 labels for training a class-conditioned GAN. If not provided,
                 trains an unconditioned GAN. Defaults to None.
+            tile_labels (str, optional): Path to pandas dataframe with
+                tile-level labels. The dataframe should be indexed by tile name,
+                where the name of the tile follows the format:
+                [slide name]-[tile x coordinate]-[tile y coordinate], e.g.:
+                ``slide1-251-666``. The dataframe should have a single column
+                with the name 'label'. Labels can be categorical or continuous.
+                If categorical, the labels should be onehot encoded.
+            crop (int, optional): Randomly crop images to this target size
+                during training. This permits training a smaller network
+                (e.g. 256 x 256) on larger images (e.g. 299 x 299).
+                Defaults to None.
+            resize (int, optional): Resize images to this target size
+                during training. This permits training a smaller network
+                (e.g. 256 x 256) on larger images (e.g. 299 x 299).
+                If both ``crop`` and ``resize`` are provided, cropping
+                will be performed first. Defaults to None.
             resume (str): Load previous network. Options include
                 'noresume' , 'ffhq256', 'ffhq512', 'ffhqq1024', 'celebahq256',
                 'lsundog256', <file>, or <url>. Defaults to 'noresume'.
@@ -1803,6 +1863,10 @@ class Project:
             outcome_label_headers=outcomes,
             filters=dataset._filters,
             filter_blank=dataset._filter_blank,
+            min_tiles=dataset._min_tiles,
+            tile_labels=tile_labels,
+            crop=crop,
+            resize=resize
         )
         if normalizer:
             config['normalizer_kwargs'] = dict(
@@ -1817,7 +1881,7 @@ class Project:
             outdir=gan_dir,
             dry_run=dry_run,
             slideflow=config_loc,
-            cond=(outcomes is not None),
+            cond=(outcomes is not None or tile_labels is not None),
             mirror=mirror,
             metrics=metrics,
             **kwargs)
@@ -1900,8 +1964,8 @@ class Project:
     def generate_features(
         self,
         model: str,
+        dataset: Optional[Dataset] = None,
         *,
-        dataset: Dataset,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 0,
@@ -1915,12 +1979,12 @@ class Project:
 
         Args:
             model (str): Path to model
-
-        Keyword Args:
             dataset (:class:`slideflow.Dataset`, optional): Dataset
                 from which to generate activations. If not supplied, calculate
                 activations for all tfrecords compatible with the model,
                 optionally using provided filters and filter_blank.
+
+        Keyword Args:
             filters (dict, optional): Dataset filters to use for
                 selecting slides. See :meth:`slideflow.Dataset.filter` for
                 more information. Defaults to None.
@@ -1967,7 +2031,6 @@ class Project:
                                 **kwargs)
         return df
 
-    @auto_dataset_allow_none
     def generate_features_for_clam(self, *args, **kwargs):
         warnings.warn(
             "Project.generate_features_for_clam() is deprecated. "
@@ -2000,14 +2063,14 @@ class Project:
         Args:
             model (str): Path to model from which to generate activations.
                 May provide either this or "pt_files"
-            outdir (str, optional): Save exported activations in .pt format.
-                Defaults to 'auto' (project directory).
-
-        Keyword Args:
             dataset (:class:`slideflow.Dataset`, optional): Dataset
                 from which to generate activations. If not supplied, calculate
                 activations for all tfrecords compatible with the model,
                 optionally using provided filters and filter_blank.
+            outdir (str, optional): Save exported activations in .pt format.
+                Defaults to 'auto' (project directory).
+
+        Keyword Args:
             filters (dict, optional): Dataset filters to use for
                 selecting slides. See :meth:`slideflow.Dataset.filter` for
                 more information. Defaults to None.
@@ -2125,27 +2188,41 @@ class Project:
             log.info(f'Skipping {len(done)} files already done.')
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
 
+        # Set up progress bar.
+        pb = sf.util.TileExtractionProgress()
+        pb.add_task(
+            "Speed: ",
+            progress_type="speed",
+            total=None)
+        slide_task = pb.add_task(
+            "Generating...",
+            progress_type="slide_progress",
+            total=len(dataset.slides()))
+        pb.start()
+
         # Set up activations interface.
         # Calculate features one slide at a time to reduce memory consumption.
-        for slide_batch in tqdm(sf.util.batch(dataset.slides(), slide_batch_size),
-                                total=len(dataset.slides()) // slide_batch_size):
-            try:
-                _dataset = dataset.remove_filter(filters='slide')
-            except errors.DatasetFilterError:
-                _dataset = dataset
-            _dataset = _dataset.filter(filters={'slide': slide_batch})
-            df = sf.DatasetFeatures(
-                model=model,
-                dataset=_dataset,
-                include_preds=False,
-                include_uncertainty=False,
-                batch_size=batch_size,
-                verbose=False,
-                progress=False,
-                pool_sort=False,
-                **kwargs
-            )
-            df.to_torch(outdir, verbose=False)
+        with sf.util.cleanup_progress(pb):
+            for slide_batch in sf.util.batch(dataset.slides(), slide_batch_size):
+                try:
+                    _dataset = dataset.remove_filter(filters='slide')
+                except errors.DatasetFilterError:
+                    _dataset = dataset
+                _dataset = _dataset.filter(filters={'slide': slide_batch})
+                df = sf.DatasetFeatures(
+                    model=model,
+                    dataset=_dataset,
+                    include_preds=False,
+                    include_uncertainty=False,
+                    batch_size=batch_size,
+                    verbose=False,
+                    progress=False,
+                    pb=pb,
+                    pool_sort=False,
+                    **kwargs
+                )
+                df.to_torch(outdir, verbose=False)
+                pb.advance(slide_task, len(slide_batch))
 
         return outdir
 
@@ -3047,7 +3124,7 @@ class Project:
                                  enable_downsample=enable_downsample,
                                  roi_dir=roi_dir,
                                  roi_method=roi_method,
-                                 randomize_origin=randomize_origin)
+                                 origin='random' if randomize_origin else (0,0))
                 except errors.SlideLoadError as e:
                     log.error(e)
                     continue
@@ -3136,7 +3213,7 @@ class Project:
                     result = metric(epoch_results)
                 elif metric not in epoch_results:
                     raise errors.SMACError(f"Metric '{metric}' not returned from "
-                                        "training, unable to optimize.")
+                                           "training, unable to optimize.")
                 else:
                     if outcomes not in epoch_results[metric]:
                         raise errors.SMACError(
@@ -3736,7 +3813,7 @@ class Project:
 
         Preferred API is :meth:`slideflow.Project.train_mil()`.
 
-        See :ref:`clam_mil` for more information.
+        See :ref:`mil` for more information.
 
         Examples
             Train with basic settings:
@@ -3974,7 +4051,7 @@ def create(
             cfg.rois = join(dirname(cfg_path), cfg.rois)
     elif cfg is None:
         cfg = sf.util.EasyDict(kwargs)
-    elif issubclass(cfg, project_utils._ProjectConfig):
+    elif issubclass(type(cfg), project_utils._ProjectConfig):
         cfg = sf.util.EasyDict(cfg.to_dict())
     if 'name' not in cfg:
         cfg.name = "MyProject"

@@ -1,5 +1,7 @@
 .. currentmodule:: slideflow
 
+.. _model_params:
+
 slideflow.ModelParams
 =====================
 
@@ -29,6 +31,8 @@ If **patient-based balancing** ("patient") is used, batches will balance image t
 If **category-based balancing** ("category") is used, batches will contain equal representation from each outcome category.
 
 If **no balancing** is performed, batches will be assembled by randomly selecting from TFRecords. This is equivalent to slide-based balancing if each slide has its own TFRecord (default behavior).
+
+See :ref:`balancing` for more discussion on sampling and mini-batch balancing.
 
 .. note::
 

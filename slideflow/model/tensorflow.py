@@ -15,7 +15,7 @@ from packaging import version
 from os.path import dirname, exists, join
 from types import SimpleNamespace
 from typing import (
-    TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Callable
+    TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Callable, Iterable
 )
 from tensorflow.keras import applications as kapps
 
@@ -27,7 +27,7 @@ from slideflow.util import log, NormFit
 
 from . import tensorflow_utils as tf_utils
 from .base import log_manifest, no_scope, BaseFeatureExtractor
-from .tensorflow_utils import unwrap, flatten, eval_from_model  # type: ignore
+from .tensorflow_utils import unwrap, flatten, eval_from_model, build_uq_model  # type: ignore
 
 # Set the tensorflow logger
 if sf.getLoggingLevel() == logging.DEBUG:
@@ -1077,6 +1077,7 @@ class Trainer:
         neptune_workspace: Optional[str] = None,
         load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
+        transform: Optional[Union[Callable, Dict[str, Callable]]] = None,
     ) -> None:
 
         """Sets base configuration, preparing model inputs and outputs.
@@ -1119,6 +1120,17 @@ class Trainer:
                 Defaults to None.
             custom_objects (dict, Optional): Dictionary mapping names
                 (strings) to custom classes or functions. Defaults to None.
+            transform (callable or dict, optional): Optional transform to
+                apply to input images. If dict, must have the keys 'train'
+                and/or 'val', mapping to callables that takes a single
+                image Tensor as input and returns a single image Tensor.
+                If None, no transform is applied. If a single callable is
+                provided, it will be applied to both training and validation
+                data. If a dict is provided, the 'train' transform will be
+                applied to training data and the 'val' transform will be
+                applied to validation data. If a dict is provided and either
+                'train' or 'val' is None, no transform will be applied to
+                that data. Defaults to None.
         """
 
         if load_method not in ('full', 'weights'):
@@ -1194,12 +1206,26 @@ class Trainer:
                 tf.keras.mixed_precision.experimental.set_policy(policy)
         tf.config.experimental.enable_tensor_float_32_execution(allow_tf32)
 
+        # Custom transforms
+        self._process_transforms(transform)
+
         # Log parameters
         if config is None:
             config = {
                 'slideflow_version': sf.__version__,
-                'hp': self.hp.to_dict(),
-                'backend': sf.backend()
+                'backend': sf.backend(),
+                'git_commit': sf.__gitcommit__,
+                'model_name': self.name,
+                'full_model_name': self.name,
+                'outcomes': self.outcome_names,
+                'model_type': self.hp.model_type(),
+                'img_format': None,
+                'tile_px': self.hp.tile_px,
+                'tile_um': self.hp.tile_um,
+                'input_features': None,
+                'input_feature_sizes': None,
+                'input_feature_labels': None,
+                'hp': self.hp.to_dict()
             }
         sf.util.write_json(config, join(self.outdir, 'params.json'))
         self.config = config
@@ -1215,6 +1241,22 @@ class Trainer:
                 neptune_api,
                 neptune_workspace
             )
+
+    def _process_transforms(
+        self,
+        transform: Optional[Union[Callable, Dict[str, Callable]]] = None
+    ) -> None:
+        """Process custom transformations for training and/or validation."""
+        if not isinstance(transform, dict):
+            transform = {'train': transform, 'val': transform}
+        if any([t not in ('train', 'val') for t in transform]):
+            raise ValueError("transform must be a callable or dict with keys "
+                             "'train' and/or 'val'")
+        if 'train' not in transform:
+            transform['train'] = None
+        if 'val' not in transform:
+            transform['val'] = None
+        self.transform = transform
 
     def _setup_inputs(self) -> None:
         """Setup slide-level input."""
@@ -1357,15 +1399,37 @@ class Trainer:
         )
         return vars(args)
 
-    def _verify_img_format(self, dataset: "sf.Dataset") -> None:
-        if self.img_format and not dataset.img_format:
+    def _verify_img_format(self, dataset, *datasets: Optional["sf.Dataset"]) -> str:
+        """Verify that the image format of the dataset matches the model config.
+
+        Args:
+            dataset (sf.Dataset): Dataset to check.
+            *datasets (sf.Dataset): Additional datasets to check. May be None.
+
+        Returns:
+            str: Image format, either 'png' or 'jpg', if a consistent image
+                format was found, otherwise None.
+
+        """
+        # First, verify all datasets have the same image format
+        img_formats = set([d.img_format for d in datasets if d])
+        if len(img_formats) > 1:
+            log.error("Multiple image formats detected: {}.".format(
+                ', '.join(img_formats)
+            ))
+            return None
+        elif self.img_format and not dataset.img_format:
             log.warning("Unable to verify image format (PNG/JPG) of dataset.")
+            return None
         elif self.img_format and dataset.img_format != self.img_format:
             log.error(
                 "Mismatched image formats. Expected '{}' per model config, "
                 "but dataset has format '{}'.".format(
                     self.img_format,
                     dataset.img_format))
+            return None
+        else:
+            return dataset.img_format
 
     def load(self, model: str, **kwargs) -> tf.keras.Model:
         self.model = load(
@@ -1442,6 +1506,7 @@ class Trainer:
             interleave_kwargs = self._interleave_kwargs_val(
                 batch_size=batch_size,
                 infinite=False,
+                transform=self.transform['val'],
                 augment=False
             )
             tf_dts_w_slidenames = dataset.tensorflow(
@@ -1550,6 +1615,7 @@ class Trainer:
             interleave_kwargs = self._interleave_kwargs_val(
                 batch_size=batch_size,
                 infinite=False,
+                transform=self.transform['val'],
                 augment=False
             )
             tf_dts_w_slidenames = dataset.tensorflow(
@@ -1692,6 +1758,12 @@ class Trainer:
 
         self._detect_patients(train_dts, val_dts)
 
+        # Verify image format across datasets.
+        img_format = self._verify_img_format(train_dts, val_dts)
+        if img_format and self.config['img_format'] is None:
+            self.config['img_format'] = img_format
+            sf.util.write_json(self.config, join(self.outdir, 'params.json'))
+
         # Clear prior Tensorflow graph to free memory
         tf.keras.backend.clear_session()
         results_log = os.path.join(self.outdir, 'results_log.csv')
@@ -1784,6 +1856,7 @@ class Trainer:
                     batch_size=self.hp.batch_size,
                     infinite=True,
                     augment=self.hp.augment,
+                    transform=self.transform['train'],
                     from_wsi=from_wsi,
                     pool=pool,
                     roi_method=roi_method
@@ -1804,6 +1877,7 @@ class Trainer:
                         batch_size=validation_batch_size,
                         infinite=False,
                         augment=False,
+                        transform=self.transform['val'],
                         from_wsi=from_wsi,
                         pool=pool,
                         roi_method=roi_method

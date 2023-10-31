@@ -1,23 +1,26 @@
 """Tools for evaluation MIL models."""
 
+import inspect
 import os
 import pandas as pd
 import slideflow as sf
 import numpy as np
-from rich.progress import Progress
+
+from rich.progress import Progress, track
 from os.path import join, exists, dirname
 from typing import Union, List, Optional, Callable, Tuple, Any, TYPE_CHECKING
-from slideflow import Dataset, log
+from slideflow import Dataset, log, errors
 from slideflow.util import path_to_name
 from slideflow.model.extractors import rebuild_extractor
 from slideflow.stats.metrics import ClassifierMetrics
 from ._params import (
-    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
+    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM, TrainerConfigFastAI
 )
-from .utils import load_model_weights, _load_bag
+from . import utils
 
 if TYPE_CHECKING:
     import torch
+    from .features import MILFeatures
     from slideflow.norm import StainNormalizer
     from slideflow.model.base import BaseFeatureExtractor
 
@@ -32,9 +35,10 @@ def eval_mil(
     *,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
+    uq: bool = False,
     **heatmap_kwargs
 ) -> pd.DataFrame:
-    """Evaluate a multi-instance learning model.
+    """Evaluate a multiple-instance learning model.
 
     Saves results for the evaluation in the target folder, including
     predictions (parquet format), attention (Numpy format for each slide),
@@ -57,6 +61,80 @@ def eval_mil(
     Keyword arguments:
         outdir (str): Path at which to save results.
         attention_heatmaps (bool): Generate attention heatmaps for slides.
+            Not available for multi-modal MIL models. Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
+
+    """
+    model, config = utils.load_model_weights(weights, config)
+
+    eval_kwargs = dict(
+        dataset=dataset,
+        outcomes=outcomes,
+        bags=bags,
+        config=config,
+        outdir=outdir
+    )
+
+    if config.is_multimodal:
+        if attention_heatmaps:
+            raise ValueError(
+                "Attention heatmaps cannot yet be exported for multi-modal "
+                "models. Please use Slideflow Studio for visualization of "
+                "multi-modal attention."
+            )
+        if heatmap_kwargs:
+            kwarg_names = ', '.join(list(heatmap_kwargs.keys()))
+            raise ValueError(
+                f"Unrecognized keyword arguments: '{kwarg_names}'. Attention "
+                "heatmap keyword arguments are not currently supported for "
+                "multi-modal models."
+            )
+        return _eval_multimodal_mil(model, **eval_kwargs)
+    else:
+        return _eval_mil(
+            model,
+            attention_heatmaps=attention_heatmaps,
+            uq=uq,
+            **heatmap_kwargs,
+            **eval_kwargs
+        )
+
+
+def _eval_mil(
+    model: "torch.nn.Module",
+    dataset: Dataset,
+    outcomes: Union[str, List[str]],
+    bags: Union[str, List[str]],
+    config: _TrainerConfig,
+    *,
+    outdir: str = 'mil',
+    attention_heatmaps: bool = False,
+    uq: bool = False,
+    **heatmap_kwargs
+) -> pd.DataFrame:
+    """Evaluate a standard, single-mode multi-instance learning model.
+
+    Args:
+        model (torch.nn.Module): Loaded PyTorch MIL model.
+        dataset (sf.Dataset): Dataset to evaluation.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for building model.
+
+    Keyword arguments:
+        outdir (str): Path at which to save results.
+        attention_heatmaps (bool): Generate attention heatmaps for slides.
             Defaults to False.
         interpolation (str, optional): Interpolation strategy for smoothing
             attention heatmaps. Defaults to 'bicubic'.
@@ -69,42 +147,128 @@ def eval_mil(
             separately. Defaults to None.
 
     """
-    import torch
 
-    # Prepare ground-truth labels
-    labels, unique = dataset.labels(outcomes, format='id')
-
-    # Prepare bags and targets
+    # Prepare lists of bags.
+    labels, _ = dataset.labels(outcomes, format='id')
     slides = list(labels.keys())
     if isinstance(bags, str):
         bags = dataset.pt_files(bags)
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
 
-    # Ensure slide names are sorted according to the bags.
-    slides = [path_to_name(b) for b in bags]
+    # Generate predictions.
+    df, y_att = predict_from_model(
+        model,
+        config,
+        dataset,
+        outcomes=outcomes,
+        bags=bags,
+        attention=True,
+        uq=uq
+    )
 
+    # Generate metrics.
+    y_pred_cols = [c for c in df.columns if c.startswith('y_pred')]
+    for idx in range(len(y_pred_cols)):
+        m = ClassifierMetrics(
+            y_true=(df.y_true.values == idx).astype(int),
+            y_pred=df[f'y_pred{idx}'].values
+        )
+        log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
+        log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
+
+    # Save results.
+    if not exists(outdir):
+        os.makedirs(outdir)
+    model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
+    pred_out = join(model_dir, 'predictions.parquet')
+    df.to_parquet(pred_out)
+    log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    # Print categorical metrics, including per-category accuracy
+    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
+    metrics_df = df.rename(
+        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
+    )
+    sf.stats.metrics.categorical_metrics(metrics_df, level='slide')
+
+    # Export attention
+    if y_att:
+        if 'slide' in df.columns:
+            slides_or_patients = df.slide.values
+        elif 'patient' in df.columns:
+            slides_or_patients = df.patient.values
+        else:
+            raise ValueError("Malformed dataframe; cannot find 'slide' or 'patient' column.")
+        _export_attention(join(model_dir, 'attention'), y_att, slides_or_patients)
+
+    # Attention heatmaps
+    if y_att and attention_heatmaps:
+        generate_attention_heatmaps(
+            outdir=join(model_dir, 'heatmaps'),
+            dataset=dataset,
+            bags=bags,  # type: ignore
+            attention=y_att,
+            **heatmap_kwargs
+        )
+
+    return df
+
+
+def _eval_multimodal_mil(
+    model: "torch.nn.Module",
+    dataset: Dataset,
+    outcomes: Union[str, List[str]],
+    bags: List[List[str]],
+    config: _TrainerConfig,
+    *,
+    outdir: str = 'mil',
+) -> pd.DataFrame:
+    """Evaluate a multi-modal (e.g. multi-magnification) MIL model.
+
+    Args:
+        model (torch.nn.Module): Loaded PyTorch MIL model.
+        dataset (sf.Dataset): Dataset to evaluation.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for building model.
+
+    Keyword arguments:
+        outdir (str): Path at which to save results.
+        attention_heatmaps (bool): Generate attention heatmaps for slides.
+            Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
+
+    """
+     # Prepare ground-truth labels
+    labels, unique = dataset.labels(outcomes, format='id')
+
+    # Prepare bags and targets
+    bags, slides = utils._get_nested_bags(dataset, bags)
     y_true = np.array([labels[s] for s in slides])
 
-    # Detect feature size from bags
-    n_features = torch.load(bags[0]).shape[-1]
-    n_out = len(unique)
-
-    # Load model
-    model, config = load_model_weights(weights, config)
-
     # Inference.
-    if (isinstance(config, TrainerConfigCLAM)
-       or isinstance(config.model_config, ModelConfigCLAM)):
-        y_pred, y_att = _predict_clam(model, bags, attention=True)
-    else:
-        y_pred, y_att = _predict_mil(
-            model, bags, attention=True, use_lens=config.model_config.use_lens
-        )
+    y_pred, y_att = _predict_multimodal_mil(
+        model, bags, attention=True, use_lens=config.model_config.use_lens
+    )
 
     # Generate metrics
     for idx in range(y_pred.shape[-1]):
-        m = ClassifierMetrics(y_true=(y_true == idx).astype(int), y_pred=y_pred[:, idx])
+        m = ClassifierMetrics(
+            y_true=(y_true == idx).astype(int),
+            y_pred=y_pred[:, idx]
+        )
         log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
         log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
 
@@ -129,17 +293,7 @@ def eval_mil(
 
     # Export attention
     if y_att:
-        _export_attention(join(model_dir, 'attention'), y_att, slides)
-
-    # Attention heatmaps
-    if y_att and attention_heatmaps:
-        generate_attention_heatmaps(
-            outdir=join(model_dir, 'heatmaps'),
-            dataset=dataset,
-            bags=bags,
-            attention=y_att,
-            **heatmap_kwargs
-        )
+        _export_attention(join(model_dir, 'attention'), y_att, df.slide.values)
 
     return df
 
@@ -153,6 +307,8 @@ def predict_slide(
     normalizer: Optional["StainNormalizer"] = None,
     config: Optional[_TrainerConfig] = None,
     attention: bool = False,
+    native_normalizer: Optional[bool] = True,
+    extractor_kwargs: Optional[dict] = None,
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """Generate predictions (and attention) for a single slide.
 
@@ -177,6 +333,12 @@ def predict_slide(
             configuration. Defaults to None.
         attention (bool): Whether to return attention scores. Defaults to
             False.
+        native_normalizer (bool, optional): Whether to use PyTorch/Tensorflow-native
+            stain normalization, if applicable. If False, will use the OpenCV/Numpy
+            implementations. Defaults to None, which auto-detects based on the
+            slide backend (False if libvips, True if cucim). This behavior is due
+            to performance issued when using native stain normalization with
+            libvips-compatible multiprocessing.
 
     Returns:
         Tuple[np.ndarray, Optional[np.ndarray]]: Predictions and attention scores.
@@ -186,8 +348,12 @@ def predict_slide(
 
     """
     # Try to auto-determine the extractor
+    if native_normalizer is None:
+        native_normalizer = (sf.slide_backend() == 'cucim')
     if extractor is None:
-        extractor, detected_normalizer = rebuild_extractor(model, allow_errors=True)
+        extractor, detected_normalizer = rebuild_extractor(
+            model, allow_errors=True, native_normalizer=native_normalizer
+        )
         if extractor is None:
             raise ValueError(
                 "Unable to auto-detect feature extractor used for model {}. "
@@ -207,7 +373,7 @@ def predict_slide(
         normalizer = detected_normalizer
 
     # Load model
-    model_fn, config = load_model_weights(model, config)
+    model_fn, config = utils.load_model_weights(model, config)
     mil_params = sf.util.load_json(join(model, 'mil_params.json'))
     if 'bags_extractor' not in mil_params:
         raise ValueError(
@@ -231,7 +397,9 @@ def predict_slide(
         )
 
     # Convert slide to bags
-    masked_bags = extractor(slide, normalizer=normalizer)
+    if extractor_kwargs is None:
+        extractor_kwargs = dict()
+    masked_bags = extractor(slide, normalizer=normalizer, **extractor_kwargs)
     original_shape = masked_bags.shape
     masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
     if len(masked_bags.mask.shape):
@@ -251,7 +419,11 @@ def predict_slide(
         y_pred, raw_att = _predict_clam(model_fn, bags, attention=attention)
     else:
         y_pred, raw_att = _predict_mil(
-            model_fn, bags, attention=attention, use_lens=config.model_config.use_lens
+            model_fn,
+            bags,
+            attention=attention,
+            use_lens=config.model_config.use_lens,
+            apply_softmax=config.model_config.apply_softmax
         )
 
     # Reshape attention to match original shape
@@ -270,6 +442,119 @@ def predict_slide(
     return y_pred, y_att
 
 
+def save_mil_tile_predictions(
+    weights: str,
+    dataset: "sf.Dataset",
+    bags: Union[str, np.ndarray, List[str]],
+    config: Optional[_TrainerConfig] = None,
+    outcomes: Union[str, List[str]] = None,
+    dest: str = 'mil_tile_preds.parquet',
+):
+    # Load model and configuration.
+    model, config = utils.load_model_weights(weights, config)
+    if outcomes is not None:
+        labels, unique = dataset.labels(outcomes, format='id')
+
+    # Prepare bags.
+    slides = dataset.slides()
+    if isinstance(bags, str):
+        bags = dataset.pt_files(bags)
+    else:
+        bags = np.array([b for b in bags if path_to_name(b) in slides])
+
+    # Ensure slide names are sorted according to the bags.
+    slides = [path_to_name(b) for b in bags]
+
+    is_clam = (isinstance(config, TrainerConfigCLAM)
+                or isinstance(config.model_config, ModelConfigCLAM))
+
+    print("Generating predictions for {} slides and {} bags.".format(len(slides), len(bags)))
+
+    # First, start with slide-level inference and attention.
+    if (isinstance(config, TrainerConfigCLAM)
+       or isinstance(config.model_config, ModelConfigCLAM)):
+        slide_pred, attention = _predict_clam(model, bags, attention=True)
+    else:
+        slide_pred, attention = _predict_mil(
+            model,
+            bags,
+            attention=True,
+            use_lens=config.model_config.use_lens,
+            apply_softmax=config.model_config.apply_softmax
+        )
+
+    df_slides = []
+    df_attention = []
+    df_preds = []
+    df_true = []
+    df_loc_x = []
+    df_loc_y = []
+
+    # Then, generate tile predictions for each slide:
+    for i, (bag, slide) in track(enumerate(zip(bags, slides)),
+                            description="Generating tile predictions",
+                            total=len(bags)):
+        if is_clam:
+            tile_pred = _predict_mil_tiles(model, bag, use_first_out=True)
+        else:
+            tile_pred = _predict_mil_tiles(
+                model,
+                bag,
+                use_lens=config.model_config.use_lens,
+                apply_softmax=config.model_config.apply_softmax
+            )
+
+        # Verify the shapes are consistent.
+        assert len(tile_pred) == len(attention[i])
+        n_bags = len(tile_pred)
+
+        # Find the associated locations.
+        bag_index = join(dirname(bag), f'{slide}.index.npz')
+        if exists(bag_index):
+            locations = np.load(bag_index)['arr_0']
+            assert len(locations) == n_bags
+            df_loc_x.append(locations[:, 0])
+            df_loc_y.append(locations[:, 1])
+
+        # Add to dataframe lists.
+        df_preds.append(tile_pred)
+        if attention is not None:
+            df_attention.append(attention[i])
+        df_slides += [slide for _ in range(n_bags)]
+        if outcomes is not None:
+            _label = labels[slide]
+            df_true += [_label for _ in range(n_bags)]
+
+    # Update dataframe with predictions.
+    df_attention = np.concatenate(df_attention, axis=0)
+    df_preds = np.concatenate(df_preds, axis=0)
+    df_dict = dict(slide=df_slides)
+
+    if df_loc_x:
+        df_dict['loc_x'] = np.concatenate(df_loc_x, axis=0)
+        df_dict['loc_y'] = np.concatenate(df_loc_y, axis=0)
+
+    # Attention
+    if attention is not None:
+        df_dict['attention'] = df_attention
+
+    # Ground truth
+    if outcomes is not None:
+        df_dict['y_true'] = df_true
+
+    # Predictions
+    for i in range(df_preds[0].shape[0]):
+        df_dict[f'y_pred{i}'] = df_preds[:, i]
+
+    # Final processing to dataframe & disk
+    df = pd.DataFrame(df_dict)
+    df.to_parquet(dest)
+    log.info("{} tile predictions exported to [green]{}[/]".format(
+        df_preds.shape[0],
+        dest
+    ))
+
+
 def predict_from_model(
     model: Callable,
     config: _TrainerConfig,
@@ -277,7 +562,8 @@ def predict_from_model(
     outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]],
     *,
-    attention: bool = False
+    attention: bool = False,
+    uq: bool = False
 ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, List[np.ndarray]]]:
     """Generate predictions for a dataset from a saved MIL model.
 
@@ -307,30 +593,109 @@ def predict_from_model(
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
 
-    # Ensure slide names are sorted according to the bags.
-    slides = [path_to_name(b) for b in bags]
+    # Aggregate bags by slide or patient.
+    if (isinstance(config, TrainerConfigFastAI)
+        and config.aggregation_level == 'patient'):
 
-    y_true = np.array([labels[s] for s in slides])
+        # Get nested list of bags, aggregated by slide.
+        slide_to_patient = dataset.patients()
+        n_slide_bags = len(bags)
+        bags, y_true = utils.aggregate_bags_by_patient(bags, labels, slide_to_patient)
+        log.info(f"Aggregated {n_slide_bags} slide bags to {len(bags)} patient bags.")
+
+        # Create prediction dataframe.
+        patients = [slide_to_patient[path_to_name(b[0])] for b in bags]
+        df_dict = dict(patient=patients, y_true=y_true)
+
+    else:
+        # Ensure slide names are sorted according to the bags.
+        slides = [path_to_name(b) for b in bags]
+        y_true = np.array([labels[s] for s in slides])
+
+        # Create prediction dataframe.
+        df_dict = dict(slide=slides, y_true=y_true)
 
     # Inference.
     if (isinstance(config, TrainerConfigCLAM)
        or isinstance(config.model_config, ModelConfigCLAM)):
+        if uq:
+            #TODO: add UQ support for CLAM
+            raise RuntimeError("CLAM models do not support UQ.")
         y_pred, y_att = _predict_clam(model, bags, attention=attention)
     else:
-        y_pred, y_att = _predict_mil(
-            model, bags, attention=attention, use_lens=config.model_config.use_lens
+        pred_out = _predict_mil(
+            model,
+            bags,
+            attention=attention,
+            use_lens=config.model_config.use_lens,
+            apply_softmax=config.model_config.apply_softmax,
+            uq=uq
         )
+        if uq:
+            y_pred, y_att, y_uq = pred_out
+        else:
+            y_pred, y_att = pred_out
 
-    # Create dataframe.
-    df_dict = dict(slide=slides, y_true=y_true)
+    # Update dataframe with predictions.
     for i in range(y_pred.shape[-1]):
         df_dict[f'y_pred{i}'] = y_pred[:, i]
+    if uq:
+        for i in range(y_uq.shape[-1]):
+            df_dict[f'uncertainty{i}'] = y_uq[:, i]
     df = pd.DataFrame(df_dict)
 
     if attention:
         return df, y_att
     else:
         return df
+
+
+def generate_mil_features(
+    weights: str,
+    dataset: "sf.Dataset",
+    bags: Union[str, np.ndarray, List[str]],
+    *,
+    config: Optional[_TrainerConfig] = None,
+) -> "MILFeatures":
+    """Generate activations weights from the last layer of an MIL model.
+
+    Returns MILFeatures object.
+
+    Args:
+        weights (str): Path to model weights to load.
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or
+        :class:`slideflow.mil.TrainerConfigCLAM`):
+            Configuration for building model. If ``weights`` is a path to a
+            model directory, will attempt to read ``mil_params.json`` from this
+            location and load saved configuration. Defaults to None.
+        dataset (:class:`slideflow.Dataset`): Dataset.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+    """
+    from .features import MILFeatures
+
+    # Load model weights.
+    model, config = utils.load_model_weights(weights, config)
+
+    # Ensure the model is valid for generating features.
+    if not hasattr(model, 'get_last_layer_activations'):
+        raise errors.ModelError(
+            f"Model {config.model_config.model} is not supported.")
+
+    # Prepare bags and targets.
+    slides = dataset.slides()
+    if isinstance(bags, str):
+        bags = dataset.pt_files(bags)
+    else:
+        bags = np.array([b for b in bags if path_to_name(b) in slides])
+
+    # Ensure slide names are sorted according to the bags.
+    slides = [path_to_name(b) for b in bags]
+
+    # Calculate and return last-layer features.
+    return MILFeatures(model, bags, slides=slides, config=config, dataset=dataset)
 
 
 def generate_attention_heatmaps(
@@ -404,28 +769,43 @@ def generate_attention_heatmaps(
 
 def _export_attention(
     dest: str,
-    y_att: List[np.ndarray],
+    y_att: Union[List[np.ndarray], List[List[np.ndarray]]],
     slides: List[str]
 ) -> None:
     """Export attention scores to a directory."""
     if not exists(dest):
         os.makedirs(dest)
     for slide, att in zip(slides, y_att):
-        if 'SF_ALLOW_ZIP' in os.environ and os.environ['SF_ALLOW_ZIP'] == '0':
-            out_path = join(dest, f'{slide}_att.npy')
-            np.save(out_path, att)
-        else:
+
+        if isinstance(att, (list, tuple)) and not sf.util.zip_allowed():
+            raise RuntimeError(
+                "Cannot export multimodal attention scores to a directory (NPZ) "
+                "when ZIP functionality is disabled. Enable zip functionality "
+                "by setting 'SF_ALLOW_ZIP=1' in your environment, or by "
+                "wrapping your script in 'with sf.util.enable_zip():'.")
+
+        elif isinstance(att, (list, tuple)):
+            out_path = join(dest, f'{slide}_att.npz')
+            np.savez(out_path, *att)
+
+        elif sf.util.zip_allowed():
             out_path = join(dest, f'{slide}_att.npz')
             np.savez(out_path, att)
+
+        else:
+            out_path = join(dest, f'{slide}_att.npy')
+            np.save(out_path, att)
+
     log.info(f"Attention scores exported to [green]{out_path}[/]")
 
 
 def _predict_clam(
-    model: Callable,
+    model: "torch.nn.Module",
     bags: Union[np.ndarray, List[str]],
     attention: bool = False,
     device: Optional[Any] = None
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
+    """Generate CLAM predictions for a list of bags."""
 
     import torch
     from slideflow.mil.models import CLAM_MB, CLAM_SB
@@ -436,23 +816,15 @@ def _predict_clam(
         clam_kw = {}
         attention = False
 
-    # Auto-detect device.
-    if device is None:
-        if next(model.parameters()).is_cuda:
-            log.debug("Auto device detection: using CUDA")
-            device = torch.device('cuda')
-        else:
-            log.debug("Auto device detection: using CPU")
-            device = torch.device('cpu')
-    elif isinstance(device, str):
-        log.debug(f"Using {device}")
-        device = torch.device(device)
-
     y_pred = []
     y_att  = []
-    log.info("Generating predictions...")
+    device = utils._detect_device(model, device, verbose=True)
     for bag in bags:
-        loaded = _load_bag(bag).to(device)
+        if isinstance(bag, list):
+            # If bags are passed as a list of paths, load them individually.
+            loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
+        else:
+            loaded = utils._load_bag(bag).to(device)
         with torch.no_grad():
             if clam_kw:
                 logits, att, _ = model(loaded, **clam_kw)
@@ -466,27 +838,26 @@ def _predict_clam(
 
 
 def _predict_mil(
-    model: Callable,
+    model: "torch.nn.Module",
     bags: Union[np.ndarray, List[str]],
+    *,
     attention: bool = False,
     attention_pooling: str = 'avg',
     use_lens: bool = False,
-    device: Optional[Any] = None
+    device: Optional[Any] = None,
+    apply_softmax: bool = True,
+    uq: bool = False
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
+    """Generate MIL predictions for a list of bags."""
 
     import torch
 
-    # Auto-detect device.
-    if device is None:
-        device = next(model.parameters()).device
-        log.debug(f"Auto device detection: using {device}")
-    elif isinstance(device, str):
-        log.debug(f"Using {device}")
-        device = torch.device(device)
-
     y_pred = []
     y_att  = []
-    log.info("Generating predictions...")
+    uncertainty = []
+    device = utils._detect_device(model, device, verbose=True)
+
+    # Ensure the model has attention capabilities.
     if attention and not hasattr(model, 'calculate_attention'):
         log.warning(
             "Model '{}' does not have a method 'calculate_attention'. "
@@ -495,17 +866,41 @@ def _predict_mil(
             )
         )
         attention = False
+
     for bag in bags:
-        loaded = torch.unsqueeze(_load_bag(bag).to(device), dim=0)
+        if isinstance(bag, list):
+            # If bags are passed as a list of paths, load them individually.
+            loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
+        else:
+            loaded = utils._load_bag(bag).to(device)
+        loaded = torch.unsqueeze(loaded, dim=0)
         with torch.no_grad():
             if use_lens:
                 lens = torch.from_numpy(np.array([loaded.shape[1]])).to(device)
                 model_args = (loaded, lens)
             else:
                 model_args = (loaded,)
-            model_out = model(*model_args)
+
+            # Run inference.
+            if uq and inspect.signature(model.forward).parameters['uq']:
+                kw = dict(uq=True)
+            elif uq:
+                raise RuntimeError("Model does not support UQ.")
+            else:
+                kw = dict()
+            if attention and inspect.signature(model.forward).parameters['return_attention']:
+                model_out, att = model(*model_args, return_attention=True, **kw)
+            elif attention:
+                model_out = model(*model_args, **kw)
+                att = model.calculate_attention(*model_args)
+            else:
+                model_out = model(*model_args, **kw)
+            if uq:
+                model_out, y_uncertainty = model_out
+                uncertainty.append(y_uncertainty.cpu().numpy())
+
             if attention:
-                att = torch.squeeze(model.calculate_attention(*model_args))
+                att = torch.squeeze(att)
                 if len(att.shape) == 2:
                     log.warning("Pooling attention scores from 2D to 1D")
                     # Attention needs to be pooled
@@ -520,6 +915,102 @@ def _predict_mil(
                             )
                         )
                 y_att.append(att.cpu().numpy())
+            if apply_softmax:
+                model_out = torch.nn.functional.softmax(model_out, dim=1)
+            y_pred.append(model_out.cpu().numpy())
+    yp = np.concatenate(y_pred, axis=0)
+    if uq:
+        uncertainty = np.concatenate(uncertainty, axis=0)
+        return yp, y_att, uncertainty
+    else:
+        return yp, y_att
+
+
+def _predict_mil_tiles(
+    model: "torch.nn.Module",
+    bag: Union[str, List[str]],
+    *,
+    use_lens: bool = False,
+    device: Optional[Any] = None,
+    apply_softmax: bool = True,
+    use_first_out: bool = False
+) -> Tuple[np.ndarray, List[np.ndarray]]:
+    """Generate tile predictions from an MIL model from a bag."""
+
+    import torch
+
+    # Prepare bag.
+    device = utils._detect_device(model, device, verbose=True)
+    model.eval()
+    if isinstance(bag, list):
+        # If bags are passed as a list of paths, load them individually.
+        loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
+    else:
+        loaded = utils._load_bag(bag).to(device)
+
+    # Resize the bag dimension to the batch dimension.
+    loaded = torch.unsqueeze(loaded, dim=1)
+
+    # Inference.
+    y_pred = []
+    for n in range(loaded.shape[0]):
+        tile = torch.unsqueeze(loaded[n], dim=0)
+        with torch.no_grad():
+            if use_lens:
+                lens = torch.ones(tile.shape[0:2]).to(device)
+                model_args = (tile, lens)
+            else:
+                model_args = (tile,)
+            model_out = model(*model_args)
+            if use_first_out:  # CLAM models return attention scores as well
+                model_out = model_out[0]
+            if apply_softmax:
+                model_out = torch.nn.functional.softmax(model_out, dim=1)
+            y_pred.append(model_out.cpu().numpy())
+    y_pred = np.concatenate(y_pred, axis=0)
+    return y_pred
+
+
+def _predict_multimodal_mil(
+    model: "torch.nn.Module",
+    bags: Union[List[np.ndarray], List[List[str]]],
+    attention: bool = True,
+    use_lens: bool = True,
+    device: Optional[Any] = None
+) -> Tuple[np.ndarray, List[List[np.ndarray]]]:
+    """Generate multi-mag MIL predictions for a nested list of bags."""
+    import torch
+
+    y_pred = []
+    n_mag = len(bags[0])
+    y_att  = [[] for _ in range(n_mag)]
+    device = utils._detect_device(model, device, verbose=True)
+
+    # Ensure the model has attention capabilities.
+    if attention and not hasattr(model, 'calculate_attention'):
+        log.warning(
+            "Model '{}' does not have a method 'calculate_attention'. "
+            "Unable to calculate or display attention heatmaps.".format(
+                model.__class__.__name__
+            )
+        )
+        attention = False
+
+    for bag in bags:
+        loaded = [torch.unsqueeze(utils._load_bag(b).to(device), dim=0)
+                  for b in bag]
+        with torch.no_grad():
+            if use_lens:
+                model_args = [(mag_bag, torch.from_numpy(np.array([mag_bag.shape[1]])).to(device))
+                              for mag_bag in loaded]
+            else:
+                model_args = (loaded,)
+            model_out = model(*model_args)
+            if attention:
+                raw_att = model.calculate_attention(*model_args)
+                for mag in range(n_mag):
+                    att = torch.squeeze(raw_att[mag], dim=0)
+                    y_att[mag].append(att.cpu().numpy())
             y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att

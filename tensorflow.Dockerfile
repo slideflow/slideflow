@@ -3,7 +3,7 @@ FROM tensorflow/tensorflow:2.9.3-gpu
 
 # Install necessary packages
 RUN apt update && \
-    apt install -y liblapack-dev libblas-dev libgl1-mesa-glx libsm6 libxext6 wget vim g++ pkg-config libglib2.0-dev expat libexpat-dev libexif-dev libtiff-dev libgsf-1-dev openslide-tools libopenjp2-tools libpng-dev libtiff5-dev libjpeg-turbo8-dev libopenslide-dev && \
+    apt install -y liblapack-dev libblas-dev libgl1-mesa-glx libsm6 libxext6 wget vim g++ pkg-config libglib2.0-dev expat libexpat-dev libexif-dev libtiff-dev libgsf-1-dev openslide-tools libopenjp2-tools libpng-dev libtiff5-dev libjpeg-turbo8-dev libopenslide-dev python3-tk && \
     sed -i '/^#\sdeb-src /s/^# *//' "/etc/apt/sources.list" && \
     apt update
 
@@ -25,9 +25,10 @@ RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.1/scripts/
     ./pixman_repair.sh
 
 # Install slideflow & download scripts
-RUN pip3 install slideflow[cucim]==2.1.0 cupy-cuda11x tensorflow_datasets tensorflow_probability==0.17.* && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.1.0/scripts/test.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.1.0/scripts/run_project.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.1.0/scripts/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.1.0/scripts/qupath_roi_legacy.groovy && \
+RUN pip3 install slideflow[cucim]==2.2.0 cupy-cuda11x tensorflow_datasets tensorflow_probability==0.17.* && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/test.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/slideflow_studio.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/run_project.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/qupath_roi_legacy.groovy && \
     pip3 install spams --no-cache --force-reinstall --no-deps

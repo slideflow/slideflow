@@ -199,10 +199,12 @@ class SlideReport:
 
     def _compress(self, img: bytes) -> bytes:
         with io.BytesIO() as output:
-            img = Image.open(io.BytesIO(img))
-            if img.height > 256:
-                img = Image.fromarray(cv2.resize(np.array(img), [256, 256]))
-            img.save(output, format="JPEG", quality=75)
+            pil_img = Image.open(io.BytesIO(img))
+            if pil_img.height > 256:
+                pil_img = Image.fromarray(
+                    cv2.resize(np.array(pil_img), [256, 256])
+                )
+            pil_img.save(output, format="JPEG", quality=75)
             return output.getvalue()
 
     def image_row(self) -> Optional[bytes]:

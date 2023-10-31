@@ -2,15 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn as nn
-import slideflow as sf
-import numpy as np
 
 from torch.nn import Parameter
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
 
-from ..base import BaseFeatureExtractor
-from ._slide import features_from_slide
+from ._factory_torch import TorchFeatureExtractor
 
 # -----------------------------------------------------------------------------
 
@@ -267,18 +264,29 @@ class ResNet50(nn.Module):
 
 # -----------------------------------------------------------------------------
 
-class RetCCLFeatures(BaseFeatureExtractor):
-    """RetCCl pretrained feature extractor.
-
+class RetCCLFeatures(TorchFeatureExtractor):
+    """
+    RetCCl pretrained feature extractor.
     Feature dimensions: 2048
-
     GitHub: https://github.com/Xiyue-Wang/RetCCL
     """
 
     tag = 'retccl'
+    license = "GNU General Public License v3.0"
+    citation = """
+@article{WANG2023102645,
+    title = {RetCCL: Clustering-guided contrastive learning for whole-slide image retrieval},
+    author = {Xiyue Wang and Yuexi Du and Sen Yang and Jun Zhang and Minghui Wang and Jing Zhang and Wei Yang and Junzhou Huang and Xiao Han},
+    journal = {Medical Image Analysis},
+    volume = {83},
+    pages = {102645},
+    year = {2023},
+    issn = {1361-8415}
+}
+"""
 
-    def __init__(self, device=None, center_crop=False):
-        super().__init__(backend='torch')
+    def __init__(self, device=None, center_crop=False, ckpt=None):
+        super().__init__()
 
         from slideflow.model import torch_utils
         self.device = torch_utils.get_device(device)
@@ -291,19 +299,20 @@ class RetCCLFeatures(BaseFeatureExtractor):
             normlinear=True
         )
         self.model.fc = torch.nn.Identity().to(self.device)
-
-        checkpoint_path = hf_hub_download(
-            repo_id='jamesdolezal/RetCCL',
-            filename='retccl.pth'
-        )
-        td = torch.load(checkpoint_path, map_location=self.device)
+        if ckpt is None:
+            ckpt = hf_hub_download(
+                repo_id='jamesdolezal/RetCCL',
+                filename='retccl.pth'
+            )
+        elif not isinstance(ckpt, str):
+            raise ValueError(f"Invalid checkpoint path: {ckpt}")
+        td = torch.load(ckpt, map_location=self.device)
         self.model.load_state_dict(td, strict=True)
         self.model = self.model.to(self.device)
         self.model.eval()
 
         # ---------------------------------------------------------------------
         self.num_features = 2048
-        self.num_classes = 0
         all_transforms = [transforms.CenterCrop(256)] if center_crop else []
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
@@ -316,20 +325,6 @@ class RetCCLFeatures(BaseFeatureExtractor):
         self._center_crop = center_crop
         # ---------------------------------------------------------------------
 
-    def __call__(self, obj, **kwargs):
-        """Generate features for a batch of images or a WSI."""
-        if isinstance(obj, sf.WSI):
-            grid = features_from_slide(self, obj, **kwargs)
-            return np.ma.masked_where(grid == -99, grid)
-        elif kwargs:
-            raise ValueError(
-                f"{self.__class__.__name__} does not accept keyword arguments "
-                "when extracting features from a batch of images."
-            )
-        assert obj.dtype == torch.uint8
-        obj = self.transform(obj)
-        return self.model(obj)
-
     def dump_config(self):
         """Return a dictionary of configuration parameters.
 
@@ -337,7 +332,8 @@ class RetCCLFeatures(BaseFeatureExtractor):
         feature extractor, using ``slideflow.model.build_feature_extractor()``.
 
         """
+        cls_name = self.__class__.__name__
         return {
-            'class': 'slideflow.model.extractors.retccl.RetCCLFeatures',
+            'class': f'slideflow.model.extractors.retccl.{cls_name}',
             'kwargs': {'center_crop': self._center_crop}
         }

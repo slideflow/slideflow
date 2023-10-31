@@ -86,39 +86,14 @@ class ImguiWindow(GlfwWindow):
             if toast.expired:
                 _to_del.append(toast)
                 continue
-            imgui.push_style_var(imgui.STYLE_ALPHA, toast.alpha)
-            _old_rounding = imgui.get_style().window_rounding
-            imgui.get_style().window_rounding = 5
 
             _cur_height += toast.height + padding
-            imgui.set_next_window_position(
-                self.content_width - (toast.width + padding),
-                self.content_height - _cur_height,
+            toast.render(
+                self,
+                toast_id=_id,
+                height_offset=_cur_height,
+                padding=padding
             )
-            imgui.set_next_window_size(toast.width, 0)
-
-            # Render with imgui
-            imgui.begin(f'toast{_id}', flags=imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_SCROLLBAR)
-            if toast.icon:
-                self.icon(toast.icon, sameline=True)
-            if toast.title:
-                if toast.spinner:
-                    imgui.text(f"{toast.title}{imgui_utils.spinner_text()}")
-                else:
-                    imgui.text(toast.title)
-                if toast.message:
-                    imgui.separator()
-            if toast.message:
-                imgui.push_text_wrap_pos()
-                imgui.text(toast.message)
-                if toast.spinner and not toast.title:
-                    imgui.same_line()
-                    imgui_utils.spinner()
-                imgui.pop_text_wrap_pos()
-            toast._height = imgui.get_window_height()
-            imgui.end()
-            imgui.pop_style_var()
-            imgui.get_style().window_rounding = _old_rounding
 
         # Remove expired toasts
         for _expired in _to_del:
@@ -142,12 +117,14 @@ class ImguiWindow(GlfwWindow):
         self._render_toasts()
 
     @contextlib.contextmanager
-    def bold_font(self):
-        imgui.pop_font()
-        imgui.push_font(self._imgui_fonts_bold[self._cur_font_size])
+    def bold_font(self, bold=True):
+        if bold:
+            imgui.pop_font()
+            imgui.push_font(self._imgui_fonts_bold[self._cur_font_size])
         yield
-        imgui.pop_font()
-        imgui.push_font(self._imgui_fonts[self._cur_font_size])
+        if bold:
+            imgui.pop_font()
+            imgui.push_font(self._imgui_fonts[self._cur_font_size])
 
     def center_text(self, text):
         size = imgui.calc_text_size(text)

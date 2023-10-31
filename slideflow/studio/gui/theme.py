@@ -9,7 +9,7 @@ __themes__ = {}
 @dataclass
 class StudioTheme:
     """Default theme.
-    
+
     Dark theme with yellow 'bright' buttons
     and blue accents.
     """
@@ -31,6 +31,9 @@ class StudioTheme:
     header: RGBA = (0.15, 0.15, 0.15, 1)
     header_hovered: RGBA = (0.25, 0.25, 0.25, 1)
     header_text: RGBA = (0.7, 0.7, 0.7, 1)
+    header2: RGBA = (0.09, 0.09, 0.09, 1)
+    header2_hovered: RGBA = (0.15, 0.15, 0.15, 1)
+    header2_text: RGBA = (1, 1, 1, 1)
     dim: RGBA = (1, 1, 1, 0.5)
 
 # -----------------------------------------------------------------------------

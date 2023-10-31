@@ -269,3 +269,45 @@ def click_hidden_window(label, x, y, width, height, enabled=True, mouse_idx=0):
     imgui.end()
     imgui.pop_style_color(2)
     return clicking, cx-x, cy-y, wheel
+
+#----------------------------------------------------------------------------
+
+def progress_bar(val, max_val=1, width=None, x_pad=0, y_pad=0, thickness=7, color=(0, 1, 0, 1)):
+    if width is None:
+        width = imgui.get_content_region_available_width()
+    x, y = imgui.get_cursor_screen_position()
+    if x_pad:
+        x += x_pad
+        width -= (x_pad * 2)
+    if y_pad:
+        y += y_pad
+    prog_width = int((val / max_val) * width)
+    draw_list = imgui.get_window_draw_list()
+    # Gray
+    draw_list.add_rect_filled(
+        x,
+        y,
+        x + width,
+        y + thickness,
+        imgui.get_color_u32_rgba(0.5, 0.5, 0.5, 1)
+    )
+    # Green
+    draw_list.add_rect_filled(
+        x,
+        y,
+        x + prog_width,
+        y + thickness,
+        imgui.get_color_u32_rgba(*color)
+    )
+    imgui.set_cursor_screen_position((x, int(y + y_pad * 2 + thickness)))
+
+#----------------------------------------------------------------------------
+
+def get_random_color(style=None):
+    """Get a random color (R, G, B, A)."""
+    if style not in [None, 'bright']:
+        raise ValueError('Invalid style: {}'.format(style))
+    import random
+    import colorsys
+    h,s,l = random.random(), 0.5 + random.random()/2.0, 0.4 + random.random()/5.0
+    return colorsys.hls_to_rgb(h,l,s)

@@ -11,8 +11,6 @@ import torch
 import torch.nn as nn
 import math
 import torch.utils.checkpoint as checkpoint
-import slideflow as sf
-import numpy as np
 from typing import Optional
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
@@ -25,8 +23,7 @@ from timm.models.layers import _assert
 from timm.models.swin_transformer import window_partition, window_reverse
 from timm.models.vision_transformer import checkpoint_filter_fn
 
-from ..base import BaseFeatureExtractor
-from ._slide import features_from_slide
+from ._factory_torch import TorchFeatureExtractor
 
 # -----------------------------------------------------------------------------
 
@@ -559,8 +556,9 @@ class ConvStem(torch.nn.Module):
 
 # -----------------------------------------------------------------------------
 
-class CTransPathFeatures(BaseFeatureExtractor):
-    """CTransPath pretrained feature extractor.
+class CTransPathFeatures(TorchFeatureExtractor):
+    """
+    CTransPath pretrained feature extractor.
 
     The feature extractor is based on a modified swin transformer
     ("swin_tiny_patch4_window7_224"), pretrained on digital pathology images,
@@ -576,9 +574,19 @@ class CTransPathFeatures(BaseFeatureExtractor):
     """
 
     tag = 'ctranspath'
+    license = """GNU General Public License v3.0"""
+    citation = """
+@{wang2022,
+  title={Transformer-based Unsupervised Contrastive Learning for Histopathological Image Classification},
+  author={Wang, Xiyue and Yang, Sen and Zhang, Jun and Wang, Minghui and Zhang, Jing  and Yang, Wei and Huang, Junzhou  and Han, Xiao},
+  journal={Medical Image Analysis},
+  year={2022},
+  publisher={Elsevier}
+}
+"""
 
     def __init__(self, device=None, center_crop=False):
-        super().__init__(backend='torch')
+        super().__init__()
 
         from slideflow.model import torch_utils
         self.device = torch_utils.get_device(device)
@@ -596,7 +604,6 @@ class CTransPathFeatures(BaseFeatureExtractor):
 
         # ---------------------------------------------------------------------
         self.num_features = 768
-        self.num_classes = 0
         all_transforms = [transforms.CenterCrop(224)] if center_crop else []
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
@@ -608,20 +615,6 @@ class CTransPathFeatures(BaseFeatureExtractor):
         self.preprocess_kwargs = dict(standardize=False)
         self._center_crop = center_crop
         # ---------------------------------------------------------------------
-
-    def __call__(self, obj, **kwargs):
-        """Generate features for a batch of images or a WSI."""
-        if isinstance(obj, sf.WSI):
-            grid = features_from_slide(self, obj, **kwargs)
-            return np.ma.masked_where(grid == -99, grid)
-        elif kwargs:
-            raise ValueError(
-                f"{self.__class__.__name__} does not accept keyword arguments "
-                "when extracting features from a batch of images."
-            )
-        assert obj.dtype == torch.uint8
-        obj = self.transform(obj)
-        return self.model(obj)
 
     def dump_config(self):
         """Return a dictionary of configuration parameters.

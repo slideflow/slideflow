@@ -7,7 +7,6 @@ from slideflow.tfrecord import \
     iterator_utils  # noqa # pylint: disable=unused-import
 from slideflow.tfrecord import reader  # noqa # pylint: disable=unused-import
 from slideflow.tfrecord import tools  # noqa # pylint: disable=unused-import
-from slideflow.tfrecord import torch  # noqa # pylint: disable=unused-import
 from slideflow.tfrecord import writer  # noqa # pylint: disable=unused-import
 from slideflow.tfrecord.iterator_utils import *  # noqa # pylint: disable=unused-import
 from slideflow.tfrecord.reader import *  # noqa # pylint: disable=unused-import

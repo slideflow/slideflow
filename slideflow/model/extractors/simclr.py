@@ -1,12 +1,9 @@
-import slideflow as sf
 import tensorflow as tf
-import numpy as np
 
 from typing import Optional
 from slideflow import simclr
 
-from ..base import BaseFeatureExtractor
-from ._slide import features_from_slide
+from ._tensorflow_base import TensorflowFeatureExtractor
 
 # -----------------------------------------------------------------------------
 
@@ -27,18 +24,24 @@ def crop(image, size):
     return image[top:top+size, left:left+size]
 
 
-class SimCLR_Features(BaseFeatureExtractor):
-    """SimCLR feature extractor.
-
-    Loads trained SimCLRv2 model and provides interface for generating
-    features from a batch of images or a WSI.
-
+class SimCLR_Features(TensorflowFeatureExtractor):
+    """
+    SimCLR feature extractor.
+    Load a trained SimCLRv2 model and generate features from images or a WSI.
     Feature dimensions: <variable>
-
     GitHub: https://github.com/jamesdolezal/simclr
     """
 
     tag = 'simclr'
+    license = "Apache-2.0"
+    citation = """
+@article{chen2020big,
+  title={Big Self-Supervised Models are Strong Semi-Supervised Learners},
+  author={Chen, Ting and Kornblith, Simon and Swersky, Kevin and Norouzi, Mohammad and Hinton, Geoffrey},
+  journal={arXiv preprint arXiv:2006.10029},
+  year={2020}
+}
+"""
 
     def __init__(
         self,
@@ -47,12 +50,11 @@ class SimCLR_Features(BaseFeatureExtractor):
         tile_px: Optional[int] = None,
         resize_crop: bool = True,
     ) -> None:
-        super().__init__(backend='tensorflow')
+        super().__init__()
 
         self.model = simclr.load(ckpt, as_pretrained=True)
         self.simclr_args = simclr.load_model_args(ckpt)
         self.num_features = self.simclr_args.proj_out_dim
-        self.num_classes = 0  # Disable the supervised head.
         self._model_path = ckpt
         self._resize_crop = resize_crop
 
@@ -101,29 +103,6 @@ class SimCLR_Features(BaseFeatureExtractor):
             transform=self.transform
         )
         # ---------------------------------------------------------------------
-
-    @tf.function
-    def _predict(self, batch_images):
-        if batch_images.dtype == tf.uint8:
-            batch_images = tf.map_fn(
-                self.transform,
-                batch_images,
-                dtype=tf.float32
-            )
-        return self.model(batch_images, training=False)[0]
-
-    def __call__(self, obj, **kwargs):
-        """Generate features for a batch of images or a WSI."""
-        if isinstance(obj, sf.WSI):
-            grid = features_from_slide(self, obj, preprocess_fn=self.transform, **kwargs)
-            return np.ma.masked_where(grid == -99, grid)
-        elif kwargs:
-            raise ValueError(
-                f"{self.__class__.__name__} does not accept keyword arguments "
-                "when extracting features from a batch of images."
-            )
-        assert obj.dtype in (tf.float32, tf.uint8)
-        return self._predict(obj)
 
     def dump_config(self):
         """Return a dictionary of configuration parameters.

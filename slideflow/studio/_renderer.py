@@ -1,11 +1,11 @@
+import sys
 import cv2
 import time
-import sys
 import traceback
 import numpy as np
-import multiprocessing
 import slideflow as sf
 import slideflow.grad
+from typing import Optional
 from slideflow.util import model_backend
 from rich import print
 
@@ -26,6 +26,11 @@ if sf.util.torch_available:
     import torch
     import torchvision
     import slideflow.io.torch
+
+#----------------------------------------------------------------------------
+
+ABORT_RENDER = 10
+ENABLE_EXPERIMENTAL_UQ = True
 
 #----------------------------------------------------------------------------
 
@@ -100,20 +105,26 @@ def _umap_normalize(vector, clip_min, clip_max, norm_min, norm_max):
     vector /= (norm_max - norm_min)
     return vector
 
+def _prepare_args(args, kwargs):
+    del args['kwargs']
+    del args['self']
+    args.update(kwargs)
+    args['use_model'] = False
+    return args
+
 #----------------------------------------------------------------------------
 
 class Renderer:
     def __init__(self, device=None, buffer=None, extract_px=None, tile_px=None):
-        #self._device            = torch.device('cuda')
         self._pkl_data          = dict()    # {pkl: dict | CapturedException, ...}
         self._pinned_bufs       = dict()    # {(shape, dtype): torch.Tensor, ...}
         self._cmaps             = dict()    # {name: torch.Tensor, ...}
         self._is_timing         = False
-        #self._start_event       = torch.cuda.Event(enable_timing=True)
-        #self._end_event         = torch.cuda.Event(enable_timing=True)
         self._net_layers        = dict()
         self._uq_thread         = None
         self._model             = None
+        self._uq_model          = None
+        self._deepfocus         = None
         self._saliency          = None
         self._buffer            = buffer
         self.extract_px         = extract_px
@@ -128,6 +139,41 @@ class Renderer:
             return None
         else:
             return model_backend(self._model)
+
+    def disable_deepfocus(self):
+        print("Disabling deepfocus")
+        del self._deepfocus
+        self._deepfocus = None
+
+    def enable_deepfocus(self):
+        if self._deepfocus is None:
+            print("Setting up DeepFocus model...")
+            self._deepfocus = sf.slide.qc.DeepFocus().model
+            print("...done")
+
+    def _image_in_focus(self, img, method='laplacian') -> bool:
+        """Predict whether an image is in-focus using DeepFocus."""
+        if method == 'deepfocus':
+            self.enable_deepfocus()
+            img = tf.cast(tf.convert_to_tensor(img), tf.uint8)
+            proc_img = tf.image.resize(img, (64, 64), method='lanczos3')
+            # From what I can tell, DeepFocus was trained using the preprocessing steps:
+            #   (img / 255.) - mean(img / 255.)
+            # However, this does not work well with a live camera feed, probably because
+            #   the brightness/contrast is lower.
+            # Instead, I've found that tf.image.per_image_standardization() works better
+            #   on live camera images, as it scales the variance of the image to be 1,
+            #   which would be effectively similary to increasing contrast in the image.
+            proc_img = tf.image.per_image_standardization(proc_img)
+            proc_img = tf.expand_dims(proc_img, axis=0)
+            _focus_pred = self._deepfocus(proc_img, training=False)[0][1]
+            return _focus_pred > 0.5
+        elif method == 'laplacian':
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            laplacian_variance = cv2.Laplacian(gray, cv2.CV_64F).var()
+            return laplacian_variance > 80
+        else:
+            raise ValueError("Unrecognized focus method: {}".format(method))
 
     def process_tf_preds(self, preds):
         if isinstance(preds, list):
@@ -144,38 +190,63 @@ class Renderer:
             return x.cpu().detach().numpy()
 
     def add_renderer(self, renderer):
+        """Add a renderer to the rendering pipeline."""
         sf.log.debug(f"Adding renderer: {renderer}")
         self._addl_renderers += [renderer]
 
     def remove_renderer(self, renderer):
+        """Remove a renderer from the rendering pipeline."""
         sf.log.debug(f"Removing renderer: {renderer}")
         idx = self._addl_renderers.index(renderer)
         del self._addl_renderers[idx]
 
     def render(self, **args):
+        """Render predictions for an image and any post-processing."""
         self._is_timing = True
-        #self._start_event.record(torch.cuda.current_stream(self._device))
         self._start_time = time.time()
         res = EasyDict()
         try:
             self._render_impl(res, **args)
         except:
             res.error = CapturedException()
-        #self._end_event.record(torch.cuda.current_stream(self._device))
         if 'error' in res:
             res.error = str(res.error)
         if self._is_timing:
-            #self._end_event.synchronize()
-            res.render_time = time.time() - self._start_time #self._start_event.elapsed_time(self._end_event) * 1e-3
+            res.render_time = time.time() - self._start_time
             self._is_timing = False
         return res
+
+    def load_model(self, model_path: str, device: Optional[str] = None) -> None:
+        """Load a model."""
+        _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device)
+        self.set_model(_model, uq=sf.util.is_uq_model(model_path))
+        self.set_saliency(_saliency)
+        self.set_umap_encoders(_umap_encoders)
+
+    def set_model(self, model, uq=False):
+        """Set a loaded model to the active model."""
+        self._model = model
+        if uq and ENABLE_EXPERIMENTAL_UQ:
+            self._uq_model = sf.model.tensorflow.build_uq_model(model)
+
+    def set_saliency(self, saliency):
+        """Set a loaded saliency model to the active saliency model."""
+        self._saliency = saliency
+
+    def set_umap_encoders(self, umap_encoders):
+        """Set a loaded UMAP encoder to the active UMAP encoder."""
+        self._umap_encoders = umap_encoders
 
     def _ignore_timing(self):
         self._is_timing = False
 
     def _calc_preds_and_uncertainty(self, img, uq_n=30):
 
-        if self.model_type in ('tensorflow', 'tflite'):
+        if self.model_type in ('tensorflow', 'tflite') and ENABLE_EXPERIMENTAL_UQ:
+            yp_mean, yp_std = self._uq_model(img, training=False)
+            yp_mean, yp_std = yp_mean.numpy()[0], yp_std.numpy()[0]
+            num_outcomes = 1 if not isinstance(yp_std, list) else len(yp_std)
+        elif self.model_type in ('tensorflow', 'tflite'):
             yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
             reduce_fn = _reduce_dropout_preds_tf
         else:
@@ -184,14 +255,16 @@ class Renderer:
                 yp = self._model(img.expand(uq_n, -1, -1, -1))
             reduce_fn = _reduce_dropout_preds_torch
 
-        num_outcomes = 1 if not isinstance(yp, list) else len(yp)
-        yp_drop = {n: [] for n in range(num_outcomes)}
-        if num_outcomes > 1:
-            for o in range(num_outcomes):
-                yp_drop[o] = yp[o]
-        else:
-            yp_drop[0] = yp
-        yp_mean, yp_std = reduce_fn(yp_drop, num_outcomes, stack=False)
+        if self.model_type == 'torch' or not ENABLE_EXPERIMENTAL_UQ:
+            # Previously for both tf & torch
+            num_outcomes = 1 if not isinstance(yp, list) else len(yp)
+            yp_drop = {n: [] for n in range(num_outcomes)}
+            if num_outcomes > 1:
+                for o in range(num_outcomes):
+                    yp_drop[o] = yp[o]
+            else:
+                yp_drop[0] = yp
+            yp_mean, yp_std = reduce_fn(yp_drop, num_outcomes, stack=False)
         if num_outcomes > 1:
             uncertainty = [np.mean(s) for s in yp_std]
         else:
@@ -223,9 +296,121 @@ class Renderer:
             else:
                 preds = preds[0]
         else:
-            preds = self._model(img)
+            if self.model_type == 'torch':
+                with torch.no_grad():
+                    preds = self._model(img)
+            else:
+                preds = self._model(img, training=False)
             preds = self.process_tf_preds(preds)
         return preds, None
+
+    def _read_tile_from_viewer(self, x, y, viewer, use_model, img_format):
+        """Read a tile from the viewer at the given x/y coordinates."""
+        # Determine the target type.
+        if self.model_type in ('tensorflow', 'tflite'):
+            dtype = tf.uint8
+        elif self.model_type == 'torch':
+            dtype = torch.uint8
+
+        # Read the image tile.
+        use_jpeg = use_model and img_format is not None and img_format.lower() in ('jpg', 'jpeg')
+        img = viewer.read_tile(x, y, img_format='jpg' if use_jpeg else None, allow_errors=True)
+        if img is None:
+            return None, None
+
+        # Convert types.
+        if use_jpeg:
+            img = _decode_jpeg(img, self.model_type)
+            if self.model_type == 'torch':
+                result_img = sf.io.torch.cwh_to_whc(img).cpu().numpy()
+            else:
+                result_img = img.numpy()
+            img = sf.io.convert_dtype(img, dtype)
+        else:
+            result_img = img
+
+        return img, result_img
+
+    def _run_models(
+        self,
+        img,
+        res,
+        *,
+        normalizer=None,
+        use_saliency=False,
+        saliency_method=None,
+        saliency_overlay=None,
+        use_umap_encoders=False,
+        use_uncertainty=False,
+        focus_img=None,
+        assess_focus=None,
+    ):
+        """Run model pipelines on a rendered image."""
+
+        # Check focus.
+        if focus_img is not None:
+            res.in_focus = self._image_in_focus(focus_img, method=assess_focus)
+            if not res.in_focus:
+                return
+
+        if self.model_type in ('tensorflow', 'tflite') and isinstance(img, np.ndarray):
+            proc_img = tf.convert_to_tensor(img)
+        elif isinstance(img, np.ndarray):
+            proc_img = sf.io.torch.whc_to_cwh(torch.from_numpy(img)).to(self.device)
+        else:
+            proc_img = img
+
+        # Pre-process image.
+        if normalizer:
+            _norm_start = time.time()
+            proc_img = normalizer.transform(proc_img)
+            if not isinstance(proc_img, np.ndarray):
+                if self.model_type == 'torch':
+                    res.normalized = sf.io.torch.cwh_to_whc(proc_img).cpu().numpy().astype(np.uint8)
+                else:
+                    res.normalized = proc_img.numpy().astype(np.uint8)
+            else:
+                res.normalized = proc_img.astype(np.uint8)
+            res.norm_time = time.time() - _norm_start
+        if self.model_type in ('tensorflow', 'tflite'):
+            proc_img = sf.io.tensorflow.preprocess_uint8(proc_img, standardize=True)['tile_image']
+        elif self.model_type == 'torch':
+            proc_img = sf.io.torch.preprocess_uint8(proc_img, standardize=True)
+            if self.device is not None:
+                proc_img = proc_img.to(self.device)
+
+        # Saliency.
+        if use_saliency:
+            mask = self._saliency.get(self.to_numpy(proc_img, as_whc=True), method=saliency_method)
+            if saliency_overlay:
+                res.image = sf.grad.plot_utils.overlay(res.image, mask)
+            else:
+                res.image = sf.grad.plot_utils.inferno(mask)
+            if res.image.shape[-1] == 4:
+                res.image = res.image[:, :, 0:3]
+
+        # Show predictions.
+        _inference_start = time.time()
+        if use_umap_encoders:
+            u = self._umap_encoders
+            encoder_out = u.encoder(tf.expand_dims(proc_img, axis=0))
+            res.umap_coords = {}
+            for i, layer in enumerate(u.layers):
+                res.umap_coords[layer] = _umap_normalize(
+                    encoder_out[i],
+                    clip_min=u.clip[layer][0],
+                    clip_max=u.clip[layer][1],
+                    norm_min=u.range[layer][0],
+                    norm_max=u.range[layer][1]
+                )[0]
+            res.predictions = self.process_tf_preds(encoder_out[-1])
+            res.uncertainty = None
+        else:
+            res.predictions, res.uncertainty = self._classify_img(
+                proc_img,
+                use_uncertainty=use_uncertainty
+            )
+        res.inference_time = time.time() - _inference_start
 
     def _render_impl(self, res,
         x                   = 0,
@@ -242,20 +427,56 @@ class Renderer:
         tile_um             = None,
         full_image          = None,
         use_umap_encoders   = False,
+        assess_focus        = False,
         **kwargs
     ):
-        args = locals()
-        del args['kwargs']
-        del args['self']
-        args.update(kwargs)
-        args['use_model'] = False
+
+        # Trigger other renderers in the pipeline.
+        renderer_args = _prepare_args(locals(), kwargs)
         for renderer in self._addl_renderers:
-            renderer._render_impl(**args)
+            exit_code = renderer._render_impl(**renderer_args)
+            if exit_code == ABORT_RENDER:
+                return
+
+        # If coordinates are not provided and an image is not
+        # already stored in `res`, then skip.
         if (x is None or y is None) and 'image' not in res:
             return
+
+        # If full_image is provided, use this instead of looking up
+        # a tile image from the viewer.
+        focus_img, img = None, None
         if full_image is not None:
-            img = cv2.resize(full_image, (tile_px, tile_px))
+            if not tile_px:
+                return
+            img = cv2.resize(full_image, (tile_px, tile_px), interpolation=cv2.INTER_LANCZOS4)
             res.image = img
+
+            if assess_focus:
+                w = full_image.shape[0]
+                if assess_focus == 'deepfocus':
+                    # DeepFocus target size is tile_px=64 tile_um=256 (40X),
+                    # but we'll work at 20X since it's more practical.
+                    crop_ratio = 128. / tile_um
+                    if crop_ratio > 1:
+                        raise NotImplementedError
+                    crop_w = crop_ratio * w
+                else:
+                    # Other focus methods use a 64x64 center crop
+                    crop_w = 64
+                focus_img = full_image[int(w/2-crop_w/2):int(w/2+crop_w/2),
+                                       int(w/2-crop_w/2):int(w/2+crop_w/2)]
+
+
+        # If image is in res, it was generated by one of the additional renderers.
+        # Check if any additional pre-processing needs to be done.
+        elif 'image' in res and use_model:
+            img = res.image
+            for renderer in self._addl_renderers:
+                if hasattr(renderer, 'preprocess'):
+                    img = renderer.preprocess(img, tile_px=tile_px, tile_um=tile_um)
+
+        # Otherwise, use the viewer to find the tile image.
         elif viewer is not None:
 
             if not self._model:
@@ -266,250 +487,34 @@ class Renderer:
             res.predictions = None
             res.uncertainty = None
 
-            if self.model_type in ('tensorflow', 'tflite'):
-                dtype = tf.uint8
-            elif self.model_type == 'torch':
-                dtype = torch.uint8
+            img, result_img = self._read_tile_from_viewer(
+                x, y, viewer, use_model=use_model, img_format=img_format
+            )
+            if assess_focus:
+                raise NotImplementedError
 
-            use_jpeg = use_model and img_format is not None and img_format.lower() in ('jpg', 'jpeg')
-            img = viewer.read_tile(x, y, img_format='jpg' if use_jpeg else None, allow_errors=True)
             if img is None:
                 res.message = "Invalid tile location."
                 print(res.message)
                 return
-            if use_jpeg:
-                img = _decode_jpeg(img, self.model_type)
-                if self.model_type == 'torch':
-                    res.image = sf.io.torch.cwh_to_whc(img).cpu().numpy()
-                else:
-                    res.image = img.numpy()
-                img = sf.io.convert_dtype(img, dtype)
             else:
-                res.image = img
-        elif 'image' in res and use_model:
-            # Image was generated by one of the additional renderers.
-            # Check if any additional pre-processing needs to be done.
-            img = res.image
-            for renderer in self._addl_renderers:
-                if hasattr(renderer, 'preprocess'):
-                    img = renderer.preprocess(img, tile_px=tile_px, tile_um=tile_um)
+                res.image = result_img
+
+        if assess_focus and focus_img is None:
+            focus_img = img
+
+        # ---------------------------------------------------------------------
 
         if use_model:
-            if self.model_type in ('tensorflow', 'tflite') and isinstance(img, np.ndarray):
-                proc_img = tf.convert_to_tensor(img)
-            elif isinstance(img, np.ndarray):
-                proc_img = sf.io.torch.whc_to_cwh(torch.from_numpy(img)).to(self.device)
-            else:
-                proc_img = img
-
-            # Pre-process image.
-            if normalizer:
-                _norm_start = time.time()
-                proc_img = normalizer.transform(proc_img)
-                if not isinstance(proc_img, np.ndarray):
-                    if self.model_type == 'torch':
-                        res.normalized = sf.io.torch.cwh_to_whc(proc_img).cpu().numpy().astype(np.uint8)
-                    else:
-                        res.normalized = proc_img.numpy().astype(np.uint8)
-                else:
-                    res.normalized = proc_img.astype(np.uint8)
-                res.norm_time = time.time() - _norm_start
-            if self.model_type in ('tensorflow', 'tflite'):
-                proc_img = sf.io.tensorflow.preprocess_uint8(proc_img, standardize=True)['tile_image']
-            elif self.model_type == 'torch':
-                proc_img = sf.io.torch.preprocess_uint8(proc_img, standardize=True)
-                if self.device is not None:
-                    proc_img = proc_img.to(self.device)
-
-            # Saliency.
-            if use_saliency:
-                mask = self._saliency.get(self.to_numpy(proc_img, as_whc=True), method=saliency_method)
-                if saliency_overlay:
-                    res.image = sf.grad.plot_utils.overlay(res.image, mask)
-                else:
-                    res.image = sf.grad.plot_utils.inferno(mask)
-                if res.image.shape[-1] == 4:
-                    res.image = res.image[:, :, 0:3]
-
-            # Show predictions.
-            _inference_start = time.time()
-            if use_umap_encoders:
-                u = self._umap_encoders
-                encoder_out = u.encoder(tf.expand_dims(proc_img, axis=0))
-                res.umap_coords = {}
-                for i, layer in enumerate(u.layers):
-                    res.umap_coords[layer] = _umap_normalize(
-                        encoder_out[i],
-                        clip_min=u.clip[layer][0],
-                        clip_max=u.clip[layer][1],
-                        norm_min=u.range[layer][0],
-                        norm_max=u.range[layer][1]
-                    )[0]
-                res.predictions = self.process_tf_preds(encoder_out[-1])
-                res.uncertainty = None
-            else:
-                res.predictions, res.uncertainty = self._classify_img(
-                    proc_img,
-                    use_uncertainty=use_uncertainty
-                )
-            res.inference_time = time.time() - _inference_start
-
-#----------------------------------------------------------------------------
-
-class AsyncRenderer:
-
-    """Renderer to assist with tile-level model predictions."""
-
-    def __init__(self):
-        self._closed        = False
-        self._is_async      = False
-        self._cur_args      = None
-        self._cur_result    = None
-        self._cur_stamp     = 0
-        self._renderer_obj  = None
-        self._args_queue    = None
-        self._result_queue  = None
-        self._process       = None
-        self._model_path    = None
-        self._model         = None
-        self._saliency      = None
-        self._umap_encoders = None
-        self._live_updates  = False
-        self.tile_px        = None
-        self.extract_px     = None
-        self._addl_render   = []
-
-        if sf.util.torch_available:
-            from slideflow.model import torch_utils
-            self.device = torch_utils.get_device()
-        else:
-            self.device = None
-
-    def close(self):
-        self._closed = True
-        self._renderer_obj = None
-        if self._process is not None:
-            self._process.terminate()
-        self._process = None
-        self._args_queue = None
-        self._result_queue = None
-
-    @property
-    def is_async(self):
-        return self._is_async
-
-    def add_to_render_pipeline(self, renderer):
-        if self.is_async:
-            raise ValueError("Cannot add to rendering pipeline when in "
-                             "asynchronous mode.")
-        self._addl_render += [renderer]
-        if self._renderer_obj is not None:
-            self._renderer_obj.add_renderer(renderer)
-
-    def remove_from_render_pipeline(self, renderer):
-        if self.is_async:
-            raise ValueError("Cannot remove rendering pipeline when in "
-                             "asynchronous mode.")
-        idx = self._addl_render.index(renderer)
-        del self._addl_render[idx]
-        if self._renderer_obj is not None:
-            self._renderer_obj.remove_renderer(renderer)
-
-    def set_async(self, is_async):
-        self._is_async = is_async
-
-    def set_args(self, **args):
-        assert not self._closed
-        if args != self._cur_args or self._live_updates:
-            if self._is_async:
-                self._set_args_async(**args)
-            else:
-                self._set_args_sync(**args)
-            if not self._live_updates:
-                self._cur_args = args
-
-    def _set_args_async(self, **args):
-        if self._process is None:
-            ctx = multiprocessing.get_context('spawn')
-            self._args_queue = ctx.Queue()
-            self._result_queue = ctx.Queue()
-            self._process = ctx.Process(target=self._process_fn,
-                                        args=(self._args_queue, self._result_queue, self._model_path, self._live_updates),
-                                        daemon=True)
-            self._process.start()
-        self._args_queue.put([args, self._cur_stamp])
-
-    def _set_args_sync(self, **args):
-        if self._renderer_obj is None:
-            self._renderer_obj = Renderer(device=self.device)
-            for _renderer in self._addl_render:
-                self._renderer_obj.add_renderer(_renderer)
-            self._renderer_obj._model = self._model
-            self._renderer_obj._saliency = self._saliency
-        self._cur_result = self._renderer_obj.render(**args)
-
-    def get_result(self):
-        assert not self._closed
-        if self._result_queue is not None:
-            while self._result_queue.qsize() > 0:
-                result, stamp = self._result_queue.get()
-                if stamp == self._cur_stamp:
-                    self._cur_result = result
-        return self._cur_result
-
-    def clear_result(self):
-        assert not self._closed
-        self._cur_args = None
-        self._cur_result = None
-        self._cur_stamp += 1
-
-    def load_model(self, model_path):
-        if self._is_async:
-            self._set_args_async(load_model=model_path)
-        elif model_path != self._model_path:
-            self._model_path = model_path
-            if self._renderer_obj is None:
-                self._renderer_obj = Renderer(device=self.device)
-                for _renderer in self._addl_render:
-                    self._renderer_obj.add_renderer(_renderer)
-            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
-            self._renderer_obj._model = self._model
-            self._renderer_obj._saliency = self._saliency
-            if _umap_encoders is not None:
-                self._umap_encoders = _umap_encoders
-            self._renderer_obj._umap_encoders = self._umap_encoders
-
-    def clear_model(self):
-        self._model_path = None
-        self._model = None
-        self._saliency = None
-
-    @staticmethod
-    def _process_fn(args_queue, result_queue, model_path, live_updates):
-        if sf.util.torch_available:
-            from slideflow.model import torch_utils
-            device = torch_utils.get_device()
-        else:
-            device = None
-        renderer_obj = Renderer(device=device)
-        if model_path:
-            _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device)
-            renderer_obj._model = _model
-            renderer_obj._saliency = _saliency
-            renderer_obj._umap_encoders = _umap_encoders
-        while True:
-            while args_queue.qsize() > 0:
-                args, stamp = args_queue.get()
-                if 'load_model' in args:
-                    _model, _saliency, _umap_encoders = _load_model_and_saliency(args['load_model'], device=device)
-                    renderer_obj._model = _model
-                    renderer_obj._saliency = _saliency
-                    renderer_obj._umap_encoders = _umap_encoders
-                if 'quit' in args:
-                    return
-            if (live_updates and not result_queue.qsize()):
-                result = renderer_obj.render(**args)
-                if 'error' in result:
-                    result.error = CapturedException(result.error)
-
-                result_queue.put([result, stamp])
+            self._run_models(
+                img,
+                res,
+                normalizer=normalizer,
+                use_saliency=use_saliency,
+                saliency_method=saliency_method,
+                saliency_overlay=saliency_overlay,
+                use_umap_encoders=use_umap_encoders,
+                use_uncertainty=use_uncertainty,
+                focus_img=(None if not assess_focus else focus_img),
+                assess_focus=assess_focus
+            )

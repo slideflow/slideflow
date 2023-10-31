@@ -101,10 +101,8 @@ class SegmentWidget(Widget):
         self.segmentation = Segmentation.load(path)
 
         # Apply ROIs to the segmentation, if applicable.
-        if self.viz.wsi.roi_method != 'ignore' and self.viz.wsi.annPolys is not None:
-            self.segmentation.apply_rois(
-                self.viz.wsi.roi_scale,
-                self.viz.wsi.annPolys)
+        if self.viz.wsi.roi_method != 'ignore' and self.viz.wsi.roi_polys is not None:
+            self.segmentation.apply_rois(1, [r.poly for r in self.viz.wsi.roi_polys])
 
         self.refresh_segmentation_view()
         self._load_toast.done()
@@ -256,6 +254,7 @@ class SegmentWidget(Widget):
             self.viz.wsi.path,
             tile_px=self.tile_px,
             tile_um=self.tile_um,
+            use_bounds=self.settings_widget.use_bounds,
             verbose=False
         )
         if self.otsu:

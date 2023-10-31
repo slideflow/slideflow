@@ -4,14 +4,14 @@ import os
 import importlib.util
 
 # Deep learning backend - use Tensorflow if available.
-_valid_backends = ('tensorflow', 'torch')
+_valid_backends = ('torch', 'tensorflow')
 if 'SF_BACKEND' not in os.environ:
-    if importlib.util.find_spec('tensorflow'):
-        os.environ['SF_BACKEND'] = 'tensorflow'
-    elif importlib.util.find_spec('torch'):
+    if importlib.util.find_spec('torch'):
         os.environ['SF_BACKEND'] = 'torch'
-    else:
+    elif importlib.util.find_spec('tensorflow'):
         os.environ['SF_BACKEND'] = 'tensorflow'
+    else:
+        os.environ['SF_BACKEND'] = 'torch'
 elif os.environ['SF_BACKEND'] not in _valid_backends:
     raise ValueError("Unrecognized backend set via environmental variable "
                     "SF_BACKEND: {}. Expected one of: {}".format(

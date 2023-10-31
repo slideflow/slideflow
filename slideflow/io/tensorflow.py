@@ -292,7 +292,7 @@ def decode_image(
     return image
 
 
-def _decode_image(img_string: bytes, *, img_type: Optional[str] = None):
+def auto_decode_image(img_string: bytes, *, img_type: Optional[str] = None):
     if img_type is None:
         import imghdr
         img_type = imghdr.what('', img_string)
@@ -490,7 +490,7 @@ def interleave(
             extracted from whole-slide images, rather than TFRecords.
             Defaults to False (use TFRecords).
         incl_loc (str, optional): 'coord', 'grid', or None. Return (x,y)
-            origin coordinates ('coord') for each tile along with tile
+            coordinates ('coord') for each tile center along with tile
             images, or the (x,y) grid coordinates for each tile.
             Defaults to 'coord'.
         incl_slidenames (bool, optional): Include slidenames as third returned
@@ -558,12 +558,15 @@ def interleave(
     datasets = []
     weights = [] if prob_weights else None  # type: Optional[List]
 
-    pb = Progress(transient=True)
+
     if from_wsi:
+        pb = Progress(transient=True)
         read_task = pb.add_task('Reading slides...', total=len(paths), visible=False)
         otsu_task = pb.add_task("Otsu thresholding...", total=len(paths), visible=False)
-    interleave_task = pb.add_task('Interleaving...', total=len(paths))
-    pb.start()
+        interleave_task = pb.add_task('Interleaving...', total=len(paths))
+        pb.start()
+    else:
+        pb = None
     with tf.device('cpu'), sf.util.cleanup_progress(pb):
         features_to_return = ['image_raw', 'slide']
         if incl_loc:
@@ -652,7 +655,8 @@ def interleave(
             datasets += [tf_dts]
             if prob_weights:
                 weights += [prob_weights[tfr]]  # type: ignore
-            pb.advance(interleave_task)
+            if from_wsi:
+                pb.advance(interleave_task)
 
         # ------- Interleave and parse datasets -------------------------------
         sampled_dataset = tf.data.Dataset.sample_from_datasets(

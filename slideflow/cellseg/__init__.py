@@ -127,7 +127,7 @@ class Segmentation:
         Args:
             scale (float): ROI scale (roi size / WSI base dimension size).
             annpolys (list(``shapely.geometry.Polygon``)): List of ROI
-                polygons, as available in ``slideflow.WSI.annPolys``.
+                polygons, as available in ``slideflow.WSI.roi_polys``.
 
         """
         if self.wsi_ratio is not None and len(annpolys):

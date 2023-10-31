@@ -31,59 +31,36 @@ Attributes
 Methods
 -------
 
+.. autofunction:: slideflow.WSI.align_to
+.. autofunction:: slideflow.WSI.align_tiles_to
 .. autofunction:: slideflow.WSI.apply_qc_mask
 .. autofunction:: slideflow.WSI.apply_segmentation
+.. autofunction:: slideflow.WSI.area
 .. autofunction:: slideflow.WSI.build_generator
 .. autofunction:: slideflow.WSI.dim_to_mpp
 .. autofunction:: slideflow.WSI.get_tile_mask
+.. autofunction:: slideflow.WSI.get_tile_dataframe
 .. autofunction:: slideflow.WSI.extract_cells
 .. autofunction:: slideflow.WSI.extract_tiles
 .. autofunction:: slideflow.WSI.export_rois
+.. autofunction:: slideflow.WSI.has_rois
 .. autofunction:: slideflow.WSI.load_csv_roi
 .. autofunction:: slideflow.WSI.load_json_roi
+.. autofunction:: slideflow.WSI.load_roi_array
 .. autofunction:: slideflow.WSI.mpp_to_dim
 .. autofunction:: slideflow.WSI.predict
 .. autofunction:: slideflow.WSI.preview
+.. autofunction:: slideflow.WSI.process_rois
+.. autofunction:: slideflow.WSI.show_alignment
+.. autofunction:: slideflow.WSI.square_thumb
 .. autofunction:: slideflow.WSI.qc
 .. autofunction:: slideflow.WSI.remove_qc
+.. autofunction:: slideflow.WSI.remove_roi
 .. autofunction:: slideflow.WSI.tensorflow
 .. autofunction:: slideflow.WSI.torch
 .. autofunction:: slideflow.WSI.thumb
+.. autofunction:: slideflow.WSI.verify_alignment
 .. autofunction:: slideflow.WSI.view
-
-
-slideflow.TMA
-*************
-
-.. autoclass:: TMA
-
-Attributes
-----------
-
-.. autosummary::
-
-    TMA.dimensions
-    TMA.qc_mask
-    TMA.levels
-    TMA.level_dimensions
-    TMA.level_downsamples
-    TMA.level_mpp
-    TMA.properties
-    TMA.slide
-    TMA.vendor
-
-Methods
--------
-
-.. autofunction:: slideflow.TMA.apply_qc_mask
-.. autofunction:: slideflow.TMA.build_generator
-.. autofunction:: slideflow.TMA.dim_to_mpp
-.. autofunction:: slideflow.TMA.extract_tiles
-.. autofunction:: slideflow.TMA.mpp_to_dim
-.. autofunction:: slideflow.TMA.preview
-.. autofunction:: slideflow.TMA.qc
-.. autofunction:: slideflow.TMA.remove_qc
-.. autofunction:: slideflow.TMA.thumb
 
 Other functions
 ***************

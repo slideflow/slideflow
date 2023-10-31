@@ -6,15 +6,17 @@ import os
 import types
 import numpy as np
 import multiprocessing as mp
+import pandas as pd
 import torch
 import torchvision
+
 from torch import Tensor
 from torch.nn.functional import softmax
-from torch.utils.tensorboard import SummaryWriter
 from packaging import version
 from rich.progress import Progress, TimeElapsedColumn
 from collections import defaultdict
 from os.path import join
+from pandas.api.types import is_float_dtype, is_integer_dtype
 from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple,
                     Union, Callable)
 
@@ -430,6 +432,7 @@ class Trainer:
         load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
         device: Optional[str] = None,
+        transform: Optional[Union[Callable, Dict[str, Callable]]] = None
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -466,6 +469,17 @@ class Trainer:
                 detected in ``params.json``, then loading weights with
                 ``torch.nn.Module.load_state_dict()``. Defaults to
                 'full' (ignored).
+            transform (callable or dict, optional): Optional transform to
+                apply to input images. If dict, must have the keys 'train'
+                and/or 'val', mapping to callables that takes a single
+                image Tensor as input and returns a single image Tensor.
+                If None, no transform is applied. If a single callable is
+                provided, it will be applied to both training and validation
+                data. If a dict is provided, the 'train' transform will be
+                applied to training data and the 'val' transform will be
+                applied to validation data. If a dict is provided and either
+                'train' or 'val' is None, no transform will be applied to
+                that data. Defaults to None.
         """
         self.hp = hp
         self.outdir = outdir
@@ -479,7 +493,7 @@ class Trainer:
         self.mid_train_val_dts: Optional[Iterable] = None
         self.loss_fn: torch.nn.modules.loss._Loss
         self.use_tensorboard: bool
-        self.writer: SummaryWriter
+        self.writer = None  # type: Optional[torch.utils.tensorboard.SummaryWriter]
         self._reset_training_params()
 
         if custom_objects is not None:
@@ -506,31 +520,36 @@ class Trainer:
         self.normalizer = self.hp.get_normalizer()
         if self.normalizer:
             log.info(f'Using realtime {self.hp.normalizer} normalization')
-        outcome_labels = np.array(list(labels.values()))
-        if len(outcome_labels.shape) == 1:
-            outcome_labels = np.expand_dims(outcome_labels, axis=1)
-        if not outcome_names:
-            self.outcome_names = [
-                f'Outcome {i}'
-                for i in range(outcome_labels.shape[1])
-            ]
-        else:
-            self.outcome_names = outcome_names
-        if not len(self.outcome_names) == outcome_labels.shape[1]:
-            n_names = len(self.outcome_names)
-            n_out = outcome_labels.shape[1]
-            raise errors.ModelError(f"Number of outcome names ({n_names}) does"
-                                    f" not match number of outcomes ({n_out})")
+
         if not os.path.exists(outdir):
             os.makedirs(outdir)
+
+        self._process_transforms(transform)
+        self._process_outcome_labels(outcome_names)
+        if isinstance(labels, pd.DataFrame):
+            cat_assign = self._process_category_assignments()
 
         # Log parameters
         if config is None:
             config = {
                 'slideflow_version': sf.__version__,
+                'backend': sf.backend(),
+                'git_commit': sf.__gitcommit__,
+                'model_name': self.name,
+                'full_model_name': self.name,
+                'outcomes': self.outcome_names,
+                'model_type': self.hp.model_type(),
+                'img_format': None,
+                'tile_px': self.hp.tile_px,
+                'tile_um': self.hp.tile_um,
+                'input_features': None,
+                'input_feature_sizes': None,
+                'input_feature_labels': None,
                 'hp': self.hp.to_dict(),
-                'backend': sf.backend()
             }
+            if isinstance(labels, pd.DataFrame):
+                config['outcome_labels'] = {str(k): v for k,v in cat_assign.items()}
+
         sf.util.write_json(config, join(self.outdir, 'params.json'))
 
         # Neptune logging
@@ -558,6 +577,96 @@ class Trainer:
     @property
     def multi_outcome(self) -> bool:
         return (self.num_outcomes > 1)
+
+    def _process_category_assignments(self) -> Dict[int, str]:
+        """Get category assignments for categorical outcome labels.
+
+        Dataframes with integer labels are assumed to be categorical if
+        if hp.model_type is 'categorical'.
+        Dataframes with float labels are assumed to be linear.
+        Dataframes with other labels are assumed to be categorical, and will
+        be assigned an integer label based on the order of unique values.
+
+        """
+        if not isinstance(self.labels, pd.DataFrame):
+            raise ValueError("Expected DataFrame with 'label' column.")
+        if 'label' not in self.labels.columns:
+            raise ValueError("Expected DataFrame with 'label' column.")
+        if self.hp.model_type() == 'categorical':
+            if is_integer_dtype(self.labels['label']) or is_float_dtype(self.labels['label']):
+                return {i: str(i) for i in sorted(self.labels['label'].unique())}
+            else:
+                int_to_str = dict(enumerate(sorted(self.labels['label'].unique())))
+                str_to_int = {v: k for k, v in int_to_str.items()}
+                log.info("Assigned integer labels to categories:")
+                log.info(str_to_int)
+                self.labels['label'] = self.labels['label'].map(str_to_int)
+                return int_to_str
+        else:
+            return {}
+
+
+    def _process_transforms(
+        self,
+        transform: Optional[Union[Callable, Dict[str, Callable]]] = None
+    ) -> None:
+        """Process custom transformations for training and/or validation."""
+        if not isinstance(transform, dict):
+            transform = {'train': transform, 'val': transform}
+        if any([t not in ('train', 'val') for t in transform]):
+            raise ValueError("transform must be a callable or dict with keys "
+                             "'train' and/or 'val'")
+        if 'train' not in transform:
+            transform['train'] = None
+        if 'val' not in transform:
+            transform['val'] = None
+        self.transform = transform
+
+    def _process_outcome_labels(
+        self,
+        outcome_names: Optional[List[str]] = None,
+    ) -> None:
+        """Process outcome labels to determine number of outcomes and names.
+
+        Supports experimental tile-level labels provided via pandas DataFrame.
+
+        Args:
+            labels (dict): Dict mapping slide names to outcome labels (int or
+                float format). Experimental funtionality: if labels is a
+                pandas DataFrame, the 'label' column will be used as the
+                outcome labels.
+            outcome_names (list, optional): Name of each outcome. Defaults to
+                "Outcome {X}" for each outcome.
+
+        """
+        # Process DataFrame tile-level labels
+        if isinstance(self.labels, pd.DataFrame):
+            if 'label' not in self.labels.columns:
+                raise errors.ModelError("Expected DataFrame with 'label' "
+                                        "column.")
+            if outcome_names and len(outcome_names) > 1:
+                raise errors.ModelError(
+                    "Expected single outcome name for labels from a pandas dataframe."
+                )
+            self.outcome_names = outcome_names or ['Outcome 0']
+            return
+
+        # Process dictionary slide-level labels
+        outcome_labels = np.array(list(self.labels.values()))
+        if len(outcome_labels.shape) == 1:
+            outcome_labels = np.expand_dims(outcome_labels, axis=1)
+        if not outcome_names:
+            self.outcome_names = [
+                f'Outcome {i}'
+                for i in range(outcome_labels.shape[1])
+            ]
+        else:
+            self.outcome_names = outcome_names
+        if not len(self.outcome_names) == outcome_labels.shape[1]:
+            n_names = len(self.outcome_names)
+            n_out = outcome_labels.shape[1]
+            raise errors.ModelError(f"Number of outcome names ({n_names}) does"
+                                    f" not match number of outcomes ({n_out})")
 
     def _reset_training_params(self) -> None:
         self.global_step = 0
@@ -948,16 +1057,16 @@ class Trainer:
             if isinstance(acc, list):
                 for a, _acc in enumerate(acc):
                     sf.util.neptune_utils.list_log(
-                        run=self.neptune_run, 
-                        label=f'metrics/{label}/{phase}/accuracy-{a}', 
-                        val=_acc, 
+                        run=self.neptune_run,
+                        label=f'metrics/{label}/{phase}/accuracy-{a}',
+                        val=_acc,
                         step=step
                     )
             else:
                 sf.util.neptune_utils.list_log(
-                    run=self.neptune_run, 
-                    label=f'metrics/{label}/{phase}/accuracy', 
-                    val=acc, 
+                    run=self.neptune_run,
+                    label=f'metrics/{label}/{phase}/accuracy',
+                    val=acc,
                     step=step
                 )
 
@@ -1227,6 +1336,7 @@ class Trainer:
                     infinite=True,
                     batch_size=self.hp.batch_size,
                     augment=self.hp.augment,
+                    transform=self.transform['train'],
                     drop_last=True,
                     **vars(interleave_args)
                 ))
@@ -1240,6 +1350,7 @@ class Trainer:
                 infinite=False,
                 batch_size=validation_batch_size,
                 augment=False,
+                transform=self.transform['val'],
                 incl_loc=True,
                 **vars(interleave_args)
             )
@@ -1380,15 +1491,37 @@ class Trainer:
                 "in model params."
             )
 
-    def _verify_img_format(self, dataset: "sf.Dataset") -> None:
-        if self.img_format and not dataset.img_format:
+    def _verify_img_format(self, dataset, *datasets: Optional["sf.Dataset"]) -> str:
+        """Verify that the image format of the dataset matches the model config.
+
+        Args:
+            dataset (sf.Dataset): Dataset to check.
+            *datasets (sf.Dataset): Additional datasets to check. May be None.
+
+        Returns:
+            str: Image format, either 'png' or 'jpg', if a consistent image
+                format was found, otherwise None.
+
+        """
+        # First, verify all datasets have the same image format
+        img_formats = set([d.img_format for d in datasets if d])
+        if len(img_formats) > 1:
+            log.error("Multiple image formats detected: {}.".format(
+                ', '.join(img_formats)
+            ))
+            return None
+        elif self.img_format and not dataset.img_format:
             log.warning("Unable to verify image format (PNG/JPG) of dataset.")
+            return None
         elif self.img_format and dataset.img_format != self.img_format:
             log.error(
                 "Mismatched image formats. Expected '{}' per model config, "
                 "but dataset has format '{}'.".format(
                     self.img_format,
                     dataset.img_format))
+            return None
+        else:
+            return dataset.img_format
 
     def load(self, model: str, training=True) -> None:
         """Loads a state dict at the given model location. Requires that the
@@ -1632,6 +1765,7 @@ class Trainer:
         resume_training: Optional[str] = None,
         pretrain: Optional[str] = 'imagenet',
         checkpoint: Optional[str] = None,
+        save_checkpoints: bool = False,
         multi_gpu: bool = False,
         norm_fit: Optional[NormFit] = None,
         reduce_method: str = 'average',
@@ -1708,6 +1842,12 @@ class Trainer:
                 "PyTorch backend does not support `resume_training`; "
                 "please use `checkpoint`"
             )
+        if save_checkpoints:
+            log.warning(
+                "The argument save_checkpoints is ignored when training models "
+                "in the PyTorch backend. To save a model throughout training, "
+                "use the `epochs` hyperparameter."
+            )
         results = {'epochs': defaultdict(dict)}  # type: Dict[str, Any]
         starting_epoch = max(starting_epoch, 1)
         self._detect_patients(train_dts, val_dts)
@@ -1717,8 +1857,23 @@ class Trainer:
         self.validation_steps = validation_steps
         self.ema_observations = ema_observations
         self.ema_smoothing = ema_smoothing
-        self.use_tensorboard = use_tensorboard
         self.log_frequency = log_frequency
+        self.use_tensorboard = use_tensorboard
+
+        # Verify image format across datasets.
+        img_format = self._verify_img_format(train_dts, val_dts)
+        if img_format and self.config['img_format'] is None:
+            self.config['img_format'] = img_format
+            sf.util.write_json(self.config, join(self.outdir, 'params.json'))
+
+        if self.use_tensorboard:
+            from google.protobuf import __version__ as protobuf_version
+            if version.parse(protobuf_version) >= version.parse('3.21'):
+                log.warning(
+                    "Tensorboard is incompatible with protobuf >= 3.21."
+                    "Downgrade protobuf to enable tensorboard logging."
+                )
+                self.use_tensorboard = False
 
         if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(
@@ -1758,7 +1913,10 @@ class Trainer:
         else:
             self.steps_per_epoch = train_dts.num_tiles // self.hp.batch_size
             log.info(f"Steps per epoch = {self.steps_per_epoch}")
-        if use_tensorboard:
+        if self.use_tensorboard:
+            # Delayed import due to protobuf version conflicts.
+
+            from torch.utils.tensorboard import SummaryWriter
             self.writer = SummaryWriter(self.outdir, flush_secs=60)
         self._log_manifest(train_dts, val_dts)
 

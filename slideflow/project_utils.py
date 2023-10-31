@@ -37,12 +37,12 @@ def auto_dataset_allow_none(method: Callable):
     """Wrapper function to convert filter arguments to a dataset, allowing
     errors."""
     @wraps(method)
-    def _impl(obj, model=None, *args, **kwargs):
+    def _impl(obj, model=None, dataset=None, *args, **kwargs):
         try:
-            return _filters_to_dataset(obj, method, model, *args, **kwargs)
+            return _filters_to_dataset(obj, method, model, *args, dataset=dataset, **kwargs)
         except errors.ModelParamsNotFoundError:
             if 'dataset' not in kwargs:
-                return method(obj, model, *args, dataset=None, **kwargs)
+                return method(obj, model, dataset=None, *args, **kwargs)
             else:
                 raise
     return _impl
@@ -65,7 +65,7 @@ def _filters_to_dataset(obj, method, model, *args, **kwargs):
             f"Cannot supply both `dataset` and filter arguments ({k_s})."
             " Instead, supply a filtered dataset (Dataset.filter(...))"
         )
-    if 'dataset' in kwargs:
+    if 'dataset' in kwargs and kwargs['dataset']:
         if model is not None:
             if config is not None:
                 kwargs['dataset']._assert_size_matches_hp(config['hp'])
@@ -81,7 +81,8 @@ def _filters_to_dataset(obj, method, model, *args, **kwargs):
             **{k: v for k, v in kwargs.items() if k in filter_keys},
             verification='slides'
         )
-        return method(obj, model, *args, dataset=dataset, **kwargs)
+        kwargs['dataset'] = dataset
+        return method(obj, model, *args, **kwargs)
 
 # -----------------------------------------------------------------------------
 

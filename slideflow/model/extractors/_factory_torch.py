@@ -21,6 +21,21 @@ def build_torch_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_torch
+def histossl(tile_px, **kwargs):
+    from .histossl import HistoSSLFeatures
+    return HistoSSLFeatures(center_crop=(tile_px != 224), **kwargs)
+
+@register_torch
+def plip(tile_px, **kwargs):
+    from .plip import PLIPFeatures
+    return PLIPFeatures(center_crop=(tile_px != 224), **kwargs)
+
+@register_torch
+def dinov2(tile_px, **kwargs):
+    from .dinov2 import DinoV2Features
+    return DinoV2Features(center_crop=(tile_px != 224), **kwargs)
+
+@register_torch
 def ctranspath(tile_px, **kwargs):
     from .ctranspath import CTransPathFeatures
     return CTransPathFeatures(center_crop=(tile_px != 224), **kwargs)
@@ -116,6 +131,28 @@ def nasnet_large_imagenet(tile_px, **kwargs):
 
 # -----------------------------------------------------------------------------
 
+class TorchFeatureExtractor(BaseFeatureExtractor):
+    """Feature extractor for PyTorch models."""
+
+    def __init__(self):
+        super().__init__(backend='torch')
+
+    def __call__(self, obj, **kwargs):
+        """Generate features for a batch of images or a WSI."""
+        import torch
+        if isinstance(obj, sf.WSI):
+            grid = features_from_slide(self, obj, **kwargs)
+            return np.ma.masked_where(grid == sf.heatmap.MASK, grid)
+        elif kwargs:
+            raise ValueError(
+                f"{self.__class__.__name__} does not accept keyword arguments "
+                "when extracting features from a batch of images."
+            )
+        assert obj.dtype == torch.uint8
+        obj = self.transform(obj)
+        return self.model(obj)
+
+
 class TorchImagenetLayerExtractor(BaseFeatureExtractor):
     """Feature extractor that calculates layer activations for
     imagenet-pretrained PyTorch models."""
@@ -135,7 +172,6 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
         self.ftrs = Features.from_model(model, tile_px=tile_px, **kwargs)
         self.tag = model_name + "_" + '-'.join(self.ftrs.layers)
         self.num_features = self.ftrs.num_features
-        self.num_classes = 0
         self._tile_px = tile_px
 
         # Normalization for Imagenet pretrained models
@@ -163,7 +199,7 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
         """Generate features for a batch of images or a WSI."""
         if isinstance(obj, sf.WSI):
             grid = features_from_slide(self, obj, **kwargs)
-            return np.ma.masked_where(grid == -99, grid)
+            return np.ma.masked_where(grid == sf.heatmap.MASK, grid)
         elif kwargs:
             raise ValueError(
                 f"{self.__class__.__name__} does not accept keyword arguments "

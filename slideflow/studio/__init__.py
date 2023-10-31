@@ -26,8 +26,9 @@ from .widgets import (
     ProjectWidget, SlideWidget, ModelWidget, HeatmapWidget, PerformanceWidget,
     CaptureWidget, SettingsWidget, ExtensionsWidget, Widget
 )
-from .utils import EasyDict
-from ._renderer import AsyncRenderer, Renderer, CapturedException
+from .utils import EasyDict, prediction_to_string
+from ._renderer import Renderer
+from ._render_manager import AsyncRenderManager, Renderer, CapturedException
 
 OVERLAY_GRID    = 0
 OVERLAY_WSI     = 1
@@ -75,7 +76,7 @@ class Studio(ImguiWindow):
         self._dx                = 0
         self._dy                = 0
         self._last_error_print  = None
-        self._async_renderer    = AsyncRenderer()
+        self._render_manager    = AsyncRenderManager()
         self._addl_renderers    = dict()
         self._defer_rendering   = 0
         self._tex_img           = None
@@ -109,16 +110,19 @@ class Studio(ImguiWindow):
         self._should_close_slide = False
         self._should_close_model = False
         self._bg_logo           = None
+        self._message           = None
+        self._pred_message      = None
         self.low_memory         = low_memory
 
         # Interface.
         self._show_about                = False
-        self._show_tile_preview         = False
+        self._show_tile_preview         = True
         self._tile_preview_is_new       = True
         self._tile_preview_image_is_new = True
         self._show_overlays             = True
         self._show_mpp_zoom_popup       = False
         self._input_mpp                 = 1.
+        self._box_color                 = [1, 0, 0]
         self.theme                      = theme
 
         # Widget interface.
@@ -134,6 +138,7 @@ class Studio(ImguiWindow):
         self.heatmap            = None
         self.rendered_heatmap   = None
         self.overlay            = None
+        self.overlay_original   = None
         self.rendered_qc        = None
         self.overlay_qc         = None
         self.args               = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
@@ -146,6 +151,8 @@ class Studio(ImguiWindow):
         self.y                  = None
         self.mouse_x            = None
         self.mouse_y            = None
+        self._mouse_screen_x    = 0
+        self._mouse_screen_y    = 0
         self.menu_bar_height    = self.font_size + self.spacing
 
         # Control sidebar.
@@ -188,7 +195,7 @@ class Studio(ImguiWindow):
     @property
     def model(self):
         """Tensorflow/PyTorch model currently in use."""
-        return self._async_renderer._model
+        return self._render_manager._model
 
     @property
     def P(self):
@@ -236,7 +243,7 @@ class Studio(ImguiWindow):
 
     def _close_model_now(self) -> None:
         """Close the currently loaded model now."""
-        self._async_renderer.clear_result()
+        self._render_manager.clear_result()
         self._use_model         = False
         self._use_uncertainty   = False
         self._use_saliency      = False
@@ -248,7 +255,7 @@ class Studio(ImguiWindow):
         self.heatmap            = None
         self.x                  = None
         self.y                  = None
-        self._async_renderer.clear_model()
+        self._render_manager.clear_model()
         self.clear_model_results()
         self.heatmap_widget.reset()
 
@@ -262,7 +269,7 @@ class Studio(ImguiWindow):
         self.mouse_x = None
         self.mouse_y = None
         self.clear_result()
-        self._async_renderer._live_updates = False
+        self._render_manager._live_updates = False
         self._heatmap_tex_img   = None
         self._heatmap_tex_obj   = None
         self.heatmap_widget.reset()
@@ -360,7 +367,13 @@ class Studio(ImguiWindow):
             bg_path = join(dirname(abspath(__file__)), 'gui', 'logo_dark_outline.png')
             img = np.array(Image.open(bg_path))
             self._bg_logo = gl_utils.Texture(image=img, bilinear=True)
-        self._bg_logo.draw(pos=(self.content_frame_width//2, self.content_frame_height//2), zoom=0.75, align=0.5, rint=True, anchor='center')
+        self._bg_logo.draw(
+            pos=(self.content_frame_width//2, self.content_frame_height//2),
+            zoom=0.75,
+            align=0.5,
+            rint=True,
+            anchor='center'
+        )
 
     def _draw_main_view(self, inp: EasyDict, window_changed: bool) -> None:
         """Update the main window view.
@@ -406,11 +419,16 @@ class Studio(ImguiWindow):
                 dim=self._overlay_wsi_dim,
                 offset=self._overlay_offset_wsi_dim)
 
+        # Render overlay tooltip, if hovered.
+        if self.overlay_original is not None and self.show_overlay:
+            self.viewer.render_overlay_tooltip(self.overlay_original)
+
         # Calculate location for model display.
         if (self._model_path
             and inp.clicking
             and not inp.dragging
             and self.viewer.is_in_view(inp.cx, inp.cy)):
+
             wsi_x, wsi_y = self.viewer.display_coords_to_wsi_coords(inp.cx, inp.cy, offset=False)
             self.x = wsi_x - (self.viewer.full_extract_px/2)
             self.y = wsi_y - (self.viewer.full_extract_px/2)
@@ -425,7 +443,7 @@ class Studio(ImguiWindow):
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
             gl.glLineWidth(3)
             box_pos = np.array([self.box_x, self.box_y])
-            gl_utils.draw_rect(pos=box_pos, size=np.array([tw, tw]), color=[1, 0, 0], mode=gl.GL_LINE_LOOP)
+            gl_utils.draw_rect(pos=box_pos, size=np.array([tw, tw]), color=self._box_color, mode=gl.GL_LINE_LOOP)
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
             gl.glLineWidth(1)
 
@@ -575,7 +593,11 @@ class Studio(ImguiWindow):
         imgui.push_style_color(imgui.COLOR_WINDOW_BACKGROUND, *self.theme.main_background)
         imgui.push_style_var(imgui.STYLE_WINDOW_PADDING, [10, 5])
 
-        imgui.begin('Status bar', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_SCROLLBAR))
+        imgui.begin('Status bar', closable=True, flags=(imgui.WINDOW_NO_RESIZE
+                                                        | imgui.WINDOW_NO_COLLAPSE
+                                                        | imgui.WINDOW_NO_TITLE_BAR
+                                                        | imgui.WINDOW_NO_MOVE
+                                                        | imgui.WINDOW_NO_SCROLLBAR))
 
         # Backend
         backend = sf.slide_backend()
@@ -603,10 +625,14 @@ class Studio(ImguiWindow):
             imgui.text_colored("Low memory mode", 0.99, 0.75, 0.42, 1)
 
         # Location / MPP
-        if self.viewer and hasattr(self.viewer, 'mpp'):
-            imgui_utils.right_aligned_text('x={:<8} y={:<8} mpp={:.3f}'.format(int(self.mouse_x), int(self.mouse_y), self.viewer.mpp))
-        elif self.viewer:
-            imgui_utils.right_aligned_text('x={:<8} y={:<8}'.format(int(self.mouse_x), int(self.mouse_y)))
+        if self.viewer and hasattr(self.viewer, 'mpp') and self.mouse_x is not None:
+            imgui_utils.right_aligned_text('x={:<8} y={:<8} mpp={:.3f}'.format(
+                int(self.mouse_x), int(self.mouse_y), self.viewer.mpp)
+            )
+        elif self.viewer and self.mouse_x is not None:
+            imgui_utils.right_aligned_text(
+                'x={:<8} y={:<8}'.format(int(self.mouse_x), int(self.mouse_y))
+            )
 
         imgui.end()
         imgui.pop_style_color(1)
@@ -627,7 +653,7 @@ class Studio(ImguiWindow):
         """
         if self._show_tile_preview:
             has_raw_image = self._tex_obj is not None
-            has_norm_image = self.model_widget.use_model and self._normalizer is not None and self._norm_tex_obj is not None and self.tile_px
+            has_norm_image = 'normalized' in self.result and self._norm_tex_obj is not None  # self.model_widget.use_model and self._normalizer is not None and self._norm_tex_obj is not None and self.tile_px
             if not has_raw_image:
                 return
 
@@ -643,14 +669,26 @@ class Studio(ImguiWindow):
             imgui.set_next_window_size(width, height)
 
             if self._tile_preview_is_new:
-                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing - self.status_bar_height)
+                imgui.set_next_window_position(
+                    self.content_width - width - self.spacing,
+                    self.content_height - height - self.spacing - self.status_bar_height
+                )
                 self._tile_preview_is_new = False
 
             if self._tile_preview_image_is_new and (has_raw_image or has_norm_image):
-                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing - self.status_bar_height)
+                imgui.set_next_window_position(
+                    self.content_width - width - self.spacing,
+                    self.content_height - height - self.spacing - self.status_bar_height
+                    )
                 self._tile_preview_image_is_new = False
 
-            _, self._show_tile_preview = imgui.begin("##tile view", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_SCROLLBAR))
+            _, self._show_tile_preview = imgui.begin(
+                "##tile view",
+                closable=True,
+                flags=(imgui.WINDOW_NO_COLLAPSE
+                       | imgui.WINDOW_NO_RESIZE
+                       | imgui.WINDOW_NO_SCROLLBAR)
+            )
 
             # Image preview ===================================================
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
@@ -706,6 +744,7 @@ class Studio(ImguiWindow):
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
 
+        self._mouse_screen_x, self._mouse_screen_y = imgui.get_mouse_pos()
         # Detect right mouse click in the main display.
         clicking, cx, cy, wheel = imgui_utils.click_hidden_window(
             '##result_area',
@@ -714,6 +753,12 @@ class Studio(ImguiWindow):
             width=self.content_width - self.offset_x,
             height=self.content_height - self.offset_y,
             mouse_idx=1)
+
+        # Ignore right click if the slide widget
+        # is capturing an ROI.
+        if self.slide_widget.editing_rois:
+            clicking = False
+
         # Detect dragging with left mouse in the main display.
         dragging, dx, dy = imgui_utils.drag_hidden_window(
             '##result_area',
@@ -730,6 +775,104 @@ class Studio(ImguiWindow):
             dx=int(dx * self.pixel_ratio),
             dy=int(dy * self.pixel_ratio)
         )
+
+    def _reload_and_return_wsi(
+        self,
+        path: Optional[str] = None,
+        stride: Optional[int] = None,
+        use_rois: bool = True,
+        tile_px: Optional[int] = None,
+        tile_um: Optional[Union[str, int]] = None,
+        **kwargs
+    ) -> Optional[sf.WSI]:
+        """Reload and return a Whole-Slide Image, with modified parameters.
+
+        Args:
+            path (str, optional): Path to the slide to reload. If not provided,
+                will reload the currently loaded slide.
+            stride (int, optional): Stride to use for the loaded slide. If not
+                provided, will use the stride value from the currently loaded
+                slide.
+            use_rois (bool): Use ROIs from the loaded project, if available.
+
+        Returns:
+            slideflow.WSI: Reloaded slide.
+
+        """
+        if self.wsi is None and path is None:
+            return None
+
+        # Path to slide.
+        if path is None:
+            path = self.wsi.path
+
+        # Stride.
+        if stride is None and self.wsi is None:
+            stride = 1
+        elif stride is None:
+            stride = self.wsi.stride_div
+
+        # ROIs.
+        if self.wsi is not None and path == self.wsi.path:
+            roi_method = self.wsi.roi_method
+            prior_rois = self.wsi.rois
+            rois = None
+        elif self.P and use_rois:
+            rois = self.P.dataset().rois()
+            roi_method, prior_rois = None, None
+        else:
+            roi_method, prior_rois, rois = None, None, None
+
+        # Cap the number of workers in the CUCIM backend.
+        if sf.slide_backend() == 'cucim':
+            kwargs['num_workers'] = sf.util.num_cpu(default=4)
+
+        # Tile size.
+        if tile_px is None:
+            tile_px = (self.tile_px if self.tile_px else 256)
+        if tile_um is None:
+            tile_um = (self.tile_um if self.tile_um else 512)
+
+        # Pass through QC mask if the slide is already loaded.
+        qc_mask = None if not self.wsi else self.wsi.qc_mask
+
+        try:
+            wsi = sf.WSI(
+                path,
+                tile_px=tile_px,
+                tile_um=tile_um,
+                stride_div=stride,
+                rois=rois,
+                cache_kw=dict(
+                    tile_width=512,
+                    tile_height=512,
+                    max_tiles=-1,
+                    threaded=True,
+                    persistent=True
+                ),
+                verbose=False,
+                mpp=self.slide_widget.manual_mpp,
+                use_bounds=self.settings_widget.use_bounds,
+                **kwargs)
+        except sf.errors.IncompatibleBackendError:
+            self.create_toast(
+                title="Incompatbile slide",
+                message='Slide type "{}" is incompatible with the {} backend.'.format(
+                    sf.util.path_to_ext(path), sf.slide_backend()),
+                icon='error'
+            )
+            return None
+        else:
+            # Reapply QC
+            if qc_mask is not None:
+                wsi.apply_qc_mask(qc_mask)
+
+            # Reapply ROIs
+            if prior_rois is not None:
+                wsi.rois = prior_rois
+                wsi.roi_method = roi_method
+                wsi.process_rois()
+            return wsi
 
     def _reload_wsi(
         self,
@@ -754,52 +897,20 @@ class Studio(ImguiWindow):
             bool: True if slide loaded successfully, False otherwise.
 
         """
-        if self.wsi is None and path is None:
-            return
-        if path is None:
-            path = self.wsi.path
-        if stride is None and self.wsi is None:
-            stride = 1
-        elif stride is None:
-            stride = self.wsi.stride_div
-        if self.P and use_rois:
-            rois = self.P.dataset().rois()
-        else:
-            rois = None
-        if sf.slide_backend() == 'cucim':
-            kwargs['num_workers'] = sf.util.num_cpu(default=4)
-        if tile_px is None:
-            tile_px = (self.tile_px if self.tile_px else 256)
-        if tile_um is None:
-            tile_um = (self.tile_um if self.tile_um else 512)
-        try:
-            self.wsi = sf.WSI(
-                path,
-                tile_px=tile_px,
-                tile_um=tile_um,
-                stride_div=stride,
-                rois=rois,
-                cache_kw=dict(
-                    tile_width=512,
-                    tile_height=512,
-                    max_tiles=-1,
-                    threaded=True,
-                    persistent=True
-                ),
-                verbose=False,
-                mpp=self.slide_widget.manual_mpp,
-                **kwargs)
-        except sf.errors.IncompatibleBackendError:
-            self.create_toast(
-                title="Incompatbile slide",
-                message='Slide type "{}" is incompatible with the {} backend.'.format(sf.util.path_to_ext(path), sf.slide_backend()),
-                icon='error'
-            )
-            return False
-        else:
-            self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
-            self.set_title(os.path.basename(self.wsi.path))
+        wsi = self._reload_and_return_wsi(
+            path, stride, use_rois, tile_px, tile_um, **kwargs
+        )
+        if wsi:
+            self.wsi = wsi
+            old_viewer = self.viewer
+            self.set_viewer(SlideViewer(wsi, **self._viewer_kwargs()))
+            self.set_title(os.path.basename(wsi.path))
+            if isinstance(old_viewer, SlideViewer):
+                self.viewer.show_thumbnail = old_viewer.show_thumbnail
+                self.viewer.show_scale = old_viewer.show_scale
             return True
+        else:
+            return False
 
     def _render_prediction_message(self, message: str) -> None:
         """Render a prediction string to below the tile bounding box.
@@ -809,7 +920,13 @@ class Studio(ImguiWindow):
         """
         max_w = self.content_frame_width - self.offset_x_pixels
         max_h = self.content_frame_height - self.offset_y_pixels
-        tex = text_utils.get_texture(message, size=self.gl_font_size, max_width=max_w, max_height=max_h, outline=2)
+        tex = text_utils.get_texture(
+            message,
+            size=self.gl_font_size,
+            max_width=max_w,
+            max_height=max_h,
+            outline=2
+        )
         box_w = self.viewer.full_extract_px / self.viewer.view_zoom
         text_pos = np.array([self.box_x + (box_w/2), self.box_y + box_w + self.font_size])
         tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
@@ -857,7 +974,7 @@ class Studio(ImguiWindow):
         """Update the minimum window size limits based on loaded widgets."""
 
         minheight = (((len(self.sidebar.navbuttons) + 3)
-                       * self.sidebar.navbutton_width)
+                       * (self.sidebar.navbutton_width / (self.font_size / 22)))
                      + self.status_bar_height
                      + self.menu_bar_height)
 
@@ -871,7 +988,7 @@ class Studio(ImguiWindow):
     # --- Imgui methods -------------------------------------------------------
 
     @contextmanager
-    def dim_text(self):
+    def dim_text(self, dim=True):
         """Render dim text.
 
         Examples
@@ -883,9 +1000,11 @@ class Studio(ImguiWindow):
                         imgui.text('This is dim')
 
         """
-        imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.dim)
+        if dim:
+            imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.dim)
         yield
-        imgui.pop_style_color(1)
+        if dim:
+            imgui.pop_style_color(1)
 
     @contextmanager
     def highlighted(self, enable: bool = True):
@@ -931,6 +1050,30 @@ class Studio(ImguiWindow):
         expanded = imgui_utils.collapsing_header(text.upper(), **kwargs)[0]
         imgui.pop_style_color(4)
         return expanded
+
+    def collapsing_header2(self, text, **kwargs):
+        """Render a second-level collapsing header using the active theme.
+
+        Examples
+            Render a collapsing header that is open by default.
+
+                .. code-block:: python
+
+                    if viz.collapsing_header("Header", default=True):
+                        imgui.text("Text underneath")
+
+        Args:
+            text (str): Header text.
+
+        """
+        imgui.push_style_color(imgui.COLOR_HEADER, *self.theme.header2)
+        imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, *self.theme.header2_hovered)
+        imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, *self.theme.header2_hovered)
+        imgui.push_style_color(imgui.COLOR_TEXT, *self.theme.header2_text)
+        expanded = imgui_utils.collapsing_header(text.upper(), **kwargs)[0]
+        imgui.pop_style_color(4)
+        return expanded
+
 
     def header(self, text):
         """Render a header using the active theme.
@@ -1052,7 +1195,7 @@ class Studio(ImguiWindow):
         """Add a renderer to the rendering pipeline."""
         if name is not None:
             self._addl_renderers[name] = renderer
-        self._async_renderer.add_to_render_pipeline(renderer)
+        self._render_manager.add_to_render_pipeline(renderer)
 
     def remove_from_render_pipeline(self, name: str):
         """Remove a renderer from the render pipeline.
@@ -1066,7 +1209,8 @@ class Studio(ImguiWindow):
         if name not in self._addl_renderers:
             raise ValueError(f'Could not find renderer "{name}"')
         renderer = self._addl_renderers[name]
-        self._async_renderer.remove_from_render_pipeline(renderer)
+        if self._render_manager is not None:
+            self._render_manager.remove_from_render_pipeline(renderer)
         del self._addl_renderers[name]
 
     def ask_load_heatmap(self):
@@ -1114,7 +1258,7 @@ class Studio(ImguiWindow):
             ignore_errors (bool): Gracefully handle errors.
 
         """
-        sf.log.info(f"Loading [green]{path}[/]")
+        sf.log.info(f"Auto-loading [green]{path}[/]")
         if sf.util.is_project(path):
             self.load_project(path, ignore_errors=ignore_errors)
         elif sf.util.is_slide(path):
@@ -1138,6 +1282,7 @@ class Studio(ImguiWindow):
     def clear_overlay(self) -> None:
         """Remove the current overlay image, include heatmaps and masks."""
         self.overlay = None
+        self.overlay_original = None
         if self.viewer is not None:
             self.viewer.clear_overlay()
 
@@ -1165,9 +1310,13 @@ class Studio(ImguiWindow):
             return True
         return False
 
+    def clear_prediction_message(self) -> None:
+        self._pred_message = None
+
     def clear_model_results(self) -> None:
         """Clear all model results and associated images."""
-        self._async_renderer.clear_result()
+        if self._render_manager is not None:
+            self._render_manager.clear_result()
         self._predictions       = None
         self._norm_tex_img      = None
         self._norm_tex_obj      = None
@@ -1179,9 +1328,14 @@ class Studio(ImguiWindow):
     def close(self) -> None:
         """Close the application and renderer."""
         super().close()
-        if self._async_renderer is not None:
-            self._async_renderer.close()
-            self._async_renderer = None
+        if self._render_manager is not None:
+            self._render_manager.close()
+            self._render_manager = None
+        if hasattr(self.viewer, 'close'):
+            self.viewer.close()
+        for w in self.widgets:
+            if hasattr(w, 'close'):
+                w.close()
 
     def close_model(self, now: bool = False) -> None:
         """Close the currently loaded model.
@@ -1263,6 +1417,8 @@ class Studio(ImguiWindow):
         # --- Render arguments ------------------------------------------------
         self.args.x = self.x
         self.args.y = self.y
+        self.args.tile_px = self.tile_px
+        self.args.tile_um = self.tile_um
         if (self._model_config is not None and self._use_model):
             self.args.tile_px = self._model_config['tile_px']
             self.args.tile_um = self._model_config['tile_um']
@@ -1276,7 +1432,8 @@ class Studio(ImguiWindow):
         # Buffer tile view if using a live viewer.
         if self.has_live_viewer() and self.args.x and self.args.y:
 
-            if self._async_renderer._args_queue.qsize() > 2:
+            if (self._render_manager.is_async
+                and self._render_manager._args_queue.qsize() > 2):
                 if self._defer_tile_refresh is None:
                     self._defer_tile_refresh = time.time()
                     self.defer_rendering()
@@ -1290,6 +1447,7 @@ class Studio(ImguiWindow):
             self.args.full_image = self.viewer.tile_view
             self.args.tile_px = self.viewer.tile_px
             self.args.tile_um = self.viewer.tile_um
+            self.viewer.apply_args(self.args)
 
         if self.has_live_viewer():
             self.args.viewer = None
@@ -1306,8 +1464,8 @@ class Studio(ImguiWindow):
         elif self._defer_rendering > 0:
             self._defer_rendering -= 1
         else:
-            self._async_renderer.set_args(**self.args)
-            result = self._async_renderer.get_result()
+            self._render_manager.set_args(**self.args)
+            result = self._render_manager.get_result()
             if result is not None:
                 self.result = result
                 if 'predictions' in result:
@@ -1356,17 +1514,19 @@ class Studio(ImguiWindow):
         self._draw_status_bar()
 
         # Draw prediction message next to box on main display.
-        if (self._use_model
+        if self._pred_message and self.viewer is not None:
+            self._render_prediction_message(self._pred_message)
+        elif (self._use_model
            and self._predictions is not None
            and not isinstance(self._predictions, list)
            and self.viewer is not None):
-            #TODO: support multi-outcome models
-            outcomes = self._model_config['outcome_labels']
-            if self._model_config['model_type'] == 'categorical':
-                pred_str = f'{outcomes[str(np.argmax(self._predictions))]} ({np.max(self._predictions)*100:.1f}%)'
-            else:
-                pred_str = f'{self._predictions[0]:.2f}'
-            self._render_prediction_message(pred_str)
+            if not hasattr(self.result, 'in_focus') or self.result.in_focus:
+                pred_str = prediction_to_string(
+                    predictions=self._predictions,
+                    outcomes=self._model_config['outcome_labels'],
+                    is_categorical=(self._model_config['model_type'] == 'categorical')
+                )
+                self._render_prediction_message(pred_str)
 
         # End frame.
         if self._should_close_model:
@@ -1383,17 +1543,24 @@ class Studio(ImguiWindow):
         from .widgets import MosaicWidget
         return [MosaicWidget]
 
-    def get_renderer(self, name: str) -> Optional[Renderer]:
+    def get_renderer(self, name: Optional[str] = None) -> Optional[Renderer]:
         """Check for the given additional renderer in the rendering pipeline.
 
         Args:
-            name (str): Name of the renderer to check for.
+            name (str): Name of the renderer to check for. If None,
+                returns the main renderer.
 
         Returns:
             Renderer if name is a recognized renderer, otherwise None
 
         """
-        if name in self._addl_renderers:
+        if name is None:
+            if (self._render_manager is not None
+                and self._render_manager._renderer_obj is not None):
+                return self._render_manager._renderer_obj
+            else:
+                return None
+        elif name in self._addl_renderers:
             return self._addl_renderers[name]
         else:
             return None
@@ -1481,9 +1648,15 @@ class Studio(ImguiWindow):
         self.clear_result()
         log.debug("Model result cleared")
         self.skip_frame() # The input field will change on next frame.
-        self._async_renderer.get_result() # Flush prior result
-        self._async_renderer.clear_result()
+        self._render_manager.get_result() # Flush prior result
+        self._render_manager.clear_result()
         try:
+
+            # Trigger user widgets
+            for widget in self.widgets:
+                if hasattr(widget, '_before_model_load'):
+                    widget._before_model_load()
+
             self.defer_rendering()
             self.model_widget.user_model = model
 
@@ -1501,7 +1674,7 @@ class Studio(ImguiWindow):
             self._use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
             self.tile_um = config['tile_um']
             self.tile_px = config['tile_px']
-            self._async_renderer.load_model(model)
+            self._render_manager.load_model(model)
             if sf.util.torch_available and sf.util.path_to_ext(model) == 'zip':
                 self.model_widget.backend = 'torch'
             else:
@@ -1593,14 +1766,17 @@ class Studio(ImguiWindow):
 
     def reload_model(self) -> None:
         """Reload the current model."""
-        self._async_renderer.load_model(self._model_path)
+        self._render_manager.load_model(self._model_path)
 
     def reload_viewer(self) -> None:
         """Reload the current main viewer."""
         if self.viewer is not None:
             self.viewer.close()
             if isinstance(self.viewer, SlideViewer):
+                old_viewer = self.viewer
                 self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
+                self.viewer.show_thumbnail = old_viewer.show_thumbnail
+                self.viewer.show_scale = old_viewer.show_scale
             else:
                 self.viewer.reload(**self._viewer_kwargs())
 
@@ -1608,7 +1784,17 @@ class Studio(ImguiWindow):
         """Set a message for display."""
         self._message = msg
 
-    def set_overlay(self, overlay: np.ndarray, method: int) -> None:
+    def set_prediction_message(self, msg: str) -> None:
+        """Set the prediction message to display under the tile outline."""
+        self._pred_message = msg
+
+    def set_overlay(
+        self,
+        overlay: np.ndarray,
+        method: int,
+        *,
+        original: Optional[np.ndarray] = None
+    ) -> None:
         """Configure the overlay to be applied to the current view screen.
 
         Overlay is a numpy array, and method is a flag indicating the
@@ -1630,10 +1816,19 @@ class Studio(ImguiWindow):
             method (int): Mapping method for linking the overlay to the
                 whole-slide image.
 
+        Keyword args:
+            original (np.ndarray, optional): Original grid values before any
+                colorization or other modifications. Used for displaying the
+                tooltip when alt-hovering. Defaults to None.
+
         """
         if self.viewer is None:
             raise ValueError("Unable to set overlay; viewer not loaded.")
+        if original is not None and original.shape != overlay.shape:
+            raise ValueError("Unable to set grid overlay; original grid shape "
+                             "does not match grid shape.")
         self.overlay = overlay
+        self.overlay_original = original
         if method == OVERLAY_WSI:
             # Overlay maps to the entire whole-slide image,
             # with no offset needed.
@@ -1643,11 +1838,7 @@ class Studio(ImguiWindow):
             # Overlay was generated from the slide's grid, meaning
             # that we need to apply an offset to ensure the overlay
             # lines up apppropriately.
-            full_extract = int(self.wsi.tile_um / self.wsi.mpp)
-            wsi_stride = int(full_extract / self.wsi.stride_div)
-            self._overlay_wsi_dim = (wsi_stride * (self.overlay.shape[1]),
-                                     wsi_stride * (self.overlay.shape[0]))
-            self._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
+            self.set_grid_overlay(overlay)
         elif method == OVERLAY_VIEW:
             # Overlay should only apply to the area of the WSI
             # currently in view.
@@ -1655,6 +1846,57 @@ class Studio(ImguiWindow):
             self._overlay_offset_wsi_dim = self.viewer.origin
         else:
             raise ValueError(f"Unrecognized method {method}")
+
+    def set_grid_overlay(
+        self,
+        grid: np.ndarray,
+        *,
+        tile_um: Optional[int] = None,
+        stride_div: Optional[int] = None,
+        mpp: Optional[float] = None,
+        original: Optional[np.ndarray] = None
+    ) -> None:
+        """Set the grid overlay to the given grid.
+
+        Args:
+            grid (np.ndarray): Grid to render as an overlay.
+
+        Keyword args:
+            tile_um (int, optional): Tile size, in microns. If None, uses
+                the tile size of the currently loaded slide.
+            stride_div (int, optional): Stride divisor. If None, uses
+                the stride divisor of the currently loaded slide.
+            mpp (float, optional): Microns per pixel. If None, uses
+                the MPP of the currently loaded slide.
+            original (np.ndarray, optional): Original grid values before any
+                colorization or other modifications. Used for displaying the
+                tooltip when alt-hovering. Defaults to None.
+
+        """
+        if self.viewer is None:
+            raise ValueError("Unable to set grid overlay; viewer not loaded.")
+        if any(x is None for x in (tile_um, stride_div, mpp)) and self.wsi is None:
+            raise ValueError("Unable to set grid overlay; no slide loaded.")
+        if original is not None and original.shape[0:2] != grid.shape[0:2]:
+            raise ValueError("Unable to set grid overlay; original grid shape "
+                             "({}) does not match grid shape ({}).".format(
+                                original.shape, grid.shape
+                             ))
+
+        self.overlay = grid
+        self.overlay_original = original
+        if tile_um is None:
+            tile_um = self.wsi.tile_um
+        if stride_div is None:
+            stride_div = self.wsi.stride_div
+        if mpp is None:
+            mpp = self.wsi.mpp
+        full_extract = int(tile_um / mpp)
+        wsi_stride = int(full_extract / stride_div)
+        self._overlay_wsi_dim = (wsi_stride * (grid.shape[1]),
+                                 wsi_stride * (grid.shape[0]))
+        self._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2,
+                                        full_extract/2 - wsi_stride/2)
 
     def set_viewer(self, viewer: Any) -> None:
         """Set the main viewer.
@@ -1667,8 +1909,8 @@ class Studio(ImguiWindow):
         if self.viewer is not None:
             self.viewer.close()
         self.viewer = viewer
-        self._async_renderer._live_updates = viewer.live
-        self._async_renderer.set_async(viewer.live)
+        self._render_manager._live_updates = viewer.live
+        self._render_manager.set_async(viewer.live)
 
 # -----------------------------------------------------------------------------
 
@@ -1680,15 +1922,28 @@ class Sidebar:
         self.viz                = viz
         self.expanded           = False
         self.selected           = None
-        self.buttonbar_width    = 72
-        self.navbutton_width    = 70
-        self.imagebutton_width  = 64
+        self._buttonbar_width    = 72
+        self._navbutton_width    = 70
+        self._imagebutton_width  = 64
         self._button_tex        = dict()
         self._pane_w_div        = 15
         self.navbuttons         = ['project', 'slide', 'model', 'heatmap']
 
         self.add_widgets(viz.widgets)
         self._load_button_textures()
+
+    @property
+    def buttonbar_width(self):
+        return int(self._buttonbar_width * (self.viz.font_size / 22))
+
+    @property
+    def navbutton_width(self):
+        return int(self._navbutton_width * (self.viz.font_size / 22))
+
+    @property
+    def imagebutton_width(self):
+        w = int(self._imagebutton_width * (self.viz.font_size / 22))
+        return w
 
     @property
     def theme(self):
