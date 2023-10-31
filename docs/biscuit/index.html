@@ -9,22 +9,22 @@
   <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.biscuit &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>slideflow.biscuit &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
@@ -35,11 +35,11 @@
     <link rel="next" title="slideflow.cellseg" href="../slideflow_cellseg/" />
     <link rel="prev" title="slideflow.SlideMap" href="../slidemap/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -102,9 +102,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -140,15 +140,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
@@ -160,7 +160,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -169,6 +169,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul class="current">
@@ -207,10 +214,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -218,7 +227,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -237,30 +246,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>slideflow.biscuit</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="../_sources/biscuit.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -272,13 +281,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <section id="slideflow-biscuit">
 <h1>slideflow.biscuit<a class="headerlink" href="#slideflow-biscuit" title="Permalink to this heading">¶</a></h1>
 <p>This module contains an official implementation of <a class="reference external" href="https://www.nature.com/articles/s41467-022-34025-x">BISCUIT</a>, an uncertainty quantification and confidence thresholding algorithm for whole-slide images. The original implementation, which includes instructions for reproducing experimental results reported in the manuscript, is available on <a class="reference external" href="https://github.com/jamesdolezal/biscuit">GitHub</a>.</p>
@@ -291,17 +300,17 @@
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>project</strong> (<a class="reference internal" href="../project/#slideflow.Project" title="slideflow.Project"><em>slideflow.Project</em></a>) – Project.</p></li>
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
-<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Outcome name.</p></li>
-<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
-<li><p><strong>kfold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration. Defaults to None.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experimental label.</p></li>
+<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Outcome name.</p></li>
+<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
+<li><p><strong>kfold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Paths to cross-validation models.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)">list</a>(<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)">str</a>)</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)">list</a>(<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)">str</a>)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -313,8 +322,8 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to model.</p></li>
-<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Outcome name.</p></li>
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Path to model.</p></li>
+<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Outcome name.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -347,18 +356,18 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Cross-validation results metrics, as generated
 by results()</p></li>
-<li><p><strong>eval_dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>(</em><em>pandas.DataFrame</em><em>)</em>) – Dict of external eval dataset names
+<li><p><strong>eval_dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)"><em>dict</em></a><em>(</em><em>pandas.DataFrame</em><em>)</em>) – Dict of external eval dataset names
 (keys) mapped to pandas DataFrame of result metrics (values).</p></li>
-<li><p><strong>hue</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Comparison to show with different hue on plots.
+<li><p><strong>hue</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Comparison to show with different hue on plots.
 Defaults to ‘uq’.</p></li>
-<li><p><strong>palette</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Seaborn color palette. Defaults to ‘tab10’.</p></li>
-<li><p><strong>relplot_uq_compare</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – For the Relplot display, ensure
+<li><p><strong>palette</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Seaborn color palette. Defaults to ‘tab10’.</p></li>
+<li><p><strong>relplot_uq_compare</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>, </em><em>optional</em>) – For the Relplot display, ensure
 non-UQ and UQ results are generated from the same models/preds.</p></li>
-<li><p><strong>boxplot_uq_compare</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – For the boxplot display, ensure
+<li><p><strong>boxplot_uq_compare</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>, </em><em>optional</em>) – For the boxplot display, ensure
 non-UQ and UQ results are generated from the same models/preds.</p></li>
-<li><p><strong>ttest_uq_groups</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>)</em>) – UQ groups to compare via t-test. Defaults
+<li><p><strong>ttest_uq_groups</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>)</em>) – UQ groups to compare via t-test. Defaults
 to [‘all’, ‘include’].</p></li>
-<li><p><strong>prefix</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Prefix to use when saving figures.
+<li><p><strong>prefix</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Prefix to use when saving figures.
 Defaults to empty string.</p></li>
 </ul>
 </dd>
@@ -375,11 +384,11 @@ Defaults to empty string.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experiment label.</p></li>
-<li><p><strong>kfold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Validation k-fold.</p></li>
-<li><p><strong>tile_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Tile-level uncertainty threshold.</p></li>
-<li><p><strong>slide_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Slide-level uncertainty threshold.</p></li>
-<li><p><strong>slide_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Slide-level prediction threshold.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experiment label.</p></li>
+<li><p><strong>kfold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Validation k-fold.</p></li>
+<li><p><strong>tile_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Tile-level uncertainty threshold.</p></li>
+<li><p><strong>slide_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Slide-level uncertainty threshold.</p></li>
+<li><p><strong>slide_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Slide-level prediction threshold.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -396,11 +405,11 @@ and returns pandas dataframes with metrics.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>exp_to_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a>) – List of experiment IDs to search for results.</p></li>
-<li><p><strong>uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Apply UQ thresholds. Defaults to True.</p></li>
-<li><p><strong>eval</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Calculate results of external evaluation models.
+<li><p><strong>exp_to_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a>) – List of experiment IDs to search for results.</p></li>
+<li><p><strong>uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>, </em><em>optional</em>) – Apply UQ thresholds. Defaults to True.</p></li>
+<li><p><strong>eval</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>, </em><em>optional</em>) – Calculate results of external evaluation models.
 Defaults to True.</p></li>
-<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Show plots. Defaults to False.</p></li>
+<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>, </em><em>optional</em>) – Show plots. Defaults to False.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -428,19 +437,19 @@ thresholds from nested cross-validation.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>hp</strong> (<a class="reference internal" href="../model_params/#slideflow.ModelParams" title="slideflow.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code></a>) – Hyperparameters object.</p></li>
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experimental label.</p></li>
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset filters to use for
 selecting slides. See <a class="reference internal" href="../dataset/#slideflow.Dataset.filter" title="slideflow.Dataset.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.filter()</span></code></a> for
 more information. Defaults to None.</p></li>
-<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Save validation predictions to
+<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>, </em><em>optional</em>) – Save validation predictions to
 model folder. Defaults to ‘csv’.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>validate_on_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Frequency of validation checks during
+<li><p><strong>validate_on_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Frequency of validation checks during
 training, in steps. Defaults to 32.</p></li>
-<li><p><strong>validation_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of validation steps to perform
+<li><p><strong>validation_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of validation steps to perform
 during each mid-training evaluation check. Defaults to 32.</p></li>
 <li><p><strong>**kwargs</strong> – All remaining keyword arguments are passed to
 <a class="reference internal" href="../project/#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a>.</p></li>
@@ -461,13 +470,13 @@ skipping already-generated models.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>hp</strong> (<a class="reference internal" href="../model_params/#slideflow.ModelParams" title="slideflow.ModelParams"><em>slideflow.ModelParams</em></a>) – Hyperparameters object.</p></li>
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experimental label.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>outer_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of outer cross-folds. Defaults to 3.</p></li>
-<li><p><strong>inner_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of inner cross-folds. Defaults to 5.</p></li>
+<li><p><strong>outer_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of outer cross-folds. Defaults to 3.</p></li>
+<li><p><strong>inner_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of inner cross-folds. Defaults to 5.</p></li>
 <li><p><strong>**kwargs</strong> – All remaining keyword arguments are passed to
 <a class="reference internal" href="../project/#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a>.</p></li>
 </ul>
@@ -508,20 +517,20 @@ predictions for digital histopathology. Nat Commun 13, 6572 (2022).
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Must contain columns ‘y_true’, ‘y_pred’,
 and ‘uncertainty’.</p></li>
-<li><p><strong>tile_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Tile-level uncertainty threshold.</p></li>
-<li><p><strong>slide_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Slide-level uncertainty threshold.</p></li>
-<li><p><strong>tile_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Tile-level prediction threshold.
+<li><p><strong>tile_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Tile-level uncertainty threshold.</p></li>
+<li><p><strong>slide_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Slide-level uncertainty threshold.</p></li>
+<li><p><strong>tile_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em>, </em><em>optional</em>) – Tile-level prediction threshold.
 Defaults to 0.5.</p></li>
-<li><p><strong>slide_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Slide-level prediction threshold.
+<li><p><strong>slide_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em>, </em><em>optional</em>) – Slide-level prediction threshold.
 Defaults to 0.5.</p></li>
-<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Plot slide-level uncertainty. Defaults to False.</p></li>
-<li><p><strong>keep</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘high_confidence’ or ‘low_confidence’.
+<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>, </em><em>optional</em>) – Plot slide-level uncertainty. Defaults to False.</p></li>
+<li><p><strong>keep</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘high_confidence’ or ‘low_confidence’.
 Cohort to keep after thresholding. Defaults to ‘high_confidence’.</p></li>
-<li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Title for uncertainty plot. Defaults to None.</p></li>
-<li><p><strong>patients</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dictionary mapping slides to patients. Adds
+<li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Title for uncertainty plot. Defaults to None.</p></li>
+<li><p><strong>patients</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)"><em>dict</em></a><em>, </em><em>optional</em>) – Dictionary mapping slides to patients. Adds
 a ‘patient’ column in the tile prediction dataframe, enabling
 patient-level thresholding. Defaults to None.</p></li>
-<li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘slide’ or ‘patient’. Level at which to
+<li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘slide’ or ‘patient’. Level at which to
 apply threshold. If ‘patient’, requires patient dict be supplied.
 Defaults to ‘slide’.</p></li>
 </ul>
@@ -546,20 +555,20 @@ Defaults to ‘slide’.</p></li>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Tile-level predictions. Must contain columns
 ‘y_true’, ‘y_pred’, and ‘uncertainty’.</p></li>
-<li><p><strong>tile_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
+<li><p><strong>tile_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
 will detect tile-level uncertainty threshold. If float, will use
 the specified tile-level uncertainty threshold.</p></li>
-<li><p><strong>slide_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
+<li><p><strong>slide_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
 will detect slide-level uncertainty threshold. If float, will use
 the specified slide-level uncertainty threshold.</p></li>
-<li><p><strong>tile_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
+<li><p><strong>tile_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
 will detect tile-level prediction threshold. If float, will use the
 specified tile-level prediction threshold.</p></li>
-<li><p><strong>slide_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’
+<li><p><strong>slide_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’
 will detect slide-level prediction threshold. If float, will use
 the specified slide-level prediction threshold.</p></li>
-<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Plot slide-level uncertainty. Defaults to False.</p></li>
-<li><p><strong>patients</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slides to patients. Required
+<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>, </em><em>optional</em>) – Plot slide-level uncertainty. Defaults to False.</p></li>
+<li><p><strong>patients</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slides to patients. Required
 for patient-level thresholding.</p></li>
 </ul>
 </dd>
@@ -581,26 +590,26 @@ for patient-level thresholding.</p></li>
 cross-validation experiments.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><em>DataFrame</em><em>)</em>) – List of DataFrames with tile predictions,
+<dd class="field-odd"><p><strong>dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>(</em><em>DataFrame</em><em>)</em>) – List of DataFrames with tile predictions,
 containing headers ‘y_true’, ‘y_pred’, ‘uncertainty’, ‘slide’,
 and ‘patient’.</p>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>tile_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
+<li><p><strong>tile_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
 will detect tile-level uncertainty threshold. If float, will use
 the specified tile-level uncertainty threshold.</p></li>
-<li><p><strong>slide_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
+<li><p><strong>slide_uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
 will detect slide-level uncertainty threshold. If float, will use
 the specified slide-level uncertainty threshold.</p></li>
-<li><p><strong>tile_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
+<li><p><strong>tile_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’,
 will detect tile-level prediction threshold. If float, will use the
 specified tile-level prediction threshold.</p></li>
-<li><p><strong>slide_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’
+<li><p><strong>slide_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Either ‘detect’ or float. If ‘detect’
 will detect slide-level prediction threshold. If float, will use
 the specified slide-level prediction threshold.</p></li>
-<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Plot slide-level uncertainty. Defaults to False.</p></li>
-<li><p><strong>patients</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slides to patients. Required
+<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>, </em><em>optional</em>) – Plot slide-level uncertainty. Defaults to False.</p></li>
+<li><p><strong>patients</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slides to patients. Required
 for patient-level thresholding.</p></li>
 </ul>
 </dd>
@@ -623,11 +632,11 @@ for patient-level thresholding.</p></li>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Processed dataframe containing columns
 ‘uncertainty’, ‘correct’, ‘y_pred’.</p></li>
-<li><p><strong>kind</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Kind of plot. If ‘tile’, subsample to only 1000 points.
+<li><p><strong>kind</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Kind of plot. If ‘tile’, subsample to only 1000 points.
 Included in title.</p></li>
-<li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em>, </em><em>optional</em>) – Uncertainty threshold.
+<li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em>, </em><em>optional</em>) – Uncertainty threshold.
 Defaults to None.</p></li>
-<li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Title for plots. Defaults to None.</p></li>
+<li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Title for plots. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -652,9 +661,9 @@ predictions and uncertainty.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Unprocessed DataFrame from reading tile-level
 predictions.</p></li>
-<li><p><strong>pred_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Tile-level prediction threshold.
+<li><p><strong>pred_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Tile-level prediction threshold.
 If ‘detect’, will auto-detect via Youden’s J. Defaults to 0.5.</p></li>
-<li><p><strong>patients</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slides to patients, used for
+<li><p><strong>patients</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slides to patients, used for
 patient-level thresholding. Defaults to None.</p></li>
 </ul>
 </dd>
@@ -703,7 +712,7 @@ patient-level thresholding. Defaults to None.</p></li>
 float: Optimal threshold</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)">float</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)">float</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -716,15 +725,15 @@ float: Optimal threshold</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>project</strong> (<em>sf.Project</em>) – Slideflow project.</p></li>
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
-<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
-<li><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration. Defaults to 3.</p></li>
-<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Outcome name.</p></li>
-<li><p><strong>y_true</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Column name for ground truth labels.
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experimental label.</p></li>
+<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
+<li><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration. Defaults to 3.</p></li>
+<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Outcome name.</p></li>
+<li><p><strong>y_true</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Column name for ground truth labels.
 Defaults to {outcome}_y_true0.</p></li>
-<li><p><strong>y_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Column name for predictions.
+<li><p><strong>y_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Column name for predictions.
 Defaults to {outcome}_y_pred1.</p></li>
-<li><p><strong>uncertainty</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Column name for uncertainty.
+<li><p><strong>uncertainty</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Column name for uncertainty.
 Defaults to {outcome}_y_uncertainty1.</p></li>
 </ul>
 </dd>
@@ -732,7 +741,7 @@ Defaults to {outcome}_y_uncertainty1.</p></li>
 <dd class="field-even"><p>DataFrame for each k-fold.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)">list</a>(DataFrame)</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)">list</a>(DataFrame)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -745,15 +754,15 @@ Defaults to {outcome}_y_uncertainty1.</p></li>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>project</strong> (<a class="reference internal" href="../project/#slideflow.Project" title="slideflow.Project"><em>slideflow.Project</em></a>) – Project.</p></li>
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
-<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experimental label.</p></li>
+<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>If eval exists</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)">bool</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)">bool</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -766,17 +775,17 @@ Defaults to {outcome}_y_uncertainty1.</p></li>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>project</strong> (<a class="reference internal" href="../project/#slideflow.Project" title="slideflow.Project"><em>slideflow.Project</em></a>) – Project.</p></li>
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
-<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Outcome name.</p></li>
-<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
-<li><p><strong>kfold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration. Defaults to None.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experimental label.</p></li>
+<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Outcome name.</p></li>
+<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
+<li><p><strong>kfold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Paths to cross-validation models.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)">list</a>(<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)">str</a>)</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)">list</a>(<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)">str</a>)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -789,16 +798,16 @@ Defaults to {outcome}_y_uncertainty1.</p></li>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>project</strong> (<a class="reference internal" href="../project/#slideflow.Project" title="slideflow.Project"><em>slideflow.Project</em></a>) – Project.</p></li>
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
-<li><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Number of k-fold iterations. Defaults to 3.</p></li>
-<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Outcome name.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experimental label.</p></li>
+<li><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Number of k-fold iterations. Defaults to 3.</p></li>
+<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Outcome name.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Early stop batch.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)">int</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)">int</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -811,9 +820,9 @@ Defaults to {outcome}_y_uncertainty1.</p></li>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>project</strong> (<a class="reference internal" href="../project/#slideflow.Project" title="slideflow.Project"><em>slideflow.Project</em></a>) – Project.</p></li>
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
-<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Outcome name.</p></li>
-<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experimental label.</p></li>
+<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Outcome name.</p></li>
+<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
@@ -826,7 +835,7 @@ Defaults to {outcome}_y_uncertainty1.</p></li>
 <dd class="field-odd"><p>path to eval directory</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)">str</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)">str</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -839,12 +848,12 @@ Defaults to {outcome}_y_uncertainty1.</p></li>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>project</strong> (<a class="reference internal" href="../project/#slideflow.Project" title="slideflow.Project"><em>slideflow.Project</em></a>) – Project.</p></li>
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
-<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Outcome name.</p></li>
-<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch to search for. If not None, returns
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experimental label.</p></li>
+<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Outcome name.</p></li>
+<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch to search for. If not None, returns
 path to the saved model. If None, returns path to parent model
 folder. Defaults to None.</p></li>
-<li><p><strong>kfold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration. Defaults to None.</p></li>
+<li><p><strong>kfold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
@@ -857,7 +866,7 @@ folder. Defaults to None.</p></li>
 <dd class="field-odd"><p>Path to matching model.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)">str</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)">str</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -869,8 +878,8 @@ folder. Defaults to None.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to model.</p></li>
-<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Outcome name.</p></li>
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Path to model.</p></li>
+<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Outcome name.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -893,8 +902,8 @@ folder. Defaults to None.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to model.</p></li>
-<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Outcome name.</p></li>
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Path to model.</p></li>
+<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Outcome name.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -918,17 +927,17 @@ folder. Defaults to None.</p></li>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>project</strong> (<a class="reference internal" href="../project/#slideflow.Project" title="slideflow.Project"><em>slideflow.Project</em></a>) – Project.</p></li>
-<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Experimental label.</p></li>
-<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Outcome name.</p></li>
-<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
-<li><p><strong>kfold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration. Defaults to None.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Experimental label.</p></li>
+<li><p><strong>outcome</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Outcome name.</p></li>
+<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Epoch number of saved model. Defaults to None.</p></li>
+<li><p><strong>kfold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>If model exists</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)">bool</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)">bool</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -949,7 +958,7 @@ folder. Defaults to None.</p></li>
 <dd class="field-even"><p>Prediction metrics.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)">dict</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)">dict</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1040,25 +1049,25 @@ np.array of floats of the probability of being class 1</p></li>
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="../slideflow_cellseg/" class="btn btn-neutral float-right" title="slideflow.cellseg" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="../slidemap/" class="btn btn-neutral" title="slideflow.SlideMap" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -1066,11 +1075,11 @@ np.array of floats of the probability of being class 1</p></li>
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -1140,19 +1149,19 @@ np.array of floats of the probability of being class 1</p></li>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
          <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
@@ -1163,7 +1172,7 @@ np.array of floats of the probability of being class 1</p></li>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Index &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>Index &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="#" />
     <link rel="search" title="Search" href="../search/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
@@ -157,7 +157,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -166,6 +166,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -204,10 +211,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -215,7 +224,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -234,28 +243,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>Index</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
-
+        
+            
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -267,13 +276,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
 
 <h1 id="index">Index</h1>
 
@@ -305,7 +314,7 @@
  | <a href="#X"><strong>X</strong></a>
  | <a href="#Y"><strong>Y</strong></a>
  | <a href="#Z"><strong>Z</strong></a>
-
+ 
 </div>
 <h2 id="_">_</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
@@ -315,10 +324,6 @@
       <li><a href="../util/#slideflow.util.ImgBatchSpeedColumn.__init__">__init__() (ImgBatchSpeedColumn method)</a>
 
       <ul>
-        <li><a href="../io_torch/#slideflow.io.torch.RandomCardinalRotation.__init__">(RandomCardinalRotation method)</a>
-</li>
-        <li><a href="../io_torch/#slideflow.io.torch.RandomGaussianBlur.__init__">(RandomGaussianBlur method)</a>
-</li>
         <li><a href="../grad/#slideflow.grad.SaliencyMap.__init__">(SaliencyMap method)</a>
 </li>
         <li><a href="../studio_module/#slideflow.studio.Sidebar.__init__">(Sidebar method)</a>
@@ -356,21 +361,23 @@
         <li><a href="../studio_module/#slideflow.studio.Studio.add_widgets">(Studio method)</a>
 </li>
       </ul></li>
+      <li><a href="../slide/#slideflow.WSI.align_tiles_to">align_tiles_to() (in module slideflow.WSI)</a>
+</li>
+      <li><a href="../slide/#slideflow.WSI.align_to">align_to() (in module slideflow.WSI)</a>
+</li>
       <li><a href="../grad/#slideflow.grad.SaliencyMap.all">all() (SaliencyMap method)</a>
 </li>
       <li><a href="../biscuit/#slideflow.biscuit.threshold.apply">apply() (in module slideflow.biscuit.threshold)</a>
 </li>
-      <li><a href="../slide/#slideflow.TMA.apply_qc_mask">apply_qc_mask() (in module slideflow.TMA)</a>
-
-      <ul>
-        <li><a href="../slide/#slideflow.WSI.apply_qc_mask">(in module slideflow.WSI)</a>
-</li>
-      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../slide/#slideflow.WSI.apply_qc_mask">apply_qc_mask() (in module slideflow.WSI)</a>
+</li>
       <li><a href="../slideflow_cellseg/#slideflow.cellseg.Segmentation.apply_rois">apply_rois() (in module slideflow.cellseg.Segmentation)</a>
 </li>
       <li><a href="../slide/#slideflow.WSI.apply_segmentation">apply_segmentation() (in module slideflow.WSI)</a>
+</li>
+      <li><a href="../slide/#slideflow.WSI.area">area() (in module slideflow.WSI)</a>
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.ask_load_heatmap">ask_load_heatmap() (Studio method)</a>
 </li>
@@ -406,18 +413,14 @@
 </li>
       <li><a href="../dataset_features/#slideflow.DatasetFeatures.box_plots">box_plots() (in module slideflow.DatasetFeatures)</a>
 </li>
-      <li><a href="../mil_module/#slideflow.mil.build_fastai_learner">build_fastai_learner() (in module slideflow.mil)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../mil_module/#slideflow.mil.build_fastai_learner">build_fastai_learner() (in module slideflow.mil)</a>
+</li>
       <li><a href="../model/#slideflow.model.build_feature_extractor">build_feature_extractor() (in module slideflow.model)</a>
 </li>
-      <li><a href="../slide/#slideflow.TMA.build_generator">build_generator() (in module slideflow.TMA)</a>
-
-      <ul>
-        <li><a href="../slide/#slideflow.WSI.build_generator">(in module slideflow.WSI)</a>
+      <li><a href="../slide/#slideflow.WSI.build_generator">build_generator() (in module slideflow.WSI)</a>
 </li>
-      </ul></li>
       <li><a href="../dataset/#slideflow.Dataset.build_index">build_index() (in module slideflow.Dataset)</a>
 </li>
       <li><a href="../slidemap/#slideflow.SlideMap.build_mosaic">build_mosaic() (in module slideflow.SlideMap)</a>
@@ -466,10 +469,10 @@
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.clear_overlay">clear_overlay() (Studio method)</a>
 </li>
-      <li><a href="../studio_module/#slideflow.studio.Studio.clear_result">clear_result() (Studio method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../studio_module/#slideflow.studio.Studio.clear_result">clear_result() (Studio method)</a>
+</li>
       <li><a href="../dataset/#slideflow.Dataset.clip">clip() (in module slideflow.Dataset)</a>
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.close">close() (Studio method)</a>
@@ -482,11 +485,9 @@
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.collapsing_header">collapsing_header() (Studio method)</a>
 </li>
+      <li><a href="../studio_module/#slideflow.studio.Studio.collapsing_header2">collapsing_header2() (Studio method)</a>
+</li>
       <li><a href="../grad/#slideflow.grad.comparison_plot">comparison_plot() (in module slideflow.grad)</a>
-</li>
-      <li><a href="../io_torch/#slideflow.io.torch.compose_augmentations">compose_augmentations() (in module slideflow.io.torch)</a>
-</li>
-      <li><a href="../io_torch/#slideflow.io.torch.compose_color_distortion">compose_color_distortion() (in module slideflow.io.torch)</a>
 </li>
       <li><a href="../dataset_features/#slideflow.DatasetFeatures.concat">concat() (in module slideflow.DatasetFeatures)</a>
 </li>
@@ -505,8 +506,6 @@
       <li><a href="../slideflow/#slideflow.create_project">create_project() (in module slideflow)</a>
 </li>
       <li><a href="../gan/#slideflow.gan.utils.crop">crop() (in module slideflow.gan.utils)</a>
-</li>
-      <li><a href="../io_torch/#slideflow.io.torch.cwh_to_whc">cwh_to_whc() (in module slideflow.io.torch)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -532,10 +531,10 @@
 </li>
       <li><a href="../biscuit/#slideflow.biscuit.delong.delong_roc_variance">delong_roc_variance() (in module slideflow.biscuit.delong)</a>
 </li>
-      <li><a href="../biscuit/#slideflow.biscuit.threshold.detect">detect() (in module slideflow.biscuit.threshold)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../biscuit/#slideflow.biscuit.threshold.detect">detect() (in module slideflow.biscuit.threshold)</a>
+</li>
       <li><a href="../io/#slideflow.io.detect_tfrecord_format">detect_tfrecord_format() (in module slideflow.io)</a>
 </li>
       <li><a href="../biscuit/#slideflow.biscuit.utils.df_from_cv">df_from_cv() (in module slideflow.biscuit.utils)</a>
@@ -544,12 +543,8 @@
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.dim_text">dim_text() (Studio method)</a>
 </li>
-      <li><a href="../slide/#slideflow.TMA.dim_to_mpp">dim_to_mpp() (in module slideflow.TMA)</a>
-
-      <ul>
-        <li><a href="../slide/#slideflow.WSI.dim_to_mpp">(in module slideflow.WSI)</a>
+      <li><a href="../slide/#slideflow.WSI.dim_to_mpp">dim_to_mpp() (in module slideflow.WSI)</a>
 </li>
-      </ul></li>
       <li><a href="../biscuit/#slideflow.biscuit.Experiment.display">display() (in module slideflow.biscuit.Experiment)</a>
 </li>
       <li><a href="../util/#slideflow.util.download_from_tcga">download_from_tcga() (in module slideflow.util)</a>
@@ -584,10 +579,10 @@
 </li>
       <li><a href="../biscuit/#slideflow.biscuit.Experiment">Experiment (class in slideflow.biscuit)</a>
 </li>
-      <li><a href="../slide/#slideflow.WSI.export_rois">export_rois() (in module slideflow.WSI)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../slide/#slideflow.WSI.export_rois">export_rois() (in module slideflow.WSI)</a>
+</li>
       <li><a href="../dataset/#slideflow.Dataset.extract_cells">extract_cells() (in module slideflow.Dataset)</a>
 
       <ul>
@@ -604,8 +599,6 @@
         <li><a href="../io/#slideflow.io.extract_tiles">(in module slideflow.io)</a>
 </li>
         <li><a href="../project/#slideflow.Project.extract_tiles">(in module slideflow.Project)</a>
-</li>
-        <li><a href="../slide/#slideflow.TMA.extract_tiles">(in module slideflow.TMA)</a>
 </li>
         <li><a href="../slide/#slideflow.WSI.extract_tiles">(in module slideflow.WSI)</a>
 </li>
@@ -724,10 +717,10 @@
 </li>
       <li><a href="../util/#slideflow.util.get_gan_config">get_gan_config() (in module slideflow.util)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../io/#slideflow.io.get_locations_from_tfrecord">get_locations_from_tfrecord() (in module slideflow.io)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../util/#slideflow.util.get_model_config">get_model_config() (in module slideflow.util)</a>
 </li>
       <li><a href="../util/#slideflow.util.get_model_normalizer">get_model_normalizer() (in module slideflow.util)</a>
@@ -765,7 +758,11 @@
       <ul>
         <li><a href="../io_tensorflow/#slideflow.io.tensorflow.get_tfrecord_parser">(in module slideflow.io.tensorflow)</a>
 </li>
-        <li><a href="../io_torch/#slideflow.io.torch.get_tfrecord_parser">(in module slideflow.io.torch)</a>
+      </ul></li>
+      <li><a href="../dataset/#slideflow.Dataset.get_tile_dataframe">get_tile_dataframe() (in module slideflow.Dataset)</a>
+
+      <ul>
+        <li><a href="../slide/#slideflow.WSI.get_tile_dataframe">(in module slideflow.WSI)</a>
 </li>
       </ul></li>
       <li><a href="../slide/#slideflow.WSI.get_tile_mask">get_tile_mask() (in module slideflow.WSI)</a>
@@ -800,6 +797,8 @@
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.has_live_viewer">has_live_viewer() (Studio method)</a>
 </li>
+      <li><a href="../slide/#slideflow.WSI.has_rois">has_rois() (in module slideflow.WSI)</a>
+</li>
       <li><a href="../studio_module/#slideflow.studio.Studio.has_uq">has_uq() (Studio method)</a>
 </li>
   </ul></td>
@@ -822,30 +821,24 @@
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.increase_tile_zoom">increase_tile_zoom() (Studio method)</a>
 </li>
+      <li><a href="../io_torch/#slideflow.io.torch.IndexedInterleaver">IndexedInterleaver (class in slideflow.io.torch)</a>
+</li>
       <li><a href="../grad/#slideflow.grad.inferno">inferno() (in module slideflow.grad)</a>
 </li>
       <li><a href="../grad/#slideflow.grad.SaliencyMap.integrated_gradients">integrated_gradients() (SaliencyMap method)</a>
 </li>
       <li><a href="../io_tensorflow/#slideflow.io.tensorflow.interleave">interleave() (in module slideflow.io.tensorflow)</a>
-
-      <ul>
-        <li><a href="../io_torch/#slideflow.io.torch.interleave">(in module slideflow.io.torch)</a>
-</li>
-      </ul></li>
-      <li><a href="../io_torch/#slideflow.io.torch.interleave_dataloader">interleave_dataloader() (in module slideflow.io.torch)</a>
 </li>
       <li><a href="../io_torch/#slideflow.io.torch.InterleaveIterator">InterleaveIterator (class in slideflow.io.torch)</a>
 </li>
       <li><a href="../gan/#slideflow.gan.StyleGAN2Interpolator.interpolate_and_predict">interpolate_and_predict() (StyleGAN2Interpolator method)</a>
 </li>
-      <li><a href="../io_torch/#slideflow.io.torch.is_cwh">is_cwh() (in module slideflow.io.torch)</a>
-</li>
       <li><a href="../dataset/#slideflow.Dataset.is_float">is_float() (in module slideflow.Dataset)</a>
+</li>
+      <li><a href="../util/#slideflow.util.is_model">is_model() (in module slideflow.util)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="../util/#slideflow.util.is_model">is_model() (in module slideflow.util)</a>
-</li>
       <li><a href="../util/#slideflow.util.is_project">is_project() (in module slideflow.util)</a>
 </li>
       <li><a href="../util/#slideflow.util.is_simclr_model_path">is_simclr_model_path() (in module slideflow.util)</a>
@@ -864,7 +857,9 @@
 </li>
       <li><a href="../model/#slideflow.model.is_torch_tensor">is_torch_tensor() (in module slideflow.model)</a>
 </li>
-      <li><a href="../io_torch/#slideflow.io.torch.is_whc">is_whc() (in module slideflow.io.torch)</a>
+      <li><a href="../util/#slideflow.util.is_uq_model">is_uq_model() (in module slideflow.util)</a>
+</li>
+      <li><a href="../util/#slideflow.util.isnumeric">isnumeric() (in module slideflow.util)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -970,6 +965,8 @@
         <li><a href="../studio_module/#slideflow.studio.Studio.load_project">(Studio method)</a>
 </li>
       </ul></li>
+      <li><a href="../slide/#slideflow.WSI.load_roi_array">load_roi_array() (in module slideflow.WSI)</a>
+</li>
       <li><a href="../studio_module/#slideflow.studio.Studio.load_slide">load_slide() (Studio method)</a>
 </li>
       <li><a href="../slidemap/#slideflow.SlideMap.load_umap">load_umap() (in module slideflow.SlideMap)</a>
@@ -1020,10 +1017,10 @@
 </li>
       <li><a href="../mil_module/#slideflow.mil.ModelConfigCLAM">ModelConfigCLAM (class in slideflow.mil)</a>
 </li>
-      <li><a href="../mil_module/#slideflow.mil.ModelConfigFastAI">ModelConfigFastAI (class in slideflow.mil)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../mil_module/#slideflow.mil.ModelConfigFastAI">ModelConfigFastAI (class in slideflow.mil)</a>
+</li>
       <li><a href="../model_params/#slideflow.ModelParams">ModelParams (class in slideflow)</a>
 </li>
       <li>
@@ -1047,17 +1044,11 @@
       </ul></li>
       <li><a href="../mosaic/#slideflow.Mosaic">Mosaic (class in slideflow)</a>
 </li>
-      <li><a href="../slide/#slideflow.TMA.mpp_to_dim">mpp_to_dim() (in module slideflow.TMA)</a>
-
-      <ul>
-        <li><a href="../slide/#slideflow.WSI.mpp_to_dim">(in module slideflow.WSI)</a>
+      <li><a href="../slide/#slideflow.WSI.mpp_to_dim">mpp_to_dim() (in module slideflow.WSI)</a>
 </li>
-      </ul></li>
       <li><a href="../io_tensorflow/#slideflow.io.tensorflow.multi_image_example">multi_image_example() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="../grad/#slideflow.grad.multi_plot">multi_plot() (in module slideflow.grad)</a>
-</li>
-      <li><a href="../io_torch/#slideflow.io.torch.multi_slide_loader">multi_slide_loader() (in module slideflow.io.torch)</a>
 </li>
       <li><a href="../util/#slideflow.util.multi_warn">multi_warn() (in module slideflow.util)</a>
 </li>
@@ -1170,17 +1161,9 @@
       <li><a href="../biscuit/#slideflow.biscuit.utils.prediction_metrics">prediction_metrics() (in module slideflow.biscuit.utils)</a>
 </li>
       <li><a href="../io_tensorflow/#slideflow.io.tensorflow.preprocess_uint8">preprocess_uint8() (in module slideflow.io.tensorflow)</a>
-
-      <ul>
-        <li><a href="../io_torch/#slideflow.io.torch.preprocess_uint8">(in module slideflow.io.torch)</a>
 </li>
-      </ul></li>
-      <li><a href="../slide/#slideflow.TMA.preview">preview() (in module slideflow.TMA)</a>
-
-      <ul>
-        <li><a href="../slide/#slideflow.WSI.preview">(in module slideflow.WSI)</a>
+      <li><a href="../slide/#slideflow.WSI.preview">preview() (in module slideflow.WSI)</a>
 </li>
-      </ul></li>
       <li><a href="../studio_module/#slideflow.studio.Studio.print_error">print_error() (Studio method)</a>
 </li>
       <li><a href="../io_tensorflow/#slideflow.io.tensorflow.print_tfrecord">print_tfrecord() (in module slideflow.io.tensorflow)</a>
@@ -1188,6 +1171,8 @@
       <li><a href="../biscuit/#slideflow.biscuit.threshold.process_group_predictions">process_group_predictions() (in module slideflow.biscuit.threshold)</a>
 </li>
       <li><a href="../io_tensorflow/#slideflow.io.tensorflow.process_image">process_image() (in module slideflow.io.tensorflow)</a>
+</li>
+      <li><a href="../slide/#slideflow.WSI.process_rois">process_rois() (in module slideflow.WSI)</a>
 </li>
       <li><a href="../biscuit/#slideflow.biscuit.threshold.process_tile_predictions">process_tile_predictions() (in module slideflow.biscuit.threshold)</a>
 </li>
@@ -1201,30 +1186,18 @@
 <h2 id="Q">Q</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="../slide/#slideflow.TMA.qc">qc() (in module slideflow.TMA)</a>
-
-      <ul>
-        <li><a href="../slide/#slideflow.WSI.qc">(in module slideflow.WSI)</a>
+      <li><a href="../slide/#slideflow.WSI.qc">qc() (in module slideflow.WSI)</a>
 </li>
-      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="../io_torch/#slideflow.io.torch.random_jpeg_compression">random_jpeg_compression() (in module slideflow.io.torch)</a>
-</li>
-      <li><a href="../io_torch/#slideflow.io.torch.RandomCardinalRotation">RandomCardinalRotation (class in slideflow.io.torch)</a>
-</li>
-      <li><a href="../io_torch/#slideflow.io.torch.RandomGaussianBlur">RandomGaussianBlur (class in slideflow.io.torch)</a>
-</li>
       <li><a href="../io/#slideflow.io.read_and_return_record">read_and_return_record() (in module slideflow.io)</a>
 
       <ul>
         <li><a href="../io_tensorflow/#slideflow.io.tensorflow.read_and_return_record">(in module slideflow.io.tensorflow)</a>
-</li>
-        <li><a href="../io_torch/#slideflow.io.torch.read_and_return_record">(in module slideflow.io.torch)</a>
 </li>
       </ul></li>
       <li><a href="../util/#slideflow.util.read_annotations">read_annotations() (in module slideflow.util)</a>
@@ -1245,18 +1218,16 @@
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.reload_viewer">reload_viewer() (Studio method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../dataset/#slideflow.Dataset.remove_filter">remove_filter() (in module slideflow.Dataset)</a>
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.remove_from_render_pipeline">remove_from_render_pipeline() (Studio method)</a>
 </li>
-      <li><a href="../slide/#slideflow.TMA.remove_qc">remove_qc() (in module slideflow.TMA)</a>
-
-      <ul>
-        <li><a href="../slide/#slideflow.WSI.remove_qc">(in module slideflow.WSI)</a>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../slide/#slideflow.WSI.remove_qc">remove_qc() (in module slideflow.WSI)</a>
 </li>
-      </ul></li>
+      <li><a href="../slide/#slideflow.WSI.remove_roi">remove_roi() (in module slideflow.WSI)</a>
+</li>
       <li><a href="../dataset_features/#slideflow.DatasetFeatures.remove_slide">remove_slide() (in module slideflow.DatasetFeatures)</a>
 </li>
       <li><a href="../studio_module/#slideflow.studio.Sidebar.remove_widget">remove_widget() (Sidebar method)</a>
@@ -1338,18 +1309,20 @@
       <ul>
         <li><a href="../io_tensorflow/#slideflow.io.tensorflow.serialized_record">(in module slideflow.io.tensorflow)</a>
 </li>
-        <li><a href="../io_torch/#slideflow.io.torch.serialized_record">(in module slideflow.io.torch)</a>
-</li>
       </ul></li>
       <li><a href="../gan/#slideflow.gan.StyleGAN2Interpolator.set_classifier">set_classifier() (StyleGAN2Interpolator method)</a>
 </li>
       <li><a href="../norm/#slideflow.norm.StainNormalizer.set_fit">set_fit() (in module slideflow.norm.StainNormalizer)</a>
+</li>
+      <li><a href="../studio_module/#slideflow.studio.Studio.set_grid_overlay">set_grid_overlay() (Studio method)</a>
 </li>
       <li><a href="../util/#slideflow.util.set_ignore_sigint">set_ignore_sigint() (in module slideflow.util)</a>
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.set_message">set_message() (Studio method)</a>
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.set_overlay">set_overlay() (Studio method)</a>
+</li>
+      <li><a href="../studio_module/#slideflow.studio.Studio.set_prediction_message">set_prediction_message() (Studio method)</a>
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.set_viewer">set_viewer() (Studio method)</a>
 </li>
@@ -1359,16 +1332,18 @@
         <li><a href="../util/#slideflow.util.setLoggingLevel">(in module slideflow.util)</a>
 </li>
       </ul></li>
+      <li><a href="../slide/#slideflow.WSI.show_alignment">show_alignment() (in module slideflow.WSI)</a>
+</li>
       <li><a href="../studio_module/#slideflow.studio.Studio.show_overlay">show_overlay (Studio property)</a>
 </li>
       <li><a href="../io_tensorflow/#slideflow.io.tensorflow.shuffle_tfrecord">shuffle_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="../io_tensorflow/#slideflow.io.tensorflow.shuffle_tfrecords_by_dir">shuffle_tfrecords_by_dir() (in module slideflow.io.tensorflow)</a>
 </li>
-      <li><a href="../studio_module/#slideflow.studio.Sidebar">Sidebar (class in slideflow.studio)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../studio_module/#slideflow.studio.Sidebar">Sidebar (class in slideflow.studio)</a>
+</li>
       <li><a href="../simclr/#slideflow.simclr.SimCLR">SimCLR (class in slideflow.simclr)</a>
 </li>
       <li><a href="../simclr/#slideflow.simclr.SimCLR_Args">SimCLR_Args (class in slideflow.simclr)</a>
@@ -1448,6 +1423,8 @@
 </li>
       <li><a href="../dataset/#slideflow.Dataset.split_tfrecords_by_roi">split_tfrecords_by_roi() (in module slideflow.Dataset)</a>
 </li>
+      <li><a href="../slide/#slideflow.WSI.square_thumb">square_thumb() (in module slideflow.WSI)</a>
+</li>
       <li><a href="../norm/#slideflow.norm.StainNormalizer">StainNormalizer (class in slideflow.norm)</a>
 </li>
       <li><a href="../dataset_features/#slideflow.DatasetFeatures.stats">stats() (in module slideflow.DatasetFeatures)</a>
@@ -1502,19 +1479,13 @@
 </li>
       <li><a href="../biscuit/#slideflow.biscuit.Experiment.thresholds_from_nested_cv">thresholds_from_nested_cv() (in module slideflow.biscuit.Experiment)</a>
 </li>
-      <li><a href="../slide/#slideflow.TMA.thumb">thumb() (in module slideflow.TMA)</a>
-
-      <ul>
-        <li><a href="../slide/#slideflow.WSI.thumb">(in module slideflow.WSI)</a>
+      <li><a href="../slide/#slideflow.WSI.thumb">thumb() (in module slideflow.WSI)</a>
 </li>
-      </ul></li>
       <li><a href="../dataset/#slideflow.Dataset.thumbnails">thumbnails() (in module slideflow.Dataset)</a>
 </li>
       <li><a href="../util/#slideflow.util.TileExtractionProgress">TileExtractionProgress (class in slideflow.util)</a>
 </li>
       <li><a href="../util/#slideflow.util.TileExtractionSpeedColumn">TileExtractionSpeedColumn (class in slideflow.util)</a>
-</li>
-      <li><a href="../slide/#slideflow.slide.TMA">TMA (class in slideflow.slide)</a>
 </li>
       <li><a href="../dataset_features/#slideflow.DatasetFeatures.to_csv">to_csv() (in module slideflow.DatasetFeatures)</a>
 </li>
@@ -1616,12 +1587,14 @@
 </li>
       <li><a href="../grad/#slideflow.grad.SaliencyMap.vanilla">vanilla() (SaliencyMap method)</a>
 </li>
-      <li><a href="../dataset/#slideflow.Dataset.verify_annotations_slides">verify_annotations_slides() (in module slideflow.Dataset)</a>
+      <li><a href="../slide/#slideflow.WSI.verify_alignment">verify_alignment() (in module slideflow.WSI)</a>
 </li>
-      <li><a href="../dataset/#slideflow.Dataset.verify_img_format">verify_img_format() (in module slideflow.Dataset)</a>
+      <li><a href="../dataset/#slideflow.Dataset.verify_annotations_slides">verify_annotations_slides() (in module slideflow.Dataset)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../dataset/#slideflow.Dataset.verify_img_format">verify_img_format() (in module slideflow.Dataset)</a>
+</li>
       <li><a href="../dataset/#slideflow.Dataset.verify_slide_names">verify_slide_names() (in module slideflow.Dataset)</a>
 </li>
       <li><a href="../heatmap/#slideflow.Heatmap.view">view() (in module slideflow.Heatmap)</a>
@@ -1638,8 +1611,6 @@
 <h2 id="W">W</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="../io_torch/#slideflow.io.torch.whc_to_cwh">whc_to_cwh() (in module slideflow.io.torch)</a>
-</li>
       <li><a href="../util/#slideflow.util.write_json">write_json() (in module slideflow.util)</a>
 </li>
       <li><a href="../io/#slideflow.io.write_tfrecords_merge">write_tfrecords_merge() (in module slideflow.io)</a>
@@ -1686,16 +1657,16 @@
 
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -1703,11 +1674,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -1717,26 +1688,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
          <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
@@ -1747,7 +1718,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

@@ -1,0 +1,822 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Dataloaders: Sampling and Augmentation &mdash; slideflow 2.2.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" />
+    <link rel="next" title="Custom Feature Extractors" href="../custom_extractors/" />
+    <link rel="prev" title="TFRecords: Reading and Writing" href="../tfrecords/" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  2.2
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Dataloaders: Sampling and Augmentation</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/dataloaders.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <section id="dataloaders-sampling-and-augmentation">
+<span id="dataloaders"></span><h1>Dataloaders: Sampling and Augmentation<a class="headerlink" href="#dataloaders-sampling-and-augmentation" title="Permalink to this heading">¶</a></h1>
+<p>With support for both Tensorflow and PyTorch, Slideflow provides several options for dataset sampling, processing, and augmentation. Here, we’ll review the options available for each framework. In all cases, data are read from TFRecords generated through <a class="reference internal" href="../slide_processing/#filtering"><span class="std std-ref">Slide Processing</span></a>. The TFRecord data format is discussed in more detail in the <a class="reference internal" href="../tfrecords/#tfrecords"><span class="std std-ref">TFRecords: Reading and Writing</span></a> note.</p>
+<section id="tensorflow">
+<h2>Tensorflow<a class="headerlink" href="#tensorflow" title="Permalink to this heading">¶</a></h2>
+<p>The <a class="reference internal" href="../dataset/#slideflow.Dataset.tensorflow" title="slideflow.Dataset.tensorflow"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.tensorflow()</span></code></a> method provides an easy interface for creating a <code class="docutils literal notranslate"><span class="pre">tf.data.Dataset</span></code> that reads and interleaves from tfrecords in a Slideflow dataset. Behind the scenes, this method uses the <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset"><code class="docutils literal notranslate"><span class="pre">tf.data.TFRecordDataset</span></code></a> class for reading and parsing each TFRecord.</p>
+<p>The returned <code class="docutils literal notranslate"><span class="pre">tf.data.Dataset</span></code> object is an iterable-only dataset whose returned values depend on the arguments provided to the <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> function.</p>
+<p>If no arguments are provided, the returned dataset will yield a tuple of <code class="docutils literal notranslate"><span class="pre">(image,</span> <span class="pre">None)</span></code>, where the image is a <code class="docutils literal notranslate"><span class="pre">tf.Tensor</span></code> of shape <code class="docutils literal notranslate"><span class="pre">[tile_height,</span> <span class="pre">tile_width,</span> <span class="pre">num_channels]</span></code> and type <code class="docutils literal notranslate"><span class="pre">tf.uint8</span></code>.</p>
+<p>If the <code class="docutils literal notranslate"><span class="pre">labels</span></code> argument is provided (dictionary mapping slide names to a numeric label), the returned dataset will yield a tuple of <code class="docutils literal notranslate"><span class="pre">(image,</span> <span class="pre">label)</span></code>, where the label is a <code class="docutils literal notranslate"><span class="pre">tf.Tensor</span></code> with a shape and type that matches the provided labels.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Create a dataset object</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Get the labels</span>
+<span class="n">labels</span><span class="p">,</span> <span class="n">unique_labels</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">)</span>
+
+<span class="c1"># Create a tensorflow dataset</span>
+<span class="n">tf_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">tf_dataset</span><span class="p">:</span>
+    <span class="c1"># Do something with the image and label...</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<section id="slide-names-and-tile-locations">
+<h3>Slide names and tile locations<a class="headerlink" href="#slide-names-and-tile-locations" title="Permalink to this heading">¶</a></h3>
+<p>Dataloaders can be configured to return slide names and tile locations in addition to the image and label. This is done by providing the <code class="docutils literal notranslate"><span class="pre">incl_slidenames</span></code> and <code class="docutils literal notranslate"><span class="pre">incl_loc</span></code> arguments to the <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> method. Both arguments are boolean values and default to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
+<p>Setting <code class="docutils literal notranslate"><span class="pre">incl_slidenames=True</span></code> will return the slidename as a Tensor (dtype=string) after the label. Setting <code class="docutils literal notranslate"><span class="pre">incl_loc=True</span></code> will return the x and y locations, both as Tensors (dtype=int64), as the last two values of the tuple.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tf_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span><span class="n">incl_slidenames</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">incl_loc</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">slide</span><span class="p">,</span> <span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span> <span class="ow">in</span> <span class="n">tf_dataset</span><span class="p">:</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+</section>
+<section id="image-preprocessing">
+<h3>Image preprocessing<a class="headerlink" href="#image-preprocessing" title="Permalink to this heading">¶</a></h3>
+<p>Dataloaders created with <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> include several image preprocessing options. These options are provided as keyword arguments to the <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> method and are executed in the order listed below:</p>
+<ul class="simple">
+<li><p><strong>crop_left</strong> (int): Crop images to this top-left x/y coordinate. Default is <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>crop_width</strong> (int): Crop images to this width. Default is <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>resize_target</strong> (int): Resize images to this width/height. Default is <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>resize_method</strong> (str): Resize method. Default is <code class="docutils literal notranslate"><span class="pre">&quot;lanczos3&quot;</span></code>.</p></li>
+<li><p><strong>resize_aa</strong> (bool): Enable antialiasing if resizing. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p><strong>normalizer</strong> (<code class="docutils literal notranslate"><span class="pre">StainNormalizer</span></code>): Perform stain normalization.</p></li>
+<li><dl class="simple">
+<dt><strong>augment</strong> (str): Perform augmentations based on the provided string. Options include:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">'n'</span></code>: Perform <a class="reference internal" href="../norm/#stain-augmentation"><span class="std std-ref">Stain Augmentation</span></a> (done concurrently with stain normalization)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'j'</span></code>: Random JPEG compression (50% chance to compress with quality between 50-100)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'r'</span></code>: Random 90-degree rotation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'x'</span></code>: Random horizontal flip</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'y'</span></code>: Random vertical flip</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'b'</span></code>: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p><strong>transform</strong> (Any): Arbitrary function to apply to each image. The function must accept a single argument (the image) and return a single value (the transformed image).</p></li>
+<li><p><strong>standardize</strong> (bool): Standardize images with <code class="docutils literal notranslate"><span class="pre">tf.image.per_image_standardization()</span></code>, returning a <code class="docutils literal notranslate"><span class="pre">tf.float32</span></code> image. Default is <code class="docutils literal notranslate"><span class="pre">False</span></code>, returning a <code class="docutils literal notranslate"><span class="pre">tf.uint8</span></code> image.</p></li>
+</ul>
+</section>
+<section id="dataset-sharding">
+<h3>Dataset sharding<a class="headerlink" href="#dataset-sharding" title="Permalink to this heading">¶</a></h3>
+<p>Tensorflow dataloaders can be sharded into multiple partitions, ensuring that data is not duplicated when performing distributed training across multiple processes or nodes. This is done by providing the <code class="docutils literal notranslate"><span class="pre">shard_idx</span></code> and <code class="docutils literal notranslate"><span class="pre">num_shards</span></code> arguments to the <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> method. The <code class="docutils literal notranslate"><span class="pre">shard_idx</span></code> argument is an integer specifying the shard number, and <code class="docutils literal notranslate"><span class="pre">num_shards</span></code> is an integer specifying the total number of shards.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Shard the dataset for GPU 1 of 4</span>
+<span class="n">tf_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="n">shard_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">num_shards</span><span class="o">=</span><span class="mi">4</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="pytorch">
+<h2>PyTorch<a class="headerlink" href="#pytorch" title="Permalink to this heading">¶</a></h2>
+<p>As with Tensorflow, the <a class="reference internal" href="../dataset/#slideflow.Dataset.torch" title="slideflow.Dataset.torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.torch()</span></code></a> method creates a <a class="reference external" href="https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"><code class="docutils literal notranslate"><span class="pre">torch.utils.data.DataLoader</span></code></a> that reads images from TFRecords. In the backend, TFRecords are read using <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.tfrecord.torch.MultiTFRecordDataset()</span></code> and processed as described in <a class="reference internal" href="../tfrecords/#tfrecords"><span class="std std-ref">TFRecords: Reading and Writing</span></a>.</p>
+<p>The returned <a class="reference external" href="https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"><code class="docutils literal notranslate"><span class="pre">torch.utils.data.DataLoader</span></code></a> is an iterable-only dataloader whose returned values depend on the arguments provided to the <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> function. An indexable, map-style dataset is also available when using PyTorch, as described in <a class="reference internal" href="#indexable-dataloader"><span class="std std-ref">Direct indexing</span></a>.</p>
+<p>If no arguments are provided, the returned dataloader will yield a tuple of <code class="docutils literal notranslate"><span class="pre">(image,</span> <span class="pre">None)</span></code>, where the image is a <code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code> of shape <code class="docutils literal notranslate"><span class="pre">[num_channels,</span> <span class="pre">tile_height,</span> <span class="pre">tile_width]</span></code> and type <code class="docutils literal notranslate"><span class="pre">torch.uint8</span></code>. Labels are assigned as described above. Slide names and tile location can also be returned, using the same arguments as described previously.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Create a dataset object</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Create a tensorflow dataset</span>
+<span class="n">torch_dl</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">torch</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">torch_dl</span><span class="p">:</span>
+    <span class="c1"># Do something with the image...</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<section id="id1">
+<h3>Image preprocessing<a class="headerlink" href="#id1" title="Permalink to this heading">¶</a></h3>
+<p>Dataloaders created with <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> include several image preprocessing options, provided as keyword arguments to the <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> method. These preprocessing steps are executed in the order listed below:</p>
+<ul class="simple">
+<li><p><strong>normalizer</strong> (<code class="docutils literal notranslate"><span class="pre">StainNormalizer</span></code>): Perform stain normalization.</p></li>
+<li><dl class="simple">
+<dt><strong>augment</strong> (str): Perform augmentations based on the provided string, in the order characters appear in the string. Options include:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">'n'</span></code>: Perform <a class="reference internal" href="../norm/#stain-augmentation"><span class="std std-ref">Stain Augmentation</span></a> (done concurrently with stain normalization)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'j'</span></code>: Random JPEG compression (50% chance to compress with quality between 50-100)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'r'</span></code>: Random 90-degree rotation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'x'</span></code>: Random horizontal flip</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'y'</span></code>: Random vertical flip</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'b'</span></code>: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p><strong>transform</strong> (Any): Arbitrary function to apply to each image, including <a class="reference external" href="https://pytorch.org/vision/main/transforms.html">torchvision transforms</a>. The function must accept a single argument (the image, in <code class="docutils literal notranslate"><span class="pre">(num_channels,</span> <span class="pre">height,</span> <span class="pre">width)</span></code> format) and return a single value (the transformed image).</p></li>
+<li><p><strong>standardize</strong> (bool): Standardize images with <code class="docutils literal notranslate"><span class="pre">image</span> <span class="pre">/</span> <span class="pre">127.5</span> <span class="pre">-</span> <span class="pre">1</span></code>, returning a <code class="docutils literal notranslate"><span class="pre">torch.float32</span></code> image. Default is <code class="docutils literal notranslate"><span class="pre">False</span></code>, returning a <code class="docutils literal notranslate"><span class="pre">torch.uint8</span></code> image.</p></li>
+</ul>
+<p>Below is an example of using the <code class="docutils literal notranslate"><span class="pre">transform</span></code> argument to apply a torchvision transform to each image:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torchvision.transforms</span> <span class="k">as</span> <span class="nn">T</span>
+
+<span class="c1"># Create a torch dataloader</span>
+<span class="n">torch_dataloader</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">torch</span><span class="p">(</span>
+    <span class="n">transform</span><span class="o">=</span><span class="n">T</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span>
+        <span class="n">RandomResizedCrop</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span> <span class="n">antialias</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">Normalize</span><span class="p">(</span><span class="n">mean</span><span class="o">=</span><span class="p">[</span><span class="mf">0.485</span><span class="p">,</span> <span class="mf">0.456</span><span class="p">,</span> <span class="mf">0.406</span><span class="p">],</span>
+                  <span class="n">std</span><span class="o">=</span><span class="p">[</span><span class="mf">0.229</span><span class="p">,</span> <span class="mf">0.224</span><span class="p">,</span> <span class="mf">0.225</span><span class="p">]),</span>
+    <span class="p">])</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">torch_dataloader</span><span class="p">:</span>
+    <span class="c1"># Do something with the image and label...</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h3>Dataset sharding<a class="headerlink" href="#id2" title="Permalink to this heading">¶</a></h3>
+<p>PyTorch Dataloaders can similarly be sharded into multiple partitions, ensuring that data is not duplicated when performing distributed training across multiple process or nodes.</p>
+<p>Sharding is done in two stages. First, dataloaders can be split into partitions using the <code class="docutils literal notranslate"><span class="pre">rank</span></code> and <code class="docutils literal notranslate"><span class="pre">num_replicas</span></code> arguments to the <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> method. The <code class="docutils literal notranslate"><span class="pre">rank</span></code> argument is an integer specifying the rank of the current process, and <code class="docutils literal notranslate"><span class="pre">num_replicas</span></code> is an integer specifying the total number of processes.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Shard the dataset for GPU 1 of 4</span>
+<span class="n">torch_dataloader</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">torch</span><span class="p">(</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="n">rank</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">num_replicas</span><span class="o">=</span><span class="mi">4</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>The second stage of sharding happens in the background: if a dataloader is built with multiple worker processes (<code class="docutils literal notranslate"><span class="pre">Dataset.torch(num_workers=...)</span></code>), partitions will be automatically further subdivided into smaller chunks, ensuring that each worker process reads a unique subset of the data.</p>
+</section>
+</section>
+<section id="labeling">
+<h2>Labeling<a class="headerlink" href="#labeling" title="Permalink to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">label</span></code> argument to the <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> and <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> methods accept a dictionary mapping slide names to a numeric label. During TFRecord reading, the slide name is used to lookup the label from the provided dictionary.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Labels are assigned to image tiles based on the slide names inside a <a class="reference internal" href="../tfrecords/#tfrecords"><span class="std std-ref">tfrecord</span></a> file, not by the filename of the tfrecord. This means that renaming a TFRecord file will not change the label of the tiles inside the file. If you need to change the slide names associated with tiles inside a TFRecord, the TFRecord file must be regenerated.</p>
+</div>
+<p>The most common way to generate labels is to use the <a class="reference internal" href="../dataset/#slideflow.Dataset.labels" title="slideflow.Dataset.labels"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.labels()</span></code></a> method, which returns a dictionary mapping slide names to numeric labels. For categorical labels, the numeric labels correspond to the index of the label in the <code class="docutils literal notranslate"><span class="pre">unique_labels</span></code> list. For example, if the <code class="docutils literal notranslate"><span class="pre">unique_labels</span></code> list is <code class="docutils literal notranslate"><span class="pre">['HPV-',</span> <span class="pre">'HPV+']</span></code>, then the mapping of numeric labels would be <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">'HPV-':</span> <span class="pre">0,</span> <span class="pre">'HPV+':</span> <span class="pre">1</span> <span class="pre">}</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">labels</span><span class="p">,</span> <span class="n">unique_labels</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">unique_labels</span>
+<span class="go">[&#39;HPV-&#39;, &#39;HPV+&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">labels</span>
+<span class="go">{&#39;slide1&#39;: 0,</span>
+<span class="go"> &#39;slide2&#39;: 1,</span>
+<span class="go"> ...</span>
+<span class="go">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tf_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="sampling">
+<span id="id3"></span><h2>Sampling<a class="headerlink" href="#sampling" title="Permalink to this heading">¶</a></h2>
+<p>Dataloaders created with <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> and <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> are iterable-only dataloaders, meaning that they cannot be indexed directly. This is because the underlying TFRecords are sampled in a streaming fashion, and the dataloader does not know what the next record will be until it has been read. This is in contrast to the <a class="reference internal" href="#indexable-dataloader"><span class="std std-ref">Direct indexing</span></a> method described below, which creates an indexable, map-style dataset.</p>
+<p>Dataloaders created with <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> and <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> can be configured to sample from TFRecords in several ways, with options for infinite vs. finite sampling, oversampling, and undersampling. These sampling methods are described below.</p>
+<section id="infinite-dataloaders">
+<h3>Infinite dataloaders<a class="headerlink" href="#infinite-dataloaders" title="Permalink to this heading">¶</a></h3>
+<p>By default, dataloaders created with <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> and <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> will sample from TFRecords in an infinite loop. This is useful for training, where the dataloader should continue to yield images until the training process is complete. By default, images are sampled from TFRecords with uniform sampling, meaning that each TFRecord has an equal chance of yielding an image. This sampling strategy can be configured, as described below.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When training <a class="reference internal" href="../training/#training"><span class="std std-ref">tile-based models</span></a>, a dataloader is considered to have yielded one “epoch” of data when it has yielded the number of images equal to the number of tiles in the dataset. Due to the random sampling from TFRecords, this means that some images will be overrepresented (images from TFRecords with fewer tiles) and some will be underrepresented (images from TFRecords with many tiles).</p>
+</div>
+</section>
+<section id="finite-dataloaders">
+<h3>Finite dataloaders<a class="headerlink" href="#finite-dataloaders" title="Permalink to this heading">¶</a></h3>
+<p>Dataloaders can also be configured with finite sampling, yielding tiles from TFRecords exactly once. This is accomplished by passing the argument <code class="docutils literal notranslate"><span class="pre">infinite=False</span></code> to the <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> or <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> methods.</p>
+</section>
+<section id="oversampling-with-balancing">
+<span id="balancing"></span><h3>Oversampling with balancing<a class="headerlink" href="#oversampling-with-balancing" title="Permalink to this heading">¶</a></h3>
+<p>Oversampling methods control the probability that tiles are read from each TFRecord, affecting the balance of data across slides, patients, and outcome categories. Oversampling is configured at the Dataset level, using the <a class="reference internal" href="../dataset/#slideflow.Dataset.balance" title="slideflow.Dataset.balance"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.balance()</span></code></a> method. This method returns a copy of the dataset with the specified oversampling strategy.</p>
+<p><strong>Slide-level balancing</strong>: By default, images are sampled from TFRecords with uniform probability, meaning that each TFRecord has an equal chance of yielding an image. This is equivalent to both <code class="docutils literal notranslate"><span class="pre">.balance(strategy='slide')</span></code> and <code class="docutils literal notranslate"><span class="pre">.balance(strategy=None)</span></code>. This strategy will oversample images from slides with fewer tiles, and undersample images from slides with more tiles.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Sample from TFRecords with equal probability</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Patient-level balancing</strong>: To sample from TFRecords with probability proportional to the number of tiles in each patient, use <code class="docutils literal notranslate"><span class="pre">.balance(strategy='patient')</span></code>. This strategy will oversample images from patients with fewer tiles, and undersample images from patients with more tiles.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Sample from TFRecords with probability proportional</span>
+<span class="c1"># to the number of tiles in each patient.</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;patient&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Tile-level balancing</strong>: To sample from TFRecords with uniform probability across image tiles, use <code class="docutils literal notranslate"><span class="pre">.balance(strategy='tile')</span></code>. This strategy will sample from TFRecords with probability proportional to the number of tiles in the TFRecord, resulting in higher representation of slides with more tiles.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Sample from TFRecords with probability proportional</span>
+<span class="c1"># to the number of tiles in each TFRecord.</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;tile&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Category-level balancing</strong>: To sample from TFRecords with probability proportional to the number of tiles in each outcome category, use <code class="docutils literal notranslate"><span class="pre">.balance(strategy='category')</span></code>. This strategy will oversample images from outcome categories with fewer tiles, and undersample images from outcome categories with more tiles. This strategy will also perform slide-level balancing within each category. Category-level balancing is only available when using categorical labels.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Sample from TFRecords with probability proportional</span>
+<span class="c1"># to the number of tiles in each category</span>
+<span class="c1"># &quot;HPV-&quot; and &quot;HPV+&quot;.</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="s2">&quot;HPV_status&quot;</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;category&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Custom balancing</strong>: The <code class="docutils literal notranslate"><span class="pre">.balance()</span></code> method saves sampling probability weights to <code class="docutils literal notranslate"><span class="pre">Dataset.prob_weights</span></code>, a dictionary mapping TFRecord paths to sampling weights. Custom balancing can be performed by overriding this dictionary with custom weights.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">prob_weights</span>
+<span class="go">{&#39;/path/to/tfrecord1&#39;: 0.002,</span>
+<span class="go"> &#39;/path/to/tfrecord2&#39;: 0.003,</span>
+<span class="go"> ...</span>
+<span class="go">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">prob_weights</span> <span class="o">=</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>Balancing is automatically applied to dataloaders created with the <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> and <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> methods.</p>
+</section>
+<section id="undersampling-with-clipping">
+<h3>Undersampling with clipping<a class="headerlink" href="#undersampling-with-clipping" title="Permalink to this heading">¶</a></h3>
+<p>Datasets can also be configured to undersample TFRecords using <a class="reference internal" href="../dataset/#slideflow.Dataset.clip" title="slideflow.Dataset.clip"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.clip()</span></code></a>. Several undersampling strategies are available.</p>
+<p><strong>Slide-level clipping</strong>: TFRecords can be clipped to a maximum number of tiles per slide using <code class="docutils literal notranslate"><span class="pre">.clip(max_tiles)</span></code>. This strategy will clip TFRecords with more tiles than the specified <code class="docutils literal notranslate"><span class="pre">max_tiles</span></code> value, resulting in a maximum of <code class="docutils literal notranslate"><span class="pre">max_tiles</span></code> tiles per slide.</p>
+<p><strong>Patient-level clipping</strong>: TFRecords can be clipped to a maximum number of tiles per patient using <code class="docutils literal notranslate"><span class="pre">.clip(max_tiles,</span> <span class="pre">strategy='patient')</span></code>. For patients with more than one slide/TFRecord, TFRecords will be clipped proportionally.</p>
+<p><strong>Outcome-level clipping</strong>: TFRecords can also be clipped to a maximum number of tiles per outcome category using <code class="docutils literal notranslate"><span class="pre">.clip(max_tiles,</span> <span class="pre">strategy='category',</span> <span class="pre">headers=...)</span></code>. The outcome category is specified by the <code class="docutils literal notranslate"><span class="pre">headers</span></code> argument, which can be a single header name or a list of header names. Within each category, TFRecords will be clipped proportionally.</p>
+<p><strong>Custom clipping</strong>: The <code class="docutils literal notranslate"><span class="pre">.clip()</span></code> method saves clipping values to <code class="docutils literal notranslate"><span class="pre">Dataset._clip</span></code>, a dictionary mapping TFRecord paths to counts of how many tiles should be sampled from the TFRecord. Custom clipping can be performed by overriding this dictionary with custom weights.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">_clip</span>
+<span class="go">{&#39;/path/to/tfrecord1&#39;: 76,</span>
+<span class="go"> &#39;/path/to/tfrecord2&#39;: 100,</span>
+<span class="go"> ...</span>
+<span class="go">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">_clip</span> <span class="o">=</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>Undersampling via dataset clipping is automatically applied to dataloaders created with <code class="docutils literal notranslate"><span class="pre">.tensorflow()</span></code> and <code class="docutils literal notranslate"><span class="pre">.torch()</span></code>.</p>
+</section>
+<section id="during-training">
+<h3>During training<a class="headerlink" href="#during-training" title="Permalink to this heading">¶</a></h3>
+<p>If you are training a Slideflow model by directly providing a training and validation dataset to the <a class="reference internal" href="../project/#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a> method, you can configure the datasets to perform oversampling and undersampling as described above. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Load a project</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Configure a training dataset with tile-level balancing</span>
+<span class="c1"># and clipping to max 100 tiles per TFRecord</span>
+<span class="n">train</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="o">...</span><span class="p">)</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;tile&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+
+<span class="c1"># Get a validation dataset</span>
+<span class="n">val</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Train a model</span>
+<span class="n">project</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="n">dataset</span><span class="o">=</span><span class="n">train</span><span class="p">,</span>
+    <span class="n">val_dataset</span><span class="o">=</span><span class="n">val</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Alternatively, you can configure oversampling during training through the <code class="docutils literal notranslate"><span class="pre">training_balance</span></code> and <code class="docutils literal notranslate"><span class="pre">validation_balance</span></code> hyperparameters, as described in the <a class="reference internal" href="../model_params/#model-params"><span class="std std-ref">ModelParams</span></a> documentation. Undersampling with dataset clipping can be performed with the <code class="docutils literal notranslate"><span class="pre">max_tiles</span></code> argument. Configuring oversampling/undersampling with this method propagates the configuration to all datasets generated during cross-validation.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Load a project</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Configure hyperparameters with tile-level</span>
+<span class="c1"># balancing/oversampling for the training data</span>
+<span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="n">training_balance</span><span class="o">=</span><span class="s1">&#39;tile&#39;</span><span class="p">,</span>
+    <span class="n">validation_balance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Train a model.</span>
+<span class="c1"># Undersample/clip data to max 100 tiles per TFRecord.</span>
+<span class="n">project</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
+    <span class="n">max_tiles</span><span class="o">=</span><span class="mi">100</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="direct-indexing">
+<span id="indexable-dataloader"></span><h2>Direct indexing<a class="headerlink" href="#direct-indexing" title="Permalink to this heading">¶</a></h2>
+<p>An indexable, map-style dataloader can be created for PyTorch using <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.io.IndexedInterleaver</span></code>, which returns a <code class="docutils literal notranslate"><span class="pre">torch.utils.data.Dataset</span></code>. Indexable datasets are only available for the PyTorch backend.</p>
+<p>This indexable dataset is created from a list of TFRecords and accepts many arguments for controlling labels, augmentation and image transformations.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> <span class="n">IndexedInterleaver</span>
+
+<span class="c1"># Create a dataset object</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Get the TFRecords</span>
+<span class="n">tfrecords</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
+
+<span class="c1"># Assemble labels</span>
+<span class="n">labels</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="s2">&quot;HPV_status&quot;</span><span class="p">)</span>
+
+<span class="c1"># Create an indexable dataset</span>
+<span class="n">dts</span> <span class="o">=</span> <span class="n">IndexedInterleaver</span><span class="p">(</span>
+    <span class="n">tfrecords</span><span class="p">,</span>
+    <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+    <span class="n">augment</span><span class="o">=</span><span class="s2">&quot;xyrj&quot;</span><span class="p">,</span>
+    <span class="n">transform</span><span class="o">=</span><span class="n">T</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span>
+        <span class="n">T</span><span class="o">.</span><span class="n">RandomResizedCrop</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
+                            <span class="n">antialias</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+    <span class="p">]),</span>
+    <span class="n">normalizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">standardize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>The returned dataset is indexable, meaning that it can be indexed directly to retrieve a single image and label.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">dts</span><span class="p">)</span>
+<span class="go">284114</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="o">=</span> <span class="n">dts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">image</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([3, 224, 224])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">image</span><span class="o">.</span><span class="n">dtype</span>
+<span class="go">torch.float32</span>
+</pre></div>
+</div>
+<p>The dataset can be configured to return slide names and tile locations by setting the <code class="docutils literal notranslate"><span class="pre">incl_slidenames</span></code> and <code class="docutils literal notranslate"><span class="pre">incl_loc</span></code> arguments to <code class="docutils literal notranslate"><span class="pre">True</span></code>, as described above.</p>
+<p>Dataset sharding is supported with the same <code class="docutils literal notranslate"><span class="pre">rank</span></code> and <code class="docutils literal notranslate"><span class="pre">num_replicas</span></code> arguments as described above.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Shard for GPU 1 of 4</span>
+<span class="n">dts</span> <span class="o">=</span> <span class="n">IndexedInterleaver</span><span class="p">(</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="n">rank</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">num_replicas</span><span class="o">=</span><span class="mi">4</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.io.IndexedInterleaver</span></code> supports undersampling via the <cite>clip</cite> argument (array of clipping values for each TFRecord), but does not support oversampling or balancing.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Specify TFRecord clipping values</span>
+<span class="n">dts</span> <span class="o">=</span> <span class="n">IndexedInterleaver</span><span class="p">(</span>
+    <span class="n">tfrecords</span><span class="o">=...</span><span class="p">,</span>
+    <span class="n">clip</span><span class="o">=</span><span class="p">[</span><span class="mi">100</span><span class="p">,</span> <span class="mi">75</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="c1"># Same length as tfrecords</span>
+    <span class="o">...</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>A <a class="reference external" href="https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"><code class="docutils literal notranslate"><span class="pre">torch.utils.data.DataLoader</span></code></a> can then be created from the indexable dataset using the <code class="docutils literal notranslate"><span class="pre">torch.utils.data.DataLoader</span></code> class, as described in the PyTorch documentation.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">DataLoader</span>
+
+<span class="c1"># Create a dataloader</span>
+<span class="n">dl</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span>
+    <span class="n">dts</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+    <span class="n">num_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">pin_memory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">drop_last</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">dl</span><span class="p">:</span>
+    <span class="c1"># Do something with the image and label...</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../custom_extractors/" class="btn btn-neutral float-right" title="Custom Feature Extractors" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="../tfrecords/" class="btn btn-neutral" title="TFRecords: Reading and Writing" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2023, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Dataloaders: Sampling and Augmentation</a><ul>
+<li><a class="reference internal" href="#tensorflow">Tensorflow</a><ul>
+<li><a class="reference internal" href="#slide-names-and-tile-locations">Slide names and tile locations</a></li>
+<li><a class="reference internal" href="#image-preprocessing">Image preprocessing</a></li>
+<li><a class="reference internal" href="#dataset-sharding">Dataset sharding</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pytorch">PyTorch</a><ul>
+<li><a class="reference internal" href="#id1">Image preprocessing</a></li>
+<li><a class="reference internal" href="#id2">Dataset sharding</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#labeling">Labeling</a></li>
+<li><a class="reference internal" href="#sampling">Sampling</a><ul>
+<li><a class="reference internal" href="#infinite-dataloaders">Infinite dataloaders</a></li>
+<li><a class="reference internal" href="#finite-dataloaders">Finite dataloaders</a></li>
+<li><a class="reference internal" href="#oversampling-with-balancing">Oversampling with balancing</a></li>
+<li><a class="reference internal" href="#undersampling-with-clipping">Undersampling with clipping</a></li>
+<li><a class="reference internal" href="#during-training">During training</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#direct-indexing">Direct indexing</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script src="../_static/sphinx_highlight.js"></script>
+     
+
+  
+  <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

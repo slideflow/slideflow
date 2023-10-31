@@ -1,2 +1,6 @@
 stylegan.webm filter=lfs diff=lfs merge=lfs -text
 studio_preview.webm filter=lfs diff=lfs merge=lfs -text
+gan_seeds.mp4 filter=lfs diff=lfs merge=lfs -text
+heatmap.mp4 filter=lfs diff=lfs merge=lfs -text
+mil_attention.mp4 filter=lfs diff=lfs merge=lfs -text
+roi_label.mp4 filter=lfs diff=lfs merge=lfs -text

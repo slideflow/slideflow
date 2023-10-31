@@ -9,22 +9,22 @@
   <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.Mosaic &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>slideflow.Mosaic &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
@@ -35,11 +35,11 @@
     <link rel="next" title="slideflow.SlideMap" href="../slidemap/" />
     <link rel="prev" title="slideflow.ModelParams" href="../model_params/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -102,9 +102,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -140,15 +140,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
@@ -160,7 +160,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -169,6 +169,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul class="current">
@@ -207,10 +214,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -218,7 +227,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -237,30 +246,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>slideflow.Mosaic</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="../_sources/mosaic.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -272,13 +281,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <section id="slideflow-mosaic">
 <span id="mosaic"></span><h1>slideflow.Mosaic<a class="headerlink" href="#slideflow-mosaic" title="Permalink to this heading">¶</a></h1>
 <p><a class="reference internal" href="#slideflow.Mosaic" title="slideflow.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Mosaic</span></code></a> plots tile images onto a map of slides, generating a mosaic map.</p>
@@ -291,10 +300,10 @@ dimensionality reduction (<a class="reference internal" href="../slidemap/#slide
 <p>An example of a mosaic map can be found in Figure 4 of <a class="reference external" href="https://doi.org/10.1038/s41379-020-00724-3">this paper</a>.
 It bears some resemblence to the Activation Atlases created by
 <a class="reference external" href="https://distill.pub/2019/activation-atlas/">Google and OpenAI</a>, without the use of feature inversion.</p>
-<p>See <a class="reference internal" href="../posthoc/#mosaic-map"><span class="std std-ref">Mosaic maps</span></a> for an example of how a mosaic map can be used in the context of a project.</p>
+<p>See <a class="reference internal" href="../posthoc/#mosaic-map"><span class="std std-ref">Mosaic Maps</span></a> for an example of how a mosaic map can be used in the context of a project.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.Mosaic">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Mosaic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">images</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../slidemap/#slideflow.SlideMap" title="slideflow.stats.slidemap.SlideMap"><span class="pre">SlideMap</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.11)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.11)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><span class="pre">StainNormalizer</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">grid_kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/mosaic/#Mosaic"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.Mosaic" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Mosaic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">images</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../slidemap/#slideflow.SlideMap" title="slideflow.stats.slidemap.SlideMap"><span class="pre">SlideMap</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.12)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.12)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><span class="pre">StainNormalizer</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">grid_kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/mosaic/#Mosaic"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.Mosaic" title="Permalink to this definition">¶</a></dt>
 <dd><p>Visualization of plotted image tiles.</p>
 <p>Generate a mosaic map, which visualizes plotted image tiles.</p>
 <p>Creating a mosaic map requires two components: a set of images and
@@ -366,30 +375,30 @@ or by providing tfrecord indices directly), the keyword argument
 array of images (np.ndarray, HxWxC), a list of tuples,
 containing <code class="docutils literal notranslate"><span class="pre">(slide_name,</span> <span class="pre">tfrecord_index)</span></code>, or a
 <code class="docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code> object.</p></li>
-<li><p><strong>coords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>)</em>) – Coordinates for images. May be a list or array
+<li><p><strong>coords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>)</em>) – Coordinates for images. May be a list or array
 of (x, y) coordinates for each image (of same length
 as <code class="docutils literal notranslate"><span class="pre">images</span></code>), or None (if <code class="docutils literal notranslate"><span class="pre">images</span></code> is a <code class="docutils literal notranslate"><span class="pre">SlideMap</span></code> object).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – TFRecord paths. Required if
+<li><p><strong>tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – TFRecord paths. Required if
 <code class="docutils literal notranslate"><span class="pre">images</span></code> is either a <code class="docutils literal notranslate"><span class="pre">SlideMap</span></code> object or a list of tuples
 containing <code class="docutils literal notranslate"><span class="pre">(slide_name,</span> <span class="pre">tfrecord_index)</span></code>. Defaults to None.</p></li>
-<li><p><strong>num_tiles_x</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Mosaic map grid size. Defaults to 50.</p></li>
-<li><p><strong>tile_select</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – ‘first’, ‘nearest’, or ‘centroid’.
+<li><p><strong>num_tiles_x</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Mosaic map grid size. Defaults to 50.</p></li>
+<li><p><strong>tile_select</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – ‘first’, ‘nearest’, or ‘centroid’.
 Determines how to choose a tile for display on each grid space.
 If ‘first’, will display the first valid tile in a grid space
 (fastest; recommended). If ‘nearest’, will display tile nearest
 to center of grid space. If ‘centroid’, for each grid, will
 calculate which tile is nearest to centroid tile_meta.
 Defaults to ‘nearest’.</p></li>
-<li><p><strong>tile_meta</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Tile metadata, used for tile_select.
+<li><p><strong>tile_meta</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)"><em>dict</em></a><em>, </em><em>optional</em>) – Tile metadata, used for tile_select.
 Dictionary should have slide names as keys, mapped to list of
 metadata (length of list = number of tiles in slide).
 Defaults to None.</p></li>
 <li><p><strong>normalizer</strong> ((str or <a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>), optional) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Stain normalization preset or
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Stain normalization preset or
 path to a source image. Valid presets include ‘v1’, ‘v2’, and
 ‘v3’. If None, will use the default present (‘v3’).
 Defaults to None.</p></li>
@@ -402,17 +411,17 @@ Defaults to None.</p></li>
 <h2>Methods<a class="headerlink" href="#methods" title="Permalink to this heading">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Mosaic.generate_grid">
-<span class="sig-name descname"><span class="pre">generate_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles_x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_select</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'first'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dist</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic.generate_grid" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">generate_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles_x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_select</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'first'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dist</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic.generate_grid" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generate the mosaic map grid.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>num_tiles_x</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Mosaic map grid size. Defaults to 50.</p></li>
-<li><p><strong>tile_meta</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><em>dict</em></a><em>, </em><em>optional</em>) – Tile metadata, used for tile_select.
+<li><p><strong>num_tiles_x</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Mosaic map grid size. Defaults to 50.</p></li>
+<li><p><strong>tile_meta</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)"><em>dict</em></a><em>, </em><em>optional</em>) – Tile metadata, used for tile_select.
 Dictionary should have slide names as keys, mapped to list of
 metadata (length of list = number of tiles in slide).
 Defaults to None.</p></li>
-<li><p><strong>tile_select</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – ‘first’, ‘nearest’, or ‘centroid’.
+<li><p><strong>tile_select</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – ‘first’, ‘nearest’, or ‘centroid’.
 Determines how to choose a tile for display on each grid space.
 If ‘first’, will display the first valid tile in a grid space
 (fastest; recommended). If ‘nearest’, will display tile nearest
@@ -426,7 +435,7 @@ Defaults to ‘nearest’.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Mosaic.plot">
-<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.11)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(200,</span> <span class="pre">200)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus_slide</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">background</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'#dfdfdf'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pool</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Mosaic.plot" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.12)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(200,</span> <span class="pre">200)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus_slide</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">background</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'#dfdfdf'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pool</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Mosaic.plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initializes figures and places image tiles.</p>
 <p>If in a Jupyter notebook, the heatmap will be displayed in the cell
 output. If running via script or shell, the heatmap can then be
@@ -442,11 +451,11 @@ shown on screen using matplotlib <code class="docutils literal notranslate"><spa
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>figsize</strong> (<em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>]</em><em>, </em><em>optional</em>) – Figure size. Defaults to
+<li><p><strong>figsize</strong> (<em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>]</em><em>, </em><em>optional</em>) – Figure size. Defaults to
 (200, 200).</p></li>
-<li><p><strong>focus</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – List of tfrecords (paths) to highlight
+<li><p><strong>focus</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>, </em><em>optional</em>) – List of tfrecords (paths) to highlight
 on the mosaic. Defaults to None.</p></li>
-<li><p><strong>focus_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Highlight tiles from this slide.
+<li><p><strong>focus_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Highlight tiles from this slide.
 Defaults to None.</p></li>
 </ul>
 </dd>
@@ -460,17 +469,17 @@ Defaults to None.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Mosaic.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Mosaic.save" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Mosaic.save" title="Permalink to this definition">¶</a></dt>
 <dd><p>Saves the mosaic map figure to the given filename.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path at which to save the mosiac image.</p>
+<dd class="field-odd"><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Path at which to save the mosiac image.</p>
 </dd>
 <dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>figsize</strong> (<em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>]</em><em>, </em><em>optional</em>) – Figure size. Defaults to
+<li><p><strong>figsize</strong> (<em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>]</em><em>, </em><em>optional</em>) – Figure size. Defaults to
 (200, 200).</p></li>
-<li><p><strong>focus</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>, </em><em>optional</em>) – List of tfrecords (paths) to highlight on
+<li><p><strong>focus</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>, </em><em>optional</em>) – List of tfrecords (paths) to highlight on
 the mosaic.</p></li>
 </ul>
 </dd>
@@ -479,19 +488,19 @@ the mosaic.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Mosaic.save_report">
-<span class="sig-name descname"><span class="pre">save_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Mosaic.save_report" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">save_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Mosaic.save_report" title="Permalink to this definition">¶</a></dt>
 <dd><p>Saves a report of which tiles (and their corresponding slide)
 were displayed on the Mosaic map, in CSV format.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.Mosaic.view">
-<span class="sig-name descname"><span class="pre">view</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slides</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Mosaic.view" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">view</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slides</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.Mosaic.view" title="Permalink to this definition">¶</a></dt>
 <dd><p>Open Mosaic in Slideflow Studio.</p>
 <p>See <a class="reference internal" href="../studio/#studio"><span class="std std-ref">Slideflow Studio: Live Visualization</span></a> for more information.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – Path to whole-slide images. Used for
+<dd class="field-odd"><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – Path to whole-slide images. Used for
 displaying image tile context when hovering over a mosaic grid.
 Defaults to None.</p>
 </dd>
@@ -503,25 +512,25 @@ Defaults to None.</p>
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="../slidemap/" class="btn btn-neutral float-right" title="slideflow.SlideMap" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="../model_params/" class="btn btn-neutral" title="slideflow.ModelParams" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -529,11 +538,11 @@ Defaults to None.</p>
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -565,19 +574,19 @@ Defaults to None.</p>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
          <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
@@ -588,7 +597,7 @@ Defaults to None.</p>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

@@ -5,7 +5,7 @@
 Self-Supervised Learning (SSL)
 ==============================
 
-Slideflow provides easy access to training the self-supervised, contrastive learning framework `SimCLR <https://arxiv.org/abs/2002.05709>`_. Self-supervised learning provides an avenue for learning useful visual representations in your dataset without requiring ground-truth labels. These visual representations can be exported as feature vectors and used for downstream analyses such as :ref:`dimensionality reduction <slidemap>` or :ref:`multi-instance learning <clam_mil>`.
+Slideflow provides easy access to training the self-supervised, contrastive learning framework `SimCLR <https://arxiv.org/abs/2002.05709>`_. Self-supervised learning provides an avenue for learning useful visual representations in your dataset without requiring ground-truth labels. These visual representations can be exported as feature vectors and used for downstream analyses such as :ref:`dimensionality reduction <slidemap>` or :ref:`multi-instance learning <mil>`.
 
 The ``slideflow.simclr`` module contains a `forked Tensorflow implementation <https://github.com/jamesdolezal/simclr/>`_ minimally modified to interface with Slideflow. SimCLR models can be trained with :meth:`slideflow.Project.train_simclr`, and SimCLR features can be calculated as with other models using :meth:`slideflow.Project.generate_features`.
 
@@ -77,10 +77,56 @@ And you can also optionally provide labels for training the supervised head. To 
 
 The SimCLR model checkpoints and final saved model will be saved in the ``simclr/`` folder within the project root directory.
 
+.. _dinov2:
+
+Training DINOv2
+***************
+
+A lightly modified version of `DINOv2 <https://arxiv.org/abs/2304.07193>`_ with Slideflow integration is available on `GitHub <https://github.com/jamesdolezal/dinov2>`_. This version facilitates training DINOv2 with Slideflow datasets and adds stain augmentation to the training pipeline.
+
+To train DINOv2, first install the package:
+
+.. code-block:: bash
+
+    pip install git+https://github.com/jamesdolezal/dinov2.git
+
+Next, configure the training parameters and datsets by providing a configuration YAML file. This configuration file should contain a ``slideflow`` section, which specifies the Slideflow project and dataset to use for training. An example YAML file is shown below:
+
+.. code-block:: yaml
+
+    train:
+      dataset_path: slideflow
+      batch_size_per_gpu: 32
+      slideflow:
+        project: "/mnt/data/projects/TCGA_THCA_BRAF"
+        dataset:
+          tile_px: 299
+          tile_um: 302
+          filters:
+            brs_class:
+            - "Braf-like"
+            - "Ras-like"
+        seed: 42
+        outcome_labels: "brs_class"
+        normalizer: "reinhard_mask"
+        interleave_kwargs: null
+
+See the `DINOv2 README <https://github.com/jamesdolezal/dinov2>`_ for more details on the configuration file format.
+
+Finally, train DINOv2 using the same command-line interface as the original DINOv2 implementation. For example, to train DINOv2 on 4 GPUs on a single node:
+
+.. code-block:: bash
+
+    torchrun --nproc_per_node=4 -m "dinov2.train.train" \
+        --config-file /path/to/config.yaml \
+        --output-dir /path/to/output_dir
+
+The teacher weights will be saved in ``outdir/eval/.../teacher_checkpoint.pth``, and the final configuration YAML will be saved in ``outdir/config.yaml``.
+
 Generating features
 *******************
 
-Generating SimCLR features is straightforward - use the same :meth:`slideflow.Project.generate_features` and :class:`slideflow.DatasetFeatures` interfaces as :ref:`previously described <dataset_features>`, providing a path to a saved SimCLR model or checkpoint.
+Generating features from a trained SSL is straightforward - use the same :meth:`slideflow.Project.generate_features` and :class:`slideflow.DatasetFeatures` interfaces as :ref:`previously described <dataset_features>`, providing a path to a saved SimCLR model or checkpoint.
 
 .. code-block:: python
 
@@ -94,3 +140,13 @@ Generating SimCLR features is straightforward - use the same :meth:`slideflow.Pr
 
     # Calculate SimCLR features for a dataset
     features = P.generate_features(simclr, ...)
+
+For DINOv2 models, use ``'dinov2'`` as the first argument, and pass the model configuration YAML file to ``cfg`` and the teacher checkpoint weights to ``weights``.
+
+.. code-block:: python
+
+    dinov2 = build_feature_extractor(
+        'dinov2',
+        weights='/path/to/teacher_checkpoint.pth',
+        cfg='/path/to/config.yaml'
+    )

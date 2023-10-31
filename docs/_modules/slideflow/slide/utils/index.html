@@ -1,0 +1,1046 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.slide.utils &mdash; slideflow 2.2.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../genindex/" />
+    <link rel="search" title="Search" href="../../../../search/" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  2.2
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../../">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../../">Module code</a> &gt;</li>
+        
+      <li>slideflow.slide.utils</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <h1>Source code for slideflow.slide.utils</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Utility functions and constants for slide reading.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">shapely.geometry</span> <span class="k">as</span> <span class="nn">sg</span>
+<span class="kn">import</span> <span class="nn">xml.etree.ElementTree</span> <span class="k">as</span> <span class="nn">ET</span>
+
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">ImageDraw</span>
+<span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span><span class="p">,</span> <span class="n">log</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span>
+
+<span class="c1"># Constants</span>
+<span class="n">DEFAULT_JPG_MPP</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">OPS_LEVEL_COUNT</span> <span class="o">=</span> <span class="s1">&#39;openslide.level-count&#39;</span>
+<span class="n">OPS_MPP_X</span> <span class="o">=</span> <span class="s1">&#39;openslide.mpp-x&#39;</span>
+<span class="n">OPS_VENDOR</span> <span class="o">=</span> <span class="s1">&#39;openslide.vendor&#39;</span>
+<span class="n">OPS_BOUNDS_HEIGHT</span> <span class="o">=</span> <span class="s1">&#39;openslide.bounds-height&#39;</span>
+<span class="n">OPS_BOUNDS_WIDTH</span> <span class="o">=</span> <span class="s1">&#39;openslide.bounds-width&#39;</span>
+<span class="n">OPS_BOUNDS_X</span> <span class="o">=</span> <span class="s1">&#39;openslide.bounds-x&#39;</span>
+<span class="n">OPS_BOUNDS_Y</span> <span class="o">=</span> <span class="s1">&#39;openslide.bounds-y&#39;</span>
+<span class="n">TIF_EXIF_KEY_MPP</span> <span class="o">=</span> <span class="mi">65326</span>
+<span class="n">OPS_WIDTH</span> <span class="o">=</span> <span class="s1">&#39;width&#39;</span>
+<span class="n">OPS_HEIGHT</span> <span class="o">=</span> <span class="s1">&#39;height&#39;</span>
+<span class="n">DEFAULT_WHITESPACE_THRESHOLD</span> <span class="o">=</span> <span class="mi">230</span>
+<span class="n">DEFAULT_WHITESPACE_FRACTION</span> <span class="o">=</span> <span class="mf">1.0</span>
+<span class="n">DEFAULT_GRAYSPACE_THRESHOLD</span> <span class="o">=</span> <span class="mf">0.05</span>
+<span class="n">DEFAULT_GRAYSPACE_FRACTION</span> <span class="o">=</span> <span class="mf">0.6</span>
+<span class="n">FORCE_CALCULATE_WHITESPACE</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">FORCE_CALCULATE_GRAYSPACE</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">ROTATE_90_CLOCKWISE</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">ROTATE_180_CLOCKWISE</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">ROTATE_270_CLOCKWISE</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">FLIP_HORIZONTAL</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">FLIP_VERTICAL</span> <span class="o">=</span> <span class="mi">5</span>
+
+
+<span class="k">def</span> <span class="nf">OPS_LEVEL_HEIGHT</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;openslide.level[</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s1">].height&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">OPS_LEVEL_WIDTH</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;openslide.level[</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s1">].width&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">OPS_LEVEL_DOWNSAMPLE</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;openslide.level[</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s1">].downsample&#39;</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+<span class="c1"># Classes</span>
+
+<span class="k">class</span> <span class="nc">ROI</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Object container for a single ROI annotation.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">coordinates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span> <span class="k">if</span> <span class="n">label</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">coordinates</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coordinates</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List[Tuple[int, int]]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coordinates</span> <span class="o">=</span> <span class="n">coordinates</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;ROI (coords=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coordinates</span><span class="p">)</span><span class="si">}</span><span class="s2"> label=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2">)&gt;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">add_coord</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coord</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coordinates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">scaled_area</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coordinates</span><span class="p">,</span> <span class="mi">1</span><span class="o">/</span><span class="n">scale</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">print_coord</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coordinates</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">add_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">shape</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_coord</span><span class="p">(</span><span class="n">point</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ROIPoly</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rendered ROI shape.</span>
+
+<span class="sd">    Supports holes.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">poly</span><span class="p">:</span> <span class="n">sg</span><span class="o">.</span><span class="n">Polygon</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">poly</span> <span class="o">=</span> <span class="n">poly</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span> <span class="k">if</span> <span class="n">label</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hole_names</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List[str]</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;ROIPoly (name=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> label=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2">)&gt;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">description</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hole_names</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39; (holes: </span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hole_names</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">set_hole</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">roi</span><span class="p">:</span> <span class="s2">&quot;ROIPoly&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">poly</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">poly</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">roi</span><span class="o">.</span><span class="n">poly</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hole_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">roi</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">QCMask</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">filter_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">filter_threshold</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;filter_threshold must be between 0 and 1&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;mask must be a numpy array&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;mask must be a 2D array&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">mask</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="nb">bool</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;mask must be a boolean array&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_threshold</span> <span class="o">=</span> <span class="n">filter_threshold</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;QCMask (shape=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">), filter_threshold=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">filter_threshold</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">shape</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">shape</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+<span class="c1"># Functions</span>
+
+
+<div class="viewcode-block" id="predict"><a class="viewcode-back" href="../../../../slide/#slideflow.slide.predict">[docs]</a><span class="k">def</span> <span class="nf">predict</span><span class="p">(</span>
+    <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">stride_div</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate a whole-slide prediction from a saved model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        slide (str): Path to slide.</span>
+<span class="sd">        model (str): Path to saved model trained in Slideflow.</span>
+
+<span class="sd">    Keyword args:</span>
+<span class="sd">        stride_div (int, optional): Divisor for stride when convoluting</span>
+<span class="sd">                across slide. Defaults to 1.</span>
+<span class="sd">        roi_dir (str, optional): Directory in which slide ROI is contained.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        rois (list, optional): List of paths to slide ROIs. Alternative to</span>
+<span class="sd">            providing roi_dir. Defaults to None.</span>
+<span class="sd">        roi_method (str): Either &#39;inside&#39;, &#39;outside&#39;, &#39;auto&#39;, or &#39;ignore&#39;.</span>
+<span class="sd">            Determines how ROIs are used to extract tiles.</span>
+<span class="sd">            If &#39;inside&#39; or &#39;outside&#39;, will extract tiles in/out of an ROI,</span>
+<span class="sd">            and raise errors.MissingROIError if an ROI is not available.</span>
+<span class="sd">            If &#39;auto&#39;, will extract tiles inside an ROI if available,</span>
+<span class="sd">            and across the whole-slide if no ROI is found.</span>
+<span class="sd">            If &#39;ignore&#39;, will extract tiles across the whole-slide</span>
+<span class="sd">            regardless of whether an ROI is available.</span>
+<span class="sd">            Defaults to &#39;auto&#39;.</span>
+<span class="sd">        batch_size (int, optional): Batch size for calculating predictions.</span>
+<span class="sd">            Defaults to 32.</span>
+<span class="sd">        num_threads (int, optional): Number of tile worker threads. Cannot</span>
+<span class="sd">            supply both ``num_threads`` (uses thread pool) and</span>
+<span class="sd">            ``num_processes`` (uses multiprocessing pool). Defaults to</span>
+<span class="sd">            CPU core count.</span>
+<span class="sd">        num_processes (int, optional): Number of child processes to spawn</span>
+<span class="sd">            for multiprocessing pool. Defaults to None (does not use</span>
+<span class="sd">            multiprocessing).</span>
+<span class="sd">        enable_downsample (bool, optional): Enable the use of downsampled</span>
+<span class="sd">            slide image layers. Defaults to True.</span>
+<span class="sd">        img_format (str, optional): Image format (png, jpg) to use when</span>
+<span class="sd">            extracting tiles from slide. Must match the image format</span>
+<span class="sd">            the model was trained on. If &#39;auto&#39;, will use the format</span>
+<span class="sd">            logged in the model params.json. Defaults to &#39;auto&#39;.</span>
+<span class="sd">        generator_kwargs (dict, optional): Keyword arguments passed to</span>
+<span class="sd">            the :meth:`slideflow.WSI.build_generator()`.</span>
+<span class="sd">        device (torch.device, optional): PyTorch device. Defaults to</span>
+<span class="sd">            initializing a new CUDA device.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        np.ndarray: Predictions for each outcome, with shape = (num_classes, )</span>
+
+<span class="sd">        np.ndarray, optional: Uncertainty for each outcome, if the model was</span>
+<span class="sd">        trained with uncertainty, with shape = (num_classes,)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">Heatmap</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Calculating whole-slide prediction...&quot;</span><span class="p">)</span>
+    <span class="n">heatmap</span> <span class="o">=</span> <span class="n">Heatmap</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">generate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stride_div</span><span class="o">=</span><span class="n">stride_div</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">predictions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="n">preds</span> <span class="o">=</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">predictions</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">predictions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">preds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">preds</span> <span class="o">==</span> <span class="n">sf</span><span class="o">.</span><span class="n">heatmap</span><span class="o">.</span><span class="n">MASK</span><span class="p">,</span> <span class="n">preds</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">uncertainty</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">unc</span> <span class="o">=</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">heatmap</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">unc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">unc</span> <span class="o">==</span> <span class="n">sf</span><span class="o">.</span><span class="n">heatmap</span><span class="o">.</span><span class="n">MASK</span><span class="p">,</span> <span class="n">unc</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">preds</span><span class="p">,</span> <span class="n">unc</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">preds</span></div>
+
+
+<span class="k">def</span> <span class="nf">log_extraction_params</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Log tile extraction parameters.&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="s1">&#39;whitespace_fraction&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+        <span class="n">ws_f</span> <span class="o">=</span> <span class="n">DEFAULT_WHITESPACE_FRACTION</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ws_f</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;whitespace_fraction&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s1">&#39;whitespace_threshold&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+        <span class="n">ws_t</span> <span class="o">=</span> <span class="n">DEFAULT_WHITESPACE_THRESHOLD</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ws_t</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;whitespace_threshold&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s1">&#39;grayspace_fraction&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+        <span class="n">gs_f</span> <span class="o">=</span> <span class="n">DEFAULT_GRAYSPACE_FRACTION</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">gs_f</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;grayspace_fraction&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s1">&#39;grayspace_threshold&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+        <span class="n">gs_t</span> <span class="o">=</span> <span class="n">DEFAULT_GRAYSPACE_THRESHOLD</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">gs_t</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;grayspace_threshold&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="s1">&#39;normalizer&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Extracting tiles using [magenta]</span><span class="si">{</span><span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;normalizer&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">[/] &#39;</span>
+                 <span class="s1">&#39;normalization&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ws_f</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Filtering tiles by whitespace fraction&#39;</span><span class="p">)</span>
+        <span class="n">excl</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;(exclude if &gt;=</span><span class="si">{</span><span class="n">ws_f</span><span class="o">*</span><span class="mi">100</span><span class="si">:</span><span class="s1">.0f</span><span class="si">}</span><span class="s1">% whitespace)&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Whitespace defined as RGB avg &gt; </span><span class="si">{</span><span class="n">ws_t</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">excl</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">gs_f</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Filtering tiles by grayspace fraction&#39;</span><span class="p">)</span>
+        <span class="n">excl</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;(exclude if &gt;=</span><span class="si">{</span><span class="n">gs_f</span><span class="o">*</span><span class="mi">100</span><span class="si">:</span><span class="s1">.0f</span><span class="si">}</span><span class="s1">% grayspace)&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Grayspace defined as HSV avg &lt; </span><span class="si">{</span><span class="n">gs_t</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">excl</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">draw_roi</span><span class="p">(</span>
+    <span class="n">img</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+    <span class="n">coords</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;red&#39;</span><span class="p">,</span>
+    <span class="n">linewidth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Draw ROIs on image.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        img (Union[np.ndarray, str]): Image.</span>
+<span class="sd">        coords (List[List[int]]): ROI coordinates.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        np.ndarray: Image as numpy array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">annPolys</span> <span class="o">=</span> <span class="p">[</span><span class="n">sg</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">coords</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="n">annotated_img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">annotated_img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">img</span><span class="p">))</span>  <span class="c1"># type: ignore</span>
+    <span class="n">draw</span> <span class="o">=</span> <span class="n">ImageDraw</span><span class="o">.</span><span class="n">Draw</span><span class="p">(</span><span class="n">annotated_img</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="n">annPolys</span><span class="p">:</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">poly</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span>
+        <span class="n">zipped</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">y</span><span class="o">.</span><span class="n">tolist</span><span class="p">()))</span>
+        <span class="n">draw</span><span class="o">.</span><span class="n">line</span><span class="p">(</span><span class="n">zipped</span><span class="p">,</span> <span class="n">joint</span><span class="o">=</span><span class="s1">&#39;curve&#39;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">linewidth</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">annotated_img</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">roi_coords_from_image</span><span class="p">(</span>
+    <span class="n">c</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">args</span><span class="p">:</span> <span class="n">SimpleNamespace</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]]:</span>
+    <span class="c1"># Scale ROI according to downsample level</span>
+    <span class="n">extract_scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">extract_px</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">)</span>
+
+    <span class="c1"># Scale ROI according to image resizing</span>
+    <span class="n">resize_scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">tile_px</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">extract_px</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">proc_ann</span><span class="p">(</span><span class="n">ann</span><span class="p">):</span>
+        <span class="c1"># Scale to full image size</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">ann</span><span class="o">.</span><span class="n">coordinates</span>
+        <span class="c1"># Offset coordinates to extraction window</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]]))</span>
+        <span class="c1"># Rescale according to downsampling and resizing</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="p">(</span><span class="n">extract_scale</span> <span class="o">*</span> <span class="n">resize_scale</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">coord</span>
+
+    <span class="c1"># Filter out ROIs not in this tile</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">ll</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="n">ur</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">roi</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">rois</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">proc_ann</span><span class="p">(</span><span class="n">roi</span><span class="p">)</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">ll</span> <span class="o">&lt;=</span> <span class="n">coord</span><span class="p">,</span> <span class="n">coord</span> <span class="o">&lt;=</span> <span class="n">ur</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">coords_in_tile</span> <span class="o">=</span> <span class="n">coord</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords_in_tile</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">coords</span> <span class="o">+=</span> <span class="p">[</span><span class="n">coords_in_tile</span><span class="p">]</span>
+
+    <span class="c1"># Convert ROI to bounding box that fits within tile</span>
+    <span class="n">boxes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">yolo_anns</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">coord</span> <span class="ow">in</span> <span class="n">coords</span><span class="p">:</span>
+        <span class="n">max_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">min_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">max_x</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
+        <span class="n">max_y</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
+        <span class="n">min_x</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">min_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">min_y</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">min_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_x</span> <span class="o">-</span> <span class="n">min_x</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span>
+        <span class="n">height</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_y</span> <span class="o">-</span> <span class="n">min_y</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span>
+        <span class="n">x_center</span> <span class="o">=</span> <span class="p">((</span><span class="n">max_x</span> <span class="o">+</span> <span class="n">min_x</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span>
+        <span class="n">y_center</span> <span class="o">=</span> <span class="p">((</span><span class="n">max_y</span> <span class="o">+</span> <span class="n">min_y</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span>
+        <span class="n">yolo_anns</span> <span class="o">+=</span> <span class="p">[[</span><span class="n">x_center</span><span class="p">,</span> <span class="n">y_center</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">]]</span>
+        <span class="n">boxes</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="p">[</span><span class="n">min_x</span><span class="p">,</span> <span class="n">min_y</span><span class="p">],</span>
+            <span class="p">[</span><span class="n">min_x</span><span class="p">,</span> <span class="n">max_y</span><span class="p">],</span>
+            <span class="p">[</span><span class="n">max_x</span><span class="p">,</span> <span class="n">max_y</span><span class="p">],</span>
+            <span class="p">[</span><span class="n">max_x</span><span class="p">,</span> <span class="n">min_y</span><span class="p">]</span>
+        <span class="p">])]</span>
+    <span class="k">return</span> <span class="n">coords</span><span class="p">,</span> <span class="n">boxes</span><span class="p">,</span> <span class="n">yolo_anns</span>
+
+
+<span class="k">def</span> <span class="nf">xml_to_csv</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a QuPath format CSV ROI file from an ImageScope-format XML.</span>
+
+<span class="sd">    ImageScope-formatted XMLs are expected to have &quot;Region&quot; and &quot;Vertex&quot;</span>
+<span class="sd">    attributes. The &quot;Region&quot; attribute should have an &quot;ID&quot; sub-attribute.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path (str): ImageScope XML ROI file path</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: Path to new CSV file.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        slideflow.errors.ROIError: If the XML could not be converted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tree</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">root</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">getroot</span><span class="p">()</span>
+    <span class="n">new_csv_file</span> <span class="o">=</span> <span class="n">path</span><span class="p">[:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;.csv&#39;</span>
+    <span class="n">required_attributes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;.//Region&#39;</span><span class="p">,</span> <span class="s1">&#39;.//Vertex&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">required_attributes</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ROIError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;No ROIs found in the XML file </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">. Check that the XML &quot;</span>
+            <span class="s2">&quot;file attributes are named correctly named in ImageScope &quot;</span>
+            <span class="s2">&quot;format with &#39;Region&#39; and &#39;Vertex&#39; tags.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">new_csv_file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csvfile</span><span class="p">:</span>
+        <span class="n">csvwriter</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">csvfile</span><span class="p">)</span>
+        <span class="n">csvwriter</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;ROI_name&#39;</span><span class="p">,</span> <span class="s1">&#39;X_base&#39;</span><span class="p">,</span> <span class="s1">&#39;Y_base&#39;</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">region</span> <span class="ow">in</span> <span class="n">root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;.//Region&#39;</span><span class="p">):</span>
+            <span class="n">id_tag</span> <span class="o">=</span> <span class="n">region</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Id&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">id_tag</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ROIError</span><span class="p">(</span>
+                    <span class="s2">&quot;No ID attribute found for Region. Check xml file and &quot;</span>
+                    <span class="s2">&quot;ensure it adheres to ImageScope format.&quot;</span>
+                <span class="p">)</span>
+            <span class="n">roi_name</span> <span class="o">=</span> <span class="s1">&#39;ROI_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">id_tag</span><span class="p">)</span>
+            <span class="n">vertices</span> <span class="o">=</span> <span class="n">region</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;.//Vertex&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">vertices</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ROIError</span><span class="p">(</span>
+                    <span class="s2">&quot;No Vertex found in ROI. Check xml file and ensure it &quot;</span>
+                    <span class="s2">&quot;adheres to ImageScope format.&quot;</span>
+                <span class="p">)</span>
+            <span class="n">csvwriter</span><span class="o">.</span><span class="n">writerows</span><span class="p">([</span>
+                <span class="p">[</span><span class="n">roi_name</span><span class="p">,</span> <span class="n">vertex</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">),</span> <span class="n">vertex</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Y&#39;</span><span class="p">)]</span>
+                <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="n">vertices</span>
+            <span class="p">])</span>
+    <span class="k">return</span> <span class="n">new_csv_file</span>
+
+
+<span class="k">def</span> <span class="nf">_align_to_matrix</span><span class="p">(</span><span class="n">im1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">im2</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">warp_matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Align an image to a warp matrix.&quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">cv2</span>
+    <span class="c1"># Use the warpAffine function to apply the transformation</span>
+    <span class="k">return</span> <span class="n">cv2</span><span class="o">.</span><span class="n">warpAffine</span><span class="p">(</span><span class="n">im1</span><span class="p">,</span> <span class="n">warp_matrix</span><span class="p">,</span> <span class="p">(</span><span class="n">im2</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">im2</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">flags</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span> <span class="o">+</span> <span class="n">cv2</span><span class="o">.</span><span class="n">WARP_INVERSE_MAP</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_find_translation_matrix</span><span class="p">(</span>
+    <span class="n">im1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">im2</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">denoise</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">h</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
+    <span class="n">block_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">7</span><span class="p">,</span>
+    <span class="n">search_window</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">21</span><span class="p">,</span>
+    <span class="n">n_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">,</span>
+    <span class="n">termination_eps</span> <span class="o">=</span> <span class="mf">1e-10</span><span class="p">,</span>
+    <span class="n">warp_matrix</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Align two images using only scaling and translation.</span>
+
+<span class="sd">    :param im1: The image to be aligned.</span>
+<span class="sd">    :param im2: The reference image.</span>
+<span class="sd">    :return: Aligned image of im1.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">cv2</span>
+
+    <span class="c1"># Convert images to grayscale</span>
+    <span class="n">im1_gray</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">im1</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2GRAY</span><span class="p">)</span>
+    <span class="n">im2_gray</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">im2</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2GRAY</span><span class="p">)</span>
+
+    <span class="c1"># De-noising</span>
+    <span class="k">if</span> <span class="n">denoise</span><span class="p">:</span>
+        <span class="n">im1_gray</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">fastNlMeansDenoising</span><span class="p">(</span><span class="n">im1_gray</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">block_size</span><span class="p">,</span> <span class="n">search_window</span><span class="p">)</span>
+        <span class="n">im2_gray</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">fastNlMeansDenoising</span><span class="p">(</span><span class="n">im2_gray</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">block_size</span><span class="p">,</span> <span class="n">search_window</span><span class="p">)</span>
+
+    <span class="c1"># Transform images to normalize contrast</span>
+    <span class="n">im1_gray</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">equalizeHist</span><span class="p">(</span><span class="n">im1_gray</span><span class="p">)</span>
+    <span class="n">im2_gray</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">equalizeHist</span><span class="p">(</span><span class="n">im2_gray</span><span class="p">)</span>
+
+    <span class="c1"># Define the motion model</span>
+    <span class="n">warp_mode</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">MOTION_TRANSLATION</span>
+
+    <span class="c1"># Define 2x3 matrix to store the transformation</span>
+    <span class="k">if</span> <span class="n">warp_matrix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">warp_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="c1"># Set the number of iterations and termination criteria</span>
+    <span class="n">criteria</span> <span class="o">=</span> <span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">TERM_CRITERIA_EPS</span> <span class="o">|</span> <span class="n">cv2</span><span class="o">.</span><span class="n">TERM_CRITERIA_COUNT</span><span class="p">,</span> <span class="n">n_iterations</span><span class="p">,</span> <span class="n">termination_eps</span><span class="p">)</span>
+
+    <span class="c1"># Use findTransformECC to compute the transformation</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">warp_matrix</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">findTransformECC</span><span class="p">(</span><span class="n">im2_gray</span><span class="p">,</span> <span class="n">im1_gray</span><span class="p">,</span> <span class="n">warp_matrix</span><span class="p">,</span> <span class="n">warp_mode</span><span class="p">,</span> <span class="n">criteria</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">warp_matrix</span>  <span class="c1"># type: ignore</span>
+
+
+<span class="k">def</span> <span class="nf">align_image</span><span class="p">(</span><span class="n">im1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">im2</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Align two images using only scaling and translation.</span>
+
+<span class="sd">    :param im1: The image to be aligned.</span>
+<span class="sd">    :param im2: The reference image.</span>
+<span class="sd">    :return: Aligned image of im1.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">warp_matrix</span> <span class="o">=</span> <span class="n">_find_translation_matrix</span><span class="p">(</span><span class="n">im1</span><span class="p">,</span> <span class="n">im2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_align_to_matrix</span><span class="p">(</span><span class="n">im1</span><span class="p">,</span> <span class="n">im2</span><span class="p">,</span> <span class="n">warp_matrix</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">align_by_translation</span><span class="p">(</span>
+    <span class="n">im1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">im2</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="nb">round</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">calculate_mse</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
+           <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span> <span class="nb">float</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Find the (x, y) translation that aligns im1 to im2.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        im1 (np.ndarray): Target for alignment.</span>
+<span class="sd">        im2 (np.ndarray): Image to align.</span>
+<span class="sd">        round (bool): Round to the nearest int. Defaults to False.</span>
+<span class="sd">        calculate_mse (bool): Return the mean squared error (MSE) of alignment.</span>
+<span class="sd">            Defaults to False.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">cv2</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">warp_matrix</span> <span class="o">=</span> <span class="n">_find_translation_matrix</span><span class="p">(</span><span class="n">im1</span><span class="p">,</span> <span class="n">im2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">cv2</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">AlignmentError</span><span class="p">(</span>
+            <span class="s2">&quot;Could not align images. Check that the images are the same &quot;</span>
+            <span class="s2">&quot;size, that they are not rotated or flipped, and that they have &quot;</span>
+            <span class="s2">&quot;overlapping regions.&quot;</span>
+        <span class="p">)</span>
+    <span class="n">alignment</span> <span class="o">=</span> <span class="o">-</span><span class="n">warp_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="o">-</span><span class="n">warp_matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">round</span><span class="p">:</span>
+        <span class="n">alignment</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">alignment</span><span class="p">[</span><span class="mi">0</span><span class="p">])),</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">alignment</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
+
+    <span class="k">if</span> <span class="n">calculate_mse</span><span class="p">:</span>
+        <span class="n">aligned_im1</span> <span class="o">=</span> <span class="n">_align_to_matrix</span><span class="p">(</span><span class="n">im1</span><span class="p">,</span> <span class="n">im2</span><span class="p">,</span> <span class="n">warp_matrix</span><span class="p">)</span>
+        <span class="n">mse</span> <span class="o">=</span> <span class="n">compute_alignment_mse</span><span class="p">(</span><span class="n">aligned_im1</span><span class="p">,</span> <span class="n">im2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">alignment</span><span class="p">,</span> <span class="n">mse</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">alignment</span>
+
+
+<span class="k">def</span> <span class="nf">compute_alignment_mse</span><span class="p">(</span>
+    <span class="n">imageA</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">imageB</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">flatten</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the Mean Squared Error between two images in their overlapping region,</span>
+<span class="sd">    excluding areas that are black (0, 0, 0) in either image.</span>
+
+<span class="sd">    :param imageA: First image.</span>
+<span class="sd">    :param imageB: Second image.</span>
+<span class="sd">    :return: Mean Squared Error (MSE) between the images in the valid overlapping region.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Remove the alpha channel from both images</span>
+    <span class="k">if</span> <span class="n">flatten</span><span class="p">:</span>
+        <span class="n">imageA</span> <span class="o">=</span> <span class="n">imageA</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">imageB</span> <span class="o">=</span> <span class="n">imageB</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="k">assert</span> <span class="n">imageA</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">imageB</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="s2">&quot;Image sizes must match.&quot;</span>
+
+    <span class="c1"># Create a combined mask where neither of the images is black</span>
+    <span class="n">combined_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">imageA</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">imageB</span> <span class="o">==</span> <span class="mi">0</span><span class="p">))</span>
+
+    <span class="c1"># Compute MSE only for valid regions</span>
+    <span class="n">diff</span> <span class="o">=</span> <span class="p">(</span><span class="n">imageA</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span> <span class="o">-</span> <span class="n">imageB</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span>
+    <span class="n">err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">diff</span><span class="p">[</span><span class="n">combined_mask</span><span class="p">])</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">combined_mask</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">err</span>
+
+
+<span class="k">def</span> <span class="nf">alignment_to_list</span><span class="p">(</span><span class="n">grid</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Input should be a numpy masked array.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Extract valid (unmasked) indices</span>
+    <span class="n">valid_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">grid</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span>
+
+    <span class="c1"># Get the values from these indices</span>
+    <span class="n">valid_values</span> <span class="o">=</span> <span class="n">grid</span><span class="p">[</span><span class="n">valid_indices</span><span class="p">]</span>
+
+    <span class="c1"># Stack the indices and values</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">valid_indices</span> <span class="o">+</span> <span class="p">(</span><span class="n">valid_values</span><span class="p">,))</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="k">def</span> <span class="nf">best_fit_plane</span><span class="p">(</span><span class="n">points</span><span class="p">):</span>
+    <span class="c1"># Ensure the input is a numpy array</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+
+    <span class="c1"># 1. Center the data</span>
+    <span class="n">centroid</span> <span class="o">=</span> <span class="n">points</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">centered_points</span> <span class="o">=</span> <span class="n">points</span> <span class="o">-</span> <span class="n">centroid</span>
+
+    <span class="c1"># 2. Compute the covariance matrix</span>
+    <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">centered_points</span><span class="p">,</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># 3. Compute the eigenvalues and eigenvectors</span>
+    <span class="n">eigenvalues</span><span class="p">,</span> <span class="n">eigenvectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">cov_matrix</span><span class="p">)</span>
+
+    <span class="c1"># 4. Get the eigenvector corresponding to the smallest eigenvalue</span>
+    <span class="n">normal_vector</span> <span class="o">=</span> <span class="n">eigenvectors</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">eigenvalues</span><span class="p">)]</span>
+
+    <span class="c1"># The equation of the plane is `normal_vector . (x - centroid) = 0`</span>
+    <span class="k">return</span> <span class="n">centroid</span><span class="p">,</span> <span class="n">normal_vector</span>
+
+
+<span class="k">def</span> <span class="nf">z_on_plane</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">centroid</span><span class="p">,</span> <span class="n">normal</span><span class="p">):</span>
+    <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="p">,</span> <span class="n">cz</span> <span class="o">=</span> <span class="n">centroid</span>
+    <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">,</span> <span class="n">nz</span> <span class="o">=</span> <span class="n">normal</span>
+
+    <span class="k">if</span> <span class="n">nz</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Normal vector&#39;s Z component is zero. Can&#39;t compute Z value for the given X, Y.&quot;</span><span class="p">)</span>
+
+    <span class="n">z</span> <span class="o">=</span> <span class="n">cz</span> <span class="o">+</span> <span class="p">(</span><span class="n">nx</span> <span class="o">*</span> <span class="p">(</span><span class="n">cx</span> <span class="o">-</span> <span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="n">ny</span> <span class="o">*</span> <span class="p">(</span><span class="n">cy</span> <span class="o">-</span> <span class="n">y</span><span class="p">))</span> <span class="o">/</span> <span class="n">nz</span>
+    <span class="k">return</span> <span class="n">z</span>
+
+
+<span class="k">def</span> <span class="nf">calc_alignment</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">us</span><span class="p">,</span> <span class="n">them</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">)</span> <span class="o">=</span> <span class="n">c</span>
+    <span class="n">our_tile</span> <span class="o">=</span> <span class="n">us</span><span class="p">[</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">]</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">their_tile</span> <span class="o">=</span> <span class="n">them</span><span class="p">[</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">c</span>
+    <span class="k">if</span> <span class="n">our_tile</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">their_tile</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">c</span>
+    <span class="k">if</span> <span class="n">n</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">our_tile</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">our_tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">])</span>
+        <span class="n">their_tile</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">their_tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">])</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">rough_alignment</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">_find_translation_matrix</span><span class="p">(</span><span class="n">their_tile</span><span class="p">,</span> <span class="n">our_tile</span><span class="p">,</span> <span class="n">h</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">search_window</span><span class="o">=</span><span class="mi">53</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">cv2</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+        <span class="n">rough_alignment</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Initial rough alignment failed at x=</span><span class="si">{}</span><span class="s2">, y=</span><span class="si">{}</span><span class="s2"> (grid </span><span class="si">{}</span><span class="s2">, </span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span>
+        <span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Initial rough alignment complete at x=</span><span class="si">{}</span><span class="s2">, y=</span><span class="si">{}</span><span class="s2"> (grid </span><span class="si">{}</span><span class="s2">, </span><span class="si">{}</span><span class="s2">): </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="o">-</span><span class="n">rough_alignment</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">])),</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="o">-</span><span class="n">rough_alignment</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])))</span>
+        <span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">align_by_translation</span><span class="p">(</span><span class="n">their_tile</span><span class="p">,</span> <span class="n">our_tile</span><span class="p">,</span> <span class="nb">round</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">warp_matrix</span><span class="o">=</span><span class="n">rough_alignment</span><span class="p">),</span> <span class="n">c</span>
+    <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">AlignmentError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="n">c</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+<span class="c1"># Internals</span>
+
+<span class="k">def</span> <span class="nf">_update_kw_with_defaults</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Updates a set of keyword arguments with default extraction values.</span>
+<span class="sd">    for whitepsace/grayspace filtering.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;whitespace_fraction&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;whitespace_fraction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DEFAULT_WHITESPACE_FRACTION</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;whitespace_threshold&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;whitespace_threshold&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DEFAULT_WHITESPACE_THRESHOLD</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;grayspace_fraction&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;grayspace_fraction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DEFAULT_GRAYSPACE_FRACTION</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;grayspace_threshold&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;grayspace_threshold&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DEFAULT_GRAYSPACE_THRESHOLD</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;img_format&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;img_format&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;jpg&#39;</span>
+    <span class="k">return</span> <span class="n">kwargs</span>
+
+
+<span class="k">def</span> <span class="nf">_polyArea</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">y</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+    <span class="k">return</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+
+
+<span class="k">def</span> <span class="nf">_convert_img_to_format</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">img_format</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">img_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;png&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">cv2</span><span class="o">.</span><span class="n">imencode</span><span class="p">(</span>
+            <span class="s1">&#39;.png&#39;</span><span class="p">,</span>
+            <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_RGB2BGR</span><span class="p">)</span>
+        <span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">tobytes</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">img_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">cv2</span><span class="o">.</span><span class="n">imencode</span><span class="p">(</span>
+            <span class="s1">&#39;.jpg&#39;</span><span class="p">,</span>
+            <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_RGB2BGR</span><span class="p">),</span>
+            <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">IMWRITE_JPEG_QUALITY</span><span class="p">),</span> <span class="mi">100</span><span class="p">]</span>
+        <span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">tostring</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown image format </span><span class="si">{</span><span class="n">img_format</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+
+             </article>
+             
+            </div>
+            <footer>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2023, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+         <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+         <script src="../../../../_static/doctools.js"></script>
+         <script src="../../../../_static/sphinx_highlight.js"></script>
+     
+
+  
+  <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

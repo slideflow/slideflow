@@ -1,0 +1,735 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.io.torch.indexed &mdash; slideflow 2.2.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../../genindex/" />
+    <link rel="search" title="Search" href="../../../../../search/" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="../../../../../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../../../../../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  2.2
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../posthoc/">Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../../../">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../../../">Module code</a> &gt;</li>
+        
+          <li><a href="../../">slideflow.io</a> &gt;</li>
+        
+      <li>slideflow.io.torch.indexed</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <h1>Source code for slideflow.io.torch.indexed</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Indexable, map-style multi-TFRecord dataset &amp; weighted sampler.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
+<span class="kn">from</span> <span class="nn">slideflow.io</span> <span class="kn">import</span> <span class="n">detect_tfrecord_format</span>
+<span class="kn">from</span> <span class="nn">slideflow.tfrecord.torch.dataset</span> <span class="kn">import</span> <span class="n">IndexedMultiTFRecordDataset</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">Labels</span><span class="p">,</span> <span class="n">detuple</span><span class="p">,</span> <span class="n">log</span>
+
+<span class="kn">from</span> <span class="nn">.img_utils</span> <span class="kn">import</span> <span class="n">decode_image</span><span class="p">,</span> <span class="n">whc_to_cwh</span>
+<span class="kn">from</span> <span class="nn">.data_utils</span> <span class="kn">import</span> <span class="n">process_labels</span><span class="p">,</span> <span class="n">get_tfrecord_parser</span><span class="p">,</span> <span class="n">load_index</span>
+<span class="kn">from</span> <span class="nn">.augment</span> <span class="kn">import</span> <span class="n">compose_augmentations</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">slideflow.norm</span> <span class="kn">import</span> <span class="n">StainNormalizer</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<span class="k">class</span> <span class="nc">WeightedInfiniteSampler</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Sampler</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sample from a dataset with weighted TFRecord probabilities.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        dataset (torch.utils.data.Dataset): Dataset to sample from.</span>
+<span class="sd">        weights (list(float)): TFRecord weights for each sample in the dataset.</span>
+<span class="sd">            If None, will sample from all TFRecords with equal probability.</span>
+<span class="sd">            Defaults to None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span>
+        <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">))]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_tfrecords</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="c1"># Choose a random TFRecord.</span>
+            <span class="n">tfr_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_tfrecords</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">)</span>
+            <span class="c1"># Find matching tiles in the sampled tfrecord</span>
+            <span class="n">all_tile_idx</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">interleave_index</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">tfr_idx</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_tile_idx</span><span class="p">):</span>
+                <span class="c1"># TFRecord is empty.</span>
+                <span class="k">continue</span>
+            <span class="c1"># Return a random tile from the tfrecord</span>
+            <span class="k">yield</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">all_tile_idx</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span>
+
+
+<div class="viewcode-block" id="IndexedInterleaver"><a class="viewcode-back" href="../../../../../io_torch/#slideflow.io.torch.IndexedInterleaver">[docs]</a><span class="k">class</span> <span class="nc">IndexedInterleaver</span><span class="p">(</span><span class="n">IndexedMultiTFRecordDataset</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">tfrecords</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Labels</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">incl_slidenames</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">incl_loc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">num_replicas</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">standardize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">use_labels</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">onehot</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">indices</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">tfrecord_parser</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Interleave TFRecords with an indexable ``torch.utils.data.Dataset``.</span>
+
+<span class="sd">        Provides an alternative TFRecord IO pipeline to ``InterleaveIterator``,</span>
+<span class="sd">        which only supports Iterable-style datasets. This class supports</span>
+<span class="sd">        both Iterable and Indexable datasets.</span>
+
+<span class="sd">        Differences from ``InterleaveIterator``:</span>
+<span class="sd">         - Supports direct indexing.</span>
+<span class="sd">         - No &quot;infinite&quot; argument. Looping is handled by the dataloader.</span>
+<span class="sd">         - No &quot;prob_weights&quot; argument. Sampling is handled by the dataloader.</span>
+<span class="sd">         - Does not support dynamic reading from WSI (&quot;from_wsi&quot;, &quot;tile_um&quot;, &quot;rois&quot;, &quot;roi_method&quot;, and &quot;pool&quot; arguments).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tfrecords (list(str)): Path to tfrecord files to interleave.</span>
+
+<span class="sd">        Keyword Args:</span>
+<span class="sd">            labels (dict, optional): Dict mapping slide names to labels.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            incl_slidenames (bool, optional): Include slide names when iterated</span>
+<span class="sd">                (returns image, label, slide). Defaults to False.</span>
+<span class="sd">            incl_loc (bool, optional): Include location info (tile center</span>
+<span class="sd">                coordinates). Returns samples in the form ``(returns ..., loc_x,</span>
+<span class="sd">                loc_y)``. Defaults to False.</span>
+<span class="sd">            rank (int, optional): Which GPU replica this dataset is used for.</span>
+<span class="sd">                Assists with synchronization across GPUs. Defaults to 0.</span>
+<span class="sd">            num_replicas (int, optional): Total number of GPU replicas.</span>
+<span class="sd">                Defaults to 1.</span>
+<span class="sd">            augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">                * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">                * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">                * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">                * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">                * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+<span class="sd">                * ``&#39;n&#39;``: Random :ref:`stain_augmentation` (requires stain normalizer)</span>
+
+<span class="sd">                Combine letters to define augmentations, such as ``&#39;xyrjn&#39;``.</span>
+<span class="sd">                A value of True will use ``&#39;xyrjb&#39;``.</span>
+<span class="sd">            standardize (bool, optional): Standardize images to mean 0 and</span>
+<span class="sd">                variance of 1. Defaults to True.</span>
+<span class="sd">            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):</span>
+<span class="sd">                Normalizer. Defaults to None.</span>
+<span class="sd">            clip (list(int), optional): Array of maximum tiles to take for each</span>
+<span class="sd">                tfrecord. Defaults to None.</span>
+<span class="sd">            use_labels (bool, optional): Enable use of labels (disabled for</span>
+<span class="sd">                non-conditional GANs). Defaults to True.</span>
+<span class="sd">            onehot (bool, optional): Onehot encode outcomes. Defaults to False.</span>
+<span class="sd">            indices (numpy.ndarray, optional): Indices in form of array,</span>
+<span class="sd">                with np.loadtxt(index_path, dtype=np.int64) for each tfrecord.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            transform (Callable, optional): Arbitrary torchvision transform</span>
+<span class="sd">                function. Performs transformation after augmentations but</span>
+<span class="sd">                before standardization. Defaults to None.</span>
+<span class="sd">            tfrecord_parser (Callable, optional): Custom parser for TFRecords.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            compression_type (str, optional): Compression type for TFRecords.</span>
+<span class="sd">                Either &#39;gzip&#39; or None. Defaults to None.</span>
+<span class="sd">            shuffle (bool): Shuffle records within TFRecord files during</span>
+<span class="sd">                reading. Defaults to False.</span>
+<span class="sd">            seed (int, optional): Seed for random TFRecord interleaving and</span>
+<span class="sd">                intra-tfrecord shuffling. Defaults to None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">readers</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">string_</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No tfrecords provided.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_indices</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">incl_slidenames</span> <span class="o">=</span> <span class="n">incl_slidenames</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">incl_loc</span> <span class="o">=</span> <span class="n">incl_loc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_labels</span> <span class="o">=</span> <span class="n">use_labels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">onehot</span> <span class="o">=</span> <span class="n">onehot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="n">rank</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_replicas</span> <span class="o">=</span> <span class="n">num_replicas</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_parser</span><span class="p">(</span><span class="n">tfrecord_parser</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="o">=</span> <span class="n">detect_tfrecord_format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span>
+         <span class="bp">self</span><span class="o">.</span><span class="n">unique_labels</span><span class="p">,</span>
+         <span class="bp">self</span><span class="o">.</span><span class="n">label_prob</span><span class="p">,</span>
+         <span class="bp">self</span><span class="o">.</span><span class="n">num_outcomes</span><span class="p">)</span> <span class="o">=</span> <span class="n">process_labels</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">onehot</span><span class="o">=</span><span class="n">onehot</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_tfrecord_subsample</span><span class="p">()</span>
+
+        <span class="c1"># Automatically set shard to rank/num_replicas</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Interleaving </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">)</span><span class="si">}</span><span class="s1"> tfrecords: &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;num_replicas=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_replicas</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Clip tfrecords.</span>
+        <span class="k">if</span> <span class="n">clip</span><span class="p">:</span>
+            <span class="n">_clip</span> <span class="o">=</span> <span class="p">[</span><span class="n">clip</span><span class="p">[(</span><span class="n">t</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">t</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_clip</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Set up image transformations.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_image_transform</span> <span class="o">=</span> <span class="n">compose_augmentations</span><span class="p">(</span>
+            <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">,</span>
+            <span class="n">standardize</span><span class="o">=</span><span class="n">standardize</span><span class="p">,</span>
+            <span class="n">normalizer</span><span class="o">=</span><span class="n">normalizer</span><span class="p">,</span>
+            <span class="n">transform</span><span class="o">=</span><span class="n">transform</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Prepare TFRecord interleaver.</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">tfrecords</span><span class="p">,</span>
+            <span class="n">indices</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">shard</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rank</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_replicas</span><span class="p">),</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">_clip</span><span class="p">,</span>
+            <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">n_records</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&lt;IndexedInterleaver object (num_records=</span><span class="si">{</span><span class="n">n_records</span><span class="si">}</span><span class="s2">, num_tiles&quot;</span>
+        <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_tiles</span><span class="si">}</span><span class="s2">, rank=(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">rank</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_replicas</span><span class="si">}</span><span class="s2">))&quot;</span>
+        <span class="k">return</span> <span class="n">msg</span>
+
+    <span class="k">def</span> <span class="nf">_load_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">indices</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load TFRecord index files.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">indices</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">with</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Loading indices...&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">load_index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">):</span>
+                    <span class="n">indices</span> <span class="o">+=</span> <span class="p">[</span><span class="n">index</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">indices</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Using provided indices.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">indices</span>
+
+    <span class="k">def</span> <span class="nf">_label_parser</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">loc_x</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">loc_y</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse labels and location information from a record.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Label.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outcomes</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="sa">f</span><span class="s1">&#39;out-</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+            <span class="p">}</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">loc_x</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">loc_y</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">label</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Slide/location information.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">incl_slidenames</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">incl_loc</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">label</span><span class="p">,</span> <span class="n">slide</span><span class="p">,</span> <span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">incl_slidenames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">label</span><span class="p">,</span> <span class="n">slide</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">incl_loc</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">label</span><span class="p">,</span> <span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">label</span><span class="p">,</span>
+
+    <span class="k">def</span> <span class="nf">_prepare_tfrecord_subsample</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prepare custom TFRecord indices to only read tiles in the labels dataframe.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Prepare TFRecord subsample if there are fewer tiles in the</span>
+        <span class="c1"># tiles dataframe than there are in the TFRecords</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Subsampling TFRecords using tile-level labels...&quot;</span><span class="p">)</span>
+
+        <span class="n">n_tiles</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">orig_n_tiles</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">with</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+
+            <span class="c1"># Load the original (full) indices</span>
+            <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">load_index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">):</span>
+                <span class="n">orig_n_tiles</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+                <span class="n">tfr</span> <span class="o">=</span> <span class="n">tfr</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+                <span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+                <span class="n">loc</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_locations_from_tfrecord</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+
+                <span class="c1"># Check which TFRecord indices are in the labels dataframe</span>
+                <span class="n">in_df</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">y</span><span class="si">}</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">index</span> <span class="k">for</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="n">loc</span><span class="p">])</span>
+
+                <span class="c1"># Subsample indices based on what is in the labels dataframe</span>
+                <span class="n">ss_index</span> <span class="o">=</span> <span class="n">index</span><span class="p">[</span><span class="n">in_df</span><span class="p">]</span>
+                <span class="n">n_tiles</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ss_index</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">+=</span> <span class="p">[</span><span class="n">ss_index</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">n_tiles</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No tiles found in TFRecords matching the &quot;</span>
+                                <span class="s2">&quot;labels dataframe.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">diff</span> <span class="o">=</span> <span class="n">orig_n_tiles</span> <span class="o">-</span> <span class="n">n_tiles</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;TFRecord subsampling complete (kept: </span><span class="si">{}</span><span class="s2">, removed: </span><span class="si">{}</span><span class="s2">).&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">n_tiles</span><span class="p">,</span> <span class="n">diff</span>
+            <span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">)</span> <span class="o">-</span> <span class="n">n_tiles</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> labels in the dataframe have no corresponding tile.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">)</span> <span class="o">-</span> <span class="n">n_tiles</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">diff</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Labels not found for </span><span class="si">{</span><span class="n">diff</span><span class="si">}</span><span class="s2"> tiles. These &quot;</span>
+                            <span class="s2">&quot;tiles will be skipped.&quot;</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">build_parser</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">tfrecord_parser</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a parser function for TFRecords.</span>
+
+<span class="sd">        The parser will be responsible for processing images and labels.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ftrs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_x&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_y&#39;</span><span class="p">]</span>
+        <span class="n">base_parser</span> <span class="o">=</span> <span class="n">tfrecord_parser</span> <span class="ow">or</span> <span class="n">get_tfrecord_parser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                                             <span class="n">ftrs</span><span class="p">,</span>
+                                                             <span class="n">decode_images</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">parser</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Parse an image and slide/location information.&quot;&quot;&quot;</span>
+            <span class="n">img</span><span class="p">,</span> <span class="o">*</span><span class="n">out</span> <span class="o">=</span> <span class="n">base_parser</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">decode_image</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">img_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">img_format</span><span class="p">)</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">whc_to_cwh</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_image_transform</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_parser</span><span class="p">(</span><span class="o">*</span><span class="n">out</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">detuple</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">parser</span></div>
+</pre></div>
+
+             </article>
+             
+            </div>
+            <footer>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2023, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../../../../../" src="../../../../../_static/documentation_options.js"></script>
+         <script data-url_root="../../../../../" id="documentation_options" src="../../../../../_static/documentation_options.js"></script>
+         <script src="../../../../../_static/doctools.js"></script>
+         <script src="../../../../../_static/sphinx_highlight.js"></script>
+     
+
+  
+  <script type="text/javascript" src="../../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../../../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../../../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../../../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

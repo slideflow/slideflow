@@ -9,22 +9,22 @@
   <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Self-Supervised Learning (SSL) &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>Self-Supervised Learning (SSL) &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
@@ -35,11 +35,11 @@
     <link rel="next" title="Generative Networks (GANs)" href="../stylegan/" />
     <link rel="prev" title="Multiple-Instance Learning (MIL)" href="../mil/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -102,9 +102,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -140,15 +140,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
@@ -160,7 +160,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Self-Supervised Learning (SSL)</a></li>
@@ -169,6 +169,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -207,10 +214,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -218,7 +227,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -237,30 +246,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>Self-Supervised Learning (SSL)</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="../_sources/ssl.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -272,16 +281,16 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <section id="self-supervised-learning-ssl">
 <span id="simclr-ssl"></span><h1>Self-Supervised Learning (SSL)<a class="headerlink" href="#self-supervised-learning-ssl" title="Permalink to this heading">¶</a></h1>
-<p>Slideflow provides easy access to training the self-supervised, contrastive learning framework <a class="reference external" href="https://arxiv.org/abs/2002.05709">SimCLR</a>. Self-supervised learning provides an avenue for learning useful visual representations in your dataset without requiring ground-truth labels. These visual representations can be exported as feature vectors and used for downstream analyses such as <a class="reference internal" href="../posthoc/#slidemap"><span class="std std-ref">dimensionality reduction</span></a> or <a class="reference internal" href="../mil/#clam-mil"><span class="std std-ref">multi-instance learning</span></a>.</p>
+<p>Slideflow provides easy access to training the self-supervised, contrastive learning framework <a class="reference external" href="https://arxiv.org/abs/2002.05709">SimCLR</a>. Self-supervised learning provides an avenue for learning useful visual representations in your dataset without requiring ground-truth labels. These visual representations can be exported as feature vectors and used for downstream analyses such as <a class="reference internal" href="../posthoc/#slidemap"><span class="std std-ref">dimensionality reduction</span></a> or <a class="reference internal" href="../mil/#mil"><span class="std std-ref">multi-instance learning</span></a>.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">slideflow.simclr</span></code> module contains a <a class="reference external" href="https://github.com/jamesdolezal/simclr/">forked Tensorflow implementation</a> minimally modified to interface with Slideflow. SimCLR models can be trained with <a class="reference internal" href="../project/#slideflow.Project.train_simclr" title="slideflow.Project.train_simclr"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train_simclr()</span></code></a>, and SimCLR features can be calculated as with other models using <a class="reference internal" href="../project/#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a>.</p>
 <section id="training-simclr">
 <h2>Training SimCLR<a class="headerlink" href="#training-simclr" title="Permalink to this heading">¶</a></h2>
@@ -340,9 +349,44 @@
 </div>
 <p>The SimCLR model checkpoints and final saved model will be saved in the <code class="docutils literal notranslate"><span class="pre">simclr/</span></code> folder within the project root directory.</p>
 </section>
+<section id="training-dinov2">
+<span id="dinov2"></span><h2>Training DINOv2<a class="headerlink" href="#training-dinov2" title="Permalink to this heading">¶</a></h2>
+<p>A lightly modified version of <a class="reference external" href="https://arxiv.org/abs/2304.07193">DINOv2</a> with Slideflow integration is available on <a class="reference external" href="https://github.com/jamesdolezal/dinov2">GitHub</a>. This version facilitates training DINOv2 with Slideflow datasets and adds stain augmentation to the training pipeline.</p>
+<p>To train DINOv2, first install the package:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/jamesdolezal/dinov2.git
+</pre></div>
+</div>
+<p>Next, configure the training parameters and datsets by providing a configuration YAML file. This configuration file should contain a <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> section, which specifies the Slideflow project and dataset to use for training. An example YAML file is shown below:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">train</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">dataset_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slideflow</span>
+<span class="w">  </span><span class="nt">batch_size_per_gpu</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">32</span>
+<span class="w">  </span><span class="nt">slideflow</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">project</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/mnt/data/projects/TCGA_THCA_BRAF&quot;</span>
+<span class="w">    </span><span class="nt">dataset</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">tile_px</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">299</span>
+<span class="w">      </span><span class="nt">tile_um</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">302</span>
+<span class="w">      </span><span class="nt">filters</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">brs_class</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;Braf-like&quot;</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;Ras-like&quot;</span>
+<span class="w">    </span><span class="nt">seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">42</span>
+<span class="w">    </span><span class="nt">outcome_labels</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;brs_class&quot;</span>
+<span class="w">    </span><span class="nt">normalizer</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;reinhard_mask&quot;</span>
+<span class="w">    </span><span class="nt">interleave_kwargs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+</pre></div>
+</div>
+<p>See the <a class="reference external" href="https://github.com/jamesdolezal/dinov2">DINOv2 README</a> for more details on the configuration file format.</p>
+<p>Finally, train DINOv2 using the same command-line interface as the original DINOv2 implementation. For example, to train DINOv2 on 4 GPUs on a single node:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>torchrun<span class="w"> </span>--nproc_per_node<span class="o">=</span><span class="m">4</span><span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;dinov2.train.train&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config-file<span class="w"> </span>/path/to/config.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output-dir<span class="w"> </span>/path/to/output_dir
+</pre></div>
+</div>
+<p>The teacher weights will be saved in <code class="docutils literal notranslate"><span class="pre">outdir/eval/.../teacher_checkpoint.pth</span></code>, and the final configuration YAML will be saved in <code class="docutils literal notranslate"><span class="pre">outdir/config.yaml</span></code>.</p>
+</section>
 <section id="generating-features">
 <h2>Generating features<a class="headerlink" href="#generating-features" title="Permalink to this heading">¶</a></h2>
-<p>Generating SimCLR features is straightforward - use the same <a class="reference internal" href="../project/#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a> and <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> interfaces as <a class="reference internal" href="../posthoc/#dataset-features"><span class="std std-ref">previously described</span></a>, providing a path to a saved SimCLR model or checkpoint.</p>
+<p>Generating features from a trained SSL is straightforward - use the same <a class="reference internal" href="../project/#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a> and <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> interfaces as <a class="reference internal" href="../posthoc/#dataset-features"><span class="std std-ref">previously described</span></a>, providing a path to a saved SimCLR model or checkpoint.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
 
 <span class="c1"># Create the SimCLR feature extractor</span>
@@ -355,30 +399,38 @@
 <span class="n">features</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">simclr</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>For DINOv2 models, use <code class="docutils literal notranslate"><span class="pre">'dinov2'</span></code> as the first argument, and pass the model configuration YAML file to <code class="docutils literal notranslate"><span class="pre">cfg</span></code> and the teacher checkpoint weights to <code class="docutils literal notranslate"><span class="pre">weights</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dinov2</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
+    <span class="s1">&#39;dinov2&#39;</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="s1">&#39;/path/to/teacher_checkpoint.pth&#39;</span><span class="p">,</span>
+    <span class="n">cfg</span><span class="o">=</span><span class="s1">&#39;/path/to/config.yaml&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
 </section>
 </section>
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="../stylegan/" class="btn btn-neutral float-right" title="Generative Networks (GANs)" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="../mil/" class="btn btn-neutral" title="Multiple-Instance Learning (MIL)" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -386,11 +438,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -403,6 +455,7 @@
               <ul>
 <li><a class="reference internal" href="#">Self-Supervised Learning (SSL)</a><ul>
 <li><a class="reference internal" href="#training-simclr">Training SimCLR</a></li>
+<li><a class="reference internal" href="#training-dinov2">Training DINOv2</a></li>
 <li><a class="reference internal" href="#generating-features">Generating features</a></li>
 </ul>
 </li>
@@ -414,19 +467,19 @@
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
          <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
@@ -437,7 +490,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

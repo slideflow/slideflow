@@ -9,22 +9,22 @@
   <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.ModelParams &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>slideflow.ModelParams &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
@@ -35,11 +35,11 @@
     <link rel="next" title="slideflow.Mosaic" href="../mosaic/" />
     <link rel="prev" title="slideflow.Heatmap" href="../heatmap/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -102,9 +102,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -140,15 +140,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
@@ -160,7 +160,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -169,6 +169,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul class="current">
@@ -207,10 +214,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -218,7 +227,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -237,30 +246,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>slideflow.ModelParams</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="../_sources/model_params.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -272,22 +281,22 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <section id="slideflow-modelparams">
-<h1>slideflow.ModelParams<a class="headerlink" href="#slideflow-modelparams" title="Permalink to this heading">¶</a></h1>
+<span id="model-params"></span><h1>slideflow.ModelParams<a class="headerlink" href="#slideflow-modelparams" title="Permalink to this heading">¶</a></h1>
 <p>The <a class="reference internal" href="#slideflow.ModelParams" title="slideflow.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a> class organizes model and training parameters/hyperparameters and assists with model building.</p>
 <p>See <a class="reference internal" href="../training/#training"><span class="std std-ref">Training</span></a> for a detailed look at how to train models.</p>
 <section id="modelparams">
 <h2>ModelParams<a class="headerlink" href="#modelparams" title="Permalink to this heading">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.ModelParams">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ModelParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/model/tensorflow/#ModelParams"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.ModelParams" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ModelParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'CrossEntropy'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/model/torch/#ModelParams"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.ModelParams" title="Permalink to this definition">¶</a></dt>
 <dd><p>Build a set of hyperparameters.</p>
 <p>Configure a set of training parameters via keyword arguments.</p>
 <p>Parameters are configured in the context of the current deep learning
@@ -299,42 +308,42 @@ backend that the model will be trained in.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Tile width in pixels. Defaults to 299.</p></li>
-<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Tile width in microns (int) or
+<li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Tile width in pixels. Defaults to 299.</p></li>
+<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Tile width in microns (int) or
 magnification (str, e.g. “20x”). Defaults to 302.</p></li>
-<li><p><strong>epochs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of epochs to train the full model. Defaults to 3.</p></li>
-<li><p><strong>toplayer_epochs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of epochs to only train the fully-connected layers. Defaults to 0.</p></li>
-<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Base model architecture name. Defaults to ‘xception’.</p></li>
-<li><p><strong>pooling</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Post-convolution pooling. ‘max’, ‘avg’, or ‘none’. Defaults to ‘max’.</p></li>
-<li><p><strong>loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Loss function. Defaults to ‘sparse_categorical_crossentropy’.</p></li>
-<li><p><strong>learning_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Learning rate. Defaults to 0.0001.</p></li>
-<li><p><strong>learning_rate_decay</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Learning rate decay rate. Defaults to 0.</p></li>
-<li><p><strong>learning_rate_decay_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Learning rate decay steps. Defaults to 100000.</p></li>
-<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Batch size. Defaults to 16.</p></li>
-<li><p><strong>hidden_layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of fully-connected hidden layers after core model. Defaults to 0.</p></li>
-<li><p><strong>hidden_layer_width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Width of fully-connected hidden layers. Defaults to 500.</p></li>
-<li><p><strong>optimizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Name of optimizer. Defaults to ‘Adam’.</p></li>
-<li><p><strong>early_stop</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Use early stopping. Defaults to False.</p></li>
-<li><p><strong>early_stop_patience</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Patience for early stopping, in epochs. Defaults to 0.</p></li>
-<li><p><strong>early_stop_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Metric to monitor for early stopping. Defaults to ‘loss’.</p></li>
-<li><p><strong>manual_early_stop_epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Manually override early stopping to occur at this epoch/batch.
+<li><p><strong>epochs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of epochs to train the full model. Defaults to 3.</p></li>
+<li><p><strong>toplayer_epochs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of epochs to only train the fully-connected layers. Defaults to 0.</p></li>
+<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Base model architecture name. Defaults to ‘xception’.</p></li>
+<li><p><strong>pooling</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Post-convolution pooling. ‘max’, ‘avg’, or ‘none’. Defaults to ‘max’.</p></li>
+<li><p><strong>loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Loss function. Defaults to ‘sparse_categorical_crossentropy’.</p></li>
+<li><p><strong>learning_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Learning rate. Defaults to 0.0001.</p></li>
+<li><p><strong>learning_rate_decay</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Learning rate decay rate. Defaults to 0.</p></li>
+<li><p><strong>learning_rate_decay_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Learning rate decay steps. Defaults to 100000.</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Batch size. Defaults to 16.</p></li>
+<li><p><strong>hidden_layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of fully-connected hidden layers after core model. Defaults to 0.</p></li>
+<li><p><strong>hidden_layer_width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Width of fully-connected hidden layers. Defaults to 500.</p></li>
+<li><p><strong>optimizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Name of optimizer. Defaults to ‘Adam’.</p></li>
+<li><p><strong>early_stop</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a>) – Use early stopping. Defaults to False.</p></li>
+<li><p><strong>early_stop_patience</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Patience for early stopping, in epochs. Defaults to 0.</p></li>
+<li><p><strong>early_stop_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Metric to monitor for early stopping. Defaults to ‘loss’.</p></li>
+<li><p><strong>manual_early_stop_epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Manually override early stopping to occur at this epoch/batch.
 Defaults to None.</p></li>
-<li><p><strong>manual_early_stop_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Manually override early stopping to occur at this epoch/batch.
+<li><p><strong>manual_early_stop_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Manually override early stopping to occur at this epoch/batch.
 Defaults to None.</p></li>
-<li><p><strong>training_balance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Type of batch-level balancing to use during training.
+<li><p><strong>training_balance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Type of batch-level balancing to use during training.
 Options include ‘tile’, ‘category’, ‘patient’, ‘slide’, and None. Defaults to ‘category’ if a
 categorical loss is provided, and ‘patient’ if a linear loss is provided.</p></li>
-<li><p><strong>validation_balance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Type of batch-level balancing to use during validation.
+<li><p><strong>validation_balance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Type of batch-level balancing to use during validation.
 Options include ‘tile’, ‘category’, ‘patient’, ‘slide’, and None. Defaults to ‘none’.</p></li>
-<li><p><strong>trainable_layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of layers which are traininable. If 0, trains all layers.
+<li><p><strong>trainable_layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of layers which are traininable. If 0, trains all layers.
 Defaults to 0.</p></li>
-<li><p><strong>l1</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – L1 regularization weight. Defaults to 0.</p></li>
-<li><p><strong>l2</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – L2 regularization weight. Defaults to 0.</p></li>
-<li><p><strong>l1_dense</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – L1 regularization weight for Dense layers. Defaults to the value of l1.</p></li>
-<li><p><strong>l2_dense</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – L2 regularization weight for Dense layers. Defaults to the value of l2.</p></li>
-<li><p><strong>dropout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – Post-convolution dropout rate. Defaults to 0.</p></li>
-<li><p><strong>uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Use uncertainty quantification with dropout. Requires dropout &gt; 0. Defaults to False.</p></li>
-<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – <p>Image augmentations to perform. Characters in the string designate augmentations.
+<li><p><strong>l1</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – L1 regularization weight. Defaults to 0.</p></li>
+<li><p><strong>l2</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – L2 regularization weight. Defaults to 0.</p></li>
+<li><p><strong>l1_dense</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – L1 regularization weight for Dense layers. Defaults to the value of l1.</p></li>
+<li><p><strong>l2_dense</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – L2 regularization weight for Dense layers. Defaults to the value of l2.</p></li>
+<li><p><strong>dropout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Post-convolution dropout rate. Defaults to 0.</p></li>
+<li><p><strong>uq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>, </em><em>optional</em>) – Use uncertainty quantification with dropout. Requires dropout &gt; 0. Defaults to False.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – <p>Image augmentations to perform. Characters in the string designate augmentations.
 Combine these characters to define the augmentation pipeline. For example, ‘xyrj’ will perform x-flip,
 y-flip, rotation, and JPEG compression. True will use all augmentations. Defaults to ‘xyrj’.</p>
 <table class="docutils align-default">
@@ -369,14 +378,14 @@ y-flip, rotation, and JPEG compression. True will use all augmentations. Default
 </tbody>
 </table>
 </p></li>
-<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Stain normalization preset or
+<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Stain normalization preset or
 path to a source image. Valid presets include ‘v1’, ‘v2’, and
 ‘v3’. If None, will use the default present (‘v3’).
 Defaults to None.</p></li>
-<li><p><strong>include_top</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Include post-convolution fully-connected layers from the core model. Defaults
+<li><p><strong>include_top</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a>) – Include post-convolution fully-connected layers from the core model. Defaults
 to True. include_top=False is not currently compatible with the PyTorch backend.</p></li>
-<li><p><strong>drop_images</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Drop images, using only other slide-level features as input.
+<li><p><strong>drop_images</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a>) – Drop images, using only other slide-level features as input.
 Defaults to False.</p></li>
 </ul>
 </dd>
@@ -385,25 +394,25 @@ Defaults to False.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.ModelParams.to_dict">
-<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.11)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#slideflow.ModelParams.to_dict" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#slideflow.ModelParams.to_dict" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return a dictionary of configured parameters.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.ModelParams.get_normalizer">
-<span class="sig-name descname"><span class="pre">get_normalizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><span class="pre">StainNormalizer</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.ModelParams.get_normalizer" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">get_normalizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="../norm/#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><span class="pre">StainNormalizer</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.ModelParams.get_normalizer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return a configured <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.StainNormalizer</span></code>.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.ModelParams.validate">
-<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span></span><a class="headerlink" href="#slideflow.ModelParams.validate" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></span></span><a class="headerlink" href="#slideflow.ModelParams.validate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check that hyperparameter combinations are valid.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.ModelParams.model_type">
-<span class="sig-name descname"><span class="pre">model_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></span><a class="headerlink" href="#slideflow.ModelParams.model_type" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">model_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></span><a class="headerlink" href="#slideflow.ModelParams.model_type" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns ‘linear’, ‘categorical’, or ‘cph’, reflecting the loss.</p>
 </dd></dl>
 
@@ -416,6 +425,7 @@ Defaults to False.</p></li>
 <p>If <strong>patient-based balancing</strong> (“patient”) is used, batches will balance image tiles across patients. The balancing is similar to slide-based balancing, except across patients (as each patient may have more than one slide).</p>
 <p>If <strong>category-based balancing</strong> (“category”) is used, batches will contain equal representation from each outcome category.</p>
 <p>If <strong>no balancing</strong> is performed, batches will be assembled by randomly selecting from TFRecords. This is equivalent to slide-based balancing if each slide has its own TFRecord (default behavior).</p>
+<p>See <a class="reference internal" href="../dataloaders/#balancing"><span class="std std-ref">Oversampling with balancing</span></a> for more discussion on sampling and mini-batch balancing.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>If you are <a class="reference internal" href="../training/#training-with-trainer"><span class="std std-ref">using a Trainer</span></a> to train your models, you can further customize the mini-batch balancing strategy by using <a class="reference internal" href="../dataset/#slideflow.Dataset.balance" title="slideflow.Dataset.balance"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.balance()</span></code></a> on your training and/or validation datasets.</p>
@@ -425,25 +435,25 @@ Defaults to False.</p></li>
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="../mosaic/" class="btn btn-neutral float-right" title="slideflow.Mosaic" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="../heatmap/" class="btn btn-neutral" title="slideflow.Heatmap" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -451,11 +461,11 @@ Defaults to False.</p></li>
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -486,19 +496,19 @@ Defaults to False.</p></li>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
          <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
@@ -509,7 +519,7 @@ Defaults to False.</p></li>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

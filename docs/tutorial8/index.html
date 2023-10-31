@@ -1,0 +1,578 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Tutorial 8: Multiple-Instance Learning &mdash; slideflow 2.2.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" />
+    <link rel="prev" title="Tutorial 7: Training with custom augmentations" href="../tutorial7/" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  2.2
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 8: Multiple-Instance Learning</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Tutorial 8: Multiple-Instance Learning</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/tutorial8.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <section id="tutorial-8-multiple-instance-learning">
+<span id="tutorial8"></span><h1>Tutorial 8: Multiple-Instance Learning<a class="headerlink" href="#tutorial-8-multiple-instance-learning" title="Permalink to this heading">¶</a></h1>
+<p>In contrast with tutorials 1-4, which focused on training and evaluating traditional tile-based models, this tutorial provides an example of training a multiple-instance learning (MIL) model. MIL models are particularly useful for heterogeneous tumors, when only parts of a whole-slide image may carry a distinctive histological signature. In this tutorial, we’ll train a MIL model to predict the ER status of breast cancer patients from whole slide images. Note: MIL models require PyTorch.</p>
+<p>We’ll start the same way as <a class="reference internal" href="../tutorial1/#tutorial1"><span class="std std-ref">Tutorial 1: Model training (simple)</span></a>, loading a project and preparing a dataset.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="s1">&#39;/home/er_project&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span>
+<span class="gp">... </span>  <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">filters</span><span class="o">=</span><span class="p">{</span>
+<span class="gp">... </span>    <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Positive&#39;</span><span class="p">,</span> <span class="s1">&#39;Negative&#39;</span><span class="p">]</span>
+<span class="gp">... </span><span class="p">})</span>
+</pre></div>
+</div>
+<p>If tiles have not yet been <a class="reference internal" href="../slide_processing/#filtering"><span class="std std-ref">extracted</span></a> for this dataset, do that now.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="s1">&#39;otsu&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Once a dataset has been prepared, the next step in training an MIL model is <a class="reference internal" href="../mil/#mil"><span class="std std-ref">converting images into features</span></a>. For this example, we’ll use the pretrained <a class="reference external" href="https://github.com/owkin/HistoSSLscaling">HistoSSL</a> feature extractor, a vision transformer pretrained on 40 million histology images. HistoSSL was trained on tiles of size 224x224, so our images will be center-cropped to match.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">histossl</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;histossl&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">)</span>
+
+<span class="go">This model is developed and licensed by Owkin, Inc. The license for use is</span>
+<span class="go">provided in the LICENSE file in the same directory as this source file</span>
+<span class="go">(slideflow/model/extractors/histossl/LICENSE), and is also available</span>
+<span class="go">at https://github.com/owkin/HistoSSLscaling. By using this feature extractor,</span>
+<span class="go">you agree to the terms of the license.</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">histossl</span><span class="o">.</span><span class="n">cite</span><span class="p">()</span>
+
+<span class="go">@article{Filiot2023ScalingSSLforHistoWithMIM,</span>
+<span class="go">    author       = {Alexandre Filiot and Ridouane Ghermi and Antoine Olivier and Paul Jacob and Lucas Fidon and Alice Mac Kain and Charlie Saillard and Jean-Baptiste Schiratti},</span>
+<span class="go">    title        = {Scaling Self-Supervised Learning for Histopathology with Masked Image Modeling},</span>
+<span class="go">    elocation-id = {2023.07.21.23292757},</span>
+<span class="go">    year         = {2023},</span>
+<span class="go">    doi          = {10.1101/2023.07.21.23292757},</span>
+<span class="go">    publisher    = {Cold Spring Harbor Laboratory Press},</span>
+<span class="go">    url          = {https://www.medrxiv.org/content/early/2023/07/26/2023.07.21.23292757},</span>
+<span class="go">    eprint       = {https://www.medrxiv.org/content/early/2023/07/26/2023.07.21.23292757.full.pdf},</span>
+<span class="go">    journal      = {medRxiv}</span>
+<span class="go">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">histossl</span><span class="o">.</span><span class="n">num_features</span>
+<span class="go">768</span>
+</pre></div>
+</div>
+<p>The HistoSSL feature extractor produces a 768-dimensional vector for each tile. We can generate and export <a class="reference internal" href="../mil/#bags"><span class="std std-ref">bags</span></a> of these features for all slides in our dataset using <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">generate_feature_bags</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">histossl</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">dataset</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/bags/path&#39;</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The output directory, <code class="docutils literal notranslate"><span class="pre">/bags/path</span></code>, should look like:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/bags/path
+├──<span class="w"> </span>slide1.pt
+├──<span class="w"> </span>slide1.indez.npz
+├──<span class="w"> </span>slide2.pt
+├──<span class="w"> </span>slide2.index.npz
+├──<span class="w"> </span>...
+└──<span class="w"> </span>bags_config.json
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">*.pt</span></code> files contain the feature vectors for tiles in each slide, and the <code class="docutils literal notranslate"><span class="pre">*.index.npz</span></code> files contain the corresponding X, Y coordinates for each tile.  The <code class="docutils literal notranslate"><span class="pre">bags_config.json</span></code> file contains the feature extractor configuration.</p>
+<p>The next step is to create an MIL model configuration using <a class="reference internal" href="../mil_module/#slideflow.mil.mil_config" title="slideflow.mil.mil_config"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.mil.mil_config()</span></code></a>, specifying the architecture and relevant hyperparameters. For the architecture, we’ll use <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.mil.models.Attention_MIL</span></code>. For the hyperparameters, we’ll use a learning rate of 1e-4, a batch size of 32, 1cycle learning rate scheduling, and train for 10 epochs.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.mil</span> <span class="kn">import</span> <span class="n">mil_config</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">config</span> <span class="o">=</span> <span class="n">mil_config</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;attention_mil&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">lr</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">epochs</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">fit_one_cycle</span><span class="o">=</span><span class="kc">True</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Finally, we can train the model using <a class="reference internal" href="../mil_module/#slideflow.mil.train_mil" title="slideflow.mil.train_mil"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.mil.train_mil()</span></code></a>. We’ll split our dataset into 70% training and 30% validation, training to the outcome “er_status_by_ihc” and saving the model to <code class="docutils literal notranslate"><span class="pre">/model/path</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.mil</span> <span class="kn">import</span> <span class="n">train_mil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">train</span><span class="p">,</span> <span class="n">val</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">,</span> <span class="n">val_fraction</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">train_mil</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">config</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">train_dataset</span><span class="o">=</span><span class="n">train</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">val_dataset</span><span class="o">=</span><span class="n">val</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">outcomes</span><span class="o">=</span><span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">bags</span><span class="o">=</span><span class="s1">&#39;/bags/path&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/model/path&#39;</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+<p>During training, you’ll see the training/validation loss and validation AUROC for each epoch. At the end of training, you’ll see the validation metrics for each outcome.</p>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[18:51:01] INFO     Training FastAI MIL model with config:
+           INFO     TrainerConfigFastAI(
+                        aggregation_level=&#39;slide&#39;
+                        lr=0.0001
+                        wd=1e-05
+                        bag_size=512
+                        fit_one_cycle=True
+                        epochs=10
+                        batch_size=32
+                        model=&#39;attention_mil&#39;
+                        apply_softmax=True
+                        model_kwargs=None
+                        use_lens=True
+                    )
+[18:51:02] INFO     Training dataset: 272 merged bags (from 272 possible slides)
+           INFO     Validation dataset: 116 merged bags (from 116 possible slides)
+[18:51:04] INFO     Training model Attention_MIL (in=1024, out=2, loss=CrossEntropyLoss)
+epoch     train_loss  valid_loss  roc_auc_score  time
+0         0.328032    0.285096    0.580233       00:01
+Better model found at epoch 0 with valid_loss value: 0.2850962281227112.
+1         0.319219    0.266496    0.733721       00:01
+Better model found at epoch 1 with valid_loss value: 0.266496479511261.
+2         0.293969    0.230561    0.859690       00:01
+Better model found at epoch 2 with valid_loss value: 0.23056122660636902.
+3         0.266627    0.190546    0.927519       00:01
+Better model found at epoch 3 with valid_loss value: 0.1905461698770523.
+4         0.236985    0.165320    0.939147       00:01
+Better model found at epoch 4 with valid_loss value: 0.16532012820243835.
+5         0.215019    0.153572    0.946512       00:01
+Better model found at epoch 5 with valid_loss value: 0.153572216629982.
+6         0.199093    0.144464    0.948837       00:01
+Better model found at epoch 6 with valid_loss value: 0.1444639265537262.
+7         0.185597    0.141776    0.952326       00:01
+Better model found at epoch 7 with valid_loss value: 0.14177580177783966.
+8         0.173794    0.141409    0.951938       00:01
+Better model found at epoch 8 with valid_loss value: 0.14140936732292175.
+9         0.167547    0.140791    0.952713       00:01
+Better model found at epoch 9 with valid_loss value: 0.14079126715660095.
+[18:51:18] INFO     Predictions saved to {...}/predictions.parquet
+           INFO     Validation metrics for outcome brs_class:
+[18:51:18] INFO     slide-level AUC (cat # 0): 0.953 AP: 0.984 (opt. threshold: 0.544)
+           INFO     slide-level AUC (cat # 1): 0.953 AP: 0.874 (opt. threshold: 0.458)
+           INFO     Category 0 acc: 88.4% (76/86)
+           INFO     Category 1 acc: 83.3% (25/30)
+</pre></div>
+</div>
+<p>After training has completed, the output directory, <code class="docutils literal notranslate"><span class="pre">/model/path</span></code>, should look like:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/model/path
+├──<span class="w"> </span>attention
+│<span class="w">   </span>├──<span class="w"> </span>slide1_att.npz
+│<span class="w">   </span>└──<span class="w"> </span>...
+├──<span class="w"> </span>models
+│<span class="w">   </span>└──<span class="w"> </span>best_valid.pth
+├──<span class="w"> </span>history.csv
+├──<span class="w"> </span>mil_params.json
+├──<span class="w"> </span>predictions.parquet
+└──<span class="w"> </span>slide_manifest.csv
+</pre></div>
+</div>
+<p>The final model weights are saved in <code class="docutils literal notranslate"><span class="pre">models/best_valid.pth</span></code>. Validation dataset predictions are saved in the “predictions.parquet” file. A manifest of training/validation data is saved in the “slide_manifest.csv” file, and training history is saved in the “history.csv” file. Attention values for all tiles in each slide are saved in the <code class="docutils literal notranslate"><span class="pre">attention/</span></code> directory.</p>
+<p>The final saved model can be used for evaluation (<a class="reference internal" href="../mil_module/#slideflow.mil.eval_mil" title="slideflow.mil.eval_mil"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.mil.eval_mil</span></code></a>) or inference (<a class="reference internal" href="../mil_module/#slideflow.mil.predict_slide" title="slideflow.mil.predict_slide"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.mil.predict_slide</span></code></a> or <a class="reference internal" href="../studio/#studio-mil"><span class="std std-ref">Slideflow Studio</span></a>). The saved model path should be referenced by the parent directory (in this case, “/model/path”) rather than the model file itself. For more information on MIL models, see <a class="reference internal" href="../mil/#mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a>.</p>
+</section>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="../tutorial7/" class="btn btn-neutral" title="Tutorial 7: Training with custom augmentations" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2023, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Tutorial 8: Multiple-Instance Learning</a></li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script src="../_static/sphinx_highlight.js"></script>
+     
+
+  
+  <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

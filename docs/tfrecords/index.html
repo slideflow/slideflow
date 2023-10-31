@@ -1,0 +1,687 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>TFRecords: Reading and Writing &mdash; slideflow 2.2.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" />
+    <link rel="next" title="Dataloaders: Sampling and Augmentation" href="../dataloaders/" />
+    <link rel="prev" title="Troubleshooting" href="../troubleshooting/" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  2.2
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>TFRecords: Reading and Writing</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/tfrecords.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <section id="tfrecords-reading-and-writing">
+<span id="tfrecords"></span><h1>TFRecords: Reading and Writing<a class="headerlink" href="#tfrecords-reading-and-writing" title="Permalink to this heading">¶</a></h1>
+<p>TFRecords are binary files designed for storing large amounts of data. In Slideflow, TFRecords are used to store compressed image tiles extracted from whole-slide images. TFRecords are used instead of loose image files (such as <code class="docutils literal notranslate"><span class="pre">*.jpg</span></code> or <code class="docutils literal notranslate"><span class="pre">*.png</span></code>) because they are compact, more easily distributed, and significantly improve data reading efficiency during model training. TFRecords were originally designed for Tensorflow, but they can also be used with PyTorch.</p>
+<p>The following sections describe the TFRecord data format and provide examples of how to create, read, and manipulate TFRecords using Slideflow.</p>
+<section id="tfrecord-format">
+<h2>TFRecord Format<a class="headerlink" href="#tfrecord-format" title="Permalink to this heading">¶</a></h2>
+<p>TFRecords are binary files that contain a sequence of records, where each record represents an individual image tile. Each record contains a serialized <a class="reference external" href="https://protobuf.dev/overview/">protocol buffer</a> with a list of named features. Each feature can be a list of bytes, floats, or integers. TFRecords are expected to have the following features:</p>
+<ul class="simple">
+<li><p><strong>“image_raw”</strong>: Bytes containing the image data (either JPG or PNG).</p></li>
+<li><p><strong>“slide”</strong>: Bytes containing the slide name (in UTF-8 format).</p></li>
+<li><p><strong>“loc_x”</strong>: Integer containing the x-coordinate of the tile (optional).</p></li>
+<li><p><strong>“loc_y”</strong>: Integer containing the y-coordinate of the tile (optional).</p></li>
+</ul>
+<p>Slideflow expects each TFRecord to contain images from only a single slide, with the TFRecord name matching the slide name. The <code class="docutils literal notranslate"><span class="pre">loc_x</span></code> and <code class="docutils literal notranslate"><span class="pre">loc_y</span></code> features are optional, but are required for some operations (such as generating TFRecord heatmaps).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When reading TFRecords with Tensorflow, records are internally decoded using <code class="docutils literal notranslate"><span class="pre">tf.train.Example</span></code>. When Tensorflow is not being used (such as when using the PyTorch backend), tfrecords are decoded using <code class="docutils literal notranslate"><span class="pre">sf.util.example_pb2.Example</span></code>, providing an alternative decoder that does not require Tensorflow. Tensorflow’s <code class="docutils literal notranslate"><span class="pre">tf.train.Example</span></code> and Slideflow’s <code class="docutils literal notranslate"><span class="pre">sf.util.example_pb2.Example</span></code> are identical, except that <code class="docutils literal notranslate"><span class="pre">sf.util.example_pb2.Example</span></code> does not require Tensorflow and supports <code class="docutils literal notranslate"><span class="pre">protobuf</span></code> version 4.</p>
+</div>
+</section>
+<section id="tfrecord-indices">
+<h2>TFRecord Indices<a class="headerlink" href="#tfrecord-indices" title="Permalink to this heading">¶</a></h2>
+<p>Slideflow uses TFRecord index files to keep track of the internal structure of each TFRecord, improving efficiency of data reading. These index files are automatically built and stored in the same directory as the TFRecords upon first use. A TFRecord index is an <code class="docutils literal notranslate"><span class="pre">*.npz</span></code> file with the same name as the TFRecord, but with the <code class="docutils literal notranslate"><span class="pre">*.index.npz</span></code> extension. A TFRecord index contains the following fields:</p>
+<ul class="simple">
+<li><p><strong>“arr_0”</strong>: An array of shape <code class="docutils literal notranslate"><span class="pre">(n_tiles,</span> <span class="pre">2)</span></code> containing the starting bytes and length of each record.</p></li>
+<li><p><strong>“locations”</strong>: An array of shape <code class="docutils literal notranslate"><span class="pre">(n_tiles,</span> <span class="pre">2)</span></code> containing the x- and y-coordinates of each tile.</p></li>
+</ul>
+<p>Index files for an entire dataset can be rebuilt using <a class="reference internal" href="../dataset/#slideflow.Dataset.rebuild_index" title="slideflow.Dataset.rebuild_index"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.rebuild_index()</span></code></a>. You can manually create an index file for a single TFRecord using <code class="xref py py-func docutils literal notranslate"><span class="pre">sf.util.tfrecord2idx.create_index()</span></code>.</p>
+</section>
+<section id="creating-tfrecords">
+<h2>Creating TFRecords<a class="headerlink" href="#creating-tfrecords" title="Permalink to this heading">¶</a></h2>
+<section id="from-a-dataset">
+<h3>From a Dataset<a class="headerlink" href="#from-a-dataset" title="Permalink to this heading">¶</a></h3>
+<p>The typical way to create TFRecords is to use the <a class="reference internal" href="../dataset/#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a> function, as described in <a class="reference internal" href="../slide_processing/#filtering"><span class="std std-ref">Slide Processing</span></a>. TFRecords will be exported to the destination configured in the <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> object (see: <a class="reference internal" href="../datasets_and_val/#datasets-and-validation"><span class="std std-ref">Datasets</span></a>).</p>
+</section>
+<section id="from-a-slide">
+<h3>From a slide<a class="headerlink" href="#from-a-slide" title="Permalink to this heading">¶</a></h3>
+<p>A TFRecord file for a single slide can be manually created using <a class="reference internal" href="../slide/#slideflow.WSI.extract_tiles" title="slideflow.WSI.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.WSI.extract_tiles()</span></code></a> function. The first argument of this function is the TFRecord destination folder.</p>
+</section>
+<section id="from-a-directory-of-images">
+<h3>From a directory of images<a class="headerlink" href="#from-a-directory-of-images" title="Permalink to this heading">¶</a></h3>
+<p>A directory of loose image files can be assembled into a TFRecord using <a class="reference internal" href="../io/#slideflow.io.write_tfrecords_single" title="slideflow.io.write_tfrecords_single"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.write_tfrecords_single()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">write_tfrecords_single</span><span class="p">(</span>
+    <span class="s1">&#39;/path/to/images&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;/path/to/destination&#39;</span><span class="p">,</span>
+    <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;filename&#39;</span><span class="p">,</span>
+    <span class="n">slide</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>A nested directory of loose image tiles, organized into subdirectory by slide name, can be simultaneously assembled into multiple TFRecords (one for each slide) using <a class="reference internal" href="../io/#slideflow.io.write_tfrecords_multi" title="slideflow.io.write_tfrecords_multi"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.write_tfrecords_multi()</span></code></a>. Slide names are determined from the subdirectory names:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">write_tfrecords_multi</span><span class="p">(</span>
+    <span class="s1">&#39;/path/to/nested_images&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;/path/to/destination&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="inspecting-tfrecords">
+<h2>Inspecting TFRecords<a class="headerlink" href="#inspecting-tfrecords" title="Permalink to this heading">¶</a></h2>
+<section id="individual-tfrecords">
+<h3>Individual TFRecords<a class="headerlink" href="#individual-tfrecords" title="Permalink to this heading">¶</a></h3>
+<p>The quickest way to inspect a TFRecord is to use <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.TFRecord</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tfr</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">tfrecord</span><span class="o">.</span><span class="n">TFRecord</span><span class="p">(</span><span class="s1">&#39;/path/to/tfrecord&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>An index file will be automatically created if one is not found. To disable automatic index creation, set <code class="docutils literal notranslate"><span class="pre">create_index=False</span></code>.</p>
+<p>The TFRecord object has several useful attributes:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">tfr</span><span class="o">.</span><span class="n">fields</span>
+<span class="go">[&#39;image_raw&#39;, &#39;slide&#39;, &#39;loc_x&#39;, &#39;loc_y&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tfr</span><span class="o">.</span><span class="n">img_format</span>
+<span class="go">&#39;jpeg&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tfr</span><span class="o">.</span><span class="n">length</span>
+<span class="go">1000</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tfr</span><span class="o">.</span><span class="n">locations</span>
+<span class="go">[(768, 256), (768, 512), ...]</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">fields</span></code> attribute is a list of the fields in the TFRecord.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">img_format</span></code> attribute is the image format of the TFRecord (either <code class="docutils literal notranslate"><span class="pre">&quot;jpeg&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;png&quot;</span></code>).</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">length</span></code> attribute is the number of tiles in the TFRecord.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">locations</span></code> attribute is a list of the x- and y- center coordinates of each tile, if available, otherwise None.</p>
+</section>
+<section id="inspecting-datasets">
+<h3>Inspecting Datasets<a class="headerlink" href="#inspecting-datasets" title="Permalink to this heading">¶</a></h3>
+<p>The <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> object provides several methods for inspecting the TFRecords in a dataset generated through <a class="reference internal" href="../dataset/#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>.</p>
+<p>The <a class="reference internal" href="../dataset/#slideflow.Dataset.summary" title="slideflow.Dataset.summary"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.summary()</span></code></a> method provides a summary of the dataset, including the location TFRecords are stored and the number of total number of tiles across all TFRecords in the dataset.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Prepare a dataset of image tiles.</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>   <span class="c1"># Tile size, in pixels.</span>
+    <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;10x&#39;</span>  <span class="c1"># Tile size, in microns or magnification.</span>
+<span class="p">)</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Overview:
+╒===============================================╕
+│ Configuration file: │ /mnt/data/datasets.json │
+│ Tile size (px):     │ 299                     │
+│ Tile size (um):     │ 10x                     │
+│ Slides:             │ 941                     │
+│ Patients:           │ 941                     │
+│ Slides with ROIs:   │ 941                     │
+│ Patients with ROIs: │ 941                     │
+╘===============================================╛
+
+Filters:
+╒====================╕
+│ Filters:      │ {} │
+├--------------------┤
+│ Filter Blank: │ [] │
+├--------------------┤
+│ Min Tiles:    │ 0  │
+╘====================╛
+
+Sources:
+
+TCGA_LUNG
+╒==============================================╕
+│ slides    │ /mnt/raid/SLIDES/TCGA_LUNG       │
+│ roi       │ /mnt/raid/SLIDES/TCGA_LUNG       │
+│ tiles     │ /mnt/rocket/tiles/TCGA_LUNG      │
+│ tfrecords │ /mnt/rocket/tfrecords/TCGA_LUNG/ │
+│ label     │ 299px_10x                        │
+╘==============================================╛
+
+Number of tiles in TFRecords: 284114
+Annotation columns:
+Index([&#39;patient&#39;, &#39;subtype&#39;, &#39;site&#39;, &#39;slide&#39;],
+    dtype=&#39;object&#39;)
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="../dataset/#slideflow.Dataset.tfrecords" title="slideflow.Dataset.tfrecords"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.tfrecords()</span></code></a> method returns a list of paths to tfrecords.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">tfrecords</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">)</span>
+<span class="go">941</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tfrecords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="go">&#39;/path/to/tfrecords1&#39;</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">slideflow.Dataset.num_tiles</span></code> attribute returns the total number of tiles across all TFRecords in the dataset.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">num_tiles</span>
+<span class="go">284114</span>
+</pre></div>
+</div>
+<p>Finally, the <a class="reference internal" href="../dataset/#slideflow.Dataset.manifest" title="slideflow.Dataset.manifest"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.manifest()</span></code></a> method returns a dictionary mapping TFRecord paths to the number tiles in each TFRecord. Each value returned by the dictionary is a nested dictionary with two keys: <code class="docutils literal notranslate"><span class="pre">&quot;total&quot;</span></code>, which is the total number of tiles in the TFRecords, and <code class="docutils literal notranslate"><span class="pre">&quot;clipped&quot;</span></code>, which is the number of tiles that will be taken from the TFRecord as a result of <a class="reference internal" href="../dataloaders/#sampling"><span class="std std-ref">clipping/undersampling</span></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">manifest</span><span class="p">()</span>
+<span class="go">{&#39;/path/to/tfrecords1&#39;: {&#39;total&#39;: 1000, &#39;clipped&#39;: 512},</span>
+<span class="go"> &#39;/path/to/tfrecords2&#39;: {&#39;total&#39;: 2000, &#39;clipped&#39;: 512},</span>
+<span class="go"> ...}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="reading-tfrecords">
+<h2>Reading TFRecords<a class="headerlink" href="#reading-tfrecords" title="Permalink to this heading">¶</a></h2>
+<p>Slideflow provides several tools for reading and parsing TFRecords. These tools are intended for debugging and development, and are not recommended for model training. Higher-level dataloaders, which supervise sampling, shuffling, sharding, batching, labeling, and augmenting, are discussed in <a class="reference internal" href="../dataloaders/#dataloaders"><span class="std std-ref">Dataloaders: Sampling and Augmentation</span></a>.</p>
+<section id="reading-a-single-image-tile">
+<h3>Reading a single image tile<a class="headerlink" href="#reading-a-single-image-tile" title="Permalink to this heading">¶</a></h3>
+<p>To get a single parsed record according to its index, use <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.TFRecord.__getitem__()</span></code>, which returns a dictionary of the parsed record:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tfr</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">tfrecord</span><span class="o">.</span><span class="n">TFRecord</span><span class="p">(</span><span class="s1">&#39;/path/to/tfrecord&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tfr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="go">{&#39;image_raw&#39;: b&#39;...&#39;, &#39;slide&#39;: &#39;SLIDE_NAME&#39;, &#39;loc_x&#39;: 0, &#39;loc_y&#39;: 0}</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">'image_raw'</span></code> field contains raw image bytes, in either JPG or PNG format.</p>
+<p>To get a single parsed record according to its location, use <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.TFRecord.get_record_by_xy()</span></code>, which returns the slide name and image bytes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">tfr</span><span class="o">.</span><span class="n">get_record_by_xy</span><span class="p">(</span><span class="mi">768</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+<span class="go">(&#39;SLIDE_NAME&#39;, b&#39;...&#39;)</span>
+</pre></div>
+</div>
+<p>Image bytes can be decoded into Tensors (according to the active backend) using <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.decode_image()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">slide</span><span class="p">,</span> <span class="n">image</span> <span class="o">=</span> <span class="n">tfr</span><span class="o">.</span><span class="n">get_record_by_xy</span><span class="p">(</span><span class="mi">768</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">image</span><span class="p">))</span>
+<span class="go">&lt;class &#39;bytes&#39;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">decode_image</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+<span class="go">&lt;torch.Tensor shape=(256, 256, 3) dtype=torch.uint8</span>
+</pre></div>
+</div>
+</section>
+<section id="reading-from-a-single-tfrecord">
+<h3>Reading from a single TFRecord<a class="headerlink" href="#reading-from-a-single-tfrecord" title="Permalink to this heading">¶</a></h3>
+<p>The function <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.tfrecord_loader()</span></code> provides an interface for reading images from a single TFRecord in sequence. Start by loading the TFRecord index, creating one if it does not already exist:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tfr</span> <span class="o">=</span> <span class="s1">&#39;/path/to/tfrecords&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">create_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">index</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">load_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Then, use <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.tfrecord_loader()</span></code> to create a generator that yields parsed records from the TFRecord:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">loader</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">tfrecord</span><span class="o">.</span><span class="n">tfrecord_loader</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">record</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">loader</span><span class="p">))</span>
+<span class="go">{&#39;image_raw&#39;: &lt;np.ndarray&gt;, &#39;slide&#39;: &lt;np.ndarray&gt;, &#39;loc_x&#39;: [0], &#39;loc_y&#39;: [0]}</span>
+</pre></div>
+</div>
+<p>Both <code class="docutils literal notranslate"><span class="pre">&quot;image_raw&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;slide&quot;</span></code> fields are returned as bytes in numpy arrays. The <code class="docutils literal notranslate"><span class="pre">&quot;loc_x&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;loc_y&quot;</span></code> fields are returned as integers. The image and slide name can be decoded using <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.decode_image()</span></code> and <code class="docutils literal notranslate"><span class="pre">.decode('utf-8')</span></code>, respectively:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">image</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">decode_image</span><span class="p">(</span><span class="nb">bytes</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">slide</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This iterator can be used to read all images from a TFRecord in sequence:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">loader</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">image</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">decode_image</span><span class="p">(</span><span class="nb">bytes</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]))</span>
+<span class="gp">... </span>    <span class="n">slide</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The iterator can be split into separate shards (data partitions) with the <code class="docutils literal notranslate"><span class="pre">shard</span></code> argument, a tuple of <code class="docutils literal notranslate"><span class="pre">(shard_id,</span> <span class="pre">n_shards)</span></code>. This is useful for parallelizing data reading across multiple processes, threads, or compute nodes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">loader</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">tfrecord</span><span class="o">.</span><span class="n">tfrecord_loader</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">shard</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Data sharding ensures that each shard reads a unique subset of the data, and that each record is read exactly once.</p>
+<p>An index file is recommended for improving efficiency of data reading, and required if using data sharding.</p>
+</section>
+<section id="interleaving-multiple-tfrecords">
+<h3>Interleaving multiple TFRecords<a class="headerlink" href="#interleaving-multiple-tfrecords" title="Permalink to this heading">¶</a></h3>
+<p>You can also interleave multiple TFRecords using <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.multi_tfrecord_loader()</span></code>. This function takes a list of TFRecord paths and a list of corresponding TFRecord indices, and returns a generator that randomly samples from TFRecords and parses the records:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tfrs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;/path/to/tfrecord1&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/tfrecord2&#39;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">load_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrs</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loader</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">tfrecord</span><span class="o">.</span><span class="n">multi_tfrecord_loader</span><span class="p">(</span><span class="n">tfrs</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">record</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">loader</span><span class="p">))</span>
+<span class="go">{&#39;image_raw&#39;: &lt;np.ndarray&gt;, &#39;slide&#39;: &lt;np.ndarray&gt;, &#39;loc_x&#39;: [0], &#39;loc_y&#39;: [0]}</span>
+</pre></div>
+</div>
+<p>By default, records are sampled from TFRecords with equal probability (i.e. uniform sampling). You can also specify a list of weights to sample from TFRecords with different probabilities (i.e. weighted sampling) via the <code class="docutils literal notranslate"><span class="pre">weights</span></code> argument. The weights should be a list of floats, one for each TFRecord, that sum to 1.0:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">loader</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">tfrecord</span><span class="o">.</span><span class="n">multi_tfrecord_loader</span><span class="p">(</span><span class="n">tfrs</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Records will be sampled infinitely by default. To disable infinite sampling, set <code class="docutils literal notranslate"><span class="pre">infinite=False</span></code>.</p>
+<p>TFRecord sharding is also supported for <code class="docutils literal notranslate"><span class="pre">multi_tfrecord_loader()</span></code> via the <code class="docutils literal notranslate"><span class="pre">shard</span></code> argument.</p>
+</section>
+</section>
+</section>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../dataloaders/" class="btn btn-neutral float-right" title="Dataloaders: Sampling and Augmentation" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="../troubleshooting/" class="btn btn-neutral" title="Troubleshooting" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2023, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">TFRecords: Reading and Writing</a><ul>
+<li><a class="reference internal" href="#tfrecord-format">TFRecord Format</a></li>
+<li><a class="reference internal" href="#tfrecord-indices">TFRecord Indices</a></li>
+<li><a class="reference internal" href="#creating-tfrecords">Creating TFRecords</a><ul>
+<li><a class="reference internal" href="#from-a-dataset">From a Dataset</a></li>
+<li><a class="reference internal" href="#from-a-slide">From a slide</a></li>
+<li><a class="reference internal" href="#from-a-directory-of-images">From a directory of images</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#inspecting-tfrecords">Inspecting TFRecords</a><ul>
+<li><a class="reference internal" href="#individual-tfrecords">Individual TFRecords</a></li>
+<li><a class="reference internal" href="#inspecting-datasets">Inspecting Datasets</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#reading-tfrecords">Reading TFRecords</a><ul>
+<li><a class="reference internal" href="#reading-a-single-image-tile">Reading a single image tile</a></li>
+<li><a class="reference internal" href="#reading-from-a-single-tfrecord">Reading from a single TFRecord</a></li>
+<li><a class="reference internal" href="#interleaving-multiple-tfrecords">Interleaving multiple TFRecords</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script src="../_static/sphinx_highlight.js"></script>
+     
+
+  
+  <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

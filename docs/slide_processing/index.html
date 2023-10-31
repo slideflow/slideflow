@@ -9,22 +9,22 @@
   <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Slide Processing &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>Slide Processing &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
@@ -35,11 +35,11 @@
     <link rel="next" title="Cell Segmentation" href="../cellseg/" />
     <link rel="prev" title="Datasets" href="../datasets_and_val/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -102,9 +102,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -140,15 +140,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
@@ -160,7 +160,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -169,6 +169,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -207,10 +214,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -218,7 +227,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -237,30 +246,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>Slide Processing</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="../_sources/slide_processing.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -272,13 +281,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <section id="slide-processing">
 <span id="filtering"></span><h1>Slide Processing<a class="headerlink" href="#slide-processing" title="Permalink to this heading">¶</a></h1>
 <img alt="../_images/tile_extraction_overview.png" src="../_images/tile_extraction_overview.png" />
@@ -286,7 +295,7 @@
 <div class="line"><br /></div>
 </div>
 <p>Whole-slide histopathological images present many challenges for machine learning researchers, as these large gigapixel images may contain out-of-focus regions, pen marks, uneven staining, or varying optical resolutions. Slideflow provides tools for both flexible and computationally efficient slide processing in order to build datasets ready for machine learning applications.</p>
-<p>Most tools in Slideflow work with image tiles - extracted sub-regions of a whole-slide image - as the primary data source. For efficiency, image tiles are first buffered into <span class="xref std std-ref">TFRecords</span> , a binary file format that greatly improves IO throughput. Although training can be performed without using TFRecords (see <a class="reference internal" href="../training/#from-wsi"><span class="std std-ref">Training without TFRecords</span></a>), we recommend tile extraction as the first step for most projects.</p>
+<p>Most tools in Slideflow work with image tiles - extracted sub-regions of a whole-slide image - as the primary data source. For efficiency, image tiles are first buffered into <a class="reference internal" href="../tfrecords/#tfrecords"><span class="std std-ref">TFRecords</span></a> , a binary file format that greatly improves IO throughput. Although training can be performed without using TFRecords (see <a class="reference internal" href="../training/#from-wsi"><span class="std std-ref">Training without TFRecords</span></a>), we recommend tile extraction as the first step for most projects.</p>
 <section id="tile-extraction">
 <h2>Tile extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this heading">¶</a></h2>
 <p>Image tiles are extracted from whole-slide images using either <a class="reference internal" href="../project/#slideflow.Project.extract_tiles" title="slideflow.Project.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.extract_tiles()</span></code></a> or <a class="reference internal" href="../dataset/#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>. When using the Project interface, the only arguments required are <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> and <code class="docutils literal notranslate"><span class="pre">tile_um</span></code>, which determine the size of the extracted image tiles in pixels and microns:</p>
@@ -314,7 +323,7 @@
 <section id="regions-of-interest">
 <span id="id1"></span><h2>Regions of Interest<a class="headerlink" href="#regions-of-interest" title="Permalink to this heading">¶</a></h2>
 <p>Tile extraction can be optionally restricted based on pathologist-annotated Regions of Interest (ROI), allowing you to enrich your dataset by only using relevant sections of a slide.</p>
-<p>We offer two methods for annotating ROIs - <a class="reference internal" href="../studio/#studio"><span class="std std-ref">Slideflow Studio</span></a> and <a class="reference external" href="https://qupath.github.io/">QuPath</a>. Please see the Slideflow Studio section for instructions on generating ROI annotations using the Slideflow interface.</p>
+<p>We offer two methods for annotating ROIs - <a class="reference internal" href="../studio/#studio-roi"><span class="std std-ref">Slideflow Studio</span></a> and <a class="reference external" href="https://qupath.github.io/">QuPath</a>. Please see the Slideflow Studio section for instructions on generating ROI annotations using the Slideflow interface.</p>
 <p>If you are using QuPath, annotate whole-slide images using the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script (QuPath 0.2 or greater) or <code class="docutils literal notranslate"><span class="pre">qupath_roi_legacy.groovy</span></code> (QuPath 0.1.x), scripts <a class="reference external" href="https://github.com/jamesdolezal/slideflow">available on GitHub</a>. Click <strong>Run</strong> -&gt; <strong>Run</strong> if using QuPath 0.2 or greater, or <strong>Run</strong> -&gt; <strong>Run for Project</strong> if using QuPath 0.1.x. ROIs will be exported in CSV format in the QuPath project directory, in the subdirectory “ROI”.</p>
 <p>Once ROI CSV files are generated, ensure they are placed in the folder expected by your <a class="reference internal" href="../project_setup/#project-setup"><span class="std std-ref">Project</span></a> or <a class="reference internal" href="../datasets_and_val/#datasets-and-validation"><span class="std std-ref">Dataset</span></a> based on their respective configurations.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">roi_method</span></code> argument to the <code class="docutils literal notranslate"><span class="pre">extract_tiles()</span></code> functions allow you to control how ROIs are used. Options include:</p>
@@ -324,11 +333,30 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">'outside'</span></code>: Extract from outside ROIs, and skip any slides missing ROIs.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">'ignore'</span></code>: Ignore all ROIs, extracting from whole-slide images.</p></li>
 </ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Nested ROIs will be rendered as holes.</p>
+</div>
 <p>By default, ROIs filter tiles based on the center point of the tile. Alternatively, you can filter tiles based on the proportion of the tile inside an ROI by using the argument <code class="docutils literal notranslate"><span class="pre">roi_filter_method</span></code>. If <code class="docutils literal notranslate"><span class="pre">roi_filter_method</span></code> is set to a float (0-1), this value will be interpreted as a proportion threshold. If the proportion of a tile inside an ROI is greater than this number, the tile is included. For example, if <code class="docutils literal notranslate"><span class="pre">roi_filter_method=0.7</span></code>, a tile that is 80% inside of an ROI will be included, but a tile that is only 60% inside of an ROI will be excluded.</p>
 <img alt="../_images/roi_filter.jpg" src="../_images/roi_filter.jpg" />
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
+<p id="roi-labels">ROIs can optionally be assigned a label. Labels can be added or changed using <a class="reference internal" href="../studio/#studio-roi"><span class="std std-ref">Slideflow Studio</span></a>, or by adding a “label” column in the ROI CSV file. Labels can be used to train strongly supervised models, where each tile is assigned a label based on the ROI it is extracted from, rather than inheriting the label of the whole-slide image. See the developer note <a class="reference internal" href="../tile_labels/#tile-labels"><span class="std std-ref">Strong Supervision with Tile Labels</span></a> for more information.</p>
+<p>To retrieve the ROI name (and label, if present) for all tiles in a slide, use <a class="reference internal" href="../slide/#slideflow.WSI.get_tile_dataframe" title="slideflow.WSI.get_tile_dataframe"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.WSI.get_tile_dataframe()</span></code></a>. This will return a Pandas DataFrame with the following columns:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><strong>loc_x</strong>: X-coordinate of tile center</p></li>
+<li><p><strong>loc_y</strong>: Y-coordinate of tile center</p></li>
+<li><p><strong>grid_x</strong>: X grid index of the tile</p></li>
+<li><p><strong>grid_y</strong>: Y grid index of the tile</p></li>
+<li><p><strong>roi_name</strong>: Name of the ROI if tile is in an ROI, else None</p></li>
+<li><p><strong>roi_desc</strong>: Description of the ROI if tile is in ROI, else None</p></li>
+<li><p><strong>label</strong>: ROI label, if present.</p></li>
+</ul>
+</div></blockquote>
+<p>The <strong>loc_x</strong> and <strong>loc_y</strong> columns contain the same tile location information <a class="reference internal" href="../tfrecords/#tfrecords"><span class="std std-ref">stored in TFRecords</span></a>.</p>
+<p>You can also retrieve this information for all slides in a dataset by using <a class="reference internal" href="../dataset/#slideflow.Dataset.get_tile_dataframe" title="slideflow.Dataset.get_tile_dataframe"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.get_tile_dataframe()</span></code></a>, which will return a DataFrame with the same columns as above, plus <code class="docutils literal notranslate"><span class="pre">slide</span></code> column.</p>
 </section>
 <section id="masking-filtering">
 <h2>Masking &amp; Filtering<a class="headerlink" href="#masking-filtering" title="Permalink to this heading">¶</a></h2>
@@ -509,25 +537,25 @@
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="../cellseg/" class="btn btn-neutral float-right" title="Cell Segmentation" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="../datasets_and_val/" class="btn btn-neutral" title="Datasets" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -535,11 +563,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -580,19 +608,19 @@
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
          <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
@@ -603,7 +631,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

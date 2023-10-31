@@ -38,6 +38,7 @@ Methods
 .. autofunction:: slideflow.Dataset.find_slide
 .. autofunction:: slideflow.Dataset.find_tfrecord
 .. autofunction:: slideflow.Dataset.get_tfrecord_locations
+.. autofunction:: slideflow.Dataset.get_tile_dataframe
 .. autofunction:: slideflow.Dataset.harmonize_labels
 .. autofunction:: slideflow.Dataset.is_float
 .. autofunction:: slideflow.Dataset.kfold_split

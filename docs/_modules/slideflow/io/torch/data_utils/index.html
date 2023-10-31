@@ -1,0 +1,669 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.io.torch.data_utils &mdash; slideflow 2.2.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../../genindex/" />
+    <link rel="search" title="Search" href="../../../../../search/" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="../../../../../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../../../../../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../../../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  2.2
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../posthoc/">Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../../../">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../../../">Module code</a> &gt;</li>
+        
+          <li><a href="../../">slideflow.io</a> &gt;</li>
+        
+      <li>slideflow.io.torch.data_utils</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <h1>Source code for slideflow.io.torch.data_utils</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Data utilities for Torch datasets.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">tfrecord2idx</span><span class="p">,</span> <span class="n">to_onehot</span>
+<span class="kn">from</span> <span class="nn">slideflow.io.io_utils</span> <span class="kn">import</span> <span class="n">detect_tfrecord_format</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span>
+                    <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">.augment</span> <span class="kn">import</span> <span class="n">compose_augmentations</span>
+<span class="kn">from</span> <span class="nn">.img_utils</span> <span class="kn">import</span> <span class="n">decode_image</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">slideflow.norm</span> <span class="kn">import</span> <span class="n">StainNormalizer</span>
+
+<span class="c1"># -------------------------------------------------------------------------</span>
+
+
+<span class="n">FEATURE_DESCRIPTION</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;image_raw&#39;</span><span class="p">:</span> <span class="s1">&#39;byte&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="s1">&#39;byte&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;loc_x&#39;</span><span class="p">:</span> <span class="s1">&#39;int&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;loc_y&#39;</span><span class="p">:</span> <span class="s1">&#39;int&#39;</span>
+<span class="p">}</span>
+
+<span class="c1"># -------------------------------------------------------------------------</span>
+
+<span class="k">def</span> <span class="nf">process_labels</span><span class="p">(</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">onehot</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]],</span>
+           <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+           <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+           <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyze labels to determine unique labels, label probabilities, and</span>
+<span class="sd">    number of outcomes.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        labels (dict): Dict mapping slide names to labels.</span>
+<span class="sd">        onehot (bool, optional): Onehot encode outcomes. Defaults to False.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        labels (dict): Dict mapping slide names to labels.</span>
+<span class="sd">        unique_labels (np.ndarray): Unique labels.</span>
+<span class="sd">        label_prob (np.ndarray): Label probabilities.</span>
+<span class="sd">        num_outcomes (int): Number of outcomes.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Weakly supervised labels from slides.</span>
+    <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">onehot</span><span class="p">:</span>
+            <span class="n">_all_labels_raw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+            <span class="n">_unique_raw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">_all_labels_raw</span><span class="p">)</span>
+            <span class="n">max_label</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">_unique_raw</span><span class="p">)</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">k</span><span class="p">:</span> <span class="n">to_onehot</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">max_label</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">labels</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="p">}</span>
+            <span class="n">num_outcomes</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">first_label</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">first_label</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">num_outcomes</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">num_outcomes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">first_label</span><span class="p">)</span>
+
+        <span class="n">_all_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+        <span class="n">unique_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">_all_labels</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">_lbls</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">_all_labels</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">unique_labels</span>
+        <span class="p">])</span>
+        <span class="n">label_prob</span> <span class="o">=</span> <span class="n">_lbls</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">_all_labels</span><span class="p">)</span>
+
+    <span class="c1"># Strongly supervised tile labels from a dataframe.</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">str</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">labels</span>
+        <span class="k">if</span> <span class="s1">&#39;label&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Could not find column &quot;label&quot; in the &#39;</span>
+                             <span class="sa">f</span><span class="s1">&#39;tile labels dataframe at </span><span class="si">{</span><span class="n">labels</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">df</span>
+        <span class="n">unique_labels</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">label_prob</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">num_outcomes</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">unique_labels</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">label_prob</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: ignore</span>
+        <span class="n">num_outcomes</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">labels</span><span class="p">,</span> <span class="n">unique_labels</span><span class="p">,</span> <span class="n">label_prob</span><span class="p">,</span> <span class="n">num_outcomes</span>
+
+<span class="c1"># -------------------------------------------------------------------------</span>
+
+<span class="k">def</span> <span class="nf">load_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+        <span class="n">tfr</span> <span class="o">=</span> <span class="n">tfr</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">load_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Could not find index path for TFRecord </span><span class="si">{</span><span class="n">tfr</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">index</span>
+
+
+<div class="viewcode-block" id="read_and_return_record"><a class="viewcode-back" href="../../../../../io/#slideflow.io.read_and_return_record">[docs]</a><span class="k">def</span> <span class="nf">read_and_return_record</span><span class="p">(</span>
+    <span class="n">record</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
+    <span class="n">parser</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">assign_slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process raw TFRecord bytes into a format that can be written with</span>
+<span class="sd">    ``tf.io.TFRecordWriter``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        record (bytes): Raw TFRecord bytes (unparsed)</span>
+<span class="sd">        parser (Callable): TFRecord parser, as returned by</span>
+<span class="sd">            :func:`sf.io.get_tfrecord_parser()`</span>
+<span class="sd">        assign_slide (str, optional): Slide name to override the record with.</span>
+<span class="sd">            Defaults to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dictionary mapping record key to a tuple containing (bytes, dtype).</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parsed</span> <span class="o">=</span> <span class="n">parser</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">assign_slide</span><span class="p">:</span>
+        <span class="n">parsed</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_slide</span>
+    <span class="n">parsed</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">parsed</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">FEATURE_DESCRIPTION</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">parsed</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span></div>
+
+
+<div class="viewcode-block" id="serialized_record"><a class="viewcode-back" href="../../../../../io/#slideflow.io.serialized_record">[docs]</a><span class="k">def</span> <span class="nf">serialized_record</span><span class="p">(</span>
+    <span class="n">slide</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
+    <span class="n">image_raw</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
+    <span class="n">loc_x</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">loc_y</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a serialized example for TFRecord storage, ready to be written</span>
+<span class="sd">    by a TFRecordWriter.&quot;&quot;&quot;</span>
+
+    <span class="n">example</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;image_raw&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">image_raw</span><span class="p">,</span> <span class="n">FEATURE_DESCRIPTION</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]),</span>
+        <span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">FEATURE_DESCRIPTION</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]),</span>
+        <span class="s1">&#39;loc_x&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">loc_x</span><span class="p">,</span> <span class="n">FEATURE_DESCRIPTION</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">]),</span>
+        <span class="s1">&#39;loc_y&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">loc_y</span><span class="p">,</span> <span class="n">FEATURE_DESCRIPTION</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]),</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">example</span></div>
+
+
+<div class="viewcode-block" id="get_tfrecord_parser"><a class="viewcode-back" href="../../../../../io/#slideflow.io.get_tfrecord_parser">[docs]</a><span class="k">def</span> <span class="nf">get_tfrecord_parser</span><span class="p">(</span>
+    <span class="n">tfrecord_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">features_to_return</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">decode_images</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">standardize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Gets tfrecord parser using dareblopy reader. Torch implementation;</span>
+<span class="sd">    different than sf.io.tensorflow</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tfrecord_path (str): Path to tfrecord to parse.</span>
+<span class="sd">        features_to_return (list or dict, optional): Designates format for how</span>
+<span class="sd">            features should be returned from parser. If a list of feature names</span>
+<span class="sd">            is provided, the parsing function will return tfrecord features as</span>
+<span class="sd">            a list in the order provided. If a dictionary of labels (keys)</span>
+<span class="sd">            mapping to feature names (values) is provided, features will be</span>
+<span class="sd">            returned from the parser as a dictionary matching the same format.</span>
+<span class="sd">            If None, will return all features as a list.</span>
+<span class="sd">        decode_images (bool, optional): Decode raw image strings into image</span>
+<span class="sd">            arrays. Defaults to True.</span>
+<span class="sd">        standardize (bool, optional): Standardize images into the range (0,1).</span>
+<span class="sd">            Defaults to False.</span>
+<span class="sd">        normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer</span>
+<span class="sd">            to use on images. Defaults to None.</span>
+<span class="sd">        augment (str or bool): Image augmentations to perform. Augmentations include:</span>
+
+<span class="sd">            * ``&#39;x&#39;``: Random horizontal flip</span>
+<span class="sd">            * ``&#39;y&#39;``: Random vertical flip</span>
+<span class="sd">            * ``&#39;r&#39;``: Random 90-degree rotation</span>
+<span class="sd">            * ``&#39;j&#39;``: Random JPEG compression (50% chance to compress with quality between 50-100)</span>
+<span class="sd">            * ``&#39;b&#39;``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)</span>
+
+<span class="sd">            Combine letters to define augmentations, such as ``&#39;xyrjn&#39;``.</span>
+<span class="sd">            A value of True will use ``&#39;xyrjb&#39;``.</span>
+<span class="sd">            Note: this function does not support stain augmentation.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A tuple containing</span>
+
+<span class="sd">            func: Parsing function</span>
+
+<span class="sd">            dict: Detected feature description for the tfrecord</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">features</span><span class="p">,</span> <span class="n">img_type</span> <span class="o">=</span> <span class="n">detect_tfrecord_format</span><span class="p">(</span><span class="n">tfrecord_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">features</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">img_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to read TFRecord </span><span class="si">{</span><span class="n">tfrecord_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">features_to_return</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">features_to_return</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">features</span><span class="p">}</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">f</span> <span class="ow">in</span> <span class="n">features</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">):</span>
+        <span class="n">detected</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+        <span class="n">_ftrs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">features_to_return</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>  <span class="c1"># type: ignore</span>
+        <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Not all features </span><span class="si">{</span><span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_ftrs</span><span class="p">)</span><span class="si">}</span><span class="s1"> &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;were found in the tfrecord </span><span class="si">{</span><span class="n">detected</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Build the transformations / augmentations.</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">compose_augmentations</span><span class="p">(</span>
+        <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">,</span>
+        <span class="n">standardize</span><span class="o">=</span><span class="n">standardize</span><span class="p">,</span>
+        <span class="n">normalizer</span><span class="o">=</span><span class="n">normalizer</span><span class="p">,</span>
+        <span class="n">whc</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">parser</span><span class="p">(</span><span class="n">record</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Each item in args is an array with one item, as the dareblopy reader</span>
+<span class="sd">        returns items in batches and we have set our batch_size = 1 for</span>
+<span class="sd">        interleaving.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;slide&#39;</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">):</span>
+            <span class="n">slide</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">slide</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;image_raw&#39;</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">):</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">decode_images</span><span class="p">:</span>
+                <span class="n">features</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">decode_image</span><span class="p">(</span>
+                    <span class="n">img</span><span class="p">,</span>
+                    <span class="n">img_type</span><span class="o">=</span><span class="n">img_type</span><span class="p">,</span>
+                    <span class="n">transform</span><span class="o">=</span><span class="n">transform</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">features</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">img</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;loc_x&#39;</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">):</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;loc_y&#39;</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">):</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">features_to_return</span><span class="p">)</span> <span class="o">==</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="n">label</span><span class="p">:</span> <span class="n">features</span><span class="p">[</span><span class="n">f</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">parser</span></div>
+</pre></div>
+
+             </article>
+             
+            </div>
+            <footer>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2023, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../../../../../" src="../../../../../_static/documentation_options.js"></script>
+         <script data-url_root="../../../../../" id="documentation_options" src="../../../../../_static/documentation_options.js"></script>
+         <script src="../../../../../_static/doctools.js"></script>
+         <script src="../../../../../_static/sphinx_highlight.js"></script>
+     
+
+  
+  <script type="text/javascript" src="../../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../../../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../../../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../../../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

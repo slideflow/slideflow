@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.model.torch &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>slideflow.model.torch &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../../genindex/" />
     <link rel="search" title="Search" href="../../../../search/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../installation/">Installation</a></li>
@@ -157,7 +157,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -166,6 +166,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -204,10 +211,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -215,7 +224,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -234,30 +243,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../../../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../../../">Module code</a> &gt;</li>
-
+        
           <li><a href="../">slideflow.model</a> &gt;</li>
-
+        
       <li>slideflow.model.torch</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -269,13 +278,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.model.torch</h1><div class="highlight"><pre>
 <span></span><span class="sd">&#39;&#39;&#39;PyTorch backend for the slideflow.model submodule.&#39;&#39;&#39;</span>
 
@@ -285,15 +294,17 @@
 <span class="kn">import</span> <span class="nn">types</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">torchvision</span>
+
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">torch.nn.functional</span> <span class="kn">import</span> <span class="n">softmax</span>
-<span class="kn">from</span> <span class="nn">torch.utils.tensorboard</span> <span class="kn">import</span> <span class="n">SummaryWriter</span>
 <span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
 <span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span><span class="p">,</span> <span class="n">TimeElapsedColumn</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span>
+<span class="kn">from</span> <span class="nn">pandas.api.types</span> <span class="kn">import</span> <span class="n">is_float_dtype</span><span class="p">,</span> <span class="n">is_integer_dtype</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span>
                     <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span><span class="p">)</span>
 
@@ -482,7 +493,7 @@
         <span class="k">return</span> <span class="n">out</span>  <span class="c1"># , x</span>
 
 
-<span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
+<div class="viewcode-block" id="ModelParams"><a class="viewcode-back" href="../../../../model_params/#slideflow.model.ModelParams">[docs]</a><span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a set of hyperparameters.&quot;&quot;&quot;</span>
 
     <span class="n">ModelDict</span> <span class="o">=</span> <span class="p">{</span>
@@ -671,10 +682,10 @@
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">LinearLossDict</span><span class="p">:</span>
             <span class="k">return</span> <span class="s1">&#39;linear&#39;</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;categorical&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;categorical&#39;</span></div>
 
 
-<span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
+<div class="viewcode-block" id="Trainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.Trainer">[docs]</a><span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Base trainer class containing functionality for model building, input</span>
 <span class="sd">    processing, training, and evaluation.</span>
 
@@ -709,6 +720,7 @@
         <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;weights&#39;</span><span class="p">,</span>
         <span class="n">custom_objects</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Sets base configuration, preparing model inputs and outputs.</span>
 
@@ -745,6 +757,17 @@
 <span class="sd">                detected in ``params.json``, then loading weights with</span>
 <span class="sd">                ``torch.nn.Module.load_state_dict()``. Defaults to</span>
 <span class="sd">                &#39;full&#39; (ignored).</span>
+<span class="sd">            transform (callable or dict, optional): Optional transform to</span>
+<span class="sd">                apply to input images. If dict, must have the keys &#39;train&#39;</span>
+<span class="sd">                and/or &#39;val&#39;, mapping to callables that takes a single</span>
+<span class="sd">                image Tensor as input and returns a single image Tensor.</span>
+<span class="sd">                If None, no transform is applied. If a single callable is</span>
+<span class="sd">                provided, it will be applied to both training and validation</span>
+<span class="sd">                data. If a dict is provided, the &#39;train&#39; transform will be</span>
+<span class="sd">                applied to training data and the &#39;val&#39; transform will be</span>
+<span class="sd">                applied to validation data. If a dict is provided and either</span>
+<span class="sd">                &#39;train&#39; or &#39;val&#39; is None, no transform will be applied to</span>
+<span class="sd">                that data. Defaults to None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hp</span> <span class="o">=</span> <span class="n">hp</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">outdir</span> <span class="o">=</span> <span class="n">outdir</span>
@@ -758,7 +781,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">mid_train_val_dts</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">modules</span><span class="o">.</span><span class="n">loss</span><span class="o">.</span><span class="n">_Loss</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_tensorboard</span><span class="p">:</span> <span class="nb">bool</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">writer</span><span class="p">:</span> <span class="n">SummaryWriter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">writer</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[torch.utils.tensorboard.SummaryWriter]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_reset_training_params</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="n">custom_objects</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -785,31 +808,36 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">get_normalizer</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using realtime </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">normalizer</span><span class="si">}</span><span class="s1"> normalization&#39;</span><span class="p">)</span>
-        <span class="n">outcome_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">outcome_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">outcome_labels</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">outcome_names</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="sa">f</span><span class="s1">&#39;Outcome </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-            <span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span> <span class="o">=</span> <span class="n">outcome_names</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">)</span> <span class="o">==</span> <span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
-            <span class="n">n_names</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">)</span>
-            <span class="n">n_out</span> <span class="o">=</span> <span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Number of outcome names (</span><span class="si">{</span><span class="n">n_names</span><span class="si">}</span><span class="s2">) does&quot;</span>
-                                    <span class="sa">f</span><span class="s2">&quot; not match number of outcomes (</span><span class="si">{</span><span class="n">n_out</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_transforms</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_outcome_labels</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="n">cat_assign</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_category_assignments</span><span class="p">()</span>
 
         <span class="c1"># Log parameters</span>
         <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
                 <span class="s1">&#39;slideflow_version&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">__version__</span><span class="p">,</span>
+                <span class="s1">&#39;backend&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">(),</span>
+                <span class="s1">&#39;git_commit&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">__gitcommit__</span><span class="p">,</span>
+                <span class="s1">&#39;model_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s1">&#39;full_model_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s1">&#39;outcomes&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">,</span>
+                <span class="s1">&#39;model_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">(),</span>
+                <span class="s1">&#39;img_format&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;tile_px&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
+                <span class="s1">&#39;tile_um&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">tile_um</span><span class="p">,</span>
+                <span class="s1">&#39;input_features&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;input_feature_sizes&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;input_feature_labels&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
                 <span class="s1">&#39;hp&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span>
-                <span class="s1">&#39;backend&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span>
             <span class="p">}</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+                <span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcome_labels&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">cat_assign</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
         <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))</span>
 
         <span class="c1"># Neptune logging</span>
@@ -837,6 +865,96 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">multi_outcome</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_outcomes</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_process_category_assignments</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get category assignments for categorical outcome labels.</span>
+
+<span class="sd">        Dataframes with integer labels are assumed to be categorical if</span>
+<span class="sd">        if hp.model_type is &#39;categorical&#39;.</span>
+<span class="sd">        Dataframes with float labels are assumed to be linear.</span>
+<span class="sd">        Dataframes with other labels are assumed to be categorical, and will</span>
+<span class="sd">        be assigned an integer label based on the order of unique values.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected DataFrame with &#39;label&#39; column.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;label&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected DataFrame with &#39;label&#39; column.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_integer_dtype</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">])</span> <span class="ow">or</span> <span class="n">is_float_dtype</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]):</span>
+                <span class="k">return</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">int_to_str</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())))</span>
+                <span class="n">str_to_int</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">int_to_str</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Assigned integer labels to categories:&quot;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">str_to_int</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">str_to_int</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">int_to_str</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+
+
+    <span class="k">def</span> <span class="nf">_process_transforms</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process custom transformations for training and/or validation.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">transform</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;train&#39;</span><span class="p">:</span> <span class="n">transform</span><span class="p">,</span> <span class="s1">&#39;val&#39;</span><span class="p">:</span> <span class="n">transform</span><span class="p">}</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">t</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="s1">&#39;val&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">transform</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;transform must be a callable or dict with keys &quot;</span>
+                             <span class="s2">&quot;&#39;train&#39; and/or &#39;val&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;train&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">transform</span><span class="p">:</span>
+            <span class="n">transform</span><span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s1">&#39;val&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">transform</span><span class="p">:</span>
+            <span class="n">transform</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
+
+    <span class="k">def</span> <span class="nf">_process_outcome_labels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">outcome_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process outcome labels to determine number of outcomes and names.</span>
+
+<span class="sd">        Supports experimental tile-level labels provided via pandas DataFrame.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            labels (dict): Dict mapping slide names to outcome labels (int or</span>
+<span class="sd">                float format). Experimental funtionality: if labels is a</span>
+<span class="sd">                pandas DataFrame, the &#39;label&#39; column will be used as the</span>
+<span class="sd">                outcome labels.</span>
+<span class="sd">            outcome_names (list, optional): Name of each outcome. Defaults to</span>
+<span class="sd">                &quot;Outcome {X}&quot; for each outcome.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Process DataFrame tile-level labels</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s1">&#39;label&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="s2">&quot;Expected DataFrame with &#39;label&#39; &quot;</span>
+                                        <span class="s2">&quot;column.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">outcome_names</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span>
+                    <span class="s2">&quot;Expected single outcome name for labels from a pandas dataframe.&quot;</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span> <span class="o">=</span> <span class="n">outcome_names</span> <span class="ow">or</span> <span class="p">[</span><span class="s1">&#39;Outcome 0&#39;</span><span class="p">]</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Process dictionary slide-level labels</span>
+        <span class="n">outcome_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">outcome_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">outcome_labels</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">outcome_names</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="sa">f</span><span class="s1">&#39;Outcome </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span> <span class="o">=</span> <span class="n">outcome_names</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">)</span> <span class="o">==</span> <span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">n_names</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">)</span>
+            <span class="n">n_out</span> <span class="o">=</span> <span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Number of outcome names (</span><span class="si">{</span><span class="n">n_names</span><span class="si">}</span><span class="s2">) does&quot;</span>
+                                    <span class="sa">f</span><span class="s2">&quot; not match number of outcomes (</span><span class="si">{</span><span class="n">n_out</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_reset_training_params</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">global_step</span> <span class="o">=</span> <span class="mi">0</span>
@@ -1223,20 +1341,23 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;metrics/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">phase</span><span class="si">}</span><span class="s2">/loss&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span>
                                                                   <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">)</span>
-            <span class="n">run_kw</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s1">&#39;run&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">,</span>
-                <span class="s1">&#39;step&#39;</span><span class="p">:</span> <span class="n">step</span>
-            <span class="p">}</span>
             <span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_accuracy_as_numpy</span><span class="p">(</span><span class="n">acc</span><span class="p">)</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
                 <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">_acc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">acc</span><span class="p">):</span>
                     <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">neptune_utils</span><span class="o">.</span><span class="n">list_log</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s1">&#39;metrics/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">phase</span><span class="si">}</span><span class="s1">/accuracy-</span><span class="si">{</span><span class="n">a</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">_acc</span><span class="p">,</span> <span class="o">**</span><span class="n">run_kw</span>
+                        <span class="n">run</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">,</span>
+                        <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;metrics/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">phase</span><span class="si">}</span><span class="s1">/accuracy-</span><span class="si">{</span><span class="n">a</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                        <span class="n">val</span><span class="o">=</span><span class="n">_acc</span><span class="p">,</span>
+                        <span class="n">step</span><span class="o">=</span><span class="n">step</span>
                     <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">neptune_utils</span><span class="o">.</span><span class="n">list_log</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;metrics/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">phase</span><span class="si">}</span><span class="s1">/accuracy&#39;</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="o">**</span><span class="n">run_kw</span>
+                    <span class="n">run</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">,</span>
+                    <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;metrics/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">phase</span><span class="si">}</span><span class="s1">/accuracy&#39;</span><span class="p">,</span>
+                    <span class="n">val</span><span class="o">=</span><span class="n">acc</span><span class="p">,</span>
+                    <span class="n">step</span><span class="o">=</span><span class="n">step</span>
                 <span class="p">)</span>
+
 
     <span class="k">def</span> <span class="nf">_log_early_stop_to_neptune</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="c1"># Log early stop to neptune</span>
@@ -1503,6 +1624,7 @@
                     <span class="n">infinite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
                     <span class="n">augment</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">augment</span><span class="p">,</span>
+                    <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
                     <span class="n">drop_last</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="o">**</span><span class="nb">vars</span><span class="p">(</span><span class="n">interleave_args</span><span class="p">)</span>
                 <span class="p">))</span>
@@ -1516,6 +1638,7 @@
                 <span class="n">infinite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="n">batch_size</span><span class="o">=</span><span class="n">validation_batch_size</span><span class="p">,</span>
                 <span class="n">augment</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">],</span>
                 <span class="n">incl_loc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="o">**</span><span class="nb">vars</span><span class="p">(</span><span class="n">interleave_args</span><span class="p">)</span>
             <span class="p">)</span>
@@ -1656,15 +1779,37 @@
                 <span class="s2">&quot;in model params.&quot;</span>
             <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_verify_img_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="s2">&quot;sf.Dataset&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_verify_img_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="o">*</span><span class="n">datasets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;sf.Dataset&quot;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Verify that the image format of the dataset matches the model config.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dataset (sf.Dataset): Dataset to check.</span>
+<span class="sd">            *datasets (sf.Dataset): Additional datasets to check. May be None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: Image format, either &#39;png&#39; or &#39;jpg&#39;, if a consistent image</span>
+<span class="sd">                format was found, otherwise None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># First, verify all datasets have the same image format</span>
+        <span class="n">img_formats</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">d</span><span class="o">.</span><span class="n">img_format</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">datasets</span> <span class="k">if</span> <span class="n">d</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">img_formats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Multiple image formats detected: </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">img_formats</span><span class="p">)</span>
+            <span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Unable to verify image format (PNG/JPG) of dataset.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">and</span> <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
                 <span class="s2">&quot;Mismatched image formats. Expected &#39;</span><span class="si">{}</span><span class="s2">&#39; per model config, &quot;</span>
                 <span class="s2">&quot;but dataset has format &#39;</span><span class="si">{}</span><span class="s2">&#39;.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span><span class="p">,</span>
                     <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span>
 
     <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Loads a state dict at the given model location. Requires that the</span>
@@ -1908,6 +2053,7 @@
         <span class="n">resume_training</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">pretrain</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;imagenet&#39;</span><span class="p">,</span>
         <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">save_checkpoints</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">multi_gpu</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">norm_fit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">NormFit</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
@@ -1984,6 +2130,12 @@
                 <span class="s2">&quot;PyTorch backend does not support `resume_training`; &quot;</span>
                 <span class="s2">&quot;please use `checkpoint`&quot;</span>
             <span class="p">)</span>
+        <span class="k">if</span> <span class="n">save_checkpoints</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;The argument save_checkpoints is ignored when training models &quot;</span>
+                <span class="s2">&quot;in the PyTorch backend. To save a model throughout training, &quot;</span>
+                <span class="s2">&quot;use the `epochs` hyperparameter.&quot;</span>
+            <span class="p">)</span>
         <span class="n">results</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;epochs&#39;</span><span class="p">:</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)}</span>  <span class="c1"># type: Dict[str, Any]</span>
         <span class="n">starting_epoch</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">starting_epoch</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_detect_patients</span><span class="p">(</span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span><span class="p">)</span>
@@ -1993,8 +2145,23 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">validation_steps</span> <span class="o">=</span> <span class="n">validation_steps</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ema_observations</span> <span class="o">=</span> <span class="n">ema_observations</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ema_smoothing</span> <span class="o">=</span> <span class="n">ema_smoothing</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">use_tensorboard</span> <span class="o">=</span> <span class="n">use_tensorboard</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log_frequency</span> <span class="o">=</span> <span class="n">log_frequency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_tensorboard</span> <span class="o">=</span> <span class="n">use_tensorboard</span>
+
+        <span class="c1"># Verify image format across datasets.</span>
+        <span class="n">img_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verify_img_format</span><span class="p">(</span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">img_format</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;img_format&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;img_format&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">img_format</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_tensorboard</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="kn">import</span> <span class="n">__version__</span> <span class="k">as</span> <span class="n">protobuf_version</span>
+            <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">protobuf_version</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;3.21&#39;</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Tensorboard is incompatible with protobuf &gt;= 3.21.&quot;</span>
+                    <span class="s2">&quot;Downgrade protobuf to enable tensorboard logging.&quot;</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">use_tensorboard</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="k">if</span> <span class="n">from_wsi</span> <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;libvips&#39;</span><span class="p">:</span>
             <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
@@ -2034,7 +2201,10 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">steps_per_epoch</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">num_tiles</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Steps per epoch = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">steps_per_epoch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">use_tensorboard</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_tensorboard</span><span class="p">:</span>
+            <span class="c1"># Delayed import due to protobuf version conflicts.</span>
+
+            <span class="kn">from</span> <span class="nn">torch.utils.tensorboard</span> <span class="kn">import</span> <span class="n">SummaryWriter</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">writer</span> <span class="o">=</span> <span class="n">SummaryWriter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="n">flush_secs</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_log_manifest</span><span class="p">(</span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span><span class="p">)</span>
 
@@ -2134,10 +2304,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_close_dataloaders</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">results</span>
+        <span class="k">return</span> <span class="n">results</span></div>
 
 
-<span class="k">class</span> <span class="nc">LinearTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
+<div class="viewcode-block" id="LinearTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.LinearTrainer">[docs]</a><span class="k">class</span> <span class="nc">LinearTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Extends the base :class:`slideflow.model.Trainer` class to add support</span>
 <span class="sd">    for linear outcomes. Requires that all outcomes be linear, with appropriate</span>
@@ -2153,20 +2323,20 @@
     <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;linear&#39;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 
-<span class="k">class</span> <span class="nc">CPHTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
+<div class="viewcode-block" id="CPHTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.CPHTrainer">[docs]</a><span class="k">class</span> <span class="nc">CPHTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Cox proportional hazards (CPH) models are not yet implemented, but are</span>
 <span class="sd">    planned for a future update.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
-<span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
+<div class="viewcode-block" id="Features"><a class="viewcode-back" href="../../../../model/#slideflow.model.Features">[docs]</a><span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Interface for obtaining predictions and features from intermediate layer</span>
 <span class="sd">    activations from Slideflow models.</span>
 
@@ -2575,7 +2745,7 @@
                 <span class="s1">&#39;apply_softmax&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_softmax</span><span class="p">,</span>
                 <span class="s1">&#39;pooling&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span>
             <span class="p">}</span>
-        <span class="p">}</span>
+        <span class="p">}</span></div>
 
 
 <span class="k">class</span> <span class="nc">UncertaintyInterface</span><span class="p">(</span><span class="n">Features</span><span class="p">):</span>
@@ -2698,7 +2868,7 @@
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
-<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.torch.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a model trained with Slideflow.</span>
 
 <span class="sd">    Args:</span>
@@ -2729,7 +2899,7 @@
     <span class="k">return</span> <span class="n">model</span></div>
 
 
-<div class="viewcode-block" id="lazy_load_pretrained"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.torch.lazy_load_pretrained">[docs]</a><span class="k">def</span> <span class="nf">lazy_load_pretrained</span><span class="p">(</span>
+<div class="viewcode-block" id="lazy_load_pretrained"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.lazy_load_pretrained">[docs]</a><span class="k">def</span> <span class="nf">lazy_load_pretrained</span><span class="p">(</span>
     <span class="n">module</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
     <span class="n">to_load</span><span class="p">:</span> <span class="nb">str</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -2763,16 +2933,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -2780,11 +2950,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -2794,26 +2964,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
          <script src="../../../../_static/doctools.js"></script>
          <script src="../../../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -2824,7 +2994,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

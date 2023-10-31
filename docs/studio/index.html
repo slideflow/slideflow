@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Slideflow Studio: Live Visualization &mdash; slideflow 2.1.0 documentation</title>
+  <title>Slideflow Studio: Live Visualization &mdash; slideflow 2.2.0 documentation</title>
 
 
 
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
 
 
@@ -160,7 +160,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -169,6 +169,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -207,6 +214,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
 
@@ -282,7 +291,7 @@
   <section id="slideflow-studio-live-visualization">
 <span id="studio"></span><h1>Slideflow Studio: Live Visualization<a class="headerlink" href="#slideflow-studio-live-visualization" title="Permalink to this heading">¶</a></h1>
 
-    <video width="100%"  controls autoplay>
+    <video width="100%"  controls autoplay loop>
     <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/studio_preview.webm" type="video/webm">
     Video
     </video>
@@ -300,6 +309,13 @@
 </div>
 <p>If you encounter any issues with the initialization scripts, you can also start Studio by executing the submodule:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>slideflow.studio
+</pre></div>
+</div>
+<p>If you are using a Docker image, additional arguments are required to launch Studio. Start your docker container using the arguments <code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">DISPLAY=$DISPLAY</span> <span class="pre">-v</span> <span class="pre">/tmp/.X11-unix:/tmp/.X11-unix</span></code>. For example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-e<span class="w"> </span><span class="nv">DISPLAY</span><span class="o">=</span><span class="nv">$DISPLAY</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span>/tmp/.X11-unix:/tmp/.X11-unix<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>jamesdolezal/slideflow:latest-tf
 </pre></div>
 </div>
 <p>A path to a whole-slide image can optionally be provided as the first argument. Use the <code class="docutils literal notranslate"><span class="pre">--help</span></code> flag to see a list of available arguments.</p>
@@ -346,37 +362,46 @@
 <div class="line"><br /></div>
 </div>
 <p>Whole-slide images can be loaded directly with File -&gt; Open Slide. You can also load a slide by dragging and dropping a file onto the main view or by using the Project interface. Use the mouse wheel to zoom, and click-and-drag to move. Slides can be closed with File -&gt; Close Slide.</p>
-<p>The Slide section of the control panel shows slide properties, including dimensions, highest scanned magnification, slide scanner vendor, and how many annotated regions-of-interest (ROIs) are loaded for the slide. ROIs are loaded automatically if a Project is loaded, but can be disabled by unchecking “Use ROIs”.</p>
+<p>The Slide section of the control panel shows slide properties, including dimensions, highest scanned magnification, slide scanner vendor, and how many annotated regions-of-interest (ROIs) are loaded for the slide. ROIs are loaded automatically if a Project is loaded and ROIs are available for the slide.</p>
 <p>A thumbnail of the loaded slide is shown in the upper right corner of the main view, and can be hidden with View -&gt; Show -&gt; Thumbnail. A magnification scale is shown in the bottom-left corner of the main view, and can be hidden with View -&gt; Show -&gt; Scale.</p>
 <section id="roi-annotations">
-<h3>ROI Annotations<a class="headerlink" href="#roi-annotations" title="Permalink to this heading">¶</a></h3>
+<span id="studio-roi"></span><h3>ROI Annotations<a class="headerlink" href="#roi-annotations" title="Permalink to this heading">¶</a></h3>
 <img alt="../_images/studio_rois.jpg" src="../_images/studio_rois.jpg" />
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow project has been loaded (File -&gt; Open Project), then all available ROIs for the loaded slide will be shown. You can use Studio to add or remove additional ROIs with the annotation tool, under the subheader “ROIs”.</p>
-<p>Click the plus (Add) icon to draw new ROIs with a lasso tool; right click and drag to create a new ROI. The pencil (Edit) icon allows you to select any existing ROIs, which can then be removed by pressing the Delete key. Once finished, ROIs can be exported in CSV format by clicking the floppy disk icon (Save). You can manually load an existing ROI file by clicking the folder icon (Load).</p>
-<p>At present, ROIs can only be added with lasso selection. More advanced functionality will be added in an future release. Slideflow can also import ROIs generated from external applications such as QuPath and ImageScope (see <a class="reference internal" href="../slide_processing/#regions-of-interest"><span class="std std-ref">Regions of Interest</span></a> for more information).</p>
+<p>Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow project has been loaded (File -&gt; Open Project), ROIs will be automatically loaded. You can use Studio to add, label, or remove ROIs with the annotation tool, under the subheader “ROIs”.</p>
+<p>Click the plus (Add) icon to draw new ROIs with a lasso tool; right click and drag to create a new ROI. The pencil (Edit) icon allows you to edit any existing ROIs; right click an ROI while editing to delete the ROI or change its label. Once finished, ROIs can be exported in CSV format by clicking the floppy disk icon (Save). You can manually load an existing ROI file by clicking the folder icon (Load).</p>
+
+    <video width="100%"  controls autoplay loop>
+    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/roi_label.mp4" type="video/mp4">
+    Video
+    </video>
+    <div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Labels can be optionally supplied for each ROI. Labels can be set after creating an ROI and changed by right clicking an ROI while editing. Hover over an existing ROI to see its name and label. Labels are exported when saving ROIs.</p>
+<p>Slideflow can import ROIs generated from external applications such as QuPath and ImageScope; see <a class="reference internal" href="../slide_processing/#regions-of-interest"><span class="std std-ref">Regions of Interest</span></a> for more information.</p>
 </section>
-<section id="preview-tile-filter">
-<h3>Preview tile filter<a class="headerlink" href="#preview-tile-filter" title="Permalink to this heading">¶</a></h3>
+<section id="tile-filtering">
+<h3>Tile filtering<a class="headerlink" href="#tile-filtering" title="Permalink to this heading">¶</a></h3>
 <img alt="../_images/tile_filter.jpg" src="../_images/tile_filter.jpg" />
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>The tile filtering strategy can be previewed by checking “Tile filter”. Click the ellipsis button to change grayspace fraction/threshold and whitespace fraction/threshold, to see how tuning these parameters alters tile-level filtering.</p>
+<p>A tile filtering strategy can be applied by checking “Tile filter” in the “Slide Processing” subsection. Click the ellipsis button to change grayspace fraction/threshold and whitespace fraction/threshold, to see how tuning these parameters alters tile-level filtering. If enabled, tile filtering will be performed when generating predictions from the slide. Once enabled, the tile filter can be previewed by checking the box “Show tile-level filter” in the “Display” subsection.</p>
 </section>
-<section id="preview-slide-filter">
-<h3>Preview slide filter<a class="headerlink" href="#preview-slide-filter" title="Permalink to this heading">¶</a></h3>
+<section id="slide-filtering">
+<h3>Slide filtering<a class="headerlink" href="#slide-filtering" title="Permalink to this heading">¶</a></h3>
 <img alt="../_images/slide_filter.jpg" src="../_images/slide_filter.jpg" />
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>Similarly, the slide filtering strategy can be previewed by checking “Slide filter”. Filtering options that can be previewed include blur filtering, Otsu’s thresholding, or both. If “Tile filter” and “Slide filter” are both selected, tiles will be filtered with both.</p>
+<p>Similarly, slide filtering can be enabled by checking “Slide filter”. Available slide filtering / QC options include blur filtering, Otsu’s thresholding, or both. If “Tile filter” and “Slide filter” are both selected, tiles will be filtered with both. The QC mask can be previewed by checking the box “QC Mask” in the “Display” subsection.</p>
 </section>
 <section id="preview-slide-normalization">
 <h3>Preview slide normalization<a class="headerlink" href="#preview-slide-normalization" title="Permalink to this heading">¶</a></h3>
-<p>Stain normalization strategies can be quickly previewed by checking “Normalize”, which will apply the associated normalization strategy to the main view. If a model is loaded, the model’s normalizer will be used by default. The normalizer can be changed with the corresponding dropdown menu, allowing you to preview any normalization method. All normalizer methods shown except for the model normalizer will use the “v3” fit (see <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code> for more information).</p>
+<p>Stain normalization strategies can be quickly previewed by checking “Normalize”, which will apply the associated normalization strategy to the main view. If a model is loaded, the model’s normalizer will be used by default. The normalizer can be changed with the corresponding dropdown menu, allowing you to preview any normalization method. All normalizer methods shown except for the model normalizer will use the “v3” fit (see <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code> for more information). Regardless of what is being previewed, the appropriate model normalizer will be used when generating predictions from the slide.</p>
 </section>
 <section id="preview-tile-extraction">
 <h3>Preview tile extraction<a class="headerlink" href="#preview-tile-extraction" title="Permalink to this heading">¶</a></h3>
@@ -389,13 +414,9 @@
 </section>
 <section id="models-predictions">
 <h2>Models &amp; predictions<a class="headerlink" href="#models-predictions" title="Permalink to this heading">¶</a></h2>
-<p>Slideflow models can be loaded with File -&gt; Open Model, by clicking and dragging a model onto the main view, or by clicking “Load a Model” button of the model widget. Both Tensorflow and PyTorch models are supported. Models can be closed with File -&gt; Close Model.</p>
+<p>Slideflow models can be loaded with File -&gt; Open Model, by clicking and dragging a model onto the main view, or by clicking “Load a Model” button of the model widget. Both Tensorflow and PyTorch models are supported. Multiple-instance learning (MIL) models require the MIL extension, <a class="reference internal" href="#studio-mil"><span class="std std-ref">as discussed below</span></a>. Models can be closed with File -&gt; Close Model.</p>
 <p>A summary of the loaded model is shown on the left side of the model widget, containing information about the model outcomes, tile size, image format (PNG/JPG), backend (Tensorflow/PyTorch), and the version of Slideflow used to train the model. Click the “HP” button to show a list of all hyperparameters used during model training.</p>
 <p>A model will be enabled by default once loaded, but can be disabled by clicking the gear icon in the Model section of the control panel, and then clicking “Close model”. Similarly, to disable uncertainty quantification (UQ) for models trained with UQ, open the same gear menu and deselect “Enable UQ”.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Slideflow Studio currently only supports tile-based models. Multi-instance learning (MIL) model support is under development and expected to be included in a future release.</p>
-</div>
 <section id="tile-predictions">
 <h3>Tile predictions<a class="headerlink" href="#tile-predictions" title="Permalink to this heading">¶</a></h3>
 <img alt="../_images/studio_tile_preds.jpg" src="../_images/studio_tile_preds.jpg" />
@@ -427,7 +448,15 @@
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click “Generate” in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the “Display” subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap.</p>
+<p>The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click “Generate” in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the “Display” subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap. Press the left ALT key while hovering over the heatmap to show the raw heatmap values.</p>
+
+    <video width="100%"  controls autoplay loop>
+    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/heatmap.mp4" type="video/mp4">
+    Video
+    </video>
+    <div class="line-block">
+<div class="line"><br /></div>
+</div>
 <p>By default, heatmaps are calculated with multiprocessing pools, which may increase memory utilization. To decrease memory utilization at the cost of slower heatmap calculation, switch to low memory mode in the Settings section (described below), or by using the launch flag <code class="docutils literal notranslate"><span class="pre">--low_memory</span></code>.</p>
 <p>Heatmaps can be saved in PNG format with File -&gt; Export -&gt; Heatmap (PNG). Heatmaps can also be exported in numpy format (NPZ) with File -&gt; Export -&gt; Heatmap (NPZ). The heatmap of predictions will be saved in the exported NPZ file under the key <code class="docutils literal notranslate"><span class="pre">'logit'</span></code>, with the shape <code class="docutils literal notranslate"><span class="pre">(y_dim,</span> <span class="pre">x_dim,</span> <span class="pre">num_classes)</span></code>. If the model was trained with uncertainty, the uncertainty heatmap will be saved under the key <code class="docutils literal notranslate"><span class="pre">'uncertainty'</span></code>.</p>
 </section>
@@ -451,7 +480,7 @@
 <div class="line"><br /></div>
 </div>
 <p>Slideflow Studio includes an Extensions section for expanding functionality and adding additional features. Extensions may require additional software dependencies or have different licenses. The Extensions section can be accessed by clicking the puzzle icon in bottom-left section of the control panel.</p>
-<p>Three official extensions are included and described below, adding support for cell segmentation with Cellpose, generative adversarial networks (StyleGAN), and mosaic maps. Development is underway to add support for community extensions that can be shared and downloaded. Please reach out to us <a class="reference external" href="https://github.com/jamesdolezal/slideflow">on GitHub</a> if you are interested in building and deploying an extension based on your research.</p>
+<p>Four official extensions are included and described below, adding support for cell segmentation with Cellpose, generative adversarial networks (StyleGAN), mosaic maps, and multiple-instance learning. Development is underway to add support for community extensions that can be shared and downloaded. Please reach out to us <a class="reference external" href="https://github.com/jamesdolezal/slideflow">on GitHub</a> if you are interested in building and deploying an extension based on your research.</p>
 <section id="cell-segmentation">
 <h3>Cell segmentation<a class="headerlink" href="#cell-segmentation" title="Permalink to this heading">¶</a></h3>
 <p>The Cell Segmentation extension adds support for interactive cell segmentation with Cellpose. Please see <a class="reference internal" href="../cellseg/#cellseg"><span class="std std-ref">Cell Segmentation</span></a> for more information.</p>
@@ -459,17 +488,54 @@
 <section id="stylegan">
 <h3>StyleGAN<a class="headerlink" href="#stylegan" title="Permalink to this heading">¶</a></h3>
 
-    <video width="100%"  controls autoplay>
+    <video width="100%"  controls autoplay loop>
     <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm" type="video/webm">
     Video
     </video>
     <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>The StyleGAN extension adds support for visualizing trained StyleGAN2 or StyleGAN3 networks. Once enabled, GAN .pkl files can be loaded with File -&gt; Load GAN, or with drag-and-drop. Generated images are shown in the tile preview window. Model predictions on GAN images operate similarly to predictions on whole-slide images. Predictions on GAN images are generated in real-time, and you can watch the predictions change in the control panel.</p>
+<p>The StyleGAN extension adds support for visualizing trained StyleGAN2 or StyleGAN3 networks. Once enabled, GAN <code class="docutils literal notranslate"><span class="pre">*.pkl</span></code> files can be loaded with File -&gt; Load GAN, or with drag-and-drop. Generated images are shown in the tile preview window. Model predictions on GAN images operate similarly to predictions on whole-slide images. Predictions on GAN images are generated in real-time, and you can watch the predictions change in the control panel.</p>
 <p>By default, Studio will generate predictions on the full GAN image (after resizing to match the model’s <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> value). If a <code class="docutils literal notranslate"><span class="pre">training_options.json</span></code> file is found in the same directory as the GAN .pkl, the tile size used to train the GAN will be read from this file (slideflow_kwargs/tile_px and ../tile_um). If the GAN was trained on images with a different <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> value, the GAN image will be cropped to match the model’s <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> before resizing. The cropped/resized (and stain normalized) image will be shown to the right of the raw GAN image in the tile preview window.</p>
-<p>The StyleGAN widget can be used to travel the GAN latent space, similar to the implementation in the official <a class="reference external" href="https://github.com/NVlabs/stylegan3">NVIDIA StyleGAN3 repository</a>. Set a specific seed in the input field next to “Seed”, or click and drag the “Drag” button. If the model was trained with class conditioning, manually set the class with the “Class” field (the default value of -1 selects a random class).</p>
+<p>The StyleGAN widget can be used to travel the GAN latent space, similar to the implementation in the official <a class="reference external" href="https://github.com/NVlabs/stylegan3">NVIDIA StyleGAN3 repository</a>. Set a specific seed in the input field next to “Seed”, or click and drag the “Drag” button. If the model was trained with class conditioning, manually set the class with the “Class” field (the default value of -1 selects a random class). Press left or right on your keyboard to quickly move through seeds.</p>
+
+    <video width="100%"  controls autoplay loop>
+    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/gan_seeds.mp4" type="video/mp4">
+    Video
+    </video>
+    <div class="line-block">
+<div class="line"><br /></div>
+</div>
 <p>The style mixing section can be used to mix styles between seeds, styles between classes, or both. You can control the degree of mixing with the mixing slider. You can finetune which GAN layers are used during the mixing by clicking the ellipsis button and selection which layers should be traversed during style mixing.</p>
+<p>Save the current seed by clicking the “Save” button; all saved seeds will be listed in the “Saved Seeds” subsection. Click any seed to load it. Once any seed has been saved, options will appear to export a list of saved seeds in CSV format. Previously exported seeds can be loaded by clicking “Load Seeds”.</p>
+</section>
+<section id="multiple-instance-learning">
+<span id="studio-mil"></span><h3>Multiple-Instance Learning<a class="headerlink" href="#multiple-instance-learning" title="Permalink to this heading">¶</a></h3>
+<p>Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see <a class="reference internal" href="../mil/#mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information.</p>
+<p>Start by navigating to the Extensions tab in the bottom-left corner, and enable the “Multiple-instance Learning” extension. A new icon will appear in the left-hand toolbar, which can be used to open the MIL widget. Models are loaded by either clicking the “Load MIL model” button, selecting “File -&gt; Load MIL Model…”, or by dragging-and-dropping an MIL model folder onto the window.</p>
+
+    <video width="100%"  controls autoplay loop>
+    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/mil_attention.mp4" type="video/mp4">
+    Video
+    </video>
+    <div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the “HP” button. Click “Predict Slide” to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.</p>
+<p>Right-clicking for a focal prediction when an MIL model is loaded will display the tile-level attention along with the tile prediction. Tile-level attention can be displayed as a scaled colorbar, as shown in the video above, by specifying an attention range and thresholds in the MIL <code class="docutils literal notranslate"><span class="pre">mil_params.json</span></code> file.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="o">...</span>
+    <span class="s2">&quot;thresholds&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;attention&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;low&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span>
+            <span class="s2">&quot;high&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+            <span class="s2">&quot;range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="p">}</span>
+    <span class="p">},</span>
+    <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
 </section>
 <section id="mosaic-maps">
 <h3>Mosaic maps<a class="headerlink" href="#mosaic-maps" title="Permalink to this heading">¶</a></h3>
@@ -487,16 +553,6 @@
 </div>
 <p>Once loaded,the mosaic map can be navigated using the same controls as WSI navigation - click and drag to pan, and use the mouse wheel to zoom. The UMAP used to generate the mosaic map will be shown in a window in the bottom-right corner, with a red box indicating the section of the UMAP currently in view. If a Project is loaded, hovering over an image tile will reveal a popup containing a larger corresponding section from the associated whole-slide image. This popup also contains the name of the slide and tile location coordinates.</p>
 <p>Use the control panel to increase or decrease the mosaic grid size, or to change the background color.</p>
-</section>
-<section id="multiple-instance-learning">
-<h3>Multiple-Instance Learning<a class="headerlink" href="#multiple-instance-learning" title="Permalink to this heading">¶</a></h3>
-<p>Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see <a class="reference internal" href="../mil/#clam-mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information.</p>
-<p>Start by navigating to the Extensions tab in the bottom-left corner, and enable the “Multiple-instance Learning” extension. A new icon will appear in the left-hand toolbar, which can be used to open the MIL widget. Models are loaded by either clicking the “Load MIL model” button, selecting “File -&gt; Load MIL Model…”, or by dragging-and-dropping an MIL model folder onto the window.</p>
-<p>Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the “HP” button. Click “Predict Slide” to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.</p>
-<img alt="https://github-production-user-asset-6210df.s3.amazonaws.com/48372806/257356236-d5a838df-a654-4538-bd94-1aa6a63de32d.png" src="https://github-production-user-asset-6210df.s3.amazonaws.com/48372806/257356236-d5a838df-a654-4538-bd94-1aa6a63de32d.png" />
-<div class="line-block">
-<div class="line"><br /></div>
-</div>
 </section>
 </section>
 </section>
@@ -554,8 +610,8 @@
 <li><a class="reference internal" href="#projects">Projects</a></li>
 <li><a class="reference internal" href="#whole-slide-images">Whole-slide images</a><ul>
 <li><a class="reference internal" href="#roi-annotations">ROI Annotations</a></li>
-<li><a class="reference internal" href="#preview-tile-filter">Preview tile filter</a></li>
-<li><a class="reference internal" href="#preview-slide-filter">Preview slide filter</a></li>
+<li><a class="reference internal" href="#tile-filtering">Tile filtering</a></li>
+<li><a class="reference internal" href="#slide-filtering">Slide filtering</a></li>
 <li><a class="reference internal" href="#preview-slide-normalization">Preview slide normalization</a></li>
 <li><a class="reference internal" href="#preview-tile-extraction">Preview tile extraction</a></li>
 </ul>
@@ -572,8 +628,8 @@
 <li><a class="reference internal" href="#extensions">Extensions</a><ul>
 <li><a class="reference internal" href="#cell-segmentation">Cell segmentation</a></li>
 <li><a class="reference internal" href="#stylegan">StyleGAN</a></li>
-<li><a class="reference internal" href="#mosaic-maps">Mosaic maps</a></li>
 <li><a class="reference internal" href="#multiple-instance-learning">Multiple-Instance Learning</a></li>
+<li><a class="reference internal" href="#mosaic-maps">Mosaic maps</a></li>
 </ul>
 </li>
 </ul>

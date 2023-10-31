@@ -9,22 +9,22 @@
   <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Layer Activations &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>Post-hoc Analysis &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
@@ -35,11 +35,11 @@
     <link rel="next" title="Uncertainty Quantification" href="../uq/" />
     <link rel="prev" title="Evaluation" href="../evaluation/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -102,9 +102,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -140,15 +140,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
@@ -160,7 +160,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Post-hoc Analysis</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -169,6 +169,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -207,10 +214,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -218,7 +227,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -237,30 +246,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
-      <li>Post-hoc Analysis</li>
-
-
+        
+      <li>Layer Activations</li>
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="../_sources/posthoc.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -272,18 +281,18 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
-  <section id="post-hoc-analysis">
-<span id="activations"></span><h1>Post-hoc Analysis<a class="headerlink" href="#post-hoc-analysis" title="Permalink to this heading">¶</a></h1>
+              
+  <section id="layer-activations">
+<span id="activations"></span><h1>Layer Activations<a class="headerlink" href="#layer-activations" title="Permalink to this heading">¶</a></h1>
 <p>Investigating the latent space of a neural network can provide useful insights into the structure of your data and what models have learned during training. Slideflow provides several tools for post-hoc latent space analysis of trained neural networks, primarily by calculating activations at one or more neural network layers for all images in a dataset. In the next sections, we will take a look at how these layer activations can be calculated for downstream analysis and provide examples of analyses that can be performed.</p>
-<section id="layer-activations">
-<h2>Layer activations<a class="headerlink" href="#layer-activations" title="Permalink to this heading">¶</a></h2>
+<section id="calculating-layer-activations">
+<h2>Calculating Layer Activations<a class="headerlink" href="#calculating-layer-activations" title="Permalink to this heading">¶</a></h2>
 <p>Activations at one or more layers of a trained network can be calculated with <a class="reference internal" href="../model/#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a> and <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a>. The former provides an interface for calculating layer activations for a batch of images, and the latter supervises calculations across an entire dataset.</p>
 <section id="batch-of-images">
 <h3>Batch of images<a class="headerlink" href="#batch-of-images" title="Permalink to this heading">¶</a></h3>
@@ -346,12 +355,12 @@
 </pre></div>
 </div>
 <p>Tile-level feature activations for each slide can be accessed directly from <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.activations</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">num_features)</span></code>. Predictions are stored in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.predictions</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">num_classes)</span></code>. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.locations</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">2)</span></code> (<code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>).</p>
-<p>Activations can be exported to a Pandas DataFrame with <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_df" title="slideflow.DatasetFeatures.to_df"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_df()</span></code></a> or exported into PyTorch format with <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_torch" title="slideflow.DatasetFeatures.to_torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_torch()</span></code></a>. See <a class="reference internal" href="../mil/#clam-mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information about generating and exporting features for MIL models.</p>
+<p>Activations can be exported to a Pandas DataFrame with <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_df" title="slideflow.DatasetFeatures.to_df"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_df()</span></code></a> or exported into PyTorch format with <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_torch" title="slideflow.DatasetFeatures.to_torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_torch()</span></code></a>. See <a class="reference internal" href="../mil/#mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information about generating and exporting features for MIL models.</p>
 <p>Read the API documentation for <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> for more information.</p>
 </section>
 </section>
 <section id="mapping-activations">
-<span id="slidemap"></span><h2>Mapping activations<a class="headerlink" href="#mapping-activations" title="Permalink to this heading">¶</a></h2>
+<span id="slidemap"></span><h2>Mapping Activations<a class="headerlink" href="#mapping-activations" title="Permalink to this heading">¶</a></h2>
 <p>Layer activations across a dataset can be dimensionality reduced with UMAP and plotted for visualization using <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.map_activations" title="slideflow.DatasetFeatures.map_activations"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.map_activations()</span></code></a>. This function returns an instance of <a class="reference internal" href="../slidemap/#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a>, a class that provides easy access to labeling and plotting.</p>
 <p>The below example calculates layer activations at the neural network layer <code class="docutils literal notranslate"><span class="pre">sep_conv_3</span></code> for an entire dataset, and then reduces the activations into two dimensions for easy visualization using UMAP. Any valid <a class="reference external" href="https://umap-learn.readthedocs.io/en/latest/parameters.html">UMAP parameters</a> can be passed via keyword argument.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dts_ftrs</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
@@ -411,7 +420,7 @@
 <p>Read more about additional <a class="reference internal" href="../slidemap/#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a> functions, including saving, loading, and clustering, in the linked API documentation.</p>
 </section>
 <section id="mosaic-maps">
-<span id="mosaic-map"></span><h2>Mosaic maps<a class="headerlink" href="#mosaic-maps" title="Permalink to this heading">¶</a></h2>
+<span id="mosaic-map"></span><h2>Mosaic Maps<a class="headerlink" href="#mosaic-maps" title="Permalink to this heading">¶</a></h2>
 <p>Mosaic maps provide a tool for visualizing the distribution of histologic image features in a dataset through analysis of neural network layer activations. Similar to <a class="reference external" href="https://distill.pub/2019/activation-atlas/">activation atlases</a>, a mosaic map is generated by first calculating layer activations for a dataset, dimensionality reducing these activations with <a class="reference external" href="https://joss.theoj.org/papers/10.21105/joss.00861">UMAP</a>,  and then overlaying corresponding images in a grid-wise fashion.</p>
 <img alt="../_images/mosaic_example.png" src="../_images/mosaic_example.png" />
 <div class="line-block">
@@ -483,25 +492,25 @@
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="../uq/" class="btn btn-neutral float-right" title="Uncertainty Quantification" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="../evaluation/" class="btn btn-neutral" title="Evaluation" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -509,11 +518,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -524,15 +533,15 @@
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">Post-hoc Analysis</a><ul>
-<li><a class="reference internal" href="#layer-activations">Layer activations</a><ul>
+<li><a class="reference internal" href="#">Layer Activations</a><ul>
+<li><a class="reference internal" href="#calculating-layer-activations">Calculating Layer Activations</a><ul>
 <li><a class="reference internal" href="#batch-of-images">Batch of images</a></li>
 <li><a class="reference internal" href="#single-slide">Single slide</a></li>
 <li><a class="reference internal" href="#entire-dataset">Entire dataset</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mapping-activations">Mapping activations</a></li>
-<li><a class="reference internal" href="#mosaic-maps">Mosaic maps</a><ul>
+<li><a class="reference internal" href="#mapping-activations">Mapping Activations</a></li>
+<li><a class="reference internal" href="#mosaic-maps">Mosaic Maps</a><ul>
 <li><a class="reference internal" href="#quickstart">Quickstart</a></li>
 <li><a class="reference internal" href="#from-a-slidemap">From a SlideMap</a></li>
 <li><a class="reference internal" href="#manual-creation">Manual creation</a></li>
@@ -548,19 +557,19 @@
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
          <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
@@ -571,7 +580,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

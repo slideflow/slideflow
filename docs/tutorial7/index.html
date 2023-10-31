@@ -1,0 +1,500 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Tutorial 7: Training with custom augmentations &mdash; slideflow 2.2.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" />
+    <link rel="next" title="Tutorial 8: Multiple-Instance Learning" href="../tutorial8/" />
+    <link rel="prev" title="Tutorial 6: Custom slide filtering" href="../tutorial6/" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  2.2
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Tutorial 7: Training with custom augmentations</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/tutorial7.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <section id="tutorial-7-training-with-custom-augmentations">
+<span id="tutorial7"></span><h1>Tutorial 7: Training with custom augmentations<a class="headerlink" href="#tutorial-7-training-with-custom-augmentations" title="Permalink to this heading">¶</a></h1>
+<p>In this tutorial, we’ll take a look at how you can use custom image augmentations when training a model with Slideflow. This tutorial builds off of <a class="reference internal" href="../tutorial2/#tutorial2"><span class="std std-ref">Tutorial 2: Model training (advanced)</span></a>, so if you haven’t already, you should read that tutorial first.</p>
+<p>Our goal will be to train a model on a sparse outcome, such as ER status (roughly 4:1 positive:negative), with a custom augmentation that will oversample the minority class.  This tutorial will use PyTorch, but the same principles apply when using Tensorflow.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SF_BACKEND&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;torch&#39;</span>
+</pre></div>
+</div>
+<p>First, we’ll start by loading a project and preparing our datasets, just like in <a class="reference internal" href="../tutorial2/#tutorial2"><span class="std std-ref">Tutorial 2: Model training (advanced)</span></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="s1">&#39;/home/er_project&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">full_dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span>
+<span class="gp">... </span>  <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">filters</span><span class="o">=</span><span class="p">{</span>
+<span class="gp">... </span>    <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Positive&#39;</span><span class="p">,</span> <span class="s1">&#39;Negative&#39;</span><span class="p">]</span>
+<span class="gp">... </span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">labels</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">full_dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">train</span><span class="p">,</span> <span class="n">val</span> <span class="o">=</span> <span class="n">full_dataset</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+<span class="gp">... </span>  <span class="n">labels</span><span class="o">=</span><span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">val_strategy</span><span class="o">=</span><span class="s1">&#39;k-fold&#39;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">val_k_fold</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">k_fold_iter</span><span class="o">=</span><span class="mi">1</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If tiles have not yet been extracted from slides, do that now.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="s1">&#39;otsu&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>By default, Slideflow will equally sample from all slides / TFRecords during training, resulting in oversampling of slides with fewer tiles. In this case, we want to oversample the minority class (ER negative), so we’ll use category-level balancing. Sampling strategies are discussed in detail in the <a class="reference internal" href="../dataloaders/#balancing"><span class="std std-ref">Developer Notes</span></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">train</span> <span class="o">=</span> <span class="n">train</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;category&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Next, we’ll set up our model hyperparameters, using the same parameters as in <a class="reference internal" href="../tutorial2/#tutorial2"><span class="std std-ref">Tutorial 2: Model training (advanced)</span></a>. We still want to use Slideflow’s default augmentation (random flip/rotation and JPEG compression), so we’ll use the hyperparameter <code class="docutils literal notranslate"><span class="pre">augment=True</span></code>. Our custom augmentation will be applied after the default augmentation.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span>
+<span class="gp">... </span>  <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">model</span><span class="o">=</span><span class="s1">&#39;xception&#39;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+<span class="gp">... </span>  <span class="n">augment</span><span class="o">=</span><span class="kc">True</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now, we’ll define our custom augmentation. Augmentations are functions that take a single Tensor (<code class="xref py py-class docutils literal notranslate"><span class="pre">tf.Tensor</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) as input and return a single Tensor as output. Our training augmentation will include a random color jitter, random gaussian blur, and random auto-contrast.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision</span> <span class="kn">import</span> <span class="n">transforms</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">augment</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span>
+<span class="gp">... </span>    <span class="n">transforms</span><span class="o">.</span><span class="n">ColorJitter</span><span class="p">(</span><span class="n">brightness</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">contrast</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">saturation</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="mf">0.5</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">transforms</span><span class="o">.</span><span class="n">RandomAutocontrast</span><span class="p">(),</span>
+<span class="gp">... </span>    <span class="n">transforms</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">... </span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Transformations can be applied to training or validation data by passing a dictionary - with the keys ‘train’ and/or ‘val’ - to the <code class="docutils literal notranslate"><span class="pre">transform</span></code> argument of <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Trainer</span></code>. If a transformation should be applied to both training and validation, it can be passed directly to the <code class="docutils literal notranslate"><span class="pre">transform</span></code> argument. In this case, we’ll apply our custom augmentation to the training dataset only.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">trainer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">build_trainer</span><span class="p">(</span>
+<span class="gp">... </span>  <span class="n">hp</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/some/directory&#39;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">transform</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;train&#39;</span><span class="p">:</span> <span class="n">augment</span><span class="p">},</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now we can start training. Pass the training and validation datasets to the <a class="reference internal" href="../model/#slideflow.model.Trainer.train" title="slideflow.model.Trainer.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.model.Trainer.train()</span></code></a> method of our trainer, assigning the output to a new variable <code class="docutils literal notranslate"><span class="pre">results</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">results</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>And that’s it! You’ve trained a model with a custom augmentation. You can now use the model to make predictions on new data, or use the model to make predictions on the validation dataset.</p>
+</section>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../tutorial8/" class="btn btn-neutral float-right" title="Tutorial 8: Multiple-Instance Learning" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="../tutorial6/" class="btn btn-neutral" title="Tutorial 6: Custom slide filtering" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2023, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Tutorial 7: Training with custom augmentations</a></li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script src="../_static/sphinx_highlight.js"></script>
+     
+
+  
+  <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

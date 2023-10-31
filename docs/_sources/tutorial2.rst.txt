@@ -1,3 +1,5 @@
+.. _tutorial2:
+
 Tutorial 2: Model training (advanced)
 =======================================
 
@@ -129,7 +131,7 @@ In addition to the above model parameters, our trainer will need the outcome lab
     ...   labels=labels,
     ... )
 
-Now we can start training. Pass the training and validation datasets to the :meth:`slideflow.model.Trainer.train` method of our trainer, assinging the output to a new variable ``results``
+Now we can start training. Pass the training and validation datasets to the :meth:`slideflow.model.Trainer.train` method of our trainer, assigning the output to a new variable ``results``
 
 .. code-block:: python
 

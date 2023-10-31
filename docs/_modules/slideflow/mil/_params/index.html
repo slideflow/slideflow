@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.mil._params &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>slideflow.mil._params &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../../genindex/" />
     <link rel="search" title="Search" href="../../../../search/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../installation/">Installation</a></li>
@@ -157,7 +157,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -166,6 +166,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -204,10 +211,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -215,7 +224,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -234,28 +243,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../../../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../../../">Module code</a> &gt;</li>
-
+        
       <li>slideflow.mil._params</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -267,19 +276,18 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.mil._params</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Model and trainer configuration for MIL models.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span>
-<span class="kn">from</span> <span class="nn">slideflow.mil.models</span> <span class="kn">import</span> <span class="n">Attention_MIL</span>
 
 
 <div class="viewcode-block" id="mil_config"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.mil_config">[docs]</a><span class="k">def</span> <span class="nf">mil_config</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">trainer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;fastai&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -322,7 +330,13 @@
 
     <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;self&#39;</span><span class="p">,</span> <span class="s1">&#39;model_fn&#39;</span><span class="p">,</span> <span class="s1">&#39;loss_fn&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)}</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+                    <span class="s1">&#39;self&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;model_fn&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;loss_fn&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;build_model&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;is_multimodal&#39;</span>
+                <span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)}</span>
 
 
 <span class="k">class</span> <span class="nc">_TrainerConfig</span><span class="p">(</span><span class="n">DictConfig</span><span class="p">):</span>
@@ -356,6 +370,19 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;MIL loss function.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">loss_fn</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_multimodal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether the model is multimodal.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">is_multimodal</span>
+
+    <span class="k">def</span> <span class="nf">build_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the mode.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">model_kwargs</span><span class="p">:</span>
+            <span class="n">model_kw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">model_kwargs</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">model_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">model_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">model_kw</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts this training configuration to a dictionary.&quot;&quot;&quot;</span>
         <span class="n">d</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
@@ -380,6 +407,7 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;attention_mil&#39;</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
+        <span class="n">aggregation_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;slide&#39;</span><span class="p">,</span>
         <span class="n">lr</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">wd</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">,</span>
         <span class="n">bag_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span>
@@ -401,6 +429,9 @@
 <span class="sd">                ``&quot;transmil&quot;``.</span>
 
 <span class="sd">        Keyword args:</span>
+<span class="sd">            aggregation_level (str): When equal to ``&#39;slide&#39;`` each bag</span>
+<span class="sd">                contains tiles from a single slide. When equal to ``&#39;patient&#39;``</span>
+<span class="sd">                tiles from all slides of a patient are grouped together.</span>
 <span class="sd">            lr (float, optional): Learning rate. If ``fit_one_cycle=True``,</span>
 <span class="sd">                this is the maximum learning rate. If None, uses the Leslie</span>
 <span class="sd">                Smith `LR Range test &lt;https://arxiv.org/abs/1506.01186&gt;`_ to</span>
@@ -417,6 +448,7 @@
 <span class="sd">                :class:`slideflow.mil.ModelConfigFastAI` for all other models.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aggregation_level</span> <span class="o">=</span> <span class="n">aggregation_level</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="n">lr</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">wd</span> <span class="o">=</span> <span class="n">wd</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">bag_size</span> <span class="o">=</span> <span class="n">bag_size</span>
@@ -498,6 +530,7 @@
         <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;drop_out&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;dropout&#39;</span><span class="p">]</span>
         <span class="k">del</span> <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">]</span>
         <span class="k">del</span> <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;dropout&#39;</span><span class="p">]</span>
+        <span class="k">del</span> <span class="n">all_kw</span><span class="p">[</span><span class="s1">&#39;model_kwargs&#39;</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">CLAM_Args</span><span class="p">(</span><span class="o">**</span><span class="n">all_kw</span><span class="p">)</span></div>
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
@@ -505,6 +538,7 @@
 <div class="viewcode-block" id="ModelConfigCLAM"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.ModelConfigCLAM">[docs]</a><span class="k">class</span> <span class="nc">ModelConfigCLAM</span><span class="p">(</span><span class="n">DictConfig</span><span class="p">):</span>
 
     <span class="n">valid_models</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;clam_sb&#39;</span><span class="p">,</span> <span class="s1">&#39;clam_mb&#39;</span><span class="p">,</span> <span class="s1">&#39;mil_fc_mc&#39;</span><span class="p">,</span> <span class="s1">&#39;mil_fc&#39;</span><span class="p">]</span>
+    <span class="n">is_multimodal</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -518,6 +552,7 @@
         <span class="n">inst_loss</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;ce&#39;</span><span class="p">,</span>
         <span class="n">no_inst_cluster</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">B</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+        <span class="n">model_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Model configuration for CLAM models.</span>
 
@@ -621,13 +656,20 @@
 
 <div class="viewcode-block" id="ModelConfigFastAI"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.ModelConfigFastAI">[docs]</a><span class="k">class</span> <span class="nc">ModelConfigFastAI</span><span class="p">(</span><span class="n">DictConfig</span><span class="p">):</span>
 
-    <span class="n">valid_models</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;attention_mil&#39;</span><span class="p">,</span> <span class="s1">&#39;transmil&#39;</span><span class="p">]</span>
+    <span class="n">valid_models</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;attention_mil&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;transmil&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;bistro.transformer&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;mm_attention_mil&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;attention_mil&#39;</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">use_lens</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">use_lens</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">apply_softmax</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">model_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Model configuration for a non-CLAM MIL model.</span>
 
@@ -645,7 +687,10 @@
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
-        <span class="k">if</span> <span class="n">use_lens</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">model</span> <span class="o">==</span> <span class="s1">&#39;attention_mil&#39;</span> <span class="ow">or</span> <span class="n">model</span> <span class="ow">is</span> <span class="n">Attention_MIL</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">apply_softmax</span> <span class="o">=</span> <span class="n">apply_softmax</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_kwargs</span> <span class="o">=</span> <span class="n">model_kwargs</span>
+        <span class="k">if</span> <span class="n">use_lens</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_fn</span><span class="p">,</span> <span class="s1">&#39;use_lens&#39;</span><span class="p">)</span>
+                                 <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_fn</span><span class="o">.</span><span class="n">use_lens</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">use_lens</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">elif</span> <span class="n">use_lens</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">use_lens</span> <span class="o">=</span> <span class="kc">False</span>
@@ -659,15 +704,27 @@
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;attention_mil&#39;</span><span class="p">:</span>
             <span class="kn">from</span> <span class="nn">.models</span> <span class="kn">import</span> <span class="n">Attention_MIL</span>
             <span class="k">return</span> <span class="n">Attention_MIL</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;mm_attention_mil&#39;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">.models</span> <span class="kn">import</span> <span class="n">MultiModal_Attention_MIL</span>
+            <span class="k">return</span> <span class="n">MultiModal_Attention_MIL</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;transmil&#39;</span><span class="p">:</span>
             <span class="kn">from</span> <span class="nn">.models</span> <span class="kn">import</span> <span class="n">TransMIL</span>
             <span class="k">return</span> <span class="n">TransMIL</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;bistro.transformer&#39;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">slideflow.mil.models.bistro</span> <span class="kn">import</span> <span class="n">Transformer</span>
+            <span class="k">return</span> <span class="n">Transformer</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized model </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">loss_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_multimodal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;mm_attention_mil&#39;</span>
+                <span class="ow">or</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_fn</span><span class="p">,</span> <span class="s1">&#39;is_multimodal&#39;</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_fn</span><span class="o">.</span><span class="n">is_multimodal</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">d</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
@@ -677,16 +734,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -694,11 +751,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -708,26 +765,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
          <script src="../../../../_static/doctools.js"></script>
          <script src="../../../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -738,7 +795,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

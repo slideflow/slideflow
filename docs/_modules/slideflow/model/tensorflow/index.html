@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.model.tensorflow &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>slideflow.model.tensorflow &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../../genindex/" />
     <link rel="search" title="Search" href="../../../../search/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../installation/">Installation</a></li>
@@ -157,7 +157,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -166,6 +166,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -204,10 +211,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -215,7 +224,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -234,30 +243,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../../../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../../../">Module code</a> &gt;</li>
-
+        
           <li><a href="../">slideflow.model</a> &gt;</li>
-
+        
       <li>slideflow.model.tensorflow</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -269,13 +278,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.model.tensorflow</h1><div class="highlight"><pre>
 <span></span><span class="sd">&#39;&#39;&#39;Tensorflow backend for the slideflow.model submodule.&#39;&#39;&#39;</span>
 
@@ -294,7 +303,7 @@
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span>
+    <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterable</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="kn">import</span> <span class="n">applications</span> <span class="k">as</span> <span class="n">kapps</span>
 
@@ -306,7 +315,7 @@
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">tensorflow_utils</span> <span class="k">as</span> <span class="n">tf_utils</span>
 <span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">log_manifest</span><span class="p">,</span> <span class="n">no_scope</span><span class="p">,</span> <span class="n">BaseFeatureExtractor</span>
-<span class="kn">from</span> <span class="nn">.tensorflow_utils</span> <span class="kn">import</span> <span class="n">unwrap</span><span class="p">,</span> <span class="n">flatten</span><span class="p">,</span> <span class="n">eval_from_model</span>  <span class="c1"># type: ignore</span>
+<span class="kn">from</span> <span class="nn">.tensorflow_utils</span> <span class="kn">import</span> <span class="n">unwrap</span><span class="p">,</span> <span class="n">flatten</span><span class="p">,</span> <span class="n">eval_from_model</span><span class="p">,</span> <span class="n">build_uq_model</span>  <span class="c1"># type: ignore</span>
 
 <span class="c1"># Set the tensorflow logger</span>
 <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span> <span class="o">==</span> <span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">:</span>
@@ -336,7 +345,7 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="ModelParams"><a class="viewcode-back" href="../../../../model_params/#slideflow.model.ModelParams">[docs]</a><span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a set of hyperparameters.&quot;&quot;&quot;</span>
 
     <span class="n">ModelDict</span> <span class="o">=</span> <span class="p">{</span>
@@ -917,7 +926,7 @@
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">LinearLossDict</span><span class="p">:</span>
             <span class="k">return</span> <span class="s1">&#39;linear&#39;</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;categorical&#39;</span></div>
+            <span class="k">return</span> <span class="s1">&#39;categorical&#39;</span>
 
 
 <span class="k">class</span> <span class="nc">_PredictionAndEvaluationCallback</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">callbacks</span><span class="o">.</span><span class="n">Callback</span><span class="p">):</span>
@@ -1322,7 +1331,7 @@
         <span class="p">)</span>
 
 
-<div class="viewcode-block" id="Trainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.Trainer">[docs]</a><span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
+<span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Base trainer class containing functionality for model building, input</span>
 <span class="sd">    processing, training, and evaluation.</span>
 
@@ -1356,6 +1365,7 @@
         <span class="n">neptune_workspace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;weights&#39;</span><span class="p">,</span>
         <span class="n">custom_objects</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Sets base configuration, preparing model inputs and outputs.</span>
@@ -1398,6 +1408,17 @@
 <span class="sd">                Defaults to None.</span>
 <span class="sd">            custom_objects (dict, Optional): Dictionary mapping names</span>
 <span class="sd">                (strings) to custom classes or functions. Defaults to None.</span>
+<span class="sd">            transform (callable or dict, optional): Optional transform to</span>
+<span class="sd">                apply to input images. If dict, must have the keys &#39;train&#39;</span>
+<span class="sd">                and/or &#39;val&#39;, mapping to callables that takes a single</span>
+<span class="sd">                image Tensor as input and returns a single image Tensor.</span>
+<span class="sd">                If None, no transform is applied. If a single callable is</span>
+<span class="sd">                provided, it will be applied to both training and validation</span>
+<span class="sd">                data. If a dict is provided, the &#39;train&#39; transform will be</span>
+<span class="sd">                applied to training data and the &#39;val&#39; transform will be</span>
+<span class="sd">                applied to validation data. If a dict is provided and either</span>
+<span class="sd">                &#39;train&#39; or &#39;val&#39; is None, no transform will be applied to</span>
+<span class="sd">                that data. Defaults to None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="n">load_method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;weights&#39;</span><span class="p">):</span>
@@ -1473,12 +1494,26 @@
                 <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">mixed_precision</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">set_policy</span><span class="p">(</span><span class="n">policy</span><span class="p">)</span>
         <span class="n">tf</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">enable_tensor_float_32_execution</span><span class="p">(</span><span class="n">allow_tf32</span><span class="p">)</span>
 
+        <span class="c1"># Custom transforms</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_transforms</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span>
+
         <span class="c1"># Log parameters</span>
         <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
                 <span class="s1">&#39;slideflow_version&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">__version__</span><span class="p">,</span>
-                <span class="s1">&#39;hp&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span>
-                <span class="s1">&#39;backend&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span>
+                <span class="s1">&#39;backend&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">(),</span>
+                <span class="s1">&#39;git_commit&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">__gitcommit__</span><span class="p">,</span>
+                <span class="s1">&#39;model_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s1">&#39;full_model_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s1">&#39;outcomes&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">,</span>
+                <span class="s1">&#39;model_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">(),</span>
+                <span class="s1">&#39;img_format&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;tile_px&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
+                <span class="s1">&#39;tile_um&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">tile_um</span><span class="p">,</span>
+                <span class="s1">&#39;input_features&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;input_feature_sizes&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;input_feature_labels&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;hp&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
             <span class="p">}</span>
         <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
@@ -1494,6 +1529,22 @@
                 <span class="n">neptune_api</span><span class="p">,</span>
                 <span class="n">neptune_workspace</span>
             <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_process_transforms</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process custom transformations for training and/or validation.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">transform</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;train&#39;</span><span class="p">:</span> <span class="n">transform</span><span class="p">,</span> <span class="s1">&#39;val&#39;</span><span class="p">:</span> <span class="n">transform</span><span class="p">}</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">t</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="s1">&#39;val&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">transform</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;transform must be a callable or dict with keys &quot;</span>
+                             <span class="s2">&quot;&#39;train&#39; and/or &#39;val&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;train&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">transform</span><span class="p">:</span>
+            <span class="n">transform</span><span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s1">&#39;val&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">transform</span><span class="p">:</span>
+            <span class="n">transform</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
 
     <span class="k">def</span> <span class="nf">_setup_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Setup slide-level input.&quot;&quot;&quot;</span>
@@ -1636,15 +1687,37 @@
         <span class="p">)</span>
         <span class="k">return</span> <span class="nb">vars</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_verify_img_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="s2">&quot;sf.Dataset&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_verify_img_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="o">*</span><span class="n">datasets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;sf.Dataset&quot;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Verify that the image format of the dataset matches the model config.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dataset (sf.Dataset): Dataset to check.</span>
+<span class="sd">            *datasets (sf.Dataset): Additional datasets to check. May be None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: Image format, either &#39;png&#39; or &#39;jpg&#39;, if a consistent image</span>
+<span class="sd">                format was found, otherwise None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># First, verify all datasets have the same image format</span>
+        <span class="n">img_formats</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">d</span><span class="o">.</span><span class="n">img_format</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">datasets</span> <span class="k">if</span> <span class="n">d</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">img_formats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Multiple image formats detected: </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">img_formats</span><span class="p">)</span>
+            <span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Unable to verify image format (PNG/JPG) of dataset.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">and</span> <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
                 <span class="s2">&quot;Mismatched image formats. Expected &#39;</span><span class="si">{}</span><span class="s2">&#39; per model config, &quot;</span>
                 <span class="s2">&quot;but dataset has format &#39;</span><span class="si">{}</span><span class="s2">&#39;.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span><span class="p">,</span>
                     <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span>
 
     <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span>
@@ -1721,6 +1794,7 @@
             <span class="n">interleave_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interleave_kwargs_val</span><span class="p">(</span>
                 <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
                 <span class="n">infinite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">],</span>
                 <span class="n">augment</span><span class="o">=</span><span class="kc">False</span>
             <span class="p">)</span>
             <span class="n">tf_dts_w_slidenames</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span>
@@ -1829,6 +1903,7 @@
             <span class="n">interleave_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interleave_kwargs_val</span><span class="p">(</span>
                 <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
                 <span class="n">infinite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">],</span>
                 <span class="n">augment</span><span class="o">=</span><span class="kc">False</span>
             <span class="p">)</span>
             <span class="n">tf_dts_w_slidenames</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span>
@@ -1971,6 +2046,12 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_detect_patients</span><span class="p">(</span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span><span class="p">)</span>
 
+        <span class="c1"># Verify image format across datasets.</span>
+        <span class="n">img_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verify_img_format</span><span class="p">(</span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">img_format</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;img_format&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;img_format&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">img_format</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))</span>
+
         <span class="c1"># Clear prior Tensorflow graph to free memory</span>
         <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">backend</span><span class="o">.</span><span class="n">clear_session</span><span class="p">()</span>
         <span class="n">results_log</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;results_log.csv&#39;</span><span class="p">)</span>
@@ -2063,6 +2144,7 @@
                     <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
                     <span class="n">infinite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">augment</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">augment</span><span class="p">,</span>
+                    <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
                     <span class="n">from_wsi</span><span class="o">=</span><span class="n">from_wsi</span><span class="p">,</span>
                     <span class="n">pool</span><span class="o">=</span><span class="n">pool</span><span class="p">,</span>
                     <span class="n">roi_method</span><span class="o">=</span><span class="n">roi_method</span>
@@ -2083,6 +2165,7 @@
                         <span class="n">batch_size</span><span class="o">=</span><span class="n">validation_batch_size</span><span class="p">,</span>
                         <span class="n">infinite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                         <span class="n">augment</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">],</span>
                         <span class="n">from_wsi</span><span class="o">=</span><span class="n">from_wsi</span><span class="p">,</span>
                         <span class="n">pool</span><span class="o">=</span><span class="n">pool</span><span class="p">,</span>
                         <span class="n">roi_method</span><span class="o">=</span><span class="n">roi_method</span>
@@ -2221,10 +2304,10 @@
                 <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             <span class="k">del</span> <span class="n">mid_train_validation_data</span>
 
-            <span class="k">return</span> <span class="n">results</span></div>
+            <span class="k">return</span> <span class="n">results</span>
 
 
-<div class="viewcode-block" id="LinearTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.LinearTrainer">[docs]</a><span class="k">class</span> <span class="nc">LinearTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">LinearTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Extends the base :class:`slideflow.model.Trainer` class to add support</span>
 <span class="sd">    for linear/continuous outcomes. Requires that all outcomes be continuous,</span>
@@ -2270,10 +2353,10 @@
             <span class="p">)</span>
             <span class="n">image_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;slide_feature_input&#39;</span><span class="p">:</span> <span class="n">slide_feature_input_val</span><span class="p">})</span>
 
-        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span></div>
+        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span>
 
 
-<div class="viewcode-block" id="CPHTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.CPHTrainer">[docs]</a><span class="k">class</span> <span class="nc">CPHTrainer</span><span class="p">(</span><span class="n">LinearTrainer</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">CPHTrainer</span><span class="p">(</span><span class="n">LinearTrainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Cox Proportional Hazards model. Requires that the user provide event</span>
 <span class="sd">    data as the first input feature, and time to outcome as the linear outcome.</span>
@@ -2376,10 +2459,10 @@
                 <span class="n">image_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
                     <span class="p">{</span><span class="s1">&#39;slide_feature_input&#39;</span><span class="p">:</span> <span class="n">slide_feature_input_val</span><span class="p">}</span>
                 <span class="p">)</span>
-        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span></div>
+        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span>
 
 
-<div class="viewcode-block" id="Features"><a class="viewcode-back" href="../../../../model/#slideflow.model.Features">[docs]</a><span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Interface for obtaining predictions and features from intermediate layer</span>
 <span class="sd">    activations from Slideflow models.</span>
 
@@ -2682,7 +2765,7 @@
                 <span class="s1">&#39;include_preds&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_include_preds</span><span class="p">,</span>
                 <span class="s1">&#39;pooling&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span>
             <span class="p">}</span>
-        <span class="p">}</span></div>
+        <span class="p">}</span>
 
 <span class="k">class</span> <span class="nc">UncertaintyInterface</span><span class="p">(</span><span class="n">Features</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
@@ -2772,7 +2855,7 @@
             <span class="p">}</span>
         <span class="p">}</span>
 
-<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_tensorflow/#slideflow.model.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span>
+<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_tensorflow/#slideflow.model.tensorflow.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span>
     <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;weights&#39;</span><span class="p">,</span>
     <span class="n">custom_objects</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2827,16 +2910,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -2844,11 +2927,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -2858,26 +2941,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
          <script src="../../../../_static/doctools.js"></script>
          <script src="../../../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -2888,7 +2971,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

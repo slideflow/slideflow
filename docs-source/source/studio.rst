@@ -111,7 +111,7 @@ Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow 
 
 Click the plus (Add) icon to draw new ROIs with a lasso tool; right click and drag to create a new ROI. The pencil (Edit) icon allows you to edit any existing ROIs; right click an ROI while editing to delete the ROI or change its label. Once finished, ROIs can be exported in CSV format by clicking the floppy disk icon (Save). You can manually load an existing ROI file by clicking the folder icon (Load).
 
-.. video:: roi_label.mp4
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/roi_label.mp4
     :width: 100%
     :autoplay:
 
@@ -258,7 +258,7 @@ By default, Studio will generate predictions on the full GAN image (after resizi
 
 The StyleGAN widget can be used to travel the GAN latent space, similar to the implementation in the official `NVIDIA StyleGAN3 repository <https://github.com/NVlabs/stylegan3>`_. Set a specific seed in the input field next to "Seed", or click and drag the "Drag" button. If the model was trained with class conditioning, manually set the class with the "Class" field (the default value of -1 selects a random class). Press left or right on your keyboard to quickly move through seeds.
 
-.. video:: gan_seeds.mp4
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/gan_seeds.mp4
     :width: 100%
     :autoplay:
 
@@ -277,7 +277,7 @@ Slideflow Studio includes support for multiple-instance learning (MIL) models wi
 
 Start by navigating to the Extensions tab in the bottom-left corner, and enable the "Multiple-instance Learning" extension. A new icon will appear in the left-hand toolbar, which can be used to open the MIL widget. Models are loaded by either clicking the "Load MIL model" button, selecting "File -> Load MIL Model...", or by dragging-and-dropping an MIL model folder onto the window.
 
-.. video:: mil_attention.mp4
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/mil_attention.mp4
     :width: 100%
     :autoplay:
 

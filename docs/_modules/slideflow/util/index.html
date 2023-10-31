@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.util &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>slideflow.util &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../genindex/" />
     <link rel="search" title="Search" href="../../../search/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation/">Installation</a></li>
@@ -157,7 +157,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -166,6 +166,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -204,10 +211,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -215,7 +224,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -234,28 +243,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../../">Module code</a> &gt;</li>
-
+        
       <li>slideflow.util</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -267,13 +276,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.util</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">atexit</span>
 <span class="kn">import</span> <span class="nn">csv</span>
@@ -288,6 +297,7 @@
 <span class="kn">import</span> <span class="nn">tarfile</span>
 <span class="kn">import</span> <span class="nn">hashlib</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
 <span class="kn">from</span> <span class="nn">rich</span> <span class="kn">import</span> <span class="n">progress</span>
 <span class="kn">from</span> <span class="nn">rich.logging</span> <span class="kn">import</span> <span class="n">RichHandler</span>
 <span class="kn">from</span> <span class="nn">rich.highlighter</span> <span class="kn">import</span> <span class="n">NullHighlighter</span>
@@ -299,9 +309,10 @@
 <span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">isdir</span><span class="p">,</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
-<span class="kn">from</span> <span class="nn">statistics</span> <span class="kn">import</span> <span class="n">mean</span><span class="p">,</span> <span class="n">median</span>
 <span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Iterator</span>
+<span class="p">)</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
@@ -569,10 +580,19 @@
                 <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">file_size_mb</span> <span class="o">-</span> <span class="n">running_total_mb</span><span class="p">)</span></div>
 
 
+<span class="k">def</span> <span class="nf">make_cache_dir_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="s1">&#39;HOME&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+        <span class="n">dest</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;HOME&#39;</span><span class="p">],</span> <span class="s1">&#39;.cache&#39;</span><span class="p">,</span> <span class="s1">&#39;slideflow&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="s1">&#39;USERPROFILE&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+        <span class="n">dest</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;USERPROFILE&#39;</span><span class="p">],</span> <span class="s1">&#39;.cache&#39;</span><span class="p">,</span> <span class="s1">&#39;slideflow&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">dest</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">(),</span> <span class="s1">&#39;.cache&#39;</span><span class="p">,</span> <span class="s1">&#39;slideflow&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dest</span>
+
+
 <span class="k">def</span> <span class="nf">get_gdc_manifest</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-    <span class="n">sf_cache</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~/.slideflow/&#39;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">sf_cache</span><span class="p">):</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">sf_cache</span><span class="p">)</span>
+    <span class="n">sf_cache</span> <span class="o">=</span> <span class="n">make_cache_dir_path</span><span class="p">(</span><span class="s1">&#39;gdc&#39;</span><span class="p">)</span>
     <span class="n">manifest</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">sf_cache</span><span class="p">,</span> <span class="s1">&#39;gdc_manifest.tsv&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">manifest</span><span class="p">):</span>
         <span class="n">tar</span> <span class="o">=</span> <span class="s1">&#39;gdc_manifest.tar.xz&#39;</span>
@@ -603,6 +623,15 @@
     <span class="k">def</span> <span class="fm">__delattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">del</span> <span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span></div>
 
+<span class="k">def</span> <span class="nf">zip_allowed</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="p">(</span><span class="s1">&#39;SF_ALLOW_ZIP&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SF_ALLOW_ZIP&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">)</span>
+
+<span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">enable_zip</span><span class="p">(</span><span class="n">enable</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
+    <span class="n">_zip_allowed</span> <span class="o">=</span> <span class="n">zip_allowed</span><span class="p">()</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SF_ALLOW_ZIP&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;1&#39;</span> <span class="k">if</span> <span class="n">enable</span> <span class="k">else</span> <span class="s1">&#39;0&#39;</span>
+    <span class="k">yield</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SF_ALLOW_ZIP&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">_zip_allowed</span> <span class="k">else</span> <span class="s1">&#39;1&#39;</span>
 
 <div class="viewcode-block" id="md5"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.md5">[docs]</a><span class="k">def</span> <span class="nf">md5</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate and return MD5 checksum for a file.&quot;&quot;&quot;</span>
@@ -665,6 +694,21 @@
         <span class="k">return</span> <span class="n">arg1</span>
 
 
+<div class="viewcode-block" id="isnumeric"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.isnumeric">[docs]</a><span class="k">def</span> <span class="nf">isnumeric</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if the given value is numeric.</span>
+
+<span class="sd">    Specifically checks if the value is a python int or float,</span>
+<span class="sd">    or if the value is a numpy array with a numeric dtype (int or float).</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">val</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">in</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float16</span><span class="p">,</span>
+                                 <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+
 <span class="k">def</span> <span class="nf">is_mag</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
     <span class="n">arg1_split</span> <span class="o">=</span> <span class="n">arg1</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">arg1_split</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">arg1_split</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">):</span>
@@ -715,6 +759,16 @@
                      <span class="ow">and</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.ckpt&#39;</span><span class="p">)</span>
                      <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="s1">&#39;args.json&#39;</span><span class="p">)))</span>
     <span class="k">return</span> <span class="n">is_model</span> <span class="ow">or</span> <span class="n">is_checkpoint</span></div>
+
+
+<div class="viewcode-block" id="is_uq_model"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.is_uq_model">[docs]</a><span class="k">def</span> <span class="nf">is_uq_model</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given model path points to a UQ-enabled model.&quot;&quot;&quot;</span>
+    <span class="n">is_model_path</span> <span class="o">=</span> <span class="p">(</span><span class="n">is_tensorflow_model_path</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span>
+                     <span class="ow">or</span> <span class="n">is_torch_model_path</span><span class="p">(</span><span class="n">model_path</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_model_path</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">get_model_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">][</span><span class="s1">&#39;uq&#39;</span><span class="p">]</span></div>
 
 
 <span class="k">def</span> <span class="nf">assert_is_mag</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
@@ -908,7 +962,8 @@
     <span class="n">val_tfrecords</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">filename</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">remove_extension</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Saves the training manifest in CSV format and returns as a string.</span>
 
@@ -917,13 +972,18 @@
 <span class="sd">            Defaults to None.</span>
 <span class="sd">        val_tfrecords (list(str)], optional): List of validation TFRecords.</span>
 <span class="sd">            Defaults to None.</span>
+
+<span class="sd">    Keyword args:</span>
 <span class="sd">        labels (dict, optional): TFRecord outcome labels. Defaults to None.</span>
 <span class="sd">        filename (str, optional): Path to CSV file to save. Defaults to None.</span>
+<span class="sd">        remove_extension (bool, optional): Remove file extension from slide</span>
+<span class="sd">            names. Defaults to True.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        str: Saved manifest in str format.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">out</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">has_labels</span> <span class="o">=</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">))</span>
     <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
         <span class="n">save_file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filename</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
         <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">save_file</span><span class="p">)</span>
@@ -931,15 +991,21 @@
     <span class="k">if</span> <span class="n">train_tfrecords</span> <span class="ow">or</span> <span class="n">val_tfrecords</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">train_tfrecords</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">tfrecord</span> <span class="ow">in</span> <span class="n">train_tfrecords</span><span class="p">:</span>
-                <span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
-                <span class="n">outcome_label</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">if</span> <span class="n">labels</span> <span class="k">else</span> <span class="s1">&#39;NA&#39;</span>
+                <span class="k">if</span> <span class="n">remove_extension</span><span class="p">:</span>
+                    <span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">slide</span> <span class="o">=</span> <span class="n">tfrecord</span>
+                <span class="n">outcome_label</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">if</span> <span class="n">has_labels</span> <span class="k">else</span> <span class="s1">&#39;NA&#39;</span>
                 <span class="n">out</span> <span class="o">+=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">outcome_label</span><span class="p">)])</span>
                 <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
                     <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="n">outcome_label</span><span class="p">])</span>
         <span class="k">if</span> <span class="n">val_tfrecords</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">tfrecord</span> <span class="ow">in</span> <span class="n">val_tfrecords</span><span class="p">:</span>
-                <span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
-                <span class="n">outcome_label</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">if</span> <span class="n">labels</span> <span class="k">else</span> <span class="s1">&#39;NA&#39;</span>
+                <span class="k">if</span> <span class="n">remove_extension</span><span class="p">:</span>
+                    <span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">slide</span> <span class="o">=</span> <span class="n">tfrecord</span>
+                <span class="n">outcome_label</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">if</span> <span class="n">has_labels</span> <span class="k">else</span> <span class="s1">&#39;NA&#39;</span>
                 <span class="n">out</span> <span class="o">+=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;validation&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">outcome_label</span><span class="p">)])</span>
                 <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
                     <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;validation&#39;</span><span class="p">,</span> <span class="n">outcome_label</span><span class="p">])</span>
@@ -1607,16 +1673,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -1624,11 +1690,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -1638,26 +1704,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
          <script src="../../../_static/doctools.js"></script>
          <script src="../../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -1668,7 +1734,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

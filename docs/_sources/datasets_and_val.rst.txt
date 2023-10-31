@@ -78,10 +78,22 @@ For example, to create a dataset from a set of slides, with a configured TFRecor
         tile_um='10x'
     )
 
+When creating a :class:`Dataset` manually from paths, tfrecords should be organized into subdirectories named according to tile size. Using the above example, the tfrecords directory should look like:
+
+.. code-block:: none
+
+    /tfrecords
+    └── 299px_10x
+        ├── slide1.tfrecords
+        ├── slide2.tfrecords
+        ├── slide3.tfrecords
+        └── ...
+
+
 Filtering
 *********
 
-Datasets can be filtered (by slides or patients) through several mechanisms:
+Datasets can be filtered through several mechanisms:
 
 - **filters**: A dictionary, where keys are clinical annotation headers and values are the variable states which should be included. All remaining slides are removed from the dataset.
 - **filter_blank**: A list of headers; any slide with a blank value in the clinical annotations in one of these columns will be excluded.
@@ -109,8 +121,6 @@ A number of functions can be applied to Datasets to manipulate patient filters (
     dataset = dataset.balance('HPV_status').clip(50)
 
 Each of these manipulations is performed in memory and will not affect data stored on disk.
-
-.. _balancing:
 
 
 Dataset Inspection
@@ -272,11 +282,9 @@ Re-using splits
 
 For all validation strategies, training/validation splits can be logged to a JSON file automatically if a splits configuration file is provided to the argument ``splits``. When provided, :meth:`Dataset.split` will prioritize using previously-generated training/validation splits rather than generating a new split. This aids with experiment reproducibility and hyperparameter tuning. If training/validation splits are being prepared by a :ref:`Project-level function <project>`, splits will be automatically logged to a ``splits.json`` file in the project root directory.
 
-.. _dataloaders:
-
 Creating Dataloaders
 ********************
 
-Finally, Datasets can also return either a ``tf.data.Datasets`` or ``torch.utils.data.Dataloader`` object to quickly and easily create a deep learning dataset ready to be used as model input, with the :meth:`Dataset.tensorflow` and :meth:`Dataset.torch` methods, respectively.
+Finally, Datasets can also return either a ``tf.data.Datasets`` or ``torch.utils.data.Dataloader`` object to quickly and easily create a deep learning dataset ready to be used as model input, with the :meth:`Dataset.tensorflow` and :meth:`Dataset.torch` methods, respectively.  See :ref:`dataloaders` for more detailed information and examples.
 
 Datasets have many other utility functions for working with and processing data. Read more in the :ref:`Dataset API documentation <dataset>`.

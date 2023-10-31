@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.project &mdash; slideflow 2.2.0 documentation</title>
+  
 
-  <title>slideflow.project &mdash; slideflow 2.1.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../genindex/" />
     <link rel="search" title="Search" href="../../../search/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.1
+                  2.2
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation/">Installation</a></li>
@@ -157,7 +157,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation/">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../uq/">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../ssl/">Self-Supervised Learning (SSL)</a></li>
@@ -166,6 +166,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -204,10 +211,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -215,7 +224,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -234,28 +243,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../../">Module code</a> &gt;</li>
-
+        
       <li>slideflow.project</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -267,13 +276,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.project</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Module for the ``Project`` class and its associated functions.</span>
 
@@ -1095,29 +1104,75 @@
                 <span class="n">from_wsi</span><span class="o">=</span><span class="n">from_wsi</span>
             <span class="p">)</span>
 
-        <span class="c1"># ---- Balance and clip datasets --------------------------------------</span>
+        <span class="c1"># ---- Balance datasets --------------------------------------</span>
+        <span class="c1"># Training</span>
         <span class="k">if</span> <span class="n">s_args</span><span class="o">.</span><span class="n">bal_headers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">s_args</span><span class="o">.</span><span class="n">bal_headers</span> <span class="o">=</span> <span class="n">s_args</span><span class="o">.</span><span class="n">outcomes</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">from_wsi</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">prob_weights</span> <span class="ow">and</span> <span class="n">hp</span><span class="o">.</span><span class="n">training_balance</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Training dataset already balanced; ignoring hyperparameter &quot;</span>
+                <span class="s2">&quot;training_balance=</span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hp</span><span class="o">.</span><span class="n">training_balance</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">from_wsi</span><span class="p">:</span>
             <span class="n">train_dts</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span>
                 <span class="n">s_args</span><span class="o">.</span><span class="n">bal_headers</span><span class="p">,</span>
                 <span class="n">hp</span><span class="o">.</span><span class="n">training_balance</span><span class="p">,</span>
                 <span class="n">force</span><span class="o">=</span><span class="p">(</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">)</span>
             <span class="p">)</span>
-            <span class="n">train_dts</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">hp</span><span class="o">.</span><span class="n">training_balance</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">from_wsi</span> <span class="ow">and</span> <span class="n">hp</span><span class="o">.</span><span class="n">training_balance</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;Balancing / clipping is disabled when `from_wsi=True`&quot;</span>
             <span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">val_dts</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">from_wsi</span><span class="p">:</span>
+        <span class="c1"># Validation</span>
+        <span class="k">if</span> <span class="n">val_dts</span> <span class="ow">and</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">prob_weights</span> <span class="ow">and</span> <span class="n">hp</span><span class="o">.</span><span class="n">validation_balance</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Validation dataset already balanced; ignoring hyperparameter &quot;</span>
+                <span class="s2">&quot;validation_balance=</span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hp</span><span class="o">.</span><span class="n">validation_balance</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">val_dts</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">from_wsi</span><span class="p">:</span>
             <span class="n">val_dts</span> <span class="o">=</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span>
                 <span class="n">s_args</span><span class="o">.</span><span class="n">bal_headers</span><span class="p">,</span>
                 <span class="n">hp</span><span class="o">.</span><span class="n">validation_balance</span><span class="p">,</span>
                 <span class="n">force</span><span class="o">=</span><span class="p">(</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">)</span>
             <span class="p">)</span>
-            <span class="n">val_dts</span> <span class="o">=</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">val_dts</span> <span class="ow">and</span> <span class="n">from_wsi</span> <span class="ow">and</span> <span class="n">hp</span><span class="o">.</span><span class="n">validation_balance</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Balancing / clipping is disabled when `from_wsi=True`&quot;</span>
+            <span class="p">)</span>
 
+        <span class="c1"># ---- Clip datasets -----------------------------------------</span>
+        <span class="c1"># Training</span>
+        <span class="k">if</span> <span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span> <span class="ow">and</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">_clip</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Training dataset already clipped; ignoring parameter &quot;</span>
+                <span class="s2">&quot;max_tiles=</span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">from_wsi</span><span class="p">:</span>
+            <span class="n">train_dts</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span> <span class="ow">and</span> <span class="n">from_wsi</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Clipping is disabled when `from_wsi=True`&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Validation</span>
+        <span class="k">if</span> <span class="n">val_dts</span> <span class="ow">and</span> <span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span> <span class="ow">and</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">_clip</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Validation dataset already clipped; ignoring parameter &quot;</span>
+                <span class="s2">&quot;max_tiles=</span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span> <span class="ow">and</span> <span class="n">val_dts</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">from_wsi</span><span class="p">:</span>
+            <span class="n">val_dts</span> <span class="o">=</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span> <span class="ow">and</span> <span class="n">val_dts</span> <span class="ow">and</span> <span class="n">from_wsi</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Clipping is disabled when `from_wsi=True`&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># ---- Determine tile counts ---------------------------------------</span>
         <span class="k">if</span> <span class="n">from_wsi</span><span class="p">:</span>
             <span class="n">num_train</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_dts</span><span class="o">.</span><span class="n">slide_paths</span><span class="p">())</span>
             <span class="n">num_val</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">val_dts</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_dts</span><span class="o">.</span><span class="n">slide_paths</span><span class="p">())</span>
@@ -1734,17 +1789,17 @@
 <span class="sd">        Logs classifier metrics (AUROC and AP) to the console.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):</span>
-<span class="sd">                Training configuration, as obtained by</span>
-<span class="sd">                :func:`slideflow.mil.mil_config()`.</span>
-<span class="sd">            train_dataset (:class:`slideflow.Dataset`): Training dataset.</span>
-<span class="sd">            val_dataset (:class:`slideflow.Dataset`): Validation dataset.</span>
+<span class="sd">            model (str): Path to MIL model.</span>
 <span class="sd">            outcomes (str): Outcome column (annotation header) from which to</span>
 <span class="sd">                derive category labels.</span>
+<span class="sd">            dataset (:class:`slideflow.Dataset`): Dataset.</span>
 <span class="sd">            bags (str): Either a path to directory with \*.pt files, or a list</span>
 <span class="sd">                of paths to individual \*.pt files. Each file should contain</span>
 <span class="sd">                exported feature vectors, with each file containing all tile</span>
 <span class="sd">                features for one patient.</span>
+<span class="sd">            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):</span>
+<span class="sd">                Training configuration, as obtained by</span>
+<span class="sd">                :func:`slideflow.mil.mil_config()`.</span>
 
 <span class="sd">        Keyword args:</span>
 <span class="sd">            exp_label (str): Experiment label, used for naming the subdirectory</span>
@@ -1882,9 +1937,8 @@
 <span class="sd">                will be excluded. Defaults to &#39;center&#39;.</span>
 <span class="sd">            skip_extracted (bool): Skip slides that have already</span>
 <span class="sd">                been extracted. Defaults to True.</span>
-<span class="sd">            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),</span>
-<span class="sd">                detecting and extracting tumor cores. Defaults to False.</span>
-<span class="sd">                Experimental function with limited testing.</span>
+<span class="sd">            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs).</span>
+<span class="sd">                Deprecated argument; all slides are now read as standard WSIs.</span>
 <span class="sd">            randomize_origin (bool): Randomize pixel starting</span>
 <span class="sd">                position during extraction. Defaults to False.</span>
 <span class="sd">            buffer (str, optional): Slides will be copied to this directory</span>
@@ -1918,10 +1972,6 @@
 <span class="sd">            img_format (str, optional): &#39;png&#39; or &#39;jpg&#39;. Defaults to &#39;jpg&#39;.</span>
 <span class="sd">                Image format to use in tfrecords. PNG (lossless) for fidelity,</span>
 <span class="sd">                JPG (lossy) for efficiency.</span>
-<span class="sd">            full_core (bool, optional): Only used if extracting from TMA.</span>
-<span class="sd">                If True, will save entire TMA core as image.</span>
-<span class="sd">                Otherwise, will extract sub-images from each core using the</span>
-<span class="sd">                given tile micron size. Defaults to False.</span>
 <span class="sd">            shuffle (bool, optional): Shuffle tiles prior to storage in</span>
 <span class="sd">                tfrecords. Defaults to True.</span>
 <span class="sd">            num_threads (int, optional): Number of worker processes for each</span>
@@ -1972,6 +2022,9 @@
         <span class="n">dry_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">normalizer_source</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">tile_labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">crop</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">resize</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Train a GAN network.</span>
@@ -2041,6 +2094,22 @@
 <span class="sd">            outcomes (str, list(str), optional): Class conditioning outcome</span>
 <span class="sd">                labels for training a class-conditioned GAN. If not provided,</span>
 <span class="sd">                trains an unconditioned GAN. Defaults to None.</span>
+<span class="sd">            tile_labels (str, optional): Path to pandas dataframe with</span>
+<span class="sd">                tile-level labels. The dataframe should be indexed by tile name,</span>
+<span class="sd">                where the name of the tile follows the format:</span>
+<span class="sd">                [slide name]-[tile x coordinate]-[tile y coordinate], e.g.:</span>
+<span class="sd">                ``slide1-251-666``. The dataframe should have a single column</span>
+<span class="sd">                with the name &#39;label&#39;. Labels can be categorical or continuous.</span>
+<span class="sd">                If categorical, the labels should be onehot encoded.</span>
+<span class="sd">            crop (int, optional): Randomly crop images to this target size</span>
+<span class="sd">                during training. This permits training a smaller network</span>
+<span class="sd">                (e.g. 256 x 256) on larger images (e.g. 299 x 299).</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            resize (int, optional): Resize images to this target size</span>
+<span class="sd">                during training. This permits training a smaller network</span>
+<span class="sd">                (e.g. 256 x 256) on larger images (e.g. 299 x 299).</span>
+<span class="sd">                If both ``crop`` and ``resize`` are provided, cropping</span>
+<span class="sd">                will be performed first. Defaults to None.</span>
 <span class="sd">            resume (str): Load previous network. Options include</span>
 <span class="sd">                &#39;noresume&#39; , &#39;ffhq256&#39;, &#39;ffhq512&#39;, &#39;ffhqq1024&#39;, &#39;celebahq256&#39;,</span>
 <span class="sd">                &#39;lsundog256&#39;, &lt;file&gt;, or &lt;url&gt;. Defaults to &#39;noresume&#39;.</span>
@@ -2080,6 +2149,10 @@
             <span class="n">outcome_label_headers</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
             <span class="n">filters</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">_filters</span><span class="p">,</span>
             <span class="n">filter_blank</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">_filter_blank</span><span class="p">,</span>
+            <span class="n">min_tiles</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">_min_tiles</span><span class="p">,</span>
+            <span class="n">tile_labels</span><span class="o">=</span><span class="n">tile_labels</span><span class="p">,</span>
+            <span class="n">crop</span><span class="o">=</span><span class="n">crop</span><span class="p">,</span>
+            <span class="n">resize</span><span class="o">=</span><span class="n">resize</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">normalizer</span><span class="p">:</span>
             <span class="n">config</span><span class="p">[</span><span class="s1">&#39;normalizer_kwargs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
@@ -2094,7 +2167,7 @@
             <span class="n">outdir</span><span class="o">=</span><span class="n">gan_dir</span><span class="p">,</span>
             <span class="n">dry_run</span><span class="o">=</span><span class="n">dry_run</span><span class="p">,</span>
             <span class="n">slideflow</span><span class="o">=</span><span class="n">config_loc</span><span class="p">,</span>
-            <span class="n">cond</span><span class="o">=</span><span class="p">(</span><span class="n">outcomes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="n">cond</span><span class="o">=</span><span class="p">(</span><span class="n">outcomes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">tile_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span>
             <span class="n">mirror</span><span class="o">=</span><span class="n">mirror</span><span class="p">,</span>
             <span class="n">metrics</span><span class="o">=</span><span class="n">metrics</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -2177,8 +2250,8 @@
     <span class="k">def</span> <span class="nf">generate_features</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dataset</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
         <span class="n">filters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">filter_blank</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">min_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
@@ -2192,12 +2265,12 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            model (str): Path to model</span>
-
-<span class="sd">        Keyword Args:</span>
 <span class="sd">            dataset (:class:`slideflow.Dataset`, optional): Dataset</span>
 <span class="sd">                from which to generate activations. If not supplied, calculate</span>
 <span class="sd">                activations for all tfrecords compatible with the model,</span>
 <span class="sd">                optionally using provided filters and filter_blank.</span>
+
+<span class="sd">        Keyword Args:</span>
 <span class="sd">            filters (dict, optional): Dataset filters to use for</span>
 <span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
 <span class="sd">                more information. Defaults to None.</span>
@@ -2244,7 +2317,6 @@
                                 <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">df</span>
 
-    <span class="nd">@auto_dataset_allow_none</span>
     <span class="k">def</span> <span class="nf">generate_features_for_clam</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
             <span class="s2">&quot;Project.generate_features_for_clam() is deprecated. &quot;</span>
@@ -2277,14 +2349,14 @@
 <span class="sd">        Args:</span>
 <span class="sd">            model (str): Path to model from which to generate activations.</span>
 <span class="sd">                May provide either this or &quot;pt_files&quot;</span>
-<span class="sd">            outdir (str, optional): Save exported activations in .pt format.</span>
-<span class="sd">                Defaults to &#39;auto&#39; (project directory).</span>
-
-<span class="sd">        Keyword Args:</span>
 <span class="sd">            dataset (:class:`slideflow.Dataset`, optional): Dataset</span>
 <span class="sd">                from which to generate activations. If not supplied, calculate</span>
 <span class="sd">                activations for all tfrecords compatible with the model,</span>
 <span class="sd">                optionally using provided filters and filter_blank.</span>
+<span class="sd">            outdir (str, optional): Save exported activations in .pt format.</span>
+<span class="sd">                Defaults to &#39;auto&#39; (project directory).</span>
+
+<span class="sd">        Keyword Args:</span>
 <span class="sd">            filters (dict, optional): Dataset filters to use for</span>
 <span class="sd">                selecting slides. See :meth:`slideflow.Dataset.filter` for</span>
 <span class="sd">                more information. Defaults to None.</span>
@@ -2402,27 +2474,41 @@
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Skipping </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">done</span><span class="p">)</span><span class="si">}</span><span class="s1"> files already done.&#39;</span><span class="p">)</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">filtered_slides_to_generate</span><span class="p">)</span><span class="si">}</span><span class="s1"> slides&#39;</span><span class="p">)</span>
 
+        <span class="c1"># Set up progress bar.</span>
+        <span class="n">pb</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">TileExtractionProgress</span><span class="p">()</span>
+        <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span>
+            <span class="s2">&quot;Speed: &quot;</span><span class="p">,</span>
+            <span class="n">progress_type</span><span class="o">=</span><span class="s2">&quot;speed&quot;</span><span class="p">,</span>
+            <span class="n">total</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">slide_task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span>
+            <span class="s2">&quot;Generating...&quot;</span><span class="p">,</span>
+            <span class="n">progress_type</span><span class="o">=</span><span class="s2">&quot;slide_progress&quot;</span><span class="p">,</span>
+            <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">slides</span><span class="p">()))</span>
+        <span class="n">pb</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
         <span class="c1"># Set up activations interface.</span>
         <span class="c1"># Calculate features one slide at a time to reduce memory consumption.</span>
-        <span class="k">for</span> <span class="n">slide_batch</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">slides</span><span class="p">(),</span> <span class="n">slide_batch_size</span><span class="p">),</span>
-                                <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">slides</span><span class="p">())</span> <span class="o">//</span> <span class="n">slide_batch_size</span><span class="p">):</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">remove_filter</span><span class="p">(</span><span class="n">filters</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">)</span>
-            <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">DatasetFilterError</span><span class="p">:</span>
-                <span class="n">_dataset</span> <span class="o">=</span> <span class="n">dataset</span>
-            <span class="n">_dataset</span> <span class="o">=</span> <span class="n">_dataset</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="n">slide_batch</span><span class="p">})</span>
-            <span class="n">df</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span>
-                <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
-                <span class="n">dataset</span><span class="o">=</span><span class="n">_dataset</span><span class="p">,</span>
-                <span class="n">include_preds</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">include_uncertainty</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
-                <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">pool_sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="o">**</span><span class="n">kwargs</span>
-            <span class="p">)</span>
-            <span class="n">df</span><span class="o">.</span><span class="n">to_torch</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">cleanup_progress</span><span class="p">(</span><span class="n">pb</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">slide_batch</span> <span class="ow">in</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">slides</span><span class="p">(),</span> <span class="n">slide_batch_size</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">remove_filter</span><span class="p">(</span><span class="n">filters</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">DatasetFilterError</span><span class="p">:</span>
+                    <span class="n">_dataset</span> <span class="o">=</span> <span class="n">dataset</span>
+                <span class="n">_dataset</span> <span class="o">=</span> <span class="n">_dataset</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="n">slide_batch</span><span class="p">})</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span>
+                    <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+                    <span class="n">dataset</span><span class="o">=</span><span class="n">_dataset</span><span class="p">,</span>
+                    <span class="n">include_preds</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">include_uncertainty</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+                    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">pb</span><span class="o">=</span><span class="n">pb</span><span class="p">,</span>
+                    <span class="n">pool_sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span>
+                <span class="p">)</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">to_torch</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">slide_task</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">slide_batch</span><span class="p">))</span>
 
         <span class="k">return</span> <span class="n">outdir</span>
 
@@ -3324,7 +3410,7 @@
                                  <span class="n">enable_downsample</span><span class="o">=</span><span class="n">enable_downsample</span><span class="p">,</span>
                                  <span class="n">roi_dir</span><span class="o">=</span><span class="n">roi_dir</span><span class="p">,</span>
                                  <span class="n">roi_method</span><span class="o">=</span><span class="n">roi_method</span><span class="p">,</span>
-                                 <span class="n">randomize_origin</span><span class="o">=</span><span class="n">randomize_origin</span><span class="p">)</span>
+                                 <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;random&#39;</span> <span class="k">if</span> <span class="n">randomize_origin</span> <span class="k">else</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span>
                 <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
                     <span class="k">continue</span>
@@ -3403,7 +3489,7 @@
 
                 <span class="c1"># Interpret results.</span>
                 <span class="n">model_name</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">last_epoch</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="n">model_name</span><span class="p">][</span><span class="s1">&#39;epochs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()))[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">last_epoch</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="n">model_name</span><span class="p">][</span><span class="s1">&#39;epochs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;epoch&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)))[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="n">model_name</span><span class="p">][</span><span class="s1">&#39;epochs&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ambiguous epoch for SMAC. Using &#39;</span><span class="si">{</span><span class="n">last_epoch</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
                 <span class="n">epoch_results</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="n">model_name</span><span class="p">][</span><span class="s1">&#39;epochs&#39;</span><span class="p">][</span><span class="n">last_epoch</span><span class="p">]</span>
@@ -3413,7 +3499,7 @@
                     <span class="n">result</span> <span class="o">=</span> <span class="n">metric</span><span class="p">(</span><span class="n">epoch_results</span><span class="p">)</span>
                 <span class="k">elif</span> <span class="n">metric</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">epoch_results</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SMACError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Metric &#39;</span><span class="si">{</span><span class="n">metric</span><span class="si">}</span><span class="s2">&#39; not returned from &quot;</span>
-                                        <span class="s2">&quot;training, unable to optimize.&quot;</span><span class="p">)</span>
+                                           <span class="s2">&quot;training, unable to optimize.&quot;</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">outcomes</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">epoch_results</span><span class="p">[</span><span class="n">metric</span><span class="p">]:</span>
                         <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SMACError</span><span class="p">(</span>
@@ -4013,7 +4099,7 @@
 
 <span class="sd">        Preferred API is :meth:`slideflow.Project.train_mil()`.</span>
 
-<span class="sd">        See :ref:`clam_mil` for more information.</span>
+<span class="sd">        See :ref:`mil` for more information.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">            Train with basic settings:</span>
@@ -4251,7 +4337,7 @@
             <span class="n">cfg</span><span class="o">.</span><span class="n">rois</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">cfg_path</span><span class="p">),</span> <span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">cfg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">cfg</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">EasyDict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">project_utils</span><span class="o">.</span><span class="n">_ProjectConfig</span><span class="p">):</span>
+    <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">cfg</span><span class="p">),</span> <span class="n">project_utils</span><span class="o">.</span><span class="n">_ProjectConfig</span><span class="p">):</span>
         <span class="n">cfg</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">EasyDict</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
     <span class="k">if</span> <span class="s1">&#39;name&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">:</span>
         <span class="n">cfg</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;MyProject&quot;</span>
@@ -4365,16 +4451,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -4382,11 +4468,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -4396,26 +4482,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
          <script src="../../../_static/doctools.js"></script>
          <script src="../../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -4426,7 +4512,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 
