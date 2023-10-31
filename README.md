@@ -5,11 +5,24 @@
 
 [ArXiv](https://arxiv.org/abs/2304.04142) | [Docs](https://slideflow.dev) | [Slideflow Studio](https://slideflow.dev/studio/) | [Cite](#reference)
 
-Slideflow is a deep learning library for digital pathology that provides a unified API for building, training, and testing models using Tensorflow or PyTorch.
+## 🔬 Overview
 
-Slideflow includes tools for **[whole-slide image processing](https://slideflow.dev/slide_processing)**, **customizable deep learning [model training](https://slideflow.dev/training)** with dozens of supported architectures, **[multi-instance learning](https://slideflow.dev/mil)**, **[self-supervised learning](https://slideflow.dev/ssl)**, **[cell segmentation](https://slideflow.dev/cellseg)**, **explainability tools** (including [heatmaps](https://slideflow.dev/evaluation/#heatmaps), [mosaic maps](https://slideflow.dev/posthoc/#mosaic-maps), [GANs](https://slideflow.dev/stylegan/), and [saliency maps](https://slideflow.dev/saliency/)), **analysis of [layer activations](https://slideflow.dev/posthoc/)**, **[uncertainty quantification](https://slideflow.dev/uq/)**, and more.
+**Slideflow is deep learning library for digital pathology, offering a user-friendly interface for model development.**
 
-A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, [stain normalization/augmentation](https://slideflow.dev/norm), and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an straightforward API for training custom architectures. Slideflow can be used as an image processing backend for external training loops, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
+Designed at University of Chicago for both medical researchers and AI enthusiasts, the goal of Slideflow is to provide an accessible, easy-to-use interface for developing state-of-the-art pathology models. Slideflow has been built with the future in mind, offering a scalable platform for digital biomarker development that bridges the gap between ever-evolving, sophisticated methods and the needs of a clinical researcher. For developers, Slideflow provides multiple endpoints for integration with other packages and external training paradigms, allowing you to leverage highly optimized, pathology-specific processes with the latest ML methodologies.
+
+## 🚀 Features
+- Easy-to-use, highly customizable training pipelines
+- Robust **[slide processing](https://slideflow.dev/slide_processing) and [stain normalization](https://slideflow.dev/norm)** toolkit
+- Support for training with **[weakly-supervised](https://slideflow.dev/training) or [strongly-supervised](https://slideflow.dev/tile_labels)** labels
+- **[Multiple-instance learning (MIL)](https://slideflow.dev/mil)**
+- **[Self-supervised learning (SSL)](https://slideflow.dev/ssl)**
+- **[Generative adversarial networks (GANs)](https://slideflow.dev/training)**
+- **Explainability tools**: [Heatmaps](https://slideflow.dev/evaluation/#heatmaps), [mosaic maps](https://slideflow.dev/posthoc/#mosaic-maps), [saliency maps](https://slideflow.dev/saliency/), [synthetic histology](https://slideflow.dev/stylegan)
+- Robust **[layer activation analysis](https://slideflow.dev/posthoc)** tools
+- **[Uncertainty quantification](https://slideflow.dev/uq)**
+- **[Interactive user interface](https://slideflow.dev/studio)** for model deployment
+- ... and more!
 
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
@@ -28,7 +41,7 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
   - _or_ [Pyomo](http://www.pyomo.org/installation) with [Bonmin](https://anaconda.org/conda-forge/coinbonmin) solver
 
 
-## Installation
+## 📥 Installation
 Slideflow can be installed with PyPI, as a Docker container, or run from source.
 
 ### Method 1: Install via pip
@@ -69,7 +82,7 @@ python setup.py bdist_wheel
 pip install dist/slideflow* cupy-cuda11x
 ```
 
-## Configuration
+## ⚙️ Configuration
 
 ### Deep learning (Tensorflow vs. PyTorch)
 
@@ -117,7 +130,7 @@ P = sf.create_project(
 
 Ensure that the annotations file has a `slide` column for each annotation entry with the filename (without extension) of the corresponding slide.
 
-## Extract tiles from slides
+### Extract tiles from slides
 
 Next, whole-slide images are segmented into smaller image tiles and saved in `*.tfrecords` format. [Extract tiles](https://slideflow.dev/slide_processing) from slides at a given magnification (width in microns size) and resolution (width in pixels) using `sf.Project.extract_tiles()`:
 
@@ -137,7 +150,7 @@ P.extract_tiles(
 )
 ```
 
-## Training models
+### Training models
 
 Once tiles are extracted, models can be [trained](https://slideflow.dev/training). Start by configuring a set of [hyperparameters](https://slideflow.dev/model#modelparams):
 
@@ -163,11 +176,11 @@ P.train(
 )
 ```
 
-## Evaluation, heatmaps, mosaic maps, and more
+### Evaluation, heatmaps, mosaic maps, and more
 
 Slideflow includes a host of additional tools, including model [evaluation and prediction](https://slideflow.dev/evaluation), [heatmaps](https://slideflow.dev/evaluation#heatmaps), analysis of [layer activations](https://slideflow.dev/posthoc), [mosaic maps](https://slideflow.dev/posthoc#mosaic-maps), and more. See our [full documentation](https://slideflow.dev) for more details and tutorials.
 
-## Publications
+## 📚 Publications
 
 Slideflow has been used by:
 
@@ -184,10 +197,10 @@ Slideflow has been used by:
 - [Hieromnimon et al](https://doi.org/10.1101/2023.03.22.533810) [bioRxiv], 2023
 - [Carrillo-Perez et al](https://doi.org/10.1186/s40644-023-00586-3) _Cancer Imaging_, 2023
 
-## License
+## 🔓 License
 This code is made available under the GPLv3 License and is available for non-commercial academic purposes.
 
-## Reference
+## 🔗 Reference
 If you find our work useful for your research, or if you use parts of this code, please consider citing as follows:
 
 Dolezal, J. M., Kochanny, S., Dyer, E., *et al*. Slideflow: Deep Learning for Digital Histopathology with Real-Time Whole-Slide Visualization. ArXiv [q-Bio.QM] (2023). http://arxiv.org/abs/2304.04142
