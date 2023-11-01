@@ -1,8 +1,9 @@
 import torch
 from torchvision import transforms
+from typing import Union
 
 try:
-    from transformers import CLIPModel
+    from transformers import CLIPModel, CLIPProcessor
     from transformers.image_utils import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
 except ImportError:
     raise ImportError(
@@ -21,8 +22,13 @@ class CLIPImageFeatures(torch.nn.Module):
         self._model = CLIPModel.from_pretrained(weights)
 
     def forward(self, x):
-        x = self._model.get_image_features(x)
-        return x
+        if len(x.shape) == 3:
+            x = x.unsqueeze(0)
+            x = self._model.get_image_features(x)
+            return x[0]
+        else:
+            x = self._model.get_image_features(x)
+            return x
 
 
 class PLIPFeatures(TorchFeatureExtractor):
@@ -67,6 +73,27 @@ class PLIPFeatures(TorchFeatureExtractor):
         self.preprocess_kwargs = dict(standardize=False)
         self._center_crop = center_crop
         # ---------------------------------------------------------------------
+
+
+    def text_preprocess(self, x: str):
+        if not hasattr(self, '_text_preprocess'):
+            self._text_preprocess = CLIPProcessor.from_pretrained("vinid/plip")
+        return self._text_preprocess(
+            text=x,
+            return_tensors='pt',
+            max_length=77,
+            padding="max_length",
+            truncation=True
+        )
+
+    def get_text_features(self, x: Union[str, torch.Tensor]):
+        if isinstance(x, str):
+            x = self.text_preprocess(x)
+        x = x.to(self.device)
+        with torch.no_grad():
+            x = self.model._model.get_text_features(**x)
+        return x
+
 
     def dump_config(self):
         """Return a dictionary of configuration parameters.
