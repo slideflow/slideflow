@@ -135,7 +135,10 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
     """Feature extractor for PyTorch models."""
 
     def __init__(self):
+        from .. import torch_utils
+
         super().__init__(backend='torch')
+        self.device = torch_utils.get_device()
 
     def __call__(self, obj, **kwargs):
         """Generate features for a batch of images or a WSI."""
@@ -149,8 +152,10 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
                 "when extracting features from a batch of images."
             )
         assert obj.dtype == torch.uint8
+        obj = obj.to(self.device)
         obj = self.transform(obj)
-        return self.model(obj)
+        with torch.no_grad():
+            return self.model(obj)
 
 
 class TorchImagenetLayerExtractor(BaseFeatureExtractor):
