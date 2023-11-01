@@ -9,7 +9,7 @@
 
 ![Slideflow Studio: a visualization tool for interacting with models and whole-slide images.](https://github.com/jamesdolezal/slideflow/assets/48372806/7f43d8cb-dc80-427d-84c4-3e5a35fa1472)
 
-**Slideflow is deep learning library for digital pathology, offering a user-friendly interface for model development.**
+**Slideflow is a deep learning library for digital pathology, offering a user-friendly interface for model development.**
 
 Designed at University of Chicago for both medical researchers and AI enthusiasts, the goal of Slideflow is to provide an accessible, easy-to-use interface for developing state-of-the-art pathology models. Slideflow has been built with the future in mind, offering a scalable platform for digital biomarker development that bridges the gap between ever-evolving, sophisticated methods and the needs of a clinical researcher. For developers, Slideflow provides multiple endpoints for integration with other packages and external training paradigms, allowing you to leverage highly optimized, pathology-specific processes with the latest ML methodologies.
 
