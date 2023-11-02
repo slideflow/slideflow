@@ -1037,6 +1037,8 @@ class WSI:
                 all_tile_alignment = fit_alignment
 
         for idx, (x, y, xi, yi) in enumerate(self.coord):
+            if np.ma.is_masked(all_tile_alignment[xi, yi][0]):
+                continue
             self.coord[idx, 0] += all_tile_alignment[xi, yi][0]
             self.coord[idx, 1] += all_tile_alignment[xi, yi][1]
 
@@ -1045,7 +1047,7 @@ class WSI:
             log.warning("Removing {} tiles that failed to align.".format(len(idx_to_remove)))
             self.coord = np.delete(self.coord, idx_to_remove, axis=0)
 
-        log.info("Slide alignment complete and finetuned at each tile location.")
+        log.info("Slide alignment complete and finetuned at each unmasked tile location.")
 
         return all_tile_alignment
 
