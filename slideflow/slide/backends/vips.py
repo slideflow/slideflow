@@ -759,7 +759,7 @@ class _VIPSReader:
         """Return thumbnail of slide as numpy array."""
 
         if ((OPS_VENDOR in self.properties and self.properties[OPS_VENDOR] == 'leica')
-           or (self.vips_loader == 'tiffload') or self.bounds):
+           or (self.vips_loader == 'tiffload') or self.bounds or self.transforms):
             thumbnail = self.read_level(fail=fail, access=access, **kwargs)
         else:
             thumbnail = vips.Image.thumbnail(self.path, width)
