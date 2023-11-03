@@ -64,13 +64,16 @@ def features_from_slide_torch(
     features_grid = _build_grid(extractor, slide, grid=grid, dtype=dtype)
 
     _log_normalizer(normalizer)
+    opencv_norm = (isinstance(normalizer, str)
+                   or (isinstance(normalizer, sf.norm.StainNormalizer)
+                       and normalizer.__class__ == 'StainNormalizer'))
 
     # Build the tile generator
     generator = slide.build_generator(
         shuffle=shuffle,
         show_progress=show_progress,
         img_format=img_format,
-        normalizer=normalizer,
+        normalizer=(normalizer if opencv_norm else None),
         **kwargs)
     if not generator:
         log.error(f"No tiles extracted from slide [green]{slide.name}")
@@ -86,6 +89,8 @@ def features_from_slide_torch(
 
     # Extract features from the tiles
     for i, (batch_images, batch_loc) in enumerate(tile_dataset):
+        if normalizer and not opencv_norm:
+            batch_images = normalizer.transform(batch_images)
         batch_images = batch_images.to(extractor.device)
         model_out = sf.util.as_list(extractor(batch_images))
 
