@@ -154,6 +154,7 @@ class WSI:
         self.roi_grid = None  # type: Optional[np.ndarray]
         self.roi_filter_method = roi_filter_method
         self.qc_masks = []  # type: List[QCMask]
+        self.alignment = None  # type: Optional[Alignment]
         self.verbose = verbose
         self.segmentation = None
         self.use_edge_tiles = use_edge_tiles
@@ -888,6 +889,7 @@ class WSI:
 
         # Apply alignment.
         self.origin = alignment
+        self.alignment = Alignment.from_translation(alignment)
         log.info("Slide aligned with MSE {:.2f}. Origin set to {}".format(
                 mse, self.origin
         ))
@@ -1033,6 +1035,12 @@ class WSI:
                             int(np.round(z_on_plane(x, y, x_centroid, x_normal))),
                             int(np.round(z_on_plane(x, y, y_centroid, y_normal)))
                         )
+
+                self.alignment = Alignment.from_fit(
+                    self.origin,
+                    (x_centroid, y_centroid),
+                    (x_normal, y_normal)
+                )
             else:
                 all_tile_alignment = fit_alignment
 
@@ -1047,9 +1055,44 @@ class WSI:
             log.warning("Removing {} tiles that failed to align.".format(len(idx_to_remove)))
             self.coord = np.delete(self.coord, idx_to_remove, axis=0)
 
+        if align_by != 'fit':
+            self.alignment = Alignment.from_coord(self.origin, self.coord)
+
         log.info("Slide alignment complete and finetuned at each unmasked tile location.")
 
         return all_tile_alignment
+
+    def apply_alignment(self, alignment: Alignment) -> None:
+        """Apply alignment to the slide.
+
+        Args:
+            alignment (slideflow.slide.Alignment): Alignment object.
+
+        """
+        self.alignment = alignment
+        self.origin = alignment.origin
+
+        if alignment.coord is not None:
+            self.coord = alignment.coord
+        else:
+            self._build_coord()
+            if self.qc_mask is not None:
+                self.apply_qc_mask()
+            if alignment.centroid is not None:
+                x_centroid, y_centroid = alignment.centroid
+                x_normal, y_normal = alignment.normal
+                for idx, (x, y, xi, yi) in enumerate(self.coord):
+                    self.coord[idx, 0] += int(np.round(z_on_plane(xi, yi, x_centroid, x_normal)))
+                    self.coord[idx, 1] += int(np.round(z_on_plane(xi, yi, y_centroid, y_normal)))
+
+    def load_alignment(self, path: str) -> None:
+        """Load alignment from a file.
+
+        Args:
+            path (str): Path to alignment file.
+
+        """
+        self.apply_alignment(Alignment.load(path))
 
     def apply_qc_mask(
         self,
