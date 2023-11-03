@@ -1358,9 +1358,9 @@ class _FeatureGenerator:
                 batch_img = batch_img.to(self.device)
                 if self.has_torch_gpu_normalizer():
                     batch_img = self.normalizer.preprocess(
-                        batch_img,
+                        batch_img.to(self.normalizer.device),
                         standardize=self.standardize
-                    )
+                    ).to(self.device)
                 return self.generator(batch_img)
         else:
             return self.generator(batch_img)

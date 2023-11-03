@@ -93,7 +93,8 @@ class TorchStainNormalizer(StainNormalizer):
     @device.setter
     def device(self, device: str) -> None:
         self._device = device
-
+        if hasattr(self.n, 'to'):
+            self.n.to(device)
 
     @property
     def vectorized(self) -> bool:  # type: ignore
@@ -297,7 +298,7 @@ class TorchStainNormalizer(StainNormalizer):
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
-        return self.n.transform(torch.from_numpy(image), augment=augment).numpy()
+        return self.n.transform(torch.from_numpy(image), augment=augment).cpu().numpy()
 
     def preprocess(
         self,

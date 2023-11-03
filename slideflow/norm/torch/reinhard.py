@@ -261,7 +261,7 @@ def fit(
 class ReinhardFastNormalizer:
 
     vectorized = True
-    preferred_device = 'gpu'
+    preferred_device = 'cuda'
     preset_tag = 'reinhard_fast'
 
     def __init__(self) -> None:
