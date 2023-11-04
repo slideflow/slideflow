@@ -1363,6 +1363,18 @@ class _FeatureGenerator:
                     ).to(self.device)
                 return self.generator(batch_img)
         else:
+            if self.has_torch_gpu_normalizer():
+                import torch
+                import tensorflow as tf
+                batch_img = batch_img.numpy()
+                batch_img = torch.from_numpy(batch_img)
+                batch_img = self.normalizer.transform(
+                    batch_img.to(self.normalizer.device)
+                )
+                batch_img = batch_img.cpu().numpy()
+                batch_img = tf.convert_to_tensor(batch_img)
+                if self.standardize:
+                    batch_img = tf.image.per_image_standardization(batch_img)
             return self.generator(batch_img)
 
     def _process_out(self, model_out, batch_slides, batch_loc):

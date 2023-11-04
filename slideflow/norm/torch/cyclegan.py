@@ -24,7 +24,8 @@ import functools
 import torchvision.transforms as transforms
 import slideflow as sf
 
-from typing import Union, Optional
+from torchvision.transforms.functional import center_crop
+from typing import Union, Optional, List
 from slideflow.io.torch import is_whc, as_cwh, as_whc
 from slideflow.model import torch_utils
 
@@ -399,6 +400,27 @@ class CycleGanStainTranslator:
         self.mt2he = self.mt2he.to(device)
         return self
 
+    def crop_to(self, img: torch.Tensor, shape: List[int]) -> None:
+        """Crop an image (or batch of images) to match the target shape."""
+        # Convert to CWH format.
+        convert_back_to_whc = is_whc(img)
+        img = as_cwh(img)
+
+        # Get width/height from the target shape.
+        target_shape = shape if len(shape) == 3 else shape[1:]  # Remove batch dim.
+        if target_shape[0] == 3:
+            target_shape = target_shape[1:]  # If CWH, remove C.
+        else:
+            target_shape = target_shape[:2]  # If WHC, remove C.
+
+        # Crop.
+        cropped = center_crop(img, target_shape)
+
+        # Convert back to WHC format, if needed.
+        if convert_back_to_whc:
+            return as_whc(cropped)
+        return cropped
+
     def he_to_he(self, img: Union[np.ndarray, torch.Tensor]):
         """
         Translates an image from HE to HE.
@@ -409,6 +431,8 @@ class CycleGanStainTranslator:
         with torch.no_grad():
             mt = self.he_to_mt(img, as_tensor=True)
             he = self.mt_to_he(mt, as_tensor=isinstance(img, torch.Tensor))
+            if he.shape != img.shape:
+                he = self.crop_to(he, img.shape)
 
         return he
 
