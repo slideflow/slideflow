@@ -361,28 +361,37 @@ class CycleGanStainTranslator:
         mt2he_weights: str,
         *,
         device = None,
-        stain_normalizer = None
     ) -> None:
+
+        # Declare types.
+        self.he2mt: CycleGAN
+        self.mt2he: CycleGAN
+        self.he2mt_weights: Optional[str] = None
+        self.mt2he_weights: Optional[str] = None
+
         self.device = device
-        self.he2mt = CycleGAN(device=device)
-        self.mt2he = CycleGAN(device=device)
-        self.he2mt.load_weights(he2mt_weights)
-        self.mt2he.load_weights(mt2he_weights)
+        self.build_networks()
+        self.load_weights(he2mt_weights, mt2he_weights)
         self.normalize = transforms.Compose([
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
-        self.stain_normalizer: Optional[sf.norm.StainNormalizer] = None
-        self.set_stain_normalizer(stain_normalizer)
         self.to_tensor = transforms.ToTensor()
 
-    def set_stain_normalizer(self, normalizer):
-        if isinstance(normalizer, str):
-            normalizer = sf.norm.autoselect(
-                normalizer,
-                backend='torch',
-                device=self.device
-            )
-        self.stain_normalizer = normalizer
+    def _assert_loaded(self) -> None:
+        if self.he2mt_weights is None or self.mt2he_weights is None:
+            raise RuntimeError('Weights not loaded.')
+
+    def build_networks(self) -> None:
+        self.he2mt = CycleGAN(device=self.device)
+        self.mt2he = CycleGAN(device=self.device)
+
+    def load_weights(self, he2mt_weights: str, mt2he_weights: str) -> None:
+        self.he2mt_weights = he2mt_weights
+        self.mt2he_weights = mt2he_weights
+        if he2mt_weights:
+            self.he2mt.load_weights(he2mt_weights)
+        if mt2he_weights:
+            self.mt2he.load_weights(mt2he_weights)
 
     def to(self, device):
         self.device = device
@@ -415,6 +424,7 @@ class CycleGanStainTranslator:
         :param as_tensor: if True, returns a tensor instead of a numpy array.
         :return: translated image, in RGB format.
         """
+        self._assert_loaded()
         if isinstance(img, np.ndarray):
             img = self.to_tensor(img)
         whc = is_whc(img)
@@ -440,6 +450,7 @@ class CycleGanStainTranslator:
         :param as_tensor: if True, returns a tensor instead of a numpy array.
         :return: translated image, in RGB format.
         """
+        self._assert_loaded()
         if isinstance(img, np.ndarray):
             img = self.to_tensor(img)
         whc = is_whc(img)
@@ -461,24 +472,34 @@ class CycleGanNormalizer(CycleGanStainTranslator):
     preferred_device = 'cuda'
     preset_tag = 'cyclegan'
 
-    def __init__(self, he2mt_weights: str, mt2he_weights: str) -> None:
+    def __init__(self) -> None:
         """CycleGAN-based stain normalizer"""
-        super().__init__(
-            he2mt_weights,
-            mt2he_weights,
-        )
+        super().__init__(None, None)
+
+    def _assert_loaded(self) -> None:
+        if self.he2mt_weights is None or self.mt2he_weights is None:
+            raise RuntimeError(
+                'CycleGAN normalizer weights have not been loaded. '
+                'Load weights by setting the normalizer fit parameters '
+                '(he2mt_weights, mt2he_weights) to the path of the '
+                '*.pth weights files.'
+            )
 
     def fit(self, *args, **kwargs):
-        pass
+        self.set_fit(*args, **kwargs)
 
     def fit_preset(self, preset: Optional[str] = None):
         pass
 
     def get_fit(self) -> None:
-        return {}
+        return {
+            'he2mt_weights': self.he2mt_weights,
+            'mt2he_weights': self.mt2he_weights,
+        }
 
-    def set_fit(self) -> None:
-        pass
+    def set_fit(self, he2mt_weights: str, mt2he_weights: str) -> None:
+        """Set the normalizer fit to the given values."""
+        self.load_weights(he2mt_weights, mt2he_weights)
 
     def transform(self, img: torch.Tensor, augment: bool = False) -> torch.Tensor:
         """Normalize a WxHxC H&E image (uint8)."""
@@ -493,6 +514,17 @@ class CycleGanReinhardNormalizer(CycleGanNormalizer):
 
     preset_tag = 'cyclegan_reinhard'
 
-    def __init__(self, h2m_weights: str, m2h_weights: str) -> None:
-        super().__init__(h2m_weights, m2h_weights)
-        self.set_stain_normalizer('reinhard_mask')
+    def __init__(self) -> None:
+        super().__init__()
+        self.reinhard = sf.norm.autoselect(
+            'reinhard_mask',
+            backend='torch',
+            device=self.device
+        )
+
+    def transform(self, img: torch.Tensor, augment: bool = False) -> torch.Tensor:
+        """Normalize a WxHxC H&E image (uint8)."""
+        img = self.reinhard.transform(img, augment=augment)
+        img = super().transform(img, augment=augment)
+        img = self.reinhard.transform(img, augment=augment)
+        return img

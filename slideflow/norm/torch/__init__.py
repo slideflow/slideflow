@@ -9,7 +9,7 @@ from rich.progress import Progress
 from slideflow.dataset import Dataset
 from slideflow.io.torch import cwh_to_whc, whc_to_cwh, is_cwh
 from slideflow.norm import StainNormalizer
-from slideflow.norm.torch import reinhard, macenko
+from slideflow.norm.torch import reinhard, macenko, cyclegan
 from slideflow.util import detuple, log, cleanup_progress
 from slideflow import errors
 
@@ -22,7 +22,9 @@ class TorchStainNormalizer(StainNormalizer):
         'reinhard_mask': reinhard.ReinhardMaskNormalizer,
         'reinhard_fast_mask': reinhard.ReinhardFastMaskNormalizer,
         'macenko': macenko.MacenkoNormalizer,
-        'macenko_fast': macenko.MacenkoFastNormalizer
+        'macenko_fast': macenko.MacenkoFastNormalizer,
+        'cyclegan': cyclegan.CycleGanNormalizer,
+        'cyclegan_reinhard': cyclegan.CycleGanReinhardNormalizer,
     }
 
     def __init__(
