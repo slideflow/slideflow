@@ -10,13 +10,7 @@ try:
     import tensorflow as tf
     if version.parse(tf.__version__) < version.parse("2.0"):
         raise ImportError
-
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        try:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        except RuntimeError:
-            pass
+    sf.util.allow_gpu_memory_growth()
 
     from slideflow.model.tensorflow import ModelParams as TFModelParams
     from slideflow.model.tensorflow import Features as TFFeatures

@@ -358,6 +358,14 @@ def md5(path: str) -> str:
             chunk = f.read(4096)
     return m.hexdigest()
 
+def allow_gpu_memory_growth() -> None:
+    import tensorflow as tf
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        try:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError:
+            pass
 
 def model_backend(model):
     if sf.util.torch_available and 'torch' in sys.modules:

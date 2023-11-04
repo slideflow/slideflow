@@ -37,12 +37,7 @@ else:
     logging.getLogger('tensorflow').setLevel(logging.ERROR)
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-for gpu in gpus:
-    try:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    except RuntimeError:
-        pass
+sf.util.allow_gpu_memory_growth()
 
 if TYPE_CHECKING:
     import pandas as pd

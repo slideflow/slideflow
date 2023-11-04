@@ -1,4 +1,6 @@
+import slideflow as sf
 import tensorflow as tf
+sf.util.allow_gpu_memory_growth()
 
 from typing import Optional
 from slideflow import simclr
