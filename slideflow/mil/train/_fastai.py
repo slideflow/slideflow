@@ -236,7 +236,7 @@ def _build_fastai_learner(
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=1,
-        drop_last=False,
+        drop_last=True,
         device=device,
         **dl_kwargs
     )
@@ -342,7 +342,7 @@ def _build_multimodal_learner(
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=1,
-        drop_last=False,
+        drop_last=True,
         device=device,
         **dl_kwargs
     )
