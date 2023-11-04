@@ -1441,7 +1441,7 @@ class _FeatureGenerator:
         # If so, we will handle normalization and standardization
         # in the feature generation loop.
         if self.has_torch_gpu_normalizer():
-            log.info("Using GPU for stain normalization")
+            log.debug("Using GPU for stain normalization")
             dts_kw['standardize'] = False
         else:
             # Otherwise, let the dataset handle normalization/standardization.
@@ -1466,7 +1466,7 @@ class _FeatureGenerator:
             self.uq = hp.uq
             self.normalizer = hp.get_normalizer()
             if self.normalizer:
-                log.info(f'Using realtime {self.normalizer.method} normalization')
+                log.debug(f'Using realtime {self.normalizer.method} normalization')
                 if 'norm_fit' in model_config:
                     self.normalizer.set_fit(**model_config['norm_fit'])
         else:
