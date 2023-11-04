@@ -380,6 +380,11 @@ def detuple(arg1: Any, args: tuple) -> Any:
     else:
         return arg1
 
+def _as_list(arg1: Any) -> List[Any]:
+    if isinstance(arg1, np.ndarray):
+        return arg1.tolist()
+    else:
+        return arg1
 
 def batch(iterable: List, n: int = 1) -> Iterable:
     """Separates an interable into batches of maximum size `n`."""

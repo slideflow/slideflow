@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from rich.progress import Progress
 from slideflow import errors
 from slideflow.dataset import Dataset
-from slideflow.util import detuple, log, cleanup_progress
+from slideflow.util import detuple, log, cleanup_progress, _as_list
 from slideflow.norm import (augment, macenko, reinhard, vahadane)
 
 if TYPE_CHECKING:
@@ -270,7 +270,7 @@ class StainNormalizer:
         """
         _fit = self.n.get_fit()
         if as_list:
-            return {k: v.tolist() for k, v in _fit.items()}
+            return {k: _as_list(v) for k, v in _fit.items()}
         else:
             return _fit
 

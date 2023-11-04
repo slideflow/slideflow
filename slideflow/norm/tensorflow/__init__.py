@@ -6,7 +6,7 @@ from slideflow import errors
 from slideflow.dataset import Dataset
 from slideflow.norm import StainNormalizer
 from slideflow.norm.tensorflow import reinhard, macenko
-from slideflow.util import detuple, log, cleanup_progress
+from slideflow.util import detuple, log, cleanup_progress, _as_list
 from rich.progress import Progress
 
 import tensorflow as tf
@@ -106,7 +106,7 @@ class TensorflowStainNormalizer(StainNormalizer):
         """
         _fit = self.n.get_fit()
         if as_list:
-            return {k: v.tolist() for k, v in _fit.items()}
+            return {k: _as_list(v) for k, v in _fit.items()}
         else:
             return _fit
 
