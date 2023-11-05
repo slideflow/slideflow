@@ -475,6 +475,9 @@ class _VIPSReader:
     def mpp(self):
         return self.properties[OPS_MPP_X]
 
+    def has_mpp(self):
+        return OPS_MPP_X in self.properties and self.properties[OPS_MPP_X] is not None
+
     def _load_levels(self, vips_image: Optional["vips.Image"]):
         """Load downsample levels."""
 

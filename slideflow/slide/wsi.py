@@ -203,12 +203,18 @@ class WSI:
             )
 
         # Collect basic slide information
+        if not self.slide.has_mpp:
+            raise errors.SlideMissingMPPError(
+                f"Slide {self.path} missing MPP ({OPS_MPP_X})"
+            )
         try:
             self.mpp = float(self.slide.mpp)
         except Exception as e:
             raise errors.SlideMissingMPPError(
-                f"Slide [green]{self.name}[/] missing MPP ({OPS_MPP_X})"
+                f"Unable to parse MPP for slide {self.path} ({OPS_MPP_X}). "
+                f"Error raised: {e}"
             )
+
 
         # Configure downsample information
         self._configure_downsample(tile_um)

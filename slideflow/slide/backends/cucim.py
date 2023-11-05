@@ -247,6 +247,9 @@ class _cuCIMReader:
     def mpp(self):
         return self._mpp
 
+    def has_mpp(self):
+        return self._mpp is not None
+
     @property
     def metadata(self):
         return self.reader.metadata
