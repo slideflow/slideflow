@@ -975,7 +975,14 @@ class WSI:
         alignment_coords = np.zeros((self.coord.shape[0], 2))
         half_extract_px = int(np.round(self.full_extract_px/2))
         idx_to_remove = []
-        for tile_alignment, c in tqdm(pool.imap_unordered(partial(calc_alignment, us=self, them=slide, n=normalizer), enumerate(self.coord)), desc="Aligning tiles...", total=len(self.coord)):
+        for tile_alignment, c in tqdm(pool.imap_unordered(
+                                        partial(calc_alignment,
+                                                us=self,
+                                                them=slide,
+                                                n=normalizer),
+                                        enumerate(self.coord)),
+                                      desc="Aligning tiles...",
+                                      total=len(self.coord)):
             idx, (x, y, xi, yi) = c
             if tile_alignment == 'error':
                 msg = "Tile alignment failed at x={}, y={} (grid {}, {})".format(
@@ -1011,6 +1018,7 @@ class WSI:
         pool.close()
 
         coord_mask = np.any(self.get_masked_coord().mask, 1)
+        coord_mask[np.array(idx_to_remove).astype(int)] = True
         mask = np.repeat(coord_mask[:, None], 2, axis=1)
         all_alignment_coords = np.ma.masked_array(alignment_coords, mask=mask)  # type: ignore
         coord_raw = self.slide.coord_to_raw(
