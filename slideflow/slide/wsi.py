@@ -990,11 +990,13 @@ class WSI:
                 )
                 if allow_errors:
                     log.debug(msg)
-                    continue
+                    tile_alignment = None
                 else:
                     raise errors.AlignmentError(msg)
             if tile_alignment is None and mask_on_fail and align_by == 'tile':
                 self.grid[xi, yi] = False
+                idx_to_remove += [idx]
+            elif tile_alignment is None:
                 idx_to_remove += [idx]
             if tile_alignment is not None:
                 pixel_ratio = (self.full_extract_px / self.tile_px)
@@ -1025,8 +1027,10 @@ class WSI:
             self.coord[~coord_mask][:, 0] + half_extract_px,
             self.coord[~coord_mask][:, 1] + half_extract_px
         )
+        log.debug("Removing {} indices with failed alignment. Max coord size: {}".format(len(idx_to_remove), len(self.coord)))
 
         if align_by == 'fit':
+            log.debug("Fitting to {} coordinates.".format((~coord_mask).sum()))
             x_adjustment_coordinates = np.column_stack((
                 coord_raw[0],
                 coord_raw[1],
@@ -1064,7 +1068,14 @@ class WSI:
                 diff = np.max(diff, axis=-1)
                 threshold = np.percentile(diff[~diff.mask].data, 90)
                 all_alignment_coords.mask[diff > threshold] = True
+                coord_mask[diff > threshold] = True
                 fit_alignment.mask = all_alignment_coords.mask
+                log.debug("Re-fitting to {} coordinates, ignoring outliers.".format((~coord_mask).sum()))
+
+                coord_raw = self.slide.coord_to_raw(
+                    self.coord[~coord_mask][:, 0] + half_extract_px,
+                    self.coord[~coord_mask][:, 1] + half_extract_px
+                )
 
                 # Recalculate fit without outliers
                 log.debug('Recalculating fit without outliers')
@@ -1108,7 +1119,7 @@ class WSI:
             self.coord[idx, 1] = y - half_extract_px
 
         # Delete tiles that failed to align.
-        if idx_to_remove:
+        if idx_to_remove and align_by == 'tile':
             log.warning("Removing {} tiles that failed to align.".format(len(idx_to_remove)))
             self.coord = np.delete(self.coord, idx_to_remove, axis=0)
 
