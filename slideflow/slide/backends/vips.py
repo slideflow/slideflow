@@ -851,8 +851,12 @@ class _SingleLevelVIPSReader(_VIPSReader):
         cache_kw = None,
         ignore_missing_mpp: bool = True,
         pad_missing: bool = True,
-        loaded_image: Optional["vips.Image"] = None
+        loaded_image: Optional["vips.Image"] = None,
+        use_bounds: bool = False,           # Not used for JPEG images.
+        transforms: Optional[Any] = None,   # Not used for JPEG images.
     ) -> None:
+        self.bounds = None
+        self.transforms = transforms
         self.path = path
         self.pad_missing = pad_missing
         if loaded_image is None:
