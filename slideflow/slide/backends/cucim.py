@@ -306,6 +306,12 @@ class _cuCIMReader:
             return 0
         return max_level
 
+    def coord_to_raw(self, x, y):
+        return x, y
+
+    def raw_to_coord(self, x, y):
+        return x, y
+
     def read_level(self, level: int, to_numpy: bool = False):
         """Read a pyramid level."""
         image = self.reader.read_region(level=level)

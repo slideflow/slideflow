@@ -409,8 +409,8 @@ class WSI:
         # For any indexes in y_range or x_range corresponding to a negative value,
         # set the corresponding index in self.grid to False.
         # This may occur after slide alignment.
-        self.grid[np.argwhere(y_range < 0), :] = False
-        self.grid[:, np.argwhere(x_range < 0)] = False
+        self.grid[np.argwhere(x_range < 0), :] = False
+        self.grid[:, np.argwhere(y_range < 0)] = False
 
         # ROI filtering
         roi_by_center = (self.roi_filter_method == 'center')
@@ -679,6 +679,8 @@ class WSI:
                 mask = np.logical_or(mask, _next_m)
             return mask
 
+    # --- Alignment --------------------------------------------------------
+
     def align_to(
         self,
         slide: "WSI",
@@ -895,7 +897,7 @@ class WSI:
 
         # Apply alignment.
         self.origin = alignment
-        self.alignment = Alignment.from_translation(alignment)
+        self.alignment = Alignment.from_translation(self.slide.coord_to_raw(*alignment))
         log.info("Slide aligned with MSE {:.2f}. Origin set to {}".format(
                 mse, self.origin
         ))
@@ -914,7 +916,7 @@ class WSI:
         *,
         allow_errors: bool = True,
         mask_on_fail: bool = True,
-        align_by: str = 'tile',
+        align_by: str = 'fit',
         ignore_outliers = True,
         **kwargs
     ) -> np.ndarray:
@@ -970,7 +972,8 @@ class WSI:
         ctx = mp.get_context('spawn') if sf.slide_backend() == 'libvips' else mp.get_context('fork')
         pool = ctx.Pool(sf.util.num_cpu())
 
-        alignment_grid = np.zeros((self.grid.shape[0], self.grid.shape[1], 2))
+        alignment_coords = np.zeros((self.coord.shape[0], 2))
+        half_extract_px = int(np.round(self.full_extract_px/2))
         idx_to_remove = []
         for tile_alignment, c in tqdm(pool.imap_unordered(partial(calc_alignment, us=self, them=slide, n=normalizer), enumerate(self.coord)), desc="Aligning tiles...", total=len(self.coord)):
             idx, (x, y, xi, yi) = c
@@ -983,78 +986,118 @@ class WSI:
                     continue
                 else:
                     raise errors.AlignmentError(msg)
-            if tile_alignment is None and mask_on_fail:
+            if tile_alignment is None and mask_on_fail and align_by == 'tile':
                 self.grid[xi, yi] = False
                 idx_to_remove += [idx]
             if tile_alignment is not None:
                 pixel_ratio = (self.full_extract_px / self.tile_px)
                 x_adjust = int(np.round(tile_alignment[0] * pixel_ratio))
                 y_adjust = int(np.round(tile_alignment[1] * pixel_ratio))
-                alignment_grid[xi, yi] = np.array([x_adjust, y_adjust])
+                x_base, y_base = self.slide.coord_to_raw(
+                    x + half_extract_px,
+                    y + half_extract_px
+                )
+                x_base_adjusted, y_base_adjusted = self.slide.coord_to_raw(
+                    x + half_extract_px + x_adjust,
+                    y + half_extract_px + y_adjust
+                )
+                x_base_adjustment = x_base_adjusted - x_base
+                y_base_adjustment = y_base_adjusted - y_base
+                alignment_coords[idx] = np.array([x_base_adjustment, y_base_adjustment])
                 log.debug("Tile alignment complete at x={}, y={} (grid {}, {}): adjust by {}, {}".format(
                     x, y, xi, yi, x_adjust, y_adjust
                 ))
 
-                if align_by == 'tile':
-                    self.coord[idx, 0] += x_adjust
-                    self.coord[idx, 1] += y_adjust
-
         pool.close()
 
-        all_tile_alignment = np.ma.masked_array(alignment_grid, mask=~np.repeat(self.grid[:, :, None], 2, axis=2))  # type: ignore
+        coord_mask = np.any(self.get_masked_coord().mask, 1)
+        mask = np.repeat(coord_mask[:, None], 2, axis=1)
+        all_alignment_coords = np.ma.masked_array(alignment_coords, mask=mask)  # type: ignore
+        coord_raw = self.slide.coord_to_raw(
+            self.coord[~coord_mask][:, 0] + half_extract_px,
+            self.coord[~coord_mask][:, 1] + half_extract_px
+        )
 
         if align_by == 'fit':
+            x_adjustment_coordinates = np.column_stack((
+                coord_raw[0],
+                coord_raw[1],
+                all_alignment_coords[~coord_mask][:, 0],
+            ))
+            y_adjustment_coordinates = np.column_stack((
+                coord_raw[0],
+                coord_raw[1],
+                all_alignment_coords[~coord_mask][:, 1],
+            ))
 
-            x_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 0])
-            y_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 1])
+            def build_aligned_coords(x_centroid, x_normal, y_centroid, y_normal):
+                coord_on_plane = np.zeros((len(self.coord), 2), dtype=int)
+                coord_on_plane = np.ma.masked_array(coord_on_plane, mask=mask)
+                for idx, (x, y, xi, yi) in enumerate(self.coord):
+                    # Convert coordinates to raw base layer coordinates
+                    bx, by = self.slide.coord_to_raw(
+                        x + half_extract_px,
+                        y + half_extract_px
+                    )
+                    # Align to raw base layer coordinates
+                    coord_on_plane[idx] = (
+                        int(np.round(z_on_plane(bx, by, x_centroid, x_normal))),
+                        int(np.round(z_on_plane(bx, by, y_centroid, y_normal)))
+                    )
+                return coord_on_plane
 
             x_centroid, x_normal = best_fit_plane(x_adjustment_coordinates)
             y_centroid, y_normal = best_fit_plane(y_adjustment_coordinates)
-
-            fit_alignment = all_tile_alignment.copy()
-            for x in range(all_tile_alignment.shape[0]):
-                for y in range(all_tile_alignment.shape[1]):
-                    fit_alignment[x, y] = (
-                        int(np.round(z_on_plane(x, y, x_centroid, x_normal))),
-                        int(np.round(z_on_plane(x, y, y_centroid, y_normal)))
-                    )
+            fit_alignment = build_aligned_coords(x_centroid, x_normal, y_centroid, y_normal)
 
             if ignore_outliers:
                 # Calculate outlier threshold (90th percentile)
-                diff = np.abs(all_tile_alignment - fit_alignment)
+                diff = np.abs(all_alignment_coords - fit_alignment)
                 diff = np.max(diff, axis=-1)
                 threshold = np.percentile(diff[~diff.mask].data, 90)
-                all_tile_alignment.mask[diff > threshold] = True
-                fit_alignment.mask = all_tile_alignment.mask
+                all_alignment_coords.mask[diff > threshold] = True
+                fit_alignment.mask = all_alignment_coords.mask
 
                 # Recalculate fit without outliers
                 log.debug('Recalculating fit without outliers')
-                x_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 0])
-                y_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 1])
+                x_adjustment_coordinates = np.column_stack((
+                    coord_raw[0],
+                    coord_raw[1],
+                    all_alignment_coords[~coord_mask][:, 0],
+                ))
+                y_adjustment_coordinates = np.column_stack((
+                    coord_raw[0],
+                    coord_raw[1],
+                    all_alignment_coords[~coord_mask][:, 1],
+                ))
 
                 x_centroid, x_normal = best_fit_plane(x_adjustment_coordinates)
                 y_centroid, y_normal = best_fit_plane(y_adjustment_coordinates)
 
-                for x in range(all_tile_alignment.shape[0]):
-                    for y in range(all_tile_alignment.shape[1]):
-                        all_tile_alignment[x, y] = (
-                            int(np.round(z_on_plane(x, y, x_centroid, x_normal))),
-                            int(np.round(z_on_plane(x, y, y_centroid, y_normal)))
-                        )
-
-                self.alignment = Alignment.from_fit(
-                    self.origin,
-                    (x_centroid, y_centroid),
-                    (x_normal, y_normal)
-                )
+                all_alignment_coords = build_aligned_coords(x_centroid, x_normal, y_centroid, y_normal)
             else:
-                all_tile_alignment = fit_alignment
+                all_alignment_coords = fit_alignment
+
+            self.alignment = Alignment.from_fit(
+                self.slide.coord_to_raw(*self.origin),
+                (x_centroid, y_centroid),
+                (x_normal, y_normal)
+            )
 
         for idx, (x, y, xi, yi) in enumerate(self.coord):
-            if np.ma.is_masked(all_tile_alignment[xi, yi][0]):
+            if np.ma.is_masked(all_alignment_coords[idx][0]):
                 continue
-            self.coord[idx, 0] += all_tile_alignment[xi, yi][0]
-            self.coord[idx, 1] += all_tile_alignment[xi, yi][1]
+
+            bx, by = self.slide.coord_to_raw(
+                x + half_extract_px,
+                y + half_extract_px
+            )
+            x, y = self.slide.raw_to_coord(
+                bx + all_alignment_coords[idx][0],
+                by + all_alignment_coords[idx][1]
+            )
+            self.coord[idx, 0] = x - half_extract_px
+            self.coord[idx, 1] = y - half_extract_px
 
         # Delete tiles that failed to align.
         if idx_to_remove:
@@ -1062,11 +1105,14 @@ class WSI:
             self.coord = np.delete(self.coord, idx_to_remove, axis=0)
 
         if align_by != 'fit':
-            self.alignment = Alignment.from_coord(self.origin, self.coord)
+            self.alignment = Alignment.from_coord(
+                self.slide.coord_to_raw(*self.origin),
+                self.coord
+            )
 
         log.info("Slide alignment complete and finetuned at each unmasked tile location.")
 
-        return all_tile_alignment
+        return all_alignment_coords
 
     def apply_alignment(self, alignment: Alignment) -> None:
         """Apply alignment to the slide.
@@ -1076,7 +1122,7 @@ class WSI:
 
         """
         self.alignment = alignment
-        self.origin = alignment.origin
+        self.origin = self.slide.raw_to_coord(*alignment.origin)
 
         if alignment.coord is not None:
             self.coord = alignment.coord
@@ -1087,9 +1133,17 @@ class WSI:
             if alignment.centroid is not None:
                 x_centroid, y_centroid = alignment.centroid
                 x_normal, y_normal = alignment.normal
+                half_extract_px = int(np.round(self.full_extract_px/2))
                 for idx, (x, y, xi, yi) in enumerate(self.coord):
-                    self.coord[idx, 0] += int(np.round(z_on_plane(xi, yi, x_centroid, x_normal)))
-                    self.coord[idx, 1] += int(np.round(z_on_plane(xi, yi, y_centroid, y_normal)))
+                    bx, by = self.slide.coord_to_raw(
+                        x + half_extract_px,
+                        y + half_extract_px
+                    )
+                    adjust_x = int(np.round(z_on_plane(bx, by, x_centroid, x_normal)))
+                    adjust_y = int(np.round(z_on_plane(bx, by, y_centroid, y_normal)))
+                    x, y = self.slide.raw_to_coord(bx + adjust_x, by + adjust_y)
+                    self.coord[idx, 0] = x - half_extract_px
+                    self.coord[idx, 1] = y - half_extract_px
 
     def load_alignment(self, path: str) -> None:
         """Load alignment from a file.
@@ -1099,6 +1153,8 @@ class WSI:
 
         """
         self.apply_alignment(Alignment.load(path))
+
+    # --- All other functions -----------------------------------------------
 
     def apply_qc_mask(
         self,
@@ -1611,6 +1667,22 @@ class WSI:
         df.to_csv(dest, index=False)
         log.info(f"{len(self.rois)} ROIs exported to {abspath(dest)}")
         return abspath(dest)
+
+    def get_masked_coord(self) -> np.ma.core.MaskedArray:
+        """Get a masked array of the coordinate grid, masked by QC."""
+        true_grid_indices = np.flatnonzero(self.grid)
+        linear_indices_of_coord = np.ravel_multi_index(
+            self.coord[:, 2:4].T,
+            dims=self.grid.shape
+        )
+        unmasked_coord_indices = np.in1d(
+            linear_indices_of_coord,
+            true_grid_indices
+        )
+        return np.ma.masked_array(
+            self.coord,
+            mask=~np.repeat(unmasked_coord_indices[:, None], 4, axis=1)
+        )
 
     def get_tile_dataframe(self) -> pd.DataFrame:
         """Build a dataframe of tiles and associated ROI labels.

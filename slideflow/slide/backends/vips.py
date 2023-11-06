@@ -597,6 +597,65 @@ class _VIPSReader:
         else:
             return False
 
+    def coord_to_raw(self, x, y):
+        """Convert coordinates from base layer to untransformed base layer.
+
+        Convert base layer coordinates (after bounding box crop (``self.bounds``)
+        and rotation/transforms (self.``transforms``)) to coordinates in the
+        raw, untransformed base layer.
+
+        """
+        # Since bounds are applied before transforms, the first step
+        # is to reverse the transforms to get the raw coordinates.
+        if self.transforms is not None:
+            for transform in self.transforms[::-1]:
+                if transform == ROTATE_90_CLOCKWISE:
+                    x, y = y, self.dimensions[0] - x
+                if transform == ROTATE_180_CLOCKWISE:
+                    x, y = self.dimensions[0] - x, self.dimensions[1] - y
+                if transform == ROTATE_270_CLOCKWISE:
+                    x, y = self.dimensions[1] - y, x
+                if transform == FLIP_HORIZONTAL:
+                    x = self.dimensions[0] - x
+                if transform == FLIP_VERTICAL:
+                    y = self.dimensions[1] - y
+
+        # Then, apply the bounds
+        if self.bounds is not None:
+            x += self.bounds[0]
+            y += self.bounds[1]
+
+        return x, y
+
+    def raw_to_coord(self, x, y):
+        """Convert coordinates from untransformed base layer to base layer.
+
+        Convert coordinates in the raw, untransformed base layer to
+        base layer coordinates (after bounding box crop (``self.bounds``)
+        and rotation/transforms (self.``transforms``)).
+
+        """
+        # First, apply the bounds
+        if self.bounds is not None:
+            x -= self.bounds[0]
+            y -= self.bounds[1]
+
+        # Then, apply the transforms
+        if self.transforms is not None:
+            for transform in self.transforms:
+                if transform == ROTATE_90_CLOCKWISE:
+                    x, y = self.dimensions[0] - y, x
+                if transform == ROTATE_180_CLOCKWISE:
+                    x, y = self.dimensions[0] - x, self.dimensions[1] - y
+                if transform == ROTATE_270_CLOCKWISE:
+                    x, y = y, self.dimensions[1] - x
+                if transform == FLIP_HORIZONTAL:
+                    x = self.dimensions[0] - x
+                if transform == FLIP_VERTICAL:
+                    y = self.dimensions[1] - y
+
+        return x, y
+
     def read_level(
         self,
         fail: bool = True,

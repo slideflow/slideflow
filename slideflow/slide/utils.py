@@ -570,22 +570,6 @@ def compute_alignment_mse(
     return err
 
 
-def alignment_to_list(grid):
-    if not isinstance(grid, np.ma.MaskedArray):
-        raise ValueError("Input should be a numpy masked array.")
-
-    # Extract valid (unmasked) indices
-    valid_indices = np.ma.where(~grid.mask)
-
-    # Get the values from these indices
-    valid_values = grid[valid_indices]
-
-    # Stack the indices and values
-    result = np.column_stack(valid_indices + (valid_values,))
-
-    return result
-
-
 def best_fit_plane(points):
     # Ensure the input is a numpy array
     points = np.array(points)
