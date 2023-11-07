@@ -1002,9 +1002,10 @@ class WSI:
         pool.close()
 
         all_tile_alignment = np.ma.masked_array(alignment_grid, mask=~np.repeat(self.grid[:, :, None], 2, axis=2))  # type: ignore
+        log.info("Removing {} indices with failed alignment. Max coord size: {}".format(len(idx_to_remove), self.grid.shape[0] * self.grid.shape[1]))
 
         if align_by == 'fit':
-
+            log.debug("Fitting to {} coordinates, ignoring outliers.".format((~np.any(all_tile_alignment.mask, -1)).sum()))
             x_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 0])
             y_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 1])
 
@@ -1028,7 +1029,7 @@ class WSI:
                 fit_alignment.mask = all_tile_alignment.mask
 
                 # Recalculate fit without outliers
-                log.debug('Recalculating fit without outliers')
+                log.debug("Re-fitting to {} coordinates, ignoring outliers.".format((~np.any(all_tile_alignment.mask, -1)).sum()))
                 x_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 0])
                 y_adjustment_coordinates = alignment_to_list(all_tile_alignment[:, :, 1])
 
