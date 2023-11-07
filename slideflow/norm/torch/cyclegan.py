@@ -430,9 +430,11 @@ class CycleGanStainTranslator:
         """
         with torch.no_grad():
             mt = self.he_to_mt(img, as_tensor=True)
-            he = self.mt_to_he(mt, as_tensor=isinstance(img, torch.Tensor))
+            he = self.mt_to_he(mt, as_tensor=True)
             if he.shape != img.shape:
                 he = self.crop_to(he, img.shape)
+            if not isinstance(img, torch.Tensor):
+                he = as_whc(he).cpu().numpy()
 
         return he
 
