@@ -251,7 +251,7 @@ class DatasetFeatures:
         for slide in self.slides:
             if slide not in self.activations:
                 missing += [slide]
-            elif self.activations[slide] == []:
+            elif len(self.activations[slide]) == 0:
                 missing += [slide]
         num_loaded = len(self.slides)-len(missing)
         log.debug(
