@@ -135,7 +135,8 @@ setuptools.setup(
         'pyperclip',
         'requests',
         'parameterized',
-        'zarr'
+        'zarr',
+        'gdown',
     ],
     extras_require={
         'tf': [
