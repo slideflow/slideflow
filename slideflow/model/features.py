@@ -1493,10 +1493,11 @@ class _FeatureGenerator:
                 normalizer = norm
             log.debug(f"Normalizing with {normalizer.method}")
             return normalizer, kwargs
-        else:
-            if 'normalizer_source' in kwargs:
-                del kwargs['normalizer_source']
-            return None, kwargs
+        if 'normalizer' in kwargs:
+            del kwargs['normalizer']
+        if 'normalizer_source' in kwargs:
+            del kwargs['normalizer_source']
+        return None, kwargs
 
     def _prepare_generator(self, **kwargs) -> Callable:
         """Prepare the feature generator."""
