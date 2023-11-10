@@ -139,9 +139,9 @@ def _load_bag(bag: Union[str, np.ndarray, "torch.Tensor"]) -> "torch.Tensor":
     import torch
 
     if isinstance(bag, str):
-        return torch.load(bag)
+        return torch.load(bag).to(torch.float32)
     elif isinstance(bag, np.ndarray):
-        return torch.from_numpy(bag)
+        return torch.from_numpy(bag).to(torch.float32)
     elif isinstance(bag, torch.Tensor):
         return bag
     else:

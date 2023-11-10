@@ -122,13 +122,16 @@ class BagDataset(Dataset):
 
     def _load(self, index: int):
         if isinstance(self.bags[index], str):
-            feats = torch.load(self.bags[index])
+            feats = torch.load(self.bags[index]).to(torch.float32)
         elif isinstance(self.bags[index], np.ndarray):
-            feats = torch.from_numpy(self.bags[index])
+            feats = torch.from_numpy(self.bags[index]).to(torch.float32)
         elif isinstance(self.bags[index], torch.Tensor):
             feats = self.bags[index]
         else:
-            feats = torch.cat([torch.load(slide) for slide in self.bags[index]])
+            feats = torch.cat([
+                torch.load(slide).to(torch.float32)
+                for slide in self.bags[index]
+            ])
         return feats
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
@@ -184,7 +187,7 @@ class MultiBagDataset(Dataset):
         loaded_bags = []
         for bag in bags:
             if isinstance(bag, str):
-                loaded_bags.append(torch.load(bag))
+                loaded_bags.append(torch.load(bag).to(torch.float32))
             elif isinstance(self.bags[index], np.ndarray):
                 loaded_bags.append(torch.from_numpy(bag))
             elif isinstance(self.bags[index], torch.Tensor):
