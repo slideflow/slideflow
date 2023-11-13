@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from typing import Optional, Dict, Any, Tuple, List, TYPE_CHECKING
 from slideflow.util import log
 from skimage.transform import resize
-from skimage.util import img_as_float
+from skimage.util import img_as_float32
 from skimage.color import rgb2hsv
 from slideflow.slide.utils import *
 
@@ -34,7 +34,7 @@ def get_cucim_reader(path: str, *args, **kwargs):
 
 
 def cucim2numpy(img: "CuImage") -> np.ndarray:
-    return ((img_as_float(np.asarray(img))) * 255).astype(np.uint8)
+    return ((img_as_float32(np.asarray(img))) * 255).astype(np.uint8)
 
 
 def numpy2jpg(img: np.ndarray) -> str:
