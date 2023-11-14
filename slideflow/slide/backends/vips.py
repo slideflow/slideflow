@@ -61,7 +61,11 @@ def get_libvips_reader(path: str, *args, **kwargs):
     if path_to_ext(path).lower() in ('jpg', 'jpeg', 'png'):
         reader = _SingleLevelVIPSReader(path, *args, **kwargs)
 
-    # Read a slide image.
+    # Read an OME-TIFF image.
+    elif path.endswith('.ome.tif') or path.endswith('.ome.tiff'):
+        reader = _OmeTiffVIPSReader(path, *args, **kwargs)
+
+    # Read any other slide image.
     else:
         vips_image = vips.Image.new_from_file(path)
         if (vips_image.get('vips-loader') == 'tiffload'
@@ -200,6 +204,23 @@ def detect_mpp(
                 f"{loaded_image.get('resolution-unit')}"
             )
             return mpp_x
+
+    # Search for MPP within OME-TIFF format
+    if path.endswith('.ome.tif') or path.endswith('.ome.tiff'):
+        import xml.etree.ElementTree as ET
+        xml_str = loaded_image.get('image-description')
+        root = ET.fromstring(xml_str)
+        try:
+            assert root[3].attrib['Name'].endswith('x_01')
+            assert root[3][3].tag.endswith('Pixels')
+            mpp_x = float(root[3][3].attrib['PhysicalSizeX'])
+            log.debug(
+                f"Using MPP {mpp_x} per OME-TIFF PhysicalSizeX field"
+            )
+            return mpp_x
+        except Exception as e:
+            log.warning(f"Unable to read OME-TIFF PhysicalSizeX field. Error: {e}")
+            pass
 
     # --- Search EXIF & tags ------------------------------------------
     try:
@@ -428,10 +449,7 @@ class _VIPSReader:
         self.properties = {}
         for field in loaded_image.get_fields():
             self.properties.update({field: loaded_image.get(field)})
-        self.dimensions = (
-            int(self.properties[OPS_WIDTH]),
-            int(self.properties[OPS_HEIGHT])
-        )
+        self.dimensions = self._detect_dimensions()
         # If Openslide MPP is not available, try reading from metadata
         if mpp is not None:
             log.debug(f"Setting MPP to {mpp}")
@@ -477,6 +495,12 @@ class _VIPSReader:
 
     def has_mpp(self):
         return OPS_MPP_X in self.properties and self.properties[OPS_MPP_X] is not None
+
+    def _detect_dimensions(self) -> Tuple[int, int]:
+        return (
+            int(self.properties[OPS_WIDTH]),
+            int(self.properties[OPS_HEIGHT])
+        )
 
     def _load_levels(self, vips_image: Optional["vips.Image"]):
         """Load downsample levels."""
@@ -656,22 +680,8 @@ class _VIPSReader:
 
         return x, y
 
-    def read_level(
-        self,
-        fail: bool = True,
-        access=vips.enums.Access.RANDOM,
-        to_numpy: bool = False,
-        level: Optional[int] = None,
-        **kwargs
-    ) -> Union[vips.Image, np.ndarray]:
-        """Read a pyramid level."""
-
-        if self.properties['vips-loader'] == 'tiffload' and level is not None:
-            kwargs['page'] = self.levels[level]['level']
-        elif level is not None:
-            kwargs['level'] = level
-        image = vips.Image.new_from_file(self.path, fail=fail, access=access, **kwargs)
-
+    def bound_and_transform(self, image: vips.Image, level: int) -> vips.Image:
+        """Apply bounding box crop and transforms to a VIPS image."""
         if self.bounds is not None:
             ds = self.level_downsamples[level]
             crop_bounds = (
@@ -693,7 +703,24 @@ class _VIPSReader:
                     image = image.fliphor()
                 if transform == FLIP_VERTICAL:
                     image = image.flipver()
+        return image
 
+    def read_level(
+        self,
+        fail: bool = True,
+        access=vips.enums.Access.RANDOM,
+        to_numpy: bool = False,
+        level: Optional[int] = None,
+        **kwargs
+    ) -> Union[vips.Image, np.ndarray]:
+        """Read a pyramid level."""
+
+        if self.properties['vips-loader'] == 'tiffload' and level is not None:
+            kwargs['page'] = self.levels[level]['level']
+        elif level is not None:
+            kwargs['level'] = level
+        image = vips.Image.new_from_file(self.path, fail=fail, access=access, **kwargs)
+        image = self.bound_and_transform(image, level=level)
         if to_numpy:
             return vips2numpy(image)
         else:
@@ -858,6 +885,118 @@ class _MultiPageVIPSReader(_VIPSReader):
         log.debug(f"Read {self.level_count} levels.")
         self.level_downsamples = [lev['downsample'] for lev in self.levels]
         self.level_dimensions = [lev['dimensions'] for lev in self.levels]
+
+
+class _OmeTiffVIPSReader(_VIPSReader):
+
+    def __init__(self, *args, **kwargs):
+        self.page_labels = {
+            0: 'label',
+            1: 'overview',
+            2: 'main',
+            3: 'macro'
+        }
+        self.num_pyramid_levels = 5
+        super().__init__(*args, **kwargs)
+
+    def get_page_by_label(self, label: str) -> int:
+        """Return page number by label."""
+        for page, page_label in self.page_labels.items():
+            if page_label == label:
+                return page
+        raise ValueError(f"Unknown page label {label}")
+
+    def _load_levels(self, vips_image: Optional["vips.Image"]):
+        """Load downsample levels."""
+        log.debug("Attempting to read levels from OME-TIFF")
+
+        # This is a multipage tiff split into RGB channels.
+        # The first (3) page(s) are the slide label (RGB channels).
+        if not self.properties['n-pages'] % 3 == 0:
+            raise errors.SlideError(
+                "Unexpected number of pages in OME-TIFF. Expected a multiple "
+                f"of 3, but found {self.properties['n-pages']}."
+            )
+        #self.level_count = int(self.properties['n-pages'] / 3) - 1
+        self.level_count = self.num_pyramid_levels
+        main_page = self.get_page_by_label('main')
+        # Calculate level metadata
+        self.levels = []
+        for lev in range(self.level_count):
+            temp_img = vips.Image.new_from_file(self.path, page=main_page*3, subifd=lev-1)
+            width = int(temp_img.get('width'))
+            height = int(temp_img.get('height'))
+            downsample = float(int(self.properties[OPS_WIDTH]) / width)
+            self.levels += [{
+                'dimensions': (width, height),
+                'width': width,
+                'height': height,
+                'downsample': downsample,
+                'level': lev
+            }]
+        self.levels = sorted(self.levels, key=lambda x: x['width'], reverse=True)
+        log.debug(f"Read {self.level_count} levels.")
+        self.level_downsamples = [lev['downsample'] for lev in self.levels]
+        self.level_dimensions = [lev['dimensions'] for lev in self.levels]
+
+        # Update width and height
+        width, height = self.levels[0]['dimensions']
+        self.properties[OPS_WIDTH] = width
+        self.properties[OPS_HEIGHT] = height
+        self.dimensions = (width, height)
+
+        # Update downsamples
+        for lev in range(self.level_count):
+            self.levels[lev]['downsample'] = float(int(self.properties[OPS_WIDTH]) / self.levels[lev]['width'])
+            self.level_downsamples[lev] = self.levels[lev]['downsample']
+
+    def thumbnail(
+        self,
+        width: int = 512,
+        fail: bool = True,
+        access = vips.enums.Access.RANDOM,
+        level: Optional[int] = 2,
+        **kwargs
+    ) -> np.ndarray:
+        """Return thumbnail of slide as numpy array."""
+        print(f"Generating thumbnail of level={level}...")
+        thumbnail = self.read_level(fail=fail, access=access, level=level, **kwargs)
+        try:
+            thumb = vips2numpy(thumbnail)
+            print("...Done")
+            return thumb
+        except vips.error.Error as e:
+            raise sf.errors.SlideLoadError(f"Error loading slide thumbnail: {e}")
+
+    def read_level(
+        self,
+        fail: bool = True,
+        access=vips.enums.Access.RANDOM,
+        to_numpy: bool = False,
+        level: int = 0,
+        **kwargs
+    ) -> Union[vips.Image, np.ndarray]:
+        """Read a pyramid level
+
+        Stacks RGB pages in the OME-TIFF file format into a single image.
+        """
+        main_page = self.get_page_by_label('main')
+        r, g, b = [
+            vips.Image.new_from_file(
+                self.path,
+                fail=fail,
+                access=access,
+                page=(main_page * 3) + n,
+                subifd=level-1,
+                **kwargs)
+            for n in range(3)
+        ]
+        image = r.bandjoin([g, b])
+        image = self.bound_and_transform(image, level=level)
+        if to_numpy:
+            return vips2numpy(image)
+        else:
+            return image
 
 
 class _VersaVIPSReader(_VIPSReader):
