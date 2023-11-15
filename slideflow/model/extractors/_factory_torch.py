@@ -21,6 +21,12 @@ def build_torch_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_torch
+def vit(**kwargs):
+    from .vit import ViTFeatures
+    return ViTFeatures(**kwargs)
+
+
+@register_torch
 def histossl(tile_px, **kwargs):
     from .histossl import HistoSSLFeatures
     return HistoSSLFeatures(center_crop=(tile_px != 224), **kwargs)
