@@ -81,7 +81,7 @@ def _draw_tile_pred_result(
         y -= viz.spacing
         if uncertainty_range is None:
             if config is not None and 'thresholds' in config and 'tile_uq' in config['thresholds']:
-                uncertainty_range = (0, config['thresholds']['tile_uq'])
+                uncertainty_range = (0, config['thresholds']['tile_uq'] * 2)
             else:
                 uncertainty_range = (0, 0.033)
         width = scale_uncertainty_bar(uq_array, max_width=w, range=uncertainty_range)
