@@ -959,11 +959,9 @@ class _OmeTiffVIPSReader(_VIPSReader):
         **kwargs
     ) -> np.ndarray:
         """Return thumbnail of slide as numpy array."""
-        print(f"Generating thumbnail of level={level}...")
         thumbnail = self.read_level(fail=fail, access=access, level=level, **kwargs)
         try:
             thumb = vips2numpy(thumbnail)
-            print("...Done")
             return thumb
         except vips.error.Error as e:
             raise sf.errors.SlideLoadError(f"Error loading slide thumbnail: {e}")
