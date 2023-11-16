@@ -691,6 +691,11 @@ def interleave(
             )
             if normalizer.vectorized:
                 dataset = dataset.unbatch()
+        elif isinstance(augment, str) and 'n' in augment:
+            raise ValueError(
+                "Stain augmentation (n) requires a stain normalizer, which was not "
+                "provided. Augmentation string: {}".format(augment)
+            )
 
         # ------- Standardize and augment images ------------------------------
         dataset = dataset.map(
