@@ -63,7 +63,6 @@ Dataloaders created with ``.tensorflow()`` include several image preprocessing o
 - **resize_aa** (bool): Enable antialiasing if resizing. Defaults to ``True``.
 - **normalizer** (``StainNormalizer``): Perform stain normalization.
 - **augment** (str): Perform augmentations based on the provided string. Options include:
-    - ``'n'``: Perform :ref:`stain_augmentation` (done concurrently with stain normalization)
     - ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
     - ``'r'``: Random 90-degree rotation
     - ``'x'``: Random horizontal flip
@@ -121,7 +120,6 @@ Dataloaders created with ``.torch()`` include several image preprocessing option
 
 - **normalizer** (``StainNormalizer``): Perform stain normalization.
 - **augment** (str): Perform augmentations based on the provided string, in the order characters appear in the string. Options include:
-    - ``'n'``: Perform :ref:`stain_augmentation` (done concurrently with stain normalization)
     - ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
     - ``'r'``: Random 90-degree rotation
     - ``'x'``: Random horizontal flip
