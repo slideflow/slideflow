@@ -21,6 +21,12 @@ def build_torch_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_torch
+def vit(**kwargs):
+    from .vit import ViTFeatures
+    return ViTFeatures(**kwargs)
+
+
+@register_torch
 def histossl(tile_px, **kwargs):
     from .histossl import HistoSSLFeatures
     return HistoSSLFeatures(center_crop=(tile_px != 224), **kwargs)
@@ -134,15 +140,19 @@ def nasnet_large_imagenet(tile_px, **kwargs):
 class TorchFeatureExtractor(BaseFeatureExtractor):
     """Feature extractor for PyTorch models."""
 
-    def __init__(self):
+    def __init__(self, channels_last=False, mixed_precision=False):
         from .. import torch_utils
 
         super().__init__(backend='torch')
         self.device = torch_utils.get_device()
+        self.channels_last = channels_last
+        self.mixed_precision = mixed_precision
 
     def __call__(self, obj, **kwargs):
         """Generate features for a batch of images or a WSI."""
         import torch
+        from slideflow.model.torch import autocast
+
         if isinstance(obj, sf.WSI):
             grid = features_from_slide(self, obj, **kwargs)
             return np.ma.masked_where(grid == sf.heatmap.MASK, grid)
@@ -154,8 +164,11 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         assert obj.dtype == torch.uint8
         obj = obj.to(self.device)
         obj = self.transform(obj)
-        with torch.no_grad():
-            return self.model(obj)
+        with autocast(self.device.type, mixed_precision=self.mixed_precision):
+            with torch.no_grad():
+                if self.channels_last:
+                    obj = obj.to(memory_format=torch.channels_last)
+                return self.model(obj)
 
 
 class TorchImagenetLayerExtractor(BaseFeatureExtractor):

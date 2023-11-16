@@ -422,18 +422,21 @@ def as_list(arg1: Any) -> List[Any]:
 
 
 def isnumeric(val: Any) -> bool:
-    """Check if the given value is numeric.
+    """Check if the given value is numeric (numpy or python).
+
+    Tensors will return False.
 
     Specifically checks if the value is a python int or float,
     or if the value is a numpy array with a numeric dtype (int or float).
 
     """
+    float_np_types = (np.int32, np.int64, np.uint8, np.float16,
+                      np.float32, np.float64)
     if isinstance(val, (int, float)):
             return True
     if isinstance(val, np.ndarray):
-            return val.dtype in (np.int32, np.int64, np.uint8, np.float16,
-                                 np.float32, np.float64)
-    return False
+            return val.dtype in float_np_types
+    return type(val) in float_np_types
 
 
 def is_mag(arg1: str) -> bool:
