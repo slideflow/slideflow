@@ -251,7 +251,7 @@ class DatasetFeatures:
         for slide in self.slides:
             if slide not in self.activations:
                 missing += [slide]
-            elif self.activations[slide] == []:
+            elif not len(self.activations[slide]):
                 missing += [slide]
         num_loaded = len(self.slides)-len(missing)
         log.debug(
@@ -740,7 +740,7 @@ class DatasetFeatures:
             os.makedirs(outdir)
         slides = self.slides if not slides else slides
         for slide in (slides if not verbose else track(slides)):
-            if self.activations[slide] == []:
+            if not len(self.activations[slide]):
                 log.info(f'Skipping empty slide [green]{slide}')
                 continue
             slide_activations = torch.from_numpy(
