@@ -26,8 +26,8 @@ from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.torch_utils import autocast
-from slideflow.model.base import log_manifest, no_scope, BaseFeatureExtractor
-from slideflow.util import log, NormFit, ImgBatchSpeedColumn
+from slideflow.model.base import log_manifest, BaseFeatureExtractor
+from slideflow.util import log, NormFit, ImgBatchSpeedColumn, no_scope
 
 if TYPE_CHECKING:
     import pandas as pd

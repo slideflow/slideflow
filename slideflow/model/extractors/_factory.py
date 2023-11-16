@@ -3,7 +3,7 @@
 import importlib
 import slideflow as sf
 from os.path import join, exists
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, Dict, Any, TYPE_CHECKING
 from slideflow import errors
 from slideflow.model import BaseFeatureExtractor
 
@@ -276,3 +276,51 @@ def rebuild_extractor(
         normalizer = extractor.normalizer
 
     return extractor, normalizer
+
+# -----------------------------------------------------------------------------
+
+def extractor_to_config(extractor: BaseFeatureExtractor) -> Dict[str, Any]:
+    """Return a dictionary of configuration parameters for the extractor.
+
+    These configuration parameters can be used to reconstruct the
+    feature extractor, using ``build_extractor_from_cfg()``.
+
+    Args:
+        extractor (BaseFeatureExtractor): Feature extractor.
+
+    Returns:
+        Dict[str, Any]: Configuration dictionary.
+
+    """
+    cfg = extractor.dump_config()
+    if extractor.backend == 'torch':
+        cfg['mixed_precision'] = extractor.mixed_precision
+        cfg['channels_last'] = extractor.channels_last
+    return cfg
+
+
+def build_extractor_from_cfg(
+    cfg: Dict[str, Any],
+    **kwargs: Any
+) -> BaseFeatureExtractor:
+    """Rebuild an extractor from a configuration dictionary.
+
+    Args:
+        cfg (Dict[str, Any]): Configuration dictionary.
+        **kwargs (Any): All remaining keyword arguments are passed
+            to the feature extractor factory function, and may be different
+            for each extractor.
+
+    Returns:
+        BaseFeatureExtractor: The rebuilt feature extractor.
+
+    """
+    extractor_name = cfg['class'].split('.')
+    extractor_class = extractor_name[-1]
+    extractor_kwargs = cfg['kwargs']
+    module = importlib.import_module('.'.join(extractor_name[:-1]))
+    extractor = getattr(module, extractor_class)(**extractor_kwargs, **kwargs)
+    for k, v in cfg.items():
+        if k not in ['class', 'kwargs']:
+            setattr(extractor, k, v)
+    return extractor

@@ -23,10 +23,10 @@ import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
 from slideflow import errors
-from slideflow.util import log, NormFit
+from slideflow.util import log, NormFit, no_scope
 
 from . import tensorflow_utils as tf_utils
-from .base import log_manifest, no_scope, BaseFeatureExtractor
+from .base import log_manifest, BaseFeatureExtractor
 from .tensorflow_utils import unwrap, flatten, eval_from_model, build_uq_model  # type: ignore
 
 # Set the tensorflow logger
@@ -2215,7 +2215,8 @@ class Features(BaseFeatureExtractor):
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_preds: bool = False,
         load_method: str = 'weights',
-        pooling: Optional[Any] = None
+        pooling: Optional[Any] = None,
+        device: Optional[str] = None,
     ) -> None:
         """Creates a features interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -2244,6 +2245,7 @@ class Features(BaseFeatureExtractor):
             layers = [layers]
         self.layers = layers
         self.path = path
+        self.device = device
         self._pooling = None
         self._include_preds = None
         if path is not None:
@@ -2271,7 +2273,8 @@ class Features(BaseFeatureExtractor):
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_preds: bool = False,
         wsi_normalizer: Optional["StainNormalizer"] = None,
-        pooling: Optional[Any] = None
+        pooling: Optional[Any] = None,
+        device: Optional[str] = None
     ):
         """Creates a features interface from a loaded slideflow model which
         outputs feature activations at the designated layers.
@@ -2290,7 +2293,7 @@ class Features(BaseFeatureExtractor):
                 normalizer to use on whole-slide images. Not used on
                 individual tile datasets via __call__. Defaults to None.
         """
-        obj = cls(None, layers, include_preds)
+        obj = cls(None, layers, include_preds, device=device)
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
@@ -2372,7 +2375,8 @@ class Features(BaseFeatureExtractor):
     @tf.function
     def _predict(self, inp: tf.Tensor) -> tf.Tensor:
         """Return activations for a single batch of images."""
-        return self.model(inp, training=False)
+        with tf.device(self.device) if self.device else no_scope():
+            return self.model(inp, training=False)
 
     def _build(
         self,

@@ -321,6 +321,14 @@ def get_gdc_manifest() -> pd.DataFrame:
 
 # --- Utility functions and classes -------------------------------------------
 
+class no_scope():
+    def __enter__(self):
+        return None
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
+
 class EasyDict(dict):
     """Convenience class that behaves like a dict but allows access
     with the attribute syntax."""
