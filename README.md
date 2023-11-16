@@ -83,12 +83,12 @@ pip install dist/slideflow* cupy-cuda11x
 
 ## ⚙️ Configuration
 
-### Deep learning (Tensorflow vs. PyTorch)
+### Deep learning (PyTorch vs. Tensorflow)
 
-Slideflow supports both Tensorflow and PyTorch, defaulting to Tensorflow if both are available. You can specify the backend to use with the environmental variable `SF_BACKEND`. For example:
+Slideflow supports both PyTorch and Tensorflow, defaulting to PyTorch if both are available. You can specify the backend to use with the environmental variable `SF_BACKEND`. For example:
 
 ```
-export SF_BACKEND=torch
+export SF_BACKEND=tensorflow
 ```
 
 ### Slide reading (cuCIM vs. Libvips)
