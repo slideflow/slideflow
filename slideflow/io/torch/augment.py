@@ -148,7 +148,7 @@ def decode_augmentation_string(augment: str) -> List[Callable]:
         elif a == 'j':
             # Random JPEG compression.
             transformations.append(RandomJPEGCompression(p=0.5, q_min=50, q_max=100))
-        else:
+        elif a != 'n':
             raise ValueError(f"Invalid augmentation: {a}")
     return transformations
 
@@ -199,6 +199,11 @@ def compose_augmentations(
                 img,
                 augment=(isinstance(augment, str) and 'n' in augment)
             )
+        )
+    elif isinstance(augment, str) and 'n' in augment:
+        raise ValueError(
+            "Stain augmentation (n) requires a stain normalizer, which was not "
+            "provided. Augmentation string: {}".format(augment)
         )
 
     # Assemble augmentation pipeline.
