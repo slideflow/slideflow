@@ -1738,3 +1738,51 @@ class _FeatureGenerator:
             dataset.close()
 
         return activations, predictions, locations, uncertainty
+
+
+# -----------------------------------------------------------------------------
+
+def _export_bags(
+    model: Union[Callable, Dict],
+    dataset: "sf.Dataset",
+    slides: List[str],
+    slide_batch_size: int,
+    pb: Any,
+    outdir: str,
+    slide_task: int = 0,
+    **dts_kwargs
+) -> None:
+    """Export bags for a given feature extractor."""
+    for slide_batch in sf.util.batch(slides, slide_batch_size):
+        try:
+            _dataset = dataset.remove_filter(filters='slide')
+        except errors.DatasetFilterError:
+            _dataset = dataset
+        _dataset = _dataset.filter(filters={'slide': slide_batch})
+        df = sf.DatasetFeatures(model, _dataset, pb=pb, **dts_kwargs)
+        df.to_torch(outdir, verbose=False)
+        pb.advance(slide_task, len(slide_batch))
+
+def _distributed_export(
+    device: int,
+    model_cfg: Dict,
+    dataset: "sf.Dataset",
+    slides: List[List[str]],
+    slide_batch_size: int,
+    pb: Any,
+    outdir: str,
+    slide_task: int = 0,
+    dts_kwargs: Any = None
+) -> None:
+    """Distributed export across multiple GPUs."""
+    model = sf.model.extractors.build_extractor_from_cfg(model_cfg, device=f'cuda:{device}')
+    return _export_bags(
+        model,
+        dataset,
+        list(slides[device]),
+        slide_batch_size,
+        pb,
+        outdir,
+        slide_task,
+        **(dts_kwargs or {})
+    )

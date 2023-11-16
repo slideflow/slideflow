@@ -289,7 +289,7 @@ class ModelParams(_base._ModelParams):
         image_shape = (self.tile_px, self.tile_px, 3)
         tile_input_tensor = tf.keras.Input(shape=image_shape, name='tile_image')
         if pretrain:
-            log.info(f'Using pretraining from [magenta]{pretrain}')
+            log.debug(f'Using pretraining from [magenta]{pretrain}')
         if pretrain and pretrain != 'imagenet':
             pretrained_model = load(pretrain, method=load_method, training=True)
             try:
@@ -2246,6 +2246,8 @@ class Features(BaseFeatureExtractor):
         self.layers = layers
         self.path = path
         self.device = device
+        if isinstance(device, str):
+            self.device = device.replace('cuda', 'gpu')
         self._pooling = None
         self._include_preds = None
         if path is not None:

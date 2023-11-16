@@ -329,7 +329,7 @@ class ModelParams(_base._ModelParams):
 
         # Prepare custom model pretraining
         if pretrain:
-            log.info(f"Using pretraining: [green]{pretrain}")
+            log.debug(f"Using pretraining: [green]{pretrain}")
         if (isinstance(pretrain, str)
            and sf.util.path_to_ext(pretrain).lower() == 'zip'):
            _pretrained = pretrain
@@ -2096,6 +2096,7 @@ class Features(BaseFeatureExtractor):
         *,
         include_preds: bool = False,
         mixed_precision: bool = True,
+        channels_last: bool = True,
         device: Optional[torch.device] = None,
         apply_softmax: Optional[bool] = None,
         pooling: Optional[Any] = None,
@@ -2137,6 +2138,7 @@ class Features(BaseFeatureExtractor):
         self.path = path
         self.apply_softmax = apply_softmax
         self.mixed_precision = mixed_precision
+        self.channels_last = channels_last
         self._model = None
         self._pooling = None
         self._include_preds = None
@@ -2184,6 +2186,7 @@ class Features(BaseFeatureExtractor):
         *,
         include_preds: bool = False,
         mixed_precision: bool = True,
+        channels_last: bool = True,
         wsi_normalizer: Optional["StainNormalizer"] = None,
         apply_softmax: bool = True,
         pooling: Optional[Any] = None
@@ -2222,6 +2225,7 @@ class Features(BaseFeatureExtractor):
             None,
             layers,
             mixed_precision=mixed_precision,
+            channels_last=channels_last,
             device=device,
             **kw
         )
@@ -2316,7 +2320,9 @@ class Features(BaseFeatureExtractor):
         _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
         with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
             with torch.no_grad() if no_grad else no_scope():
-                inp = inp.to(self.device).to(memory_format=torch.channels_last)
+                inp = inp.to(self.device)
+                if self.channels_last:
+                    inp = inp.to(memory_format=torch.channels_last)
                 logits = self._model(inp)
                 if isinstance(logits, (tuple, list)) and self.apply_softmax:
                     logits = [softmax(l, dim=1) for l in logits]
@@ -2468,6 +2474,7 @@ class UncertaintyInterface(Features):
         layers: Optional[Union[str, List[str]]] = 'postconv',
         *,
         mixed_precision: bool = True,
+        channels_last: bool = True,
         device: Optional[torch.device] = None,
         apply_softmax: Optional[bool] = None,
         pooling: Optional[Any] = None,
@@ -2477,6 +2484,7 @@ class UncertaintyInterface(Features):
             path,
             layers=layers,
             mixed_precision=mixed_precision,
+            channels_last=channels_last,
             device=device,
             apply_softmax=apply_softmax,
             pooling=pooling,
@@ -2523,7 +2531,8 @@ class UncertaintyInterface(Features):
             with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
                 with torch.no_grad() if no_grad else no_scope():
                     inp = inp.to(self.device)
-                    inp = inp.to(memory_format=torch.channels_last)
+                    if self.channels_last:
+                        inp = inp.to(memory_format=torch.channels_last)
                     logits = self._model(inp)
                     if isinstance(logits, (tuple, list)) and self.apply_softmax:
                         logits = [softmax(l, dim=1) for l in logits]

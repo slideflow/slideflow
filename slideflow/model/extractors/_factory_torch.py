@@ -203,6 +203,22 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
         self.transform = transforms.Compose(all_transforms)
         self.preprocess_kwargs = dict(standardize=False)
 
+    @property
+    def mixed_precision(self):
+        return self.ftrs.mixed_precision
+
+    @mixed_precision.setter
+    def mixed_precision(self, value):
+        self.ftrs.mixed_precision = value
+
+    @property
+    def channels_last(self):
+        return self.ftrs.channels_last
+
+    @channels_last.setter
+    def channels_last(self, value):
+        self.ftrs.channels_last = value
+
     def __repr__(self):
         return str(self)
 

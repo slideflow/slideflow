@@ -14,6 +14,8 @@ class TensorflowFeatureExtractor(BaseFeatureExtractor):
     def __init__(self, device: Optional[str] = None):
         super().__init__(backend='tensorflow')
         self.device = device
+        if isinstance(device, str):
+            self.device = device.replace('cuda', 'gpu')
 
     @tf.function
     def _predict(self, batch_images):

@@ -12,6 +12,9 @@ import tarfile
 import hashlib
 import pandas as pd
 import tempfile
+import threading
+import multiprocessing as mp
+import time
 from rich import progress
 from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
@@ -208,6 +211,47 @@ def set_ignore_sigint():
     """Ignore keyboard interrupts."""
     import signal
     signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
+class MultiprocessProgressTracker:
+    """Wrapper for a rich.progress tracker that can be shared across processes."""
+
+    def __init__(self, tasks):
+        ctx = mp.get_context('spawn')
+        self.mp_values = {
+            task.id: ctx.Value('i', task.completed)
+            for task in tasks
+        }
+
+    def advance(self, id, amount):
+        with self.mp_values[id].get_lock():
+            self.mp_values[id].value += amount
+
+    def __getitem__(self, id):
+        return self.mp_values[id].value
+
+class MultiprocessProgress:
+    """Wrapper for a rich.progress bar that can be shared across processes."""
+
+    def __init__(self, pb):
+        self.pb = pb
+        self.tracker = MultiprocessProgressTracker(self.pb.tasks)
+        self.should_stop = False
+
+    def _update_progress(self):
+        while not self.should_stop:
+            for task in self.pb.tasks:
+                self.pb.update(task.id, completed=self.tracker[task.id])
+            time.sleep(0.1)
+
+    def __enter__(self):
+        self._thread = threading.Thread(target=self._update_progress)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *args):
+        self.should_stop = True
+        self._thread.join()
 
 
 # --- Slideflow header --------------------------------------------------------
