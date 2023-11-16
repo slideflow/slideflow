@@ -673,6 +673,10 @@ def interleave(
         )
         # ------- Apply normalization -----------------------------------------
         if normalizer:
+            if not isinstance(normalizer, sf.norm.StainNormalizer):
+                raise ValueError(
+                    f"Expected normalizer to be type StainNormalizer, got: {type(normalizer)}"
+                )
             if normalizer.vectorized:
                 log.debug("Using vectorized normalization")
                 norm_batch_size = 32 if not batch_size else batch_size

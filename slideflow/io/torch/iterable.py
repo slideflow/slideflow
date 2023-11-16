@@ -142,6 +142,10 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             tfrecord_parser (Callable, optional): Custom parser for TFRecords.
                 Defaults to None.
         """
+        if normalizer is not None and not isinstance(normalizer, sf.norm.StainNormalizer):
+            raise ValueError(
+                f"Expected normalizer to be type StainNormalizer, got: {type(normalizer)}"
+            )
         self.tfrecords = np.array(tfrecords).astype(np.string_)
         self.prob_weights = None if prob_weights is None else np.array(prob_weights)
         self.clip = clip
