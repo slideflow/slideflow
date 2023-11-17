@@ -2796,12 +2796,12 @@ class Dataset:
 
                 :class:`slideflow.Dataset`: Validation dataset.
         """
-        if (not k_fold_iter and val_strategy == 'k-fold'):
+        if (not k_fold_iter and 'k-fold' in val_strategy):
             raise errors.DatasetSplitError(
                 "If strategy is 'k-fold', must supply k_fold_iter "
                 "(int starting at 1)"
             )
-        if (not val_k_fold and val_strategy == 'k-fold'):
+        if (not val_k_fold and 'k-fold' in val_strategy):
             raise errors.DatasetSplitError(
                 "If strategy is 'k-fold', must supply val_k_fold (K)"
             )
