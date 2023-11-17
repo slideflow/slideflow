@@ -28,7 +28,7 @@ def _read_data(file, length_bytes, crc_bytes, datum_bytes) -> memoryview:
             _fill = int(length * 1.5)
             datum_bytes = datum_bytes.zfill(_fill)
         except OverflowError:
-            raise OverflowError('Error reading tfrecords; please '
+            raise OverflowError('Overflow encountered reading tfrecords; please '
                                 'try regenerating index files')
     datum_bytes_view = memoryview(datum_bytes)[:length]
     if file.readinto(datum_bytes_view) != length:
@@ -283,7 +283,13 @@ class TFRecordIterator:
                 self.data_path, e
             ))
             raise e
-        return self.process(data)
+        try:
+            return self.process(data)
+        except Exception as e:
+            log.error("Error processing data from tfrecord {}: {}".format(
+                self.data_path, e
+            ))
+            raise e
 
     def read_records(self, start_offset=None, end_offset=None):
         if self.index_is_nonsequential:
