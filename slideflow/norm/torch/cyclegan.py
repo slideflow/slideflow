@@ -27,6 +27,7 @@ import slideflow as sf
 from torchvision.transforms.functional import center_crop
 from typing import Union, Optional, List
 from slideflow.io.torch import is_whc, as_cwh, as_whc
+from slideflow.model.torch import autocast
 from slideflow.model import torch_utils
 
 
@@ -362,6 +363,7 @@ class CycleGanStainTranslator:
         mt2he_weights: str,
         *,
         device = None,
+        mixed_precision: bool = False,
     ) -> None:
 
         # Declare types.
@@ -370,7 +372,8 @@ class CycleGanStainTranslator:
         self.he2mt_weights: Optional[str] = None
         self.mt2he_weights: Optional[str] = None
 
-        self.device = device
+        self.device = device or torch_utils.get_device()
+        self.mixed_precision = mixed_precision
         self.build_networks()
         self.load_weights(he2mt_weights, mt2he_weights)
         self.normalize = transforms.Compose([
@@ -381,6 +384,11 @@ class CycleGanStainTranslator:
     def _assert_loaded(self) -> None:
         if self.he2mt_weights is None or self.mt2he_weights is None:
             raise RuntimeError('Weights not loaded.')
+
+    def _device_type(self):
+        if isinstance(self.device, str):
+            return self.device
+        return self.device.type
 
     def build_networks(self) -> None:
         self.he2mt = CycleGAN(device=self.device)
@@ -454,10 +462,11 @@ class CycleGanStainTranslator:
         if isinstance(img, np.ndarray):
             img = self.to_tensor(img)
         whc = is_whc(img)
-        with torch.no_grad():
-            img = self.normalize(as_cwh(img).float()).to(self.he2mt.device)
-            mt = self.he2mt(img)
-            mt = torch.clamp((mt + 1) / 2.0 * 255, 0, 255).to(torch.uint8)
+        with autocast(self._device_type, mixed_precision=self.mixed_precision):
+            with torch.no_grad():
+                img = self.normalize(as_cwh(img).float()).to(self.he2mt.device)
+                mt = self.he2mt(img)
+                mt = torch.clamp((mt + 1) / 2.0 * 255, 0, 255).to(torch.uint8)
 
         if as_tensor:
             return mt if not whc else as_whc(mt)
@@ -480,10 +489,11 @@ class CycleGanStainTranslator:
         if isinstance(img, np.ndarray):
             img = self.to_tensor(img)
         whc = is_whc(img)
-        with torch.no_grad():
-            img = self.normalize(as_cwh(img).float()).to(self.mt2he.device)
-            he = self.mt2he(img)
-            he = torch.clamp((he + 1) / 2.0 * 255, 0, 255).to(torch.uint8)
+        with autocast(self._device_type, mixed_precision=self.mixed_precision):
+            with torch.no_grad():
+                img = self.normalize(as_cwh(img).float()).to(self.mt2he.device)
+                he = self.mt2he(img)
+                he = torch.clamp((he + 1) / 2.0 * 255, 0, 255).to(torch.uint8)
 
         if as_tensor:
             return he if not whc else as_whc(he)
