@@ -4010,6 +4010,23 @@ class Dataset:
                 "Duplicate slide names detected in the annotation file."
             )
 
+        # Verify that there are no tfrecords with the same name.
+        # This is a problem because the tfrecord name is used to
+        # identify the slide.
+        tfrecords = self.tfrecords()
+        if len(tfrecords):
+            tfrecord_names = [sf.util.path_to_name(tfr) for tfr in tfrecords]
+            if not len(set(tfrecord_names)) == len(tfrecord_names):
+                duplicate_tfrs = [
+                    tfr for tfr in tfrecords
+                    if tfrecord_names.count(sf.util.path_to_name(tfr)) > 1
+                ]
+                raise errors.AnnotationsError(
+                    "Multiple TFRecords with the same names detected: {}".format(
+                        ', '.join(duplicate_tfrs)
+                    )
+                )
+
         # Verify all slides in the annotation column are valid
         n_missing = len(self.annotations.loc[
             (self.annotations.slide.isin(['', ' '])

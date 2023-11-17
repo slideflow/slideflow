@@ -2185,7 +2185,6 @@ class Project:
                 return outdir
             dataset = dataset.filter(filters={'slide': slides_to_generate})
             filtered_slides_to_generate = dataset.slides()
-            log.info(f'Skipping {len(done)} files already done.')
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
 
         # Set up progress bar.
