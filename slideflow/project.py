@@ -2248,7 +2248,8 @@ class Project:
                         args=(
                             model_cfg,
                             dataset,
-                            list(zip(*sf.util.batch(dataset.slides(), num_gpus))),
+                            [n.tolist() for n in np.array_split(dataset.slides(),
+                                                                num_gpus)],
                             slide_batch_size,
                             mp_pb.tracker,
                             outdir,
