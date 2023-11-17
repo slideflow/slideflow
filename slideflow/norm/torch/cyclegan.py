@@ -408,6 +408,7 @@ class CycleGanStainTranslator:
         if self.he2mt_weights is None or self.mt2he_weights is None:
             raise RuntimeError('Weights not loaded.')
 
+    @property
     def _device_type(self):
         if isinstance(self.device, str):
             return self.device
