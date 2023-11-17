@@ -25,11 +25,27 @@ import torchvision.transforms as transforms
 import slideflow as sf
 
 from torchvision.transforms.functional import center_crop
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Tuple
 from slideflow.io.torch import is_whc, as_cwh, as_whc
 from slideflow.model.torch import autocast
 from slideflow.model import torch_utils
 
+# -----------------------------------------------------------------------------
+
+def download_weights() -> Tuple[str, str]:
+    """Download the pretrained checkpoint from HuggingFace."""
+    from huggingface_hub import hf_hub_download
+
+    sf.log.debug(
+        "Using pretrained CycleGAN weights, available at https://osf.io/byf27/"
+    )
+    he2mt = hf_hub_download(
+        repo_id='jamesdolezal/stain-transfer', filename='cyclegan_he2mt.pth'
+    )
+    mt2he = hf_hub_download(
+        repo_id='jamesdolezal/stain-transfer', filename='cyclegan_mt2he.pth'
+    )
+    return he2mt, mt2he
 
 # -----------------------------------------------------------------------------
 
@@ -359,8 +375,8 @@ class CycleGanStainTranslator:
 
     def __init__(
         self,
-        he2mt_weights: str,
-        mt2he_weights: str,
+        he2mt_weights: Optional[str] = None,
+        mt2he_weights: Optional[str] = None,
         *,
         device = None,
         mixed_precision: bool = False,
@@ -371,6 +387,12 @@ class CycleGanStainTranslator:
         self.mt2he: CycleGAN
         self.he2mt_weights: Optional[str] = None
         self.mt2he_weights: Optional[str] = None
+
+        if he2mt_weights is None and mt2he_weights is None:
+            try:
+                he2mt_weights, mt2he_weights = download_weights()
+            except Exception as e:
+                sf.log.warning("Unable to download pretrained weights. Error: {}".format(e))
 
         self.device = device or torch_utils.get_device()
         self.mixed_precision = mixed_precision
@@ -510,7 +532,7 @@ class CycleGanNormalizer(CycleGanStainTranslator):
 
     def __init__(self) -> None:
         """CycleGAN-based stain normalizer"""
-        super().__init__(None, None)
+        super().__init__()
 
     def _assert_loaded(self) -> None:
         if self.he2mt_weights is None or self.mt2he_weights is None:
