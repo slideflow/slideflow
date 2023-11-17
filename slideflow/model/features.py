@@ -1348,6 +1348,12 @@ class _FeatureGenerator:
             self.device = None
         self._prepare_dataset_kwargs()
 
+        # Move the normalizer to the appropriate device, if this is
+        # a pytorch GPU normalizer.
+        if self.has_torch_gpu_normalizer():
+            log.debug("Moving normalizer to device: {}".format(self.device))
+            self.normalizer.device = self.device
+
     def _calculate_feature_batch(self, batch_img):
         """Calculate features from a batch of images."""
 
