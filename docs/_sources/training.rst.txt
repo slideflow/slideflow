@@ -293,7 +293,7 @@ Once the search space is determined, you can perform the hyperparameter optimiza
     best_config, history = P.smac_search(
         outcomes='tumor_type',
         params=hp,
-        smac_configspace=cs,
+        smac_configspace=config_space,
         smac_metric='tile_auc',
         ...
     )
