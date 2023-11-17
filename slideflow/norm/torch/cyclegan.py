@@ -379,7 +379,7 @@ class CycleGanStainTranslator:
         mt2he_weights: Optional[str] = None,
         *,
         device = None,
-        mixed_precision: bool = False,
+        mixed_precision: bool = True,
     ) -> None:
 
         # Declare types.
@@ -396,6 +396,7 @@ class CycleGanStainTranslator:
 
         self.device = device or torch_utils.get_device()
         self.mixed_precision = mixed_precision
+        sf.log.debug("CycleGAN mixed_precision={}".format(self.mixed_precision))
         self.build_networks()
         self.load_weights(he2mt_weights, mt2he_weights)
         self.normalize = transforms.Compose([
