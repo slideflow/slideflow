@@ -271,12 +271,18 @@ class TFRecordIterator:
 
     def _read_next_data(self) -> memoryview:
         """Read the next record from the tfrecord file."""
-        data = _read_data(
-            self.file,
-            self.length_bytes,
-            self.crc_bytes,
-            self.datum_bytes
-        )
+        try:
+            data = _read_data(
+                self.file,
+                self.length_bytes,
+                self.crc_bytes,
+                self.datum_bytes
+            )
+        except Exception as e:
+            log.error("Error reading data from tfrecord {}: {}".format(
+                self.data_path, e
+            ))
+            raise e
         return self.process(data)
 
     def read_records(self, start_offset=None, end_offset=None):
@@ -397,12 +403,18 @@ class IndexedTFRecordIterator:
     def get_item_at_index(self, idx) -> memoryview:
         start_byte = self.index[idx]
         self.file.seek(start_byte)
-        data = _read_data(
-            self.file,
-            self.length_bytes,
-            self.crc_bytes,
-            self.datum_bytes
-        )
+        try:
+            data = _read_data(
+                self.file,
+                self.length_bytes,
+                self.crc_bytes,
+                self.datum_bytes
+            )
+        except Exception as e:
+            log.error("Error getting index {} from tfrecord {}: {}".format(
+                idx, self.data_path, e
+            ))
+            raise e
         return self.process(data)
 
     def process(self, record):
