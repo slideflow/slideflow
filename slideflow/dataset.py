@@ -299,7 +299,8 @@ def _get_tile_df(
     stride_div: int,
     roi_method: str
 ) -> pd.DataFrame:
-    wsi = sf.WSI(
+    try:
+        wsi = sf.WSI(
         slide_path,
         tile_px,
         tile_um,
@@ -308,6 +309,11 @@ def _get_tile_df(
         roi_method=roi_method,
         verbose=False
     )
+    except Exception as e:
+        log.warning("Skipping slide {}, error raised: {}".format(
+            path_to_name(slide_path), e
+        ))
+        return None
     _df = wsi.get_tile_dataframe()
     _df['slide'] = wsi.name
     return _df
