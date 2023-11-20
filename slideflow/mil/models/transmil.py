@@ -91,7 +91,7 @@ class TransLayer(nn.Module):
             from nystrom_attention import NystromAttention
         except ImportError:
             raise ImportError(
-                "The package 'nystom_attention' has not been installed, but "
+                "The package 'nystrom_attention' has not been installed, but "
                 "is required for TransMIL. Install with 'pip install "
                 "nystrom_attention'"
             )
