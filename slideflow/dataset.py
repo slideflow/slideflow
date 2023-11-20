@@ -1905,6 +1905,8 @@ class Dataset:
 
         if tile_df is None:
             tile_df = self.get_tile_dataframe()
+        if not exists(dest):
+            os.makedirs(dest)
 
         # Subset the dataframe to only include tiles with an ROI
         roi_df = tile_df.loc[tile_df.roi_name.notnull()]
