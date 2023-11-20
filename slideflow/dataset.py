@@ -1887,6 +1887,54 @@ class Dataset:
             ret._min_tiles = kwargs['min_tiles']
         return ret
 
+    def filter_bags_by_roi(
+        self,
+        bags_path: str,
+        dest: str,
+        *,
+        tile_df: Optional[pd.DataFrame] = None
+    ) -> None:
+        """Filter bags by tiles in an ROI."""
+        import torch
+
+        if tile_df is None:
+            tile_df = self.get_tile_dataframe()
+
+        # Subset the dataframe to only include tiles with an ROI
+        roi_df = tile_df.loc[tile_df.roi_name.notnull()]
+
+        n_complete = 0
+        for slide in tqdm(roi_df.slide.unique()):
+            if not exists(join(bags_path, slide+'.pt')):
+                continue
+
+            # Get the bag
+            bag = torch.load(join(bags_path, slide+'.pt'))
+            bag_index = np.load(join(bags_path, slide+'.index.npz'))['arr_0']
+
+            # Subset the ROI based on this slide
+            slide_df = roi_df.loc[roi_df.slide == slide]
+
+            # Get the common locations (in an ROI)
+            bag_locs = {tuple(r) for r in bag_index}
+            roi_locs = {tuple(r) for r in np.stack([slide_df.loc_x.values, slide_df.loc_y.values], axis=1)}
+            common_locs = bag_locs.intersection(roi_locs)
+
+            # Find indices in the bag that match the common locations (in an ROI)
+            bag_i = [i for i, row in enumerate(bag_index) if tuple(row) in common_locs]
+
+            if not len(bag_i):
+                log.debug("No common locations found for {}".format(slide))
+                continue
+
+            # Subset and save the bag
+            bag = bag[bag_i]
+            torch.save(bag, join(dest, slide+'.pt'))
+            log.debug("Subset size ({}): {} -> {}".format(slide, len(bag_index), len(bag)))
+            n_complete += 1
+
+        log.info("Bag filtering complete. {} bags filtered.".format(n_complete))
+
     def find_rois(self, slide: str) -> Optional[str]:
         """Find an ROI path from a given slide.
 
