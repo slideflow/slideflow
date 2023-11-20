@@ -1,9 +1,11 @@
 """TFRecord reading/writing utilities for both Tensorflow and PyTorch."""
 
+import cv2
 import copy
 import os
 import struct
 import numpy as np
+from PIL import Image
 from multiprocessing.dummy import Pool as DPool
 from os.path import exists, isdir, isfile, join
 from random import shuffle
@@ -241,7 +243,7 @@ def write_tfrecords_single(
     files = [
         f for f in os.listdir(input_directory)
         if ((isfile(join(input_directory, f)))
-            and (sf.util.path_to_ext(f) in ("jpg", "jpeg", "png")))
+            and (sf.util.path_to_ext(f) in ("jpg", "jpeg", "png", "tif", "tiff")))
     ]
     for tile in files:
         image_labels.update({
@@ -252,7 +254,12 @@ def write_tfrecords_single(
     writer = TFRecordWriter(tfrecord_path)
     for filename in keys:
         label = image_labels[filename]
-        image_string = open(filename, 'rb').read()
+        if filename.endswith(".tif") or filename.endswith(".tiff"):
+            img = np.array(Image.open(filename).convert("RGB"))
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            image_string = cv2.imencode(".png", img)[1].tobytes()
+        else:
+            image_string = open(filename, 'rb').read()
         record = serialized_record(label, image_string, 0, 0)
         writer.write(record)
     writer.close()
