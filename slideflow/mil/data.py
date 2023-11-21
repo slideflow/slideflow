@@ -89,7 +89,7 @@ class BagDataset(Dataset):
         self,
         bags: Union[List[Path], List[np.ndarray], List[torch.Tensor], List[List[str]]],
         bag_size: Optional[int] = None,
-        preload: bool = True
+        preload: bool = False
     ):
         """A dataset of bags of instances.
 
