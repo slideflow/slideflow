@@ -2,6 +2,7 @@
 
 from torch import nn
 from typing import Optional, Union, Callable
+from slideflow import log
 
 
 def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
@@ -128,6 +129,8 @@ class TrainerConfigFastAI(_TrainerConfig):
         fit_one_cycle: bool = True,
         epochs: int = 32,
         batch_size: int = 64,
+        drop_last: bool = True,
+        save_monitor: str = 'valid_loss',
         **kwargs
     ):
         r"""Training configuration for FastAI MIL models.
@@ -169,6 +172,8 @@ class TrainerConfigFastAI(_TrainerConfig):
         self.fit_one_cycle = fit_one_cycle
         self.epochs = epochs
         self.batch_size = batch_size
+        self.drop_last = drop_last
+        self.save_monitor = save_monitor
         if model in ModelConfigCLAM.valid_models:
             self.model_config = ModelConfigCLAM(model=model, **kwargs)
         else:
@@ -266,7 +271,8 @@ class ModelConfigCLAM(DictConfig):
         inst_loss: str = 'ce',
         no_inst_cluster: bool = False,
         B: int = 8,
-        model_kwargs: Optional[dict] = None
+        model_kwargs: Optional[dict] = None,
+        **kwargs
     ):
         """Model configuration for CLAM models.
 
@@ -345,8 +351,14 @@ class ModelConfigCLAM(DictConfig):
                 instance-level training. Defaults to 8.
 
         """
+
         for argname, argval in dict(locals()).items():
-            setattr(self, argname, argval)
+            if argname != 'kwargs':
+                setattr(self, argname, argval)
+        if kwargs:
+            log.warning("Ignoring unrecognized arguments: {}".format(
+                ', '.join(list(kwargs.keys()))
+            ))
 
     @property
     def model_fn(self):
@@ -383,7 +395,8 @@ class ModelConfigFastAI(DictConfig):
         *,
         use_lens: Optional[bool] = None,
         apply_softmax: bool = True,
-        model_kwargs: Optional[dict] = None
+        model_kwargs: Optional[dict] = None,
+        **kwargs
     ) -> None:
         """Model configuration for a non-CLAM MIL model.
 
@@ -410,6 +423,10 @@ class ModelConfigFastAI(DictConfig):
             self.use_lens = False
         else:
             self.use_lens = use_lens
+        if kwargs:
+            log.warning("Ignoring unrecognized arguments: {}".format(
+                ', '.join(list(kwargs.keys()))
+            ))
 
     @property
     def model_fn(self):
