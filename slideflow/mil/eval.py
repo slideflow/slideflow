@@ -74,13 +74,20 @@ def eval_mil(
 
     """
     model, config = utils.load_model_weights(weights, config)
+    params = {
+        'model_path': weights,
+        'eval_bags': bags,
+        'eval_filters': dataset._filters,
+        'mil_params': sf.util.load_json(join(weights, 'mil_params.json'))
+    }
 
     eval_kwargs = dict(
         dataset=dataset,
         outcomes=outcomes,
         bags=bags,
         config=config,
-        outdir=outdir
+        outdir=outdir,
+        params=params
     )
 
     if config.is_multimodal:
@@ -118,6 +125,7 @@ def _eval_mil(
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
+    params: Optional[dict] = None,
     **heatmap_kwargs
 ) -> pd.DataFrame:
     """Evaluate a standard, single-mode multi-instance learning model.
@@ -181,6 +189,8 @@ def _eval_mil(
     if not exists(outdir):
         os.makedirs(outdir)
     model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
+    if params is not None:
+        sf.util.write_json(params, join(model_dir, 'mil_params.json'))
     pred_out = join(model_dir, 'predictions.parquet')
     df.to_parquet(pred_out)
     log.info(f"Predictions saved to [green]{pred_out}[/]")
@@ -223,6 +233,7 @@ def _eval_multimodal_mil(
     config: _TrainerConfig,
     *,
     outdir: str = 'mil',
+    params: Optional[dict] = None,
 ) -> pd.DataFrame:
     """Evaluate a multi-modal (e.g. multi-magnification) MIL model.
 
@@ -276,6 +287,8 @@ def _eval_multimodal_mil(
     if not exists(outdir):
         os.makedirs(outdir)
     model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
+    if params is not None:
+        sf.util.write_json(params, join(model_dir, 'mil_params.json'))
     df_dict = dict(slide=slides, y_true=y_true)
     for i in range(y_pred.shape[-1]):
         df_dict[f'y_pred{i}'] = y_pred[:, i]
@@ -442,14 +455,14 @@ def predict_slide(
     return y_pred, y_att
 
 
-def save_mil_tile_predictions(
+def get_mil_tile_predictions(
     weights: str,
     dataset: "sf.Dataset",
     bags: Union[str, np.ndarray, List[str]],
     config: Optional[_TrainerConfig] = None,
     outcomes: Union[str, List[str]] = None,
-    dest: str = 'mil_tile_preds.parquet',
-):
+    dest: Optional[str] = None,
+) -> pd.DataFrame:
     # Load model and configuration.
     model, config = utils.load_model_weights(weights, config)
     if outcomes is not None:
@@ -548,11 +561,31 @@ def save_mil_tile_predictions(
 
     # Final processing to dataframe & disk
     df = pd.DataFrame(df_dict)
-    df.to_parquet(dest)
-    log.info("{} tile predictions exported to [green]{}[/]".format(
-        df_preds.shape[0],
-        dest
-    ))
+    if dest is not None:
+        df.to_parquet(dest)
+        log.info("{} tile predictions exported to [green]{}[/]".format(
+            df_preds.shape[0],
+            dest
+        ))
+    return df
+
+
+def save_mil_tile_predictions(
+    weights: str,
+    dataset: "sf.Dataset",
+    bags: Union[str, np.ndarray, List[str]],
+    config: Optional[_TrainerConfig] = None,
+    outcomes: Union[str, List[str]] = None,
+    dest: str = 'mil_tile_preds.parquet',
+) -> pd.DataFrame:
+    return get_mil_tile_predictions(
+        weights,
+        dataset,
+        bags,
+        config=config,
+        outcomes=outcomes,
+        dest=dest
+    )
 
 
 def predict_from_model(
