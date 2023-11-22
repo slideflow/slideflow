@@ -552,7 +552,6 @@ def get_mil_tile_predictions(
     df_dict = dict(slide=df_slides)
     df_attention = np.concatenate(df_attention, axis=0)
     df_preds = np.concatenate(df_preds, axis=0)
-    df_uq = np.concatenate(df_uq, axis=0)
 
     # Tile location
     if df_loc_x:
@@ -565,6 +564,7 @@ def get_mil_tile_predictions(
 
     # Uncertainty
     if uq:
+        df_uq = np.concatenate(df_uq, axis=0)
         for i in range(df_uq[0].shape[0]):
             df_dict[f'uncertainty{i}'] = df_uq[:, i]
 
@@ -1072,34 +1072,25 @@ def _predict_mil_tiles(
     y_pred = []
     y_att  = []
     uncertainty = []
-    for n in range(loaded.shape[0]):
-        tile = torch.unsqueeze(loaded[n], dim=0)
-        with torch.no_grad():
-            if use_lens:
-                lens = torch.ones(tile.shape[0:2]).to(device)
-                model_args = (tile, lens)
-            else:
-                model_args = (tile,)
+    with torch.no_grad():
+        if use_lens:
+            lens = torch.ones(loaded.shape[0]).to(device)
+            model_args = (loaded, lens)
+        else:
+            model_args = (loaded,)
 
-            # Run inference.
-            _y_pred, _y_att, _y_uq = _run_inference(
-                model,
-                model_args,
-                attention=attention,
-                attention_pooling=attention_pooling,
-                uq=uq,
-                use_first_out=use_first_out,
-                apply_softmax=apply_softmax
-            )
-            y_pred.append(_y_pred)
-            if _y_att is not None:
-                y_att.append(_y_att)
-            if _y_uq is not None:
-                uncertainty.append(_y_uq)
+        # Run inference.
+        y_pred, y_att, uncertainty = _run_inference(
+            model,
+            model_args,
+            attention=attention,
+            attention_pooling=attention_pooling,
+            uq=uq,
+            use_first_out=use_first_out,
+            apply_softmax=apply_softmax
+        )
 
-    y_pred = np.concatenate(y_pred, axis=0)
     if uq:
-        uncertainty = np.concatenate(uncertainty, axis=0)
         return y_pred, y_att, uncertainty
     else:
         return y_pred, y_att
