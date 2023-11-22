@@ -62,7 +62,7 @@ class Attention_MIL(nn.Module):
         if attention_gate:
             log.debug("Using attention gate: {} percentile".format(attention_gate))
 
-    def forward(self, bags, lens, *, return_attention=False, uq=False):
+    def forward(self, bags, lens, *, return_attention=False, uq=False, uq_softmax=True):
         assert bags.ndim == 3
         assert bags.shape[0] == lens.shape[0]
 
@@ -103,6 +103,8 @@ class Attention_MIL(nn.Module):
             self.head[2].train()
             post_dropout = self.head[2](expanded)
             expanded_preds = self.head[3](post_dropout)
+            if uq_softmax:
+                expanded_preds = torch.softmax(expanded_preds, dim=2)
             self.train(_prior_status)
 
             # Average scores across 30 dropout replicates.
