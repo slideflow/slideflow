@@ -186,14 +186,15 @@ def _eval_mil(
         log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
 
     # Save results.
-    if not exists(outdir):
-        os.makedirs(outdir)
-    model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
-    if params is not None:
-        sf.util.write_json(params, join(model_dir, 'mil_params.json'))
-    pred_out = join(model_dir, 'predictions.parquet')
-    df.to_parquet(pred_out)
-    log.info(f"Predictions saved to [green]{pred_out}[/]")
+    if outdir:
+        if not exists(outdir):
+            os.makedirs(outdir)
+        model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
+        if params is not None:
+            sf.util.write_json(params, join(model_dir, 'mil_params.json'))
+        pred_out = join(model_dir, 'predictions.parquet')
+        df.to_parquet(pred_out)
+        log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print categorical metrics, including per-category accuracy
     outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
@@ -203,7 +204,7 @@ def _eval_mil(
     sf.stats.metrics.categorical_metrics(metrics_df, level='slide')
 
     # Export attention
-    if y_att:
+    if outdir and y_att:
         if 'slide' in df.columns:
             slides_or_patients = df.slide.values
         elif 'patient' in df.columns:
@@ -213,7 +214,7 @@ def _eval_mil(
         _export_attention(join(model_dir, 'attention'), y_att, slides_or_patients)
 
     # Attention heatmaps
-    if y_att and attention_heatmaps:
+    if outdir and y_att and attention_heatmaps:
         generate_attention_heatmaps(
             outdir=join(model_dir, 'heatmaps'),
             dataset=dataset,
@@ -283,19 +284,22 @@ def _eval_multimodal_mil(
         log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
         log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
 
-    # Save results
-    if not exists(outdir):
-        os.makedirs(outdir)
-    model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
-    if params is not None:
-        sf.util.write_json(params, join(model_dir, 'mil_params.json'))
+    # Assemble dataframe
     df_dict = dict(slide=slides, y_true=y_true)
     for i in range(y_pred.shape[-1]):
         df_dict[f'y_pred{i}'] = y_pred[:, i]
     df = pd.DataFrame(df_dict)
-    pred_out = join(model_dir, 'predictions.parquet')
-    df.to_parquet(pred_out)
-    log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    # Save results
+    if outdir:
+        if not exists(outdir):
+            os.makedirs(outdir)
+        model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
+        if params is not None:
+            sf.util.write_json(params, join(model_dir, 'mil_params.json'))
+        pred_out = join(model_dir, 'predictions.parquet')
+        df.to_parquet(pred_out)
+        log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print categorical metrics, including per-category accuracy
     outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
@@ -305,7 +309,7 @@ def _eval_multimodal_mil(
     sf.stats.metrics.categorical_metrics(metrics_df, level='slide')
 
     # Export attention
-    if y_att:
+    if outdir and y_att:
         _export_attention(join(model_dir, 'attention'), y_att, df.slide.values)
 
     return df

@@ -148,9 +148,10 @@ def _train_mil(
             exp_label = 'no_label'
 
     # Set up output model directory
-    if not exists(outdir):
-        os.makedirs(outdir)
-    outdir = sf.util.create_new_model_dir(outdir, exp_label)
+    if outdir:
+        if not exists(outdir):
+            os.makedirs(outdir)
+        outdir = sf.util.create_new_model_dir(outdir, exp_label)
 
     # Execute training.
     return train_fn(
@@ -204,9 +205,10 @@ def _train_multimodal_mil(
             exp_label = 'no_label'
 
     # Set up output model directory
-    if not exists(outdir):
-        os.makedirs(outdir)
-    outdir = sf.util.create_new_model_dir(outdir, exp_label)
+    if outdir:
+        if not exists(outdir):
+            os.makedirs(outdir)
+        outdir = sf.util.create_new_model_dir(outdir, exp_label)
 
     # Prepare validation bags and targets.
     val_labels, val_unique = val_dataset.labels(outcomes, format='id')
@@ -262,12 +264,13 @@ def _train_multimodal_mil(
     sf.stats.metrics.categorical_metrics(df, level='slide')
 
     # Export predictions.
-    pred_out = join(outdir, 'predictions.parquet')
-    df.to_parquet(pred_out)
-    log.info(f"Predictions saved to [green]{pred_out}[/]")
+    if outdir:
+        pred_out = join(outdir, 'predictions.parquet')
+        df.to_parquet(pred_out)
+        log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Export attention.
-    if y_att:
+    if y_att and outdir:
         _export_attention(join(outdir, 'attention'), y_att, df.slide.values)
 
     return learner
@@ -328,9 +331,10 @@ def train_clam(
     from slideflow.clam import CLAM_Dataset
 
     # Set up results directory
-    results_dir = join(outdir, 'results')
-    if not exists(results_dir):
-        os.makedirs(results_dir)
+    if outdir:
+        results_dir = join(outdir, 'results')
+        if not exists(results_dir):
+            os.makedirs(results_dir)
 
     # Set up labels.
     labels, unique_train = train_dataset.labels(outcomes, format='name', use_float=False)
@@ -352,12 +356,13 @@ def train_clam(
         train_bags = val_bags = bags
 
     # Write slide/bag manifest
-    sf.util.log_manifest(
-        [b for b in train_bags],
-        [b for b in val_bags],
-        labels=labels,
-        filename=join(outdir, 'slide_manifest.csv'),
-    )
+    if outdir:
+        sf.util.log_manifest(
+            [b for b in train_bags],
+            [b for b in val_bags],
+            labels=labels,
+            filename=join(outdir, 'slide_manifest.csv'),
+        )
 
     # Set up datasets.
     train_mil_dataset = CLAM_Dataset(
@@ -390,7 +395,8 @@ def train_clam(
         )
 
     # Save clam settings
-    sf.util.write_json(clam_args.to_dict(), join(outdir, 'experiment.json'))
+    if outdir:
+        sf.util.write_json(clam_args.to_dict(), join(outdir, 'experiment.json'))
 
     # Save MIL settings
     _log_mil_params(config, outcomes, unique_labels, bags, num_features, clam_args.n_classes, outdir)
@@ -410,9 +416,10 @@ def train_clam(
         bags=bags,
         attention=True
     )
-    pred_out = join(outdir, 'results', 'predictions.parquet')
-    df.to_parquet(pred_out)
-    log.info(f"Predictions saved to [green]{pred_out}[/]")
+    if outdir:
+        pred_out = join(outdir, 'results', 'predictions.parquet')
+        df.to_parquet(pred_out)
+        log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print categorical metrics, including per-category accuracy
     outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
@@ -429,7 +436,7 @@ def train_clam(
         val_bags = np.array(bags)
 
     # Export attention to numpy arrays
-    if attention:
+    if attention and outdir:
         _export_attention(
             join(outdir, 'attention'),
             attention,
@@ -437,7 +444,7 @@ def train_clam(
         )
 
     # Save attention heatmaps
-    if attention and attention_heatmaps:
+    if attention and attention_heatmaps and outdir:
         assert len(val_bags) == len(attention)
         generate_attention_heatmaps(
             outdir=join(outdir, 'heatmaps'),
@@ -512,7 +519,7 @@ def build_fastai_learner(
             labels,
             train_slides,
             val_slides,
-            log_manifest=join(outdir, 'slide_manifest.csv')
+            log_manifest=(join(outdir, 'slide_manifest.csv') if outdir else None)
         )
 
     elif config.aggregation_level == 'patient':
@@ -530,7 +537,7 @@ def build_fastai_learner(
             train_slides,
             val_slides,
             slide_to_patient=slide_to_patient,
-            log_manifest=join(outdir, 'slide_manifest.csv')
+            log_manifest=(join(outdir, 'slide_manifest.csv') if outdir else None)
         )
         log.info(f"Aggregated {n_slide_bags} slide bags to {len(bags)} patient bags.")
 
@@ -602,13 +609,14 @@ def build_multimodal_learner(
     val_idx = np.arange(len(train_slides), len(all_slides))
 
     # Write the slide manifest
-    sf.util.log_manifest(
-        train_slides,
-        val_slides,
-        labels=labels,
-        filename=join(outdir, 'slide_manifest.csv'),
-        remove_extension=False
-    )
+    if outdir:
+        sf.util.log_manifest(
+            train_slides,
+            val_slides,
+            labels=labels,
+            filename=join(outdir, 'slide_manifest.csv'),
+            remove_extension=False
+        )
 
     # Print a multi-modal dataset summary.
     log.info(
@@ -750,9 +758,10 @@ def train_fastai(
         bags=val_bags,
         attention=True
     )
-    pred_out = join(outdir, 'predictions.parquet')
-    df.to_parquet(pred_out)
-    log.info(f"Predictions saved to [green]{pred_out}[/]")
+    if outdir:
+        pred_out = join(outdir, 'predictions.parquet')
+        df.to_parquet(pred_out)
+        log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print categorical metrics, including per-category accuracy
     outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
@@ -763,7 +772,7 @@ def train_fastai(
     sf.stats.metrics.categorical_metrics(df, level='slide')
 
     # Export attention to numpy arrays
-    if attention:
+    if attention and outdir:
         _export_attention(
             join(outdir, 'attention'),
             attention,
@@ -771,7 +780,7 @@ def train_fastai(
         )
 
     # Attention heatmaps.
-    if attention and attention_heatmaps:
+    if attention and attention_heatmaps and outdir:
         generate_attention_heatmaps(
             outdir=join(outdir, 'heatmaps'),
             dataset=val_dataset,
@@ -784,7 +793,7 @@ def train_fastai(
 
 # ------------------------------------------------------------------------------
 
-def _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir):
+def _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir=None):
     """Log MIL parameters to JSON."""
     mil_params = config.json_dump()
     mil_params['outcomes'] = outcomes
@@ -810,5 +819,6 @@ def _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir):
                 mil_params['bags_extractor'][b] = None
     else:
         mil_params['bags_extractor'] = None
-    sf.util.write_json(mil_params, join(outdir, 'mil_params.json'))
+    if outdir:
+        sf.util.write_json(mil_params, join(outdir, 'mil_params.json'))
     return mil_params
