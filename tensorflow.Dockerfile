@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM tensorflow/tensorflow:2.9.3-gpu
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
 
 # Install necessary packages
 RUN apt update && \

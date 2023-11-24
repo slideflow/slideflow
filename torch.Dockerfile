@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 FROM pytorch/pytorch:1.11.0-cuda11.3-cudnn8-runtime
 RUN apt update
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
 
 # Install necessary packages
 RUN apt update && \
