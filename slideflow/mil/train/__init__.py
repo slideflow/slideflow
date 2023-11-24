@@ -678,6 +678,7 @@ def train_fastai(
     *,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
+    uq: bool = False,
     **heatmap_kwargs
 ) -> None:
     """Train an aMIL model using FastAI.
@@ -756,7 +757,8 @@ def train_fastai(
         dataset=val_dataset,
         outcomes=outcomes,
         bags=val_bags,
-        attention=True
+        attention=True,
+        uq=uq
     )
     if outdir:
         pred_out = join(outdir, 'predictions.parquet')
