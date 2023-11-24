@@ -103,6 +103,9 @@ class ModelParamsError(Exception):
 class InvalidFeatureExtractor(Exception):
     pass
 
+class UnrecognizedHyperparameterError(Exception):
+    pass
+
 
 # --- TFRecords errors --------------------------------------------------------
 class TFRecordsError(Exception):

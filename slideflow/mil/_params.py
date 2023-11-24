@@ -2,7 +2,7 @@
 
 from torch import nn
 from typing import Optional, Union, Callable
-from slideflow import log
+from slideflow import log, errors
 
 
 def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
@@ -272,6 +272,7 @@ class ModelConfigCLAM(DictConfig):
         no_inst_cluster: bool = False,
         B: int = 8,
         model_kwargs: Optional[dict] = None,
+        validate: bool = True,
         **kwargs
     ):
         """Model configuration for CLAM models.
@@ -349,14 +350,20 @@ class ModelConfigCLAM(DictConfig):
                 Defaults to False.
             B (int): Number of positive/negative patches to sample for
                 instance-level training. Defaults to 8.
+            validate (bool): Validate the hyperparameter configuration.
+                Defaults to True.
 
         """
 
         for argname, argval in dict(locals()).items():
-            if argname != 'kwargs':
+            if argname not in ('kwargs', 'validate'):
                 setattr(self, argname, argval)
-        if kwargs:
-            log.warning("Ignoring unrecognized arguments: {}".format(
+        if kwargs and validate:
+            raise errors.UnrecognizedHyperparameterError("Unrecognized parameters: {}".format(
+                ', '.join(list(kwargs.keys()))
+            ))
+        elif kwargs:
+            log.warning("Ignoring unrecognized parameters: {}".format(
                 ', '.join(list(kwargs.keys()))
             ))
 
@@ -396,6 +403,7 @@ class ModelConfigFastAI(DictConfig):
         use_lens: Optional[bool] = None,
         apply_softmax: bool = True,
         model_kwargs: Optional[dict] = None,
+        validate: bool = True,
         **kwargs
     ) -> None:
         """Model configuration for a non-CLAM MIL model.
@@ -423,8 +431,12 @@ class ModelConfigFastAI(DictConfig):
             self.use_lens = False
         else:
             self.use_lens = use_lens
-        if kwargs:
-            log.warning("Ignoring unrecognized arguments: {}".format(
+        if kwargs and validate:
+            raise errors.UnrecognizedHyperparameterError("Unrecognized parameters: {}".format(
+                ', '.join(list(kwargs.keys()))
+            ))
+        elif kwargs:
+            log.warning("Ignoring unrecognized parameters: {}".format(
                 ', '.join(list(kwargs.keys()))
             ))
 
