@@ -128,8 +128,8 @@ class ReinhardFastNormalizer:
     def _get_mean_std(
         self,
         image: np.ndarray,
-        ctx_means: Optional[np.ndarray],
-        ctx_stds: Optional[np.ndarray],
+        ctx_means: Optional[np.ndarray] = None,
+        ctx_stds: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Get means and standard deviations from an image."""
         if ctx_means is None and ctx_stds is not None:
@@ -249,6 +249,46 @@ class ReinhardFastNormalizer:
         if self.threshold is not None:
             mask = ((I1 / 100) < self.threshold)[:, :, np.newaxis]
         means, stds = self._get_mean_std(I, ctx_means, ctx_stds)
+
+        norm1 = ((I1 - means[0]) * (target_stds[0] / stds[0])) + target_means[0]
+        norm2 = ((I2 - means[1]) * (target_stds[1] / stds[1])) + target_means[1]
+        norm3 = ((I3 - means[2]) * (target_stds[2] / stds[2])) + target_means[2]
+
+        merged = merge_back(norm1, norm2, norm3)
+        clipped = np.clip(merged, 0, 255).astype(np.uint8)
+
+        if self.threshold is not None:
+            return np.where(mask, clipped, I)
+        else:
+            return clipped
+
+    def augment(self, I: np.ndarray) -> np.ndarray:
+        """Augment an H&E image.
+
+        Args:
+            img (np.ndarray): Image, RGB uint8 with dimensions W, H, C.
+
+        Returns:
+            np.ndarray: Stain augmented image.
+        """
+        # Augmentation; optional
+        if not any(m in self._augment_params for m in ('means_stdev', 'stds_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
+        means, stds = self._get_mean_std(I)
+
+        target_means = np.random.normal(
+            means[:, 0, 0],
+            self._augment_params['means_stdev']
+        )
+        target_stds = np.random.normal(
+            stds[:, 0, 0],
+            self._augment_params['stds_stdev']
+        )
+
+        I1, I2, I3 = lab_split(I)
+        if self.threshold is not None:
+            mask = ((I1 / 100) < self.threshold)[:, :, np.newaxis]
 
         norm1 = ((I1 - means[0]) * (target_stds[0] / stds[0])) + target_means[0]
         norm2 = ((I2 - means[1]) * (target_stds[1] / stds[1])) + target_means[1]
@@ -396,6 +436,18 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         """
         I = ut.standardize_brightness(I)
         return super().transform(I, ctx_means, ctx_stds, augment=augment)
+
+    def augment(self, I: np.ndarray) -> np.ndarray:
+        """Augment an H&E image.
+
+        Args:
+            img (np.ndarray): Image, RGB uint8 with dimensions W, H, C.
+
+        Returns:
+            np.ndarray: Stain augmented image.
+        """
+        I = ut.standardize_brightness(I)
+        return super().augment(I)
 
     def set_context(self, I: np.ndarray):
         """Set the whole-slide context for the stain normalizer.

@@ -1903,6 +1903,11 @@ class Dataset:
         """Filter bags by tiles in an ROI."""
         import torch
 
+        #TODO: extend to tfrecords
+        #TODO: accelerate with multiprocessing
+        #TODO: save filtered indices
+        #TODO: copy bags config
+
         if tile_df is None:
             tile_df = self.get_tile_dataframe()
         if not exists(dest):
