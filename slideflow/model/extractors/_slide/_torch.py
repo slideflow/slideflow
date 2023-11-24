@@ -17,9 +17,8 @@ if TYPE_CHECKING:
 # -----------------------------------------------------------------------------
 
 class _SlideIterator(torch.utils.data.IterableDataset):
-    def __init__(self, preprocess, img_format, generator, *args, **kwargs):
+    def __init__(self, img_format, generator, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.preprocess = preprocess
         self.img_format = img_format
         self.generator = generator
 
@@ -33,8 +32,6 @@ class _SlideIterator(torch.utils.data.IterableDataset):
             else:
                 img = torch.from_numpy(img).permute(2, 0, 1)
             loc = np.array(image_dict['grid'])
-            if self.preprocess:
-                img = self.preprocess(img)
             yield img, loc
 
 # -----------------------------------------------------------------------------
@@ -81,9 +78,7 @@ def features_from_slide_torch(
 
     # Build the PyTorch dataloader
     tile_dataset = torch.utils.data.DataLoader(
-        _SlideIterator(preprocess=preprocess_fn,
-                       img_format=img_format,
-                       generator=generator),
+        _SlideIterator(img_format=img_format, generator=generator),
         batch_size=batch_size,
     )
 
@@ -91,6 +86,8 @@ def features_from_slide_torch(
     for i, (batch_images, batch_loc) in enumerate(tile_dataset):
         if normalizer and not opencv_norm:
             batch_images = normalizer.transform(batch_images)
+        if preprocess_fn:
+            batch_images = preprocess_fn(batch_images)
         batch_images = batch_images.to(extractor.device)
         model_out = sf.util.as_list(extractor(batch_images))
 
