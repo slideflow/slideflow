@@ -28,7 +28,7 @@ RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.1/scripts/
 
 # Install slideflow & download scripts
 ENV SF_BACKEND=torch
-RUN pip3 install slideflow[cucim]==2.2.1 cupy-cuda11x cellpose pretrainedmodels && \
+RUN pip3 install slideflow[cucim,torch]==2.2.1 cupy-cuda11x && \
     wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/test.py && \
     wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/slideflow-studio.py && \
     wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/run_project.py && \
