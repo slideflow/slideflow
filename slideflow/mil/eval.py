@@ -36,6 +36,7 @@ def eval_mil(
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
+    aggregation_level: Optional[str] = None,
     **heatmap_kwargs
 ) -> pd.DataFrame:
     """Evaluate a multiple-instance learning model.
@@ -89,6 +90,18 @@ def eval_mil(
         outdir=outdir,
         params=params
     )
+
+    if aggregation_level is not None:
+        if aggregation_level not in ('patient', 'slide'):
+            raise ValueError(
+                f"Unrecognized aggregation level: '{aggregation_level}'. "
+                "Must be either 'patient' or 'slide'."
+            )
+        if isinstance(config, TrainerConfigCLAM):
+            raise ValueError(
+                "Cannot aggregate bags by patient using the legacy CLAM trainer."
+            )
+        config.aggregation_level = aggregation_level
 
     if config.is_multimodal:
         if attention_heatmaps:
