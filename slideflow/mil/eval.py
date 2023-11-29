@@ -979,7 +979,7 @@ def _predict_clam(
     y_att  = []
     device = utils._detect_device(model, device, verbose=True)
     for bag in bags:
-        if isinstance(bag, list):
+        if utils._is_list_of_paths(bag):
             # If bags are passed as a list of paths, load them individually.
             loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
         else:
@@ -1019,7 +1019,7 @@ def _predict_mil(
     device = utils._detect_device(model, device, verbose=True)
 
     for bag in bags:
-        if isinstance(bag, list):
+        if utils._is_list_of_paths(bag):
             # If bags are passed as a list of paths, load them individually.
             loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
         else:
@@ -1076,7 +1076,7 @@ def _predict_mil_tiles(
     # Prepare bag.
     device = utils._detect_device(model, device, verbose=True)
     model.eval()
-    if isinstance(bag, list):
+    if utils._is_list_of_paths(bag):
         # If bags are passed as a list of paths, load them individually.
         loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
     else:
