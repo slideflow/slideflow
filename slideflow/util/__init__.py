@@ -1451,4 +1451,5 @@ def cleanup_progress(pb: Optional["Progress"]):
         yield
     finally:
         if pb is not None:
+            pb.refresh()
             pb.stop()
