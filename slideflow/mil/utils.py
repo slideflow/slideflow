@@ -25,6 +25,7 @@ def load_model_weights(
     *,
     input_shape: Optional[int] = None,
     output_shape: Optional[int] = None,
+    strict: bool = False
 ) -> Tuple["torch.nn.Module", _TrainerConfig]:
     """Load weights and build model.
 
@@ -38,6 +39,8 @@ def load_model_weights(
     Keyword Args:
         input_shape (int): Number of features in the input data.
         output_shape (int): Number of output classes.
+        strict (bool): Whether to strictly enforce that all hyperparameters
+            are recognized. Defaults to False.
 
     Returns:
         :class:`torch.nn.Module`: Loaded model.
@@ -61,8 +64,11 @@ def load_model_weights(
                 "with 'config'."
             )
         else:
-            config = sf.mil.mil_config(trainer=mil_params['trainer'],
-                                       **mil_params['params'])
+            config = sf.mil.mil_config(
+                trainer=mil_params['trainer'],
+                **mil_params['params'],
+                validate=strict
+            )
 
     # Determine the input and output shapes, reading from the model
     # configuration, if necessary.
@@ -385,3 +391,7 @@ def aggregate_trainval_bags_by_patient(
         )
 
     return bags, targets, train_idx, val_idx
+
+def _is_list_of_paths(bag):
+    return ((isinstance(bag, list) or (isinstance(bag, np.ndarray))
+             and isinstance(bag[0], str)))

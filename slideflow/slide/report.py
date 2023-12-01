@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import cv2
 
-from fpdf import FPDF
+from fpdf import FPDF, XPos, YPos
 from PIL import Image, UnidentifiedImageError
 from datetime import datetime
 from os.path import join, exists
@@ -345,7 +345,7 @@ class ExtractionReport:
             pdf.set_font('Arial', style='B')
             for m in ('Tile size (px)', 'Tile size (um)', 'QC', 'Total slides',
                       'ROI method', 'Slides skipped', 'Stride'):
-                pdf.cell(20, 4, m, ln=1)
+                pdf.cell(20, 4, m, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.set_y(y+1)
             pdf.set_font('Arial')
             if isinstance(meta.qc, list):
@@ -357,7 +357,7 @@ class ExtractionReport:
             for m in (meta.tile_px, meta.tile_um, qc, meta.total_slides,
                       meta.roi_method, meta.slides_skipped, meta.stride):
                 pdf.cell(30)
-                pdf.cell(20, 4, str(m), ln=1)
+                pdf.cell(20, 4, str(m), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
             # Second column
             pdf.set_y(y+1)
@@ -365,14 +365,14 @@ class ExtractionReport:
             for m in ('G.S. fraction', 'G.S. threshold', 'W.S. fraction',
                       'W.S. threshold', 'Normalizer', 'Format', 'Backend'):
                 pdf.cell(45)
-                pdf.cell(20, 4, m, ln=1)
+                pdf.cell(20, 4, m, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.set_y(y+1)
             pdf.set_font('Arial')
             for m in (meta.gs_frac, meta.gs_thresh, meta.ws_frac,
                       meta.ws_thresh, meta.normalizer, meta.img_format,
                       sf.slide_backend()):
                 pdf.cell(75)
-                pdf.cell(20, 4, str(m), ln=1)
+                pdf.cell(20, 4, str(m), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.ln(20)
 
             # Save thumbnail first
@@ -386,7 +386,7 @@ class ExtractionReport:
                 if thumb:
                     # Create a new row every 2 slides
                     if n_images % 2 == 0:
-                        pdf.cell(50, 90, ln=1)
+                        pdf.cell(50, 90, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
                     # Slide thumbnail
                     with tempfile.NamedTemporaryFile() as temp:
                         thumb.save(temp, format="JPEG", quality=75)
@@ -394,11 +394,11 @@ class ExtractionReport:
                         x = pdf.get_x()+((n_images+1) % 2 * 100)
                         y = pdf.get_y()-85
                         if (thumb_w / thumb_h) * 80 > 90:
-                            pdf.image(temp.name, x, y, w=90, type='jpg')
+                            pdf.image(temp.name, x, y, w=90)
                         else:
                             calc_w = 80 * (thumb_w / thumb_h)
                             offset = (80 - calc_w) / 2
-                            pdf.image(temp.name, x+offset+5, y, h=80, type='jpg')
+                            pdf.image(temp.name, x+offset+5, y, h=80)
                         n_images += 1
 
                     # Slide label

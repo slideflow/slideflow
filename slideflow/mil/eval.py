@@ -36,6 +36,7 @@ def eval_mil(
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
+    aggregation_level: Optional[str] = None,
     **heatmap_kwargs
 ) -> pd.DataFrame:
     """Evaluate a multiple-instance learning model.
@@ -89,6 +90,18 @@ def eval_mil(
         outdir=outdir,
         params=params
     )
+
+    if aggregation_level is not None:
+        if aggregation_level not in ('patient', 'slide'):
+            raise ValueError(
+                f"Unrecognized aggregation level: '{aggregation_level}'. "
+                "Must be either 'patient' or 'slide'."
+            )
+        if isinstance(config, TrainerConfigCLAM):
+            raise ValueError(
+                "Cannot aggregate bags by patient using the legacy CLAM trainer."
+            )
+        config.aggregation_level = aggregation_level
 
     if config.is_multimodal:
         if attention_heatmaps:
@@ -888,20 +901,32 @@ def _validate_model(
     return attention, uq
 
 
-def _run_inference(
+def run_inference(
     model: "torch.nn.Module",
-    model_args: Tuple[Any, ...],
+    input: "torch.Tensor",
     *,
     attention: bool = False,
     attention_pooling: str = 'avg',
     uq: bool = False,
     use_first_out: bool = False,
-    apply_softmax: bool = True
+    apply_softmax: bool = True,
+    use_lens: bool = False,
+    device: Optional[Any] = None
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
     """Run inference on a MIL model."""
     import torch
 
-    y_pred, y_att, uncertainty = None, None, None
+    y_pred, y_att, y_uncertainty = None, None, None
+
+    # Prepare lens
+    device = utils._detect_device(model, device, verbose=False)
+    if isinstance(use_lens, bool) and use_lens:
+        lens = torch.from_numpy(np.array([input.shape[1]])).to(device)
+        model_args = (input, lens)
+    elif use_lens is not False and use_lens is not None:
+        model_args = (input, use_lens)
+    else:
+        model_args = (input,)
 
     if uq and inspect.signature(model.forward).parameters['uq']:
         kw = dict(uq=True)
@@ -910,39 +935,40 @@ def _run_inference(
     else:
         kw = dict()
     if attention and inspect.signature(model.forward).parameters['return_attention']:
-        model_out, att = model(*model_args, return_attention=True, **kw)
+        model_out, y_att = model(*model_args, return_attention=True, **kw)
     elif use_first_out:
         # CLAM models return attention scores as well as logits.
-        model_out, att = model(*model_args, **kw)
+        model_out, y_att = model(*model_args, **kw)
     elif attention:
         model_out = model(*model_args, **kw)
-        att = model.calculate_attention(*model_args)
+        y_att = model.calculate_attention(*model_args)
     else:
         model_out = model(*model_args, **kw)
+
+    # Parse uncertainty from model output.
     if uq:
-        model_out, y_uncertainty = model_out
-        uncertainty = y_uncertainty.cpu().numpy()
+        y_pred, y_uncertainty = model_out
+    else:
+        y_pred = model_out
 
     if attention:
-        att = torch.squeeze(att)
-        if len(att.shape) == 2:
+        y_att = torch.squeeze(y_att)
+        if len(y_att.shape) == 2:
             log.warning("Pooling attention scores from 2D to 1D")
             # Attention needs to be pooled
             if attention_pooling == 'avg':
-                att = torch.mean(att, dim=-1)
+                y_att = torch.mean(y_att, dim=-1)
             elif attention_pooling == 'max':
-                att = torch.amax(att, dim=-1)
+                y_att = torch.amax(y_att, dim=-1)
             else:
                 raise ValueError(
                     "Unrecognized attention pooling strategy '{}'".format(
                         attention_pooling
                     )
                 )
-        y_att = att.cpu().numpy()
     if apply_softmax:
-        model_out = torch.nn.functional.softmax(model_out, dim=1)
-    y_pred = model_out.cpu().numpy()
-    return y_pred, y_att, uncertainty
+        y_pred = torch.nn.functional.softmax(y_pred, dim=1)
+    return y_pred, y_att, y_uncertainty
 
 
 def _predict_clam(
@@ -966,7 +992,7 @@ def _predict_clam(
     y_att  = []
     device = utils._detect_device(model, device, verbose=True)
     for bag in bags:
-        if isinstance(bag, list):
+        if utils._is_list_of_paths(bag):
             # If bags are passed as a list of paths, load them individually.
             loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
         else:
@@ -1006,28 +1032,35 @@ def _predict_mil(
     device = utils._detect_device(model, device, verbose=True)
 
     for bag in bags:
-        if isinstance(bag, list):
+        if utils._is_list_of_paths(bag):
             # If bags are passed as a list of paths, load them individually.
             loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
         else:
             loaded = utils._load_bag(bag).to(device)
         loaded = torch.unsqueeze(loaded, dim=0)
-        with torch.no_grad():
-            if use_lens:
-                lens = torch.from_numpy(np.array([loaded.shape[1]])).to(device)
-                model_args = (loaded, lens)
-            else:
-                model_args = (loaded,)
 
+        with torch.no_grad():
             # Run inference.
-            _y_pred, _y_att, _y_uq = _run_inference(
+            _y_pred, _y_att, _y_uq = run_inference(
                 model,
-                model_args,
+                loaded,
                 attention=attention,
                 attention_pooling=attention_pooling,
                 uq=uq,
-                apply_softmax=apply_softmax
+                apply_softmax=apply_softmax,
+                device=device,
+                use_lens=use_lens
             )
+
+            # Convert to numpy.
+            if _y_pred is not None:
+                _y_pred = _y_pred.cpu().numpy()
+            if _y_att is not None:
+                _y_att = _y_att.cpu().numpy()
+            if _y_uq is not None:
+                _y_uq = _y_uq.cpu().numpy()
+
+            # Append to running lists.
             y_pred.append(_y_pred)
             if _y_att is not None:
                 y_att.append(_y_att)
@@ -1063,7 +1096,7 @@ def _predict_mil_tiles(
     # Prepare bag.
     device = utils._detect_device(model, device, verbose=True)
     model.eval()
-    if isinstance(bag, list):
+    if utils._is_list_of_paths(bag):
         # If bags are passed as a list of paths, load them individually.
         loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
     else:
@@ -1072,27 +1105,31 @@ def _predict_mil_tiles(
     # Resize the bag dimension to the batch dimension.
     loaded = torch.unsqueeze(loaded, dim=1)
 
-    # Inference.
-    y_pred = []
-    y_att  = []
-    uncertainty = []
-    with torch.no_grad():
-        if use_lens:
-            lens = torch.ones(loaded.shape[0]).to(device)
-            model_args = (loaded, lens)
-        else:
-            model_args = (loaded,)
+    # Prepare lens.
+    if use_lens:
+        use_lens = torch.ones(loaded.shape[0]).to(device)
 
-        # Run inference.
-        y_pred, y_att, uncertainty = _run_inference(
+    # Inference.
+    with torch.no_grad():
+        y_pred, y_att, uncertainty = run_inference(
             model,
-            model_args,
+            loaded,
             attention=attention,
             attention_pooling=attention_pooling,
             uq=uq,
             use_first_out=use_first_out,
-            apply_softmax=apply_softmax
+            apply_softmax=apply_softmax,
+            use_lens=use_lens,
+            device=device
         )
+
+    # Convert to numpy.
+    if y_pred is not None:
+        y_pred = y_pred.cpu().numpy()
+    if y_att is not None:
+        y_att = y_att.cpu().numpy()
+    if uncertainty is not None:
+        uncertainty = uncertainty.cpu().numpy()
 
     if uq:
         return y_pred, y_att, uncertainty
