@@ -85,23 +85,35 @@ fit_presets = {
 augment_presets = {
     'reinhard': {
         'v1': {'means_stdev': np.array([1.1882676, 1.3114343, 1.1200949]) * 5,
-                'stds_stdev': np.array([0.5123385 , 0.37919158, 0.26019168]) * 5}
+                'stds_stdev': np.array([0.5123385 , 0.37919158, 0.26019168]) * 5},
+        'v2': {'means_stdev': np.array([1.1882676, 1.3114343, 1.1200949]) * 3,
+                'stds_stdev': np.array([0.5123385 , 0.37919158, 0.26019168]) * 3}
     },
     'reinhard_fast': {
         'v1': {'means_stdev': np.array([1.2963034 , 1.0061347 , 0.90867484]) * 5,
-                'stds_stdev': np.array([0.47548684, 0.3956356 , 0.23499836]) * 5}
+                'stds_stdev': np.array([0.47548684, 0.3956356 , 0.23499836]) * 5},
+        'v2': {'means_stdev': np.array([1.2963034 , 1.0061347 , 0.90867484]) * 3,
+                'stds_stdev': np.array([0.47548684, 0.3956356 , 0.23499836]) * 3},
     },
     'macenko': {
         'v1': {'matrix_stdev': np.array([[0.00893346, 0.01153686],
                                          [0.00659814, 0.00722771],
                                          [0.00726339, 0.01352414]]) * 5,
-               'concentrations_stdev': np.array([0.06665898, 0.06770515]) * 5}
+               'concentrations_stdev': np.array([0.06665898, 0.06770515]) * 5},
+        'v2': {'matrix_stdev': np.array([[0.00893346, 0.01153686],
+                                         [0.00659814, 0.00722771],
+                                         [0.00726339, 0.01352414]]) * 3,
+               'concentrations_stdev': np.array([0.06665898, 0.06770515]) * 3}
     },
     'macenko_fast': {
         'v1': {'matrix_stdev': np.array([[0.00794701, 0.01137106],
                                          [0.00559027, 0.00642623],
                                          [0.00609103, 0.01144302]]) * 5,
-               'concentrations_stdev': np.array([0.06623945, 0.08137263]) * 5}
+               'concentrations_stdev': np.array([0.06623945, 0.08137263]) * 5},
+        'v2': {'matrix_stdev': np.array([[0.00794701, 0.01137106],
+                                         [0.00559027, 0.00642623],
+                                         [0.00609103, 0.01144302]]) * 3,
+               'concentrations_stdev': np.array([0.06623945, 0.08137263]) * 3}
     }
 }
 

@@ -155,9 +155,13 @@ def augmented_transform(
     if means_stdev is None and stds_stdev is None:
         raise ValueError("Must supply either means_stdev and/or stds_stdev")
     if means_stdev is not None:
-        tgt_mean = torch.normal(tgt_mean, means_stdev)
+        tgt_mean = tgt_mean[:, None].repeat(1, I.shape[0])
+        means_stdev = means_stdev[:, None].repeat(1, I.shape[0])
+        tgt_mean = torch.normal(tgt_mean, means_stdev.to(tgt_mean.device))
     if stds_stdev is not None:
-        tgt_std = torch.normal(tgt_std, stds_stdev)
+        tgt_std = tgt_std[:, None].repeat(1, I.shape[0])
+        stds_stdev = stds_stdev[:, None].repeat(1, I.shape[0])
+        tgt_std = torch.normal(tgt_std, stds_stdev.to(tgt_std.device))
     return transform(I, tgt_mean, tgt_std, **kwargs)
 
 
@@ -197,8 +201,15 @@ def transform(
         raise ValueError(
         "If 'ctx_means' is provided, 'ctx_stds' must not be None"
     )
+    tgt_mean = tgt_mean.to(I.device)
+    tgt_std = tgt_std.to(I.device)
 
     I1, I2, I3 = lab_split(I)
+
+    if len(tgt_mean.shape) == 1:
+        tgt_mean = torch.unsqueeze(tgt_mean, dim=1)
+    if len(tgt_std.shape) == 1:
+        tgt_std = torch.unsqueeze(tgt_std, dim=1)
 
     if mask_threshold:
         mask = torch.unsqueeze(((I1 / 100) < mask_threshold), -1)
@@ -216,11 +227,63 @@ def transform(
         part1 = _I - _I_mean[:, None, None].expand(_I.shape)
         part2 = _tgt_std / _I_std
         part3 = part1 * part2[:, None, None].expand(part1.shape)
-        return part3 + _tgt_mean
+        return part3 + _tgt_mean[:, None, None]
 
     norm1 = norm(I1, I1_mean, I1_std, tgt_std[0], tgt_mean[0])
     norm2 = norm(I2, I2_mean, I2_std, tgt_std[1], tgt_mean[1])
     norm3 = norm(I3, I3_mean, I3_std, tgt_std[2], tgt_mean[2])
+
+    merged = merge_back(norm1, norm2, norm3)
+    clipped = torch.clip(merged, min=0, max=255).to(torch.uint8)
+    if mask_threshold:
+        return torch.where(mask, clipped, I)
+    else:
+        return clipped
+
+
+def augment(
+    I: torch.Tensor,
+    means_stdev: torch.Tensor,
+    stds_stdev: torch.Tensor,
+    *,
+    mask_threshold: Optional[float] = None
+) -> torch.Tensor:
+    """Augment an H&E image.
+
+    Args:
+        img (torch.Tensor): Batch of uint8 images (B x W x H x C).
+
+    Keyword Args:
+        mask_threshold (float, optional): Whitespace fraction threshold, above which
+            pixels are masked and not normalized. Defaults to None.
+
+    Returns:
+        torch.Tensor:   Stain augmented image.
+
+    """
+    I1, I2, I3 = lab_split(I)
+
+    if mask_threshold:
+        mask = torch.unsqueeze(((I1 / 100) < mask_threshold), -1)
+
+    means, stds = get_mean_std(I1, I2, I3)
+    means_stdev = means_stdev[:, None].repeat(1, means.shape[1])
+    stds_stdev = stds_stdev[:, None].repeat(1, stds.shape[1])
+    tgt_mean = torch.normal(means, means_stdev.to(means.device))
+    tgt_std = torch.normal(stds, stds_stdev.to(stds.device))
+
+    def norm(_I, _I_mean, _I_std, _tgt_std, _tgt_mean):
+        # Equivalent to:
+        #   norm1 = ((I1 - I1_mean) * (tgt_std / I1_std)) + tgt_mean[0]
+        # But supports batches of images
+        part1 = _I - _I_mean[:, None, None].expand(_I.shape)
+        part2 = _tgt_std / _I_std
+        part3 = part1 * part2[:, None, None].expand(part1.shape)
+        return part3 + _tgt_mean[:, None, None]
+
+    norm1 = norm(I1, means[0], stds[0], tgt_std[0], tgt_mean[0])
+    norm2 = norm(I2, means[1], stds[1], tgt_std[1], tgt_mean[1])
+    norm3 = norm(I3, means[2], stds[2], tgt_std[2], tgt_mean[2])
 
     merged = merge_back(norm1, norm2, norm3)
     clipped = torch.clip(merged, min=0, max=255).to(torch.uint8)
@@ -280,7 +343,7 @@ class ReinhardFastNormalizer:
         self._ctx_stds = None  # type: Optional[torch.Tensor]
         self._augment_params = dict()  # type: Dict[str, torch.Tensor]
         self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
-        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v2'])  # type: ignore
 
     def fit(
         self,
@@ -449,6 +512,31 @@ class ReinhardFastNormalizer:
             ctx_std=_ctx_stds,
             mask_threshold=self.threshold,
             **aug_kw
+        )
+        if len(I.shape) == 3:
+            return transformed[0]
+        else:
+            return transformed
+
+    def augment(self, I: torch.Tensor) -> torch.Tensor:
+        """Augment an H&E image.
+
+        Args:
+            img (torch.Tensor): Image, RGB uint8 with dimensions W, H, C.
+
+        Returns:
+            torch.Tensor: Stain augmented image (uint8)
+        """
+        if not any(m in self._augment_params
+                   for m in ('means_stdev', 'stds_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
+        _I = torch.unsqueeze(I, dim=0) if len(I.shape) == 3 else I
+        transformed = augment(
+            _I,
+            self._augment_params['means_stdev'],
+            self._augment_params['stds_stdev'],
+            mask_threshold=self.threshold
         )
         if len(I.shape) == 3:
             return transformed[0]
@@ -645,6 +733,32 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             ctx_std=_ctx_stds,
             mask_threshold=self.threshold,
             **aug_kw
+        )
+        if len(I.shape) == 3:
+            return transformed[0]
+        else:
+            return transformed
+
+    def augment(self, I: torch.Tensor) -> torch.Tensor:
+        """Augment an H&E image.
+
+        Args:
+            img (torch.Tensor): Image, uint8 with dimensions W, H, C.
+
+        Returns:
+            torch.Tensor: Stain augmented image.
+        """
+        if not any(m in self._augment_params
+                   for m in ('means_stdev', 'stds_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
+        _I = torch.unsqueeze(I, dim=0) if len(I.shape) == 3 else I
+        _I = standardize_brightness(_I)
+        transformed = augment(
+            _I,
+            self._augment_params['means_stdev'],
+            self._augment_params['stds_stdev'],
+            mask_threshold=self.threshold
         )
         if len(I.shape) == 3:
             return transformed[0]

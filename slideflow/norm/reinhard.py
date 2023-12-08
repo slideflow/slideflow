@@ -63,7 +63,7 @@ class ReinhardFastNormalizer:
         self._ctx_stds = None
         self._augment_params = dict()  # type: Dict[str, np.ndarray]
         self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
-        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v2'])  # type: ignore
 
     def fit(self, img: np.ndarray, mask: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Fit normalizer to a target image.
