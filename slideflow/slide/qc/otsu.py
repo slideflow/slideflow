@@ -134,6 +134,8 @@ class Otsu:
                 scaled_polys,
                 out_shape=thumb.shape[:2]
             )
+            if wsi.roi_method == 'outside':
+                roi_mask = ~roi_mask
             thumb = cv2.bitwise_or(
                 thumb,
                 thumb,
