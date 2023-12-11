@@ -320,6 +320,10 @@ def draw_roi(
         annotated_img = Image.fromarray(img)
     elif isinstance(img, str):
         annotated_img = Image.open(io.BytesIO(img))  # type: ignore
+    else:
+        raise ValueError("Expected img to be a numpy array or bytes, got: {}".format(
+            type(img)
+        ))
     draw = ImageDraw.Draw(annotated_img)
     for poly in annPolys:
         x, y = poly.exterior.coords.xy
