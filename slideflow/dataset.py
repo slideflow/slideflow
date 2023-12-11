@@ -2033,10 +2033,10 @@ class Dataset:
         existing_rois_names = [path_to_name(r) for r in existing_rois]
 
         for slide in track(self.slide_paths(), description='Generating...'):
-            
+                            
             # Check if an ROI already exists.
-            if slide.name in existing_rois_names:
-                idx = existing_rois_names.index(slide.name)
+            if path_to_name(slide) in existing_rois_names:
+                idx = existing_rois_names.index(path_to_name(slide))
                 if overwrite:
                     log.info(f"Overwriting ROI at {existing_rois[idx]}")
                 else:
@@ -2044,19 +2044,22 @@ class Dataset:
                     continue
             
             # Set the destination directory
-            if 'roi' not in self.sources and dest is None:
+            source = self.get_slide_source(slide)
+            if 'roi' not in self.sources[source] and dest is None:
                 raise errors.DatasetError(
                     "No ROI directory set. Please set an ROI directory in the "
                     "dataset configuration, or provide a destination directory "
                     "with the `dest` argument."
                 )
             if dest is None:
-                source = self.get_slide_source(slide)
                 dest = self.sources[source]['roi']
+            if not exists(dest):
+                os.makedirs(dest)
 
             # Generate and export ROIs.
-            segment.generate_rois(sf.WSI(slide, 299, 512), model)           
-            slide.export_rois(dest)
+            wsi = sf.WSI(slide, 299, 512)
+            segment.generate_rois(wsi, model)           
+            wsi.export_rois(join(dest, wsi.name + '.csv'))
 
 
     def get_slide_source(self, slide: str) -> str:

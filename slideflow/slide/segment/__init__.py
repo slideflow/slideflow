@@ -50,6 +50,8 @@ def generate_rois(
 
     # Pad to at least the target size.
     img = np.array(thumb)
+    if img.shape[-1] == 4:
+        img = img[..., :3]
     orig_dims = img.shape
     img = topleft_pad(img, 1024).transpose(2, 0, 1)
 
