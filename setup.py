@@ -150,7 +150,7 @@ setuptools.setup(
             'pretrainedmodels',
             'cellpose<2.2',
             'fastai',
-            'timm<0.9'
+            'timm'
         ],
         'dev': [
             'sphinx',
