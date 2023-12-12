@@ -14,8 +14,9 @@ import torch.utils.checkpoint as checkpoint
 from typing import Optional
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
+from itertools import repeat
+import collections.abc
 
-from timm.models.layers.helpers import to_2tuple
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.models.helpers import build_model_with_cfg
 from timm.models.layers import PatchEmbed, Mlp, DropPath, trunc_normal_, lecun_normal_
@@ -26,6 +27,12 @@ from timm.models.vision_transformer import checkpoint_filter_fn
 from ._factory_torch import TorchFeatureExtractor
 
 # -----------------------------------------------------------------------------
+
+def to_2tuple(x):
+    if isinstance(x, collections.abc.Iterable) and not isinstance(x, str):
+        return x
+    return tuple(repeat(x, 2))
+
 
 def _init_vit_weights(module: nn.Module, name: str = '', head_bias: float = 0., jax_impl: bool = False):
     """ ViT weight initialization
