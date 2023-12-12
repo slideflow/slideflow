@@ -1,16 +1,23 @@
 import torch
+import numpy as np
 import pytorch_lightning as pl
 import segmentation_models_pytorch as smp
+import slideflow as sf
+
+from typing import Optional, Union
+
+from .utils import topleft_pad
 
 # -----------------------------------------------------------------------------
 
 class SegmentModel(pl.LightningModule):
 
-    def __init__(self, arch, encoder_name, in_channels, out_classes, **kwargs):
+    def __init__(self, arch, encoder_name, in_channels, out_classes, mpp=None, **kwargs):
         super().__init__()
         self.model = smp.create_model(
             arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
         )
+        self.mpp = mpp
 
         # preprocessing parameteres for image
         params = smp.encoders.get_preprocessing_params(encoder_name)
@@ -109,7 +116,7 @@ class SegmentModel(pl.LightningModule):
             f"{stage}_dataset_iou": dataset_iou,
         }
 
-        self.log_dict(metrics, prog_bar=True)
+        self.log_dict(metrics, prog_bar=True, sync_dist=True)
         self.outputs[stage].clear()
 
     def training_step(self, batch, batch_idx):
@@ -132,3 +139,58 @@ class SegmentModel(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=0.0001)
+    
+    def run_tiled_inference(self, img: np.ndarray):
+        """Run inference on an image, with tiling."""
+
+        from cellpose.transforms import make_tiles, average_tiles
+
+        # Pad to at least the target size.
+        if img.shape[-1] == 4:
+            img = img[..., :3]
+        orig_dims = img.shape
+        img = topleft_pad(img, 1024).transpose(2, 0, 1)
+
+        # Tile the thumbnail.
+        tiles, ysub, xsub, ly, lx = make_tiles(img, 1024)
+        batched_tiles = tiles.reshape(-1, 3, 1024, 1024)
+
+        # Generate UNet predictions.
+        with torch.no_grad():
+            tile_preds = self.model(torch.from_numpy(batched_tiles))
+
+        # Merge predictions across the tiles.
+        tiled_preds = average_tiles(tile_preds.numpy(), ysub, xsub, ly, lx)[0]
+        
+        # Crop predictions to the original size.
+        tiled_preds = tiled_preds[:orig_dims[0], :orig_dims[1]]
+
+        return tiled_preds
+    
+    def run_slide_inference(self, slide: Union[str, "sf.WSI"], mpp=None):
+        """Run model inference on a slide thumbnail."""
+
+        # Validation
+        if self.mpp is None:
+            raise ValueError("Must specify mpp when running inference on a slide. "
+                             "This can be done by setting the model .mpp parameter, "
+                             "or by passing an mpp value to this function.")
+        elif mpp is not None and mpp != self.mpp:
+            sf.log.warning("Overriding model mpp with mpp parameter.")
+        else:
+            mpp = self.mpp
+        if not isinstance(slide, (str, sf.WSI)):
+            raise TypeError("slide must be a string or sf.WSI object.")
+        
+        # Load the slide.
+        if isinstance(slide, str):
+            slide = sf.WSI(slide, 299, 512)
+        
+        # Get the slide thumbnail.
+        thumb = np.array(slide.thumb(mpp=mpp))
+
+        # Return predictions.
+        return self.run_tiled_inference(thumb)
+
+
+# -----------------------------------------------------------------------------
