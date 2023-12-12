@@ -98,14 +98,10 @@ class BufferedRandomCropDataset(BufferedMaskDataset):
     def __init__(
         self, 
         dataset: "sf.Dataset", 
-        source: str, size: int = 1024,
-        normalizer: Optional[Union[str, "sf.norm.StainNormalizer"]] = None
+        source: str, size: int = 1024
     ):
         super().__init__(dataset, source)
         self.size = size
-        if isinstance(normalizer, str):
-            normalizer = sf.norm.autoselect(normalizer)
-        self.normalizer = normalizer
 
     def process(self, img, mask):
 
@@ -133,10 +129,6 @@ class BufferedRandomCropDataset(BufferedMaskDataset):
         r = np.random.randint(4)
         img = transforms.functional.rotate(img, r * 90)
         mask = transforms.functional.rotate(mask, r * 90)
-
-        # Stain normalization (if applicable).
-        if self.normalizer is not None:
-            img = self.normalizer.transform(img)
 
         return img, mask
 

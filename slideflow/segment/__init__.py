@@ -125,7 +125,6 @@ class SegmentConfig:
         val_batch_size: int = 16,
         epochs: int = 8,
         mpp: float = 10,
-        normalizer: Optional[str] = None,
         **kwargs
     ):
         self.arch = arch
@@ -137,7 +136,6 @@ class SegmentConfig:
         self.val_batch_size = val_batch_size
         self.epochs = epochs
         self.mpp = mpp
-        self.normalizer = normalizer
         self.kwargs = kwargs
 
     @classmethod
@@ -161,7 +159,6 @@ class SegmentConfig:
             train_batch_size=self.train_batch_size,
             val_batch_size=self.val_batch_size,
             epochs=self.epochs,
-            normalizer=self.normalizer
         )
         sf.util.write_json(data, path)
 
@@ -235,11 +232,7 @@ def train(
         config.to_json(join(dest, 'segment_params.json'))
 
     # Build datasets.
-    dts_kw = dict(
-        source=data_source, 
-        size=config.size, 
-        normalizer=config.normalizer
-    )
+    dts_kw = dict(source=data_source, size=config.size)
     train_ds = BufferedRandomCropDataset(dataset, **dts_kw)
     if val_dataset is not None:
         val_ds = BufferedRandomCropDataset(val_dataset, **dts_kw)
