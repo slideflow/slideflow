@@ -1,12 +1,22 @@
 import torch
 import numpy as np
-import pytorch_lightning as pl
-import segmentation_models_pytorch as smp
 import slideflow as sf
-
-from typing import Optional, Union
+from typing import Union
 
 from .utils import topleft_pad
+
+# -----------------------------------------------------------------------------
+
+try:
+    import pytorch_lightning as pl
+except ImportError:
+    raise ImportError("pytorch_lightning is required for training segmentation models. "
+                        "This library can be installed with `pip install pytorch-lightning`.")
+try:
+    import segmentation_models_pytorch as smp
+except ImportError:
+    raise ImportError("segmentation_models_pytorch is required for training segmentation models. "
+                      "This library can be installed with `pip install segmentation-models-pytorch`.")
 
 # -----------------------------------------------------------------------------
 

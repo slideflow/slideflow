@@ -4,16 +4,15 @@ import torch
 import slideflow as sf
 import numpy as np
 import multiprocessing as mp
-import pytorch_lightning as pl
+import tempfile
 
 from typing import Optional
 from functools import partial
 from os.path import join, exists, isdir, dirname
 from rich.progress import track
-from os.path import join, exists
 from cellpose.utils import outlines_list
-
 from scipy.ndimage import label
+
 from slideflow.util import path_to_name
 
 from .model import SegmentModel
@@ -124,8 +123,9 @@ class SegmentConfig:
         out_classes: int = 1,
         train_batch_size: int = 8,
         val_batch_size: int = 16,
-        epochs: int = 10,
-        mpp: float = 20,
+        epochs: int = 8,
+        mpp: float = 10,
+        normalizer: Optional[str] = None,
         **kwargs
     ):
         self.arch = arch
@@ -137,6 +137,7 @@ class SegmentConfig:
         self.val_batch_size = val_batch_size
         self.epochs = epochs
         self.mpp = mpp
+        self.normalizer = normalizer
         self.kwargs = kwargs
 
     @classmethod
@@ -159,7 +160,8 @@ class SegmentConfig:
             size=self.size,
             train_batch_size=self.train_batch_size,
             val_batch_size=self.val_batch_size,
-            epochs=self.epochs
+            epochs=self.epochs,
+            normalizer=self.normalizer
         )
         sf.util.write_json(data, path)
 
@@ -208,15 +210,23 @@ def train(
 ) -> SegmentModel: 
     """Train a segmentation model."""
 
-    # Validation.
-    if data_source is None:
-        raise NotImplementedError("Must specify data source.")
+    import pytorch_lightning as pl
+
+    # Parameter validation.
     if not isinstance(dataset, sf.Dataset):
         raise ValueError("dataset must be a slideflow Dataset.")
     if val_dataset is not None and not isinstance(val_dataset, sf.Dataset):
         raise ValueError("val_dataset must be a slideflow Dataset.")
     if not isinstance(config, SegmentConfig):
         raise ValueError("config must be a SegmentConfig.")
+    
+    # Generate thumbnails and masks.
+    if data_source is None:
+        data_dest = join(tempfile.gettempdir(), 'segmentation_masks')
+        print("Generating thumbnails and masks (saved to {}).".format(data_dest))
+        export_thumbs_and_masks(dataset, mpp=config.mpp, dest=data_dest)
+        if val_dataset is not None:
+            export_thumbs_and_masks(val_dataset, mpp=config.mpp, dest=data_dest)
 
     # Save training configuration.
     if dest:
@@ -225,9 +235,14 @@ def train(
         config.to_json(join(dest, 'segment_params.json'))
 
     # Build datasets.
-    train_ds = BufferedRandomCropDataset(dataset, source=data_source, size=config.size)
+    dts_kw = dict(
+        source=data_source, 
+        size=config.size, 
+        normalizer=config.normalizer
+    )
+    train_ds = BufferedRandomCropDataset(dataset, **dts_kw)
     if val_dataset is not None:
-        val_ds = BufferedRandomCropDataset(val_dataset, source=data_source, size=config.size)
+        val_ds = BufferedRandomCropDataset(val_dataset, **dts_kw)
     else:
         val_ds = None
 

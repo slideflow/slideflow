@@ -4,7 +4,7 @@ import rasterio
 import numpy as np
 import shapely.affinity as sa
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional
 from torchvision import transforms
 from os.path import join, exists
 from rich.progress import track
@@ -95,9 +95,17 @@ class BufferedMaskDataset(torch.utils.data.Dataset):
 
 class BufferedRandomCropDataset(BufferedMaskDataset):
 
-    def __init__(self, dataset: "sf.Dataset", source: str, size: int = 1024):
+    def __init__(
+        self, 
+        dataset: "sf.Dataset", 
+        source: str, size: int = 1024,
+        normalizer: Optional[Union[str, "sf.norm.StainNormalizer"]] = None
+    ):
         super().__init__(dataset, source)
         self.size = size
+        if isinstance(normalizer, str):
+            normalizer = sf.norm.autoselect(normalizer)
+        self.normalizer = normalizer
 
     def process(self, img, mask):
 
@@ -125,6 +133,10 @@ class BufferedRandomCropDataset(BufferedMaskDataset):
         r = np.random.randint(4)
         img = transforms.functional.rotate(img, r * 90)
         mask = transforms.functional.rotate(mask, r * 90)
+
+        # Stain normalization (if applicable).
+        if self.normalizer is not None:
+            img = self.normalizer.transform(img)
 
         return img, mask
 
