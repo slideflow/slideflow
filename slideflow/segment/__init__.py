@@ -30,8 +30,7 @@ def generate_rois(
     wsi: "sf.WSI",
     model: str,
 ):
-    """Generate ROIs for a slide using a U-Net model.
-    """
+    """Generate ROIs for a single slide using a U-Net model."""
 
     # Remove any existing ROIs.
     wsi.rois = []

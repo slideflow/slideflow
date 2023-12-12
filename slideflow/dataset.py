@@ -2027,22 +2027,12 @@ class Dataset:
             model (str): Path to model (zip) or model configuration (json).
         
         """
-        from slideflow.slide import segment
 
-        existing_rois = self.rois()
-        existing_rois_names = [path_to_name(r) for r in existing_rois]
+        # Load the model configuration.
+        segment = sf.slide.qc.Segment(model)
 
         for slide in track(self.slide_paths(), description='Generating...'):
                             
-            # Check if an ROI already exists.
-            if path_to_name(slide) in existing_rois_names:
-                idx = existing_rois_names.index(path_to_name(slide))
-                if overwrite:
-                    log.info(f"Overwriting ROI at {existing_rois[idx]}")
-                else:
-                    log.info(f"ROI already exists at {existing_rois[idx]}")
-                    continue
-            
             # Set the destination directory
             source = self.get_slide_source(slide)
             if 'roi' not in self.sources[source] and dest is None:
@@ -2056,9 +2046,23 @@ class Dataset:
             if not exists(dest):
                 os.makedirs(dest)
 
-            # Generate and export ROIs.
-            wsi = sf.WSI(slide, 299, 512)
-            segment.generate_rois(wsi, model)           
+            # Check if an ROI already exists.
+            existing_rois = [path_to_name(f) for f in os.listdir(dest) if f.endswith('csv')]
+            if path_to_name(slide) in existing_rois:
+                if overwrite:
+                    log.info(f"Overwriting ROI for slide {path_to_name(slide)} at {dest}")
+                else:
+                    log.info(f"ROI already exists for slide {path_to_name(slide)} at {dest}")
+                    continue
+
+            # Load the slide and remove any existing auto-loaded ROIs.
+            wsi = sf.WSI(slide, 299, 512, verbose=False)
+            wsi.rois = []
+
+            # Generate and apply ROIs.
+            segment.generate_rois(wsi, apply=True)
+
+            # Export ROIs to CSV.
             wsi.export_rois(join(dest, wsi.name + '.csv'))
 
 
