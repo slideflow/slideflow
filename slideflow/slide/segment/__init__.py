@@ -124,7 +124,7 @@ class SegmentConfig:
         out_classes: int = 1,
         train_batch_size: int = 8,
         val_batch_size: int = 16,
-        epochs: int = 5,
+        epochs: int = 10,
         mpp: float = 20,
         **kwargs
     ):

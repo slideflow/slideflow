@@ -114,6 +114,18 @@ class BufferedRandomCropDataset(BufferedMaskDataset):
             img, output_size=(self.size, self.size))
         img = transforms.functional.crop(img, i, j, h, w)
         mask = transforms.functional.crop(mask, i, j, h, w)
+
+        # Random flip / cardinal rotation.
+        if np.random.rand() > 0.5:
+            img = transforms.functional.hflip(img)
+            mask = transforms.functional.hflip(mask)
+        if np.random.rand() > 0.5:
+            img = transforms.functional.vflip(img)
+            mask = transforms.functional.vflip(mask)
+        r = np.random.randint(4)
+        img = transforms.functional.rotate(img, r * 90)
+        mask = transforms.functional.rotate(mask, r * 90)
+
         return img, mask
 
 # -----------------------------------------------------------------------------
