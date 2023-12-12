@@ -838,7 +838,13 @@ class SlideWidget:
                     viz.create_toast(f"Error loading segment model: {e}", icon="error")
                     self._segment = None
                     self._segment_path = ""
-
+        imgui.text('')
+        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+        if imgui_utils.button('Generate ROIs', enabled=(self._segment is not None), width=viz.font_size*7):
+            self._segment.generate_rois(viz.wsi)
+            self.roi_widget.refresh_rois()
+        if imgui.is_item_hovered() and not self._segment:
+            imgui.set_tooltip("No segment model loaded")
 
         # Apply slide filtering changes.
         _qc_clicked = any([_otsu_clicked, _gaussian_clicked, _segment_clicked])
