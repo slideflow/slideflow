@@ -298,7 +298,7 @@ class ReinhardFastNormalizer:
         self._augment_params = dict()  # type: Dict[str, tf.Tensor]
         self.threshold = None  # type: Optional[float]
         self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
-        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v2'])  # type: ignore
 
     def fit(
         self,

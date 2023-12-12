@@ -60,3 +60,6 @@ class AugmentNormalizer:
         hsv = np.array(hsv, dtype=np.uint8)
         img = cv.cvtColor(hsv, cv.COLOR_HSV2RGB)
         return img
+
+    def augment(self, I: np.ndarray) -> np.ndarray:
+        return self.transform(I)
