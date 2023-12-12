@@ -2020,6 +2020,48 @@ class Dataset:
         else:
             return matching[0]
 
+    def generate_rois(self, model: str, overwrite: bool = False, dest: Optional[str] = None):
+        """Generate ROIs using a U-Net model.
+        
+        Args:
+            model (str): Path to model (zip) or model configuration (json).
+        
+        """
+        from slideflow.slide import segment
+
+        existing_rois = self.rois()
+        existing_rois_names = [path_to_name(r) for r in existing_rois]
+
+        for slide in track(self.slide_paths(), description='Generating...'):
+                            
+            # Check if an ROI already exists.
+            if path_to_name(slide) in existing_rois_names:
+                idx = existing_rois_names.index(path_to_name(slide))
+                if overwrite:
+                    log.info(f"Overwriting ROI at {existing_rois[idx]}")
+                else:
+                    log.info(f"ROI already exists at {existing_rois[idx]}")
+                    continue
+            
+            # Set the destination directory
+            source = self.get_slide_source(slide)
+            if 'roi' not in self.sources[source] and dest is None:
+                raise errors.DatasetError(
+                    "No ROI directory set. Please set an ROI directory in the "
+                    "dataset configuration, or provide a destination directory "
+                    "with the `dest` argument."
+                )
+            if dest is None:
+                dest = self.sources[source]['roi']
+            if not exists(dest):
+                os.makedirs(dest)
+
+            # Generate and export ROIs.
+            wsi = sf.WSI(slide, 299, 512)
+            segment.generate_rois(wsi, model)           
+            wsi.export_rois(join(dest, wsi.name + '.csv'))
+
+
     def get_slide_source(self, slide: str) -> str:
         """Return the source of a given slide.
 
