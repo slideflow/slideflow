@@ -1405,6 +1405,23 @@ class Dataset:
 
         return df
 
+    def get_unique_roi_labels(self) -> List[str]:
+        """Get a list of unique ROI labels for all slides in this dataset."""
+
+        # Get a list of unique labels.
+        roi_unique_labels = []
+        for roi in self.rois():
+            _df = pd.read_csv(roi)
+            if 'label' not in _df.columns:
+                continue
+            unique = [
+                l for l in _df.label.unique().tolist()
+                if ((l not in roi_unique_labels)
+                    and (l is not np.nan))
+            ]
+            roi_unique_labels += unique
+        return sorted(roi_unique_labels)
+
     def extract_cells(
         self,
         masks_path: str,
@@ -2027,17 +2044,17 @@ class Dataset:
 
     def generate_rois(self, model: str, overwrite: bool = False, dest: Optional[str] = None):
         """Generate ROIs using a U-Net model.
-        
+
         Args:
             model (str): Path to model (zip) or model configuration (json).
-        
+
         """
 
         # Load the model configuration.
         segment = sf.slide.qc.Segment(model)
 
         for slide in track(self.slide_paths(), description='Generating...'):
-                            
+
             # Set the destination directory
             source = self.get_slide_source(slide)
             if 'roi' not in self.sources[source] and dest is None:
