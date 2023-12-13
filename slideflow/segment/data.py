@@ -4,7 +4,7 @@ import rasterio
 import numpy as np
 import shapely.affinity as sa
 
-from typing import Tuple, Union, Optional
+from typing import Tuple, Union, Optional, List, Dict
 from torchvision import transforms
 from os.path import join, exists
 from rich.progress import track
@@ -13,12 +13,20 @@ from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from slideflow.util import path_to_name
 
-from .utils import topleft_pad
+from .utils import topleft_pad_torch
 
 # -----------------------------------------------------------------------------
 
-def get_thumb_and_mask(wsi: "sf.WSI", mpp: float):
+def get_thumb_and_mask(
+    wsi: "sf.WSI",
+    mpp: float,
+    roi_labels: Optional[List[str]] = None,
+    skip_missing: bool = False
+) -> Dict[str, np.ndarray]:
     """Get a thumbnail and segmentation mask for a slide."""
+
+    if len(wsi.roi_polys) == 0 and skip_missing:
+        return None
 
     # Sanity check.
     width = int((wsi.mpp * wsi.dimensions[0]) / mpp)
@@ -31,23 +39,42 @@ def get_thumb_and_mask(wsi: "sf.WSI", mpp: float):
         ))
 
     # Get the thumbnail.
-    thumb = wsi.thumb(mpp=mpp)
+    thumb = wsi.thumb(mpp=mpp).convert('RGB')
     img = np.array(thumb).transpose(2, 0, 1)
-
-    assert len(wsi.roi_polys) > 0, "No ROIs found in slide"
-    all_polys = unary_union([p.poly for p in wsi.roi_polys])
-
     xfact = thumb.size[1] / wsi.dimensions[1]
     yfact = thumb.size[0] / wsi.dimensions[0]
 
-    # Scale ROIs to the thumbnail size.
-    C = sa.scale(all_polys, xfact=xfact, yfact=yfact, origin=(0, 0))
+    if len(wsi.roi_polys) == 0:
+        sf.log.warning("No ROIs found in slide {}, exporting an empty mask.".format(wsi.path))
+        mask = np.zeros((1, thumb.size[1], thumb.size[0])).astype(bool)
+    elif roi_labels:
+        labeled_masks = []
+        for i, label in enumerate(roi_labels):
+            wsi_polys = [p.poly for p in wsi.roi_polys if p.label == label]
+            if len(wsi_polys) == 0:
+                mask = np.zeros((thumb.size[1], thumb.size[0])).astype(bool)
+                labeled_masks.append(mask)
+            else:
+                all_polys = unary_union(wsi_polys)
+                # Scale ROIs to the thumbnail size.
+                C = sa.scale(all_polys, xfact=xfact, yfact=yfact, origin=(0, 0))
+                # Rasterize to an int mask.
+                mask = rasterio.features.rasterize([C], out_shape=(thumb.size[1], thumb.size[0])).astype(bool).astype(np.int32) * (i + 1)
+                labeled_masks.append(mask)
+        mask = np.stack(labeled_masks, axis=0).max(axis=0)[None, :, :]
 
-    # Rasterize to an int mask.
-    mask = rasterio.features.rasterize([C], out_shape=(thumb.size[1], thumb.size[0])).astype(int)
+    else:
+        all_polys = unary_union([p.poly for p in wsi.roi_polys])
+        # Scale ROIs to the thumbnail size.
+        C = sa.scale(all_polys, xfact=xfact, yfact=yfact, origin=(0, 0))
+        # Rasterize to an int mask.
+        mask = rasterio.features.rasterize([C], out_shape=(thumb.size[1], thumb.size[0])).astype(bool)
+        # Add a dummy channel dimension.
+        mask = mask[None, :, :]
 
-    # Add a dummy channel dimension.
-    mask = mask[None, :, :]
+    assert img.shape[1:] == mask.shape[1:], "Image and mask must have the same dimensions."
+    assert mask.ndim == 3, "Mask must have 3 dimensions (C, H, W)."
+    assert img.ndim == 3, "Image must have 3 dimensions (C, H, W)."
 
     return {
         'image': img,
@@ -67,11 +94,11 @@ class BufferedMaskDataset(torch.utils.data.Dataset):
             join(source, s + '.pt') for s in dataset.slides()
             if exists(join(source, s + '.pt'))
         ]
-        
+
 
     def __len__(self):
         return len(self.paths)
-    
+
     def process(self, img, mask):
         """Process the image/mask and convert to a tensor."""
         img = torch.from_numpy(img)
@@ -81,9 +108,9 @@ class BufferedMaskDataset(torch.utils.data.Dataset):
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         # Load the image and mask.
         output = torch.load(self.paths[index])
-        img = output['image']  # CHW (np.ndarray)
-        mask = output['mask']  # 1HW (np.ndarray)
-        
+        img = output['image']               # CHW (np.ndarray)
+        mask = output['mask'].astype(int)   # 1HW (np.ndarray)
+
         # Process.
         img, mask = self.process(img, mask)
 
@@ -91,13 +118,13 @@ class BufferedMaskDataset(torch.utils.data.Dataset):
             'image': img,
             'mask': mask
         }
-    
+
 
 class BufferedRandomCropDataset(BufferedMaskDataset):
 
     def __init__(
-        self, 
-        dataset: "sf.Dataset", 
+        self,
+        dataset: "sf.Dataset",
         source: str, size: int = 1024
     ):
         super().__init__(dataset, source)
@@ -105,13 +132,13 @@ class BufferedRandomCropDataset(BufferedMaskDataset):
 
     def process(self, img, mask):
 
-        # Pad to target size.
-        img = topleft_pad(img, self.size)
-        mask = topleft_pad(mask, self.size)
-
         # Convert to tensor.
-        img = torch.from_numpy(img)
-        mask = torch.from_numpy(mask)
+        img = torch.from_numpy(img).permute(1, 2, 0)
+        mask = torch.from_numpy(mask).permute(1, 2, 0)
+
+        # Pad to target size.
+        img = topleft_pad_torch(img, self.size).permute(2, 0, 1)
+        mask = topleft_pad_torch(mask, self.size).permute(2, 0, 1)
 
         # Random crop.
         i, j, h, w = transforms.RandomCrop.get_params(
@@ -119,13 +146,15 @@ class BufferedRandomCropDataset(BufferedMaskDataset):
         img = transforms.functional.crop(img, i, j, h, w)
         mask = transforms.functional.crop(mask, i, j, h, w)
 
-        # Random flip / cardinal rotation.
+        # Random flip.
         if np.random.rand() > 0.5:
             img = transforms.functional.hflip(img)
             mask = transforms.functional.hflip(mask)
         if np.random.rand() > 0.5:
             img = transforms.functional.vflip(img)
             mask = transforms.functional.vflip(mask)
+
+        # Random cardinal rotation.
         r = np.random.randint(4)
         img = transforms.functional.rotate(img, r * 90)
         mask = transforms.functional.rotate(mask, r * 90)

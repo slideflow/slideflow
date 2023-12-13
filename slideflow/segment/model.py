@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import slideflow as sf
-from typing import Union
+from typing import Union, Optional, Callable
 
 from .utils import topleft_pad
 
@@ -22,12 +22,35 @@ except ImportError:
 
 class SegmentModel(pl.LightningModule):
 
-    def __init__(self, arch, encoder_name, in_channels, out_classes, mpp=None, **kwargs):
+    losses = {
+        'dice': smp.losses.DiceLoss,
+        'jaccard': smp.losses.JaccardLoss,
+        'focal': smp.losses.FocalLoss,
+        'tversky': smp.losses.TverskyLoss,
+        'lovasz': smp.losses.LovaszLoss,
+        'bce': smp.losses.SoftBCEWithLogitsLoss,
+        'ce': smp.losses.SoftCrossEntropyLoss,
+        'mcc': smp.losses.MCCLoss,
+    }
+
+    def __init__(
+        self,
+        arch: str,
+        encoder_name: str,
+        in_channels: int,
+        out_classes: int,
+        *,
+        mpp: Optional[float] = None,
+        loss: Union[str, Callable] = 'dice',
+        loss_mode: str = 'binary',
+        **kwargs
+    ):
         super().__init__()
         self.model = smp.create_model(
             arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
         )
         self.mpp = mpp
+        self.out_classes = out_classes
 
         # preprocessing parameteres for image
         params = smp.encoders.get_preprocessing_params(encoder_name)
@@ -35,11 +58,39 @@ class SegmentModel(pl.LightningModule):
         self.register_buffer("mean", torch.tensor(params["mean"]).view(1, 3, 1, 1))
 
         # for image segmentation dice loss could be the best first choice
-        self.loss_fn = smp.losses.DiceLoss(smp.losses.BINARY_MODE, from_logits=True)
+        self.loss_mode = loss_mode
+        self.loss_fn = self.get_loss_fn(loss, loss_mode)
         self.outputs = {
             'train': [],
             'valid': []
         }
+
+    @staticmethod
+    def get_loss_fn(loss: Union[str, Callable], mode: str) -> Callable:
+        if not isinstance(loss, str):
+            return loss
+        if loss in SegmentModel.losses:
+            loss_fn = SegmentModel.losses[loss]
+        else:
+            raise ValueError("Invalid loss: {}".format(loss))
+
+        if loss in ('bce', 'ce', 'mcc'):
+            if mode and mode != 'binary':
+                raise ValueError("Invalid loss mode for loss {!r}: Expected 'binary', got: {!r}".format(loss, mode))
+            return loss_fn()
+        else:
+            return loss_fn(mode=SegmentModel.get_loss_mode(mode))
+
+    @staticmethod
+    def get_loss_mode(mode):
+        if mode == 'binary':
+            return smp.losses.BINARY_MODE
+        elif mode == 'multiclass':
+            return smp.losses.MULTICLASS_MODE
+        elif mode == 'multilabel':
+            return smp.losses.MULTILABEL_MODE
+        else:
+            raise ValueError("Invalid loss mode: {}".format(mode))
 
     def forward(self, image):
         # normalize image here
@@ -69,19 +120,15 @@ class SegmentModel(pl.LightningModule):
         # for binary segmentation num_classes = 1
         assert mask.ndim == 4
 
-        # Check that mask values in between 0 and 1, NOT 0 and 255 for binary segmentation
-        assert mask.max() <= 1.0 and mask.min() >= 0
+
+        if self.loss_mode == 'binary':
+            # Check that mask values in between 0 and 1, NOT 0 and 255 for binary segmentation
+            assert mask.max() <= 1.0 and mask.min() >= 0
 
         logits_mask = self.forward(image)
 
         # Predicted mask contains logits, and loss_fn param `from_logits` is set to True
         loss = self.loss_fn(logits_mask, mask)
-
-        # Lets compute metrics for some threshold
-        # first convert mask values to probabilities, then
-        # apply thresholding
-        prob_mask = logits_mask.sigmoid()
-        pred_mask = (prob_mask > 0.5).float()
 
         # We will compute IoU metric by two ways
         #   1. dataset-wise
@@ -89,7 +136,18 @@ class SegmentModel(pl.LightningModule):
         # but for now we just compute true positive, false positive, false negative and
         # true negative 'pixels' for each image and class
         # these values will be aggregated in the end of an epoch
-        tp, fp, fn, tn = smp.metrics.get_stats(pred_mask.long(), mask.long(), mode="binary")
+        if self.loss_mode == 'multiclass':
+            prob_mask = torch.softmax(logits_mask, dim=1)
+            pred_mask = torch.argmax(prob_mask, dim=1)
+            pred_mask = pred_mask.unsqueeze(1)
+            tp, fp, fn, tn = smp.metrics.get_stats(pred_mask.long(), mask.long(), mode=self.loss_mode, num_classes=self.out_classes)
+        else:
+            # Lets compute metrics for some threshold
+            # first convert mask values to probabilities, then
+            # apply thresholding
+            prob_mask = logits_mask.sigmoid()
+            pred_mask = (prob_mask > 0.5).float()
+            tp, fp, fn, tn = smp.metrics.get_stats(pred_mask.long(), mask.long(), mode=self.loss_mode)
 
         output = {
             "loss": loss,
@@ -122,8 +180,8 @@ class SegmentModel(pl.LightningModule):
         dataset_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction="micro")
 
         metrics = {
-            f"{stage}_per_image_iou": per_image_iou,
-            f"{stage}_dataset_iou": dataset_iou,
+            f"{stage}_per_image_iou": per_image_iou.cuda().float(),
+            f"{stage}_dataset_iou": dataset_iou.cuda().float(),
         }
 
         self.log_dict(metrics, prog_bar=True, sync_dist=True)
@@ -149,7 +207,7 @@ class SegmentModel(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=0.0001)
-    
+
     def run_tiled_inference(self, img: np.ndarray):
         """Run inference on an image, with tiling."""
 
@@ -167,16 +225,22 @@ class SegmentModel(pl.LightningModule):
 
         # Generate UNet predictions.
         with torch.no_grad():
-            tile_preds = self.model(torch.from_numpy(batched_tiles))
+            tile_preds = self(torch.from_numpy(batched_tiles))
 
         # Merge predictions across the tiles.
-        tiled_preds = average_tiles(tile_preds.numpy(), ysub, xsub, ly, lx)[0]
-        
+        tiled_preds = average_tiles(tile_preds.numpy(), ysub, xsub, ly, lx)
+
         # Crop predictions to the original size.
         tiled_preds = tiled_preds[:orig_dims[0], :orig_dims[1]]
 
+        # Softmax, if multiclass.
+        if self.loss_mode == 'binary':
+            tiled_preds = tiled_preds[0]
+        elif self.loss_mode == 'multiclass':
+            tiled_preds = torch.from_numpy(tiled_preds).softmax(dim=0).numpy()
+
         return tiled_preds
-    
+
     def run_slide_inference(self, slide: Union[str, "sf.WSI"], mpp=None):
         """Run model inference on a slide thumbnail."""
 
@@ -191,11 +255,11 @@ class SegmentModel(pl.LightningModule):
             mpp = self.mpp
         if not isinstance(slide, (str, sf.WSI)):
             raise TypeError("slide must be a string or sf.WSI object.")
-        
+
         # Load the slide.
         if isinstance(slide, str):
             slide = sf.WSI(slide, 299, 512)
-        
+
         # Get the slide thumbnail.
         thumb = np.array(slide.thumb(mpp=mpp))
 

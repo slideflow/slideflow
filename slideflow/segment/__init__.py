@@ -1,3 +1,12 @@
+"""Submodule for tissue segmentation.
+
+Tissue segmentation utilizes the ``segmentation-models-pytorch`` library, which
+provides a number of pre-trained segmentation models across a variety of
+architectures. The ``SegmentConfig`` class provides a convenient way to configure
+a segmentation model, and the ``train`` function can be used to train a model
+on a slideflow dataset.
+
+"""
 
 import os
 import torch
@@ -6,7 +15,7 @@ import numpy as np
 import multiprocessing as mp
 import tempfile
 
-from typing import Optional
+from typing import Optional, List
 from functools import partial
 from os.path import join, exists, isdir, dirname
 from rich.progress import track
@@ -17,9 +26,9 @@ from slideflow.util import path_to_name
 
 from .model import SegmentModel
 from .data import (
-    get_thumb_and_mask, 
-    BufferedMaskDataset, 
-    BufferedRandomCropDataset, 
+    get_thumb_and_mask,
+    BufferedMaskDataset,
+    BufferedRandomCropDataset,
     TileMaskDataset
 )
 from .utils import topleft_pad, center_square_pad
@@ -29,10 +38,19 @@ from .utils import topleft_pad, center_square_pad
 def generate_rois(
     wsi: "sf.WSI",
     model: str,
-):
-    """Generate ROIs for a single slide using a U-Net model."""
+) -> List[np.ndarray]:
+    """Generate ROIs for a single slide using a U-Net model.
 
-    # Remove any existing ROIs.
+    Args:
+        wsi (sf.WSI): Slideflow WSI object.
+        model (str): Path to '.pth' model file, as generated via :func:``slideflow.segment.train``.
+
+    Returns:
+        List[np.ndarray]: List of ROIs, where each ROI is a numpy array of
+            shape (n, 2), where n is the number of vertices in the ROI.
+
+    """
+    # Remove any existing ROIs from the slide.
     wsi.rois = []
 
     # Load the model configuration.
@@ -43,7 +61,7 @@ def generate_rois(
 
     # Run tiled inference.
     preds = model.run_tiled_inference(thumb)
-    
+
     # Threshold the predictions.
     labeled, n_rois = label(preds > 0)
 
@@ -62,15 +80,52 @@ def generate_rois(
 # -----------------------------------------------------------------------------
 
 def export_thumbs_and_masks(
-    dataset: "sf.Dataset", 
-    mpp: float, 
-    dest: str, 
+    dataset: "sf.Dataset",
+    mpp: float,
+    dest: str,
     *,
-    overwrite: bool = False
+    overwrite: bool = False,
+    skip_missing_roi: bool = True,
+    mode: str = 'binary',
+    labels: Optional[List[str]] = None,
 ):
-    """Export thumbnails and segmentation masks (from ROIs) for a dataset."""
+    """Export thumbnails and segmentation masks (from ROIs) for a dataset.
+
+    Args:
+        dataset (sf.Dataset): Slideflow dataset.
+        mpp (float): MPP to use for thumbnail generation.
+        dest (str): Path to directory where thumbnails and masks will be saved.
+
+    Keyword args:
+        overwrite (bool): Whether to overwrite existing thumbnails/masks.
+            Defaults to False.
+        skip_missing_roi (bool): Whether to skip slides that do not have any
+            ROIs. Defaults to True.
+        mode (str): ROI label mode. Can be 'binary' or 'multiclass'.
+            Defaults to 'binary'.
+        labels (List[str]): List of ROI labels to include. If not provided,
+            all ROI labels will be included.
+
+    """
+    # Parameter validation.
+    if not isinstance(dataset, sf.Dataset):
+        raise ValueError("dataset must be a slideflow Dataset.")
+    if mode not in ('binary', 'multiclass'):
+        raise ValueError(
+            "Unrecognized value for mode: {!r}. Expected "
+            "'binary' or 'multiclass'.".format(mode)
+        )
+
     if not exists(dest):
         os.makedirs(dest)
+
+    # Write configuration.
+    sf.util.write_json(dict(
+        mpp=mpp,
+        loss_mode=mode,
+        labels=labels,
+    ), join(dest, 'mask_config.json'))
+
     rois = dataset.rois()
     slides_with_rois = [path_to_name(r) for r in rois]
     slides = [
@@ -80,20 +135,53 @@ def export_thumbs_and_masks(
             and not (exists(join(dest, f"{path_to_name(s)}.pt")) and not overwrite)
         )
     ]
+
+    # Prepare ROI labels if this is a multiclass problem.
+    if mode == 'binary':
+        roi_labels = None
+    else:
+        _dts = dataset.filter({'slide': list(map(path_to_name, slides))})
+        roi_labels = _dts.get_unique_roi_labels()
+    if labels is not None:
+        roi_labels = [l for l in roi_labels if l in labels]
+        # Report an error if any labels were not found.
+        if len(roi_labels) != len(labels):
+            missing = set(labels) - set(roi_labels)
+            raise ValueError("ROI labels not found: {}".format(missing))
+
     kw = dict(
         tile_px=299,
         tile_um=302,
         rois=rois,
         verbose=False
     )
-    print("Generating data for {} slides.".format(len(slides)))
+    print("Generating data for {} slides (mode={!r}, overwrite={!r}).".format(
+        len(slides), mode, overwrite)
+    )
+    if mode != 'binary':
+        print("Labels: {}".format(roi_labels))
+    if skip_missing_roi:
+        print("Skipping slides with no ROIs.")
     ctx = mp.get_context('spawn')
+    fn = partial(
+        _export,
+        kw=kw,
+        mpp=mpp,
+        dest=dest,
+        roi_labels=roi_labels,
+        skip_missing=skip_missing_roi
+    )
+    total = 0
     with ctx.Pool(sf.util.num_cpu()) as pool:
-        for wsi in track(pool.imap(partial(_export, kw=kw, mpp=mpp, dest=dest), slides), description="Exporting...", total=len(slides)):
-            pass
+        for success in track(pool.imap(fn, slides),
+                       description="Exporting...",
+                       total=len(slides)):
+            if success:
+                total += 1
+    print("Exported data for {} slides.".format(total))
 
 
-def _export(s, kw, mpp, dest):
+def _export(s, kw, mpp, dest, roi_labels, skip_missing):
     try:
         wsi = sf.WSI(s, roi_filter_method=0.1, **kw)
 
@@ -101,12 +189,19 @@ def _export(s, kw, mpp, dest):
         return None
     else:
         try:
-            out = get_thumb_and_mask(wsi, mpp=mpp)
+            out = get_thumb_and_mask(
+                wsi,
+                mpp=mpp,
+                roi_labels=roi_labels,
+                skip_missing=skip_missing
+            )
         except Exception as e:
             sf.log.error("Error generating thumbnail/mask: {}".format(e))
-            return None
         else:
-            torch.save(out, join(dest, f"{wsi.name}.pt"))
+            if out is not None:
+                torch.save(out, join(dest, f"{wsi.name}.pt"))
+                return True
+    return None
 
 # -----------------------------------------------------------------------------
 
@@ -124,8 +219,33 @@ class SegmentConfig:
         val_batch_size: int = 16,
         epochs: int = 8,
         mpp: float = 10,
+        loss: str = 'dice',
+        loss_mode: str = 'binary',
+        labels: Optional[List[str]] = None,
         **kwargs
-    ):
+    ) -> None:
+        """Configuration for a segmentation model.
+
+        Args:
+            arch (str): Model architecture. Defaults to 'FPN'.
+            encoder_name (str): Encoder name. Defaults to 'resnet34'.
+
+        Keyword args:
+            size (int): Size of input images. Defaults to 1024.
+            in_channels (int): Number of input channels. Defaults to 3.
+            out_classes (int): Number of output classes. Defaults to 1.
+            train_batch_size (int): Training batch size. Defaults to 8.
+            val_batch_size (int): Validation batch size. Defaults to 16.
+            epochs (int): Number of epochs to train for. Defaults to 8.
+            mpp (float): MPP to use for training. Defaults to 10.
+            loss (str): Loss function. Defaults to 'dice'.
+            loss_mode (str): Loss mode. Can be 'binary' or 'multiclass'.
+                Defaults to 'binary'.
+            labels (List[str]): Names for ROI labels. Only used if loss_mode
+                is 'multiclass'. Defaults to None.
+            **kwargs: Additional keyword arguments to pass to the model.
+
+        """
         self.arch = arch
         self.encoder_name = encoder_name
         self.size = size
@@ -135,22 +255,60 @@ class SegmentConfig:
         self.val_batch_size = val_batch_size
         self.epochs = epochs
         self.mpp = mpp
+        self.loss = loss
+        self.loss_mode = loss_mode
+        self.labels = labels
         self.kwargs = kwargs
 
+    def __repr__(self) -> str:
+        return (
+            f"SegmentConfig(\n"
+            f"    arch={self.arch!r},\n"
+            f"    encoder_name={self.encoder_name!r},\n"
+            f"    size={self.size!r},\n"
+            f"    in_channels={self.in_channels!r},\n"
+            f"    out_classes={self.out_classes!r},\n"
+            f"    train_batch_size={self.train_batch_size!r},\n"
+            f"    val_batch_size={self.val_batch_size!r},\n"
+            f"    epochs={self.epochs!r},\n"
+            f"    mpp={self.mpp!r},\n"
+            f"    loss={self.loss!r},\n"
+            f"    loss_mode={self.loss_mode!r},\n"
+            f"    **{self.kwargs!r}\n"
+            f")"
+        )
+
     @classmethod
-    def from_json(cls, path: str):
+    def from_json(cls, path: str) -> "SegmentConfig":
+        """Load a configuration from a JSON file.
+
+        Args:
+            path (str): Path to JSON file.
+
+        Returns:
+            SegmentConfig: SegmentConfig object.
+
+        """
         data = sf.util.load_json(path)
         params = data['params'].copy()
         del data['params']
         return cls(**data, **params)
-    
-    def to_json(self, path: str):
+
+    def to_json(self, path: str) -> None:
+        """Save the configuration to a JSON file.
+
+        Args:
+            path (str): Path to JSON file.
+
+        """
         data = dict(
             params=dict(
                 arch=self.arch,
                 encoder_name=self.encoder_name,
                 in_channels=self.in_channels,
                 out_classes=self.out_classes,
+                loss=self.loss,
+                loss_mode=self.loss_mode,
                 **self.kwargs
             ),
             mpp=self.mpp,
@@ -158,28 +316,41 @@ class SegmentConfig:
             train_batch_size=self.train_batch_size,
             val_batch_size=self.val_batch_size,
             epochs=self.epochs,
+            labels=self.labels,
         )
         sf.util.write_json(data, path)
 
-    def build_model(self):
+    def build_model(self) -> SegmentModel:
+        """Build a segmentation model from this configuration."""
         return SegmentModel(
-            self.arch, 
-            self.encoder_name, 
-            in_channels=self.in_channels, 
+            self.arch,
+            self.encoder_name,
+            in_channels=self.in_channels,
             out_classes=self.out_classes,
             mpp=self.mpp,
+            loss=self.loss,
+            loss_mode=self.loss_mode,
             **self.kwargs
         )
-    
+
 
 def load_model_and_config(path: str):
+    """Load a model and its configuration from a path.
+
+    Args:
+        path (str): Path to model file, or directory containing model file.
+
+    Returns:
+        Tuple[SegmentModel, SegmentConfig]: Tuple of model and configuration.
+
+    """
     if not exists(path):
         raise ValueError(f"Model '{path}' does not exist.")
     if isdir(path):
         path = join(path, 'model.pth')
     if not path.endswith('pth'):
         raise ValueError(f"Model '{path}' is not a valid model path.")
-    
+
     # Load the model configuration.
     cfg_path = join(dirname(path), 'segment_params.json')
     cfg = SegmentConfig.from_json(cfg_path)
@@ -190,7 +361,7 @@ def load_model_and_config(path: str):
     # Load the weights.
     model.load_state_dict(torch.load(path))
     model.eval()
-    
+
     return model, cfg
 
 # -----------------------------------------------------------------------------
@@ -203,10 +374,29 @@ def train(
     *,
     num_workers: int = 4,
     dest: Optional[str] = None,
-) -> SegmentModel: 
-    """Train a segmentation model."""
+) -> SegmentModel:
+    """Train a segmentation model.
 
-    import pytorch_lightning as pl
+    Args:
+        config (SegmentConfig): Model configuration.
+        dataset (sf.Dataset): Slideflow dataset.
+        val_dataset (sf.Dataset): Slideflow dataset for validation.
+        data_source (str): Path to directory containing thumbnails and masks.
+            If not provided, thumbnails and masks will be generated from the
+            dataset.
+
+    Keyword args:
+        num_workers (int): Number of workers to use for data loading.
+            Defaults to 4.
+        dest (str): Path to directory where model will be saved. If not
+            provided, the model will not be saved.
+
+    Returns:
+        SegmentModel: Trained model.
+
+    """
+    # Delayed import.
+    import pytorch_lightning as pl  # type: ignore
 
     # Parameter validation.
     if not isinstance(dataset, sf.Dataset):
@@ -215,14 +405,60 @@ def train(
         raise ValueError("val_dataset must be a slideflow Dataset.")
     if not isinstance(config, SegmentConfig):
         raise ValueError("config must be a SegmentConfig.")
-    
+
     # Generate thumbnails and masks.
     if data_source is None:
         data_dest = join(tempfile.gettempdir(), 'segmentation_masks')
         print("Generating thumbnails and masks (saved to {}).".format(data_dest))
-        export_thumbs_and_masks(dataset, mpp=config.mpp, dest=data_dest)
+        exp_kw = dict(mpp=config.mpp, dest=data_dest, mode=config.loss_mode)
+        export_thumbs_and_masks(dataset, **exp_kw)
         if val_dataset is not None:
-            export_thumbs_and_masks(val_dataset, mpp=config.mpp, dest=data_dest)
+            export_thumbs_and_masks(val_dataset, **exp_kw)
+
+    # Validate the thumbnail/mask configuration.
+    if not exists(data_source):
+        raise ValueError(f"Data source '{data_source}' does not exist.")
+    if not exists(join(data_source, 'mask_config.json')):
+        sf.log.warning("Data source does not contain a mask_config.json file, "
+                       "unable to perform validation.")
+    else:
+        mask_config = sf.util.load_json(join(data_source, 'mask_config.json'))
+        if mask_config['loss_mode'] != config.loss_mode:
+            raise ValueError(
+                "Mismatch between mask_config.json loss_mode ({!r}) and "
+                "config loss_mode ({!r}).".format(
+                    mask_config['loss_mode'],
+                    config.loss_mode
+                )
+            )
+        if mask_config['mpp'] != config.mpp:
+            raise ValueError(
+                "Mismatch between mask_config.json mpp ({!r}) and "
+                "config mpp ({!r}).".format(
+                    mask_config['mpp'],
+                    config.mpp
+                )
+            )
+        if mask_config['labels'] and len(mask_config['labels']) != (config.out_classes-1):
+            raise ValueError(
+                "Mismatch between mask_config.json labels ({!r}) and "
+                "config out_classes ({!r}). Expected out_classes to be one greater "
+                "than the number of labels.".format(
+                    mask_config['labels'],
+                    config.out_classes
+                )
+            )
+        if config.labels is not None and mask_config['labels'] is not None:
+            if set(config.labels) != set(mask_config['labels']):
+                raise ValueError(
+                    "Mismatch between mask_config.json labels ({!r}) and "
+                    "config labels ({!r}).".format(
+                        mask_config['labels'],
+                        config.labels
+                    )
+                )
+        elif mask_config['labels'] is not None:
+            config.labels = mask_config['labels']
 
     # Save training configuration.
     if dest:
@@ -240,17 +476,17 @@ def train(
 
     # Build dataloaders.
     train_dl = torch.utils.data.DataLoader(
-        train_ds, 
-        batch_size=config.train_batch_size, 
-        shuffle=True, 
+        train_ds,
+        batch_size=config.train_batch_size,
+        shuffle=True,
         num_workers=num_workers
     )
     if val_ds is not None:
         val_dl = torch.utils.data.DataLoader(
-            val_ds, 
-            batch_size=config.val_batch_size, 
-            shuffle=False, 
-            num_workers=num_workers, 
+            val_ds,
+            batch_size=config.val_batch_size,
+            shuffle=False,
+            num_workers=num_workers,
             persistent_workers=True
         )
     else:

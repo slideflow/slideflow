@@ -215,7 +215,6 @@ class WSI:
                 f"Error raised: {e}"
             )
 
-
         # Configure downsample information
         self._configure_downsample(tile_um)
 
