@@ -13,8 +13,7 @@ import torch
 import slideflow as sf
 import numpy as np
 import multiprocessing as mp
-import tempfile
-
+import pandas as pd
 from typing import Optional, List
 from functools import partial
 from os.path import join, exists, isdir, dirname
@@ -29,6 +28,8 @@ from .data import (
     get_thumb_and_mask,
     BufferedMaskDataset,
     BufferedRandomCropDataset,
+    RandomCropDataset,
+    ThumbMaskDataset,
     TileMaskDataset
 )
 from .utils import topleft_pad, center_square_pad
@@ -151,7 +152,7 @@ def export_thumbs_and_masks(
 
     kw = dict(
         tile_px=299,
-        tile_um=302,
+        tile_um=512,
         rois=rois,
         verbose=False
     )
@@ -376,6 +377,8 @@ def train(
     *,
     num_workers: int = 4,
     dest: Optional[str] = None,
+    labels: Optional[List[str]] = None,
+    skip_missing_roi: bool = True,
 ) -> SegmentModel:
     """Train a segmentation model.
 
@@ -392,6 +395,8 @@ def train(
             Defaults to 4.
         dest (str): Path to directory where model will be saved. If not
             provided, the model will not be saved.
+        labels (List[str]): Names for ROI labels to include. Only used if loss_mode
+            is 'multiclass' and data_source is not provided. Defaults to None.
 
     Returns:
         SegmentModel: Trained model.
@@ -408,64 +413,86 @@ def train(
     if not isinstance(config, SegmentConfig):
         raise ValueError("config must be a SegmentConfig.")
 
-    # Generate thumbnails and masks.
-    if data_source is None:
-        data_dest = join(tempfile.gettempdir(), 'segmentation_masks')
-        print("Generating thumbnails and masks (saved to {}).".format(data_dest))
-        exp_kw = dict(mpp=config.mpp, dest=data_dest, mode=config.loss_mode)
-        export_thumbs_and_masks(dataset, **exp_kw)
-        if val_dataset is not None:
-            export_thumbs_and_masks(val_dataset, **exp_kw)
+    # Filter dataset to exclude slides with missing or empty ROIs.
+    if skip_missing_roi:
+        slides_with_rois = [sf.util.path_to_name(r) for r in dataset.rois() if len(pd.read_csv(r))]
+        print("Using {} slides with non-empty ROIs.".format(len(slides_with_rois)))
+        dataset = dataset.filter({'slide': slides_with_rois})
 
-    # Validate the thumbnail/mask configuration.
-    if not exists(data_source):
-        raise ValueError(f"Data source '{data_source}' does not exist.")
-    if not exists(join(data_source, 'mask_config.json')):
-        sf.log.warning("Data source does not contain a mask_config.json file, "
-                       "unable to perform validation.")
-    else:
-        mask_config = sf.util.load_json(join(data_source, 'mask_config.json'))
-        if mask_config['mpp'] != config.mpp:
-            raise ValueError(
-                "Mismatch between mask_config.json mpp ({!r}) and "
-                "config mpp ({!r}).".format(
-                    mask_config['mpp'],
-                    config.mpp
-                )
-            )
-        if (config.loss_mode == 'multiclass'
-            and mask_config['labels']
-            and len(mask_config['labels']) != (config.out_classes-1)):
-            raise ValueError(
-                "Mismatch between mask_config.json labels ({!r}) and "
-                "config out_classes ({!r}). Expected out_classes to be one greater "
-                "than the number of labels when mode='multiclass' (one class is background).".format(
-                    mask_config['labels'],
-                    config.out_classes
-                )
-            )
-        if (config.loss_mode == 'multilabel'
-            and mask_config['labels']
-            and len(mask_config['labels']) != (config.out_classes)):
-            raise ValueError(
-                "Mismatch between mask_config.json labels ({!r}) and "
-                "config out_classes ({!r}). Expected out_classes to be equal to "
-                "the number of labels when mode='multilabel'.".format(
-                    mask_config['labels'],
-                    config.out_classes
-                )
-            )
-        if config.labels is not None and mask_config['labels'] is not None:
-            if set(config.labels) != set(mask_config['labels']):
+    # --- Validate the thumbnail/mask configuration. --------------------------
+    if data_source:
+        print("Training from pre-generated thumbnails and masks.")
+        if not exists(data_source):
+            raise ValueError(f"Data source '{data_source}' does not exist.")
+        if not exists(join(data_source, 'mask_config.json')):
+            sf.log.warning("Data source does not contain a mask_config.json file, "
+                        "unable to perform validation.")
+        else:
+            # Validate the mask configuration.
+            mask_config = sf.util.load_json(join(data_source, 'mask_config.json'))
+            if mask_config['mpp'] != config.mpp:
                 raise ValueError(
-                    "Mismatch between mask_config.json labels ({!r}) and "
-                    "config labels ({!r}).".format(
-                        mask_config['labels'],
-                        config.labels
+                    "Mismatch between mask_config.json mpp ({!r}) and "
+                    "config mpp ({!r}).".format(
+                        mask_config['mpp'],
+                        config.mpp
                     )
                 )
-        elif mask_config['labels'] is not None:
-            config.labels = mask_config['labels']
+            if config.loss_mode in ('multiclass', 'multilabel'):
+                if config.labels is not None and mask_config['labels'] is not None:
+                    if set(config.labels) != set(mask_config['labels']):
+                        raise ValueError(
+                            "Mismatch between mask_config.json labels ({!r}) and "
+                            "config labels ({!r}).".format(
+                                mask_config['labels'],
+                                config.labels
+                            )
+                        )
+                config.labels = mask_config['labels']
+    else:
+        print("Generating thumbnails and masks during training.")
+        # Get unique ROI labels from the dataset.
+        all_roi_labels = dataset.get_unique_roi_labels()
+        if labels is not None:
+            all_roi_labels = [l for l in all_roi_labels if l in labels]
+            # Report an error if any labels were not found.
+            if len(all_roi_labels) != len(labels):
+                missing = set(labels) - set(all_roi_labels)
+                raise ValueError("ROI labels not found: {}".format(missing))
+
+        if config.loss_mode in ('multiclass', 'multilabel'):
+            if config.labels is None:
+                if set(config.labels) != set(all_roi_labels):
+                    raise ValueError(
+                        "Mismatch between model configuration labels ({!r}) and "
+                        "provided ROI labels ({!r}).".format(
+                            config.labels,
+                            all_roi_labels
+                        )
+                    )
+                config.labels = all_roi_labels
+
+    if config.loss_mode == 'multiclass':
+        if len(config.labels) != (config.out_classes-1):
+            raise ValueError(
+                "Mismatch between config labels ({!r}) and "
+                "config out_classes ({!r}). Expected out_classes to be one greater "
+                "than the number of labels when mode='multiclass' (one class is background).".format(
+                    config.labels,
+                    config.out_classes
+                )
+            )
+    elif config.loss_mode == 'multilabel':
+        if len(config.labels) != config.out_classes:
+            raise ValueError(
+                "Mismatch between config labels ({!r}) and "
+                "config out_classes ({!r}). Expected out_classes to be equal to "
+                "the number of labels when mode='multilabel'.".format(
+                    config.labels,
+                    config.out_classes
+                )
+            )
+    # -------------------------------------------------------------------------
 
     # Save training configuration.
     if dest:
@@ -474,12 +501,25 @@ def train(
         config.to_json(join(dest, 'segment_params.json'))
 
     # Build datasets.
-    dts_kw = dict(source=data_source, size=config.size, mode=config.loss_mode)
-    train_ds = BufferedRandomCropDataset(dataset, **dts_kw)
-    if val_dataset is not None:
-        val_ds = BufferedRandomCropDataset(val_dataset, **dts_kw)
+    if data_source is None:
+        dts_kw = dict(
+            mpp=config.mpp,
+            size=config.size,
+            mode=config.loss_mode,
+            roi_labels=all_roi_labels,
+        )
+        train_ds = RandomCropDataset(dataset, **dts_kw)
+        if val_dataset is not None:
+            val_ds = RandomCropDataset(val_dataset, **dts_kw)
+        else:
+            val_ds = None
     else:
-        val_ds = None
+        dts_kw = dict(source=data_source, size=config.size, mode=config.loss_mode)
+        train_ds = BufferedRandomCropDataset(dataset, **dts_kw)
+        if val_dataset is not None:
+            val_ds = BufferedRandomCropDataset(val_dataset, **dts_kw)
+        else:
+            val_ds = None
 
     # Build dataloaders.
     train_dl = torch.utils.data.DataLoader(
