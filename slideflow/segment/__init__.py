@@ -123,7 +123,7 @@ def export_thumbs_and_masks(
     # Write configuration.
     sf.util.write_json(dict(
         mpp=mpp,
-        loss_mode=mode,
+        mode=mode,
         labels=labels,
     ), join(dest, 'mask_config.json'))
 
@@ -215,13 +215,14 @@ class SegmentConfig:
         *,
         size: int = 1024,
         in_channels: int = 3,
-        out_classes: int = 1,
+        out_classes: Optional[int] = None,
         train_batch_size: int = 8,
         val_batch_size: int = 16,
         epochs: int = 8,
-        mpp: float = 10,
+        mpp: float = 20,
+        lr: float = 1e-4,
         loss: str = 'dice',
-        loss_mode: str = 'binary',
+        mode: str = 'binary',
         labels: Optional[List[str]] = None,
         **kwargs
     ) -> None:
@@ -234,15 +235,17 @@ class SegmentConfig:
         Keyword args:
             size (int): Size of input images. Defaults to 1024.
             in_channels (int): Number of input channels. Defaults to 3.
-            out_classes (int): Number of output classes. Defaults to 1.
+            out_classes (int, optional): Number of output classes.
+                If None, will attempt to auto-detect based the provided labels
+                and loss mode. If labels are not provided, it defaults to 1.
             train_batch_size (int): Training batch size. Defaults to 8.
             val_batch_size (int): Validation batch size. Defaults to 16.
             epochs (int): Number of epochs to train for. Defaults to 8.
             mpp (float): MPP to use for training. Defaults to 10.
             loss (str): Loss function. Defaults to 'dice'.
-            loss_mode (str): Loss mode. Can be 'binary' or 'multiclass'.
+            mode (str): Loss mode. Can be 'binary', 'multiclass', or 'multilabel'.
                 Defaults to 'binary'.
-            labels (List[str]): Names for ROI labels. Only used if loss_mode
+            labels (List[str]): Names for ROI labels. Only used if mode
                 is 'multiclass'. Defaults to None.
             **kwargs: Additional keyword arguments to pass to the model.
 
@@ -251,15 +254,26 @@ class SegmentConfig:
         self.encoder_name = encoder_name
         self.size = size
         self.in_channels = in_channels
-        self.out_classes = out_classes
         self.train_batch_size = train_batch_size
         self.val_batch_size = val_batch_size
         self.epochs = epochs
         self.mpp = mpp
+        self.lr = lr
         self.loss = loss
-        self.loss_mode = loss_mode
+        self.mode = mode
         self.labels = labels
         self.kwargs = kwargs
+        if out_classes is None:
+            if mode == 'binary':
+                self.out_classes = 1
+            elif labels is None:
+                self.out_classes = 1
+            elif mode == 'multiclass':
+                self.out_classes = len(labels) + 1
+            elif mode == 'multilabel':
+                self.out_classes = len(labels)
+        else:
+            self.out_classes = out_classes
 
     def __repr__(self) -> str:
         return (
@@ -273,8 +287,10 @@ class SegmentConfig:
             f"    val_batch_size={self.val_batch_size!r},\n"
             f"    epochs={self.epochs!r},\n"
             f"    mpp={self.mpp!r},\n"
+            f"    lr={self.lr!r},\n"
             f"    loss={self.loss!r},\n"
-            f"    loss_mode={self.loss_mode!r},\n"
+            f"    mode={self.mode!r},\n"
+            f"    labels={self.labels!r},\n"
             f"    **{self.kwargs!r}\n"
             f")"
         )
@@ -308,8 +324,9 @@ class SegmentConfig:
                 encoder_name=self.encoder_name,
                 in_channels=self.in_channels,
                 out_classes=self.out_classes,
+                lr=self.lr,
                 loss=self.loss,
-                loss_mode=self.loss_mode,
+                mode=self.mode,
                 **self.kwargs
             ),
             mpp=self.mpp,
@@ -330,7 +347,7 @@ class SegmentConfig:
             out_classes=self.out_classes,
             mpp=self.mpp,
             loss=self.loss,
-            loss_mode=self.loss_mode,
+            mode=self.mode,
             **self.kwargs
         )
 
@@ -395,7 +412,7 @@ def train(
             Defaults to 4.
         dest (str): Path to directory where model will be saved. If not
             provided, the model will not be saved.
-        labels (List[str]): Names for ROI labels to include. Only used if loss_mode
+        labels (List[str]): Names for ROI labels to include. Only used if mode
             is 'multiclass' and data_source is not provided. Defaults to None.
 
     Returns:
@@ -438,7 +455,7 @@ def train(
                         config.mpp
                     )
                 )
-            if config.loss_mode in ('multiclass', 'multilabel'):
+            if config.mode in ('multiclass', 'multilabel'):
                 if config.labels is not None and mask_config['labels'] is not None:
                     if set(config.labels) != set(mask_config['labels']):
                         raise ValueError(
@@ -460,8 +477,13 @@ def train(
                 missing = set(labels) - set(all_roi_labels)
                 raise ValueError("ROI labels not found: {}".format(missing))
 
-        if config.loss_mode in ('multiclass', 'multilabel'):
-            if config.labels is None:
+        if config.mode in ('multiclass', 'multilabel'):
+            if config.labels is not None:
+                if not all_roi_labels:
+                    raise ValueError(
+                        "No ROI labels found in dataset. Ensure that the "
+                        "slides in the dataset have labeled ROIs."
+                    )
                 if set(config.labels) != set(all_roi_labels):
                     raise ValueError(
                         "Mismatch between model configuration labels ({!r}) and "
@@ -470,9 +492,9 @@ def train(
                             all_roi_labels
                         )
                     )
-                config.labels = all_roi_labels
+            config.labels = all_roi_labels
 
-    if config.loss_mode == 'multiclass':
+    if config.mode == 'multiclass':
         if len(config.labels) != (config.out_classes-1):
             raise ValueError(
                 "Mismatch between config labels ({!r}) and "
@@ -482,7 +504,7 @@ def train(
                     config.out_classes
                 )
             )
-    elif config.loss_mode == 'multilabel':
+    elif config.mode == 'multilabel':
         if len(config.labels) != config.out_classes:
             raise ValueError(
                 "Mismatch between config labels ({!r}) and "
@@ -505,7 +527,7 @@ def train(
         dts_kw = dict(
             mpp=config.mpp,
             size=config.size,
-            mode=config.loss_mode,
+            mode=config.mode,
             roi_labels=all_roi_labels,
         )
         train_ds = RandomCropDataset(dataset, **dts_kw)
@@ -514,7 +536,7 @@ def train(
         else:
             val_ds = None
     else:
-        dts_kw = dict(source=data_source, size=config.size, mode=config.loss_mode)
+        dts_kw = dict(source=data_source, size=config.size, mode=config.mode)
         train_ds = BufferedRandomCropDataset(dataset, **dts_kw)
         if val_dataset is not None:
             val_ds = BufferedRandomCropDataset(val_dataset, **dts_kw)

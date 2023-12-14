@@ -219,6 +219,11 @@ Then, supply this class to the ``qc`` argument as above.
 
 See :ref:`qc` for more information on the API for further QC customization.
 
+Segmentation Models (U-Net)
+---------------------------
+
+Slideflow also provides an interface for both training and using segmentation models (e.g. U-Net, FPN, DeepLabV3) for slide-level masking. This is discussed separately in :ref:`segmentation`.
+
 Grayspace filtering
 --------------------
 

@@ -23,7 +23,6 @@ This documentation starts with a high-level overview of the pipeline and include
    project_setup
    datasets_and_val
    slide_processing
-   cellseg
    training
    evaluation
    posthoc
@@ -32,6 +31,8 @@ This documentation starts with a high-level overview of the pipeline and include
    ssl
    stylegan
    saliency
+   segmentation
+   cellseg
    custom_loops
    studio
    troubleshooting

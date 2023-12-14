@@ -41,8 +41,9 @@ class SegmentModel(pl.LightningModule):
         out_classes: int,
         *,
         mpp: Optional[float] = None,
+        lr: float = 1e-4,
         loss: Union[str, Callable] = 'dice',
-        loss_mode: str = 'binary',
+        mode: str = 'binary',
         **kwargs
     ):
         super().__init__()
@@ -50,6 +51,7 @@ class SegmentModel(pl.LightningModule):
             arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
         )
         self.mpp = mpp
+        self.lr = lr
         self.out_classes = out_classes
 
         # preprocessing parameteres for image
@@ -58,8 +60,8 @@ class SegmentModel(pl.LightningModule):
         self.register_buffer("mean", torch.tensor(params["mean"]).view(1, 3, 1, 1))
 
         # for image segmentation dice loss could be the best first choice
-        self.loss_mode = loss_mode
-        self.loss_fn = self.get_loss_fn(loss, loss_mode)
+        self.mode = mode
+        self.loss_fn = self.get_loss_fn(loss, mode)
         self.outputs = {
             'train': [],
             'valid': []
@@ -118,15 +120,15 @@ class SegmentModel(pl.LightningModule):
 
 
 
-        if self.loss_mode == 'binary':
+        if self.mode == 'binary':
             # Shape of the mask should be [batch_size, num_classes, height, width]
             # for binary segmentation num_classes = 1
             assert mask.ndim == 4
-        elif self.loss_mode == 'multiclass':
+        elif self.mode == 'multiclass':
             # Shape of the mask should be [batch_size, height, width]
             # for multiclass segmentation, values are the classes.
             assert mask.ndim == 3
-        elif self.loss_mode == 'multilabel':
+        elif self.mode == 'multilabel':
             # Shape of the mask should be [batch_size, num_classes, height, width]
             assert mask.ndim == 4
 
@@ -141,13 +143,13 @@ class SegmentModel(pl.LightningModule):
         # but for now we just compute true positive, false positive, false negative and
         # true negative 'pixels' for each image and class
         # these values will be aggregated in the end of an epoch
-        if self.loss_mode == 'multiclass':
+        if self.mode == 'multiclass':
             prob_mask = torch.softmax(logits_mask, dim=1)
             pred_mask = torch.argmax(prob_mask, dim=1)
             tp, fp, fn, tn = smp.metrics.get_stats(
                 pred_mask.long(),
                 mask.long(),
-                mode=self.loss_mode,
+                mode=self.mode,
                 num_classes=self.out_classes
             )
         else:
@@ -159,7 +161,7 @@ class SegmentModel(pl.LightningModule):
             tp, fp, fn, tn = smp.metrics.get_stats(
                 pred_mask.long(),
                 mask.long(),
-                mode=self.loss_mode
+                mode=self.mode
             )
 
         output = {
@@ -219,7 +221,7 @@ class SegmentModel(pl.LightningModule):
         return self.shared_epoch_end(outputs, "test")
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.0001)
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
 
     def run_tiled_inference(self, img: np.ndarray):
         """Run inference on an image, with tiling."""
@@ -247,9 +249,9 @@ class SegmentModel(pl.LightningModule):
         tiled_preds = tiled_preds[:orig_dims[0], :orig_dims[1]]
 
         # Softmax, if multiclass.
-        if self.loss_mode == 'binary':
+        if self.mode == 'binary':
             tiled_preds = tiled_preds[0]
-        elif self.loss_mode == 'multiclass':
+        elif self.mode == 'multiclass':
             tiled_preds = torch.from_numpy(tiled_preds).softmax(dim=0).numpy()
 
         return tiled_preds

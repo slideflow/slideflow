@@ -111,12 +111,12 @@ class Segment:
         # Threshold the predictions and convert to ROIs.
         labels = None
 
-        if self.cfg.loss_mode == 'binary':
+        if self.cfg.mode == 'binary':
             labeled, n_rois = label(preds > 0)
             outlines = outlines_list(labeled)
             outlines = [o for o in outlines if o.shape[0]]
 
-        elif self.cfg.loss_mode == 'multiclass':
+        elif self.cfg.mode == 'multiclass':
             pred_max = preds.argmax(axis=0)
             outlines = []
             labels = []
@@ -136,7 +136,7 @@ class Segment:
             labels = [labels[l] for l in range(len(labels)) if outlines[l].shape[0]]
             outlines = [o for o in outlines if o.shape[0]]
 
-        elif self.cfg.loss_mode == 'multilabel':
+        elif self.cfg.mode == 'multilabel':
             outlines = []
             labels = []
             for i in range(preds.shape[0]):
@@ -154,7 +154,7 @@ class Segment:
 
         else:
             raise ValueError("Invalid loss mode: {}. Expected one of: binary, "
-                             "multiclass, multilabel".format(self.cfg.loss_mode))
+                             "multiclass, multilabel".format(self.cfg.mode))
 
         # Scale the outlines.
         outlines = [o * (self.cfg.mpp / wsi.mpp) for o in outlines]
@@ -201,17 +201,17 @@ class Segment:
         if threshold is None or threshold is False:
             return preds
 
-        if self.cfg.loss_mode == 'binary':
+        if self.cfg.mode == 'binary':
             if self.threshold_direction == 'less':
                 return preds < threshold
             else:
                 return preds > threshold
-        elif self.cfg.loss_mode == 'multiclass':
+        elif self.cfg.mode == 'multiclass':
             if self.class_idx is not None:
                 return preds.argmax(axis=0) != self.class_idx
             else:
                 return preds.argmax(axis=0) == 0
-        elif self.cfg.loss_mode == 'multilabel':
+        elif self.cfg.mode == 'multilabel':
             if self.class_idx is not None and self.threshold_direction == 'less':
                 return preds[self.class_idx] < threshold
             elif self.class_idx is not None and self.threshold_direction == 'greater':

@@ -18,7 +18,6 @@ from .utils import topleft_pad_torch
 # -----------------------------------------------------------------------------
 
 class ThumbMaskDataset(torch.utils.data.Dataset):
-    """Dataset that loads thumbnails and masks."""
 
     def __init__(
         self,
@@ -27,7 +26,20 @@ class ThumbMaskDataset(torch.utils.data.Dataset):
         roi_labels: List[str],
         *,
         mode: str = 'binary',
-    ):
+    ) -> None:
+        """Dataset that generates thumbnails and ROI masks.
+
+        Args:
+            dataset (sf.Dataset): The dataset to use.
+            mpp (float): The target microns per pixel. The thumbnail will be
+                scaled to this resolution.
+            roi_labels (List[str]): The ROI labels to include in the mask.
+
+        Keyword args:
+            mode (str, optional): The mode to use for the mask. One of:
+                'binary', 'multiclass', 'multilabel'. Defaults to 'binary'.
+
+        """
         super().__init__()
         self.mpp = mpp
         self.mode = mode
@@ -42,16 +54,21 @@ class ThumbMaskDataset(torch.utils.data.Dataset):
         # Prepare WSI objects (for slides with ROIs).
         self.paths = dataset.slide_paths()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.paths)
 
-    def process(self, img, mask):
+    def process(
+        self,
+        img: np.ndarray,
+        mask: np.ndarray
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Process the image/mask and convert to a tensor."""
         img = torch.from_numpy(img)
         mask = torch.from_numpy(mask)
         return img, mask
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+
         # Load the image and mask.
         path = self.paths[index]
         wsi = sf.WSI(path, 299, 512, rois=self.rois, roi_filter_method=0.1, verbose=False)
@@ -79,22 +96,51 @@ class ThumbMaskDataset(torch.utils.data.Dataset):
 class RandomCropDataset(ThumbMaskDataset):
 
     def __init__(self, *args, size: int = 1024, **kwargs):
+        """Dataset that generates thumbnails & ROI masks, with random crops.
+
+        Thumbnails and masks and randomly cropped and rotated together to
+        a square size of `size` pixels.
+
+        Args:
+            dataset (sf.Dataset): The dataset to use.
+            mpp (float): The target microns per pixel. The thumbnail will be
+                scaled to this resolution.
+            roi_labels (List[str]): The ROI labels to include in the mask.
+            size (int, optional): The size of the random crop. Defaults to 1024.
+
+        Keyword Args:
+            mode (str, optional): The mode to use for the mask. One of:
+                'binary', 'multiclass', 'multilabel'. Defaults to 'binary'.
+
+        """
         super().__init__(*args, **kwargs)
         self.size = size
 
     def process(self, img, mask):
+        """Randomly crop/rotate the image and mask and convert to a tensor."""
         return random_crop_and_rotate(img, mask, size=self.size)
 
 # -----------------------------------------------------------------------------
 # Buffered datasets
 
 class BufferedMaskDataset(torch.utils.data.Dataset):
-    """Dataset that loads buffered image and mask pairs."""
 
     def __init__(self, dataset: "sf.Dataset", source: str, *, mode: str = 'binary'):
+        """Dataset that loads buffered image and mask pairs.
+
+        Args:
+            dataset (sf.Dataset): The dataset to use.
+            source (str): The directory containing the buffered image/mask pairs.
+
+        Keyword Args:
+            mode (str, optional): The mode to use for the mask. One of:
+                'binary', 'multiclass', 'multilabel'. Defaults to 'binary'.
+
+        """
         super().__init__()
         if mode not in ['binary', 'multiclass', 'multilabel']:
-            raise ValueError("Invalid mode: {}. Expected one of: binary, multiclass, multilabel".format(mode))
+            raise ValueError("Invalid mode: {}. Expected one of: binary, "
+                             "multiclass, multilabel".format(mode))
         self.dataset = dataset
         self.mode = mode
         self.paths = [
@@ -103,10 +149,14 @@ class BufferedMaskDataset(torch.utils.data.Dataset):
         ]
 
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.paths)
 
-    def process(self, img, mask):
+    def process(
+        self,
+        img: np.ndarray,
+        mask: np.ndarray
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Process the image/mask and convert to a tensor."""
         img = torch.from_numpy(img)
         mask = torch.from_numpy(mask)
@@ -136,10 +186,30 @@ class BufferedMaskDataset(torch.utils.data.Dataset):
 class BufferedRandomCropDataset(BufferedMaskDataset):
 
     def __init__(self, *args, size: int = 1024, **kwargs):
+        """Dataset that loads buffered image/mask pairs and randomly crops.
+
+        Loaded thumbnails and masks and randomly cropped and rotated together to
+        a square size of `size` pixels.
+
+        Args:
+            dataset (sf.Dataset): The dataset to use.
+            source (str): The directory containing the buffered image/mask pairs.
+            size (int, optional): The size of the random crop. Defaults to 1024.
+
+        Keyword Args:
+            mode (str, optional): The mode to use for the mask. One of:
+                'binary', 'multiclass', 'multilabel'. Defaults to 'binary'.
+
+        """
         super().__init__(*args, **kwargs)
         self.size = size
 
-    def process(self, img, mask):
+    def process(
+        self,
+        img: np.ndarray,
+        mask: np.ndarray
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Randomly crop/rotate the image and mask and convert to a tensor."""
         return random_crop_and_rotate(img, mask, size=self.size)
 
 # -----------------------------------------------------------------------------
