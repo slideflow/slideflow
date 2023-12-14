@@ -2194,6 +2194,10 @@ class Project:
             filtered_slides_to_generate = dataset.slides()
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
 
+        # Rebuild any missing index files.
+        # Must be done before the progress bar is started.
+        dataset.build_index(False)
+
         # Set up progress bar.
         pb = sf.util.TileExtractionProgress()
         pb.add_task(
