@@ -10,7 +10,13 @@ from scipy.ndimage import label
 
 class Segment:
 
-    def __init__(self, model: str, class_idx: Optional[int] = None):
+    def __init__(
+        self,
+        model: str,
+        class_idx: Optional[int] = None,
+        threshold_direction: str = 'less'
+
+    ):
         """Prepare tissue segmentation model for filtering a slide.
 
         This method uses a U-Net like model for segmentation, as trained via
@@ -20,11 +26,27 @@ class Segment:
         magnification used to train the segmentation model), tiling the thumbnail
         into overlapping patches, and passing each patch through the segmentation
         model. The resulting segmentation masks are then stitched and blended together
-        to form a single mask for the slide.
+        to form a single mask for the slide. As with other QC methods, the returned
+        mask is a boolean mask, where True indicates areas that should be filtered
+        out (e.g. background).
 
-        For binary classification, predictions are thresholded at 0 (keep for preds > 0).
-        For multiclass segmentation models, the prediction with the highest probability
-        is used.
+        This method supports binary, multiclass, and multilabel segmentation models.
+
+        - For binary classification, predictions are thresholded at 0 (remove areas with preds < 0).
+
+        - For multiclass segmentation models, areas predicted to be class 0 (background)
+          will be removed. This class index can be changed via the ``class_idx`` argument.
+
+        - For multilabel segmentation models, each class channel is thresholded at 0
+          (remove areas with preds < 0). The resulting masks are then combined via
+          logical OR. Alternatively, the ``class_idx`` argument can be used to select
+          a single class channel to use for filtering, where preds < 0 for this channel
+          will be removed.
+
+        For binary and multilabel models, the thresholding direction can be changed
+        via the ``threshold_direction`` argument, which can be one of 'less' (default)
+        or 'greater'.
+
 
         Examples
             Apply tissue segmentation to a slide.
@@ -43,13 +65,20 @@ class Segment:
             class_idx (int, optional): If the model is a multiclass segmentation model,
                 the class index to use for filtering, starting at 1 (0 is background and is ignored).
                 Defaults to None.
+            threshold_direction (str, optional): Thresholding direction for binary and multilabel
+                segmentation models. Can be one of 'less' (default) or 'greater'.
+                Defaults to 'less'.
 
         """
         import slideflow.segment
 
+        if threshold_direction not in ['less', 'greater']:
+            raise ValueError("Invalid threshold_direction: {}. Expected one of: less, greater".format(threshold_direction))
+
         self.model_path = model
         self.class_idx = class_idx
         self.model, self.cfg = sf.segment.load_model_and_config(model)
+        self.threshold_direction = threshold_direction
 
     def __repr__(self):
         return "Segment(model={!r})".format(
@@ -81,7 +110,13 @@ class Segment:
 
         # Threshold the predictions and convert to ROIs.
         labels = None
-        if preds.ndim == 3:
+
+        if self.cfg.loss_mode == 'binary':
+            labeled, n_rois = label(preds > 0)
+            outlines = outlines_list(labeled)
+            outlines = [o for o in outlines if o.shape[0]]
+
+        elif self.cfg.loss_mode == 'multiclass':
             pred_max = preds.argmax(axis=0)
             outlines = []
             labels = []
@@ -100,10 +135,26 @@ class Segment:
             # Remove empty ROIs
             labels = [labels[l] for l in range(len(labels)) if outlines[l].shape[0]]
             outlines = [o for o in outlines if o.shape[0]]
-        else:
-            labeled, n_rois = label(preds > 0)
-            outlines = outlines_list(labeled)
+
+        elif self.cfg.loss_mode == 'multilabel':
+            outlines = []
+            labels = []
+            for i in range(preds.shape[0]):
+                labeled, n_rois = label(preds[i] > 0)
+                _outlined = outlines_list(labeled)
+                outlines += _outlined
+                if self.cfg.labels and len(self.cfg.labels) > i:
+                    lbl = self.cfg.labels[i]
+                else:
+                    lbl = i
+                labels += ([lbl] * len(_outlined))
+            # Remove empty ROIs
+            labels = [labels[l] for l in range(len(labels)) if outlines[l].shape[0]]
             outlines = [o for o in outlines if o.shape[0]]
+
+        else:
+            raise ValueError("Invalid loss mode: {}. Expected one of: binary, "
+                             "multiclass, multilabel".format(self.cfg.loss_mode))
 
         # Scale the outlines.
         outlines = [o * (self.cfg.mpp / wsi.mpp) for o in outlines]
@@ -134,27 +185,38 @@ class Segment:
             wsi (sf.WSI, np.ndarray): Either a Slideflow WSI or a numpy array,
                 with shape (h, w, c) and type np.uint8.
             threshold (float, optional): If None, return the raw
-                predictions (binary segmentation models) or post-softmax predictions (multiclass models).
-                If a float, threshold the predictions at the given
+                predictions (binary or multilabel models) or post-softmax predictions
+                (multiclass models). If a float, threshold the predictions at the given
                 value (less than) for binary models. Defaults to 0.
 
         Returns:
             np.ndarray: Boolean mask, where True = filtered out (less than threshold).
-        """
-        import torch
 
+        """
         if isinstance(wsi, sf.WSI):
             preds = self.model.run_slide_inference(wsi)
         else:
             preds = self.model.run_tiled_inference(wsi)
 
-        if preds.ndim == 3:
-            if threshold is None:
-                preds = torch.from_numpy(preds).softmax(dim=0).numpy()
-            elif self.class_idx is not None:
-                preds = preds.argmax(axis=0) != self.class_idx
+        if threshold is None or threshold is False:
+            return preds
+
+        if self.cfg.loss_mode == 'binary':
+            if self.threshold_direction == 'less':
+                return preds < threshold
             else:
-                preds = preds.argmax(axis=0) == 0
-        elif threshold is not None:
-            preds = preds < threshold
-        return preds
+                return preds > threshold
+        elif self.cfg.loss_mode == 'multiclass':
+            if self.class_idx is not None:
+                return preds.argmax(axis=0) != self.class_idx
+            else:
+                return preds.argmax(axis=0) == 0
+        elif self.cfg.loss_mode == 'multilabel':
+            if self.class_idx is not None and self.threshold_direction == 'less':
+                return preds[self.class_idx] < threshold
+            elif self.class_idx is not None and self.threshold_direction == 'greater':
+                return preds[self.class_idx] > threshold
+            elif self.threshold_direction == 'less':
+                return np.all(preds < threshold, axis=0)
+            else:
+                return np.all(preds > threshold, axis=0)

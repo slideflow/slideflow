@@ -116,14 +116,19 @@ class SegmentModel(pl.LightningModule):
 
         mask = batch["mask"]
 
-        # Shape of the mask should be [batch_size, num_classes, height, width]
-        # for binary segmentation num_classes = 1
-        assert mask.ndim == 4
 
 
         if self.loss_mode == 'binary':
-            # Check that mask values in between 0 and 1, NOT 0 and 255 for binary segmentation
-            assert mask.max() <= 1.0 and mask.min() >= 0
+            # Shape of the mask should be [batch_size, num_classes, height, width]
+            # for binary segmentation num_classes = 1
+            assert mask.ndim == 4
+        elif self.loss_mode == 'multiclass':
+            # Shape of the mask should be [batch_size, height, width]
+            # for multiclass segmentation, values are the classes.
+            assert mask.ndim == 3
+        elif self.loss_mode == 'multilabel':
+            # Shape of the mask should be [batch_size, num_classes, height, width]
+            assert mask.ndim == 4
 
         logits_mask = self.forward(image)
 
@@ -139,15 +144,23 @@ class SegmentModel(pl.LightningModule):
         if self.loss_mode == 'multiclass':
             prob_mask = torch.softmax(logits_mask, dim=1)
             pred_mask = torch.argmax(prob_mask, dim=1)
-            pred_mask = pred_mask.unsqueeze(1)
-            tp, fp, fn, tn = smp.metrics.get_stats(pred_mask.long(), mask.long(), mode=self.loss_mode, num_classes=self.out_classes)
+            tp, fp, fn, tn = smp.metrics.get_stats(
+                pred_mask.long(),
+                mask.long(),
+                mode=self.loss_mode,
+                num_classes=self.out_classes
+            )
         else:
             # Lets compute metrics for some threshold
             # first convert mask values to probabilities, then
             # apply thresholding
             prob_mask = logits_mask.sigmoid()
             pred_mask = (prob_mask > 0.5).float()
-            tp, fp, fn, tn = smp.metrics.get_stats(pred_mask.long(), mask.long(), mode=self.loss_mode)
+            tp, fp, fn, tn = smp.metrics.get_stats(
+                pred_mask.long(),
+                mask.long(),
+                mode=self.loss_mode
+            )
 
         output = {
             "loss": loss,

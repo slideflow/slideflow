@@ -59,9 +59,9 @@ def get_thumb_and_mask(
                 # Scale ROIs to the thumbnail size.
                 C = sa.scale(all_polys, xfact=xfact, yfact=yfact, origin=(0, 0))
                 # Rasterize to an int mask.
-                mask = rasterio.features.rasterize([C], out_shape=(thumb.size[1], thumb.size[0])).astype(bool).astype(np.int32) * (i + 1)
+                mask = rasterio.features.rasterize([C], out_shape=(thumb.size[1], thumb.size[0])).astype(bool).astype(np.int32)
                 labeled_masks.append(mask)
-        mask = np.stack(labeled_masks, axis=0).max(axis=0)[None, :, :]
+        mask = np.stack(labeled_masks, axis=0)
 
     else:
         all_polys = unary_union([p.poly for p in wsi.roi_polys])
@@ -87,9 +87,12 @@ def get_thumb_and_mask(
 class BufferedMaskDataset(torch.utils.data.Dataset):
     """Dataset that loads buffered image and mask pairs."""
 
-    def __init__(self, dataset: "sf.Dataset", source: str):
+    def __init__(self, dataset: "sf.Dataset", source: str, *, mode: str = 'binary'):
         super().__init__()
+        if mode not in ['binary', 'multiclass', 'multilabel']:
+            raise ValueError("Invalid mode: {}. Expected one of: binary, multiclass, multilabel".format(mode))
         self.dataset = dataset
+        self.mode = mode
         self.paths = [
             join(source, s + '.pt') for s in dataset.slides()
             if exists(join(source, s + '.pt'))
@@ -111,6 +114,12 @@ class BufferedMaskDataset(torch.utils.data.Dataset):
         img = output['image']               # CHW (np.ndarray)
         mask = output['mask'].astype(int)   # 1HW (np.ndarray)
 
+        if self.mode == 'multiclass':
+            mask = mask * np.arange(1, mask.shape[0]+1)[:, None, None]
+            mask = mask.max(axis=0)
+        elif self.mode == 'binary' and mask.ndim == 3:
+            mask = np.any(mask, axis=0)[None, :, :].astype(int)
+
         # Process.
         img, mask = self.process(img, mask)
 
@@ -125,12 +134,19 @@ class BufferedRandomCropDataset(BufferedMaskDataset):
     def __init__(
         self,
         dataset: "sf.Dataset",
-        source: str, size: int = 1024
+        source: str, size: int = 1024,
+        mode: str = 'binary'
     ):
-        super().__init__(dataset, source)
+        super().__init__(dataset, source, mode=mode)
         self.size = size
 
     def process(self, img, mask):
+
+        if mask.ndim == 2:
+            to_squeeze = True
+            mask = mask[None, :, :]
+        else:
+            to_squeeze = False
 
         # Convert to tensor.
         img = torch.from_numpy(img).permute(1, 2, 0)
@@ -158,6 +174,9 @@ class BufferedRandomCropDataset(BufferedMaskDataset):
         r = np.random.randint(4)
         img = transforms.functional.rotate(img, r * 90)
         mask = transforms.functional.rotate(mask, r * 90)
+
+        if to_squeeze:
+            mask = mask.squeeze(0)
 
         return img, mask
 

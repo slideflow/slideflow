@@ -110,7 +110,7 @@ def export_thumbs_and_masks(
     # Parameter validation.
     if not isinstance(dataset, sf.Dataset):
         raise ValueError("dataset must be a slideflow Dataset.")
-    if mode not in ('binary', 'multiclass'):
+    if mode not in ('binary', 'multiclass', 'multilabel'):
         raise ValueError(
             "Unrecognized value for mode: {!r}. Expected "
             "'binary' or 'multiclass'.".format(mode)
@@ -353,6 +353,8 @@ def load_model_and_config(path: str):
 
     # Load the model configuration.
     cfg_path = join(dirname(path), 'segment_params.json')
+    if not exists(cfg_path):
+        raise ValueError(f"Model '{path}' does not contain a segment_params.json file.")
     cfg = SegmentConfig.from_json(cfg_path)
 
     # Build the model.
@@ -423,14 +425,6 @@ def train(
                        "unable to perform validation.")
     else:
         mask_config = sf.util.load_json(join(data_source, 'mask_config.json'))
-        if mask_config['loss_mode'] != config.loss_mode:
-            raise ValueError(
-                "Mismatch between mask_config.json loss_mode ({!r}) and "
-                "config loss_mode ({!r}).".format(
-                    mask_config['loss_mode'],
-                    config.loss_mode
-                )
-            )
         if mask_config['mpp'] != config.mpp:
             raise ValueError(
                 "Mismatch between mask_config.json mpp ({!r}) and "
@@ -439,11 +433,24 @@ def train(
                     config.mpp
                 )
             )
-        if mask_config['labels'] and len(mask_config['labels']) != (config.out_classes-1):
+        if (config.loss_mode == 'multiclass'
+            and mask_config['labels']
+            and len(mask_config['labels']) != (config.out_classes-1)):
             raise ValueError(
                 "Mismatch between mask_config.json labels ({!r}) and "
                 "config out_classes ({!r}). Expected out_classes to be one greater "
-                "than the number of labels.".format(
+                "than the number of labels when mode='multiclass' (one class is background).".format(
+                    mask_config['labels'],
+                    config.out_classes
+                )
+            )
+        if (config.loss_mode == 'multilabel'
+            and mask_config['labels']
+            and len(mask_config['labels']) != (config.out_classes)):
+            raise ValueError(
+                "Mismatch between mask_config.json labels ({!r}) and "
+                "config out_classes ({!r}). Expected out_classes to be equal to "
+                "the number of labels when mode='multilabel'.".format(
                     mask_config['labels'],
                     config.out_classes
                 )
@@ -467,7 +474,7 @@ def train(
         config.to_json(join(dest, 'segment_params.json'))
 
     # Build datasets.
-    dts_kw = dict(source=data_source, size=config.size)
+    dts_kw = dict(source=data_source, size=config.size, mode=config.loss_mode)
     train_ds = BufferedRandomCropDataset(dataset, **dts_kw)
     if val_dataset is not None:
         val_ds = BufferedRandomCropDataset(val_dataset, **dts_kw)
