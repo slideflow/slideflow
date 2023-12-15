@@ -1324,9 +1324,12 @@ class Trainer:
             **kwargs
         )
         # Use GPU stain normalization for PyTorch normalizers, if supported
+        _augment_str = self.hp.augment
         if self._has_gpu_normalizer():
             log.info("Using GPU for stain normalization")
             interleave_args.standardize = False
+            if isinstance(_augment_str, str):
+                _augment_str = _augment_str.replace('n', '')
         else:
             interleave_args.normalizer = self.normalizer
 
@@ -1335,7 +1338,7 @@ class Trainer:
                 'train': iter(train_dts.torch(
                     infinite=True,
                     batch_size=self.hp.batch_size,
-                    augment=self.hp.augment,
+                    augment=_augment_str,
                     transform=self.transform['train'],
                     drop_last=True,
                     **vars(interleave_args)
