@@ -50,10 +50,15 @@ class SegmentWidget(Widget):
         self._outline_toast         = None
 
         # Load default model
-        self.supported_models = [
+        self.default_models = [
             'cyto', 'cyto2', 'nuclei', 'tissuenet', 'TN1', 'TN2', 'TN3',
             'livecell', 'LC1', 'LC2', 'LC3', 'LC4'
         ]
+
+        # Load any user-defined models
+        self.user_models = cellpose.models.get_user_models()
+        self.supported_models = self.default_models + self.user_models
+
         self.models = {m: None for m in self.supported_models}
 
     @property
@@ -64,8 +69,13 @@ class SegmentWidget(Widget):
     @property
     def model(self):
         model_str = self.supported_models[self._selected_model_idx]
-        if self.models[model_str] is None:
+        # Default models are loaded via Cellpose, custom models are loaded via CellposeModel
+        if self.models[model_str] is None and model_str in self.default_models:
             self.models[model_str] = cellpose.models.Cellpose(
+                gpu=True,
+                model_type=model_str)
+        elif self.models[model_str] is None:
+            self.models[model_str] = cellpose.models.CellposeModel(
                 gpu=True,
                 model_type=model_str)
         return self.models[model_str]
@@ -202,6 +212,25 @@ class SegmentWidget(Widget):
         self.viz.create_toast("Outlining complete.", icon="success")
         self.update_transparency()
 
+    def _eval(self, img):
+        """Evaluate the current view."""
+        model_str = self.supported_models[self._selected_model_idx]
+        if model_str in self.default_models:
+            # Default models support determination of cell diameter.
+            masks, flows, styles, diams = self.model.eval(
+                img,
+                channels=[[0, 0]],
+                diameter=self.diameter,
+            )
+        else:
+            # Custom models do not support diameter determination.
+            masks, flows, styles = self.model.eval(
+                img,
+                channels=[[0, 0]],
+            )
+            diams = None
+        return masks, flows, styles, diams
+
     def _segment_view(self):
         """Segment the current view."""
         v = self.viz.viewer
@@ -221,20 +250,17 @@ class SegmentWidget(Widget):
             self.mpp,
             view_img.shape
         ))
-        masks, flows, styles, diams = self.model.eval(
-            view_img,
-            channels=[[0, 0]],
-            diameter=self.diameter,
-        )
+        masks, flows, styles, diams = self._eval(view_img)
         self.segmentation = Segmentation(
             slide=None,
             masks=masks,
             flows=flows[0],
             wsi_dim=v.wsi_window_size,
             wsi_offset=v.origin)
-        self.diameter_microns = int(diams * self.mpp)
-        print("Segmentation of view complete (diameter={:.2f}, {} total masks), shape={}.".format(
-            diams,
+        if diams is not None:
+            self.diameter_microns = int(diams * self.mpp)
+        print("Segmentation of view complete (diameter={}, {} total masks), shape={}.".format(
+            None if diams is None else f'{diams:.2f}',
             masks.max(),
             masks.shape
         ))
