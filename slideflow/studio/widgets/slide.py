@@ -285,6 +285,12 @@ class SlideWidget:
         """
         viz = self.viz
         width = viz.wsi.full_extract_px
+
+        # If there is no slide grid, there are no tiles to extract.
+        if not len(viz.wsi.coord):
+            self._tile_box_coords = np.array([])
+            return
+
         indices = viz.wsi.coord[:, 2:4]
         mask = viz.wsi.grid[indices[:, 0], indices[:, 1]]
         if self._filter_grid is not None:

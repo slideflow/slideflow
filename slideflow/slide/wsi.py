@@ -495,6 +495,9 @@ class WSI:
             )
 
         self.coord = np.array(self.coord)
+        # Handle the case where there is only one tile
+        if self.coord.ndim == 1 and self.coord.shape[0] > 0:
+            self.coord = self.coord[np.newaxis, :]
         self.estimated_num_tiles = int(self.grid.sum())
         log.debug(f"Set up coordinate grid, shape={self.grid.shape}")
 
