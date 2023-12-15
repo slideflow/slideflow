@@ -276,6 +276,7 @@ class SegmentWidget(Widget):
             masks.shape
         ))
         self.refresh_segmentation_view()
+        self.update_transparency()
         if self._segment_toast is not None:
             self._segment_toast.done()
 
@@ -329,6 +330,7 @@ class SegmentWidget(Widget):
                 sticky=True,
                 spinner=True)
         self.refresh_segmentation_view()
+        self.update_transparency()
         refresh_toast.done()
         self.viz.create_toast("Segmentation complete.", icon="success")
 
