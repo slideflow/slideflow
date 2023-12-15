@@ -142,7 +142,7 @@ To run inference on a slide, use the :meth:`segment.SegmentModel.run_slide_infer
 You can also run inference directly on an arbitrary image using the :meth:`segment.SegmentModel.run_tiled_inference` method. This method takes an image array (np.ndarray, in W, H, C format) as an argument, and returns an array of pixel-level predictions. Predictions are generated in tiles and merged. The output shape will be ``(H, W)`` for binary models, ``(N+1, H, W)`` for multiclass models, and ``(N, H, W)`` for multilabel models.
 
 Generating QC Masks
-------------------
+-------------------
 
 The :class:`slideflow.slide.qc.Segment` class provides an easy interface for generating QC masks from a segmentation model. This class takes a path to a trained segmentation model as an argument, and can be used for QC :ref:`as previously described <filtering>`. For example:
 
@@ -231,6 +231,10 @@ In addition to generating ROIs for a single slide, you can also generate ROIs fo
     # Generate ROIs for all slides in the dataset.
     dataset.generate_rois('path/to/model.pth')
 
+ROIs will be saved in the ROIs directory as configured in the dataset settings. Alternatively, ROIs can be exported to a user-defined directory using the ``dest`` argument.
+
+By default, ROIs will be generated for all slides in the dataset, skipping slides with existing ROIs. To overwrite any existing ROIs, use the ``overwrite=True`` argument.
+
 
 Deployment in Studio
 --------------------
@@ -247,10 +251,10 @@ Segmentation models can be deployed in :ref:`Slideflow Studio <studio>` for live
 Complete Example
 ----------------
 
-1. Generate ROIs
-****************
+1. Label ROIs
+*************
 
-Generate labeled ROIs as described in :ref:`studio_roi`.
+Create labeled ROIs as described in :ref:`studio_roi`.
 
 2. Train a model
 ****************
