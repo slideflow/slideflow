@@ -281,11 +281,13 @@ class Viewer:
             origin=tuple(self.origin))
         params_different = (overlay_params != self._overlay_params)
         overlay_different = (overlay is not self._overlay)
+        overlay_updated = False
 
         # If the overlay image is reasonably sized, display as-is.
         if max(overlay.shape) < 5000:
             if self._overlay_tex_img is None or self._overlay is not overlay:
                 self._overlay_tex_img = self._overlay = overlay
+                overlay_updated = True
             self._overlay_params = overlay_params
             self.h_zoom = (dim[0] / overlay.shape[1]) / self.view_zoom  # type: ignore
             self.overlay_pos = self.wsi_coords_to_display_coords(*offset)
@@ -308,6 +310,7 @@ class Viewer:
         # Update transparency, if function has been specified.
         if (self._alpha is not None
             and (self._alpha is not self._last_alpha
+                 or overlay_updated
                  or (max(overlay.shape) >= 5000 and (params_different or overlay_different)))):
             assert self._overlay_tex_img is not None
             self._last_alpha = self._alpha

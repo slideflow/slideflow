@@ -239,6 +239,7 @@ class SegmentWidget(Widget):
             masks.shape
         ))
         self.refresh_segmentation_view()
+        self.update_transparency()
         if self._segment_toast is not None:
             self._segment_toast.done()
 
@@ -254,7 +255,7 @@ class SegmentWidget(Widget):
             self.viz.wsi.path,
             tile_px=self.tile_px,
             tile_um=self.tile_um,
-            use_bounds=self.settings_widget.use_bounds,
+            use_bounds=self.viz.settings_widget.use_bounds,
             verbose=False
         )
         if self.otsu:
@@ -292,6 +293,7 @@ class SegmentWidget(Widget):
                 sticky=True,
                 spinner=True)
         self.refresh_segmentation_view()
+        self.update_transparency()
         refresh_toast.done()
         self.viz.create_toast("Segmentation complete.", icon="success")
 
