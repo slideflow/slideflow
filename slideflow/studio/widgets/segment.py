@@ -92,6 +92,17 @@ class SegmentWidget(Widget):
     def mpp(self):
         return self.diameter_microns / self.diam_mean
 
+    def refresh_user_models(self):
+        """Refresh the list of user-trained Cellpose models."""
+        prior_len = len(self.user_models)
+        self.user_models = cellpose.models.get_user_models()
+        self.supported_models = self.default_models + self.user_models
+        if len(self.user_models) < prior_len:
+            self._selected_model_idx = 1
+        for m in self.user_models:
+            if m not in self.models:
+                self.models[m] = None
+
     def close(self):
         pass
 
@@ -280,7 +291,7 @@ class SegmentWidget(Widget):
             self.viz.wsi.path,
             tile_px=self.tile_px,
             tile_um=self.tile_um,
-            use_bounds=self.settings_widget.use_bounds,
+            use_bounds=self.viz.settings_widget.use_bounds,
             verbose=False
         )
         if self.otsu:
@@ -343,11 +354,16 @@ class SegmentWidget(Widget):
         with imgui_utils.grayed_out(not has_viewer):
 
             ## Cell segmentation model.
-            with imgui_utils.item_width(- 1 - viz.spacing * 2):
+            with imgui_utils.item_width(- 1 - (viz.spacing * 1.5 + viz.font_size)):
                 _clicked, self._selected_model_idx = imgui.combo(
                     "##cellpose_model",
                     self._selected_model_idx,
                     self.supported_models)
+
+            imgui.same_line()
+
+            if viz.sidebar.small_button('refresh'):
+                self.refresh_user_models()
 
             ## Cell Segmentation diameter.
             if imgui.radio_button('Auto-detect diameter##diam_radio_auto', self.diam_radio_auto):
