@@ -1531,7 +1531,7 @@ class Trainer:
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
         save_predictions: Union[bool, str] = 'parquet',
-        reduce_method: str = 'average',
+        reduce_method: Union[str, Callable] = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto',
         from_wsi: bool = False,
@@ -1549,11 +1549,16 @@ class Trainer:
                 'feather', or 'parquet'. If False, will not save predictions.
                 Defaults to 'parquet'.
             reduce_method (str, optional): Reduction method for calculating
-                slide-level and patient-level predictions for categorical outcomes.
-                Either 'average' or 'proportion'. If 'average', will reduce with
-                average of each logit across tiles. If 'proportion', will convert
-                tile predictions into onehot encoding then reduce by averaging
-                these onehot values. Defaults to 'average'.
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1683,7 +1688,7 @@ class Trainer:
         checkpoint: Optional[str] = None,
         save_checkpoints: bool = True,
         multi_gpu: bool = False,
-        reduce_method: str = 'average',
+        reduce_method: Union[str, Callable] = 'average',
         norm_fit: Optional[NormFit] = None,
         from_wsi: bool = False,
         roi_method: str = 'auto',
@@ -1732,11 +1737,16 @@ class Trainer:
             multi_gpu (bool, optional): Enable multi-GPU training using
                 Tensorflow/Keras MirroredStrategy.
             reduce_method (str, optional): Reduction method for calculating
-                slide-level and patient-level predictions for categorical outcomes.
-                Either 'average' or 'proportion'. If 'average', will reduce with
-                average of each logit across tiles. If 'proportion', will convert
-                tile predictions into onehot encoding then reduce by averaging
-                these onehot values. Defaults to 'average'.
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using

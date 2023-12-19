@@ -467,7 +467,7 @@ def eval_dataset(
     num_tiles: int = 0,
     uq: bool = False,
     uq_n: int = 30,
-    reduce_method: str = 'average',
+    reduce_method: Union[str, Callable] = 'average',
     patients: Optional[Dict[str, str]] = None,
     outcome_names: Optional[List[str]] = None,
     loss: Optional[Callable] = None,
@@ -486,11 +486,16 @@ def eval_dataset(
         uq_n (int, optional): Number of forward passes to perform
             when calculating MC Dropout uncertainty. Defaults to 30.
         reduce_method (str, optional): Reduction method for calculating
-            slide-level and patient-level predictions for categorical outcomes.
-            Either 'average' or 'proportion'. If 'average', will reduce with
-            average of each logit across tiles. If 'proportion', will convert
-            tile predictions into onehot encoding then reduce by averaging
-            these onehot values. Defaults to 'average'.
+            slide-level and patient-level predictions for categorical
+            outcomes. Options include 'average', 'mean', 'proportion',
+            'median', 'sum', 'min', 'max', or a callable function.
+            'average' and 'mean' are  synonymous, with both options kept
+            for backwards compatibility. If  'average' or 'mean', will
+            reduce with average of each logit across  tiles. If
+            'proportion', will convert tile predictions into onehot encoding
+            then reduce by averaging these onehot values. For all other
+            values, will reduce with the specified function, applied via
+            the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
         patients (dict, optional): Dictionary mapping slide names to patient
             names. Required for generating patient-level metrics.
         outcome_names (list, optional): List of str, names for outcomes.
@@ -502,7 +507,7 @@ def eval_dataset(
     Returns:
         pd.DataFrame, accuracy, loss
     """
-    if model_type != 'categorical' and reduce_method != 'average':
+    if model_type != 'categorical' and reduce_method == 'proportion':
         raise ValueError(
             f'Reduction method {reduce_method} incompatible with '
             f'model_type {model_type}'
@@ -537,7 +542,7 @@ def eval_dataset(
 
 def group_reduce(
     df: DataFrame,
-    method: str = 'average',
+    method: Union[str, Callable] = 'average',
     patients: Optional[Dict[str, str]] = None
 ) -> Dict[str, DataFrame]:
     """Reduces tile-level predictions to group-level predictions.
@@ -546,15 +551,25 @@ def group_reduce(
         df (DataFrame): Tile-level predictions.
         method (str, optional): Reduction method for calculating
             slide-level and patient-level predictions for categorical outcomes.
-            Either 'average' or 'proportion'. If 'average', will reduce with
-            average of each logit across tiles. If 'proportion', will convert
-            tile predictions into onehot encoding then reduce by averaging
-            these onehot values. Defaults to 'average'.
+            Options include 'average', 'mean', 'proportion', 'median', 'sum',
+            'min', 'max', or a callable function. 'average' and 'mean' are
+            synonymous, with both options kept for backwards compatibility. If
+            'average' or 'mean', will reduce with average of each logit across
+            tiles. If 'proportion', will convert tile predictions into onehot
+            encoding then reduce by averaging these onehot values. For all other
+            values, will reduce with the specified function, applied via
+            the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
         patients (dict, optional): Dictionary mapping slide names to patient
             names. Required for generating patient-level metrics.
     """
-    if method not in ('proportion', 'average'):
-        raise ValueError(f"Unknown method {method}")
+    # Validation.
+    if (method not in [
+            'average', 'proportion', 'mean', 'median', 'sum', 'min', 'max'
+        ] and not callable(method)):
+        raise ValueError(
+            f"Unknown method {method}. Expected 'average', 'proportion', "
+            "'mean', 'median', 'sum', 'min', 'max', or a callable function."
+        )
     log.debug(f"Using reduce_method={method}")
 
     if patients is not None:
@@ -599,9 +614,25 @@ def group_reduce(
             for i in range(num_cat):
                 _df[f'{outcome}-y_pred{i}'] = (outcome_pred_cat == i).astype(int)
 
+    # Both 'average' and 'proportion' methods perform the same reduction,
+    # so we can use the same method for both
+    if method in ('average', 'proportion'):
+        method = 'mean'
+
+    def _apply_reduce(_df, method, group):
+        nonlocal groups
+        if method in ['mean', 'median', 'sum', 'min', 'max']:
+            return _df.groupby(group, as_index=False).agg(method, numeric_only=True)
+        elif callable(method):
+            _numeric = _df.drop(columns=[g for g in groups if g != group])
+            return _numeric.groupby(group, as_index=False).agg(method)
+        else:
+            raise ValueError(f"Unknown method {method}")
+
+
     for group in groups:
         group_dfs.update({
-            group: _df.groupby(group, as_index=False).mean(numeric_only=True)
+            group: _apply_reduce(_df, method, group)
         })
 
     return group_dfs
@@ -676,7 +707,7 @@ def metrics_from_dataset(
     dataset: Union["tf.data.Dataset", "torch.utils.data.DataLoader"],
     num_tiles: int = 0,
     outcome_names: Optional[List[str]] = None,
-    reduce_method: str = 'average',
+    reduce_method: Union[str, Callable] = 'average',
     label: str = '',
     save_predictions: Union[str, bool] = False,
     data_dir: str = '',
@@ -701,11 +732,16 @@ def metrics_from_dataset(
         outcome_names (list, optional): List of str, names for outcomes.
             Defaults to None.
         reduce_method (str, optional): Reduction method for calculating
-            slide-level and patient-level predictions for categorical outcomes.
-            Either 'average' or 'proportion'. If 'average', will reduce with
-            average of each logit across tiles. If 'proportion', will convert
-            tile predictions into onehot encoding then reduce by averaging
-            these onehot values. Defaults to 'average'.
+            slide-level and patient-level predictions for categorical
+            outcomes. Options include 'average', 'mean', 'proportion',
+            'median', 'sum', 'min', 'max', or a callable function.
+            'average' and 'mean' are  synonymous, with both options kept
+            for backwards compatibility. If  'average' or 'mean', will
+            reduce with average of each logit across  tiles. If
+            'proportion', will convert tile predictions into onehot encoding
+            then reduce by averaging these onehot values. For all other
+            values, will reduce with the specified function, applied via
+            the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
         label (str, optional): Label prefix/suffix for saving.
             Defaults to None.
         save_predictions (bool, optional): Save tile, slide, and patient-level
@@ -860,7 +896,7 @@ def predict_dataset(
     num_tiles: int = 0,
     uq: bool = False,
     uq_n: int = 30,
-    reduce_method: str = 'average',
+    reduce_method: Union[str, Callable] = 'average',
     patients: Optional[Dict[str, str]] = None,
     outcome_names: Optional[List[str]] = None,
     torch_args: Optional[SimpleNamespace] = None,
@@ -878,11 +914,16 @@ def predict_dataset(
         uq_n (int, optional): Number of forward passes to perform
             when calculating MC Dropout uncertainty. Defaults to 30.
         reduce_method (str, optional): Reduction method for calculating
-            slide-level and patient-level predictions for categorical outcomes.
-            Either 'average' or 'proportion'. If 'average', will reduce with
-            average of each logit across tiles. If 'proportion', will convert
-            tile predictions into onehot encoding then reduce by averaging
-            these onehot values. Defaults to 'average'.
+            slide-level and patient-level predictions for categorical
+            outcomes. Options include 'average', 'mean', 'proportion',
+            'median', 'sum', 'min', 'max', or a callable function.
+            'average' and 'mean' are  synonymous, with both options kept
+            for backwards compatibility. If  'average' or 'mean', will
+            reduce with average of each logit across  tiles. If
+            'proportion', will convert tile predictions into onehot encoding
+            then reduce by averaging these onehot values. For all other
+            values, will reduce with the specified function, applied via
+            the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
         patients (dict, optional): Dictionary mapping slide names to patient
             names. Required for generating patient-level metrics.
         outcome_names (list, optional): List of str, names for outcomes.
@@ -895,7 +936,7 @@ def predict_dataset(
         'patient', and values containing DataFrames with tile-, slide-,
         and patient-level predictions.
     """
-    if model_type != 'categorical' and reduce_method != 'average':
+    if model_type != 'categorical' and reduce_method == 'proportion':
         raise ValueError(
             f'Reduction method {reduce_method} incompatible with '
             f'model_type {model_type}'
