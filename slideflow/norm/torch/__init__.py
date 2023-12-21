@@ -251,6 +251,36 @@ class TorchStainNormalizer(StainNormalizer):
         else:
             return self.n.transform(inp, augment=augment)
 
+    def _torch_augment(self, inp: "torch.Tensor") -> "torch.Tensor":
+        """Augment a torch uint8 image (CWH).
+
+        Augmentation ocurs via intermediate conversion to WHC.
+
+        Args:
+            inp (torch.Tensor): Image, uint8. Images are normalized in
+                W x H x C space. Images provided as C x W x H will be
+                auto-converted and permuted back after normalization.
+
+        Returns:
+            torch.Tensor:   Image, uint8.
+
+        """
+        from slideflow.io.torch import cwh_to_whc, whc_to_cwh, is_cwh
+
+        if inp.ndim == 4 and inp.shape[0] > self.batch_size:
+            return torch.cat(
+                [
+                    self._torch_augment(t)
+                    for t in torch.split(inp, self.batch_size)
+                ],
+                dim=0
+            )
+        elif is_cwh(inp):
+            # Convert from CWH -> WHC (normalize) -> CWH
+            return whc_to_cwh(self.n.augment(cwh_to_whc(inp)))
+        else:
+            return self.n.augment(inp)
+
     def torch_to_torch(
         self,
         image: Union[Dict, torch.Tensor],
@@ -285,6 +315,17 @@ class TorchStainNormalizer(StainNormalizer):
             return detuple(to_return, args)
         else:
             return detuple(self._torch_transform(image, augment=augment), args)
+
+    def augment_rgb(self, image: np.ndarray) -> np.ndarray:
+        """Augment a numpy array (uint8), returning a numpy array (uint8).
+
+        Args:
+            image (np.ndarray): Image (uint8), W x H x C.
+
+        Returns:
+            np.ndarray: Augmented image, uint8, W x H x C.
+        """
+        return self.n.augment(torch.from_numpy(image)).cpu().numpy()
 
     def rgb_to_rgb(self, image: np.ndarray, *, augment: bool = False) -> np.ndarray:
         """Normalize a numpy array (uint8), returning a numpy array (uint8).

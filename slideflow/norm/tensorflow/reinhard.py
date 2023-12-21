@@ -242,6 +242,60 @@ def transform(
         return clipped
 
 
+#@tf.function
+def augment(
+    I: tf.Tensor,
+    means_stdev: Optional[tf.Tensor] = None,
+    stds_stdev: Optional[tf.Tensor] = None,
+    *,
+    mask_threshold: Optional[float] = None
+) -> tf.Tensor:
+    """Augment a batch of H&E images.
+
+    Args:
+        I (tf.Tensor): Image batch to transform, RGB uint8 with dimensions BWHC.
+        tgt_mean (tf.Tensor): Target means.
+        tgt_std (tf.Tensor): Target means.
+
+    Keyword args:
+        mask_threshold (float): Whitespace fraction threshold, above which
+            pixels are masked and not normalized/augmented. Defaults to None.
+
+    Returns:
+        tf.Tensor: Transformed image batch.
+    """
+    I1, I2, I3 = lab_split(I)
+
+    if mask_threshold:
+        mask = ((I1 / 100) < mask_threshold)[:, :, :, tf.newaxis]
+
+    means, stds = get_mean_std(I1, I2, I3)
+    means_stdev = tf.repeat(tf.expand_dims(means_stdev, axis=1), repeats=tf.shape(means)[1], axis=1)
+    stds_stdev = tf.repeat(tf.expand_dims(stds_stdev, axis=1), repeats=tf.shape(stds)[1], axis=1)
+    tgt_mean = tf.random.normal([3, tf.shape(means)[1]], mean=means, stddev=means_stdev)
+    tgt_std = tf.random.normal([3, tf.shape(stds)[1]], mean=stds, stddev=stds_stdev)
+
+    I1a = tf.subtract(I1, tf.expand_dims(tf.expand_dims(means[0], axis=-1), axis=-1))
+    I1b = tf.divide(tgt_std[0], stds[0])
+    norm1 = (I1a * tf.expand_dims(tf.expand_dims(I1b, axis=-1), axis=-1)) + tgt_mean[0]
+
+    I2a = tf.subtract(I2, tf.expand_dims(tf.expand_dims(means[1], axis=-1), axis=-1))
+    I2b = tf.divide(tgt_std[1], stds[1])
+    norm2 = (I2a * tf.expand_dims(tf.expand_dims(I2b, axis=-1), axis=-1)) + tgt_mean[1]
+
+    I3a = tf.subtract(I3, tf.expand_dims(tf.expand_dims(means[2], axis=-1), axis=-1))
+    I3b = tf.divide(tgt_std[2], stds[2])
+    norm3 = (I3a * tf.expand_dims(tf.expand_dims(I3b, axis=-1), axis=-1)) + tgt_mean[2]
+
+    merged = tf.cast(merge_back(norm1, norm2, norm3), dtype=tf.int32)
+    clipped = tf.cast(tf.clip_by_value(merged, clip_value_min=0, clip_value_max=255), dtype=tf.uint8)
+
+    if mask_threshold:
+        return tf.where(mask, clipped, I)
+    else:
+        return clipped
+
+
 @tf.function
 def fit(target: tf.Tensor, reduce: bool = False, mask: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
     """Fit a target image.
@@ -464,6 +518,22 @@ class ReinhardFastNormalizer:
             **aug_kw
         )
 
+    def _augment_batch(self, batch: tf.Tensor) -> tf.Tensor:
+        """Augment a batch of images.
+
+        Args:
+            img (tf.Tensor): Image, RGB uint8 with dimensions BWHC.
+
+        Returns:
+            tf.Tensor: Normalized image batch (uint8)
+        """
+        return augment(
+            batch,
+            self._augment_params['means_stdev'],
+            self._augment_params['stds_stdev'],
+            mask_threshold=self.threshold,
+        )
+
     def transform(
         self,
         I: tf.Tensor,
@@ -472,7 +542,7 @@ class ReinhardFastNormalizer:
         *,
         augment: bool = False
     ) -> tf.Tensor:
-        """Normalize an H&E image.
+        """Normalize an H&E image or batch of images.
 
         Args:
             img (tf.Tensor): Image, RGB uint8 with dimensions WHC or BWHC.
@@ -503,6 +573,24 @@ class ReinhardFastNormalizer:
             )[0]
         else:
             return self._transform_batch(I, _ctx_means, _ctx_stds, augment=augment)
+
+    def augment(self, I: tf.Tensor) -> tf.Tensor:
+        """Augment an H&E image or batch of images.
+
+        Args:
+            img (tf.Tensor): Image, RGB uint8 with dimensions WHC or BWHC.
+
+        Returns:
+            tf.Tensor: Normalized image (uint8)
+        """
+        if not any(m in self._augment_params
+                   for m in ('means_stdev', 'stds_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
+        if len(I.shape) == 3:
+            return self._augment_batch(tf.expand_dims(I, axis=0))[0]
+        else:
+            return self._augment_batch(I)
 
     @contextmanager
     def image_context(self, I: Union[np.ndarray, tf.Tensor]):

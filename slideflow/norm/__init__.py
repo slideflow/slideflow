@@ -163,7 +163,38 @@ class StainNormalizer:
                 )
             )
         else:
-            return torch.from_numpy(self.rgb_to_rgb(inp.cpu().numpy()))
+            return torch.from_numpy(
+                self.rgb_to_rgb(inp.cpu().numpy(), augment=augment)
+            )
+
+    def _torch_augment(self, inp: "torch.Tensor") -> "torch.Tensor":
+        """Augment a torch uint8 image (CWH).
+
+        Augmentation ocurs via intermediate conversion to WHC.
+
+        Args:
+            inp (torch.Tensor): Image, uint8. Images are normalized in
+                W x H x C space. Images provided as C x W x H will be
+                auto-converted and permuted back after normalization.
+
+        Returns:
+            torch.Tensor:   Image, uint8.
+
+        """
+        import torch
+        from slideflow.io.torch import cwh_to_whc, whc_to_cwh, is_cwh
+
+        if len(inp.shape) == 4:
+            return torch.stack([self._torch_augment(img) for img in inp])
+        elif is_cwh(inp):
+            # Convert from CWH -> WHC (normalize) -> CWH
+            return whc_to_cwh(
+                torch.from_numpy(
+                    self.augment_rgb(cwh_to_whc(inp).cpu().numpy())
+                )
+            )
+        else:
+            return torch.from_numpy(self.augment_rgb(inp.cpu().numpy()))
 
     def fit(
         self,
@@ -325,10 +356,10 @@ class StainNormalizer:
 
     def transform(
         self,
-        image: Union[str, bytes, np.ndarray, "tf.Tensor", "torch.Tensor"],
+        image: Union[np.ndarray, "tf.Tensor", "torch.Tensor"],
         *,
         augment: bool = False
-    ) -> Union[str, bytes, np.ndarray, "tf.Tensor", "torch.Tensor"]:
+    ) -> Union[np.ndarray, "tf.Tensor", "torch.Tensor"]:
         """Normalize a target image, attempting to preserve the original type.
 
         Args:
@@ -356,6 +387,75 @@ class StainNormalizer:
             return self.rgb_to_rgb(image, augment=augment)
         raise ValueError(f"Unrecognized image type {type(image)}; expected "
                          "np.ndarray, tf.Tensor, or torch.Tensor")
+
+    def augment(
+        self,
+        image: Union[np.ndarray, "tf.Tensor", "torch.Tensor"]
+    ) -> Union[np.ndarray, "tf.Tensor", "torch.Tensor"]:
+        """Augment a target image, attempting to preserve the original type.
+
+        Args:
+            image (np.ndarray, tf.Tensor, or torch.Tensor): Image.
+
+        Returns:
+            Augmented image of the original type.
+        """
+        if not hasattr(self.n, 'augment'):
+            raise errors.AugmentationNotSupportedError(
+                f"Normalizer {self.method} does not support augmentation.")
+        if isinstance(image, (str, bytes)):
+            raise ValueError("Unable to augment bytes or str; image "
+                             "must first be converted to an array or Tensor.")
+
+        if 'tensorflow' in sys.modules:
+            import tensorflow as tf
+            if isinstance(image, tf.Tensor):
+                if isinstance(image, dict):
+                    image['tile_image'] = tf.py_function(
+                        self.augment_rgb,
+                        [image['tile_image']],
+                        tf.uint8
+                    )
+                elif len(image.shape) == 4:
+                    image = tf.stack([self.augment_rgb(_i) for _i in image])
+                else:
+                    image = tf.py_function(
+                        self.augment_rgb,
+                        [image],
+                        tf.uint8
+                    )
+                return image
+
+        if 'torch' in sys.modules:
+            import torch
+            if isinstance(image, torch.Tensor):
+                if isinstance(image, dict):
+                    to_return = {
+                        k: v for k, v in image.items()
+                        if k != 'tile_image'
+                    }
+                    to_return['tile_image'] = self._torch_augment(
+                        image['tile_image']
+                    )
+                    return to_return
+                else:
+                    return self._torch_augment(image)
+
+        if isinstance(image, np.ndarray):
+            return self.augment_rgb(image)
+        raise ValueError(f"Unrecognized image type {type(image)}; expected "
+                            "np.ndarray, tf.Tensor, or torch.Tensor")
+
+    def augment_rgb(self, image: np.ndarray) -> np.ndarray:
+        """Augment a numpy array (uint8), returning a numpy array (uint8).
+
+        Args:
+            image (np.ndarray): Image (uint8).
+
+        Returns:
+            np.ndarray: Augmented image, uint8, W x H x C.
+        """
+        return self.n.augment(image)
 
     def jpeg_to_jpeg(
         self,

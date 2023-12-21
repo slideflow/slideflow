@@ -180,6 +180,10 @@ class NormalizerError(Exception):
     pass
 
 
+class AugmentationNotSupportedError(NormalizerError):
+    pass
+
+
 class UserError(Exception):
     pass
 

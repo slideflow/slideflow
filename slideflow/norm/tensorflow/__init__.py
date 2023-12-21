@@ -197,6 +197,18 @@ class TensorflowStainNormalizer(StainNormalizer):
         ))
         return self
 
+    def augment_rgb(self, image: np.ndarray) -> np.ndarray:
+        """Augment an RGB image.
+
+        Args:
+            image (np.ndarray): RGB image.
+
+        Returns:
+            np.ndarray: Augmented RGB image.
+        """
+        image = tf.convert_to_tensor(image)
+        return self.n.augment(image).numpy()
+
     @tf.function
     def tf_to_tf(
         self,
