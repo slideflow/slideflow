@@ -78,7 +78,9 @@ def features_from_slide_torch(
 
     # Build the PyTorch dataloader
     tile_dataset = torch.utils.data.DataLoader(
-        _SlideIterator(img_format=img_format, generator=generator),
+        _SlideIterator(preprocess=(preprocess_fn if not (normalizer and not opencv_norm) else None),
+                       img_format=img_format,
+                       generator=generator),
         batch_size=batch_size,
     )
 
@@ -86,8 +88,8 @@ def features_from_slide_torch(
     for i, (batch_images, batch_loc) in enumerate(tile_dataset):
         if normalizer and not opencv_norm:
             batch_images = normalizer.transform(batch_images)
-        if preprocess_fn:
-            batch_images = preprocess_fn(batch_images)
+            if preprocess_fn:
+                batch_images = preprocess_fn(batch_images)
         batch_images = batch_images.to(extractor.device)
         model_out = sf.util.as_list(extractor(batch_images))
 

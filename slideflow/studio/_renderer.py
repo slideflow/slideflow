@@ -30,7 +30,7 @@ if sf.util.torch_available:
 #----------------------------------------------------------------------------
 
 ABORT_RENDER = 10
-ENABLE_EXPERIMENTAL_UQ = True
+ENABLE_EXPERIMENTAL_UQ = False
 
 #----------------------------------------------------------------------------
 

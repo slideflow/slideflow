@@ -9,6 +9,7 @@ from typing import Dict
 
 import slideflow.norm.utils as ut
 from sklearn.decomposition import DictionaryLearning
+from slideflow import errors
 
 
 def get_stain_matrix_spams(
@@ -189,8 +190,8 @@ class VahadaneSklearnNormalizer:
             np.ndarray: Normalized image.
         """
         if augment:
-            raise NotImplementedError(
-                "Stain augmentation is not implemented for Vahadane normalization"
+            raise errors.AugmentationNotSupportedError(
+                "Stain augmentation is not supported for Vahadane normalization"
             )
         if self.stain_matrix_target is None:
             raise ValueError("Normalizer has not been fit: call normalizer.fit()")

@@ -391,3 +391,7 @@ def aggregate_trainval_bags_by_patient(
         )
 
     return bags, targets, train_idx, val_idx
+
+def _is_list_of_paths(bag):
+    return ((isinstance(bag, list) or (isinstance(bag, np.ndarray))
+             and isinstance(bag[0], str)))

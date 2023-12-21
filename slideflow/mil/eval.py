@@ -36,6 +36,7 @@ def eval_mil(
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
+    aggregation_level: Optional[str] = None,
     **heatmap_kwargs
 ) -> pd.DataFrame:
     """Evaluate a multiple-instance learning model.
@@ -74,14 +75,33 @@ def eval_mil(
 
     """
     model, config = utils.load_model_weights(weights, config)
+    params = {
+        'model_path': weights,
+        'eval_bags': bags,
+        'eval_filters': dataset._filters,
+        'mil_params': sf.util.load_json(join(weights, 'mil_params.json'))
+    }
 
     eval_kwargs = dict(
         dataset=dataset,
         outcomes=outcomes,
         bags=bags,
         config=config,
-        outdir=outdir
+        outdir=outdir,
+        params=params
     )
+
+    if aggregation_level is not None:
+        if aggregation_level not in ('patient', 'slide'):
+            raise ValueError(
+                f"Unrecognized aggregation level: '{aggregation_level}'. "
+                "Must be either 'patient' or 'slide'."
+            )
+        if isinstance(config, TrainerConfigCLAM):
+            raise ValueError(
+                "Cannot aggregate bags by patient using the legacy CLAM trainer."
+            )
+        config.aggregation_level = aggregation_level
 
     if config.is_multimodal:
         if attention_heatmaps:
@@ -118,6 +138,7 @@ def _eval_mil(
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
+    params: Optional[dict] = None,
     **heatmap_kwargs
 ) -> pd.DataFrame:
     """Evaluate a standard, single-mode multi-instance learning model.
@@ -178,12 +199,15 @@ def _eval_mil(
         log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
 
     # Save results.
-    if not exists(outdir):
-        os.makedirs(outdir)
-    model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
-    pred_out = join(model_dir, 'predictions.parquet')
-    df.to_parquet(pred_out)
-    log.info(f"Predictions saved to [green]{pred_out}[/]")
+    if outdir:
+        if not exists(outdir):
+            os.makedirs(outdir)
+        model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
+        if params is not None:
+            sf.util.write_json(params, join(model_dir, 'mil_params.json'))
+        pred_out = join(model_dir, 'predictions.parquet')
+        df.to_parquet(pred_out)
+        log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print categorical metrics, including per-category accuracy
     outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
@@ -193,7 +217,7 @@ def _eval_mil(
     sf.stats.metrics.categorical_metrics(metrics_df, level='slide')
 
     # Export attention
-    if y_att:
+    if outdir and y_att:
         if 'slide' in df.columns:
             slides_or_patients = df.slide.values
         elif 'patient' in df.columns:
@@ -203,7 +227,7 @@ def _eval_mil(
         _export_attention(join(model_dir, 'attention'), y_att, slides_or_patients)
 
     # Attention heatmaps
-    if y_att and attention_heatmaps:
+    if outdir and y_att and attention_heatmaps:
         generate_attention_heatmaps(
             outdir=join(model_dir, 'heatmaps'),
             dataset=dataset,
@@ -223,6 +247,7 @@ def _eval_multimodal_mil(
     config: _TrainerConfig,
     *,
     outdir: str = 'mil',
+    params: Optional[dict] = None,
 ) -> pd.DataFrame:
     """Evaluate a multi-modal (e.g. multi-magnification) MIL model.
 
@@ -272,17 +297,22 @@ def _eval_multimodal_mil(
         log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
         log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
 
-    # Save results
-    if not exists(outdir):
-        os.makedirs(outdir)
-    model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
+    # Assemble dataframe
     df_dict = dict(slide=slides, y_true=y_true)
     for i in range(y_pred.shape[-1]):
         df_dict[f'y_pred{i}'] = y_pred[:, i]
     df = pd.DataFrame(df_dict)
-    pred_out = join(model_dir, 'predictions.parquet')
-    df.to_parquet(pred_out)
-    log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    # Save results
+    if outdir:
+        if not exists(outdir):
+            os.makedirs(outdir)
+        model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
+        if params is not None:
+            sf.util.write_json(params, join(model_dir, 'mil_params.json'))
+        pred_out = join(model_dir, 'predictions.parquet')
+        df.to_parquet(pred_out)
+        log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print categorical metrics, including per-category accuracy
     outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
@@ -292,7 +322,7 @@ def _eval_multimodal_mil(
     sf.stats.metrics.categorical_metrics(metrics_df, level='slide')
 
     # Export attention
-    if y_att:
+    if outdir and y_att:
         _export_attention(join(model_dir, 'attention'), y_att, df.slide.values)
 
     return df
@@ -442,14 +472,16 @@ def predict_slide(
     return y_pred, y_att
 
 
-def save_mil_tile_predictions(
+def get_mil_tile_predictions(
     weights: str,
     dataset: "sf.Dataset",
     bags: Union[str, np.ndarray, List[str]],
+    *,
     config: Optional[_TrainerConfig] = None,
     outcomes: Union[str, List[str]] = None,
-    dest: str = 'mil_tile_preds.parquet',
-):
+    dest: Optional[str] = None,
+    uq: bool = False
+) -> pd.DataFrame:
     # Load model and configuration.
     model, config = utils.load_model_weights(weights, config)
     if outcomes is not None:
@@ -486,6 +518,7 @@ def save_mil_tile_predictions(
     df_slides = []
     df_attention = []
     df_preds = []
+    df_uq = []
     df_true = []
     df_loc_x = []
     df_loc_y = []
@@ -495,14 +528,19 @@ def save_mil_tile_predictions(
                             description="Generating tile predictions",
                             total=len(bags)):
         if is_clam:
-            tile_pred = _predict_mil_tiles(model, bag, use_first_out=True)
+            pred_out = _predict_mil_tiles(model, bag, use_first_out=True, uq=uq)
         else:
-            tile_pred = _predict_mil_tiles(
+            pred_out = _predict_mil_tiles(
                 model,
                 bag,
                 use_lens=config.model_config.use_lens,
-                apply_softmax=config.model_config.apply_softmax
+                apply_softmax=config.model_config.apply_softmax,
+                uq=uq
             )
+        if uq:
+            tile_pred, tile_att, tile_uq = pred_out
+        else:
+            tile_pred, tile_att = pred_out
 
         # Verify the shapes are consistent.
         assert len(tile_pred) == len(attention[i])
@@ -518,6 +556,8 @@ def save_mil_tile_predictions(
 
         # Add to dataframe lists.
         df_preds.append(tile_pred)
+        if uq:
+            df_uq.append(tile_uq)
         if attention is not None:
             df_attention.append(attention[i])
         df_slides += [slide for _ in range(n_bags)]
@@ -526,10 +566,11 @@ def save_mil_tile_predictions(
             df_true += [_label for _ in range(n_bags)]
 
     # Update dataframe with predictions.
+    df_dict = dict(slide=df_slides)
     df_attention = np.concatenate(df_attention, axis=0)
     df_preds = np.concatenate(df_preds, axis=0)
-    df_dict = dict(slide=df_slides)
 
+    # Tile location
     if df_loc_x:
         df_dict['loc_x'] = np.concatenate(df_loc_x, axis=0)
         df_dict['loc_y'] = np.concatenate(df_loc_y, axis=0)
@@ -537,6 +578,12 @@ def save_mil_tile_predictions(
     # Attention
     if attention is not None:
         df_dict['attention'] = df_attention
+
+    # Uncertainty
+    if uq:
+        df_uq = np.concatenate(df_uq, axis=0)
+        for i in range(df_uq[0].shape[0]):
+            df_dict[f'uncertainty{i}'] = df_uq[:, i]
 
     # Ground truth
     if outcomes is not None:
@@ -548,11 +595,31 @@ def save_mil_tile_predictions(
 
     # Final processing to dataframe & disk
     df = pd.DataFrame(df_dict)
-    df.to_parquet(dest)
-    log.info("{} tile predictions exported to [green]{}[/]".format(
-        df_preds.shape[0],
-        dest
-    ))
+    if dest is not None:
+        df.to_parquet(dest)
+        log.info("{} tile predictions exported to [green]{}[/]".format(
+            df_preds.shape[0],
+            dest
+        ))
+    return df
+
+
+def save_mil_tile_predictions(
+    weights: str,
+    dataset: "sf.Dataset",
+    bags: Union[str, np.ndarray, List[str]],
+    config: Optional[_TrainerConfig] = None,
+    outcomes: Union[str, List[str]] = None,
+    dest: str = 'mil_tile_preds.parquet',
+) -> pd.DataFrame:
+    return get_mil_tile_predictions(
+        weights,
+        dataset,
+        bags,
+        config=config,
+        outcomes=outcomes,
+        dest=dest
+    )
 
 
 def predict_from_model(
@@ -799,6 +866,111 @@ def _export_attention(
     log.info(f"Attention scores exported to [green]{out_path}[/]")
 
 
+def _validate_model(
+    model: "torch.nn.Module",
+    attention: bool,
+    uq: bool,
+    *,
+    allow_errors: bool = False
+) -> Tuple[bool, bool]:
+    """Validate that a model supports attention and/or UQ."""
+    if attention and not hasattr(model, 'calculate_attention'):
+        msg = (
+            "Model '{}' does not have a method 'calculate_attention'. "
+            "Unable to calculate or display attention heatmaps.".format(
+                model.__class__.__name__
+            )
+        )
+        attention = False
+        if allow_errors:
+            log.warning(msg)
+        else:
+            raise RuntimeError(msg)
+    if uq and not inspect.signature(model.forward).parameters['uq']:
+        msg = (
+            "Model '{}' does not support UQ. "
+            "Unable to calculate uncertainty.".format(
+                model.__class__.__name__
+            )
+        )
+        uq = False
+        if allow_errors:
+            log.warning(msg)
+        else:
+            raise RuntimeError(msg)
+    return attention, uq
+
+
+def run_inference(
+    model: "torch.nn.Module",
+    input: "torch.Tensor",
+    *,
+    attention: bool = False,
+    attention_pooling: str = 'avg',
+    uq: bool = False,
+    use_first_out: bool = False,
+    apply_softmax: bool = True,
+    use_lens: bool = False,
+    device: Optional[Any] = None
+) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
+    """Run inference on a MIL model."""
+    import torch
+
+    y_pred, y_att, y_uncertainty = None, None, None
+
+    # Prepare lens
+    device = utils._detect_device(model, device, verbose=False)
+    if isinstance(use_lens, bool) and use_lens:
+        lens = torch.from_numpy(np.array([input.shape[1]])).to(device)
+        model_args = (input, lens)
+    elif use_lens is not False and use_lens is not None:
+        model_args = (input, use_lens)
+    else:
+        model_args = (input,)
+
+    if uq and inspect.signature(model.forward).parameters['uq']:
+        kw = dict(uq=True)
+    elif uq:
+        raise RuntimeError("Model does not support UQ.")
+    else:
+        kw = dict()
+    if attention and inspect.signature(model.forward).parameters['return_attention']:
+        model_out, y_att = model(*model_args, return_attention=True, **kw)
+    elif use_first_out:
+        # CLAM models return attention scores as well as logits.
+        model_out, y_att = model(*model_args, **kw)
+    elif attention:
+        model_out = model(*model_args, **kw)
+        y_att = model.calculate_attention(*model_args)
+    else:
+        model_out = model(*model_args, **kw)
+
+    # Parse uncertainty from model output.
+    if uq:
+        y_pred, y_uncertainty = model_out
+    else:
+        y_pred = model_out
+
+    if attention:
+        y_att = torch.squeeze(y_att)
+        if len(y_att.shape) == 2:
+            log.warning("Pooling attention scores from 2D to 1D")
+            # Attention needs to be pooled
+            if attention_pooling == 'avg':
+                y_att = torch.mean(y_att, dim=-1)
+            elif attention_pooling == 'max':
+                y_att = torch.amax(y_att, dim=-1)
+            else:
+                raise ValueError(
+                    "Unrecognized attention pooling strategy '{}'".format(
+                        attention_pooling
+                    )
+                )
+    if apply_softmax:
+        y_pred = torch.nn.functional.softmax(y_pred, dim=1)
+    return y_pred, y_att, y_uncertainty
+
+
 def _predict_clam(
     model: "torch.nn.Module",
     bags: Union[np.ndarray, List[str]],
@@ -820,7 +992,7 @@ def _predict_clam(
     y_att  = []
     device = utils._detect_device(model, device, verbose=True)
     for bag in bags:
-        if isinstance(bag, list):
+        if utils._is_list_of_paths(bag):
             # If bags are passed as a list of paths, load them individually.
             loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
         else:
@@ -852,72 +1024,49 @@ def _predict_mil(
 
     import torch
 
+    attention, uq = _validate_model(model, attention, uq, allow_errors=True)
+
     y_pred = []
     y_att  = []
     uncertainty = []
     device = utils._detect_device(model, device, verbose=True)
 
-    # Ensure the model has attention capabilities.
-    if attention and not hasattr(model, 'calculate_attention'):
-        log.warning(
-            "Model '{}' does not have a method 'calculate_attention'. "
-            "Unable to calculate or display attention heatmaps.".format(
-                model.__class__.__name__
-            )
-        )
-        attention = False
-
     for bag in bags:
-        if isinstance(bag, list):
+        if utils._is_list_of_paths(bag):
             # If bags are passed as a list of paths, load them individually.
             loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
         else:
             loaded = utils._load_bag(bag).to(device)
         loaded = torch.unsqueeze(loaded, dim=0)
+
         with torch.no_grad():
-            if use_lens:
-                lens = torch.from_numpy(np.array([loaded.shape[1]])).to(device)
-                model_args = (loaded, lens)
-            else:
-                model_args = (loaded,)
-
             # Run inference.
-            if uq and inspect.signature(model.forward).parameters['uq']:
-                kw = dict(uq=True)
-            elif uq:
-                raise RuntimeError("Model does not support UQ.")
-            else:
-                kw = dict()
-            if attention and inspect.signature(model.forward).parameters['return_attention']:
-                model_out, att = model(*model_args, return_attention=True, **kw)
-            elif attention:
-                model_out = model(*model_args, **kw)
-                att = model.calculate_attention(*model_args)
-            else:
-                model_out = model(*model_args, **kw)
-            if uq:
-                model_out, y_uncertainty = model_out
-                uncertainty.append(y_uncertainty.cpu().numpy())
+            _y_pred, _y_att, _y_uq = run_inference(
+                model,
+                loaded,
+                attention=attention,
+                attention_pooling=attention_pooling,
+                uq=uq,
+                apply_softmax=apply_softmax,
+                device=device,
+                use_lens=use_lens
+            )
 
-            if attention:
-                att = torch.squeeze(att)
-                if len(att.shape) == 2:
-                    log.warning("Pooling attention scores from 2D to 1D")
-                    # Attention needs to be pooled
-                    if attention_pooling == 'avg':
-                        att = torch.mean(att, dim=-1)
-                    elif attention_pooling == 'max':
-                        att = torch.amax(att, dim=-1)
-                    else:
-                        raise ValueError(
-                            "Unrecognized attention pooling strategy '{}'".format(
-                                attention_pooling
-                            )
-                        )
-                y_att.append(att.cpu().numpy())
-            if apply_softmax:
-                model_out = torch.nn.functional.softmax(model_out, dim=1)
-            y_pred.append(model_out.cpu().numpy())
+            # Convert to numpy.
+            if _y_pred is not None:
+                _y_pred = _y_pred.cpu().numpy()
+            if _y_att is not None:
+                _y_att = _y_att.cpu().numpy()
+            if _y_uq is not None:
+                _y_uq = _y_uq.cpu().numpy()
+
+            # Append to running lists.
+            y_pred.append(_y_pred)
+            if _y_att is not None:
+                y_att.append(_y_att)
+            if _y_uq is not None:
+                uncertainty.append(_y_uq)
+
     yp = np.concatenate(y_pred, axis=0)
     if uq:
         uncertainty = np.concatenate(uncertainty, axis=0)
@@ -933,16 +1082,21 @@ def _predict_mil_tiles(
     use_lens: bool = False,
     device: Optional[Any] = None,
     apply_softmax: bool = True,
-    use_first_out: bool = False
+    use_first_out: bool = False,
+    attention: bool = False,
+    attention_pooling: str = 'avg',
+    uq: bool = False,
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
     """Generate tile predictions from an MIL model from a bag."""
 
     import torch
 
+    attention, uq = _validate_model(model, attention, uq, allow_errors=True)
+
     # Prepare bag.
     device = utils._detect_device(model, device, verbose=True)
     model.eval()
-    if isinstance(bag, list):
+    if utils._is_list_of_paths(bag):
         # If bags are passed as a list of paths, load them individually.
         loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
     else:
@@ -951,24 +1105,36 @@ def _predict_mil_tiles(
     # Resize the bag dimension to the batch dimension.
     loaded = torch.unsqueeze(loaded, dim=1)
 
+    # Prepare lens.
+    if use_lens:
+        use_lens = torch.ones(loaded.shape[0]).to(device)
+
     # Inference.
-    y_pred = []
-    for n in range(loaded.shape[0]):
-        tile = torch.unsqueeze(loaded[n], dim=0)
-        with torch.no_grad():
-            if use_lens:
-                lens = torch.ones(tile.shape[0:2]).to(device)
-                model_args = (tile, lens)
-            else:
-                model_args = (tile,)
-            model_out = model(*model_args)
-            if use_first_out:  # CLAM models return attention scores as well
-                model_out = model_out[0]
-            if apply_softmax:
-                model_out = torch.nn.functional.softmax(model_out, dim=1)
-            y_pred.append(model_out.cpu().numpy())
-    y_pred = np.concatenate(y_pred, axis=0)
-    return y_pred
+    with torch.no_grad():
+        y_pred, y_att, uncertainty = run_inference(
+            model,
+            loaded,
+            attention=attention,
+            attention_pooling=attention_pooling,
+            uq=uq,
+            use_first_out=use_first_out,
+            apply_softmax=apply_softmax,
+            use_lens=use_lens,
+            device=device
+        )
+
+    # Convert to numpy.
+    if y_pred is not None:
+        y_pred = y_pred.cpu().numpy()
+    if y_att is not None:
+        y_att = y_att.cpu().numpy()
+    if uncertainty is not None:
+        uncertainty = uncertainty.cpu().numpy()
+
+    if uq:
+        return y_pred, y_att, uncertainty
+    else:
+        return y_pred, y_att
 
 
 def _predict_multimodal_mil(

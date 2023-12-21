@@ -91,8 +91,7 @@ def interleave_dataloader(
             Normalizer. Defaults to None.
         onehot (bool, optional): Onehot encode labels. Defaults to False.
         persistent_workers (bool, optional): Sets the DataLoader
-            persistent_workers flag. Defaults toNone (4 if not using a SPAMS
-            normalizer, 1 if using SPAMS).
+            persistent_workers flag. Defaults to False.
         pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
         pool (multiprocessing.Pool): Shared multiprocessing pool. Useful
             if ``from_wsi=True``, for sharing a unified processing pool between

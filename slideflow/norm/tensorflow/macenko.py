@@ -297,6 +297,88 @@ def transform(
 
     return Inorm
 
+@tf.function
+def augment(
+    img: tf.Tensor,
+    matrix_stdev: tf.Tensor,
+    concentrations_stdev: tf.Tensor,
+    *,
+    Io: int = 255,
+    alpha: float = 1,
+    beta: float = 0.15,
+    standardize: bool = True,
+    original_on_error: bool = True
+) -> tf.Tensor:
+    """Augment an H&E image."""
+
+    original_image = img
+    h, w, c = img.shape
+
+    Io = tf.cast(Io, tf.float32)
+
+    # reshape image
+    img = tf.reshape(img, (-1, 3))
+
+    # -------------------------------------------------------------------------
+
+    if standardize:
+        img = standardize_brightness(img)
+
+    # calculate optical density
+    OD = -tf.math.log((tf.cast(img, tf.float32) + 1) / Io)
+
+    # remove transparent pixels
+    ODhat = OD[~ tf.math.reduce_any(OD < beta, axis=1)]
+
+    # compute eigenvectors
+    covar = tfp.stats.covariance(ODhat)
+    if original_on_error and not is_self_adjoint(covar):
+        return original_image
+    eigvals, eigvecs = tf.linalg.eigh(covar)
+
+    # project on the plane spanned by the eigenvectors corresponding to the two
+    # largest eigenvalues
+    That = dot(ODhat, eigvecs[:, 1:3])
+
+    phi = tf.math.atan2(That[:, 1],That[:,0])
+
+    minPhi = tfp.stats.percentile(phi, alpha)
+    maxPhi = tfp.stats.percentile(phi, 100-alpha)
+
+    vMin = dot(eigvecs[:, 1:3], tf.transpose(tf.stack((tf.math.cos(minPhi), tf.math.sin(minPhi)))[tf.newaxis, :]))
+    vMax = dot(eigvecs[:, 1:3], tf.transpose(tf.stack((tf.math.cos(maxPhi), tf.math.sin(maxPhi)))[tf.newaxis, :]))
+
+    # a heuristic to make the vector corresponding to hematoxylin first and the
+    # one corresponding to eosin second
+    if vMin[0] > vMax[0]:
+        HE = tf.transpose(tf.stack((vMin[:, 0], vMax[:, 0])))
+    else:
+        HE = tf.transpose(tf.stack((vMax[:, 0], vMin[:, 0])))
+
+    # rows correspond to channels (RGB), columns to OD values
+    OD = tf.reshape(OD, (-1, 3))
+
+    Y = tf.transpose(OD)
+
+    # determine concentrations of the individual stains
+    C = tf.linalg.lstsq(HE, Y)
+    maxC = normalize_c(C)
+
+    # -------------------------------------------------------------------------
+
+    HERef = tf.random.normal([3, 2], mean=HE, stddev=matrix_stdev)
+    maxCRef = tf.random.normal([2], mean=maxC, stddev=concentrations_stdev)
+
+    tmp = tf.math.divide(maxC, maxCRef)
+    C2 = tf.math.divide(C, tmp[:, tf.newaxis])
+
+    # recreate the image using reference mixing matrix
+    Inorm = tf.math.multiply(Io, tf.math.exp(dot(-HERef, C2)))
+    Inorm = tf.experimental.numpy.clip(Inorm, 0, 255)
+    Inorm = tf.cast(tf.reshape(tf.transpose(Inorm), (h, w, 3)), tf.uint8)
+
+    return Inorm
+
 
 @tf.function
 def fit(
@@ -367,7 +449,7 @@ class MacenkoNormalizer:
         self._ctx_maxC = None  # type: Optional[tf.Tensor]
         self._augment_params = dict()  # type: Dict[str, tf.Tensor]
         self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
-        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v2'])  # type: ignore
 
     def _fit(self, target: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         return fit(target, self.Io, self.alpha, self.beta)
@@ -392,7 +474,30 @@ class MacenkoNormalizer:
             self.target_concentrations,
             ctx_maxC=self._ctx_maxC,
             original_on_error=original_on_error,
+            Io=self.Io,
+            alpha=self.alpha,
+            beta=self.beta,
             **aug_kw
+        )
+
+    def _augment(
+        self,
+        I: tf.Tensor,
+        *,
+        original_on_error: bool = True
+    ) -> tf.Tensor:
+        """Normalize an image."""
+        if not any(m in self._augment_params
+                   for m in ('matrix_stdev', 'concentrations_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
+        return augment(
+            I,
+            original_on_error=original_on_error,
+            Io=self.Io,
+            alpha=self.alpha,
+            beta=self.beta,
+            **self._augment_params
         )
 
     def fit(self, target: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
@@ -527,6 +632,24 @@ class MacenkoNormalizer:
                 f"Invalid shape for transform(): expected 3 or 4, got {I.shape}"
             )
 
+    def augment(self, I: tf.Tensor, **kwargs) -> tf.Tensor:
+        """Augment an H&E image.
+
+        Args:
+            img (tf.Tensor): Image, RGB uint8 with dimensions W, H, C.
+
+        Returns:
+            tf.Tensor: Augmented image.
+        """
+        if len(I.shape) == 4:
+            return tf.map_fn(self.augment, I)
+        elif len(I.shape) == 3:
+            return self._augment(I, **kwargs)
+        else:
+            raise ValueError(
+                f"Invalid shape for augment(): expected 3 or 4, got {I.shape}"
+            )
+
     @contextmanager
     def image_context(self, I: Union[np.ndarray, tf.Tensor]):
         """Set the whole-slide context for the stain normalizer.
@@ -616,6 +739,9 @@ class MacenkoFastNormalizer(MacenkoNormalizer):
             I,
             self.stain_matrix_target,
             self.target_concentrations,
+            Io=self.Io,
+            alpha=self.alpha,
+            beta=self.beta,
             ctx_maxC=self._ctx_maxC,
             standardize=False,
             original_on_error=original_on_error,

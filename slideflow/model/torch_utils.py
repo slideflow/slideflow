@@ -13,8 +13,7 @@ from pandas.core.frame import DataFrame
 from scipy.special import softmax
 from slideflow.stats import df_from_pred
 from slideflow.errors import DatasetError
-from slideflow.util import log, ImgBatchSpeedColumn
-from slideflow.model.base import no_scope
+from slideflow.util import log, ImgBatchSpeedColumn, no_scope
 from rich.progress import Progress, TimeElapsedColumn, SpinnerColumn
 from functools import reduce
 

@@ -1405,6 +1405,23 @@ class Dataset:
 
         return df
 
+    def get_unique_roi_labels(self) -> List[str]:
+        """Get a list of unique ROI labels for all slides in this dataset."""
+
+        # Get a list of unique labels.
+        roi_unique_labels = []
+        for roi in self.rois():
+            _df = pd.read_csv(roi)
+            if 'label' not in _df.columns:
+                continue
+            unique = [
+                l for l in _df.label.unique().tolist()
+                if ((l not in roi_unique_labels)
+                    and (l is not np.nan))
+            ]
+            roi_unique_labels += unique
+        return sorted(roi_unique_labels)
+
     def extract_cells(
         self,
         masks_path: str,
@@ -1893,6 +1910,61 @@ class Dataset:
             ret._min_tiles = kwargs['min_tiles']
         return ret
 
+    def filter_bags_by_roi(
+        self,
+        bags_path: str,
+        dest: str,
+        *,
+        tile_df: Optional[pd.DataFrame] = None
+    ) -> None:
+        """Filter bags by tiles in an ROI."""
+        import torch
+
+        #TODO: extend to tfrecords
+        #TODO: accelerate with multiprocessing
+        #TODO: save filtered indices
+        #TODO: copy bags config
+
+        if tile_df is None:
+            tile_df = self.get_tile_dataframe()
+        if not exists(dest):
+            os.makedirs(dest)
+
+        # Subset the dataframe to only include tiles with an ROI
+        roi_df = tile_df.loc[tile_df.roi_name.notnull()]
+
+        n_complete = 0
+        for slide in tqdm(roi_df.slide.unique()):
+            if not exists(join(bags_path, slide+'.pt')):
+                continue
+
+            # Get the bag
+            bag = torch.load(join(bags_path, slide+'.pt'))
+            bag_index = np.load(join(bags_path, slide+'.index.npz'))['arr_0']
+
+            # Subset the ROI based on this slide
+            slide_df = roi_df.loc[roi_df.slide == slide]
+
+            # Get the common locations (in an ROI)
+            bag_locs = {tuple(r) for r in bag_index}
+            roi_locs = {tuple(r) for r in np.stack([slide_df.loc_x.values, slide_df.loc_y.values], axis=1)}
+            common_locs = bag_locs.intersection(roi_locs)
+
+            # Find indices in the bag that match the common locations (in an ROI)
+            bag_i = [i for i, row in enumerate(bag_index) if tuple(row) in common_locs]
+
+            if not len(bag_i):
+                log.debug("No common locations found for {}".format(slide))
+                continue
+
+            # Subset and save the bag
+            bag = bag[bag_i]
+            torch.save(bag, join(dest, slide+'.pt'))
+            log.debug("Subset size ({}): {} -> {}".format(slide, len(bag_index), len(bag)))
+            n_complete += 1
+
+        log.info("Bag filtering complete. {} bags filtered.".format(n_complete))
+
     def find_rois(self, slide: str) -> Optional[str]:
         """Find an ROI path from a given slide.
 
@@ -1969,6 +2041,52 @@ class Dataset:
             return None
         else:
             return matching[0]
+
+    def generate_rois(self, model: str, overwrite: bool = False, dest: Optional[str] = None):
+        """Generate ROIs using a U-Net model.
+
+        Args:
+            model (str): Path to model (zip) or model configuration (json).
+
+        """
+
+        # Load the model configuration.
+        segment = sf.slide.qc.Segment(model)
+
+        for slide in track(self.slide_paths(), description='Generating...'):
+
+            # Set the destination directory
+            source = self.get_slide_source(slide)
+            if 'roi' not in self.sources[source] and dest is None:
+                raise errors.DatasetError(
+                    "No ROI directory set. Please set an ROI directory in the "
+                    "dataset configuration, or provide a destination directory "
+                    "with the `dest` argument."
+                )
+            if dest is None:
+                dest = self.sources[source]['roi']
+            if not exists(dest):
+                os.makedirs(dest)
+
+            # Check if an ROI already exists.
+            existing_rois = [path_to_name(f) for f in os.listdir(dest) if f.endswith('csv')]
+            if path_to_name(slide) in existing_rois:
+                if overwrite:
+                    log.info(f"Overwriting ROI for slide {path_to_name(slide)} at {dest}")
+                else:
+                    log.info(f"ROI already exists for slide {path_to_name(slide)} at {dest}")
+                    continue
+
+            # Load the slide and remove any existing auto-loaded ROIs.
+            wsi = sf.WSI(slide, 299, 512, verbose=False)
+            wsi.rois = []
+
+            # Generate and apply ROIs.
+            segment.generate_rois(wsi, apply=True)
+
+            # Export ROIs to CSV.
+            wsi.export_rois(join(dest, wsi.name + '.csv'))
+
 
     def get_slide_source(self, slide: str) -> str:
         """Return the source of a given slide.

@@ -67,7 +67,7 @@ class MacenkoNormalizer:
         self._ctx_maxC = None  # type: Optional[torch.Tensor]
         self._augment_params = dict()  # type: Dict[str, torch.Tensor]
         self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
-        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v2'])  # type: ignore
 
     def fit(self, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Fit normalizer to a target image.
@@ -302,8 +302,6 @@ class MacenkoNormalizer:
                 f"Invalid shape for transform(): expected 3, got {img.shape}"
             )
 
-        h, w, c = img.shape
-
         # Augmentation; optional
         if augment and not any(m in self._augment_params
                                for m in ('matrix_stdev', 'concentrations_stdev')):
@@ -348,7 +346,48 @@ class MacenkoNormalizer:
         # Recreate the image using reference mixing matrix.
         Inorm = self.Io * torch.exp(-HERef.matmul(C2))
         Inorm = torch.clip(Inorm, 0, 255)
-        Inorm = torch.reshape(Inorm.T, (h, w, 3)).to(torch.uint8)
+        Inorm = torch.reshape(Inorm.T, img.shape).to(torch.uint8)
+
+        return Inorm
+
+    def augment(self, img: torch.Tensor) -> torch.Tensor:
+        """Augment an H&E image.
+
+        Args:
+            img (torch.Tensor): Image, RGB uint8 with dimensions W, H, C.
+
+        Returns:
+            torch.Tensor: Stain augmented image (uint8)
+        """
+        if len(img.shape) == 4:
+            return torch.stack([
+                self.augment(x_i) for x_i in torch.unbind(img, dim=0)
+            ], dim=0)
+        if len(img.shape) != 3:
+            raise ValueError(
+                f"Invalid shape for transform(): expected 3, got {img.shape}"
+            )
+        if not any(m in self._augment_params
+                    for m in ('matrix_stdev', 'concentrations_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
+        HE, maxC, C = self.matrix_and_concentrations(img)
+        HERef = torch.normal(
+            HE,
+            self._augment_params['matrix_stdev'].to(HE.device)
+        )
+        maxCRef = torch.normal(
+            maxC,
+            self._augment_params['concentrations_stdev'].to(HE.device)
+        )
+
+        tmp = torch.divide(maxC, maxCRef)
+        C2 = torch.divide(C, tmp[:, None])
+
+        # Recreate the image using reference mixing matrix.
+        Inorm = self.Io * torch.exp(-HERef.matmul(C2))
+        Inorm = torch.clip(Inorm, 0, 255)
+        Inorm = torch.reshape(Inorm.T, img.shape).to(torch.uint8)
 
         return Inorm
 

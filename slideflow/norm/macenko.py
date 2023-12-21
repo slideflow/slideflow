@@ -46,7 +46,7 @@ class MacenkoNormalizer:
 
         # Default fit.
         self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
-        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v2'])  # type: ignore
 
     def fit(self, img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Fit normalizer to a target image.
@@ -314,6 +314,38 @@ class MacenkoNormalizer:
         Inorm = np.multiply(255, np.exp(-HERef.dot(C2)))
         Inorm = np.clip(Inorm, 0, 255)
         Inorm = np.reshape(Inorm.T, (h, w, 3)).astype(np.uint8)
+
+        return Inorm
+
+    def augment(self, img: np.ndarray) -> np.ndarray:
+        """Augment an H&E image.
+
+        Args:
+            img (np.ndarray): Image, RGB uint8 with dimensions W, H, C.
+
+        Returns:
+            np.ndarray: Stain augmented image.
+        """
+        if not any(m in self._augment_params for m in ('matrix_stdev', 'concentrations_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
+        HE, maxC, C = self.matrix_and_concentrations(img)
+        HERef = np.random.normal(
+            HE,
+            self._augment_params['matrix_stdev']
+        )
+        maxCRef = np.random.normal(
+            maxC,
+            self._augment_params['concentrations_stdev']
+        )
+
+        tmp = np.divide(maxC, maxCRef)
+        C2 = np.divide(C, tmp[:, np.newaxis])
+
+        # Recreate the image using reference mixing matrix.
+        Inorm = np.multiply(255, np.exp(-HERef.dot(C2)))
+        Inorm = np.clip(Inorm, 0, 255)
+        Inorm = np.reshape(Inorm.T, img.shape).astype(np.uint8)
 
         return Inorm
 

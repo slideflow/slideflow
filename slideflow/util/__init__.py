@@ -12,6 +12,9 @@ import tarfile
 import hashlib
 import pandas as pd
 import tempfile
+import threading
+import multiprocessing as mp
+import time
 from rich import progress
 from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
@@ -210,6 +213,47 @@ def set_ignore_sigint():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
+class MultiprocessProgressTracker:
+    """Wrapper for a rich.progress tracker that can be shared across processes."""
+
+    def __init__(self, tasks):
+        ctx = mp.get_context('spawn')
+        self.mp_values = {
+            task.id: ctx.Value('i', task.completed)
+            for task in tasks
+        }
+
+    def advance(self, id, amount):
+        with self.mp_values[id].get_lock():
+            self.mp_values[id].value += amount
+
+    def __getitem__(self, id):
+        return self.mp_values[id].value
+
+class MultiprocessProgress:
+    """Wrapper for a rich.progress bar that can be shared across processes."""
+
+    def __init__(self, pb):
+        self.pb = pb
+        self.tracker = MultiprocessProgressTracker(self.pb.tasks)
+        self.should_stop = False
+
+    def _update_progress(self):
+        while not self.should_stop:
+            for task in self.pb.tasks:
+                self.pb.update(task.id, completed=self.tracker[task.id])
+            time.sleep(0.1)
+
+    def __enter__(self):
+        self._thread = threading.Thread(target=self._update_progress)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *args):
+        self.should_stop = True
+        self._thread.join()
+
+
 # --- Slideflow header --------------------------------------------------------
 
 def about(console=None) -> None:
@@ -321,6 +365,14 @@ def get_gdc_manifest() -> pd.DataFrame:
 
 # --- Utility functions and classes -------------------------------------------
 
+class no_scope():
+    def __enter__(self):
+        return None
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
+
 class EasyDict(dict):
     """Convenience class that behaves like a dict but allows access
     with the attribute syntax."""
@@ -358,6 +410,14 @@ def md5(path: str) -> str:
             chunk = f.read(4096)
     return m.hexdigest()
 
+def allow_gpu_memory_growth() -> None:
+    import tensorflow as tf
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        try:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError:
+            pass
 
 def model_backend(model):
     if sf.util.torch_available and 'torch' in sys.modules:
@@ -380,6 +440,11 @@ def detuple(arg1: Any, args: tuple) -> Any:
     else:
         return arg1
 
+def _as_list(arg1: Any) -> List[Any]:
+    if isinstance(arg1, np.ndarray):
+        return arg1.tolist()
+    else:
+        return arg1
 
 def batch(iterable: List, n: int = 1) -> Iterable:
     """Separates an interable into batches of maximum size `n`."""

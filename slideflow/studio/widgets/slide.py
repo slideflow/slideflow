@@ -60,7 +60,6 @@ class SlideWidget:
         self.user_slide             = ''
         self.normalize_wsi          = False
         self.norm_idx               = 0
-        self.qc_idx                 = 0
         self.qc_mask                = None
         self.alpha                  = 1.0
         self.stride                 = 1
@@ -78,7 +77,6 @@ class SlideWidget:
 
         # Tile & slide filtering
         self.apply_tile_filter      = False
-        self.apply_slide_filter     = True
         self.show_tile_filter       = False
         self.show_slide_filter      = False
         self.gs_fraction            = sf.slide.DEFAULT_GRAYSPACE_FRACTION
@@ -114,13 +112,17 @@ class SlideWidget:
             'Augment']
         self._normalizer_methods = self._all_normalizer_methods
         self._normalizer_methods_str = self._all_normalizer_methods_str
-        self._qc_methods_str    = ["Otsu threshold", "Blur filter", "Blur + Otsu"]
         self._tile_colors       = ['Black', 'White', 'Red', 'Green', 'Blue']
-
         self._tile_colors_rgb   = [0, 1, (1, 0, 0), (0, 1, 0), (0, 0, 1)]
-        _gaussian = sf.slide.qc.GaussianV2()
-        _otsu = sf.slide.qc.Otsu()
-        self._qc_methods        = [_otsu, _gaussian, [_otsu, _gaussian]]
+        self._gaussian          = sf.slide.qc.GaussianV2()
+        self._otsu              = sf.slide.qc.Otsu()
+        self._segment           = None
+        self._segment_path      = ""
+        self._use_otsu          = True
+        self._use_gaussian      = False
+        self._use_segment       = False
+        self._qc_segment        = None
+
         self.load('', ignore_errors=True)
 
     @property
@@ -137,7 +139,21 @@ class SlideWidget:
     def editing_rois(self) -> bool:
         return self.roi_widget.capturing or self.roi_widget.editing
 
+    @property
+    def apply_slide_filter(self):
+        return any([self._use_otsu, self._use_gaussian, self._use_segment])
+
     # --- Internal ------------------------------------------------------------
+
+    def _get_qc(self):
+        _qc = []
+        if self._use_segment:
+            _qc.append(self._segment)
+        if self._use_gaussian:
+            _qc.append(self._gaussian)
+        if self._use_otsu:
+            _qc.append(self._otsu)
+        return _qc or None
 
     def _filter_thread_worker(self) -> None:
         """Worker thread for calculating tile filter."""
@@ -350,7 +366,7 @@ class SlideWidget:
             grayspace_threshold=self.gs_threshold,
             whitespace_fraction=(self.ws_fraction if self.apply_tile_filter else 1),
             whitespace_threshold=self.ws_threshold,
-            qc=(None if not self.apply_slide_filter else self._qc_methods[self.qc_idx]),
+            qc=self._get_qc(),
             stride=self.stride
         )
 
@@ -458,7 +474,7 @@ class SlideWidget:
 
             # Update the slide filter.
             if self.apply_slide_filter:
-                self.update_slide_filter(method=self._qc_methods[self.qc_idx])
+                self.update_slide_filter(method=self._get_qc())
 
         except Exception as e:
             self.cur_slide = None
@@ -797,17 +813,53 @@ class SlideWidget:
             self.draw_filtering_popup()
 
         # Slide filtering
-        _qc_clicked, self.apply_slide_filter = imgui.checkbox('Slide filter (QC)', self.apply_slide_filter)
-        if _qc_clicked and not self.apply_slide_filter:
-            self.viz.wsi.remove_qc()
+        _otsu_clicked, self._use_otsu = imgui.checkbox('Otsu Threshold', self._use_otsu)
         if imgui.is_item_hovered():
-            imgui.set_tooltip("Set slide-level filtering strategy (quality control)")
+            imgui.set_tooltip("Apply Otsu's thresholding algorithm")
+        _gaussian_clicked, self._use_gaussian = imgui.checkbox('Gaussian Filter', self._use_gaussian)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Apply Gaussian filter (GaussianV2)")
+        _segment_clicked, self._use_segment = imgui.checkbox('Segment', self._use_segment)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Apply tissue segmentation model")
+        if _segment_clicked and not self._segment:
+            _segment_clicked = False
+            self._use_segment = False
+            viz.create_toast("No segment model loaded", icon="error")
         imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
-        with imgui_utils.item_width(viz.font_size * 7), imgui_utils.grayed_out(not self.apply_slide_filter):
-            _qc_method_clicked, self.qc_idx = imgui.combo("##qc_method", self.qc_idx, self._qc_methods_str)
-        if _qc_clicked or (_qc_method_clicked and self.apply_slide_filter):
-            self.update_slide_filter(method=self._qc_methods[self.qc_idx])
-            self.update_slide_filter_display()
+        with imgui_utils.item_width(viz.font_size * 7):
+            _path_changed, self._segment_path = imgui.input_text_with_hint(
+                '##segment_path',
+                '<Model path>',
+                self._segment_path,
+                flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE
+            )
+            if imgui.is_item_hovered() and self._segment_path:
+                imgui.set_tooltip(self._segment_path)
+            if _path_changed:
+                try:
+                    self._segment = sf.slide.qc.Segment(self._segment_path)
+                except Exception as e:
+                    sf.log.error(f"Error loading segment model: {e}")
+                    viz.create_toast(f"Error loading segment model: {e}", icon="error")
+                    self._segment = None
+                    self._segment_path = ""
+        imgui.text('')
+        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+        if imgui_utils.button('Generate ROIs', enabled=(self._segment is not None), width=viz.font_size*7):
+            self._segment.generate_rois(viz.wsi)
+            self.roi_widget.refresh_rois()
+        if imgui.is_item_hovered() and not self._segment:
+            imgui.set_tooltip("No segment model loaded")
+
+        # Apply slide filtering changes.
+        _qc_clicked = any([_otsu_clicked, _gaussian_clicked, _segment_clicked])
+        if _qc_clicked:
+            if self.apply_slide_filter:
+                self.update_slide_filter(method=self._get_qc())
+                self.update_slide_filter_display()
+            else:
+                self.viz.wsi.remove_qc()
 
         imgui_utils.vertical_break()
 

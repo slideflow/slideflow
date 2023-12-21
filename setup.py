@@ -135,7 +135,8 @@ setuptools.setup(
         'pyperclip',
         'requests',
         'parameterized',
-        'zarr'
+        'zarr',
+        'gdown',
     ],
     extras_require={
         'tf': [
@@ -149,7 +150,9 @@ setuptools.setup(
             'pretrainedmodels',
             'cellpose<2.2',
             'fastai',
-            'timm<0.9'
+            'pytorch-lightning',
+            'timm',
+            'segmentation-models-pytorch'
         ],
         'dev': [
             'sphinx',

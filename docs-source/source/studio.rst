@@ -139,6 +139,22 @@ Slide filtering
 
 Similarly, slide filtering can be enabled by checking "Slide filter". Available slide filtering / QC options include blur filtering, Otsu's thresholding, or both. If "Tile filter" and "Slide filter" are both selected, tiles will be filtered with both. The QC mask can be previewed by checking the box "QC Mask" in the "Display" subsection.
 
+.. _studio_segmentation:
+
+Tissue segmentation
+-------------------
+
+.. video:: tissue_seg.mp4
+    :width: 100%
+    :autoplay:
+
+|
+
+New in version 2.3, trained :ref:`segmentation models <segmentation>` can be deployed as a slide filter. Start by typing or pasting the path to a trained segmentation model in the text box next to "Segment". Then, check "Segment" to generate and apply a QC mask. The QC mask can be previewed by checking the box "QC Mask" in the "Display" subsection. The QC mask is constructed from all pixels predicted to be background.
+
+In addition to using a segmentation model for QC, a trained model can be used to generate labeled ROIs. Click "Generate ROIs" to generate ROIs from the segmentation model. The ROIs will be shown in the main view, and can be saved with the annotation tool. The ROIs will be saved in CSV format, with the ROI label corresponding to the predicted class.
+
+
 Preview slide normalization
 ---------------------------
 

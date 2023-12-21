@@ -6,7 +6,7 @@ from slideflow import errors
 from slideflow.dataset import Dataset
 from slideflow.norm import StainNormalizer
 from slideflow.norm.tensorflow import reinhard, macenko
-from slideflow.util import detuple, log, cleanup_progress
+from slideflow.util import detuple, log, cleanup_progress, _as_list
 from rich.progress import Progress
 
 import tensorflow as tf
@@ -106,7 +106,7 @@ class TensorflowStainNormalizer(StainNormalizer):
         """
         _fit = self.n.get_fit()
         if as_list:
-            return {k: v.tolist() for k, v in _fit.items()}
+            return {k: _as_list(v) for k, v in _fit.items()}
         else:
             return _fit
 
@@ -196,6 +196,18 @@ class TensorflowStainNormalizer(StainNormalizer):
             for fit_key, fit_val in self.get_fit().items()])
         ))
         return self
+
+    def augment_rgb(self, image: np.ndarray) -> np.ndarray:
+        """Augment an RGB image.
+
+        Args:
+            image (np.ndarray): RGB image.
+
+        Returns:
+            np.ndarray: Augmented RGB image.
+        """
+        image = tf.convert_to_tensor(image)
+        return self.n.augment(image).numpy()
 
     @tf.function
     def tf_to_tf(

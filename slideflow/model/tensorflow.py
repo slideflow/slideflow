@@ -23,10 +23,10 @@ import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
 from slideflow import errors
-from slideflow.util import log, NormFit
+from slideflow.util import log, NormFit, no_scope
 
 from . import tensorflow_utils as tf_utils
-from .base import log_manifest, no_scope, BaseFeatureExtractor
+from .base import log_manifest, BaseFeatureExtractor
 from .tensorflow_utils import unwrap, flatten, eval_from_model, build_uq_model  # type: ignore
 
 # Set the tensorflow logger
@@ -37,12 +37,7 @@ else:
     logging.getLogger('tensorflow').setLevel(logging.ERROR)
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-for gpu in gpus:
-    try:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    except RuntimeError:
-        pass
+sf.util.allow_gpu_memory_growth()
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -294,7 +289,7 @@ class ModelParams(_base._ModelParams):
         image_shape = (self.tile_px, self.tile_px, 3)
         tile_input_tensor = tf.keras.Input(shape=image_shape, name='tile_image')
         if pretrain:
-            log.info(f'Using pretraining from [magenta]{pretrain}')
+            log.debug(f'Using pretraining from [magenta]{pretrain}')
         if pretrain and pretrain != 'imagenet':
             pretrained_model = load(pretrain, method=load_method, training=True)
             try:
@@ -1447,6 +1442,7 @@ class Trainer:
         format: str = 'parquet',
         from_wsi: bool = False,
         roi_method: str = 'auto',
+        reduce_method: Union[str, Callable] = 'average',
     ) -> Dict[str, "pd.DataFrame"]:
         """Perform inference on a model, saving tile-level predictions.
 
@@ -1473,6 +1469,17 @@ class Trainer:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
 
         Returns:
             Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
@@ -1525,7 +1532,8 @@ class Trainer:
             uq=bool(self.hp.uq),
             num_tiles=dataset.num_tiles,
             outcome_names=self.outcome_names,
-            patients=self.patients
+            patients=self.patients,
+            reduce_method=reduce_method,
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
@@ -1536,7 +1544,7 @@ class Trainer:
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
         save_predictions: Union[bool, str] = 'parquet',
-        reduce_method: str = 'average',
+        reduce_method: Union[str, Callable] = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto',
         from_wsi: bool = False,
@@ -1554,11 +1562,16 @@ class Trainer:
                 'feather', or 'parquet'. If False, will not save predictions.
                 Defaults to 'parquet'.
             reduce_method (str, optional): Reduction method for calculating
-                slide-level and patient-level predictions for categorical outcomes.
-                Either 'average' or 'proportion'. If 'average', will reduce with
-                average of each logit across tiles. If 'proportion', will convert
-                tile predictions into onehot encoding then reduce by averaging
-                these onehot values. Defaults to 'average'.
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1688,7 +1701,7 @@ class Trainer:
         checkpoint: Optional[str] = None,
         save_checkpoints: bool = True,
         multi_gpu: bool = False,
-        reduce_method: str = 'average',
+        reduce_method: Union[str, Callable] = 'average',
         norm_fit: Optional[NormFit] = None,
         from_wsi: bool = False,
         roi_method: str = 'auto',
@@ -1737,11 +1750,16 @@ class Trainer:
             multi_gpu (bool, optional): Enable multi-GPU training using
                 Tensorflow/Keras MirroredStrategy.
             reduce_method (str, optional): Reduction method for calculating
-                slide-level and patient-level predictions for categorical outcomes.
-                Either 'average' or 'proportion'. If 'average', will reduce with
-                average of each logit across tiles. If 'proportion', will convert
-                tile predictions into onehot encoding then reduce by averaging
-                these onehot values. Defaults to 'average'.
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -2220,7 +2238,8 @@ class Features(BaseFeatureExtractor):
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_preds: bool = False,
         load_method: str = 'weights',
-        pooling: Optional[Any] = None
+        pooling: Optional[Any] = None,
+        device: Optional[str] = None,
     ) -> None:
         """Creates a features interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -2249,6 +2268,9 @@ class Features(BaseFeatureExtractor):
             layers = [layers]
         self.layers = layers
         self.path = path
+        self.device = device
+        if isinstance(device, str):
+            self.device = device.replace('cuda', 'gpu')
         self._pooling = None
         self._include_preds = None
         if path is not None:
@@ -2276,7 +2298,8 @@ class Features(BaseFeatureExtractor):
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_preds: bool = False,
         wsi_normalizer: Optional["StainNormalizer"] = None,
-        pooling: Optional[Any] = None
+        pooling: Optional[Any] = None,
+        device: Optional[str] = None
     ):
         """Creates a features interface from a loaded slideflow model which
         outputs feature activations at the designated layers.
@@ -2295,7 +2318,7 @@ class Features(BaseFeatureExtractor):
                 normalizer to use on whole-slide images. Not used on
                 individual tile datasets via __call__. Defaults to None.
         """
-        obj = cls(None, layers, include_preds)
+        obj = cls(None, layers, include_preds, device=device)
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
@@ -2377,7 +2400,8 @@ class Features(BaseFeatureExtractor):
     @tf.function
     def _predict(self, inp: tf.Tensor) -> tf.Tensor:
         """Return activations for a single batch of images."""
-        return self.model(inp, training=False)
+        with tf.device(self.device) if self.device else no_scope():
+            return self.model(inp, training=False)
 
     def _build(
         self,

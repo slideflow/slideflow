@@ -1,4 +1,5 @@
 import imgui
+import slideflow as sf
 
 from ..gui import imgui_utils, theme
 
@@ -12,7 +13,7 @@ class SettingsWidget:
         self.use_vsync      = True
         self.ignore_jpg     = viz._use_model_img_fmt
         self.low_memory     = viz.low_memory
-        self.use_bounds     = False
+        self.use_bounds     = sf.slide_backend() == 'libvips'
         self.themes         = theme.list_themes()
         self._theme_idx     = self.themes.index("Studio Dark")
 
@@ -42,11 +43,16 @@ class SettingsWidget:
             if _clicked:
                 viz._use_model_img_fmt = not self.ignore_jpg
 
-            _clicked, self.use_bounds = imgui.checkbox('Use slide bounding boxes', self.use_bounds)
-            if _clicked:
+            with imgui_utils.grayed_out(sf.slide_backend() != 'libvips'):
+                _clicked, _new_val = imgui.checkbox('Use slide bounding boxes', self.use_bounds)
+            if _clicked and sf.slide_backend() == 'libvips':
+                self.use_bounds = _new_val
                 viz._reload_wsi()
             if imgui.is_item_hovered():
-                imgui.set_tooltip("Use slide bounding boxes, if present, to crop the slide images.")
+                if sf.slide_backend() == 'libvips':
+                    imgui.set_tooltip("Use slide bounding boxes, if present, to crop the slide images.")
+                else:
+                    imgui.set_tooltip("Slide bounding boxes requires libvips.")
 
             _clicked, self.use_fps_limit = imgui.checkbox('Limit FPS', self.use_fps_limit)
             imgui.same_line()

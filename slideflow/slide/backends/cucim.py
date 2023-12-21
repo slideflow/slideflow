@@ -247,6 +247,9 @@ class _cuCIMReader:
     def mpp(self):
         return self._mpp
 
+    def has_mpp(self):
+        return self._mpp is not None
+
     @property
     def metadata(self):
         return self.reader.metadata
@@ -302,6 +305,12 @@ class _cuCIMReader:
             log.debug(f"Error attempting to read level {max_downsample}")
             return 0
         return max_level
+
+    def coord_to_raw(self, x, y):
+        return x, y
+
+    def raw_to_coord(self, x, y):
+        return x, y
 
     def read_level(self, level: int, to_numpy: bool = False):
         """Read a pyramid level."""

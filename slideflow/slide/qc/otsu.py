@@ -110,8 +110,10 @@ class Otsu:
 
         try:
             if wsi.slide.has_levels:
+                sf.log.debug("Applying Otsu's thresholding at level={}".format(level))
                 thumb = wsi.slide.read_level(level=level, to_numpy=True)
             else:
+                sf.log.debug("Applying Otsu's thresholding at level=None")
                 thumb = wsi.slide.read_level(to_numpy=True)
         except Exception as e:
             raise errors.QCError(
@@ -132,6 +134,8 @@ class Otsu:
                 scaled_polys,
                 out_shape=thumb.shape[:2]
             )
+            if wsi.roi_method == 'outside':
+                roi_mask = ~roi_mask
             thumb = cv2.bitwise_or(
                 thumb,
                 thumb,

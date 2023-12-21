@@ -85,6 +85,7 @@ class ROI:
         for point in shape:
             self.add_coord(point)
 
+
 class ROIPoly:
     """Rendered ROI shape.
 
@@ -116,6 +117,7 @@ class ROIPoly:
         self.poly = self.poly.difference(roi.poly)
         self._hole_names.append(roi.name)
 
+
 class QCMask:
 
     def __init__(self, mask: np.ndarray, filter_threshold: float = 0.6) -> None:
@@ -138,6 +140,58 @@ class QCMask:
     @property
     def shape(self):
         return self.mask.shape
+
+
+class Alignment:
+
+    def __init__(
+        self,
+        origin: Tuple[int, int],
+        coord: Optional[np.ndarray] = None
+    ) -> None:
+        self.origin = origin
+        self.coord = coord
+        self.centroid = None  # type: Tuple[float, float]
+        self.normal = None    # type: Tuple[float, float]
+
+    @classmethod
+    def from_fit(cls, origin, centroid, normal):
+        obj = cls(origin, None)
+        obj.centroid = centroid
+        obj.normal = normal
+        return obj
+
+    @classmethod
+    def from_translation(cls, origin):
+        return cls(origin, None)
+
+    @classmethod
+    def from_coord(cls, origin, coord):
+        return cls(origin, coord)
+
+    def save(self, path):
+        save_dict = dict(origin=np.array(self.origin))
+        if self.coord is not None:
+            save_dict['coord'] = self.coord
+        if self.centroid is not None:
+            save_dict['centroid'] = np.array(self.centroid)
+        if self.normal is not None:
+            save_dict['normal'] = np.array(self.normal)
+        np.savez(path, **save_dict)
+
+    @classmethod
+    def load(cls, path):
+        load_dict = np.load(path, allow_pickle=True)
+        origin = tuple(load_dict['origin'])
+        coord = load_dict['coord'] if 'coord' in load_dict else None
+        centroid = load_dict['centroid'] if 'centroid' in load_dict else None
+        normal = load_dict['normal'] if 'normal' in load_dict else None
+        obj = cls(origin, coord)
+        obj.centroid = centroid
+        obj.normal = normal
+        return obj
+
+
 
 # -----------------------------------------------------------------------------
 # Functions
@@ -266,6 +320,10 @@ def draw_roi(
         annotated_img = Image.fromarray(img)
     elif isinstance(img, str):
         annotated_img = Image.open(io.BytesIO(img))  # type: ignore
+    else:
+        raise ValueError("Expected img to be a numpy array or bytes, got: {}".format(
+            type(img)
+        ))
     draw = ImageDraw.Draw(annotated_img)
     for poly in annPolys:
         x, y = poly.exterior.coords.xy
@@ -514,22 +572,6 @@ def compute_alignment_mse(
     err = np.sum(diff[combined_mask]) / np.sum(combined_mask)
 
     return err
-
-
-def alignment_to_list(grid):
-    if not isinstance(grid, np.ma.MaskedArray):
-        raise ValueError("Input should be a numpy masked array.")
-
-    # Extract valid (unmasked) indices
-    valid_indices = np.ma.where(~grid.mask)
-
-    # Get the values from these indices
-    valid_values = grid[valid_indices]
-
-    # Stack the indices and values
-    result = np.column_stack(valid_indices + (valid_values,))
-
-    return result
 
 
 def best_fit_plane(points):

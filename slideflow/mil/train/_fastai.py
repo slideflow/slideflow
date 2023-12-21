@@ -29,7 +29,7 @@ def train(learner, config, callbacks=None):
         callbacks (list(fastai.Callback)): FastAI callbacks. Defaults to None.
     """
     cbs = [
-        SaveModelCallback(fname=f"best_valid"),
+        SaveModelCallback(fname=f"best_valid", monitor=config.save_monitor),
         CSVLogger(),
     ]
     if callbacks:
@@ -236,7 +236,7 @@ def _build_fastai_learner(
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=1,
-        drop_last=False,
+        drop_last=config.drop_last,
         device=device,
         **dl_kwargs
     )
@@ -342,7 +342,7 @@ def _build_multimodal_learner(
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=1,
-        drop_last=False,
+        drop_last=config.drop_last,
         device=device,
         **dl_kwargs
     )

@@ -26,8 +26,8 @@ from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.torch_utils import autocast
-from slideflow.model.base import log_manifest, no_scope, BaseFeatureExtractor
-from slideflow.util import log, NormFit, ImgBatchSpeedColumn
+from slideflow.model.base import log_manifest, BaseFeatureExtractor
+from slideflow.util import log, NormFit, ImgBatchSpeedColumn, no_scope
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -329,7 +329,7 @@ class ModelParams(_base._ModelParams):
 
         # Prepare custom model pretraining
         if pretrain:
-            log.info(f"Using pretraining: [green]{pretrain}")
+            log.debug(f"Using pretraining: [green]{pretrain}")
         if (isinstance(pretrain, str)
            and sf.util.path_to_ext(pretrain).lower() == 'zip'):
            _pretrained = pretrain
@@ -1552,6 +1552,7 @@ class Trainer:
         format: str = 'parquet',
         from_wsi: bool = False,
         roi_method: str = 'auto',
+        reduce_method: Union[str, Callable] = 'average',
     ) -> Dict[str, "pd.DataFrame"]:
         """Perform inference on a model, saving predictions.
 
@@ -1578,6 +1579,17 @@ class Trainer:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
 
         Returns:
             Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
@@ -1635,7 +1647,8 @@ class Trainer:
             torch_args=torch_args,
             outcome_names=self.outcome_names,
             uq=bool(self.hp.uq),
-            patients=self.patients
+            patients=self.patients,
+            reduce_method=reduce_method
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
@@ -1649,7 +1662,7 @@ class Trainer:
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
         save_predictions: Union[bool, str] = 'parquet',
-        reduce_method: str = 'average',
+        reduce_method: Union[str, Callable] = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto',
         from_wsi: bool = False,
@@ -1666,11 +1679,16 @@ class Trainer:
                 'feather', or 'parquet'. If False, will not save predictions.
                 Defaults to 'parquet'.
             reduce_method (str, optional): Reduction method for calculating
-                slide-level and patient-level predictions for categorical outcomes.
-                Either 'average' or 'proportion'. If 'average', will reduce with
-                average of each logit across tiles. If 'proportion', will convert
-                tile predictions into onehot encoding then reduce by averaging
-                these onehot values. Defaults to 'average'.
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1771,7 +1789,7 @@ class Trainer:
         save_checkpoints: bool = False,
         multi_gpu: bool = False,
         norm_fit: Optional[NormFit] = None,
-        reduce_method: str = 'average',
+        reduce_method: Union[str, Callable] = 'average',
         seed: int = 0,
         from_wsi: bool = False,
         roi_method: str = 'auto',
@@ -1818,11 +1836,16 @@ class Trainer:
                 (np.ndarray). If not provided, will fit normalizer using
                 model params (if applicable). Defaults to None.
             reduce_method (str, optional): Reduction method for calculating
-                slide-level and patient-level predictions for categorical outcomes.
-                Either 'average' or 'proportion'. If 'average', will reduce with
-                average of each logit across tiles. If 'proportion', will convert
-                tile predictions into onehot encoding then reduce by averaging
-                these onehot values. Defaults to 'average'.
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             seed (int): Set numpy random seed. Defaults to 0.
             from_wsi (bool): Generate predictions from tiles dynamically
                 extracted from whole-slide images, rather than TFRecords.
@@ -2099,6 +2122,7 @@ class Features(BaseFeatureExtractor):
         *,
         include_preds: bool = False,
         mixed_precision: bool = True,
+        channels_last: bool = True,
         device: Optional[torch.device] = None,
         apply_softmax: Optional[bool] = None,
         pooling: Optional[Any] = None,
@@ -2140,6 +2164,7 @@ class Features(BaseFeatureExtractor):
         self.path = path
         self.apply_softmax = apply_softmax
         self.mixed_precision = mixed_precision
+        self.channels_last = channels_last
         self._model = None
         self._pooling = None
         self._include_preds = None
@@ -2187,6 +2212,7 @@ class Features(BaseFeatureExtractor):
         *,
         include_preds: bool = False,
         mixed_precision: bool = True,
+        channels_last: bool = True,
         wsi_normalizer: Optional["StainNormalizer"] = None,
         apply_softmax: bool = True,
         pooling: Optional[Any] = None
@@ -2225,6 +2251,7 @@ class Features(BaseFeatureExtractor):
             None,
             layers,
             mixed_precision=mixed_precision,
+            channels_last=channels_last,
             device=device,
             **kw
         )
@@ -2319,7 +2346,9 @@ class Features(BaseFeatureExtractor):
         _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
         with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
             with torch.no_grad() if no_grad else no_scope():
-                inp = inp.to(self.device).to(memory_format=torch.channels_last)
+                inp = inp.to(self.device)
+                if self.channels_last:
+                    inp = inp.to(memory_format=torch.channels_last)
                 logits = self._model(inp)
                 if isinstance(logits, (tuple, list)) and self.apply_softmax:
                     logits = [softmax(l, dim=1) for l in logits]
@@ -2471,6 +2500,7 @@ class UncertaintyInterface(Features):
         layers: Optional[Union[str, List[str]]] = 'postconv',
         *,
         mixed_precision: bool = True,
+        channels_last: bool = True,
         device: Optional[torch.device] = None,
         apply_softmax: Optional[bool] = None,
         pooling: Optional[Any] = None,
@@ -2480,6 +2510,7 @@ class UncertaintyInterface(Features):
             path,
             layers=layers,
             mixed_precision=mixed_precision,
+            channels_last=channels_last,
             device=device,
             apply_softmax=apply_softmax,
             pooling=pooling,
@@ -2526,7 +2557,8 @@ class UncertaintyInterface(Features):
             with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
                 with torch.no_grad() if no_grad else no_scope():
                     inp = inp.to(self.device)
-                    inp = inp.to(memory_format=torch.channels_last)
+                    if self.channels_last:
+                        inp = inp.to(memory_format=torch.channels_last)
                     logits = self._model(inp)
                     if isinstance(logits, (tuple, list)) and self.apply_softmax:
                         logits = [softmax(l, dim=1) for l in logits]

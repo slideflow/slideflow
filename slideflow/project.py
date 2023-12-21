@@ -30,7 +30,7 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
 
 import slideflow as sf
 from . import errors, project_utils
-from .util import log, path_to_name, path_to_ext
+from .util import log, path_to_name, path_to_ext, MultiprocessProgress
 from .dataset import Dataset
 from .model import ModelParams
 from .project_utils import (  # noqa: F401
@@ -1267,6 +1267,17 @@ class Project:
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             save_predictions (bool or str, optional): Save tile, slide, and
                 patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
@@ -2053,6 +2064,7 @@ class Project:
         force_regenerate: bool = False,
         batch_size: int = 32,
         slide_batch_size: int = 16,
+        num_gpus: int = 0,
         **kwargs: Any
     ) -> str:
         """Generate tile-level features for slides for use with MIL models.
@@ -2100,6 +2112,12 @@ class Project:
             Path to directory containing exported .pt files
 
         """
+        if not sf.util.torch_available:
+            raise RuntimeError(
+                "Pytorch is required for generating feature bags. "
+                "Please install Pytorch and try again."
+            )
+
         # Check if the model exists and has a valid parameters file
         if isinstance(model, str) and exists(model):
             config = sf.util.get_model_config(model)
@@ -2203,29 +2221,57 @@ class Project:
             total=len(dataset.slides()))
         pb.start()
 
+        # Prepare keyword arguments.
+        dts_kwargs = dict(
+            include_preds=False,
+            include_uncertainty=False,
+            batch_size=batch_size,
+            verbose=False,
+            progress=False,
+            **kwargs
+        )
+
         # Set up activations interface.
         # Calculate features one slide at a time to reduce memory consumption.
         with sf.util.cleanup_progress(pb):
-            for slide_batch in sf.util.batch(dataset.slides(), slide_batch_size):
-                try:
-                    _dataset = dataset.remove_filter(filters='slide')
-                except errors.DatasetFilterError:
-                    _dataset = dataset
-                _dataset = _dataset.filter(filters={'slide': slide_batch})
-                df = sf.DatasetFeatures(
-                    model=model,
-                    dataset=_dataset,
-                    include_preds=False,
-                    include_uncertainty=False,
-                    batch_size=batch_size,
-                    verbose=False,
-                    progress=False,
+            if not num_gpus > 1:
+                sf.model.features._export_bags(
+                    model,
+                    dataset,
+                    slides=dataset.slides(),
+                    slide_batch_size=slide_batch_size,
                     pb=pb,
-                    pool_sort=False,
-                    **kwargs
+                    outdir=outdir,
+                    slide_task=slide_task,
+                    **dts_kwargs
                 )
-                df.to_torch(outdir, verbose=False)
-                pb.advance(slide_task, len(slide_batch))
+
+            else:
+                if not hasattr(model, 'dump_config'):
+                    raise ValueError(
+                        "Feature extraction with multiple GPUs is only "
+                        "supported for feature extractors with a dump_config() "
+                        "attribute. Please set num_gpus=1 or use a different "
+                        "feature extractor."
+                    )
+                import torch
+                model_cfg = sf.model.extractors.extractor_to_config(model)
+                with MultiprocessProgress(pb) as mp_pb:
+                    torch.multiprocessing.spawn(
+                        sf.model.features._distributed_export,
+                        args=(
+                            model_cfg,
+                            dataset,
+                            [n.tolist() for n in np.array_split(dataset.slides(),
+                                                                num_gpus)],
+                            slide_batch_size,
+                            mp_pb.tracker,
+                            outdir,
+                            slide_task,
+                            dts_kwargs
+                        ),
+                        nprocs=num_gpus
+                    )
 
         return outdir
 
@@ -2857,6 +2903,17 @@ class Project:
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             custom_objects (dict, Optional): Dictionary mapping names
                 (strings) to custom classes or functions. Defaults to None.
 
@@ -3462,6 +3519,17 @@ class Project:
                 model from which to load weights. Defaults to 'imagenet'.
             multi_gpu (bool): Train using multiple GPUs when available.
                 Defaults to False.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             resume_training (str, optional): Path to model to continue training.
                 Only valid in Tensorflow backend. Defaults to None.
             starting_epoch (int): Start training at the specified epoch.

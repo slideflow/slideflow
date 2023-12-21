@@ -1348,6 +1348,12 @@ class _FeatureGenerator:
             self.device = None
         self._prepare_dataset_kwargs()
 
+        # Move the normalizer to the appropriate device, if this is
+        # a pytorch GPU normalizer.
+        if self.has_torch_gpu_normalizer():
+            log.debug("Moving normalizer to device: {}".format(self.device))
+            self.normalizer.device = self.device
+
     def _calculate_feature_batch(self, batch_img):
         """Calculate features from a batch of images."""
 
@@ -1358,11 +1364,23 @@ class _FeatureGenerator:
                 batch_img = batch_img.to(self.device)
                 if self.has_torch_gpu_normalizer():
                     batch_img = self.normalizer.preprocess(
-                        batch_img,
+                        batch_img.to(self.normalizer.device),
                         standardize=self.standardize
-                    )
+                    ).to(self.device)
                 return self.generator(batch_img)
         else:
+            if self.has_torch_gpu_normalizer():
+                import torch
+                import tensorflow as tf
+                batch_img = batch_img.numpy()
+                batch_img = torch.from_numpy(batch_img)
+                batch_img = self.normalizer.transform(
+                    batch_img.to(self.normalizer.device)
+                )
+                batch_img = batch_img.cpu().numpy()
+                batch_img = tf.convert_to_tensor(batch_img)
+                if self.standardize:
+                    batch_img = tf.image.per_image_standardization(batch_img)
             return self.generator(batch_img)
 
     def _process_out(self, model_out, batch_slides, batch_loc):
@@ -1441,7 +1459,7 @@ class _FeatureGenerator:
         # If so, we will handle normalization and standardization
         # in the feature generation loop.
         if self.has_torch_gpu_normalizer():
-            log.info("Using GPU for stain normalization")
+            log.debug("Using GPU for stain normalization")
             dts_kw['standardize'] = False
         else:
             # Otherwise, let the dataset handle normalization/standardization.
@@ -1466,7 +1484,7 @@ class _FeatureGenerator:
             self.uq = hp.uq
             self.normalizer = hp.get_normalizer()
             if self.normalizer:
-                log.info(f'Using realtime {self.normalizer.method} normalization')
+                log.debug(f'Using realtime {self.normalizer.method} normalization')
                 if 'norm_fit' in model_config:
                     self.normalizer.set_fit(**model_config['norm_fit'])
         else:
@@ -1726,3 +1744,51 @@ class _FeatureGenerator:
             dataset.close()
 
         return activations, predictions, locations, uncertainty
+
+
+# -----------------------------------------------------------------------------
+
+def _export_bags(
+    model: Union[Callable, Dict],
+    dataset: "sf.Dataset",
+    slides: List[str],
+    slide_batch_size: int,
+    pb: Any,
+    outdir: str,
+    slide_task: int = 0,
+    **dts_kwargs
+) -> None:
+    """Export bags for a given feature extractor."""
+    for slide_batch in sf.util.batch(slides, slide_batch_size):
+        try:
+            _dataset = dataset.remove_filter(filters='slide')
+        except errors.DatasetFilterError:
+            _dataset = dataset
+        _dataset = _dataset.filter(filters={'slide': slide_batch})
+        df = sf.DatasetFeatures(model, _dataset, pb=pb, **dts_kwargs)
+        df.to_torch(outdir, verbose=False)
+        pb.advance(slide_task, len(slide_batch))
+
+def _distributed_export(
+    device: int,
+    model_cfg: Dict,
+    dataset: "sf.Dataset",
+    slides: List[List[str]],
+    slide_batch_size: int,
+    pb: Any,
+    outdir: str,
+    slide_task: int = 0,
+    dts_kwargs: Any = None
+) -> None:
+    """Distributed export across multiple GPUs."""
+    model = sf.model.extractors.build_extractor_from_cfg(model_cfg, device=f'cuda:{device}')
+    return _export_bags(
+        model,
+        dataset,
+        list(slides[device]),
+        slide_batch_size,
+        pb,
+        outdir,
+        slide_task,
+        **(dts_kwargs or {})
+    )

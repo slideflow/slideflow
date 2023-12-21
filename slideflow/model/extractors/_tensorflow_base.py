@@ -1,6 +1,8 @@
 import numpy as np
 import slideflow as sf
 import tensorflow as tf
+from typing import Optional
+from slideflow.util import no_scope
 
 from ..base import BaseFeatureExtractor
 from ._slide import features_from_slide
@@ -9,8 +11,11 @@ from ._slide import features_from_slide
 class TensorflowFeatureExtractor(BaseFeatureExtractor):
     """Base feature extractor for Tensorflow models."""
 
-    def __init__(self):
+    def __init__(self, device: Optional[str] = None):
         super().__init__(backend='tensorflow')
+        self.device = device
+        if isinstance(device, str):
+            self.device = device.replace('cuda', 'gpu')
 
     @tf.function
     def _predict(self, batch_images):
@@ -20,7 +25,8 @@ class TensorflowFeatureExtractor(BaseFeatureExtractor):
                 batch_images,
                 dtype=tf.float32
             )
-        return self.model(batch_images, training=False)[0]
+        with tf.device(self.device) if self.device else no_scope():
+            return self.model(batch_images, training=False)[0]
 
     def __call__(self, obj, **kwargs):
         """Generate features for a batch of images or a WSI."""

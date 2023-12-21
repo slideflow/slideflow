@@ -219,6 +219,11 @@ Then, supply this class to the ``qc`` argument as above.
 
 See :ref:`qc` for more information on the API for further QC customization.
 
+Segmentation Models (U-Net)
+---------------------------
+
+Slideflow also provides an interface for both training and using segmentation models (e.g. U-Net, FPN, DeepLabV3) for slide-level masking. This is discussed separately in :ref:`segmentation`.
+
 Grayspace filtering
 --------------------
 
@@ -260,6 +265,7 @@ Available stain normalization algorithms include:
 - **reinhard_fast_mask**: Modified Reinhard-Fast algorithm, with background/whitespace removed.
 - **vahadane**: `Original Vahadane paper <https://ieeexplore.ieee.org/document/7460968>`_.
 - **augment**: HSV colorspace augmentation.
+- **cyclegan**: CycleGAN-based stain normalization, as implemented by `Zingman et al <https://github.com/Boehringer-Ingelheim/stain-transfer>`_ (PyTorch only)
 
 The Macenko and Reinhard stain normalizers are highly efficient, with native Tensorflow, PyTorch, and Numpy/OpenCV implementations, and support GPU acceleration (see :ref:`performance benchmarks <normalizer_performance>`).
 

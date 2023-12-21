@@ -129,6 +129,8 @@ class TrainerConfigFastAI(_TrainerConfig):
         fit_one_cycle: bool = True,
         epochs: int = 32,
         batch_size: int = 64,
+        drop_last: bool = True,
+        save_monitor: str = 'valid_loss',
         **kwargs
     ):
         r"""Training configuration for FastAI MIL models.
@@ -170,6 +172,8 @@ class TrainerConfigFastAI(_TrainerConfig):
         self.fit_one_cycle = fit_one_cycle
         self.epochs = epochs
         self.batch_size = batch_size
+        self.drop_last = drop_last
+        self.save_monitor = save_monitor
         if model in ModelConfigCLAM.valid_models:
             self.model_config = ModelConfigCLAM(model=model, **kwargs)
         else:
@@ -350,6 +354,7 @@ class ModelConfigCLAM(DictConfig):
                 Defaults to True.
 
         """
+
         for argname, argval in dict(locals()).items():
             if argname not in ('kwargs', 'validate'):
                 setattr(self, argname, argval)
@@ -434,7 +439,6 @@ class ModelConfigFastAI(DictConfig):
             log.warning("Ignoring unrecognized parameters: {}".format(
                 ', '.join(list(kwargs.keys()))
             ))
-
 
     @property
     def model_fn(self):

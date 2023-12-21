@@ -9,7 +9,7 @@ from pandas.api.types import is_float_dtype, is_integer_dtype
 import numpy as np
 import slideflow as sf
 from slideflow import errors
-from slideflow.util import log, log_manifest  # noqa: F401
+from slideflow.util import log, log_manifest, no_scope  # noqa: F401
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
@@ -556,11 +556,3 @@ class BaseFeatureExtractor:
 
 class HyperParameterError(Exception):
     pass
-
-
-class no_scope():
-    def __enter__(self):
-        return None
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        return False
