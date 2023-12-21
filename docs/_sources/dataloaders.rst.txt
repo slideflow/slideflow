@@ -3,7 +3,7 @@
 Dataloaders: Sampling and Augmentation
 ======================================
 
-With support for both Tensorflow and PyTorch, Slideflow provides several options for dataset sampling, processing, and augmentation. Here, we'll review the options available for each framework. In all cases, data are read from TFRecords generated through :ref:`filtering`. The TFRecord data format is discussed in more detail in the :ref:`tfrecords` note.
+With support for both Tensorflow and PyTorch, Slideflow provides several options for dataset sampling, processing, and augmentation. Here, we'll review the options for creating dataloaders - objects that read and process TFRecord data and return images and labels - in each framework. In all cases, data are read from TFRecords generated through :ref:`filtering`. The TFRecord data format is discussed in more detail in the :ref:`tfrecords` note.
 
 Tensorflow
 **********
@@ -31,6 +31,7 @@ If the ``labels`` argument is provided (dictionary mapping slide names to a nume
     labels, unique_labels = dataset.labels('HPV_status')
 
     # Create a tensorflow dataset
+    # that yields (image, label) tuples
     tf_dataset = dataset.tensorflow(labels=labels)
 
     for image, label in tf_dataset:
@@ -54,6 +55,9 @@ Setting ``incl_slidenames=True`` will return the slidename as a Tensor (dtype=st
 Image preprocessing
 -------------------
 
+.. |per_image_standardization| replace:: ``tf.image.per_image_standardization()``
+.. _per_image_standardization: https://www.tensorflow.org/api_docs/python/tf/image/per_image_standardization
+
 Dataloaders created with ``.tensorflow()`` include several image preprocessing options. These options are provided as keyword arguments to the ``.tensorflow()`` method and are executed in the order listed below:
 
 - **crop_left** (int): Crop images to this top-left x/y coordinate. Default is ``None``.
@@ -62,7 +66,7 @@ Dataloaders created with ``.tensorflow()`` include several image preprocessing o
 - **resize_method** (str): Resize method. Default is ``"lanczos3"``.
 - **resize_aa** (bool): Enable antialiasing if resizing. Defaults to ``True``.
 - **normalizer** (``StainNormalizer``): Perform stain normalization.
-- **augment** (str): Perform augmentations based on the provided string. Options include:
+- **augment** (str): Perform augmentations based on the provided string. Combine characters to perform multiple augmentations (e.g. ``'xyrj'``). Options include:
     - ``'n'``: Perform :ref:`stain_augmentation` (done concurrently with stain normalization)
     - ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
     - ``'r'``: Random 90-degree rotation
@@ -70,7 +74,7 @@ Dataloaders created with ``.tensorflow()`` include several image preprocessing o
     - ``'y'``: Random vertical flip
     - ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
 - **transform** (Any): Arbitrary function to apply to each image. The function must accept a single argument (the image) and return a single value (the transformed image).
-- **standardize** (bool): Standardize images with ``tf.image.per_image_standardization()``, returning a ``tf.float32`` image. Default is ``False``, returning a ``tf.uint8`` image.
+- **standardize** (bool): Standardize images with |per_image_standardization|_, returning a ``tf.float32`` image. Default is ``False``, returning a ``tf.uint8`` image.
 
 Dataset sharding
 ----------------
@@ -96,7 +100,7 @@ As with Tensorflow, the :meth:`slideflow.Dataset.torch()` method creates a |Data
 
 The returned |DataLoader|_ is an iterable-only dataloader whose returned values depend on the arguments provided to the ``.torch()`` function. An indexable, map-style dataset is also available when using PyTorch, as described in :ref:`indexable_dataloader`.
 
-If no arguments are provided, the returned dataloader will yield a tuple of ``(image, None)``, where the image is a ``torch.Tensor`` of shape ``[num_channels, tile_height, tile_width]`` and type ``torch.uint8``. Labels are assigned as described above. Slide names and tile location can also be returned, using the same arguments as described previously.
+If no arguments are provided, the returned dataloader will yield a tuple of ``(image, None)``, where the image is a ``torch.Tensor`` of shape ``[num_channels, tile_height, tile_width]`` and type ``torch.uint8``. Labels are assigned as described above. Slide names and tile location can also be returned, using the same arguments as `described above <https://slideflow.dev/dataloaders/#slide-names-and-tile-locations>`_.
 
 
 .. code-block:: python
@@ -120,7 +124,7 @@ Image preprocessing
 Dataloaders created with ``.torch()`` include several image preprocessing options, provided as keyword arguments to the ``.torch()`` method. These preprocessing steps are executed in the order listed below:
 
 - **normalizer** (``StainNormalizer``): Perform stain normalization.
-- **augment** (str): Perform augmentations based on the provided string, in the order characters appear in the string. Options include:
+- **augment** (str): Perform augmentations based on the provided string. Combine characters to perform multiple augmentations (e.g. ``'xyrj'``). Augmentations are executed in the order characters appear in the string. Options include:
     - ``'n'``: Perform :ref:`stain_augmentation` (done concurrently with stain normalization)
     - ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
     - ``'r'``: Random 90-degree rotation
@@ -348,7 +352,7 @@ Alternatively, you can configure oversampling during training through the ``trai
 Direct indexing
 ***************
 
-An indexable, map-style dataloader can be created for PyTorch using :class:`slideflow.io.IndexedInterleaver`, which returns a ``torch.utils.data.Dataset``. Indexable datasets are only available for the PyTorch backend.
+An indexable, map-style dataloader can be created for PyTorch using :class:`slideflow.io.torch.IndexedInterleaver`, which returns a ``torch.utils.data.Dataset``. Indexable datasets are only available for the PyTorch backend.
 
 This indexable dataset is created from a list of TFRecords and accepts many arguments for controlling labels, augmentation and image transformations.
 

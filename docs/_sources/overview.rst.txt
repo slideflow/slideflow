@@ -3,7 +3,7 @@ Overview
 
 Slideflow provides tools for easily building and testing a variety of deep learning models for digital pathology.
 
-This section provides a high-level overview of the most common application: building and testing a weakly supervised predictive model. Slideflow supports many other tasks, including :ref:`multiple-instance learning (MIL) <mil>`, :ref:`self-supervised learning (SSL) <simclr_ssl>`, :ref:`generative adversarial networks (GANs) <stylegan>`, and :ref:`deployment & visualization <studio>`, which are discussed in subsequent sections.
+This section provides a high-level overview of the most common application: building and testing a weakly supervised predictive model. Slideflow supports many other tasks, including :ref:`multiple-instance learning (MIL) <mil>`, :ref:`self-supervised learning (SSL) <simclr_ssl>`, :ref:`generative adversarial networks (GANs) <stylegan>`, :ref:`tissue <segmentation>` and :ref:`cell <cellseg>` segmentation, and :ref:`deployment & visualization <studio>`, which are discussed in subsequent sections.
 
 .. figure:: overview.png
 

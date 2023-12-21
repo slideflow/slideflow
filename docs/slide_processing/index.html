@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Slide Processing &mdash; slideflow 2.2.0 documentation</title>
+  <title>Slide Processing &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -32,7 +32,7 @@
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex/" />
     <link rel="search" title="Search" href="../search/" />
-    <link rel="next" title="Cell Segmentation" href="../cellseg/" />
+    <link rel="next" title="Training" href="../training/" />
     <link rel="prev" title="Datasets" href="../datasets_and_val/" />
   <!-- Google Analytics -->
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -157,7 +157,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
@@ -166,6 +165,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
@@ -457,6 +458,10 @@
 </div>
 <p>See <a class="reference internal" href="../slide_qc/#qc"><span class="std std-ref">slideflow.slide.qc</span></a> for more information on the API for further QC customization.</p>
 </section>
+<section id="segmentation-models-u-net">
+<h3>Segmentation Models (U-Net)<a class="headerlink" href="#segmentation-models-u-net" title="Permalink to this heading">¶</a></h3>
+<p>Slideflow also provides an interface for both training and using segmentation models (e.g. U-Net, FPN, DeepLabV3) for slide-level masking. This is discussed separately in <a class="reference internal" href="../segmentation/#segmentation"><span class="std std-ref">Tissue Segmentation</span></a>.</p>
+</section>
 <section id="grayspace-filtering">
 <h3>Grayspace filtering<a class="headerlink" href="#grayspace-filtering" title="Permalink to this heading">¶</a></h3>
 <p>Grayspace filtering is a <strong>tile-based method</strong> that detects the amount of grayspace in a given image tile and discards the tile if the content exceeds a set threshold. RGB image tiles are converted to the HSV spectrum, and the fraction of pixels with saturation below a certain threshold is calculated. This filtering is performed separately for each tile as it is being extracted. Relevant arguments for grayspace filtering include:</p>
@@ -491,6 +496,7 @@
 <li><p><strong>reinhard_fast_mask</strong>: Modified Reinhard-Fast algorithm, with background/whitespace removed.</p></li>
 <li><p><strong>vahadane</strong>: <a class="reference external" href="https://ieeexplore.ieee.org/document/7460968">Original Vahadane paper</a>.</p></li>
 <li><p><strong>augment</strong>: HSV colorspace augmentation.</p></li>
+<li><p><strong>cyclegan</strong>: CycleGAN-based stain normalization, as implemented by <a class="reference external" href="https://github.com/Boehringer-Ingelheim/stain-transfer">Zingman et al</a> (PyTorch only)</p></li>
 </ul>
 <p>The Macenko and Reinhard stain normalizers are highly efficient, with native Tensorflow, PyTorch, and Numpy/OpenCV implementations, and support GPU acceleration (see <a class="reference internal" href="../norm/#normalizer-performance"><span class="std std-ref">performance benchmarks</span></a>).</p>
 <section id="during-tile-extraction">
@@ -543,7 +549,7 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../cellseg/" class="btn btn-neutral float-right" title="Cell Segmentation" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="../training/" class="btn btn-neutral float-right" title="Training" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="../datasets_and_val/" class="btn btn-neutral" title="Datasets" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
@@ -587,6 +593,7 @@
 <li><a class="reference internal" href="#gaussian-blur-filtering">Gaussian blur filtering</a></li>
 <li><a class="reference internal" href="#deepfocus">DeepFocus</a></li>
 <li><a class="reference internal" href="#custom-deep-learning-qc">Custom deep learning QC</a></li>
+<li><a class="reference internal" href="#segmentation-models-u-net">Segmentation Models (U-Net)</a></li>
 <li><a class="reference internal" href="#grayspace-filtering">Grayspace filtering</a></li>
 <li><a class="reference internal" href="#whitepsace-filtering">Whitepsace filtering</a></li>
 </ul>

@@ -15,6 +15,7 @@ Available stain normalization algorithms include:
 - **reinhard_fast_mask**: Modified Reinhard-Fast algorithm, with background/whitespace removed.
 - **vahadane**: `Original Vahadane paper <https://ieeexplore.ieee.org/document/7460968>`_.
 - **augment**: HSV colorspace augmentation.
+- **cyclegan**: CycleGAN-based stain normalization, as implemented by `Zingman et al <https://github.com/Boehringer-Ingelheim/stain-transfer>`_ (PyTorch only)
 
 Overview
 ********
@@ -213,7 +214,7 @@ Contextual normalization is not supported with on-the-fly normalization during t
 Stain Augmentation
 ******************
 
-One of the benefits of on-the-fly stain normalization is the ability to perform dynamic stain augmentation. For Reinhard normalizers, this is performed by randomizing the channel means and channel standard deviations. For Macenko normalizers, stain augmentation is performed by randomizing the stain matrix target and the target concentrations. In all cases, randomization is performed by sampling from a normal distribution whose mean is the reference fit and whose standard deviation is a predefined value (in ``sf.norm.utils.augment_presets``). Of note, this strategy differs from the more commonly used strategy `described by Tellez <https://doi.org/10.1109/tmi.2018.2820199>`_, where augmentation is performed by randomly perturbing images in the stain matrix space without normalization.
+One of the benefits of on-the-fly stain normalization is the ability to perform dynamic stain augmentation with normalization. For Reinhard normalizers, this is performed by randomizing the channel means and channel standard deviations. For Macenko normalizers, stain augmentation is performed by randomizing the stain matrix target and the target concentrations. In all cases, randomization is performed by sampling from a normal distribution whose mean is the reference fit and whose standard deviation is a predefined value (in ``sf.norm.utils.augment_presets``). Of note, this strategy differs from the more commonly used strategy `described by Tellez <https://doi.org/10.1109/tmi.2018.2820199>`_, where augmentation is performed by randomly perturbing images in the stain matrix space without normalization.
 
 To enable stain augmentation, add the letter 'n' to the ``augment`` parameter when training a model.
 
@@ -230,6 +231,31 @@ To enable stain augmentation, add the letter 'n' to the ``augment`` parameter wh
     # Train a model
     project.train(..., params=params)
 
+When using a StainNormalizer object, you can perform a combination of normalization and augmention for an image by using the argument ``augment=True`` when calling :meth:`StainNormalizer.transform`:
+
+.. code-block:: python
+
+    import slideflow as sf
+
+    # Get a Macenko normalizer
+    macenko = sf.norm.autoselect('macenko')
+
+    # Perform combination of stain normalization and augmentation
+    img = macenko.transform(img, augment=True)
+
+To stain augment an image without normalization, use the method :meth:`StainNormalizer.augment`:
+
+.. code-block:: python
+
+    import slideflow as sf
+
+    # Get a Macenko normalizer
+    macenko = sf.norm.autoselect('macenko')
+
+    # Perform stain augmentation
+    img = macenko.augment(img)
+
+
 StainNormalizer
 ***************
 
@@ -237,6 +263,7 @@ StainNormalizer
 .. autofunction:: slideflow.norm.StainNormalizer.fit
 .. autofunction:: slideflow.norm.StainNormalizer.get_fit
 .. autofunction:: slideflow.norm.StainNormalizer.set_fit
+.. autofunction:: slideflow.norm.StainNormalizer.augment
 .. autofunction:: slideflow.norm.StainNormalizer.transform
 .. autofunction:: slideflow.norm.StainNormalizer.jpeg_to_jpeg
 .. autofunction:: slideflow.norm.StainNormalizer.jpeg_to_rgb

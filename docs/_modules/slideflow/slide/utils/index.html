@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.slide.utils &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.slide.utils &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
@@ -371,6 +372,7 @@
         <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">shape</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_coord</span><span class="p">(</span><span class="n">point</span><span class="p">)</span>
 
+
 <span class="k">class</span> <span class="nc">ROIPoly</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Rendered ROI shape.</span>
 
@@ -402,6 +404,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">poly</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">poly</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">roi</span><span class="o">.</span><span class="n">poly</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_hole_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">roi</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
+
 <span class="k">class</span> <span class="nc">QCMask</span><span class="p">:</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">filter_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -424,6 +427,58 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">shape</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">shape</span>
+
+
+<span class="k">class</span> <span class="nc">Alignment</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">origin</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+        <span class="n">coord</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">origin</span> <span class="o">=</span> <span class="n">origin</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="n">coord</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">centroid</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Tuple[float, float]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normal</span> <span class="o">=</span> <span class="kc">None</span>    <span class="c1"># type: Tuple[float, float]</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_fit</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">origin</span><span class="p">,</span> <span class="n">centroid</span><span class="p">,</span> <span class="n">normal</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">origin</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">centroid</span> <span class="o">=</span> <span class="n">centroid</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">normal</span> <span class="o">=</span> <span class="n">normal</span>
+        <span class="k">return</span> <span class="n">obj</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_translation</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">origin</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">origin</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_coord</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">origin</span><span class="p">,</span> <span class="n">coord</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">origin</span><span class="p">,</span> <span class="n">coord</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="n">save_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">origin</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">origin</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">save_dict</span><span class="p">[</span><span class="s1">&#39;coord&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">centroid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">save_dict</span><span class="p">[</span><span class="s1">&#39;centroid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">centroid</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">save_dict</span><span class="p">[</span><span class="s1">&#39;normal&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">normal</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">savez</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">save_dict</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="n">load_dict</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">allow_pickle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">origin</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">load_dict</span><span class="p">[</span><span class="s1">&#39;origin&#39;</span><span class="p">])</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">load_dict</span><span class="p">[</span><span class="s1">&#39;coord&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;coord&#39;</span> <span class="ow">in</span> <span class="n">load_dict</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">centroid</span> <span class="o">=</span> <span class="n">load_dict</span><span class="p">[</span><span class="s1">&#39;centroid&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;centroid&#39;</span> <span class="ow">in</span> <span class="n">load_dict</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">normal</span> <span class="o">=</span> <span class="n">load_dict</span><span class="p">[</span><span class="s1">&#39;normal&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;normal&#39;</span> <span class="ow">in</span> <span class="n">load_dict</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">origin</span><span class="p">,</span> <span class="n">coord</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">centroid</span> <span class="o">=</span> <span class="n">centroid</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">normal</span> <span class="o">=</span> <span class="n">normal</span>
+        <span class="k">return</span> <span class="n">obj</span>
+
+
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 <span class="c1"># Functions</span>
@@ -552,6 +607,10 @@
         <span class="n">annotated_img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
         <span class="n">annotated_img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">img</span><span class="p">))</span>  <span class="c1"># type: ignore</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected img to be a numpy array or bytes, got: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">type</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+        <span class="p">))</span>
     <span class="n">draw</span> <span class="o">=</span> <span class="n">ImageDraw</span><span class="o">.</span><span class="n">Draw</span><span class="p">(</span><span class="n">annotated_img</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="n">annPolys</span><span class="p">:</span>
         <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">poly</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span>
@@ -800,22 +859,6 @@
     <span class="n">err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">diff</span><span class="p">[</span><span class="n">combined_mask</span><span class="p">])</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">combined_mask</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">err</span>
-
-
-<span class="k">def</span> <span class="nf">alignment_to_list</span><span class="p">(</span><span class="n">grid</span><span class="p">):</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Input should be a numpy masked array.&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Extract valid (unmasked) indices</span>
-    <span class="n">valid_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">grid</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span>
-
-    <span class="c1"># Get the values from these indices</span>
-    <span class="n">valid_values</span> <span class="o">=</span> <span class="n">grid</span><span class="p">[</span><span class="n">valid_indices</span><span class="p">]</span>
-
-    <span class="c1"># Stack the indices and values</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">valid_indices</span> <span class="o">+</span> <span class="p">(</span><span class="n">valid_values</span><span class="p">,))</span>
-
-    <span class="k">return</span> <span class="n">result</span>
 
 
 <span class="k">def</span> <span class="nf">best_fit_plane</span><span class="p">(</span><span class="n">points</span><span class="p">):</span>

@@ -1,0 +1,693 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Tissue Segmentation &mdash; slideflow 2.3.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" />
+    <link rel="next" title="Cell Segmentation" href="../cellseg/" />
+    <link rel="prev" title="Saliency Maps" href="../saliency/" />
+  <!-- Google Analytics -->
+
+  <!-- End Google Analytics -->
+
+
+
+  <script src="../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+
+
+
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+
+
+
+
+
+                <div class="version">
+                  2.3
+                </div>
+
+
+
+
+
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search/" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+          </div>
+
+
+
+
+
+
+
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tfrecords/">TFRecords: Reading and Writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow/">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project/">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset_features/">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../heatmap/">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_params/">slideflow.ModelParams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slidemap/">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biscuit/">slideflow.biscuit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slideflow_cellseg/">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io/">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_tensorflow/">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../io_torch/">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gan/">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../grad/">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mil_module/">slideflow.mil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model/">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_tensorflow/">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_torch/">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../norm/">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../simclr/">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide/">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../slide_qc/">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../stats/">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../util/">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../studio_module/">slideflow.studio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial1/">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial2/">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial3/">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial4/">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial5/">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial6/">Tutorial 6: Custom slide filtering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial7/">Tutorial 7: Training with custom augmentations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
+</ul>
+
+
+
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+
+      <li>
+        <a href="../">
+
+            Docs
+
+        </a> &gt;
+      </li>
+
+
+      <li>Tissue Segmentation</li>
+
+
+      <li class="pytorch-breadcrumbs-aside">
+
+
+            <a href="../_sources/segmentation.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+
+
+      </li>
+
+  </ul>
+
+
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+
+
+          <div class="rst-content">
+
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+
+  <section id="tissue-segmentation">
+<span id="segmentation"></span><h1>Tissue Segmentation<a class="headerlink" href="#tissue-segmentation" title="Permalink to this heading">¶</a></h1>
+<p>In addition to classification tasks, Slideflow also supports training and deploying whole-slide tissue segmentation models. Segmentation models identify and label regions of interest in a slide, and can be used for tasks such as tumor identification, tissue labeling, or quality control. Once trained, these models can be used for <a class="reference internal" href="../slide_processing/#filtering"><span class="std std-ref">slide QC</span></a>, generating <a class="reference internal" href="../slide_processing/#regions-of-interest"><span class="std std-ref">regions of interest</span></a>, or live deployment in <a class="reference internal" href="../studio/#studio"><span class="std std-ref">Slideflow Studio</span></a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Tissue segmentation requires PyTorch. Dependencies can be installed with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">slideflow[torch]</span></code>.</p>
+</div>
+<section id="segmentation-modes">
+<h2>Segmentation Modes<a class="headerlink" href="#segmentation-modes" title="Permalink to this heading">¶</a></h2>
+<p>Tissue segmentation is performed at the whole-slide level, trained on randomly cropped sections of the slide thumbnail at a specified resolution. Slideflow supports three segmentation modes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">'binary'</span></code>: For binary segmentation, the goal is to differentiate a single tissue type from background.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'multiclass'</span></code>: For multiclass segmentation, the goal is twofold: differentiate tissue from background, and assign a class label to each identified region. This is useful in instances where regions have non-overlapping labels.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'multilabel'</span></code>: For multilabel segmentation, the goal is to assign each tissue type to a class, but regions may have overlapping labels.</p></li>
+</ul>
+</section>
+<section id="generating-data">
+<h2>Generating Data<a class="headerlink" href="#generating-data" title="Permalink to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Segmentation thumbnails and masks do not need to be explicitly exported prior to training. They will be generated automatically during training if they do not exist. However, exporting them beforehand can be useful for data visualization, troubleshooting, and computational efficiency.</p>
+</div>
+<p>Segmentation models in Slideflow are trained on regions of interest, which can be generated as discussed in <a class="reference internal" href="../slide_processing/#regions-of-interest"><span class="std std-ref">Regions of Interest</span></a> and <a class="reference internal" href="../studio/#studio-roi"><span class="std std-ref">ROI Annotations</span></a>. Once ROIs have been generated and (optionally) labeled, whole-slide thumbnails and ROI masks can be exported using <code class="docutils literal notranslate"><span class="pre">segment.export_thumbs_and_masks()</span></code>. The <code class="docutils literal notranslate"><span class="pre">mpp</span></code> argument specifies the resolution of the exported images in microns-per-pixel. We recommend <code class="docutils literal notranslate"><span class="pre">mpp=20</span></code> for a good balance between image size and memory requirements, or <code class="docutils literal notranslate"><span class="pre">mpp=10</span></code> for tasks needing higher resolution.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">segment</span>
+
+<span class="c1"># Load a project and dataset</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">slideflow</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="s1">&#39;path/to/project&#39;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">()</span>
+
+<span class="c1"># Export thumbnails and masks</span>
+<span class="n">segment</span><span class="o">.</span><span class="n">export_thumbs_and_masks</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="p">,</span>
+    <span class="n">mpp</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>   <span class="c1"># Microns-per-pixel resolution</span>
+    <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;path/to/output&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>By default, ROIs are exported as binary masks. To export multidimensional masks for multiclass or multilabel applications, use the <code class="docutils literal notranslate"><span class="pre">mode</span></code> and <code class="docutils literal notranslate"><span class="pre">labels</span></code> arguments. When <code class="docutils literal notranslate"><span class="pre">mode</span></code> is <code class="docutils literal notranslate"><span class="pre">'multiclass'</span></code> or <code class="docutils literal notranslate"><span class="pre">'multilabel'</span></code>, masks will be exported in (N, W, H) format, where N is the number of unique ROI labels. The <code class="docutils literal notranslate"><span class="pre">labels</span></code> argument should be a list of strings corresponding to the ROI labels in the dataset that should be included.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+
+<span class="c1"># Export thumbnails and masks</span>
+<span class="n">segment</span><span class="o">.</span><span class="n">export_thumbs_and_masks</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="p">,</span>
+    <span class="n">mpp</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>   <span class="c1"># Microns-per-pixel resolution</span>
+    <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;path/to/output&#39;</span><span class="p">,</span>
+    <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;multiclass&#39;</span><span class="p">,</span>
+    <span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;tumor&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">,</span> <span class="s1">&#39;necrosis&#39;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="training-a-model">
+<h2>Training a Model<a class="headerlink" href="#training-a-model" title="Permalink to this heading">¶</a></h2>
+<p>Segmentation models are configured using a <code class="xref py py-class docutils literal notranslate"><span class="pre">segment.SegmentConfig</span></code> object. This object specifies the model architecture, image resolution (MPP), training parameters, and other settings. For example, to configure a model for multiclass segmentation with a resolution of 20 MPP, use:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">segment</span>
+
+<span class="c1"># Create a config object</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">segment</span><span class="o">.</span><span class="n">SegmentConfig</span><span class="p">(</span>
+    <span class="n">mpp</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>     <span class="c1"># Microns-per-pixel resolution</span>
+    <span class="n">size</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span>  <span class="c1"># Size of cropped/rotated images during training</span>
+    <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;multiclass&#39;</span><span class="p">,</span>
+    <span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;tumor&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">,</span> <span class="s1">&#39;necrosis&#39;</span><span class="p">],</span>
+    <span class="n">arch</span><span class="o">=</span><span class="s1">&#39;Unet&#39;</span><span class="p">,</span>
+    <span class="n">encoder_name</span><span class="o">=</span><span class="s1">&#39;resnet34&#39;</span><span class="p">,</span>
+    <span class="n">train_batch_size</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+    <span class="n">epochs</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">lr</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Slideflow uses the <a class="reference external" href="https://github.com/qubvel/segmentation_models.pytorch">segmentation_models_pytorch</a> library to implement segmentation models. The <code class="docutils literal notranslate"><span class="pre">arch</span></code> argument specifies the model architecture, and the <code class="docutils literal notranslate"><span class="pre">encoder_name</span></code> argument specifies the encoder backbone. See available models and encoders in the <a class="reference external" href="https://smp.readthedocs.io/en/latest/models.html">segmentation_models_pytorch documentation</a>.</p>
+<p>The segmentation model can then be trained using the <code class="xref py py-func docutils literal notranslate"><span class="pre">segment.train()</span></code> function. This function takes a <code class="xref py py-class docutils literal notranslate"><span class="pre">segment.SegmentConfig</span></code> object and a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> object as arguments. During training, segmentation thumbnails and masks are randomly cropped to the specified <code class="docutils literal notranslate"><span class="pre">size</span></code>, and images/masks then undergo augmentation with random flipping/rotating.</p>
+<p>For example, to train a model for binary segmentation with a resolution of 20 MPP, use:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">segment</span>
+
+<span class="c1"># Create a config object</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">segment</span><span class="o">.</span><span class="n">SegmentConfig</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;binary&#39;</span><span class="p">,</span> <span class="n">arch</span><span class="o">=</span><span class="s1">&#39;FPN&#39;</span><span class="p">)</span>
+
+<span class="c1"># Train the model</span>
+<span class="n">segment</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;path/to/output&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To use thumbnails and masks previously exported with <code class="xref py py-func docutils literal notranslate"><span class="pre">segment.export_thumbs_and_masks()</span></code>, specify the path to the exported data using the <code class="docutils literal notranslate"><span class="pre">data_source</span></code> argument. This is more computationally efficient than generating data on-the-fly during training. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">segment</span>
+
+<span class="c1"># Export thumbnails and masks</span>
+<span class="n">segment</span><span class="o">.</span><span class="n">export_thumbs_and_masks</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">mpp</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;masks/&#39;</span><span class="p">)</span>
+
+<span class="c1"># Create a config object</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">segment</span><span class="o">.</span><span class="n">SegmentConfig</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;binary&#39;</span><span class="p">,</span> <span class="n">arch</span><span class="o">=</span><span class="s1">&#39;FPN&#39;</span><span class="p">)</span>
+
+<span class="c1"># Train the model</span>
+<span class="n">segment</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">data_source</span><span class="o">=</span><span class="s1">&#39;masks/&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;path/to/output&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>After training, the model will be saved as a <code class="docutils literal notranslate"><span class="pre">model.pth</span></code> file in the destination directory specified by <code class="docutils literal notranslate"><span class="pre">dest</span></code>, and the model configuration will be saved as a <code class="docutils literal notranslate"><span class="pre">segment_config.json</span></code> file.</p>
+</section>
+<section id="model-inference">
+<h2>Model Inference<a class="headerlink" href="#model-inference" title="Permalink to this heading">¶</a></h2>
+<p>After training, models can be loaded using <code class="xref py py-func docutils literal notranslate"><span class="pre">segment.load_model_and_config()</span></code>. This function takes a path to a model file as an argument, and returns a tuple containing the model and configuration object. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">segment</span>
+
+<span class="c1"># Load the model and config</span>
+<span class="n">model</span><span class="p">,</span> <span class="n">config</span> <span class="o">=</span> <span class="n">segment</span><span class="o">.</span><span class="n">load_model_and_config</span><span class="p">(</span><span class="s1">&#39;path/to/model.pth&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To run inference on a slide, use the <code class="xref py py-meth docutils literal notranslate"><span class="pre">segment.SegmentModel.run_slide_inference()</span></code> method. This method takes a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code> object or str (path to slide) as an argument, and returns an array of pixel-level predictions. For binary models, the output shape will be <code class="docutils literal notranslate"><span class="pre">(H,</span> <span class="pre">W)</span></code>. For multiclass models, the output shape will be <code class="docutils literal notranslate"><span class="pre">(N+1,</span> <span class="pre">H,</span> <span class="pre">W)</span></code> (the first channel is predicted background), and for multilabel models, the output shape will be <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">H,</span> <span class="pre">W)</span></code>, where <code class="docutils literal notranslate"><span class="pre">N</span></code> is the number of labels.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">segment</span>
+
+<span class="c1"># Load the model and config</span>
+<span class="n">model</span><span class="p">,</span> <span class="n">config</span> <span class="o">=</span> <span class="n">segment</span><span class="o">.</span><span class="n">load_model_and_config</span><span class="p">(</span><span class="s1">&#39;path/to/model.pth&#39;</span><span class="p">)</span>
+
+<span class="c1"># Run inference, returning an np.ndarray</span>
+<span class="n">pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">run_slide_inference</span><span class="p">(</span><span class="s1">&#39;/path/to/slide&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can also run inference directly on an arbitrary image using the <code class="xref py py-meth docutils literal notranslate"><span class="pre">segment.SegmentModel.run_tiled_inference()</span></code> method. This method takes an image array (np.ndarray, in W, H, C format) as an argument, and returns an array of pixel-level predictions. Predictions are generated in tiles and merged. The output shape will be <code class="docutils literal notranslate"><span class="pre">(H,</span> <span class="pre">W)</span></code> for binary models, <code class="docutils literal notranslate"><span class="pre">(N+1,</span> <span class="pre">H,</span> <span class="pre">W)</span></code> for multiclass models, and <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">H,</span> <span class="pre">W)</span></code> for multilabel models.</p>
+</section>
+<section id="generating-qc-masks">
+<h2>Generating QC Masks<a class="headerlink" href="#generating-qc-masks" title="Permalink to this heading">¶</a></h2>
+<p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.slide.qc.Segment</span></code> class provides an easy interface for generating QC masks from a segmentation model. This class takes a path to a trained segmentation model as an argument, and can be used for QC <a class="reference internal" href="../slide_processing/#filtering"><span class="std std-ref">as previously described</span></a>. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
+
+<span class="c1"># Load a project and dataset</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="s1">&#39;path/to/project&#39;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="mi">299</span><span class="p">,</span> <span class="mi">302</span><span class="p">)</span>
+
+<span class="c1"># Create a QC mask</span>
+<span class="n">segmenter</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span><span class="s1">&#39;/path/to/model.pth&#39;</span><span class="p">)</span>
+
+<span class="c1"># Extract tiles with this QC</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">qc</span><span class="o">=</span><span class="n">segmenter</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can also use this interface for applying QC to a single slide:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
+
+<span class="c1"># Load the slide</span>
+<span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="s1">&#39;/path/to/slide&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Create the QC algorithm</span>
+<span class="n">segmenter</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span><span class="s1">&#39;/path/to/model.pth&#39;</span><span class="p">)</span>
+
+<span class="c1"># Apply QC</span>
+<span class="n">applied_mask</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">qc</span><span class="p">(</span><span class="n">segmenter</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For binary models, the QC mask will filter out tiles that are predicted to be background.</p>
+<p>For multiclass models, the QC mask will filter out tiles predicted to be background (class index 0). This can be customized by setting <code class="docutils literal notranslate"><span class="pre">class_idx</span></code> to another value. For example, to create a QC algorithm that filters out tiles predicted to be tumor (class index 1), use:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">segmenter</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span><span class="s1">&#39;/path/to/model.pth&#39;</span><span class="p">,</span> <span class="n">class_idx</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For multilabel models, the QC mask will filter out tiles predicted to be background for all class labels. This can be customized to filter out tiles based only on a specific class label by setting <code class="docutils literal notranslate"><span class="pre">class_idx</span></code>. For example, to create a QC algorithm that filters out tiles that are not predicted to be tumor (class index 1) while ignoring predictions for necrosis (class index 2), use:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">segmenter</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span><span class="s1">&#39;/path/to/model.pth&#39;</span><span class="p">,</span> <span class="n">class_idx</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In all cases, the thresholding direction can be reversed with by setting <code class="docutils literal notranslate"><span class="pre">threshold_direction='greater'</span></code>. This might be useful, for example, if the segmentation model was trained to identify pen marks or artifacts, and you want to filter out areas predicted to be artifacts.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">segmenter</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span><span class="s1">&#39;/path/to/model.pth&#39;</span><span class="p">,</span> <span class="n">threshold_direction</span><span class="o">=</span><span class="s1">&#39;greater&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="generating-rois">
+<h2>Generating ROIs<a class="headerlink" href="#generating-rois" title="Permalink to this heading">¶</a></h2>
+<p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.slide.qc.Segment</span></code> also provides an easy interface for generating regions of interest (ROIs). Use <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.slide.qc.Segment.generate_rois()</span></code> method to generate and apply ROIs to a slide. If the segmentation model is multiclass or multilabel, generated ROIs will be labeled. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
+
+<span class="c1"># Load a project and dataset</span>
+<span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="s1">&#39;/path/to/slide&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Create a QC mask</span>
+<span class="n">segmenter</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span><span class="s1">&#39;/path/to/model.pth&#39;</span><span class="p">)</span>
+
+<span class="c1"># Generate and apply ROIs to a slide</span>
+<span class="n">roi_outlines</span> <span class="o">=</span> <span class="n">segmenter</span><span class="o">.</span><span class="n">generate_rois</span><span class="p">(</span><span class="n">wsi</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>By default, this will apply generated ROIs directly to the <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code> object. If you wish to calculate ROI outlines without applying them to the slide, use the argument <code class="docutils literal notranslate"><span class="pre">apply=False</span></code>.</p>
+<p>In addition to generating ROIs for a single slide, you can also generate ROIs for an entire dataset using <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.generate_rois()</span></code>. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Load a project and dataset.</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="s1">&#39;path/to/project&#39;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">()</span>
+
+<span class="c1"># Generate ROIs for all slides in the dataset.</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">generate_rois</span><span class="p">(</span><span class="s1">&#39;path/to/model.pth&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>ROIs will be saved in the ROIs directory as configured in the dataset settings. Alternatively, ROIs can be exported to a user-defined directory using the <code class="docutils literal notranslate"><span class="pre">dest</span></code> argument.</p>
+<p>By default, ROIs will be generated for all slides in the dataset, skipping slides with existing ROIs. To overwrite any existing ROIs, use the <code class="docutils literal notranslate"><span class="pre">overwrite=True</span></code> argument.</p>
+</section>
+<section id="deployment-in-studio">
+<h2>Deployment in Studio<a class="headerlink" href="#deployment-in-studio" title="Permalink to this heading">¶</a></h2>
+
+    <video width="100%"  controls autoplay loop>
+    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/tissue_seg.mp4" type="video/mp4">
+    Video
+    </video>
+    <div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Segmentation models can be deployed in <a class="reference internal" href="../studio/#studio"><span class="std std-ref">Slideflow Studio</span></a> for live segmentation and QC. To do this, start by training a segmentation model as described above. Then, see the <a class="reference internal" href="../studio/#studio-segmentation"><span class="std std-ref">Tissue segmentation</span></a> documentation for instructions on how to deploy the model for live QC and/or ROI generation.</p>
+</section>
+<section id="complete-example">
+<h2>Complete Example<a class="headerlink" href="#complete-example" title="Permalink to this heading">¶</a></h2>
+<section id="label-rois">
+<h3>1. Label ROIs<a class="headerlink" href="#label-rois" title="Permalink to this heading">¶</a></h3>
+<p>Create labeled ROIs as described in <a class="reference internal" href="../studio/#studio-roi"><span class="std std-ref">ROI Annotations</span></a>.</p>
+</section>
+<section id="train-a-model">
+<h3>2. Train a model<a class="headerlink" href="#train-a-model" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">segment</span>
+
+<span class="c1"># Load a project and dataset</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="s1">&#39;path/to/project&#39;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">()</span>
+
+<span class="c1"># Train a binary segmentation model</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">segment</span><span class="o">.</span><span class="n">SegmentConfig</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;binary&#39;</span><span class="p">,</span> <span class="n">arch</span><span class="o">=</span><span class="s1">&#39;FPN&#39;</span><span class="p">)</span>
+<span class="n">segment</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;path/to/output&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="generate-rois-optional">
+<h3>3. Generate ROIs (optional)<a class="headerlink" href="#generate-rois-optional" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+
+<span class="c1"># Load a project and dataset.</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="s1">&#39;path/to/project&#39;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">dataset</span><span class="p">()</span>
+
+<span class="c1"># Generate ROIs for all slides in the dataset.</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">generate_rois</span><span class="p">(</span><span class="s1">&#39;path/to/model.pth&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="deploy-in-studio">
+<h3>4. Deploy in Studio<a class="headerlink" href="#deploy-in-studio" title="Permalink to this heading">¶</a></h3>
+<p>Use the model for either QC or ROI generation in Slideflow Studio, as described in <a class="reference internal" href="../studio/#studio-segmentation"><span class="std std-ref">Tissue segmentation</span></a>.</p>
+</section>
+</section>
+</section>
+
+
+             </article>
+
+            </div>
+            <footer>
+
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+        <a href="../cellseg/" class="btn btn-neutral float-right" title="Cell Segmentation" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+
+
+        <a href="../saliency/" class="btn btn-neutral" title="Saliency Maps" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+
+    </div>
+
+
+
+
+    <hr>
+
+
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2023, James M Dolezal.
+
+    </p>
+  </div>
+
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Tissue Segmentation</a><ul>
+<li><a class="reference internal" href="#segmentation-modes">Segmentation Modes</a></li>
+<li><a class="reference internal" href="#generating-data">Generating Data</a></li>
+<li><a class="reference internal" href="#training-a-model">Training a Model</a></li>
+<li><a class="reference internal" href="#model-inference">Model Inference</a></li>
+<li><a class="reference internal" href="#generating-qc-masks">Generating QC Masks</a></li>
+<li><a class="reference internal" href="#generating-rois">Generating ROIs</a></li>
+<li><a class="reference internal" href="#deployment-in-studio">Deployment in Studio</a></li>
+<li><a class="reference internal" href="#complete-example">Complete Example</a><ul>
+<li><a class="reference internal" href="#label-rois">1. Label ROIs</a></li>
+<li><a class="reference internal" href="#train-a-model">2. Train a model</a></li>
+<li><a class="reference internal" href="#generate-rois-optional">3. Generate ROIs (optional)</a></li>
+<li><a class="reference internal" href="#deploy-in-studio">4. Deploy in Studio</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+
+
+
+
+
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script src="../_static/sphinx_highlight.js"></script>
+
+
+
+  <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1/">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

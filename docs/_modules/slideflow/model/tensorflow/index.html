@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.model.tensorflow &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.model.tensorflow &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
@@ -311,10 +312,10 @@
 <span class="kn">import</span> <span class="nn">slideflow.model.base</span> <span class="k">as</span> <span class="nn">_base</span>
 <span class="kn">import</span> <span class="nn">slideflow.util.neptune_utils</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">NormFit</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">NormFit</span><span class="p">,</span> <span class="n">no_scope</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">tensorflow_utils</span> <span class="k">as</span> <span class="n">tf_utils</span>
-<span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">log_manifest</span><span class="p">,</span> <span class="n">no_scope</span><span class="p">,</span> <span class="n">BaseFeatureExtractor</span>
+<span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">log_manifest</span><span class="p">,</span> <span class="n">BaseFeatureExtractor</span>
 <span class="kn">from</span> <span class="nn">.tensorflow_utils</span> <span class="kn">import</span> <span class="n">unwrap</span><span class="p">,</span> <span class="n">flatten</span><span class="p">,</span> <span class="n">eval_from_model</span><span class="p">,</span> <span class="n">build_uq_model</span>  <span class="c1"># type: ignore</span>
 
 <span class="c1"># Set the tensorflow logger</span>
@@ -325,12 +326,7 @@
     <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;tensorflow&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">)</span>
     <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;TF_CPP_MIN_LOG_LEVEL&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;3&#39;</span>
 
-<span class="n">gpus</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">list_physical_devices</span><span class="p">(</span><span class="s1">&#39;GPU&#39;</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">gpu</span> <span class="ow">in</span> <span class="n">gpus</span><span class="p">:</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">tf</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">set_memory_growth</span><span class="p">(</span><span class="n">gpu</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
-    <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
-        <span class="k">pass</span>
+<span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">allow_gpu_memory_growth</span><span class="p">()</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
@@ -345,7 +341,7 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 
-<span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
+<div class="viewcode-block" id="ModelParams"><a class="viewcode-back" href="../../../../model_params/#slideflow.model.ModelParams">[docs]</a><span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a set of hyperparameters.&quot;&quot;&quot;</span>
 
     <span class="n">ModelDict</span> <span class="o">=</span> <span class="p">{</span>
@@ -582,7 +578,7 @@
         <span class="n">image_shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
         <span class="n">tile_input_tensor</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Input</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">image_shape</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;tile_image&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">pretrain</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using pretraining from [magenta]</span><span class="si">{</span><span class="n">pretrain</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using pretraining from [magenta]</span><span class="si">{</span><span class="n">pretrain</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">pretrain</span> <span class="ow">and</span> <span class="n">pretrain</span> <span class="o">!=</span> <span class="s1">&#39;imagenet&#39;</span><span class="p">:</span>
             <span class="n">pretrained_model</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="n">pretrain</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">load_method</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
@@ -926,7 +922,7 @@
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">LinearLossDict</span><span class="p">:</span>
             <span class="k">return</span> <span class="s1">&#39;linear&#39;</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;categorical&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;categorical&#39;</span></div>
 
 
 <span class="k">class</span> <span class="nc">_PredictionAndEvaluationCallback</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">callbacks</span><span class="o">.</span><span class="n">Callback</span><span class="p">):</span>
@@ -1331,7 +1327,7 @@
         <span class="p">)</span>
 
 
-<span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
+<div class="viewcode-block" id="Trainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.Trainer">[docs]</a><span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Base trainer class containing functionality for model building, input</span>
 <span class="sd">    processing, training, and evaluation.</span>
 
@@ -1735,6 +1731,7 @@
         <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;parquet&#39;</span><span class="p">,</span>
         <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
+        <span class="n">reduce_method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;pd.DataFrame&quot;</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform inference on a model, saving tile-level predictions.</span>
 
@@ -1761,6 +1758,17 @@
 <span class="sd">                If &#39;ignore&#39;, will extract tiles across the whole-slide</span>
 <span class="sd">                regardless of whether an ROI is available.</span>
 <span class="sd">                Defaults to &#39;auto&#39;.</span>
+<span class="sd">            reduce_method (str, optional): Reduction method for calculating</span>
+<span class="sd">                slide-level and patient-level predictions for categorical</span>
+<span class="sd">                outcomes. Options include &#39;average&#39;, &#39;mean&#39;, &#39;proportion&#39;,</span>
+<span class="sd">                &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.</span>
+<span class="sd">                &#39;average&#39; and &#39;mean&#39; are  synonymous, with both options kept</span>
+<span class="sd">                for backwards compatibility. If  &#39;average&#39; or &#39;mean&#39;, will</span>
+<span class="sd">                reduce with average of each logit across  tiles. If</span>
+<span class="sd">                &#39;proportion&#39;, will convert tile predictions into onehot encoding</span>
+<span class="sd">                then reduce by averaging these onehot values. For all other</span>
+<span class="sd">                values, will reduce with the specified function, applied via</span>
+<span class="sd">                the pandas ``DataFrame.agg()`` function. Defaults to &#39;average&#39;.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Dict[str, pd.DataFrame]: Dictionary with keys &#39;tile&#39;, &#39;slide&#39;, and</span>
@@ -1813,7 +1821,8 @@
             <span class="n">uq</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">uq</span><span class="p">),</span>
             <span class="n">num_tiles</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">num_tiles</span><span class="p">,</span>
             <span class="n">outcome_names</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">,</span>
-            <span class="n">patients</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patients</span>
+            <span class="n">patients</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patients</span><span class="p">,</span>
+            <span class="n">reduce_method</span><span class="o">=</span><span class="n">reduce_method</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="c1"># Save predictions</span>
         <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">save_dfs</span><span class="p">(</span><span class="n">dfs</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">)</span>
@@ -1824,7 +1833,7 @@
         <span class="n">dataset</span><span class="p">:</span> <span class="s2">&quot;sf.Dataset&quot;</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">save_predictions</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;parquet&#39;</span><span class="p">,</span>
-        <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
+        <span class="n">reduce_method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
         <span class="n">norm_fit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">NormFit</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">uq</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -1842,11 +1851,16 @@
 <span class="sd">                &#39;feather&#39;, or &#39;parquet&#39;. If False, will not save predictions.</span>
 <span class="sd">                Defaults to &#39;parquet&#39;.</span>
 <span class="sd">            reduce_method (str, optional): Reduction method for calculating</span>
-<span class="sd">                slide-level and patient-level predictions for categorical outcomes.</span>
-<span class="sd">                Either &#39;average&#39; or &#39;proportion&#39;. If &#39;average&#39;, will reduce with</span>
-<span class="sd">                average of each logit across tiles. If &#39;proportion&#39;, will convert</span>
-<span class="sd">                tile predictions into onehot encoding then reduce by averaging</span>
-<span class="sd">                these onehot values. Defaults to &#39;average&#39;.</span>
+<span class="sd">                slide-level and patient-level predictions for categorical</span>
+<span class="sd">                outcomes. Options include &#39;average&#39;, &#39;mean&#39;, &#39;proportion&#39;,</span>
+<span class="sd">                &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.</span>
+<span class="sd">                &#39;average&#39; and &#39;mean&#39; are  synonymous, with both options kept</span>
+<span class="sd">                for backwards compatibility. If  &#39;average&#39; or &#39;mean&#39;, will</span>
+<span class="sd">                reduce with average of each logit across  tiles. If</span>
+<span class="sd">                &#39;proportion&#39;, will convert tile predictions into onehot encoding</span>
+<span class="sd">                then reduce by averaging these onehot values. For all other</span>
+<span class="sd">                values, will reduce with the specified function, applied via</span>
+<span class="sd">                the pandas ``DataFrame.agg()`` function. Defaults to &#39;average&#39;.</span>
 <span class="sd">            norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit</span>
 <span class="sd">                parameters (e.g. target_means, target_stds) to values</span>
 <span class="sd">                (np.ndarray). If not provided, will fit normalizer using</span>
@@ -1976,7 +1990,7 @@
         <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">save_checkpoints</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">multi_gpu</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
+        <span class="n">reduce_method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
         <span class="n">norm_fit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">NormFit</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
@@ -2025,11 +2039,16 @@
 <span class="sd">            multi_gpu (bool, optional): Enable multi-GPU training using</span>
 <span class="sd">                Tensorflow/Keras MirroredStrategy.</span>
 <span class="sd">            reduce_method (str, optional): Reduction method for calculating</span>
-<span class="sd">                slide-level and patient-level predictions for categorical outcomes.</span>
-<span class="sd">                Either &#39;average&#39; or &#39;proportion&#39;. If &#39;average&#39;, will reduce with</span>
-<span class="sd">                average of each logit across tiles. If &#39;proportion&#39;, will convert</span>
-<span class="sd">                tile predictions into onehot encoding then reduce by averaging</span>
-<span class="sd">                these onehot values. Defaults to &#39;average&#39;.</span>
+<span class="sd">                slide-level and patient-level predictions for categorical</span>
+<span class="sd">                outcomes. Options include &#39;average&#39;, &#39;mean&#39;, &#39;proportion&#39;,</span>
+<span class="sd">                &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.</span>
+<span class="sd">                &#39;average&#39; and &#39;mean&#39; are  synonymous, with both options kept</span>
+<span class="sd">                for backwards compatibility. If  &#39;average&#39; or &#39;mean&#39;, will</span>
+<span class="sd">                reduce with average of each logit across  tiles. If</span>
+<span class="sd">                &#39;proportion&#39;, will convert tile predictions into onehot encoding</span>
+<span class="sd">                then reduce by averaging these onehot values. For all other</span>
+<span class="sd">                values, will reduce with the specified function, applied via</span>
+<span class="sd">                the pandas ``DataFrame.agg()`` function. Defaults to &#39;average&#39;.</span>
 <span class="sd">            norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit</span>
 <span class="sd">                parameters (e.g. target_means, target_stds) to values</span>
 <span class="sd">                (np.ndarray). If not provided, will fit normalizer using</span>
@@ -2304,10 +2323,10 @@
                 <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             <span class="k">del</span> <span class="n">mid_train_validation_data</span>
 
-            <span class="k">return</span> <span class="n">results</span>
+            <span class="k">return</span> <span class="n">results</span></div>
 
 
-<span class="k">class</span> <span class="nc">LinearTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
+<div class="viewcode-block" id="LinearTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.LinearTrainer">[docs]</a><span class="k">class</span> <span class="nc">LinearTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Extends the base :class:`slideflow.model.Trainer` class to add support</span>
 <span class="sd">    for linear/continuous outcomes. Requires that all outcomes be continuous,</span>
@@ -2353,10 +2372,10 @@
             <span class="p">)</span>
             <span class="n">image_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;slide_feature_input&#39;</span><span class="p">:</span> <span class="n">slide_feature_input_val</span><span class="p">})</span>
 
-        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span>
+        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span></div>
 
 
-<span class="k">class</span> <span class="nc">CPHTrainer</span><span class="p">(</span><span class="n">LinearTrainer</span><span class="p">):</span>
+<div class="viewcode-block" id="CPHTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.CPHTrainer">[docs]</a><span class="k">class</span> <span class="nc">CPHTrainer</span><span class="p">(</span><span class="n">LinearTrainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Cox Proportional Hazards model. Requires that the user provide event</span>
 <span class="sd">    data as the first input feature, and time to outcome as the linear outcome.</span>
@@ -2459,10 +2478,10 @@
                 <span class="n">image_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
                     <span class="p">{</span><span class="s1">&#39;slide_feature_input&#39;</span><span class="p">:</span> <span class="n">slide_feature_input_val</span><span class="p">}</span>
                 <span class="p">)</span>
-        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span>
+        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span></div>
 
 
-<span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
+<div class="viewcode-block" id="Features"><a class="viewcode-back" href="../../../../model/#slideflow.model.Features">[docs]</a><span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Interface for obtaining predictions and features from intermediate layer</span>
 <span class="sd">    activations from Slideflow models.</span>
 
@@ -2508,7 +2527,8 @@
         <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="s1">&#39;postconv&#39;</span><span class="p">,</span>
         <span class="n">include_preds</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;weights&#39;</span><span class="p">,</span>
-        <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Creates a features interface from a saved slideflow model which</span>
 <span class="sd">        outputs feature activations at the designated layers.</span>
@@ -2537,6 +2557,9 @@
             <span class="n">layers</span> <span class="o">=</span> <span class="p">[</span><span class="n">layers</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">layers</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">device</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">device</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;cuda&#39;</span><span class="p">,</span> <span class="s1">&#39;gpu&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_include_preds</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -2564,7 +2587,8 @@
         <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="s1">&#39;postconv&#39;</span><span class="p">,</span>
         <span class="n">include_preds</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">wsi_normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Creates a features interface from a loaded slideflow model which</span>
 <span class="sd">        outputs feature activations at the designated layers.</span>
@@ -2583,7 +2607,7 @@
 <span class="sd">                normalizer to use on whole-slide images. Not used on</span>
 <span class="sd">                individual tile datasets via __call__. Defaults to None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">layers</span><span class="p">,</span> <span class="n">include_preds</span><span class="p">)</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">layers</span><span class="p">,</span> <span class="n">include_preds</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="k">else</span><span class="p">:</span>
@@ -2665,7 +2689,8 @@
     <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
     <span class="k">def</span> <span class="nf">_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inp</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return activations for a single batch of images.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">inp</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="k">else</span> <span class="n">no_scope</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">inp</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_build</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -2765,7 +2790,7 @@
                 <span class="s1">&#39;include_preds&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_include_preds</span><span class="p">,</span>
                 <span class="s1">&#39;pooling&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span>
             <span class="p">}</span>
-        <span class="p">}</span>
+        <span class="p">}</span></div>
 
 <span class="k">class</span> <span class="nc">UncertaintyInterface</span><span class="p">(</span><span class="n">Features</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
@@ -2855,7 +2880,7 @@
             <span class="p">}</span>
         <span class="p">}</span>
 
-<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_tensorflow/#slideflow.model.tensorflow.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span>
+<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_tensorflow/#slideflow.model.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span>
     <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;weights&#39;</span><span class="p">,</span>
     <span class="n">custom_objects</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>

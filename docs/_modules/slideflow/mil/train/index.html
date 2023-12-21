@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.mil.train &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.mil.train &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
@@ -434,9 +435,10 @@
             <span class="n">exp_label</span> <span class="o">=</span> <span class="s1">&#39;no_label&#39;</span>
 
     <span class="c1"># Set up output model directory</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
-    <span class="n">outdir</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">create_new_model_dir</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">exp_label</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
+        <span class="n">outdir</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">create_new_model_dir</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">exp_label</span><span class="p">)</span>
 
     <span class="c1"># Execute training.</span>
     <span class="k">return</span> <span class="n">train_fn</span><span class="p">(</span>
@@ -490,9 +492,10 @@
             <span class="n">exp_label</span> <span class="o">=</span> <span class="s1">&#39;no_label&#39;</span>
 
     <span class="c1"># Set up output model directory</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
-    <span class="n">outdir</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">create_new_model_dir</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">exp_label</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
+        <span class="n">outdir</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">create_new_model_dir</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">exp_label</span><span class="p">)</span>
 
     <span class="c1"># Prepare validation bags and targets.</span>
     <span class="n">val_labels</span><span class="p">,</span> <span class="n">val_unique</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;id&#39;</span><span class="p">)</span>
@@ -548,12 +551,13 @@
     <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">categorical_metrics</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">)</span>
 
     <span class="c1"># Export predictions.</span>
-    <span class="n">pred_out</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;predictions.parquet&#39;</span><span class="p">)</span>
-    <span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">pred_out</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions saved to [green]</span><span class="si">{</span><span class="n">pred_out</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">pred_out</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;predictions.parquet&#39;</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">pred_out</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions saved to [green]</span><span class="si">{</span><span class="n">pred_out</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
 
     <span class="c1"># Export attention.</span>
-    <span class="k">if</span> <span class="n">y_att</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">y_att</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
         <span class="n">_export_attention</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;attention&#39;</span><span class="p">),</span> <span class="n">y_att</span><span class="p">,</span> <span class="n">df</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">learner</span>
@@ -614,9 +618,10 @@
     <span class="kn">from</span> <span class="nn">slideflow.clam</span> <span class="kn">import</span> <span class="n">CLAM_Dataset</span>
 
     <span class="c1"># Set up results directory</span>
-    <span class="n">results_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;results&#39;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">results_dir</span><span class="p">):</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">results_dir</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">results_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;results&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">results_dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">results_dir</span><span class="p">)</span>
 
     <span class="c1"># Set up labels.</span>
     <span class="n">labels</span><span class="p">,</span> <span class="n">unique_train</span> <span class="o">=</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">use_float</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -638,12 +643,13 @@
         <span class="n">train_bags</span> <span class="o">=</span> <span class="n">val_bags</span> <span class="o">=</span> <span class="n">bags</span>
 
     <span class="c1"># Write slide/bag manifest</span>
-    <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">log_manifest</span><span class="p">(</span>
-        <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">train_bags</span><span class="p">],</span>
-        <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">val_bags</span><span class="p">],</span>
-        <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
-        <span class="n">filename</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.csv&#39;</span><span class="p">),</span>
-    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">log_manifest</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">train_bags</span><span class="p">],</span>
+            <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">val_bags</span><span class="p">],</span>
+            <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+            <span class="n">filename</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.csv&#39;</span><span class="p">),</span>
+        <span class="p">)</span>
 
     <span class="c1"># Set up datasets.</span>
     <span class="n">train_mil_dataset</span> <span class="o">=</span> <span class="n">CLAM_Dataset</span><span class="p">(</span>
@@ -676,7 +682,8 @@
         <span class="p">)</span>
 
     <span class="c1"># Save clam settings</span>
-    <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">clam_args</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;experiment.json&#39;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">clam_args</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;experiment.json&#39;</span><span class="p">))</span>
 
     <span class="c1"># Save MIL settings</span>
     <span class="n">_log_mil_params</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">unique_labels</span><span class="p">,</span> <span class="n">bags</span><span class="p">,</span> <span class="n">num_features</span><span class="p">,</span> <span class="n">clam_args</span><span class="o">.</span><span class="n">n_classes</span><span class="p">,</span> <span class="n">outdir</span><span class="p">)</span>
@@ -696,9 +703,10 @@
         <span class="n">bags</span><span class="o">=</span><span class="n">bags</span><span class="p">,</span>
         <span class="n">attention</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
-    <span class="n">pred_out</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;results&#39;</span><span class="p">,</span> <span class="s1">&#39;predictions.parquet&#39;</span><span class="p">)</span>
-    <span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">pred_out</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions saved to [green]</span><span class="si">{</span><span class="n">pred_out</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">pred_out</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;results&#39;</span><span class="p">,</span> <span class="s1">&#39;predictions.parquet&#39;</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">pred_out</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions saved to [green]</span><span class="si">{</span><span class="n">pred_out</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
 
     <span class="c1"># Print categorical metrics, including per-category accuracy</span>
     <span class="n">outcome_name</span> <span class="o">=</span> <span class="n">outcomes</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outcomes</span><span class="p">)</span>
@@ -715,7 +723,7 @@
         <span class="n">val_bags</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
 
     <span class="c1"># Export attention to numpy arrays</span>
-    <span class="k">if</span> <span class="n">attention</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
         <span class="n">_export_attention</span><span class="p">(</span>
             <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;attention&#39;</span><span class="p">),</span>
             <span class="n">attention</span><span class="p">,</span>
@@ -723,7 +731,7 @@
         <span class="p">)</span>
 
     <span class="c1"># Save attention heatmaps</span>
-    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">attention_heatmaps</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">attention_heatmaps</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_bags</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">attention</span><span class="p">)</span>
         <span class="n">generate_attention_heatmaps</span><span class="p">(</span>
             <span class="n">outdir</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;heatmaps&#39;</span><span class="p">),</span>
@@ -798,7 +806,7 @@
             <span class="n">labels</span><span class="p">,</span>
             <span class="n">train_slides</span><span class="p">,</span>
             <span class="n">val_slides</span><span class="p">,</span>
-            <span class="n">log_manifest</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.csv&#39;</span><span class="p">)</span>
+            <span class="n">log_manifest</span><span class="o">=</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.csv&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">outdir</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
         <span class="p">)</span>
 
     <span class="k">elif</span> <span class="n">config</span><span class="o">.</span><span class="n">aggregation_level</span> <span class="o">==</span> <span class="s1">&#39;patient&#39;</span><span class="p">:</span>
@@ -816,7 +824,7 @@
             <span class="n">train_slides</span><span class="p">,</span>
             <span class="n">val_slides</span><span class="p">,</span>
             <span class="n">slide_to_patient</span><span class="o">=</span><span class="n">slide_to_patient</span><span class="p">,</span>
-            <span class="n">log_manifest</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.csv&#39;</span><span class="p">)</span>
+            <span class="n">log_manifest</span><span class="o">=</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.csv&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">outdir</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
         <span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Aggregated </span><span class="si">{</span><span class="n">n_slide_bags</span><span class="si">}</span><span class="s2"> slide bags to </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span><span class="si">}</span><span class="s2"> patient bags.&quot;</span><span class="p">)</span>
 
@@ -888,13 +896,14 @@
     <span class="n">val_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">train_slides</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_slides</span><span class="p">))</span>
 
     <span class="c1"># Write the slide manifest</span>
-    <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">log_manifest</span><span class="p">(</span>
-        <span class="n">train_slides</span><span class="p">,</span>
-        <span class="n">val_slides</span><span class="p">,</span>
-        <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
-        <span class="n">filename</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.csv&#39;</span><span class="p">),</span>
-        <span class="n">remove_extension</span><span class="o">=</span><span class="kc">False</span>
-    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">log_manifest</span><span class="p">(</span>
+            <span class="n">train_slides</span><span class="p">,</span>
+            <span class="n">val_slides</span><span class="p">,</span>
+            <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+            <span class="n">filename</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.csv&#39;</span><span class="p">),</span>
+            <span class="n">remove_extension</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
 
     <span class="c1"># Print a multi-modal dataset summary.</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
@@ -956,6 +965,7 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mil&#39;</span><span class="p">,</span>
     <span class="n">attention_heatmaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">uq</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="o">**</span><span class="n">heatmap_kwargs</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Train an aMIL model using FastAI.</span>
@@ -1034,11 +1044,13 @@
         <span class="n">dataset</span><span class="o">=</span><span class="n">val_dataset</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
         <span class="n">bags</span><span class="o">=</span><span class="n">val_bags</span><span class="p">,</span>
-        <span class="n">attention</span><span class="o">=</span><span class="kc">True</span>
+        <span class="n">attention</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">uq</span><span class="o">=</span><span class="n">uq</span>
     <span class="p">)</span>
-    <span class="n">pred_out</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;predictions.parquet&#39;</span><span class="p">)</span>
-    <span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">pred_out</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions saved to [green]</span><span class="si">{</span><span class="n">pred_out</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">pred_out</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;predictions.parquet&#39;</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">pred_out</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions saved to [green]</span><span class="si">{</span><span class="n">pred_out</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
 
     <span class="c1"># Print categorical metrics, including per-category accuracy</span>
     <span class="n">outcome_name</span> <span class="o">=</span> <span class="n">outcomes</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outcomes</span><span class="p">)</span>
@@ -1049,7 +1061,7 @@
     <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">categorical_metrics</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">)</span>
 
     <span class="c1"># Export attention to numpy arrays</span>
-    <span class="k">if</span> <span class="n">attention</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
         <span class="n">_export_attention</span><span class="p">(</span>
             <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;attention&#39;</span><span class="p">),</span>
             <span class="n">attention</span><span class="p">,</span>
@@ -1057,7 +1069,7 @@
         <span class="p">)</span>
 
     <span class="c1"># Attention heatmaps.</span>
-    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">attention_heatmaps</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">attention_heatmaps</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
         <span class="n">generate_attention_heatmaps</span><span class="p">(</span>
             <span class="n">outdir</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;heatmaps&#39;</span><span class="p">),</span>
             <span class="n">dataset</span><span class="o">=</span><span class="n">val_dataset</span><span class="p">,</span>
@@ -1070,7 +1082,7 @@
 
 <span class="c1"># ------------------------------------------------------------------------------</span>
 
-<span class="k">def</span> <span class="nf">_log_mil_params</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">unique</span><span class="p">,</span> <span class="n">bags</span><span class="p">,</span> <span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">,</span> <span class="n">outdir</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_log_mil_params</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">unique</span><span class="p">,</span> <span class="n">bags</span><span class="p">,</span> <span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log MIL parameters to JSON.&quot;&quot;&quot;</span>
     <span class="n">mil_params</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">json_dump</span><span class="p">()</span>
     <span class="n">mil_params</span><span class="p">[</span><span class="s1">&#39;outcomes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">outcomes</span>
@@ -1096,7 +1108,8 @@
                 <span class="n">mil_params</span><span class="p">[</span><span class="s1">&#39;bags_extractor&#39;</span><span class="p">][</span><span class="n">b</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">mil_params</span><span class="p">[</span><span class="s1">&#39;bags_extractor&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">mil_params</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;mil_params.json&#39;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">mil_params</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;mil_params.json&#39;</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">mil_params</span>
 </pre></div>
 

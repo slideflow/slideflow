@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.io.torch.iterable &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.io.torch.iterable &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../troubleshooting/">Troubleshooting</a></li>
@@ -430,6 +431,10 @@
 <span class="sd">            tfrecord_parser (Callable, optional): Custom parser for TFRecords.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">normalizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">normalizer</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">StainNormalizer</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Expected normalizer to be type StainNormalizer, got: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">normalizer</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">string_</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">prob_weights</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">prob_weights</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">prob_weights</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clip</span> <span class="o">=</span> <span class="n">clip</span>

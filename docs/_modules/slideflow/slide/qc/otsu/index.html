@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.slide.qc.otsu &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.slide.qc.otsu &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../troubleshooting/">Troubleshooting</a></li>
@@ -396,8 +397,10 @@
 
         <span class="k">try</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">wsi</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">has_levels</span><span class="p">:</span>
+                <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Applying Otsu&#39;s thresholding at level=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">level</span><span class="p">))</span>
                 <span class="n">thumb</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">read_level</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">,</span> <span class="n">to_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
+                <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Applying Otsu&#39;s thresholding at level=None&quot;</span><span class="p">)</span>
                 <span class="n">thumb</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">read_level</span><span class="p">(</span><span class="n">to_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">QCError</span><span class="p">(</span>
@@ -418,6 +421,8 @@
                 <span class="n">scaled_polys</span><span class="p">,</span>
                 <span class="n">out_shape</span><span class="o">=</span><span class="n">thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
             <span class="p">)</span>
+            <span class="k">if</span> <span class="n">wsi</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;outside&#39;</span><span class="p">:</span>
+                <span class="n">roi_mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">roi_mask</span>
             <span class="n">thumb</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">bitwise_or</span><span class="p">(</span>
                 <span class="n">thumb</span><span class="p">,</span>
                 <span class="n">thumb</span><span class="p">,</span>

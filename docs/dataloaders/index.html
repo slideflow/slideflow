@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Dataloaders: Sampling and Augmentation &mdash; slideflow 2.2.0 documentation</title>
+  <title>Dataloaders: Sampling and Augmentation &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -157,7 +157,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
@@ -166,6 +165,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
@@ -290,7 +291,7 @@
               
   <section id="dataloaders-sampling-and-augmentation">
 <span id="dataloaders"></span><h1>Dataloaders: Sampling and Augmentation<a class="headerlink" href="#dataloaders-sampling-and-augmentation" title="Permalink to this heading">¶</a></h1>
-<p>With support for both Tensorflow and PyTorch, Slideflow provides several options for dataset sampling, processing, and augmentation. Here, we’ll review the options available for each framework. In all cases, data are read from TFRecords generated through <a class="reference internal" href="../slide_processing/#filtering"><span class="std std-ref">Slide Processing</span></a>. The TFRecord data format is discussed in more detail in the <a class="reference internal" href="../tfrecords/#tfrecords"><span class="std std-ref">TFRecords: Reading and Writing</span></a> note.</p>
+<p>With support for both Tensorflow and PyTorch, Slideflow provides several options for dataset sampling, processing, and augmentation. Here, we’ll review the options for creating dataloaders - objects that read and process TFRecord data and return images and labels - in each framework. In all cases, data are read from TFRecords generated through <a class="reference internal" href="../slide_processing/#filtering"><span class="std std-ref">Slide Processing</span></a>. The TFRecord data format is discussed in more detail in the <a class="reference internal" href="../tfrecords/#tfrecords"><span class="std std-ref">TFRecords: Reading and Writing</span></a> note.</p>
 <section id="tensorflow">
 <h2>Tensorflow<a class="headerlink" href="#tensorflow" title="Permalink to this heading">¶</a></h2>
 <p>The <a class="reference internal" href="../dataset/#slideflow.Dataset.tensorflow" title="slideflow.Dataset.tensorflow"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.tensorflow()</span></code></a> method provides an easy interface for creating a <code class="docutils literal notranslate"><span class="pre">tf.data.Dataset</span></code> that reads and interleaves from tfrecords in a Slideflow dataset. Behind the scenes, this method uses the <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset"><code class="docutils literal notranslate"><span class="pre">tf.data.TFRecordDataset</span></code></a> class for reading and parsing each TFRecord.</p>
@@ -307,6 +308,7 @@
 <span class="n">labels</span><span class="p">,</span> <span class="n">unique_labels</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">)</span>
 
 <span class="c1"># Create a tensorflow dataset</span>
+<span class="c1"># that yields (image, label) tuples</span>
 <span class="n">tf_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
 
 <span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">tf_dataset</span><span class="p">:</span>
@@ -336,7 +338,7 @@
 <li><p><strong>resize_aa</strong> (bool): Enable antialiasing if resizing. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
 <li><p><strong>normalizer</strong> (<code class="docutils literal notranslate"><span class="pre">StainNormalizer</span></code>): Perform stain normalization.</p></li>
 <li><dl class="simple">
-<dt><strong>augment</strong> (str): Perform augmentations based on the provided string. Options include:</dt><dd><ul>
+<dt><strong>augment</strong> (str): Perform augmentations based on the provided string. Combine characters to perform multiple augmentations (e.g. <code class="docutils literal notranslate"><span class="pre">'xyrj'</span></code>). Options include:</dt><dd><ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">'n'</span></code>: Perform <a class="reference internal" href="../norm/#stain-augmentation"><span class="std std-ref">Stain Augmentation</span></a> (done concurrently with stain normalization)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">'j'</span></code>: Random JPEG compression (50% chance to compress with quality between 50-100)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">'r'</span></code>: Random 90-degree rotation</p></li>
@@ -348,7 +350,7 @@
 </dl>
 </li>
 <li><p><strong>transform</strong> (Any): Arbitrary function to apply to each image. The function must accept a single argument (the image) and return a single value (the transformed image).</p></li>
-<li><p><strong>standardize</strong> (bool): Standardize images with <code class="docutils literal notranslate"><span class="pre">tf.image.per_image_standardization()</span></code>, returning a <code class="docutils literal notranslate"><span class="pre">tf.float32</span></code> image. Default is <code class="docutils literal notranslate"><span class="pre">False</span></code>, returning a <code class="docutils literal notranslate"><span class="pre">tf.uint8</span></code> image.</p></li>
+<li><p><strong>standardize</strong> (bool): Standardize images with <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/image/per_image_standardization"><code class="docutils literal notranslate"><span class="pre">tf.image.per_image_standardization()</span></code></a>, returning a <code class="docutils literal notranslate"><span class="pre">tf.float32</span></code> image. Default is <code class="docutils literal notranslate"><span class="pre">False</span></code>, returning a <code class="docutils literal notranslate"><span class="pre">tf.uint8</span></code> image.</p></li>
 </ul>
 </section>
 <section id="dataset-sharding">
@@ -368,7 +370,7 @@
 <h2>PyTorch<a class="headerlink" href="#pytorch" title="Permalink to this heading">¶</a></h2>
 <p>As with Tensorflow, the <a class="reference internal" href="../dataset/#slideflow.Dataset.torch" title="slideflow.Dataset.torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.torch()</span></code></a> method creates a <a class="reference external" href="https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"><code class="docutils literal notranslate"><span class="pre">torch.utils.data.DataLoader</span></code></a> that reads images from TFRecords. In the backend, TFRecords are read using <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.tfrecord.torch.MultiTFRecordDataset()</span></code> and processed as described in <a class="reference internal" href="../tfrecords/#tfrecords"><span class="std std-ref">TFRecords: Reading and Writing</span></a>.</p>
 <p>The returned <a class="reference external" href="https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"><code class="docutils literal notranslate"><span class="pre">torch.utils.data.DataLoader</span></code></a> is an iterable-only dataloader whose returned values depend on the arguments provided to the <code class="docutils literal notranslate"><span class="pre">.torch()</span></code> function. An indexable, map-style dataset is also available when using PyTorch, as described in <a class="reference internal" href="#indexable-dataloader"><span class="std std-ref">Direct indexing</span></a>.</p>
-<p>If no arguments are provided, the returned dataloader will yield a tuple of <code class="docutils literal notranslate"><span class="pre">(image,</span> <span class="pre">None)</span></code>, where the image is a <code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code> of shape <code class="docutils literal notranslate"><span class="pre">[num_channels,</span> <span class="pre">tile_height,</span> <span class="pre">tile_width]</span></code> and type <code class="docutils literal notranslate"><span class="pre">torch.uint8</span></code>. Labels are assigned as described above. Slide names and tile location can also be returned, using the same arguments as described previously.</p>
+<p>If no arguments are provided, the returned dataloader will yield a tuple of <code class="docutils literal notranslate"><span class="pre">(image,</span> <span class="pre">None)</span></code>, where the image is a <code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code> of shape <code class="docutils literal notranslate"><span class="pre">[num_channels,</span> <span class="pre">tile_height,</span> <span class="pre">tile_width]</span></code> and type <code class="docutils literal notranslate"><span class="pre">torch.uint8</span></code>. Labels are assigned as described above. Slide names and tile location can also be returned, using the same arguments as <a class="reference external" href="https://slideflow.dev/dataloaders/#slide-names-and-tile-locations">described above</a>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 
 <span class="c1"># Create a dataset object</span>
@@ -389,7 +391,7 @@
 <ul class="simple">
 <li><p><strong>normalizer</strong> (<code class="docutils literal notranslate"><span class="pre">StainNormalizer</span></code>): Perform stain normalization.</p></li>
 <li><dl class="simple">
-<dt><strong>augment</strong> (str): Perform augmentations based on the provided string, in the order characters appear in the string. Options include:</dt><dd><ul>
+<dt><strong>augment</strong> (str): Perform augmentations based on the provided string. Combine characters to perform multiple augmentations (e.g. <code class="docutils literal notranslate"><span class="pre">'xyrj'</span></code>). Augmentations are executed in the order characters appear in the string. Options include:</dt><dd><ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">'n'</span></code>: Perform <a class="reference internal" href="../norm/#stain-augmentation"><span class="std std-ref">Stain Augmentation</span></a> (done concurrently with stain normalization)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">'j'</span></code>: Random JPEG compression (50% chance to compress with quality between 50-100)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">'r'</span></code>: Random 90-degree rotation</p></li>
@@ -579,7 +581,7 @@
 </section>
 <section id="direct-indexing">
 <span id="indexable-dataloader"></span><h2>Direct indexing<a class="headerlink" href="#direct-indexing" title="Permalink to this heading">¶</a></h2>
-<p>An indexable, map-style dataloader can be created for PyTorch using <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.io.IndexedInterleaver</span></code>, which returns a <code class="docutils literal notranslate"><span class="pre">torch.utils.data.Dataset</span></code>. Indexable datasets are only available for the PyTorch backend.</p>
+<p>An indexable, map-style dataloader can be created for PyTorch using <a class="reference internal" href="../io_torch/#slideflow.io.torch.IndexedInterleaver" title="slideflow.io.torch.IndexedInterleaver"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.io.torch.IndexedInterleaver</span></code></a>, which returns a <code class="docutils literal notranslate"><span class="pre">torch.utils.data.Dataset</span></code>. Indexable datasets are only available for the PyTorch backend.</p>
 <p>This indexable dataset is created from a list of TFRecords and accepts many arguments for controlling labels, augmentation and image transformations.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> <span class="n">IndexedInterleaver</span>
 

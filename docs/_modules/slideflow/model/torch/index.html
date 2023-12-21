@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.model.torch &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.model.torch &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
@@ -314,8 +315,8 @@
 <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">base</span> <span class="k">as</span> <span class="n">_base</span>
 <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">torch_utils</span>
 <span class="kn">from</span> <span class="nn">slideflow.model.torch_utils</span> <span class="kn">import</span> <span class="n">autocast</span>
-<span class="kn">from</span> <span class="nn">slideflow.model.base</span> <span class="kn">import</span> <span class="n">log_manifest</span><span class="p">,</span> <span class="n">no_scope</span><span class="p">,</span> <span class="n">BaseFeatureExtractor</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">NormFit</span><span class="p">,</span> <span class="n">ImgBatchSpeedColumn</span>
+<span class="kn">from</span> <span class="nn">slideflow.model.base</span> <span class="kn">import</span> <span class="n">log_manifest</span><span class="p">,</span> <span class="n">BaseFeatureExtractor</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">NormFit</span><span class="p">,</span> <span class="n">ImgBatchSpeedColumn</span><span class="p">,</span> <span class="n">no_scope</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
@@ -493,7 +494,7 @@
         <span class="k">return</span> <span class="n">out</span>  <span class="c1"># , x</span>
 
 
-<div class="viewcode-block" id="ModelParams"><a class="viewcode-back" href="../../../../model_params/#slideflow.model.ModelParams">[docs]</a><span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a set of hyperparameters.&quot;&quot;&quot;</span>
 
     <span class="n">ModelDict</span> <span class="o">=</span> <span class="p">{</span>
@@ -617,7 +618,7 @@
 
         <span class="c1"># Prepare custom model pretraining</span>
         <span class="k">if</span> <span class="n">pretrain</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using pretraining: [green]</span><span class="si">{</span><span class="n">pretrain</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using pretraining: [green]</span><span class="si">{</span><span class="n">pretrain</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">pretrain</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
            <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">pretrain</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;zip&#39;</span><span class="p">):</span>
            <span class="n">_pretrained</span> <span class="o">=</span> <span class="n">pretrain</span>
@@ -682,10 +683,10 @@
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">LinearLossDict</span><span class="p">:</span>
             <span class="k">return</span> <span class="s1">&#39;linear&#39;</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;categorical&#39;</span></div>
+            <span class="k">return</span> <span class="s1">&#39;categorical&#39;</span>
 
 
-<div class="viewcode-block" id="Trainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.Trainer">[docs]</a><span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
+<span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Base trainer class containing functionality for model building, input</span>
 <span class="sd">    processing, training, and evaluation.</span>
 
@@ -1612,9 +1613,12 @@
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
         <span class="c1"># Use GPU stain normalization for PyTorch normalizers, if supported</span>
+        <span class="n">_augment_str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">augment</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_gpu_normalizer</span><span class="p">():</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using GPU for stain normalization&quot;</span><span class="p">)</span>
             <span class="n">interleave_args</span><span class="o">.</span><span class="n">standardize</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_augment_str</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">_augment_str</span> <span class="o">=</span> <span class="n">_augment_str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;n&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">interleave_args</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span>
 
@@ -1623,7 +1627,7 @@
                 <span class="s1">&#39;train&#39;</span><span class="p">:</span> <span class="nb">iter</span><span class="p">(</span><span class="n">train_dts</span><span class="o">.</span><span class="n">torch</span><span class="p">(</span>
                     <span class="n">infinite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
-                    <span class="n">augment</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">augment</span><span class="p">,</span>
+                    <span class="n">augment</span><span class="o">=</span><span class="n">_augment_str</span><span class="p">,</span>
                     <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
                     <span class="n">drop_last</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="o">**</span><span class="nb">vars</span><span class="p">(</span><span class="n">interleave_args</span><span class="p">)</span>
@@ -1837,6 +1841,7 @@
         <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;parquet&#39;</span><span class="p">,</span>
         <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
+        <span class="n">reduce_method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;pd.DataFrame&quot;</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform inference on a model, saving predictions.</span>
 
@@ -1863,6 +1868,17 @@
 <span class="sd">                If &#39;ignore&#39;, will extract tiles across the whole-slide</span>
 <span class="sd">                regardless of whether an ROI is available.</span>
 <span class="sd">                Defaults to &#39;auto&#39;.</span>
+<span class="sd">            reduce_method (str, optional): Reduction method for calculating</span>
+<span class="sd">                slide-level and patient-level predictions for categorical</span>
+<span class="sd">                outcomes. Options include &#39;average&#39;, &#39;mean&#39;, &#39;proportion&#39;,</span>
+<span class="sd">                &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.</span>
+<span class="sd">                &#39;average&#39; and &#39;mean&#39; are  synonymous, with both options kept</span>
+<span class="sd">                for backwards compatibility. If  &#39;average&#39; or &#39;mean&#39;, will</span>
+<span class="sd">                reduce with average of each logit across  tiles. If</span>
+<span class="sd">                &#39;proportion&#39;, will convert tile predictions into onehot encoding</span>
+<span class="sd">                then reduce by averaging these onehot values. For all other</span>
+<span class="sd">                values, will reduce with the specified function, applied via</span>
+<span class="sd">                the pandas ``DataFrame.agg()`` function. Defaults to &#39;average&#39;.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Dict[str, pd.DataFrame]: Dictionary with keys &#39;tile&#39;, &#39;slide&#39;, and</span>
@@ -1920,7 +1936,8 @@
             <span class="n">torch_args</span><span class="o">=</span><span class="n">torch_args</span><span class="p">,</span>
             <span class="n">outcome_names</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">,</span>
             <span class="n">uq</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">uq</span><span class="p">),</span>
-            <span class="n">patients</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patients</span>
+            <span class="n">patients</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patients</span><span class="p">,</span>
+            <span class="n">reduce_method</span><span class="o">=</span><span class="n">reduce_method</span>
         <span class="p">)</span>
         <span class="c1"># Save predictions</span>
         <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">save_dfs</span><span class="p">(</span><span class="n">dfs</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">)</span>
@@ -1934,7 +1951,7 @@
         <span class="n">dataset</span><span class="p">:</span> <span class="s2">&quot;sf.Dataset&quot;</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">save_predictions</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;parquet&#39;</span><span class="p">,</span>
-        <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
+        <span class="n">reduce_method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
         <span class="n">norm_fit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">NormFit</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">uq</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -1951,11 +1968,16 @@
 <span class="sd">                &#39;feather&#39;, or &#39;parquet&#39;. If False, will not save predictions.</span>
 <span class="sd">                Defaults to &#39;parquet&#39;.</span>
 <span class="sd">            reduce_method (str, optional): Reduction method for calculating</span>
-<span class="sd">                slide-level and patient-level predictions for categorical outcomes.</span>
-<span class="sd">                Either &#39;average&#39; or &#39;proportion&#39;. If &#39;average&#39;, will reduce with</span>
-<span class="sd">                average of each logit across tiles. If &#39;proportion&#39;, will convert</span>
-<span class="sd">                tile predictions into onehot encoding then reduce by averaging</span>
-<span class="sd">                these onehot values. Defaults to &#39;average&#39;.</span>
+<span class="sd">                slide-level and patient-level predictions for categorical</span>
+<span class="sd">                outcomes. Options include &#39;average&#39;, &#39;mean&#39;, &#39;proportion&#39;,</span>
+<span class="sd">                &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.</span>
+<span class="sd">                &#39;average&#39; and &#39;mean&#39; are  synonymous, with both options kept</span>
+<span class="sd">                for backwards compatibility. If  &#39;average&#39; or &#39;mean&#39;, will</span>
+<span class="sd">                reduce with average of each logit across  tiles. If</span>
+<span class="sd">                &#39;proportion&#39;, will convert tile predictions into onehot encoding</span>
+<span class="sd">                then reduce by averaging these onehot values. For all other</span>
+<span class="sd">                values, will reduce with the specified function, applied via</span>
+<span class="sd">                the pandas ``DataFrame.agg()`` function. Defaults to &#39;average&#39;.</span>
 <span class="sd">            norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit</span>
 <span class="sd">                parameters (e.g. target_means, target_stds) to values</span>
 <span class="sd">                (np.ndarray). If not provided, will fit normalizer using</span>
@@ -2056,7 +2078,7 @@
         <span class="n">save_checkpoints</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">multi_gpu</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">norm_fit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">NormFit</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
+        <span class="n">reduce_method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
         <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
@@ -2103,11 +2125,16 @@
 <span class="sd">                (np.ndarray). If not provided, will fit normalizer using</span>
 <span class="sd">                model params (if applicable). Defaults to None.</span>
 <span class="sd">            reduce_method (str, optional): Reduction method for calculating</span>
-<span class="sd">                slide-level and patient-level predictions for categorical outcomes.</span>
-<span class="sd">                Either &#39;average&#39; or &#39;proportion&#39;. If &#39;average&#39;, will reduce with</span>
-<span class="sd">                average of each logit across tiles. If &#39;proportion&#39;, will convert</span>
-<span class="sd">                tile predictions into onehot encoding then reduce by averaging</span>
-<span class="sd">                these onehot values. Defaults to &#39;average&#39;.</span>
+<span class="sd">                slide-level and patient-level predictions for categorical</span>
+<span class="sd">                outcomes. Options include &#39;average&#39;, &#39;mean&#39;, &#39;proportion&#39;,</span>
+<span class="sd">                &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.</span>
+<span class="sd">                &#39;average&#39; and &#39;mean&#39; are  synonymous, with both options kept</span>
+<span class="sd">                for backwards compatibility. If  &#39;average&#39; or &#39;mean&#39;, will</span>
+<span class="sd">                reduce with average of each logit across  tiles. If</span>
+<span class="sd">                &#39;proportion&#39;, will convert tile predictions into onehot encoding</span>
+<span class="sd">                then reduce by averaging these onehot values. For all other</span>
+<span class="sd">                values, will reduce with the specified function, applied via</span>
+<span class="sd">                the pandas ``DataFrame.agg()`` function. Defaults to &#39;average&#39;.</span>
 <span class="sd">            seed (int): Set numpy random seed. Defaults to 0.</span>
 <span class="sd">            from_wsi (bool): Generate predictions from tiles dynamically</span>
 <span class="sd">                extracted from whole-slide images, rather than TFRecords.</span>
@@ -2304,10 +2331,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_close_dataloaders</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">results</span></div>
+        <span class="k">return</span> <span class="n">results</span>
 
 
-<div class="viewcode-block" id="LinearTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.LinearTrainer">[docs]</a><span class="k">class</span> <span class="nc">LinearTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">LinearTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Extends the base :class:`slideflow.model.Trainer` class to add support</span>
 <span class="sd">    for linear outcomes. Requires that all outcomes be linear, with appropriate</span>
@@ -2323,20 +2350,20 @@
     <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;linear&#39;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="CPHTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.CPHTrainer">[docs]</a><span class="k">class</span> <span class="nc">CPHTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">CPHTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Cox proportional hazards (CPH) models are not yet implemented, but are</span>
 <span class="sd">    planned for a future update.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
-<div class="viewcode-block" id="Features"><a class="viewcode-back" href="../../../../model/#slideflow.model.Features">[docs]</a><span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Interface for obtaining predictions and features from intermediate layer</span>
 <span class="sd">    activations from Slideflow models.</span>
 
@@ -2384,6 +2411,7 @@
         <span class="o">*</span><span class="p">,</span>
         <span class="n">include_preds</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">mixed_precision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">channels_last</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">apply_softmax</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2425,6 +2453,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">apply_softmax</span> <span class="o">=</span> <span class="n">apply_softmax</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mixed_precision</span> <span class="o">=</span> <span class="n">mixed_precision</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels_last</span> <span class="o">=</span> <span class="n">channels_last</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_include_preds</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2472,6 +2501,7 @@
         <span class="o">*</span><span class="p">,</span>
         <span class="n">include_preds</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">mixed_precision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">channels_last</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">wsi_normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">apply_softmax</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2510,6 +2540,7 @@
             <span class="kc">None</span><span class="p">,</span>
             <span class="n">layers</span><span class="p">,</span>
             <span class="n">mixed_precision</span><span class="o">=</span><span class="n">mixed_precision</span><span class="p">,</span>
+            <span class="n">channels_last</span><span class="o">=</span><span class="n">channels_last</span><span class="p">,</span>
             <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kw</span>
         <span class="p">)</span>
@@ -2604,7 +2635,9 @@
         <span class="n">_mp</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mixed_precision</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;cuda&#39;</span><span class="p">,</span> <span class="s1">&#39;cpu&#39;</span><span class="p">))</span>
         <span class="k">with</span> <span class="n">autocast</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">mixed_precision</span><span class="o">=</span><span class="n">_mp</span><span class="p">):</span>  <span class="c1"># type: ignore</span>
             <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span> <span class="k">if</span> <span class="n">no_grad</span> <span class="k">else</span> <span class="n">no_scope</span><span class="p">():</span>
-                <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">memory_format</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">channels_last</span><span class="p">)</span>
+                <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels_last</span><span class="p">:</span>
+                    <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">memory_format</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">channels_last</span><span class="p">)</span>
                 <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">(</span><span class="n">inp</span><span class="p">)</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">))</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_softmax</span><span class="p">:</span>
                     <span class="n">logits</span> <span class="o">=</span> <span class="p">[</span><span class="n">softmax</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">logits</span><span class="p">]</span>
@@ -2745,7 +2778,7 @@
                 <span class="s1">&#39;apply_softmax&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_softmax</span><span class="p">,</span>
                 <span class="s1">&#39;pooling&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span>
             <span class="p">}</span>
-        <span class="p">}</span></div>
+        <span class="p">}</span>
 
 
 <span class="k">class</span> <span class="nc">UncertaintyInterface</span><span class="p">(</span><span class="n">Features</span><span class="p">):</span>
@@ -2756,6 +2789,7 @@
         <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="s1">&#39;postconv&#39;</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">mixed_precision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">channels_last</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">apply_softmax</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2765,6 +2799,7 @@
             <span class="n">path</span><span class="p">,</span>
             <span class="n">layers</span><span class="o">=</span><span class="n">layers</span><span class="p">,</span>
             <span class="n">mixed_precision</span><span class="o">=</span><span class="n">mixed_precision</span><span class="p">,</span>
+            <span class="n">channels_last</span><span class="o">=</span><span class="n">channels_last</span><span class="p">,</span>
             <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
             <span class="n">apply_softmax</span><span class="o">=</span><span class="n">apply_softmax</span><span class="p">,</span>
             <span class="n">pooling</span><span class="o">=</span><span class="n">pooling</span><span class="p">,</span>
@@ -2811,7 +2846,8 @@
             <span class="k">with</span> <span class="n">autocast</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">mixed_precision</span><span class="o">=</span><span class="n">_mp</span><span class="p">):</span>  <span class="c1"># type: ignore</span>
                 <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span> <span class="k">if</span> <span class="n">no_grad</span> <span class="k">else</span> <span class="n">no_scope</span><span class="p">():</span>
                     <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-                    <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">memory_format</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">channels_last</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels_last</span><span class="p">:</span>
+                        <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">memory_format</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">channels_last</span><span class="p">)</span>
                     <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">(</span><span class="n">inp</span><span class="p">)</span>
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">))</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_softmax</span><span class="p">:</span>
                         <span class="n">logits</span> <span class="o">=</span> <span class="p">[</span><span class="n">softmax</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">logits</span><span class="p">]</span>
@@ -2868,7 +2904,7 @@
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
-<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.torch.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a model trained with Slideflow.</span>
 
 <span class="sd">    Args:</span>
@@ -2899,7 +2935,7 @@
     <span class="k">return</span> <span class="n">model</span></div>
 
 
-<div class="viewcode-block" id="lazy_load_pretrained"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.lazy_load_pretrained">[docs]</a><span class="k">def</span> <span class="nf">lazy_load_pretrained</span><span class="p">(</span>
+<div class="viewcode-block" id="lazy_load_pretrained"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.torch.lazy_load_pretrained">[docs]</a><span class="k">def</span> <span class="nf">lazy_load_pretrained</span><span class="p">(</span>
     <span class="n">module</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
     <span class="n">to_load</span><span class="p">:</span> <span class="nb">str</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>

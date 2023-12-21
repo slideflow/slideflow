@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.norm &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.norm &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting/">Troubleshooting</a></li>
@@ -303,7 +304,7 @@
 <span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">slideflow.dataset</span> <span class="kn">import</span> <span class="n">Dataset</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">detuple</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">cleanup_progress</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">detuple</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">cleanup_progress</span><span class="p">,</span> <span class="n">_as_list</span>
 <span class="kn">from</span> <span class="nn">slideflow.norm</span> <span class="kn">import</span> <span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="n">macenko</span><span class="p">,</span> <span class="n">reinhard</span><span class="p">,</span> <span class="n">vahadane</span><span class="p">)</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
@@ -449,7 +450,38 @@
                 <span class="p">)</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">inp</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()))</span>
+            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">inp</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_torch_augment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inp</span><span class="p">:</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Augment a torch uint8 image (CWH).</span>
+
+<span class="sd">        Augmentation ocurs via intermediate conversion to WHC.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            inp (torch.Tensor): Image, uint8. Images are normalized in</span>
+<span class="sd">                W x H x C space. Images provided as C x W x H will be</span>
+<span class="sd">                auto-converted and permuted back after normalization.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor:   Image, uint8.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">torch</span>
+        <span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> <span class="n">cwh_to_whc</span><span class="p">,</span> <span class="n">whc_to_cwh</span><span class="p">,</span> <span class="n">is_cwh</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">inp</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_torch_augment</span><span class="p">(</span><span class="n">img</span><span class="p">)</span> <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">inp</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">is_cwh</span><span class="p">(</span><span class="n">inp</span><span class="p">):</span>
+            <span class="c1"># Convert from CWH -&gt; WHC (normalize) -&gt; CWH</span>
+            <span class="k">return</span> <span class="n">whc_to_cwh</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">augment_rgb</span><span class="p">(</span><span class="n">cwh_to_whc</span><span class="p">(</span><span class="n">inp</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">augment_rgb</span><span class="p">(</span><span class="n">inp</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()))</span>
 
     <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -556,7 +588,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">_fit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">get_fit</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">as_list</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">_fit</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+            <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">_as_list</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">_fit</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">_fit</span>
 
@@ -611,21 +643,24 @@
 
     <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">],</span>
+        <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">],</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">]:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a target image, attempting to preserve the original type.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            image (np.ndarray, tf.Tensor, or torch.Tensor): Image.</span>
+<span class="sd">            image (np.ndarray, tf.Tensor, or torch.Tensor): Image as a uint8</span>
+<span class="sd">                array. Numpy and Tensorflow images are normalized in W x H x C</span>
+<span class="sd">                space. PyTorch images provided as C x W x H will be</span>
+<span class="sd">                auto-converted and permuted back after normalization.</span>
 
 <span class="sd">        Keyword args:</span>
 <span class="sd">            augment (bool): Transform using stain aumentation.</span>
 <span class="sd">                Defaults to False.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Normalized image of the original type.</span>
+<span class="sd">            Normalized image of the original type (uint8).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unable to auto-transform bytes or str; please &quot;</span>
@@ -642,6 +677,78 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">)</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized image type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="si">}</span><span class="s2">; expected &quot;</span>
                          <span class="s2">&quot;np.ndarray, tf.Tensor, or torch.Tensor&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">augment</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Augment a target image, attempting to preserve the original type.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.ndarray, tf.Tensor, or torch.Tensor): Image as a uint8</span>
+<span class="sd">                array. Numpy and Tensorflow images are normalized in W x H x C</span>
+<span class="sd">                space. PyTorch images provided as C x W x H will be</span>
+<span class="sd">                auto-converted and permuted back after normalization.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Augmented image of the original type (uint8).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="s1">&#39;augment&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">AugmentationNotSupportedError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Normalizer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">method</span><span class="si">}</span><span class="s2"> does not support augmentation.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unable to augment bytes or str; image &quot;</span>
+                             <span class="s2">&quot;must first be converted to an array or Tensor.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;tensorflow&#39;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">image</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">py_function</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">augment_rgb</span><span class="p">,</span>
+                        <span class="p">[</span><span class="n">image</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">]],</span>
+                        <span class="n">tf</span><span class="o">.</span><span class="n">uint8</span>
+                    <span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+                    <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">augment_rgb</span><span class="p">(</span><span class="n">_i</span><span class="p">)</span> <span class="k">for</span> <span class="n">_i</span> <span class="ow">in</span> <span class="n">image</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">py_function</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">augment_rgb</span><span class="p">,</span>
+                        <span class="p">[</span><span class="n">image</span><span class="p">],</span>
+                        <span class="n">tf</span><span class="o">.</span><span class="n">uint8</span>
+                    <span class="p">)</span>
+                <span class="k">return</span> <span class="n">image</span>
+
+        <span class="k">if</span> <span class="s1">&#39;torch&#39;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">torch</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">to_return</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">image</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s1">&#39;tile_image&#39;</span>
+                    <span class="p">}</span>
+                    <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_torch_augment</span><span class="p">(</span>
+                        <span class="n">image</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">]</span>
+                    <span class="p">)</span>
+                    <span class="k">return</span> <span class="n">to_return</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_torch_augment</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment_rgb</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized image type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="si">}</span><span class="s2">; expected &quot;</span>
+                            <span class="s2">&quot;np.ndarray, tf.Tensor, or torch.Tensor&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">augment_rgb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Augment a numpy array (uint8), returning a numpy array (uint8).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.ndarray): Image (uint8).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.ndarray: Augmented image, uint8, W x H x C.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">augment</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">jpeg_to_jpeg</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -842,7 +949,7 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            A tuple containing</span>
 
-<span class="sd">                np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.</span>
+<span class="sd">                np.ndarray: Normalized torch.Tensor image, uint8 (channel dimension matching the input image)</span>
 
 <span class="sd">                args (Any, optional): Any additional arguments provided, unmodified.</span>
 <span class="sd">        &quot;&quot;&quot;</span>

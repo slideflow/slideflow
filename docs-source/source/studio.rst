@@ -144,7 +144,7 @@ Similarly, slide filtering can be enabled by checking "Slide filter". Available 
 Tissue segmentation
 -------------------
 
-.. video:: tissue_seg.mp4
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/tissue_seg.mp4
     :width: 100%
     :autoplay:
 

@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.dataset &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.dataset &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting/">Troubleshooting</a></li>
@@ -585,7 +586,8 @@
     <span class="n">stride_div</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-    <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span>
         <span class="n">slide_path</span><span class="p">,</span>
         <span class="n">tile_px</span><span class="p">,</span>
         <span class="n">tile_um</span><span class="p">,</span>
@@ -594,6 +596,11 @@
         <span class="n">roi_method</span><span class="o">=</span><span class="n">roi_method</span><span class="p">,</span>
         <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Skipping slide </span><span class="si">{}</span><span class="s2">, error raised: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">path_to_name</span><span class="p">(</span><span class="n">slide_path</span><span class="p">),</span> <span class="n">e</span>
+        <span class="p">))</span>
+        <span class="k">return</span> <span class="kc">None</span>
     <span class="n">_df</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">get_tile_dataframe</span><span class="p">()</span>
     <span class="n">_df</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">name</span>
     <span class="k">return</span> <span class="n">_df</span>
@@ -1685,6 +1692,23 @@
 
         <span class="k">return</span> <span class="n">df</span>
 
+    <span class="k">def</span> <span class="nf">get_unique_roi_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a list of unique ROI labels for all slides in this dataset.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Get a list of unique labels.</span>
+        <span class="n">roi_unique_labels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">roi</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">():</span>
+            <span class="n">_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">roi</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;label&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">unique</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">_df</span><span class="o">.</span><span class="n">label</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                <span class="k">if</span> <span class="p">((</span><span class="n">l</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">roi_unique_labels</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="p">(</span><span class="n">l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+            <span class="p">]</span>
+            <span class="n">roi_unique_labels</span> <span class="o">+=</span> <span class="n">unique</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">roi_unique_labels</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">extract_cells</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">masks_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -2173,6 +2197,61 @@
             <span class="n">ret</span><span class="o">.</span><span class="n">_min_tiles</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;min_tiles&#39;</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">ret</span>
 
+    <span class="k">def</span> <span class="nf">filter_bags_by_roi</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">bags_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">dest</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">tile_df</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter bags by tiles in an ROI.&quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">torch</span>
+
+        <span class="c1">#TODO: extend to tfrecords</span>
+        <span class="c1">#TODO: accelerate with multiprocessing</span>
+        <span class="c1">#TODO: save filtered indices</span>
+        <span class="c1">#TODO: copy bags config</span>
+
+        <span class="k">if</span> <span class="n">tile_df</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">tile_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_tile_dataframe</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">dest</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+
+        <span class="c1"># Subset the dataframe to only include tiles with an ROI</span>
+        <span class="n">roi_df</span> <span class="o">=</span> <span class="n">tile_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">tile_df</span><span class="o">.</span><span class="n">roi_name</span><span class="o">.</span><span class="n">notnull</span><span class="p">()]</span>
+
+        <span class="n">n_complete</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">roi_df</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">unique</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">bags_path</span><span class="p">,</span> <span class="n">slide</span><span class="o">+</span><span class="s1">&#39;.pt&#39;</span><span class="p">)):</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Get the bag</span>
+            <span class="n">bag</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">bags_path</span><span class="p">,</span> <span class="n">slide</span><span class="o">+</span><span class="s1">&#39;.pt&#39;</span><span class="p">))</span>
+            <span class="n">bag_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">bags_path</span><span class="p">,</span> <span class="n">slide</span><span class="o">+</span><span class="s1">&#39;.index.npz&#39;</span><span class="p">))[</span><span class="s1">&#39;arr_0&#39;</span><span class="p">]</span>
+
+            <span class="c1"># Subset the ROI based on this slide</span>
+            <span class="n">slide_df</span> <span class="o">=</span> <span class="n">roi_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">roi_df</span><span class="o">.</span><span class="n">slide</span> <span class="o">==</span> <span class="n">slide</span><span class="p">]</span>
+
+            <span class="c1"># Get the common locations (in an ROI)</span>
+            <span class="n">bag_locs</span> <span class="o">=</span> <span class="p">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">bag_index</span><span class="p">}</span>
+            <span class="n">roi_locs</span> <span class="o">=</span> <span class="p">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">slide_df</span><span class="o">.</span><span class="n">loc_x</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">slide_df</span><span class="o">.</span><span class="n">loc_y</span><span class="o">.</span><span class="n">values</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)}</span>
+            <span class="n">common_locs</span> <span class="o">=</span> <span class="n">bag_locs</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">roi_locs</span><span class="p">)</span>
+
+            <span class="c1"># Find indices in the bag that match the common locations (in an ROI)</span>
+            <span class="n">bag_i</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bag_index</span><span class="p">)</span> <span class="k">if</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="ow">in</span> <span class="n">common_locs</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">bag_i</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;No common locations found for </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slide</span><span class="p">))</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Subset and save the bag</span>
+            <span class="n">bag</span> <span class="o">=</span> <span class="n">bag</span><span class="p">[</span><span class="n">bag_i</span><span class="p">]</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">bag</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">slide</span><span class="o">+</span><span class="s1">&#39;.pt&#39;</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Subset size (</span><span class="si">{}</span><span class="s2">): </span><span class="si">{}</span><span class="s2"> -&gt; </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">bag_index</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">bag</span><span class="p">)))</span>
+            <span class="n">n_complete</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Bag filtering complete. </span><span class="si">{}</span><span class="s2"> bags filtered.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_complete</span><span class="p">))</span>
+
     <span class="k">def</span> <span class="nf">find_rois</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Find an ROI path from a given slide.</span>
 
@@ -2249,6 +2328,52 @@
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">matching</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">generate_rois</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">dest</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate ROIs using a U-Net model.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model (str): Path to model (zip) or model configuration (json).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Load the model configuration.</span>
+        <span class="n">segment</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">qc</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slide_paths</span><span class="p">(),</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Generating...&#39;</span><span class="p">):</span>
+
+            <span class="c1"># Set the destination directory</span>
+            <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_slide_source</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;roi&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">[</span><span class="n">source</span><span class="p">]</span> <span class="ow">and</span> <span class="n">dest</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">DatasetError</span><span class="p">(</span>
+                    <span class="s2">&quot;No ROI directory set. Please set an ROI directory in the &quot;</span>
+                    <span class="s2">&quot;dataset configuration, or provide a destination directory &quot;</span>
+                    <span class="s2">&quot;with the `dest` argument.&quot;</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">dest</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">dest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">[</span><span class="n">source</span><span class="p">][</span><span class="s1">&#39;roi&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">dest</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+
+            <span class="c1"># Check if an ROI already exists.</span>
+            <span class="n">existing_rois</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;csv&#39;</span><span class="p">)]</span>
+            <span class="k">if</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span> <span class="ow">in</span> <span class="n">existing_rois</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Overwriting ROI for slide </span><span class="si">{</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span><span class="si">}</span><span class="s2"> at </span><span class="si">{</span><span class="n">dest</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ROI already exists for slide </span><span class="si">{</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span><span class="si">}</span><span class="s2"> at </span><span class="si">{</span><span class="n">dest</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+
+            <span class="c1"># Load the slide and remove any existing auto-loaded ROIs.</span>
+            <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="mi">299</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">wsi</span><span class="o">.</span><span class="n">rois</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="c1"># Generate and apply ROIs.</span>
+            <span class="n">segment</span><span class="o">.</span><span class="n">generate_rois</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">apply</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="c1"># Export ROIs to CSV.</span>
+            <span class="n">wsi</span><span class="o">.</span><span class="n">export_rois</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">wsi</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.csv&#39;</span><span class="p">))</span>
+
 
     <span class="k">def</span> <span class="nf">get_slide_source</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the source of a given slide.</span>
@@ -3076,12 +3201,12 @@
 
 <span class="sd">                :class:`slideflow.Dataset`: Validation dataset.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">k_fold_iter</span> <span class="ow">and</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;k-fold&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">k_fold_iter</span> <span class="ow">and</span> <span class="s1">&#39;k-fold&#39;</span> <span class="ow">in</span> <span class="n">val_strategy</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">DatasetSplitError</span><span class="p">(</span>
                 <span class="s2">&quot;If strategy is &#39;k-fold&#39;, must supply k_fold_iter &quot;</span>
                 <span class="s2">&quot;(int starting at 1)&quot;</span>
             <span class="p">)</span>
-        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">val_k_fold</span> <span class="ow">and</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;k-fold&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">val_k_fold</span> <span class="ow">and</span> <span class="s1">&#39;k-fold&#39;</span> <span class="ow">in</span> <span class="n">val_strategy</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">DatasetSplitError</span><span class="p">(</span>
                 <span class="s2">&quot;If strategy is &#39;k-fold&#39;, must supply val_k_fold (K)&quot;</span>
             <span class="p">)</span>
@@ -4289,6 +4414,23 @@
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">AnnotationsError</span><span class="p">(</span>
                 <span class="s2">&quot;Duplicate slide names detected in the annotation file.&quot;</span>
             <span class="p">)</span>
+
+        <span class="c1"># Verify that there are no tfrecords with the same name.</span>
+        <span class="c1"># This is a problem because the tfrecord name is used to</span>
+        <span class="c1"># identify the slide.</span>
+        <span class="n">tfrecords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">):</span>
+            <span class="n">tfrecord_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecords</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">tfrecord_names</span><span class="p">))</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecord_names</span><span class="p">):</span>
+                <span class="n">duplicate_tfrs</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecords</span>
+                    <span class="k">if</span> <span class="n">tfrecord_names</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span>
+                <span class="p">]</span>
+                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">AnnotationsError</span><span class="p">(</span>
+                    <span class="s2">&quot;Multiple TFRecords with the same names detected: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">duplicate_tfrs</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
 
         <span class="c1"># Verify all slides in the annotation column are valid</span>
         <span class="n">n_missing</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>

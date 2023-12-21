@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Cell Segmentation &mdash; slideflow 2.2.0 documentation</title>
+  <title>Cell Segmentation &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -32,8 +32,8 @@
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex/" />
     <link rel="search" title="Search" href="../search/" />
-    <link rel="next" title="Training" href="../training/" />
-    <link rel="prev" title="Slide Processing" href="../slide_processing/" />
+    <link rel="next" title="Custom Training Loops" href="../custom_loops/" />
+    <link rel="prev" title="Tissue Segmentation" href="../segmentation/" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -157,7 +157,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
@@ -166,6 +165,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
@@ -316,7 +317,7 @@
 </figure>
 <p>The <strong>Model &amp; Cell Diameter</strong> subsection is used to customize the segmentation model (defaults to
 ‘cyto2’) and cell diameter (defaults to 10 microns). Selecting “Auto-detect diameter” then
-clicking “Preview” will perform cell segmentation on the portion of the slide currently in view. Once complete, the diameter text box will be updated with the detected cell diameter.</p>
+clicking “Preview” will perform cell segmentation on the portion of the slide currently in view. Once complete, the diameter text box will be updated with the detected cell diameter. Any <a class="reference external" href="https://cellpose.readthedocs.io/en/latest/gui.html#training-your-own-cellpose-model">user-trained models</a> will be listed in the model dropdown selection.</p>
 </section>
 <section id="viewing-cell-segmentations">
 <h3>Viewing cell segmentations<a class="headerlink" href="#viewing-cell-segmentations" title="Permalink to this heading">¶</a></h3>
@@ -556,10 +557,10 @@ to final tile extraction from detected cells.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../training/" class="btn btn-neutral float-right" title="Training" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="../custom_loops/" class="btn btn-neutral float-right" title="Custom Training Loops" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="../slide_processing/" class="btn btn-neutral" title="Slide Processing" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="../segmentation/" class="btn btn-neutral" title="Tissue Segmentation" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   

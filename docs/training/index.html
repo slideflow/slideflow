@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Training &mdash; slideflow 2.2.0 documentation</title>
+  <title>Training &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -33,7 +33,7 @@
     <link rel="index" title="Index" href="../genindex/" />
     <link rel="search" title="Search" href="../search/" />
     <link rel="next" title="Evaluation" href="../evaluation/" />
-    <link rel="prev" title="Cell Segmentation" href="../cellseg/" />
+    <link rel="prev" title="Slide Processing" href="../slide_processing/" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -157,7 +157,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
@@ -166,6 +165,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
@@ -296,9 +297,10 @@
 <li><p><strong>Weakly supervised, multi-instance learning</strong>: Models trained on feature vectors, with labels inherited from the parent slide.</p></li>
 <li><p><strong>Strongly supervised models</strong>: Models trained on image tiles, with labels assigned by ROI.</p></li>
 <li><p><strong>Self-supervised pretraining</strong>: Contrastive pretraining with or without labels (e.g. <a class="reference external" href="https://arxiv.org/abs/2002.05709">SimCLR</a>).</p></li>
-<li><p><strong>Generative adversarial networks</strong>: Models trained to create synthetic images, with optional class conditioning (e.g. <a class="reference external" href="https://arxiv.org/abs/1912.04958">StyleGAN2/3</a>).</p></li>
+<li><p><strong>Generative adversarial networks</strong>: Models trained to generate synthetic images (e.g. <a class="reference external" href="https://arxiv.org/abs/1912.04958">StyleGAN2/3</a>).</p></li>
+<li><p><strong>Segmentation models</strong>: Models trained to identify and classify tissue regions (e.g. <a class="reference external" href="https://arxiv.org/abs/1505.04597">U-Net</a>).</p></li>
 </ul>
-<p>In this section, we will walk through the process of training a weakly supervised tile-based model. <a class="reference internal" href="../tile_labels/#tile-labels"><span class="std std-ref">Strong supervision</span></a>, <a class="reference internal" href="../mil/#mil"><span class="std std-ref">Multi-instance learning (MIL)</span></a>, <a class="reference internal" href="../ssl/#simclr-ssl"><span class="std std-ref">self-supervised pretraining (SSL)</span></a>, and <a class="reference internal" href="../stylegan/#stylegan"><span class="std std-ref">generative adversarial networks (GAN)</span></a> are described in other sections.</p>
+<p>In this section, we will walk through the process of training a weakly supervised tile-based model. <a class="reference internal" href="../tile_labels/#tile-labels"><span class="std std-ref">Strong supervision</span></a>, <a class="reference internal" href="../mil/#mil"><span class="std std-ref">Multi-instance learning (MIL)</span></a>, <a class="reference internal" href="../ssl/#simclr-ssl"><span class="std std-ref">self-supervised pretraining (SSL)</span></a>, <a class="reference internal" href="../stylegan/#stylegan"><span class="std std-ref">generative adversarial networks (GAN)</span></a>, and <a class="reference internal" href="../segmentation/#segmentation"><span class="std std-ref">Tissue Segmentation</span></a> are described in other sections.</p>
 <section id="prepare-hyperparameters">
 <h2>Prepare hyperparameters<a class="headerlink" href="#prepare-hyperparameters" title="Permalink to this heading">¶</a></h2>
 <p>The first step of training a weakly-supervised model is configuring model parameters and hyperparameters with <a class="reference internal" href="../model_params/#slideflow.ModelParams" title="slideflow.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code></a>. <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> determines the model architecture, loss, preprocessing augmentations, and training hyperparameters.</p>
@@ -615,7 +617,7 @@
         <a href="../evaluation/" class="btn btn-neutral float-right" title="Evaluation" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="../cellseg/" class="btn btn-neutral" title="Cell Segmentation" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="../slide_processing/" class="btn btn-neutral" title="Slide Processing" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   

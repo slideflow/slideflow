@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.stats.metrics &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.stats.metrics &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
@@ -753,7 +754,7 @@
     <span class="n">num_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">uq</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">uq_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
-    <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
+    <span class="n">reduce_method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
     <span class="n">patients</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">outcome_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">loss</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -772,11 +773,16 @@
 <span class="sd">        uq_n (int, optional): Number of forward passes to perform</span>
 <span class="sd">            when calculating MC Dropout uncertainty. Defaults to 30.</span>
 <span class="sd">        reduce_method (str, optional): Reduction method for calculating</span>
-<span class="sd">            slide-level and patient-level predictions for categorical outcomes.</span>
-<span class="sd">            Either &#39;average&#39; or &#39;proportion&#39;. If &#39;average&#39;, will reduce with</span>
-<span class="sd">            average of each logit across tiles. If &#39;proportion&#39;, will convert</span>
-<span class="sd">            tile predictions into onehot encoding then reduce by averaging</span>
-<span class="sd">            these onehot values. Defaults to &#39;average&#39;.</span>
+<span class="sd">            slide-level and patient-level predictions for categorical</span>
+<span class="sd">            outcomes. Options include &#39;average&#39;, &#39;mean&#39;, &#39;proportion&#39;,</span>
+<span class="sd">            &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.</span>
+<span class="sd">            &#39;average&#39; and &#39;mean&#39; are  synonymous, with both options kept</span>
+<span class="sd">            for backwards compatibility. If  &#39;average&#39; or &#39;mean&#39;, will</span>
+<span class="sd">            reduce with average of each logit across  tiles. If</span>
+<span class="sd">            &#39;proportion&#39;, will convert tile predictions into onehot encoding</span>
+<span class="sd">            then reduce by averaging these onehot values. For all other</span>
+<span class="sd">            values, will reduce with the specified function, applied via</span>
+<span class="sd">            the pandas ``DataFrame.agg()`` function. Defaults to &#39;average&#39;.</span>
 <span class="sd">        patients (dict, optional): Dictionary mapping slide names to patient</span>
 <span class="sd">            names. Required for generating patient-level metrics.</span>
 <span class="sd">        outcome_names (list, optional): List of str, names for outcomes.</span>
@@ -788,7 +794,7 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        pd.DataFrame, accuracy, loss</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;categorical&#39;</span> <span class="ow">and</span> <span class="n">reduce_method</span> <span class="o">!=</span> <span class="s1">&#39;average&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;categorical&#39;</span> <span class="ow">and</span> <span class="n">reduce_method</span> <span class="o">==</span> <span class="s1">&#39;proportion&#39;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;Reduction method </span><span class="si">{</span><span class="n">reduce_method</span><span class="si">}</span><span class="s1"> incompatible with &#39;</span>
             <span class="sa">f</span><span class="s1">&#39;model_type </span><span class="si">{</span><span class="n">model_type</span><span class="si">}</span><span class="s1">&#39;</span>
@@ -823,7 +829,7 @@
 
 <div class="viewcode-block" id="group_reduce"><a class="viewcode-back" href="../../../../stats/#slideflow.stats.group_reduce">[docs]</a><span class="k">def</span> <span class="nf">group_reduce</span><span class="p">(</span>
     <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
     <span class="n">patients</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DataFrame</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Reduces tile-level predictions to group-level predictions.</span>
@@ -832,15 +838,25 @@
 <span class="sd">        df (DataFrame): Tile-level predictions.</span>
 <span class="sd">        method (str, optional): Reduction method for calculating</span>
 <span class="sd">            slide-level and patient-level predictions for categorical outcomes.</span>
-<span class="sd">            Either &#39;average&#39; or &#39;proportion&#39;. If &#39;average&#39;, will reduce with</span>
-<span class="sd">            average of each logit across tiles. If &#39;proportion&#39;, will convert</span>
-<span class="sd">            tile predictions into onehot encoding then reduce by averaging</span>
-<span class="sd">            these onehot values. Defaults to &#39;average&#39;.</span>
+<span class="sd">            Options include &#39;average&#39;, &#39;mean&#39;, &#39;proportion&#39;, &#39;median&#39;, &#39;sum&#39;,</span>
+<span class="sd">            &#39;min&#39;, &#39;max&#39;, or a callable function. &#39;average&#39; and &#39;mean&#39; are</span>
+<span class="sd">            synonymous, with both options kept for backwards compatibility. If</span>
+<span class="sd">            &#39;average&#39; or &#39;mean&#39;, will reduce with average of each logit across</span>
+<span class="sd">            tiles. If &#39;proportion&#39;, will convert tile predictions into onehot</span>
+<span class="sd">            encoding then reduce by averaging these onehot values. For all other</span>
+<span class="sd">            values, will reduce with the specified function, applied via</span>
+<span class="sd">            the pandas ``DataFrame.agg()`` function. Defaults to &#39;average&#39;.</span>
 <span class="sd">        patients (dict, optional): Dictionary mapping slide names to patient</span>
 <span class="sd">            names. Required for generating patient-level metrics.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;proportion&#39;</span><span class="p">,</span> <span class="s1">&#39;average&#39;</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown method </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="c1"># Validation.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span>
+            <span class="s1">&#39;average&#39;</span><span class="p">,</span> <span class="s1">&#39;proportion&#39;</span><span class="p">,</span> <span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;median&#39;</span><span class="p">,</span> <span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span>
+        <span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">callable</span><span class="p">(</span><span class="n">method</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Unknown method </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">. Expected &#39;average&#39;, &#39;proportion&#39;, &quot;</span>
+            <span class="s2">&quot;&#39;mean&#39;, &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.&quot;</span>
+        <span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using reduce_method=</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">patients</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -885,9 +901,25 @@
             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_cat</span><span class="p">):</span>
                 <span class="n">_df</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">outcome</span><span class="si">}</span><span class="s1">-y_pred</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">outcome_pred_cat</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
 
+    <span class="c1"># Both &#39;average&#39; and &#39;proportion&#39; methods perform the same reduction,</span>
+    <span class="c1"># so we can use the same method for both</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;average&#39;</span><span class="p">,</span> <span class="s1">&#39;proportion&#39;</span><span class="p">):</span>
+        <span class="n">method</span> <span class="o">=</span> <span class="s1">&#39;mean&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_apply_reduce</span><span class="p">(</span><span class="n">_df</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">group</span><span class="p">):</span>
+        <span class="k">nonlocal</span> <span class="n">groups</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;median&#39;</span><span class="p">,</span> <span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="n">_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">as_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">numeric_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">callable</span><span class="p">(</span><span class="n">method</span><span class="p">):</span>
+            <span class="n">_numeric</span> <span class="o">=</span> <span class="n">_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">g</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">groups</span> <span class="k">if</span> <span class="n">g</span> <span class="o">!=</span> <span class="n">group</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">_numeric</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">as_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown method </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
     <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
         <span class="n">group_dfs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
-            <span class="n">group</span><span class="p">:</span> <span class="n">_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">as_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">numeric_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">group</span><span class="p">:</span> <span class="n">_apply_reduce</span><span class="p">(</span><span class="n">_df</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span>
         <span class="p">})</span>
 
     <span class="k">return</span> <span class="n">group_dfs</span></div>
@@ -962,7 +994,7 @@
     <span class="n">dataset</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;tf.data.Dataset&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.utils.data.DataLoader&quot;</span><span class="p">],</span>
     <span class="n">num_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">outcome_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
+    <span class="n">reduce_method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
     <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">save_predictions</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">data_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
@@ -987,11 +1019,16 @@
 <span class="sd">        outcome_names (list, optional): List of str, names for outcomes.</span>
 <span class="sd">            Defaults to None.</span>
 <span class="sd">        reduce_method (str, optional): Reduction method for calculating</span>
-<span class="sd">            slide-level and patient-level predictions for categorical outcomes.</span>
-<span class="sd">            Either &#39;average&#39; or &#39;proportion&#39;. If &#39;average&#39;, will reduce with</span>
-<span class="sd">            average of each logit across tiles. If &#39;proportion&#39;, will convert</span>
-<span class="sd">            tile predictions into onehot encoding then reduce by averaging</span>
-<span class="sd">            these onehot values. Defaults to &#39;average&#39;.</span>
+<span class="sd">            slide-level and patient-level predictions for categorical</span>
+<span class="sd">            outcomes. Options include &#39;average&#39;, &#39;mean&#39;, &#39;proportion&#39;,</span>
+<span class="sd">            &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.</span>
+<span class="sd">            &#39;average&#39; and &#39;mean&#39; are  synonymous, with both options kept</span>
+<span class="sd">            for backwards compatibility. If  &#39;average&#39; or &#39;mean&#39;, will</span>
+<span class="sd">            reduce with average of each logit across  tiles. If</span>
+<span class="sd">            &#39;proportion&#39;, will convert tile predictions into onehot encoding</span>
+<span class="sd">            then reduce by averaging these onehot values. For all other</span>
+<span class="sd">            values, will reduce with the specified function, applied via</span>
+<span class="sd">            the pandas ``DataFrame.agg()`` function. Defaults to &#39;average&#39;.</span>
 <span class="sd">        label (str, optional): Label prefix/suffix for saving.</span>
 <span class="sd">            Defaults to None.</span>
 <span class="sd">        save_predictions (bool, optional): Save tile, slide, and patient-level</span>
@@ -1146,7 +1183,7 @@
     <span class="n">num_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">uq</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">uq_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
-    <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
+    <span class="n">reduce_method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
     <span class="n">patients</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">outcome_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">torch_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SimpleNamespace</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1164,11 +1201,16 @@
 <span class="sd">        uq_n (int, optional): Number of forward passes to perform</span>
 <span class="sd">            when calculating MC Dropout uncertainty. Defaults to 30.</span>
 <span class="sd">        reduce_method (str, optional): Reduction method for calculating</span>
-<span class="sd">            slide-level and patient-level predictions for categorical outcomes.</span>
-<span class="sd">            Either &#39;average&#39; or &#39;proportion&#39;. If &#39;average&#39;, will reduce with</span>
-<span class="sd">            average of each logit across tiles. If &#39;proportion&#39;, will convert</span>
-<span class="sd">            tile predictions into onehot encoding then reduce by averaging</span>
-<span class="sd">            these onehot values. Defaults to &#39;average&#39;.</span>
+<span class="sd">            slide-level and patient-level predictions for categorical</span>
+<span class="sd">            outcomes. Options include &#39;average&#39;, &#39;mean&#39;, &#39;proportion&#39;,</span>
+<span class="sd">            &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.</span>
+<span class="sd">            &#39;average&#39; and &#39;mean&#39; are  synonymous, with both options kept</span>
+<span class="sd">            for backwards compatibility. If  &#39;average&#39; or &#39;mean&#39;, will</span>
+<span class="sd">            reduce with average of each logit across  tiles. If</span>
+<span class="sd">            &#39;proportion&#39;, will convert tile predictions into onehot encoding</span>
+<span class="sd">            then reduce by averaging these onehot values. For all other</span>
+<span class="sd">            values, will reduce with the specified function, applied via</span>
+<span class="sd">            the pandas ``DataFrame.agg()`` function. Defaults to &#39;average&#39;.</span>
 <span class="sd">        patients (dict, optional): Dictionary mapping slide names to patient</span>
 <span class="sd">            names. Required for generating patient-level metrics.</span>
 <span class="sd">        outcome_names (list, optional): List of str, names for outcomes.</span>
@@ -1181,7 +1223,7 @@
 <span class="sd">        &#39;patient&#39;, and values containing DataFrames with tile-, slide-,</span>
 <span class="sd">        and patient-level predictions.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;categorical&#39;</span> <span class="ow">and</span> <span class="n">reduce_method</span> <span class="o">!=</span> <span class="s1">&#39;average&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;categorical&#39;</span> <span class="ow">and</span> <span class="n">reduce_method</span> <span class="o">==</span> <span class="s1">&#39;proportion&#39;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;Reduction method </span><span class="si">{</span><span class="n">reduce_method</span><span class="si">}</span><span class="s1"> incompatible with &#39;</span>
             <span class="sa">f</span><span class="s1">&#39;model_type </span><span class="si">{</span><span class="n">model_type</span><span class="si">}</span><span class="s1">&#39;</span>

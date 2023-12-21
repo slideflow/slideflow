@@ -38,7 +38,7 @@ Open the Cell Segmentation section in the control panel to access the segmentati
 
 The **Model & Cell Diameter** subsection is used to customize the segmentation model (defaults to
 'cyto2') and cell diameter (defaults to 10 microns). Selecting "Auto-detect diameter" then
-clicking "Preview" will perform cell segmentation on the portion of the slide currently in view. Once complete, the diameter text box will be updated with the detected cell diameter.
+clicking "Preview" will perform cell segmentation on the portion of the slide currently in view. Once complete, the diameter text box will be updated with the detected cell diameter. Any `user-trained models <https://cellpose.readthedocs.io/en/latest/gui.html#training-your-own-cellpose-model>`_ will be listed in the model dropdown selection.
 
 Viewing cell segmentations
 --------------------------

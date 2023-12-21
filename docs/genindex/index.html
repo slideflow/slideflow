@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; slideflow 2.2.0 documentation</title>
+  <title>Index &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
@@ -324,6 +325,10 @@
       <li><a href="../util/#slideflow.util.ImgBatchSpeedColumn.__init__">__init__() (ImgBatchSpeedColumn method)</a>
 
       <ul>
+        <li><a href="../util/#slideflow.util.MultiprocessProgress.__init__">(MultiprocessProgress method)</a>
+</li>
+        <li><a href="../util/#slideflow.util.MultiprocessProgressTracker.__init__">(MultiprocessProgressTracker method)</a>
+</li>
         <li><a href="../grad/#slideflow.grad.SaliencyMap.__init__">(SaliencyMap method)</a>
 </li>
         <li><a href="../studio_module/#slideflow.studio.Sidebar.__init__">(Sidebar method)</a>
@@ -394,6 +399,8 @@
       <li><a href="../biscuit/#slideflow.biscuit.utils.auc">auc() (in module slideflow.biscuit.utils)</a>
 </li>
       <li><a href="../biscuit/#slideflow.biscuit.utils.auc_and_threshold">auc_and_threshold() (in module slideflow.biscuit.utils)</a>
+</li>
+      <li><a href="../norm/#slideflow.norm.StainNormalizer.augment">augment() (in module slideflow.norm.StainNormalizer)</a>
 </li>
       <li><a href="../studio_module/#slideflow.studio.Studio.autoload">autoload() (Studio method)</a>
 </li>
@@ -1017,10 +1024,10 @@
 </li>
       <li><a href="../mil_module/#slideflow.mil.ModelConfigCLAM">ModelConfigCLAM (class in slideflow.mil)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../mil_module/#slideflow.mil.ModelConfigFastAI">ModelConfigFastAI (class in slideflow.mil)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../model_params/#slideflow.ModelParams">ModelParams (class in slideflow)</a>
 </li>
       <li>
@@ -1051,6 +1058,10 @@
       <li><a href="../grad/#slideflow.grad.multi_plot">multi_plot() (in module slideflow.grad)</a>
 </li>
       <li><a href="../util/#slideflow.util.multi_warn">multi_warn() (in module slideflow.util)</a>
+</li>
+      <li><a href="../util/#slideflow.util.MultiprocessProgress">MultiprocessProgress (class in slideflow.util)</a>
+</li>
+      <li><a href="../util/#slideflow.util.MultiprocessProgressTracker">MultiprocessProgressTracker (class in slideflow.util)</a>
 </li>
   </ul></td>
 </tr></table>

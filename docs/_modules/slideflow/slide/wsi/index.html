@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.slide.wsi &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.slide.wsi &mdash; slideflow 2.3.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
               
             
@@ -154,7 +154,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
@@ -163,6 +162,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting/">Troubleshooting</a></li>
@@ -440,6 +441,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">roi_grid</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[np.ndarray]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">roi_filter_method</span> <span class="o">=</span> <span class="n">roi_filter_method</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List[QCMask]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[Alignment]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">segmentation</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_edge_tiles</span> <span class="o">=</span> <span class="n">use_edge_tiles</span>
@@ -488,11 +490,16 @@
             <span class="p">)</span>
 
         <span class="c1"># Collect basic slide information</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">has_mpp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideMissingMPPError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Slide </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2"> missing MPP (</span><span class="si">{</span><span class="n">OPS_MPP_X</span><span class="si">}</span><span class="s2">)&quot;</span>
+            <span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">mpp</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideMissingMPPError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Slide [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[/] missing MPP (</span><span class="si">{</span><span class="n">OPS_MPP_X</span><span class="si">}</span><span class="s2">)&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Unable to parse MPP for slide </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">OPS_MPP_X</span><span class="si">}</span><span class="s2">). &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Error raised: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
 
         <span class="c1"># Configure downsample information</span>
@@ -688,8 +695,8 @@
         <span class="c1"># For any indexes in y_range or x_range corresponding to a negative value,</span>
         <span class="c1"># set the corresponding index in self.grid to False.</span>
         <span class="c1"># This may occur after slide alignment.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">y_range</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">),</span> <span class="p">:]</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">x_range</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">x_range</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">),</span> <span class="p">:]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">y_range</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="c1"># ROI filtering</span>
         <span class="n">roi_by_center</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_filter_method</span> <span class="o">==</span> <span class="s1">&#39;center&#39;</span><span class="p">)</span>
@@ -775,6 +782,9 @@
             <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)</span>
+        <span class="c1"># Handle the case where there is only one tile</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Set up coordinate grid, shape=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
@@ -957,6 +967,8 @@
                 <span class="n">_next_m</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">_next</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
                 <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">_next_m</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">mask</span>
+
+    <span class="c1"># --- Alignment --------------------------------------------------------</span>
 
     <span class="k">def</span> <span class="nf">align_to</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1174,6 +1186,7 @@
 
         <span class="c1"># Apply alignment.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">origin</span> <span class="o">=</span> <span class="n">alignment</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span> <span class="o">=</span> <span class="n">Alignment</span><span class="o">.</span><span class="n">from_translation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">coord_to_raw</span><span class="p">(</span><span class="o">*</span><span class="n">alignment</span><span class="p">))</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Slide aligned with MSE </span><span class="si">{:.2f}</span><span class="s2">. Origin set to </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                 <span class="n">mse</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">origin</span>
         <span class="p">))</span>
@@ -1192,7 +1205,7 @@
         <span class="o">*</span><span class="p">,</span>
         <span class="n">allow_errors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">mask_on_fail</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-        <span class="n">align_by</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;tile&#39;</span><span class="p">,</span>
+        <span class="n">align_by</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;fit&#39;</span><span class="p">,</span>
         <span class="n">ignore_outliers</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
@@ -1248,9 +1261,17 @@
         <span class="n">ctx</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;libvips&#39;</span> <span class="k">else</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;fork&#39;</span><span class="p">)</span>
         <span class="n">pool</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">num_cpu</span><span class="p">())</span>
 
-        <span class="n">alignment_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">alignment_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">half_extract_px</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span><span class="p">))</span>
         <span class="n">idx_to_remove</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">tile_alignment</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap_unordered</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">calc_alignment</span><span class="p">,</span> <span class="n">us</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">them</span><span class="o">=</span><span class="n">slide</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">normalizer</span><span class="p">),</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Aligning tiles...&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">tile_alignment</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap_unordered</span><span class="p">(</span>
+                                        <span class="n">partial</span><span class="p">(</span><span class="n">calc_alignment</span><span class="p">,</span>
+                                                <span class="n">us</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                                                <span class="n">them</span><span class="o">=</span><span class="n">slide</span><span class="p">,</span>
+                                                <span class="n">n</span><span class="o">=</span><span class="n">normalizer</span><span class="p">),</span>
+                                        <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)),</span>
+                                      <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Aligning tiles...&quot;</span><span class="p">,</span>
+                                      <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)):</span>
             <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">)</span> <span class="o">=</span> <span class="n">c</span>
             <span class="k">if</span> <span class="n">tile_alignment</span> <span class="o">==</span> <span class="s1">&#39;error&#39;</span><span class="p">:</span>
                 <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Tile alignment failed at x=</span><span class="si">{}</span><span class="s2">, y=</span><span class="si">{}</span><span class="s2"> (grid </span><span class="si">{}</span><span class="s2">, </span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
@@ -1258,82 +1279,189 @@
                 <span class="p">)</span>
                 <span class="k">if</span> <span class="n">allow_errors</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-                    <span class="k">continue</span>
+                    <span class="n">tile_alignment</span> <span class="o">=</span> <span class="kc">None</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">AlignmentError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">tile_alignment</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">mask_on_fail</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tile_alignment</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">mask_on_fail</span> <span class="ow">and</span> <span class="n">align_by</span> <span class="o">==</span> <span class="s1">&#39;tile&#39;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">idx_to_remove</span> <span class="o">+=</span> <span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">tile_alignment</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">idx_to_remove</span> <span class="o">+=</span> <span class="p">[</span><span class="n">idx</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">tile_alignment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">pixel_ratio</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
                 <span class="n">x_adjust</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">tile_alignment</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">pixel_ratio</span><span class="p">))</span>
                 <span class="n">y_adjust</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">tile_alignment</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">pixel_ratio</span><span class="p">))</span>
-                <span class="n">alignment_grid</span><span class="p">[</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x_adjust</span><span class="p">,</span> <span class="n">y_adjust</span><span class="p">])</span>
+                <span class="n">x_base</span><span class="p">,</span> <span class="n">y_base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">coord_to_raw</span><span class="p">(</span>
+                    <span class="n">x</span> <span class="o">+</span> <span class="n">half_extract_px</span><span class="p">,</span>
+                    <span class="n">y</span> <span class="o">+</span> <span class="n">half_extract_px</span>
+                <span class="p">)</span>
+                <span class="n">x_base_adjusted</span><span class="p">,</span> <span class="n">y_base_adjusted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">coord_to_raw</span><span class="p">(</span>
+                    <span class="n">x</span> <span class="o">+</span> <span class="n">half_extract_px</span> <span class="o">+</span> <span class="n">x_adjust</span><span class="p">,</span>
+                    <span class="n">y</span> <span class="o">+</span> <span class="n">half_extract_px</span> <span class="o">+</span> <span class="n">y_adjust</span>
+                <span class="p">)</span>
+                <span class="n">x_base_adjustment</span> <span class="o">=</span> <span class="n">x_base_adjusted</span> <span class="o">-</span> <span class="n">x_base</span>
+                <span class="n">y_base_adjustment</span> <span class="o">=</span> <span class="n">y_base_adjusted</span> <span class="o">-</span> <span class="n">y_base</span>
+                <span class="n">alignment_coords</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x_base_adjustment</span><span class="p">,</span> <span class="n">y_base_adjustment</span><span class="p">])</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Tile alignment complete at x=</span><span class="si">{}</span><span class="s2">, y=</span><span class="si">{}</span><span class="s2"> (grid </span><span class="si">{}</span><span class="s2">, </span><span class="si">{}</span><span class="s2">): adjust by </span><span class="si">{}</span><span class="s2">, </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                     <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">,</span> <span class="n">x_adjust</span><span class="p">,</span> <span class="n">y_adjust</span>
                 <span class="p">))</span>
 
-                <span class="k">if</span> <span class="n">align_by</span> <span class="o">==</span> <span class="s1">&#39;tile&#39;</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">x_adjust</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">y_adjust</span>
-
         <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
-        <span class="n">all_tile_alignment</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">alignment_grid</span><span class="p">,</span> <span class="n">mask</span><span class="o">=~</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">],</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>  <span class="c1"># type: ignore</span>
+        <span class="n">coord_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_masked_coord</span><span class="p">()</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">coord_mask</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">idx_to_remove</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">coord_mask</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">all_alignment_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">alignment_coords</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+        <span class="n">coord_raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">coord_to_raw</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="o">~</span><span class="n">coord_mask</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">half_extract_px</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="o">~</span><span class="n">coord_mask</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">half_extract_px</span>
+        <span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Removing </span><span class="si">{}</span><span class="s2"> indices with failed alignment. Max coord size: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">idx_to_remove</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)))</span>
 
         <span class="k">if</span> <span class="n">align_by</span> <span class="o">==</span> <span class="s1">&#39;fit&#39;</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Fitting to </span><span class="si">{}</span><span class="s2"> coordinates.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">((</span><span class="o">~</span><span class="n">coord_mask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+            <span class="n">x_adjustment_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span>
+                <span class="n">coord_raw</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">coord_raw</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="n">all_alignment_coords</span><span class="p">[</span><span class="o">~</span><span class="n">coord_mask</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">],</span>
+            <span class="p">))</span>
+            <span class="n">y_adjustment_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span>
+                <span class="n">coord_raw</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">coord_raw</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="n">all_alignment_coords</span><span class="p">[</span><span class="o">~</span><span class="n">coord_mask</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="p">))</span>
 
-            <span class="n">x_adjustment_coordinates</span> <span class="o">=</span> <span class="n">alignment_to_list</span><span class="p">(</span><span class="n">all_tile_alignment</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">])</span>
-            <span class="n">y_adjustment_coordinates</span> <span class="o">=</span> <span class="n">alignment_to_list</span><span class="p">(</span><span class="n">all_tile_alignment</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="k">def</span> <span class="nf">build_aligned_coords</span><span class="p">(</span><span class="n">x_centroid</span><span class="p">,</span> <span class="n">x_normal</span><span class="p">,</span> <span class="n">y_centroid</span><span class="p">,</span> <span class="n">y_normal</span><span class="p">):</span>
+                <span class="n">coord_on_plane</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">),</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+                <span class="n">coord_on_plane</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">coord_on_plane</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">):</span>
+                    <span class="c1"># Convert coordinates to raw base layer coordinates</span>
+                    <span class="n">bx</span><span class="p">,</span> <span class="n">by</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">coord_to_raw</span><span class="p">(</span>
+                        <span class="n">x</span> <span class="o">+</span> <span class="n">half_extract_px</span><span class="p">,</span>
+                        <span class="n">y</span> <span class="o">+</span> <span class="n">half_extract_px</span>
+                    <span class="p">)</span>
+                    <span class="c1"># Align to raw base layer coordinates</span>
+                    <span class="n">coord_on_plane</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">z_on_plane</span><span class="p">(</span><span class="n">bx</span><span class="p">,</span> <span class="n">by</span><span class="p">,</span> <span class="n">x_centroid</span><span class="p">,</span> <span class="n">x_normal</span><span class="p">))),</span>
+                        <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">z_on_plane</span><span class="p">(</span><span class="n">bx</span><span class="p">,</span> <span class="n">by</span><span class="p">,</span> <span class="n">y_centroid</span><span class="p">,</span> <span class="n">y_normal</span><span class="p">)))</span>
+                    <span class="p">)</span>
+                <span class="k">return</span> <span class="n">coord_on_plane</span>
 
             <span class="n">x_centroid</span><span class="p">,</span> <span class="n">x_normal</span> <span class="o">=</span> <span class="n">best_fit_plane</span><span class="p">(</span><span class="n">x_adjustment_coordinates</span><span class="p">)</span>
             <span class="n">y_centroid</span><span class="p">,</span> <span class="n">y_normal</span> <span class="o">=</span> <span class="n">best_fit_plane</span><span class="p">(</span><span class="n">y_adjustment_coordinates</span><span class="p">)</span>
-
-            <span class="n">fit_alignment</span> <span class="o">=</span> <span class="n">all_tile_alignment</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">all_tile_alignment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
-                <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">all_tile_alignment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
-                    <span class="n">fit_alignment</span><span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-                        <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">z_on_plane</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x_centroid</span><span class="p">,</span> <span class="n">x_normal</span><span class="p">))),</span>
-                        <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">z_on_plane</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_centroid</span><span class="p">,</span> <span class="n">y_normal</span><span class="p">)))</span>
-                    <span class="p">)</span>
+            <span class="n">fit_alignment</span> <span class="o">=</span> <span class="n">build_aligned_coords</span><span class="p">(</span><span class="n">x_centroid</span><span class="p">,</span> <span class="n">x_normal</span><span class="p">,</span> <span class="n">y_centroid</span><span class="p">,</span> <span class="n">y_normal</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">ignore_outliers</span><span class="p">:</span>
                 <span class="c1"># Calculate outlier threshold (90th percentile)</span>
-                <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">all_tile_alignment</span> <span class="o">-</span> <span class="n">fit_alignment</span><span class="p">)</span>
+                <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">all_alignment_coords</span> <span class="o">-</span> <span class="n">fit_alignment</span><span class="p">)</span>
                 <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
                 <span class="n">threshold</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">diff</span><span class="p">[</span><span class="o">~</span><span class="n">diff</span><span class="o">.</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
-                <span class="n">all_tile_alignment</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">diff</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="n">fit_alignment</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">all_tile_alignment</span><span class="o">.</span><span class="n">mask</span>
+                <span class="n">all_alignment_coords</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">diff</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">coord_mask</span><span class="p">[</span><span class="n">diff</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">fit_alignment</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">all_alignment_coords</span><span class="o">.</span><span class="n">mask</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Re-fitting to </span><span class="si">{}</span><span class="s2"> coordinates, ignoring outliers.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">((</span><span class="o">~</span><span class="n">coord_mask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+
+                <span class="n">coord_raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">coord_to_raw</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="o">~</span><span class="n">coord_mask</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">half_extract_px</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="o">~</span><span class="n">coord_mask</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">half_extract_px</span>
+                <span class="p">)</span>
 
                 <span class="c1"># Recalculate fit without outliers</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Recalculating fit without outliers&#39;</span><span class="p">)</span>
-                <span class="n">x_adjustment_coordinates</span> <span class="o">=</span> <span class="n">alignment_to_list</span><span class="p">(</span><span class="n">all_tile_alignment</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">])</span>
-                <span class="n">y_adjustment_coordinates</span> <span class="o">=</span> <span class="n">alignment_to_list</span><span class="p">(</span><span class="n">all_tile_alignment</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">])</span>
+                <span class="n">x_adjustment_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span>
+                    <span class="n">coord_raw</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">coord_raw</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                    <span class="n">all_alignment_coords</span><span class="p">[</span><span class="o">~</span><span class="n">coord_mask</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="p">))</span>
+                <span class="n">y_adjustment_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span>
+                    <span class="n">coord_raw</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">coord_raw</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                    <span class="n">all_alignment_coords</span><span class="p">[</span><span class="o">~</span><span class="n">coord_mask</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="p">))</span>
 
                 <span class="n">x_centroid</span><span class="p">,</span> <span class="n">x_normal</span> <span class="o">=</span> <span class="n">best_fit_plane</span><span class="p">(</span><span class="n">x_adjustment_coordinates</span><span class="p">)</span>
                 <span class="n">y_centroid</span><span class="p">,</span> <span class="n">y_normal</span> <span class="o">=</span> <span class="n">best_fit_plane</span><span class="p">(</span><span class="n">y_adjustment_coordinates</span><span class="p">)</span>
 
-                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">all_tile_alignment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
-                    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">all_tile_alignment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
-                        <span class="n">all_tile_alignment</span><span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-                            <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">z_on_plane</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x_centroid</span><span class="p">,</span> <span class="n">x_normal</span><span class="p">))),</span>
-                            <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">z_on_plane</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_centroid</span><span class="p">,</span> <span class="n">y_normal</span><span class="p">)))</span>
-                        <span class="p">)</span>
+                <span class="n">all_alignment_coords</span> <span class="o">=</span> <span class="n">build_aligned_coords</span><span class="p">(</span><span class="n">x_centroid</span><span class="p">,</span> <span class="n">x_normal</span><span class="p">,</span> <span class="n">y_centroid</span><span class="p">,</span> <span class="n">y_normal</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">all_tile_alignment</span> <span class="o">=</span> <span class="n">fit_alignment</span>
+                <span class="n">all_alignment_coords</span> <span class="o">=</span> <span class="n">fit_alignment</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span> <span class="o">=</span> <span class="n">Alignment</span><span class="o">.</span><span class="n">from_fit</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">coord_to_raw</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">origin</span><span class="p">),</span>
+                <span class="p">(</span><span class="n">x_centroid</span><span class="p">,</span> <span class="n">y_centroid</span><span class="p">),</span>
+                <span class="p">(</span><span class="n">x_normal</span><span class="p">,</span> <span class="n">y_normal</span><span class="p">)</span>
+            <span class="p">)</span>
 
         <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">all_tile_alignment</span><span class="p">[</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">all_tile_alignment</span><span class="p">[</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">is_masked</span><span class="p">(</span><span class="n">all_alignment_coords</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="k">continue</span>
+
+            <span class="n">bx</span><span class="p">,</span> <span class="n">by</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">coord_to_raw</span><span class="p">(</span>
+                <span class="n">x</span> <span class="o">+</span> <span class="n">half_extract_px</span><span class="p">,</span>
+                <span class="n">y</span> <span class="o">+</span> <span class="n">half_extract_px</span>
+            <span class="p">)</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">raw_to_coord</span><span class="p">(</span>
+                <span class="n">bx</span> <span class="o">+</span> <span class="n">all_alignment_coords</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">by</span> <span class="o">+</span> <span class="n">all_alignment_coords</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">half_extract_px</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">half_extract_px</span>
 
         <span class="c1"># Delete tiles that failed to align.</span>
-        <span class="k">if</span> <span class="n">idx_to_remove</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">idx_to_remove</span> <span class="ow">and</span> <span class="n">align_by</span> <span class="o">==</span> <span class="s1">&#39;tile&#39;</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Removing </span><span class="si">{}</span><span class="s2"> tiles that failed to align.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">idx_to_remove</span><span class="p">)))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">,</span> <span class="n">idx_to_remove</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Slide alignment complete and finetuned at each tile location.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">align_by</span> <span class="o">!=</span> <span class="s1">&#39;fit&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span> <span class="o">=</span> <span class="n">Alignment</span><span class="o">.</span><span class="n">from_coord</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">coord_to_raw</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">origin</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">coord</span>
+            <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">all_tile_alignment</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Slide alignment complete and finetuned at each unmasked tile location.&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">all_alignment_coords</span>
+
+    <span class="k">def</span> <span class="nf">apply_alignment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alignment</span><span class="p">:</span> <span class="n">Alignment</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply alignment to the slide.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            alignment (slideflow.slide.Alignment): Alignment object.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span> <span class="o">=</span> <span class="n">alignment</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">origin</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">raw_to_coord</span><span class="p">(</span><span class="o">*</span><span class="n">alignment</span><span class="o">.</span><span class="n">origin</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">alignment</span><span class="o">.</span><span class="n">coord</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="n">alignment</span><span class="o">.</span><span class="n">coord</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_build_coord</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">apply_qc_mask</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">alignment</span><span class="o">.</span><span class="n">centroid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">x_centroid</span><span class="p">,</span> <span class="n">y_centroid</span> <span class="o">=</span> <span class="n">alignment</span><span class="o">.</span><span class="n">centroid</span>
+                <span class="n">x_normal</span><span class="p">,</span> <span class="n">y_normal</span> <span class="o">=</span> <span class="n">alignment</span><span class="o">.</span><span class="n">normal</span>
+                <span class="n">half_extract_px</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">):</span>
+                    <span class="n">bx</span><span class="p">,</span> <span class="n">by</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">coord_to_raw</span><span class="p">(</span>
+                        <span class="n">x</span> <span class="o">+</span> <span class="n">half_extract_px</span><span class="p">,</span>
+                        <span class="n">y</span> <span class="o">+</span> <span class="n">half_extract_px</span>
+                    <span class="p">)</span>
+                    <span class="n">adjust_x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">z_on_plane</span><span class="p">(</span><span class="n">bx</span><span class="p">,</span> <span class="n">by</span><span class="p">,</span> <span class="n">x_centroid</span><span class="p">,</span> <span class="n">x_normal</span><span class="p">)))</span>
+                    <span class="n">adjust_y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">z_on_plane</span><span class="p">(</span><span class="n">bx</span><span class="p">,</span> <span class="n">by</span><span class="p">,</span> <span class="n">y_centroid</span><span class="p">,</span> <span class="n">y_normal</span><span class="p">)))</span>
+                    <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">raw_to_coord</span><span class="p">(</span><span class="n">bx</span> <span class="o">+</span> <span class="n">adjust_x</span><span class="p">,</span> <span class="n">by</span> <span class="o">+</span> <span class="n">adjust_y</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">half_extract_px</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">half_extract_px</span>
+
+    <span class="k">def</span> <span class="nf">load_alignment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load alignment from a file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): Path to alignment file.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">apply_alignment</span><span class="p">(</span><span class="n">Alignment</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+
+    <span class="c1"># --- All other functions -----------------------------------------------</span>
 
     <span class="k">def</span> <span class="nf">apply_qc_mask</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1846,6 +1974,22 @@
         <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span><span class="si">}</span><span class="s2"> ROIs exported to </span><span class="si">{</span><span class="n">abspath</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">abspath</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_masked_coord</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a masked array of the coordinate grid, masked by QC.&quot;&quot;&quot;</span>
+        <span class="n">true_grid_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">)</span>
+        <span class="n">linear_indices_of_coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+            <span class="n">dims</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span>
+        <span class="p">)</span>
+        <span class="n">unmasked_coord_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">in1d</span><span class="p">(</span>
+            <span class="n">linear_indices_of_coord</span><span class="p">,</span>
+            <span class="n">true_grid_indices</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">,</span>
+            <span class="n">mask</span><span class="o">=~</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">unmasked_coord_indices</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="mi">4</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_tile_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a dataframe of tiles and associated ROI labels.</span>

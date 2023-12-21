@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Slideflow Studio: Live Visualization &mdash; slideflow 2.2.0 documentation</title>
+  <title>Slideflow Studio: Live Visualization &mdash; slideflow 2.3.0 documentation</title>
 
 
 
@@ -121,7 +121,7 @@
 
 
                 <div class="version">
-                  2.2
+                  2.3
                 </div>
 
 
@@ -157,7 +157,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
@@ -166,6 +165,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a></li>
@@ -399,6 +400,19 @@
 </div>
 <p>Similarly, slide filtering can be enabled by checking “Slide filter”. Available slide filtering / QC options include blur filtering, Otsu’s thresholding, or both. If “Tile filter” and “Slide filter” are both selected, tiles will be filtered with both. The QC mask can be previewed by checking the box “QC Mask” in the “Display” subsection.</p>
 </section>
+<section id="tissue-segmentation">
+<span id="studio-segmentation"></span><h3>Tissue segmentation<a class="headerlink" href="#tissue-segmentation" title="Permalink to this heading">¶</a></h3>
+
+    <video width="100%"  controls autoplay loop>
+    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/tissue_seg.mp4" type="video/mp4">
+    Video
+    </video>
+    <div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>New in version 2.3, trained <a class="reference internal" href="../segmentation/#segmentation"><span class="std std-ref">segmentation models</span></a> can be deployed as a slide filter. Start by typing or pasting the path to a trained segmentation model in the text box next to “Segment”. Then, check “Segment” to generate and apply a QC mask. The QC mask can be previewed by checking the box “QC Mask” in the “Display” subsection. The QC mask is constructed from all pixels predicted to be background.</p>
+<p>In addition to using a segmentation model for QC, a trained model can be used to generate labeled ROIs. Click “Generate ROIs” to generate ROIs from the segmentation model. The ROIs will be shown in the main view, and can be saved with the annotation tool. The ROIs will be saved in CSV format, with the ROI label corresponding to the predicted class.</p>
+</section>
 <section id="preview-slide-normalization">
 <h3>Preview slide normalization<a class="headerlink" href="#preview-slide-normalization" title="Permalink to this heading">¶</a></h3>
 <p>Stain normalization strategies can be quickly previewed by checking “Normalize”, which will apply the associated normalization strategy to the main view. If a model is loaded, the model’s normalizer will be used by default. The normalizer can be changed with the corresponding dropdown menu, allowing you to preview any normalization method. All normalizer methods shown except for the model normalizer will use the “v3” fit (see <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code> for more information). Regardless of what is being previewed, the appropriate model normalizer will be used when generating predictions from the slide.</p>
@@ -451,7 +465,7 @@
 <p>The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click “Generate” in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the “Display” subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap. Press the left ALT key while hovering over the heatmap to show the raw heatmap values.</p>
 
     <video width="100%"  controls autoplay loop>
-    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/heatmap.mp4" type="video/mp4">
+    <source src="heatmap.mp4" type="video/mp4">
     Video
     </video>
     <div class="line-block">
@@ -612,6 +626,7 @@
 <li><a class="reference internal" href="#roi-annotations">ROI Annotations</a></li>
 <li><a class="reference internal" href="#tile-filtering">Tile filtering</a></li>
 <li><a class="reference internal" href="#slide-filtering">Slide filtering</a></li>
+<li><a class="reference internal" href="#tissue-segmentation">Tissue segmentation</a></li>
 <li><a class="reference internal" href="#preview-slide-normalization">Preview slide normalization</a></li>
 <li><a class="reference internal" href="#preview-tile-extraction">Preview tile extraction</a></li>
 </ul>
