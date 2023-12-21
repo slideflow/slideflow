@@ -363,14 +363,17 @@ class StainNormalizer:
         """Normalize a target image, attempting to preserve the original type.
 
         Args:
-            image (np.ndarray, tf.Tensor, or torch.Tensor): Image.
+            image (np.ndarray, tf.Tensor, or torch.Tensor): Image as a uint8
+                array. Numpy and Tensorflow images are normalized in W x H x C
+                space. PyTorch images provided as C x W x H will be
+                auto-converted and permuted back after normalization.
 
         Keyword args:
             augment (bool): Transform using stain aumentation.
                 Defaults to False.
 
         Returns:
-            Normalized image of the original type.
+            Normalized image of the original type (uint8).
         """
         if isinstance(image, (str, bytes)):
             raise ValueError("Unable to auto-transform bytes or str; please "
@@ -395,10 +398,13 @@ class StainNormalizer:
         """Augment a target image, attempting to preserve the original type.
 
         Args:
-            image (np.ndarray, tf.Tensor, or torch.Tensor): Image.
+            image (np.ndarray, tf.Tensor, or torch.Tensor): Image as a uint8
+                array. Numpy and Tensorflow images are normalized in W x H x C
+                space. PyTorch images provided as C x W x H will be
+                auto-converted and permuted back after normalization.
 
         Returns:
-            Augmented image of the original type.
+            Augmented image of the original type (uint8).
         """
         if not hasattr(self.n, 'augment'):
             raise errors.AugmentationNotSupportedError(
@@ -656,7 +662,7 @@ class StainNormalizer:
         Returns:
             A tuple containing
 
-                np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.
+                np.ndarray: Normalized torch.Tensor image, uint8 (channel dimension matching the input image)
 
                 args (Any, optional): Any additional arguments provided, unmodified.
         """
