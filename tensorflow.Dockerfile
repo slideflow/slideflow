@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM tensorflow/tensorflow:2.9.3-gpu
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
 
 # Install necessary packages
 RUN apt update && \
@@ -25,10 +27,10 @@ RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.1/scripts/
     ./pixman_repair.sh
 
 # Install slideflow & download scripts
-RUN pip3 install slideflow[cucim]==2.2.0 cupy-cuda11x tensorflow_datasets tensorflow_probability==0.17.* && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/test.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/slideflow_studio.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/run_project.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/qupath_roi_legacy.groovy && \
+RUN pip3 install slideflow[cucim]==2.2.1.post1 cupy-cuda11x tensorflow_datasets tensorflow_probability==0.17.* && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/test.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/slideflow-studio.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/run_project.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/qupath_roi_legacy.groovy && \
     pip3 install spams --no-cache --force-reinstall --no-deps

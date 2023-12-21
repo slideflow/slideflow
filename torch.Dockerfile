@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 FROM pytorch/pytorch:1.11.0-cuda11.3-cudnn8-runtime
 RUN apt update
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
 
 # Install necessary packages
 RUN apt update && \
@@ -26,9 +28,9 @@ RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.0.1/scripts/
 
 # Install slideflow & download scripts
 ENV SF_BACKEND=torch
-RUN pip3 install slideflow[cucim]==2.2.0 cupy-cuda11x cellpose pretrainedmodels && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/test.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/slideflow_studio.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/run_project.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.0/scripts/qupath_roi_legacy.groovy
+RUN pip3 install slideflow[cucim,torch]==2.2.1.post1 cupy-cuda11x && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/test.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/slideflow-studio.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/run_project.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/2.2.1/scripts/qupath_roi_legacy.groovy
