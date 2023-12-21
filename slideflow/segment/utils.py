@@ -2,6 +2,8 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
+from ._cp_utils import make_tiles, average_tiles, outlines_list
+
 # -----------------------------------------------------------------------------
 
 def topleft_pad(img, size, padval=0):

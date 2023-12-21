@@ -18,7 +18,6 @@ from typing import Optional, List
 from functools import partial
 from os.path import join, exists, isdir, dirname
 from rich.progress import track
-from cellpose.utils import outlines_list
 from scipy.ndimage import label
 
 from slideflow.util import path_to_name
@@ -32,7 +31,7 @@ from .data import (
     ThumbMaskDataset,
     TileMaskDataset
 )
-from .utils import topleft_pad, center_square_pad
+from .utils import topleft_pad, center_square_pad, outlines_list
 
 # -----------------------------------------------------------------------------
 

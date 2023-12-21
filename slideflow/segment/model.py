@@ -3,7 +3,7 @@ import numpy as np
 import slideflow as sf
 from typing import Union, Optional, Callable
 
-from .utils import topleft_pad
+from .utils import topleft_pad, make_tiles, average_tiles
 
 # -----------------------------------------------------------------------------
 
@@ -225,8 +225,6 @@ class SegmentModel(pl.LightningModule):
 
     def run_tiled_inference(self, img: np.ndarray):
         """Run inference on an image, with tiling."""
-
-        from cellpose.transforms import make_tiles, average_tiles
 
         # Pad to at least the target size.
         if img.shape[-1] == 4:

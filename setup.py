@@ -150,8 +150,9 @@ setuptools.setup(
             'pretrainedmodels',
             'cellpose<2.2',
             'fastai',
-            'pytorch-lightning'
-            'timm'
+            'pytorch-lightning',
+            'timm',
+            'segmentation-models-pytorch'
         ],
         'dev': [
             'sphinx',
