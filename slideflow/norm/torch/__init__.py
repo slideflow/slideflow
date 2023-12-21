@@ -24,7 +24,6 @@ class TorchStainNormalizer(StainNormalizer):
         'macenko': macenko.MacenkoNormalizer,
         'macenko_fast': macenko.MacenkoFastNormalizer,
         'cyclegan': cyclegan.CycleGanNormalizer,
-        'cyclegan_reinhard': cyclegan.CycleGanReinhardNormalizer,
     }
 
     def __init__(
