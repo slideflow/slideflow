@@ -5,7 +5,7 @@
 Tissue Segmentation
 ===================
 
-In addition to classification tasks, Slideflow also supports training and deploying tissue segmentation models. Segmentation models identify and label regions of interest in a slide, and can be used for tasks such as tumor identification, tissue labeling, or quality control. Once trained, these models can be used for :ref:`slide QC <filtering>`, generating :ref:`regions of interest <regions_of_interest>`, or live deployment in :ref:`Slideflow Studio <studio>`.
+In addition to classification tasks, Slideflow also supports training and deploying whole-slide tissue segmentation models. Segmentation models identify and label regions of interest in a slide, and can be used for tasks such as tumor identification, tissue labeling, or quality control. Once trained, these models can be used for :ref:`slide QC <filtering>`, generating :ref:`regions of interest <regions_of_interest>`, or live deployment in :ref:`Slideflow Studio <studio>`.
 
 .. note::
 
@@ -14,7 +14,7 @@ In addition to classification tasks, Slideflow also supports training and deploy
 Segmentation Modes
 ------------------
 
-Slideflow supports three segmentation modes:
+Tissue segmentation is performed at the whole-slide level, trained on randomly cropped sections of the slide thumbnail at a specified resolution. Slideflow supports three segmentation modes:
 
 - ``'binary'``: For binary segmentation, the goal is to differentiate a single tissue type from background.
 - ``'multiclass'``: For multiclass segmentation, the goal is twofold: differentiate tissue from background, and assign a class label to each identified region. This is useful in instances where regions have non-overlapping labels.
