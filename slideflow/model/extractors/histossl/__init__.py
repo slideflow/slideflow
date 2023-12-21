@@ -5,7 +5,6 @@ license found in the LICENSE file in the same directory as this source file.
 
 """
 import os
-import torch
 import gdown
 import slideflow as sf
 from slideflow.util import make_cache_dir_path

@@ -1442,6 +1442,7 @@ class Trainer:
         format: str = 'parquet',
         from_wsi: bool = False,
         roi_method: str = 'auto',
+        reduce_method: Union[str, Callable] = 'average',
     ) -> Dict[str, "pd.DataFrame"]:
         """Perform inference on a model, saving tile-level predictions.
 
@@ -1468,6 +1469,17 @@ class Trainer:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
 
         Returns:
             Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
@@ -1520,7 +1532,8 @@ class Trainer:
             uq=bool(self.hp.uq),
             num_tiles=dataset.num_tiles,
             outcome_names=self.outcome_names,
-            patients=self.patients
+            patients=self.patients,
+            reduce_method=reduce_method,
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)

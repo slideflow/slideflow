@@ -1267,6 +1267,17 @@ class Project:
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             save_predictions (bool or str, optional): Save tile, slide, and
                 patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
@@ -2892,6 +2903,17 @@ class Project:
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             custom_objects (dict, Optional): Dictionary mapping names
                 (strings) to custom classes or functions. Defaults to None.
 
@@ -3497,6 +3519,17 @@ class Project:
                 model from which to load weights. Defaults to 'imagenet'.
             multi_gpu (bool): Train using multiple GPUs when available.
                 Defaults to False.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical
+                outcomes. Options include 'average', 'mean', 'proportion',
+                'median', 'sum', 'min', 'max', or a callable function.
+                'average' and 'mean' are  synonymous, with both options kept
+                for backwards compatibility. If  'average' or 'mean', will
+                reduce with average of each logit across  tiles. If
+                'proportion', will convert tile predictions into onehot encoding
+                then reduce by averaging these onehot values. For all other
+                values, will reduce with the specified function, applied via
+                the pandas ``DataFrame.agg()`` function. Defaults to 'average'.
             resume_training (str, optional): Path to model to continue training.
                 Only valid in Tensorflow backend. Defaults to None.
             starting_epoch (int): Start training at the specified epoch.
