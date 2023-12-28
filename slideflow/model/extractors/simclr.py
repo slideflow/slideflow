@@ -51,8 +51,9 @@ class SimCLR_Features(TensorflowFeatureExtractor):
         center_crop: Optional[bool] = None,
         tile_px: Optional[int] = None,
         resize_crop: bool = True,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.model = simclr.load(ckpt, as_pretrained=True)
         self.simclr_args = simclr.load_model_args(ckpt)
