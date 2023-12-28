@@ -48,8 +48,8 @@ you agree to the terms of the license.
 """
     MD5 = 'e7124eefc87fe6069bf4b864f9ed298c'
 
-    def __init__(self, device=None, center_crop=False, weights=None):
-        super().__init__()
+    def __init__(self, device=None, center_crop=False, weights=None, **kwargs):
+        super().__init__(**kwargs)
 
         from slideflow.model import torch_utils
 
