@@ -140,13 +140,16 @@ def nasnet_large_imagenet(tile_px, **kwargs):
 class TorchFeatureExtractor(BaseFeatureExtractor):
     """Feature extractor for PyTorch models."""
 
-    def __init__(self, channels_last=False, mixed_precision=False):
+
+    def __init__(self, channels_last=False, mixed_precision=False, force_uint8 = True, no_grad = True):
         from .. import torch_utils
 
         super().__init__(backend='torch')
         self.device = torch_utils.get_device()
         self.channels_last = channels_last
         self.mixed_precision = mixed_precision
+        self.force_uint8 = force_uint8
+        self.no_grad = no_grad
 
     def __call__(self, obj, **kwargs):
         """Generate features for a batch of images or a WSI."""
@@ -161,15 +164,20 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
                 f"{self.__class__.__name__} does not accept keyword arguments "
                 "when extracting features from a batch of images."
             )
-        assert obj.dtype == torch.uint8
+        if self.force_uint8:
+            assert obj.dtype == torch.uint8
         obj = obj.to(self.device)
         obj = self.transform(obj)
         with autocast(self.device.type, mixed_precision=self.mixed_precision):
-            with torch.no_grad():
+            if self.no_grad:
+                with torch.no_grad():
+                    if self.channels_last:
+                        obj = obj.to(memory_format=torch.channels_last)
+                    return self.model(obj)
+            else:
                 if self.channels_last:
                     obj = obj.to(memory_format=torch.channels_last)
                 return self.model(obj)
-
 
 class TorchImagenetLayerExtractor(BaseFeatureExtractor):
     """Feature extractor that calculates layer activations for
