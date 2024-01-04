@@ -17,8 +17,9 @@ if TYPE_CHECKING:
 # -----------------------------------------------------------------------------
 
 class _SlideIterator(torch.utils.data.IterableDataset):
-    def __init__(self, img_format, generator, *args, **kwargs):
+    def __init__(self, preprocess, img_format, generator, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.preprocess = preprocess
         self.img_format = img_format
         self.generator = generator
 
@@ -32,6 +33,8 @@ class _SlideIterator(torch.utils.data.IterableDataset):
             else:
                 img = torch.from_numpy(img).permute(2, 0, 1)
             loc = np.array(image_dict['grid'])
+            if self.preprocess:
+                img = self.preprocess(img)
             yield img, loc
 
 # -----------------------------------------------------------------------------
