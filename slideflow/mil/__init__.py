@@ -20,3 +20,4 @@ from ._params import (
     ModelConfigCLAM,
     ModelConfigFastAI
 )
+from .utils import load_model_weights
