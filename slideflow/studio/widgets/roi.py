@@ -349,11 +349,12 @@ class ROIWidget:
             viz.viewer.select_roi(self._show_roi_ctx_menu[0])
         else:
             for roi_idx in self._show_roi_ctx_menu:
-                if imgui.begin_menu(viz.wsi.rois[roi_idx].name):
-                    clicked = self._draw_ctx_submenu(roi_idx) or clicked
-                    imgui.end_menu()
-                    viz.viewer.deselect_roi()
-                    viz.viewer.select_roi(roi_idx)
+                if roi_idx < len(viz.wsi.rois):
+                    if imgui.begin_menu(viz.wsi.rois[roi_idx].name):
+                        clicked = self._draw_ctx_submenu(roi_idx) or clicked
+                        imgui.end_menu()
+                        viz.viewer.deselect_roi()
+                        viz.viewer.select_roi(roi_idx)
 
         # Cleanup window
         if (imgui.is_mouse_down(0) and not imgui.is_window_hovered()) or clicked:
