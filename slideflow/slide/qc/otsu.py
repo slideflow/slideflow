@@ -143,8 +143,8 @@ class Otsu:
             )
         # Only apply Otsu thresholding within areas not already removed
         # with other QC methods.
-        if wsi.qc_mask is not None:
-            thumb = _apply_mask(thumb, wsi.qc_mask)
+        if wsi.has_non_roi_qc():
+            thumb = _apply_mask(thumb, wsi.get_qc_mask(roi=False))
         return thumb
 
     def __call__(

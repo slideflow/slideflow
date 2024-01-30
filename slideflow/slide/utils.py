@@ -120,7 +120,12 @@ class ROIPoly:
 
 class QCMask:
 
-    def __init__(self, mask: np.ndarray, filter_threshold: float = 0.6) -> None:
+    def __init__(
+        self,
+        mask: np.ndarray,
+        filter_threshold: float = 0.6,
+        is_roi: bool = False
+    ) -> None:
 
         if not 0 <= filter_threshold <= 1:
             raise ValueError('filter_threshold must be between 0 and 1')
@@ -132,10 +137,11 @@ class QCMask:
             raise ValueError('mask must be a boolean array')
 
         self.mask = mask
+        self.is_roi = is_roi
         self.filter_threshold = filter_threshold
 
     def __repr__(self):
-        return f"<QCMask (shape={self.shape}), filter_threshold={self.filter_threshold}>"
+        return f"<QCMask (shape={self.shape}), filter_threshold={self.filter_threshold}, is_roi={self.is_roi}>"
 
     @property
     def shape(self):

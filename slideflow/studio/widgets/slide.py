@@ -3,7 +3,7 @@ import cv2
 import imgui
 import numpy as np
 import threading
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from .roi import ROIWidget
 from .._renderer import CapturedException
@@ -42,6 +42,7 @@ def stride_capture(
             capturing = None
 
     return current_val, capturing, capture_success
+
 
 #----------------------------------------------------------------------------
 
@@ -367,7 +368,8 @@ class SlideWidget:
             whitespace_fraction=(self.ws_fraction if self.apply_tile_filter else 1),
             whitespace_threshold=self.ws_threshold,
             qc=self._get_qc(),
-            stride=self.stride
+            stride=self.stride,
+            roi_filter_method=self.roi_widget.roi_filter_method
         )
 
     def update_params(self) -> None:
@@ -799,6 +801,19 @@ class SlideWidget:
             self.viz._reload_wsi(stride=self.stride, use_rois=self.roi_widget.use_rois)
             self._update_tile_coords()
 
+        # ROI Filter Method
+        _roi_filter_method = self.roi_widget.draw_roi_filter_capture()
+        if _roi_filter_method is not None:
+            self.viz.wsi.roi_filter_method = _roi_filter_method
+            self.viz.wsi.process_rois()
+            self.update_tile_filter()
+            self.update_tile_filter_display()
+            self._update_tile_coords()
+            self.update_params()
+            if self.apply_slide_filter:
+                self.update_slide_filter(method=self._get_qc())
+                self.update_slide_filter_display()
+
         # Tile filtering
         _filter_clicked, self.apply_tile_filter = imgui.checkbox('Tile filter', self.apply_tile_filter)
         if _filter_clicked and not self.apply_tile_filter and self.show_tile_filter:
@@ -813,10 +828,10 @@ class SlideWidget:
             self.draw_filtering_popup()
 
         # Slide filtering
-        _otsu_clicked, self._use_otsu = imgui.checkbox('Otsu Threshold', self._use_otsu)
+        _otsu_clicked, self._use_otsu = imgui.checkbox('Otsu threshold', self._use_otsu)
         if imgui.is_item_hovered():
             imgui.set_tooltip("Apply Otsu's thresholding algorithm")
-        _gaussian_clicked, self._use_gaussian = imgui.checkbox('Gaussian Filter', self._use_gaussian)
+        _gaussian_clicked, self._use_gaussian = imgui.checkbox('Gaussian filter', self._use_gaussian)
         if imgui.is_item_hovered():
             imgui.set_tooltip("Apply Gaussian filter (GaussianV2)")
         _segment_clicked, self._use_segment = imgui.checkbox('Segment', self._use_segment)

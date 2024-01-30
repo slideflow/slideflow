@@ -821,6 +821,14 @@ class Studio(ImguiWindow):
         elif stride is None:
             stride = self.wsi.stride_div
 
+        # ROI filter method.
+        if self.wsi is None:
+            roi_filter_method = 'center'
+        else:
+            roi_filter_method = self.wsi.roi_filter_method
+
+        print("Reloading slide with filter method = ", roi_filter_method)
+
         # ROIs.
         if self.wsi is not None and path == self.wsi.path:
             roi_method = self.wsi.roi_method
@@ -843,7 +851,7 @@ class Studio(ImguiWindow):
             tile_um = (self.tile_um if self.tile_um else 512)
 
         # Pass through QC mask if the slide is already loaded.
-        qc_mask = None if not self.wsi else self.wsi.qc_mask
+        qc_mask = None if not self.wsi else self.wsi.get_qc_mask(roi=False)
 
         try:
             wsi = sf.WSI(
@@ -862,6 +870,7 @@ class Studio(ImguiWindow):
                 verbose=False,
                 mpp=self.slide_widget.manual_mpp,
                 use_bounds=self.settings_widget.use_bounds,
+                roi_filter_method=roi_filter_method,
                 **kwargs)
         except sf.errors.IncompatibleBackendError:
             self.create_toast(
