@@ -3,11 +3,12 @@ import cv2
 import imgui
 import numpy as np
 import threading
+import pyperclip
 from typing import Optional, Tuple, Union
 
 from .roi import ROIWidget
 from .._renderer import CapturedException
-from ..utils import EasyDict
+from ..utils import EasyDict, LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
 from ..gui import imgui_utils, gl_utils
 
 import slideflow as sf
@@ -123,6 +124,7 @@ class SlideWidget:
         self._use_gaussian      = False
         self._use_segment       = False
         self._qc_segment        = None
+        self._clicking_path     = False
 
         self.load('', ignore_errors=True)
 
@@ -676,8 +678,15 @@ class SlideWidget:
         ]
         imgui.text_colored('Filename', *viz.theme.dim)
         imgui.same_line(viz.font_size * 8)
-        with imgui_utils.clipped_with_tooltip(viz.wsi.name, 17):
+        with imgui_utils.clipped_with_tooltip(viz.wsi.path, 17):
             imgui.text(imgui_utils.ellipsis_clip(viz.wsi.name, 17))
+        if imgui.is_item_hovered() and imgui.is_mouse_down(LEFT_MOUSE_BUTTON):
+            self._clicking_path = True
+        if self._clicking_path and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
+            self._clicking_path = False
+            pyperclip.copy(viz.wsi.path)
+            viz.create_toast("Copied slide path to clipboard", icon="info")
+
         for y, cols in enumerate(rows):
             for x, col in enumerate(cols):
                 if x != 0:

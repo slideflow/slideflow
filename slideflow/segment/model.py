@@ -48,7 +48,11 @@ class SegmentModel(pl.LightningModule):
     ):
         super().__init__()
         self.model = smp.create_model(
-            arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
+            arch,
+            encoder_name=encoder_name,
+            in_channels=in_channels,
+            classes=out_classes,
+            **kwargs
         )
         self.mpp = mpp
         self.lr = lr

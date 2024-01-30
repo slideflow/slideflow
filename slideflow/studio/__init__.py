@@ -827,8 +827,6 @@ class Studio(ImguiWindow):
         else:
             roi_filter_method = self.wsi.roi_filter_method
 
-        print("Reloading slide with filter method = ", roi_filter_method)
-
         # ROIs.
         if self.wsi is not None and path == self.wsi.path:
             roi_method = self.wsi.roi_method

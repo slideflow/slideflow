@@ -16,6 +16,12 @@ if sf.util.torch_available:
 
 #----------------------------------------------------------------------------
 
+
+LEFT_MOUSE_BUTTON = 0
+RIGHT_MOUSE_BUTTON = 1
+
+#----------------------------------------------------------------------------
+
 class EasyDict(dict):
     """Convenience class that behaves like a dict but allows access with the attribute syntax."""
 

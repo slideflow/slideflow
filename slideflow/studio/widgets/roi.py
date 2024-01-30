@@ -11,11 +11,9 @@ from typing import Optional, Tuple, List, Union
 from ..gui import imgui_utils, text_utils, gl_utils
 from ..gui.annotator import AnnotationCapture
 from ..gui.viewer import SlideViewer
+from ..utils import LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
 
 import slideflow as sf
-
-LEFT_MOUSE_BUTTON = 0
-RIGHT_MOUSE_BUTTON = 1
 
 #----------------------------------------------------------------------------
 
@@ -194,8 +192,7 @@ class ROIWidget:
             if (self.editing
                and self.viz.viewer is not None
                and hasattr(self.viz.viewer, 'selected_rois')):
-                self.remove_rois(self.viz.viewer.selected_rois)
-                self.refresh_rois()
+                self.remove_rois(self._selected_rois)
 
     def late_render(self) -> None:
         """Render elements with OpenGL (after other UI elements are drawn).
@@ -556,7 +553,13 @@ class ROIWidget:
 
     # --- ROI tools -----------------------------------------------------------
 
-    def remove_rois(self, roi_indices: Union[int, List[int]]) -> None:
+    def remove_rois(
+        self,
+        roi_indices: Union[int, List[int]],
+        *,
+        refresh_view: bool = True
+    ) -> None:
+
         """Remove ROIs by the given index or indices."""
         if not self.viz.wsi:
             return
@@ -569,7 +572,7 @@ class ROIWidget:
             self.viz.wsi.remove_roi(idx)
         self._selected_rois = []
 
-        if isinstance(self.viz.viewer, SlideViewer):
+        if refresh_view and isinstance(self.viz.viewer, SlideViewer):
             # Update the ROI grid.
             self.viz.viewer._refresh_rois()
             self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
@@ -632,13 +635,20 @@ class ROIWidget:
         else:
             new_label = None
 
+        # Remove the old ROIs.
+        self.remove_rois(roi_indices, refresh_view=False)
+
         # Load the merged ROI into the slide.
         self.viz.wsi.load_roi_array(
             new_roi_coords,
             label=new_label,
-            name='merged'
         )
+        self._selected_rois = [len(self.viz.wsi.rois)-1]
 
+        # Update the view.
+        if isinstance(self.viz.viewer, SlideViewer):
+            self.viz.viewer._refresh_rois()
+            self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
 
 
     # --- Control & interface -------------------------------------------------

@@ -221,7 +221,30 @@ class TileMaskDataset(torch.utils.data.Dataset):
         dataset: "sf.Dataset",
         tile_px: int,
         tile_um: Union[int, str],
+        *,
+        stride_div: int = 2,
+        crop_margin: int = 0,
+        filter_method: str = 'roi'
     ):
+        """Dataset that generates tiles and ROI masks from slides.
+
+        Args:
+            dataset (sf.Dataset): The dataset to use.
+            tile_px (int): The size of the tiles (in pixels).
+            tile_um (Union[int, str]): The size of the tiles (in microns).
+
+        Keyword args:
+            stride_div (int, optional): The divisor for the stride.
+                Defaults to 2.
+            crop_margin (int, optional): The number of pixels to add to the
+                tile size before random cropping to the target tile_px size.
+                Defaults to 0 (no random cropping).
+            filter_method (str, optional): The method to use for identifying
+                tiles for training. If 'roi', selects only tiles that intersect
+                with an ROI. If 'otsu', selects tiles based on an Otsu threshold
+                of the slide. Defaults to 'roi'.
+
+        """
         super().__init__()
 
         rois = dataset.rois()
@@ -229,24 +252,36 @@ class TileMaskDataset(torch.utils.data.Dataset):
         slides = [s for s in dataset.slide_paths()
                   if path_to_name(s) in slides_with_rois]
         kw = dict(
-            tile_px=tile_px,
+            tile_px=tile_px + crop_margin,
             tile_um=tile_um,
-            rois=rois,
-            verbose=False
+            verbose=False,
+            stride_div=stride_div
         )
+        self.tile_px = tile_px
         self.coords = []
         self.all_wsi = dict()
+        self.all_wsi_with_roi = dict()
         self.all_extract_px = dict()
         for slide in track(slides, description="Loading slides"):
             name = path_to_name(slide)
-            wsi = sf.WSI(slide, roi_filter_method=0.1, **kw)
-            if not len(wsi.roi_polys):
+            wsi = sf.WSI(slide, **kw)
+            wsi_with_rois = sf.WSI(slide, roi_filter_method=0.1, rois=rois, **kw)
+            if not len(wsi_with_rois.roi_polys):
                 continue
-            wsi_inner = sf.WSI(slide, roi_filter_method=0.9, **kw)
-            coords = np.argwhere(wsi.grid & (~wsi_inner.grid)).tolist()
+            if filter_method == 'roi':
+                wsi_inner = sf.WSI(slide, roi_filter_method=0.9, **kw)
+                coords = np.argwhere(wsi_with_rois.grid & (~wsi_inner.grid)).tolist()
+            elif filter_method == 'otsu':
+                wsi.qc('otsu')
+                coords = np.argwhere(wsi.grid).tolist()
+                wsi.remove_qc()
+            else:
+                raise ValueError("Invalid filter method: {}. Expected one of: "
+                                 "roi, otsu".format(filter_method))
             for c in coords:
                 self.coords.append([name] + c)
             self.all_wsi[name] = wsi
+            self.all_wsi_with_roi[name] = wsi_with_rois
             self.all_extract_px[name] = int(wsi.tile_um / wsi.mpp)
 
     def __len__(self):
@@ -255,24 +290,26 @@ class TileMaskDataset(torch.utils.data.Dataset):
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         slide, gx, gy = self.coords[index]
         wsi = self.all_wsi[slide]
+        wsi_with_roi = self.all_wsi_with_roi[slide]
         fe = self.all_extract_px[slide]
+        fs = wsi.full_stride
 
         # Get the image.
         img = wsi[gx, gy].transpose(2, 0, 1)
 
         # Determine the intersection at the given tile location.
         tile = Polygon([
-            [fe*gx, fe*gy],
-            [fe*gx, (fe*gy)+fe],
-            [fe*(gx+1), fe*(gy+1)],
-            [fe*(gx+1), fe*gy]
+            [fs*gx, fs*gy],
+            [fs*gx, (fs*gy)+fe],
+            [(fs*gx)+fe, (fs*gy)+fe],
+            [(fs*gx)+fe, fs*gy]
         ])
-        assert len(wsi.roi_polys) > 0, "No ROIs found in slide"
-        all_polys = unary_union([p.poly for p in wsi.roi_polys])
+        assert len(wsi_with_roi.roi_polys) > 0, "No ROIs found in slide"
+        all_polys = unary_union([p.poly for p in wsi_with_roi.roi_polys])
         A = all_polys.intersection(tile)
 
         # Translate polygons so the intersection origin is at (0, 0)
-        B = sa.translate(A, -(fe*gx), -(fe*gy))
+        B = sa.translate(A, -(fs*gx), -(fs*gy))
 
         # Scale to the target tile size
         xscale = yscale = wsi.tile_px / fe
@@ -289,10 +326,21 @@ class TileMaskDataset(torch.utils.data.Dataset):
         # Add a dummy channel dimension.
         mask = mask[None, :, :]
 
+        # Process.
+        img, mask = self.process(img, mask)
+
         return {
             'image': img,
             'mask': mask
         }
+
+    def process(
+        self,
+        img: np.ndarray,
+        mask: np.ndarray
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Randomly crop/rotate the image and mask and convert to a tensor."""
+        return random_crop_and_rotate(img, mask, size=self.tile_px)
 
 # -----------------------------------------------------------------------------
 
