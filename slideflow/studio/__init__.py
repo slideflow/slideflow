@@ -226,6 +226,15 @@ class Studio(ImguiWindow):
     def status_bar_height(self):
         return self.font_size + self.spacing
 
+    @property
+    def mouse_is_over_viewer(self):
+        """Mouse is currently over the main viewer."""
+        cx, cy = imgui.get_mouse_pos()
+        cx -= self.offset_x
+        cy -= self.offset_y
+        return (self.viewer is not None
+                and self.viewer.is_in_view(cx, cy))
+
     # --- Internals -----------------------------------------------------------
 
     def _set_default_font_size(self) -> None:
@@ -1073,7 +1082,6 @@ class Studio(ImguiWindow):
         expanded = imgui_utils.collapsing_header(text.upper(), **kwargs)[0]
         imgui.pop_style_color(4)
         return expanded
-
 
     def header(self, text):
         """Render a header using the active theme.

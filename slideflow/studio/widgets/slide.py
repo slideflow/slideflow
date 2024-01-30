@@ -272,7 +272,7 @@ class SlideWidget:
             self._scaled_boxes = scaled_boxes
             self._vbo = gl_utils.create_buffer(scaled_boxes.flatten())
         c = self._tile_colors_rgb[self.tile_color]
-        gl_utils.draw_rois(scaled_boxes, color=c, linewidth=2, alpha=1, vbo=self._vbo)
+        gl_utils.draw_boxes(scaled_boxes, color=c, linewidth=2, alpha=1, vbo=self._vbo)
 
     def _update_tile_coords(self) -> None:
         """Update the expected coordinates for tiles that will be extracted.

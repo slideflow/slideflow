@@ -27,6 +27,12 @@ from slideflow import io, model, norm, stats
 from slideflow.dataset import Dataset
 from slideflow.heatmap import Heatmap
 from slideflow.model import DatasetFeatures, ModelParams
+from slideflow.model import (
+    list_extractors, list_torch_extractors, list_tensorflow_extractors,
+    is_extractor, is_torch_extractor, is_tensorflow_extractor,
+    build_feature_extractor, build_torch_feature_extractor,
+    build_tensorflow_feature_extractor, rebuild_extractor
+)
 from slideflow.mosaic import Mosaic
 from slideflow.project import Project
 from slideflow.project import create as create_project

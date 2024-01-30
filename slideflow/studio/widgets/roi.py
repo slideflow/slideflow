@@ -3,8 +3,8 @@ import numpy as np
 import glfw
 import os
 from os.path import join, exists, dirname
-from shapely.geometry import Point
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon
+from shapely.ops import unary_union
 from tkinter.filedialog import askopenfilename
 from typing import Optional, Tuple, List
 
@@ -13,6 +13,9 @@ from ..gui.annotator import AnnotationCapture
 from ..gui.viewer import SlideViewer
 
 import slideflow as sf
+
+LEFT_MOUSE_BUTTON = 0
+RIGHT_MOUSE_BUTTON = 1
 
 #----------------------------------------------------------------------------
 
@@ -39,11 +42,13 @@ class ROIWidget:
 
         # Internals
         self._late_render               = []
-        self._show_roi_ctx_menu         = None
+        self._should_show_roi_ctx_menu  = False
+        self._roi_ctx_menu_items        = []
         self._show_roi_label_menu       = None
         self._ctx_mouse_pos             = None
-        self._ctx_clicking              = False
+        self._is_clicking_ctx_menu      = False
         self._roi_hovering              = False
+        self._selected_rois             = []
         self._show_roi_new_label_popup  = None
         self._new_label_popup_is_new    = True
         self._input_new_label           = ''
@@ -51,12 +56,17 @@ class ROIWidget:
         self._last_view_params          = None
         self._editing_label             = None
         self._editing_label_is_new      = True
+        self._should_show_advanced_editing_window = True
+        self._should_deselect_roi_on_mouse_up = True
+        self._mouse_is_down             = False
+        self._advanced_editor_is_new    = True
 
     # --- Internal ------------------------------------------------------------
 
     def reset_edit_state(self):
         self.editing = False
         self.capturing = False
+        self._should_show_advanced_editing_window = True
         if self.roi_toast is not None:
             self.roi_toast.done()
 
@@ -103,51 +113,28 @@ class ROIWidget:
 
         """
         viz = self.viz
-        if self.capturing:
-            new_annotation, annotation_name = self.annotator.capture(
-                x_range=(viz.viewer.x_offset, viz.viewer.x_offset + viz.viewer.width),
-                y_range=(viz.viewer.y_offset, viz.viewer.y_offset + viz.viewer.height),
-                pixel_ratio=viz.pixel_ratio
-            )
+        new_annotation, annotation_name = self.annotator.capture(
+            x_range=(viz.viewer.x_offset, viz.viewer.x_offset + viz.viewer.width),
+            y_range=(viz.viewer.y_offset, viz.viewer.y_offset + viz.viewer.height),
+            pixel_ratio=viz.pixel_ratio
+        )
 
-            # Render in-progress annotations
-            if new_annotation is not None:
-                self.render_annotation(new_annotation, origin=(viz.viewer.x_offset, viz.viewer.y_offset))
-            if annotation_name:
-                wsi_coords = []
-                for c in new_annotation:
-                    _x, _y = viz.viewer.display_coords_to_wsi_coords(c[0], c[1], offset=False)
-                    int_coords = (int(_x), int(_y))
-                    if int_coords not in wsi_coords:
-                        wsi_coords.append(int_coords)
-                if len(wsi_coords) > 2:
-                    wsi_coords = np.array(wsi_coords)
-                    viz.wsi.load_roi_array(wsi_coords)
-                    viz.viewer.refresh_view()
-                    # Show a label popup if the user has just created a new ROI.
-                    self._show_roi_label_menu = len(viz.wsi.rois) - 1
-
-        hovered_rois = None if viz.viewer.is_moving() else self._get_rois_at_mouse()
-
-        # Check for right click, and show context menu if hovering over a ROI.
-        if imgui.is_mouse_down(1):
-            if hovered_rois is None:
-                hovered_rois = self._get_rois_at_mouse()
-            if hovered_rois:
-                self._show_roi_ctx_menu = hovered_rois
-
-        # Show a tooltip if hovering over a ROI and no overlays are being shown.
-        if (hovered_rois
-            and (viz.overlay is None or not viz.show_overlay)
-            and viz.viewer.show_rois
-            and not self._show_roi_ctx_menu
-            and not self._show_roi_label_menu):
-            imgui.set_tooltip(
-                '\n'.join(
-                    [f'{viz.wsi.rois[r].name} (label: {viz.wsi.rois[r].label})'
-                     for r in hovered_rois]
-                )
-            )
+        # Render in-progress annotations
+        if new_annotation is not None:
+            self.render_annotation(new_annotation, origin=(viz.viewer.x_offset, viz.viewer.y_offset))
+        if annotation_name:
+            wsi_coords = []
+            for c in new_annotation:
+                _x, _y = viz.viewer.display_coords_to_wsi_coords(c[0], c[1], offset=False)
+                int_coords = (int(_x), int(_y))
+                if int_coords not in wsi_coords:
+                    wsi_coords.append(int_coords)
+            if len(wsi_coords) > 2:
+                wsi_coords = np.array(wsi_coords)
+                viz.wsi.load_roi_array(wsi_coords)
+                viz.viewer.refresh_view()
+                # Show a label popup if the user has just created a new ROI.
+                self._show_roi_label_menu = len(viz.wsi.rois) - 1
 
     def _set_button_style(self) -> None:
         """Set the style for the ROI buttons."""
@@ -259,8 +246,9 @@ class ROIWidget:
                         self._editing_label[1],
                         flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE
                     )
-                    if ((imgui.is_mouse_down(0) or imgui.is_mouse_down(1))
-                        and not imgui.is_item_hovered()):
+                    if ((imgui.is_mouse_down(LEFT_MOUSE_BUTTON)
+                         or imgui.is_mouse_down(RIGHT_MOUSE_BUTTON))
+                         and not imgui.is_item_hovered()):
                         self._editing_label = None
                         self._editing_label_is_new = True
                     if _changed:
@@ -314,41 +302,62 @@ class ROIWidget:
             self._new_label_popup_is_new = True
         imgui.end()
 
-    def draw_context_menu(self) -> None:
-        """Show the context menu for a ROI.
-
-        Args:
-            hovered_rois (list): A list of indices of the hovered ROIs.
-
-        """
+    def should_hide_context_menu(self) -> bool:
         viz = self.viz
-        if (viz.viewer is None              # Slide not loaded.
-            or not self._show_roi_ctx_menu  # No ROIs to show context menu for.
-            or not viz.viewer.show_rois     # ROIs are not being shown.
-            or not self.editing             # Must be editing ROIs.
-            or (viz.overlay is not None and viz.show_overlay)):  # Overlay is being shown.
-            # Hide the context menu and reset.
-            self._show_roi_ctx_menu = None
-            if self._show_roi_label_menu is None:
-                self._ctx_mouse_pos = None
+        return (viz.viewer is None                      # Slide not loaded.
+                or not self._should_show_roi_ctx_menu   # No ROIs to show context menu for.
+                or not viz.viewer.show_rois             # ROIs are not being shown.
+                or not self.editing                     # Must be editing ROIs.
+                or (viz.overlay is not None and viz.show_overlay))  # Overlay is being shown.
+
+    def hide_and_reset_context_menu(self) -> None:
+        """Hide and reset the ROI context menu."""
+        self._should_show_roi_ctx_menu = False
+        self._roi_ctx_menu_items = []
+        if self._show_roi_label_menu is None:
+            self._ctx_mouse_pos = None
+
+    def remove_context_menu_if_clicked(self, clicked: bool) -> None:
+        """Remove the ROI context menu if an item has been clicked."""
+
+        # Check if the user is currently clicking on the context menu.
+        if clicked or (imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered()):
+            self._is_clicking_ctx_menu = True
+
+        # Cleanup the window if the user has finished clicking on a context menu item.
+        if (self._is_clicking_ctx_menu and imgui.is_mouse_released(LEFT_MOUSE_BUTTON)):
+            self.hide_and_reset_context_menu()
+            self._is_clicking_ctx_menu = False
+            self._ctx_mouse_pos = None
+            self.viz.viewer.deselect_roi()
+
+    def draw_context_menu(self) -> None:
+        """Show the context menu for a ROI."""
+        viz = self.viz
+        if self.should_hide_context_menu():
+            self.hide_and_reset_context_menu()
             return
 
+        # Update the context menu mouse position and window destination.
         if self._ctx_mouse_pos is None:
             self._ctx_mouse_pos = self.viz.get_mouse_pos(scale=False)
         imgui.set_next_window_position(*self._ctx_mouse_pos)
         imgui.begin(
-            "##roi_context_menu-{}".format('-'.join(map(str, self._show_roi_ctx_menu))),
+            "##roi_context_menu-{}".format('-'.join(map(str, self._roi_ctx_menu_items))),
             flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
         )
+
+        # Draw the context menu.
         clicked = False
-        if len(self._show_roi_ctx_menu) == 1:
+        if len(self._roi_ctx_menu_items) == 1:
             with viz.bold_font():
-                imgui.text(viz.wsi.rois[self._show_roi_ctx_menu[0]].name)
+                imgui.text(viz.wsi.rois[self._roi_ctx_menu_items[0]].name)
             imgui.separator()
-            clicked = self._draw_ctx_submenu(self._show_roi_ctx_menu[0]) or clicked
-            viz.viewer.select_roi(self._show_roi_ctx_menu[0])
+            clicked = self._draw_ctx_submenu(self._roi_ctx_menu_items[0]) or clicked
+            viz.viewer.deselect_roi()
+            viz.viewer.select_roi(self._roi_ctx_menu_items[0])
         else:
-            for roi_idx in self._show_roi_ctx_menu:
+            for roi_idx in self._roi_ctx_menu_items:
                 if roi_idx < len(viz.wsi.rois):
                     if imgui.begin_menu(viz.wsi.rois[roi_idx].name):
                         clicked = self._draw_ctx_submenu(roi_idx) or clicked
@@ -356,14 +365,8 @@ class ROIWidget:
                         viz.viewer.deselect_roi()
                         viz.viewer.select_roi(roi_idx)
 
-        # Cleanup window
-        if (imgui.is_mouse_down(0) and not imgui.is_window_hovered()) or clicked:
-            self._ctx_clicking = True
-        if (self._ctx_clicking and imgui.is_mouse_released(0)):
-            self._ctx_clicking = False
-            self._show_roi_ctx_menu = None
-            self._ctx_mouse_pos = None
-            viz.viewer.deselect_roi()
+        # Cleanup the context menu if the user has clicked on an item.
+        self.remove_context_menu_if_clicked(clicked)
 
         imgui.end()
 
@@ -386,10 +389,10 @@ class ROIWidget:
         viz.viewer.select_roi(self._show_roi_label_menu)
 
         # Cleanup window
-        if (imgui.is_mouse_down(0) and not imgui.is_window_hovered()) or clicked:
-            self._ctx_clicking = True
-        if (self._ctx_clicking and imgui.is_mouse_released(0)):
-            self._ctx_clicking = False
+        if (imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered()) or clicked:
+            self._is_clicking_ctx_menu = True
+        if (self._is_clicking_ctx_menu and imgui.is_mouse_released(LEFT_MOUSE_BUTTON)):
+            self._is_clicking_ctx_menu = False
             self._show_roi_label_menu = None
             self._ctx_mouse_pos = None
             viz.viewer.deselect_roi()
@@ -433,6 +436,7 @@ class ROIWidget:
                     return True
         if imgui.menu_item(f"Delete##roi_{index}")[0]:
             self.viz.wsi.remove_roi(index)
+            self._selected_rois = []
             self.refresh_rois()
             return True
         return False
@@ -454,15 +458,162 @@ class ROIWidget:
                 return True
         return False
 
+    def _show_roi_tooltip(self, hovered_rois: List[int]) -> None:
+        """Show a tooltip if hovering over a ROI and no overlays are being shown."""
+        viz = self.viz
+        if viz.viewer.is_moving():
+            return
+        if (hovered_rois
+            and (viz.overlay is None or not viz.show_overlay)
+            and viz.viewer.show_rois
+            and not self._should_show_roi_ctx_menu
+            and not self._show_roi_label_menu):
+
+            imgui.set_tooltip(
+                '\n'.join(
+                    [f'{viz.wsi.rois[r].name} (label: {viz.wsi.rois[r].label})'
+                    for r in hovered_rois]
+                )
+            )
+
+    def _process_roi_left_click(self, hovered_rois: List[int]) -> None:
+        """If editing, hovering over an ROI, and left clicking, select the ROI(s)."""
+
+        if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and self.viz.mouse_is_over_viewer:
+            if self.viz.viewer.is_moving():
+                self._should_deselect_roi_on_mouse_up = False
+        elif imgui.is_mouse_down(LEFT_MOUSE_BUTTON):
+            self._should_deselect_roi_on_mouse_up = False
+
+        # Mouse is newly released; check if ROI needs selected or deelected.
+        if (not imgui.is_mouse_down(LEFT_MOUSE_BUTTON)
+            and self._mouse_is_down
+            and not self.viz._shift_down
+            and self._should_deselect_roi_on_mouse_up
+            and not hovered_rois):
+            self.viz.viewer.deselect_roi()
+            self._selected_rois = []
+        elif (not imgui.is_mouse_down(LEFT_MOUSE_BUTTON)
+              and self._mouse_is_down
+              and hovered_rois
+              and self._should_deselect_roi_on_mouse_up):
+            if self.viz._shift_down:
+                self._selected_rois = list(set(self._selected_rois + hovered_rois))
+            else:
+                self._selected_rois = hovered_rois
+            self.viz.viewer.deselect_roi()
+            self.viz.viewer.select_roi(self._selected_rois)
+
+        self._mouse_is_down = imgui.is_mouse_down(LEFT_MOUSE_BUTTON)
+        if not self._mouse_is_down:
+            self._should_deselect_roi_on_mouse_up = True
+
+    def _process_roi_right_click(self, hovered_rois: List[int]) -> None:
+        """If editing, hovering over an ROI, and right clicking, show a context menu."""
+
+        if imgui.is_mouse_down(RIGHT_MOUSE_BUTTON) and hovered_rois:
+            if not all([r in self._selected_rois for r in hovered_rois]):
+                self._selected_rois = hovered_rois
+            self._should_show_roi_ctx_menu = True
+            self._roi_ctx_menu_items = self._selected_rois
+
+    # --- ROI tools -----------------------------------------------------------
+
+    def simplify_roi(self, roi_indices: List[int]) -> None:
+        """Simplify the given ROIs."""
+        for idx in sorted(roi_indices, reverse=True):
+            poly = Polygon(self.viz.wsi.rois[idx].coordinates)
+            poly_s = poly.simplify(tolerance=0.1)
+            coords_s = np.stack(poly_s.exterior.coords.xy, axis=-1)
+            old_roi = self.viz.wsi.rois[idx]
+            self.viz.wsi.remove_roi(idx)
+            self.viz.wsi.load_roi_array(
+                coords_s,
+                label=old_roi.label,
+                name=old_roi.name
+            )
+
+        self.viz.viewer.refresh_view()
+        if len(roi_indices) == 1:
+            self._selected_rois = [len(self.viz.wsi.rois)-1]
+        else:
+            self._selected_rois = list(range(len(self.viz.wsi.rois)-len(roi_indices), len(self.viz.wsi.rois)))
+
+        # Update the ROI grid.
+        self.viz.viewer.deselect_roi()
+        self.viz.viewer.select_roi(self._selected_rois)
+        self.viz.viewer._refresh_rois()
+        self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
+
+    def merge_roi(self, roi_indices: List[int]) -> None:
+        """Merge the given ROIs together."""
+
+        if not len(roi_indices) > 1:
+            return
+
+        # Get the coordinates of the merged ROI.
+        new_roi_coords = np.stack(
+            unary_union([
+                    Polygon(self.viz.wsi.rois[idx].coordinates)
+                    for idx in roi_indices
+                ]).exterior.coords.xy,
+            axis=-1
+        )
+
+        # Infer the ROI label.
+        first_label = self.viz.wsi.rois[roi_indices[0]].label
+        if all([self.viz.wsi.rois[idx].label == first_label for idx in roi_indices]):
+            new_label = self.viz.wsi.rois[roi_indices[0]].label
+        else:
+            new_label = None
+
+        # Load the merged ROI into the slide.
+        self.viz.wsi.load_roi_array(
+            new_roi_coords,
+            label=new_label,
+            name='merged'
+        )
+
+        # Remove the old ROIs.
+        for idx in sorted(roi_indices, reverse=True):
+            self.viz.wsi.remove_roi(idx)
+
+        # Update the ROI grid.
+        self.viz.viewer._refresh_rois()
+        self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
+
+        # Deselect ROIs.
+        self.viz.viewer.deselect_roi()
+        self._selected_rois = []
+
     # --- Control & interface -------------------------------------------------
 
     def update(self, show: bool) -> None:
         """Update the widget."""
+        # Reset the widget if the slide has changed.
         if self.viz.wsi is None or not show:
             self.reset_edit_state()
-        if isinstance(self.viz.viewer, SlideViewer) and self.viz.wsi:
-            self._update_grid()
+
+        # No further updates are needed if a slide is not loaded.
+        if not (isinstance(self.viz.viewer, SlideViewer) and self.viz.wsi):
+            return
+
+        # Update the rasterized ROI grid.
+        self._update_grid()
+
+        # Process ROI capture.
+        if self.capturing:
             self._process_capture()
+
+        # Draw the advanced ROI editing window.
+        self.draw_advanced_editing_window()
+
+        # Process ROI hovering and clicking.
+        hovered_rois = self._get_rois_at_mouse()
+        if self.editing:
+            self._process_roi_left_click(hovered_rois)
+            self._process_roi_right_click(hovered_rois)
+        self._show_roi_tooltip(hovered_rois)
 
     def draw(self):
         """Draw the widget."""
@@ -500,6 +651,7 @@ class ROIWidget:
                 if self.editing:
                     self.roi_toast = viz.create_toast(f'Editing ROIs. Right click to label or remove.', icon='info', sticky=True)
                 else:
+                    self._should_show_advanced_editing_window = True
                     viz.viewer.deselect_roi()
                 self.capturing = False
             if imgui.is_item_hovered():
@@ -548,12 +700,47 @@ class ROIWidget:
             elif self._roi_hovering is not None:
                 self._roi_hovering = None
                 viz.viewer.deselect_roi()
+                self.viz.viewer.select_roi(self._selected_rois)
 
             imgui.separator()
 
         imgui.text_colored('Total ROIs', *viz.theme.dim)
         imgui_utils.right_aligned_text(str(len(self.viz.wsi.rois)))
         imgui_utils.vertical_break()
+
+    def draw_advanced_editing_window(self):
+        """Draw a window with advanced editing options."""
+
+        if not (self.editing and self._should_show_advanced_editing_window):
+            return
+
+        # Prepare window parameters (size, position)
+        imgui.set_next_window_size(300, 0)
+        if self._advanced_editor_is_new:
+            imgui.set_next_window_position(
+                self.viz.offset_x + 20,
+                self.viz.offset_y + 20
+            )
+            self._advanced_editor_is_new = False
+
+        _, self._should_show_advanced_editing_window = imgui.begin(
+            'Edit ROIs',
+            closable=True,
+            flags=imgui.WINDOW_NO_RESIZE
+        )
+        imgui.text('{} ROI selected ({} vertices).'.format(
+            len(self._selected_rois)),
+            sum([len(self.viz.wsi.rois[r].coordinates) for r in self._selected_rois])
+        )
+        if imgui_utils.button('Merge'):
+            self.merge_roi(self._selected_rois)
+        if imgui_utils.button('Simplify'):
+            self.simplify_roi(self._selected_rois)
+
+        if imgui.is_window_hovered():
+            self._should_deselect_roi_on_mouse_up = False
+
+        imgui.end()
 
     def get_roi_color(self, label: str) -> Tuple[float, float, float, float]:
         """Get the color of an ROI label."""

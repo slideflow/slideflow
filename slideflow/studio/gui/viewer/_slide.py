@@ -41,6 +41,7 @@ class SlideViewer(Viewer):
         self.show_scale     = True
         self.show_thumbnail = True
         self.show_rois      = True
+        self._roi_vbos      = {}
 
         self.thumb_max_width = 12
         self.thumb_max_height = 8
@@ -438,7 +439,9 @@ class SlideViewer(Viewer):
         for roi_idx, roi in enumerate(self.wsi.rois):
             c = self._scale_roi_to_view(roi.coordinates)
             if c is not None:
+                c = c.astype(np.float32)
                 self.rois += [(roi_idx, c)]
+                self._roi_vbos[roi_idx] = gl_utils.create_buffer(c)
 
     def rasterize_rois_in_view(self) -> Optional[np.ndarray]:
         """Rasterize the ROIs in the current view."""
@@ -462,8 +465,10 @@ class SlideViewer(Viewer):
                     outline = (outline[0], outline[1], outline[2])
             else:
                 outline = 0
-            gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
-            gl_utils.draw_roi(roi, color=outline, alpha=1, linewidth=3)
+            vbo = self._roi_vbos[roi_idx]
+            gl_utils.draw_vbo_roi(roi, color=1, alpha=0.7, linewidth=5, vbo=vbo)
+            gl_utils.draw_vbo_roi(roi, color=outline, alpha=1, linewidth=3, vbo=vbo)
+
 
     def _scale_roi_to_view(self, roi: np.ndarray) -> Optional[np.ndarray]:
         roi = np.copy(roi)
@@ -473,6 +478,8 @@ class SlideViewer(Viewer):
         roi[:, 1] = roi[:, 1] - int(self.origin[1])
         roi[:, 1] = roi[:, 1] / self.view_zoom
         roi[:, 1] = roi[:, 1] + self.view_offset[1] + self.y_offset
+        u_roi, ind = np.unique(roi, axis=0, return_index=True)
+        roi = u_roi[np.argsort(ind)]
         out_of_view_max = np.any(np.amax(roi, axis=0) < 0)
         out_of_view_min = np.any(np.amin(roi, axis=0) > np.array([self.width+self.x_offset, self.height+self.y_offset]))
         if not (out_of_view_min or out_of_view_max):
