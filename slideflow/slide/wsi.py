@@ -374,6 +374,11 @@ class WSI:
         - 3: **grid_y**: y-coordinate of the tile in self.grid.
 
         """
+
+        # First, remove any existing ROI QC Masks, as these will be recalculated
+        # when the coordinate grid is rebuilt.
+        self.remove_roi_qc()
+
         # Calculate window sizes, strides, and coordinates for windows
         self.extracted_x_size = self.dimensions[0] - self.full_extract_px
         self.extracted_y_size = self.dimensions[1] - self.full_extract_px
@@ -491,7 +496,8 @@ class WSI:
         if self.roi_method != 'ignore' and self.has_rois() and not roi_by_center:
             self.apply_qc_mask(
                 (~self.roi_mask if self.roi_method == 'inside' else self.roi_mask),
-                filter_threshold=(1-self.roi_filter_method)  # type: ignore
+                filter_threshold=(1-self.roi_filter_method),  # type: ignore
+                is_roi=True
             )
 
         self.coord = np.array(self.coord)
@@ -667,19 +673,7 @@ class WSI:
     @property
     def qc_mask(self) -> Optional[np.ndarray]:
         """Returns union of all QC masks."""
-        if not self.qc_masks:
-            return None
-        elif len(self.qc_masks) == 1:
-            return self.qc_masks[0].mask
-        else:
-            _, smallest = min((m.shape[0], idx)
-                               for (idx, m) in enumerate(self.qc_masks))
-            shape = self.qc_masks[smallest].shape
-            mask = skimage.transform.resize(self.qc_masks[0].mask, shape).astype(bool)
-            for _next in self.qc_masks[1:]:
-                _next_m = skimage.transform.resize(_next.mask, shape).astype(bool)
-                mask = np.logical_or(mask, _next_m)
-            return mask
+        return self.get_qc_mask()
 
     # --- Alignment --------------------------------------------------------
 
@@ -906,7 +900,7 @@ class WSI:
 
         # Rebuild coordinates and reapply QC, if present.
         self._build_coord()
-        if self.qc_mask is not None:
+        if self.has_non_roi_qc():
             self.apply_qc_mask()
 
         return alignment, mse  # type: ignore
@@ -1180,6 +1174,8 @@ class WSI:
         self,
         mask: Optional[Union[np.ndarray, QCMask]] = None,
         filter_threshold: Optional[float] = None,
+        *,
+        is_roi: bool = False
     ) -> "Image":
         """Apply custom slide-level QC by filtering grid coordinates.
 
@@ -1191,6 +1187,10 @@ class WSI:
                 background that will trigger a tile to be discarded.
                 Only used if ``mask`` is an np.ndarray.
                 Defaults to 0.6.
+
+        Keyword Args:
+            is_roi (bool): Whether the mask is an ROI mask. Only used if ``mask``
+                is an ``np.ndarray``. Defaults to False.
 
         Returns:
             Image: Image of applied QC mask.
@@ -1224,7 +1224,7 @@ class WSI:
 
         # If the provided mask is an np.ndarray, convert it to a QCMask.
         if not isinstance(mask, QCMask):
-            mask = QCMask(mask, filter_threshold=filter_threshold)  # type: ignore
+            mask = QCMask(mask, filter_threshold=filter_threshold, is_roi=is_roi)  # type: ignore
             self.qc_masks.append(mask)
 
         # Apply the mask to the grid.
@@ -1688,8 +1688,37 @@ class WSI:
         log.info(f"{len(self.rois)} ROIs exported to {abspath(dest)}")
         return abspath(dest)
 
+    def get_qc_mask(self, roi: bool = True) -> Optional[np.ndarray]:
+        """Return the combined QC mask for the slide.
+
+        Args:
+            roi (bool): Whether to include ROI masks. Defaults to True.
+
+        """
+        _all_masks = [m for m in self.qc_masks if (roi or (not m.is_roi))]
+        if not _all_masks:
+            return None
+        elif len(_all_masks) == 1:
+            return _all_masks[0].mask
+        else:
+            _, smallest = min((m.shape[0], idx)
+                               for (idx, m) in enumerate(_all_masks))
+            shape = _all_masks[smallest].shape
+            mask = skimage.transform.resize(_all_masks[0].mask, shape).astype(bool)
+            for _next in _all_masks[1:]:
+                _next_m = skimage.transform.resize(_next.mask, shape).astype(bool)
+                mask = np.logical_or(mask, _next_m)
+            return mask
+
     def get_masked_coord(self) -> np.ma.core.MaskedArray:
-        """Get a masked array of the coordinate grid, masked by QC."""
+        """Get a masked array of the coordinate grid, masked by QC.
+
+        The returned masked array is of shape (n, 4), where n is the number of tiles.
+        The columns are (x, y, grid_x, grid_y), where x and y are the
+        top-left coordinates of the tile, and grid_x and grid_y are the
+        grid indices of the tile.
+
+        """
         true_grid_indices = np.flatnonzero(self.grid)
         linear_indices_of_coord = np.ravel_multi_index(
             self.coord[:, 2:4].T,
@@ -1703,6 +1732,20 @@ class WSI:
             self.coord,
             mask=~np.repeat(unmasked_coord_indices[:, None], 4, axis=1)
         )
+
+    def get_tile_coord(self) -> np.ndarray:
+        """Get a coordinate grid of all tiles, restricted to those that pass QC
+        and any ROI filtering.
+
+        The returned array is of shape (n, 4), where n is the number of tiles.
+        The columns are (x, y, grid_x, grid_y), where x and y are the
+        top-left coordinates of the tile, and grid_x and grid_y are the
+        grid indices of the tile.
+
+        """
+        return self.coord[
+            self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
+        ]
 
     def get_tile_dataframe(self) -> pd.DataFrame:
         """Build a dataframe of tiles and associated ROI labels.
@@ -1751,6 +1794,10 @@ class WSI:
             'label': labels
         }, index=index)
         return df
+
+    def has_non_roi_qc(self) -> bool:
+        """Check if the slide has any non-ROI QC masks."""
+        return any(not m.is_roi for m in self.qc_masks)
 
     def extract_tiles(
         self,
@@ -2472,7 +2519,7 @@ class WSI:
         self._build_coord()
 
         # Re-apply any existing QC mask, now that the coordinates have changed.
-        if self.qc_mask is not None:
+        if self.has_non_roi_qc():
             self.apply_qc_mask()
 
         return len(self.rois)
@@ -2557,9 +2604,15 @@ class WSI:
         return img
 
     def remove_qc(self) -> None:
+        self.qc_masks = [m for m in self.qc_masks if m.is_roi]
         self._build_coord()
-        self.qc_masks = []
         log.debug(f'QC removed from slide {self.shortname}')
+
+    def remove_roi_qc(self) -> None:
+        """Remove ROI-based QC from the slide."""
+        self.qc_masks = [m for m in self.qc_masks if not m.is_roi]
+        if len(self.qc_masks):
+            self.apply_qc_mask()
 
     def remove_roi(self, idx: int, *, process: bool = True) -> None:
         """Remove an ROI from the slide.

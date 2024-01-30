@@ -6,7 +6,7 @@ from os.path import join, exists, dirname
 from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union
 from tkinter.filedialog import askopenfilename
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 
 from ..gui import imgui_utils, text_utils, gl_utils
 from ..gui.annotator import AnnotationCapture
@@ -60,6 +60,14 @@ class ROIWidget:
         self._should_deselect_roi_on_mouse_up = True
         self._mouse_is_down             = False
         self._advanced_editor_is_new    = True
+        self._roi_filter_perc           = 0.5
+        self._roi_filter_center         = True
+        self._capturing_roi_filter_perc = False
+
+    @property
+    def roi_filter_method(self) -> Union[str, float]:
+        """Get the current ROI filter method."""
+        return ('center' if self._roi_filter_center else self._roi_filter_perc)
 
     # --- Internal ------------------------------------------------------------
 
@@ -186,9 +194,7 @@ class ROIWidget:
             if (self.editing
                and self.viz.viewer is not None
                and hasattr(self.viz.viewer, 'selected_rois')):
-                for idx in self.viz.viewer.selected_rois:
-                    self.viz.wsi.remove_roi(idx)
-                self.viz.viewer.deselect_roi()
+                self.remove_rois(self.viz.viewer.selected_rois)
                 self.refresh_rois()
 
     def late_render(self) -> None:
@@ -272,6 +278,38 @@ class ROIWidget:
                     int(viz.font_size*0.3))
                 hovered = i
         return hovered
+
+    def draw_roi_filter_capture(self) -> Optional[Union[str, float]]:
+        """Draw a widget that captures the ROI filter method."""
+
+        viz = self.viz
+        capture_success = False
+        with imgui_utils.grayed_out(not (self.use_rois and viz.wsi.has_rois())):
+            imgui.text('ROI filter')
+            imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+            _center_clicked, self._roi_filter_center = imgui.checkbox('center', self._roi_filter_center)
+            if _center_clicked:
+                capture_success = True
+            imgui.same_line()
+            with imgui_utils.item_width(viz.font_size * 3), imgui_utils.grayed_out(self._roi_filter_center):
+                _percent_changed, self._roi_filter_perc = imgui.slider_float(
+                    f'##percent_roi',
+                    self._roi_filter_perc,
+                    min_value=0.01,
+                    max_value=0.99,
+                    format='%.2f'
+                )
+                if _percent_changed and not self._roi_filter_center:
+                    self._capturing_roi_filter_perc = True
+
+                if imgui.is_mouse_released() and self._capturing_roi_filter_perc:
+                    capture_success = True
+                    self._capturing_roi_filter_perc = False
+        if capture_success:
+            return self.roi_filter_method
+        else:
+            return None
+
 
     def draw_new_label_popup(self) -> None:
         """Prompt the user for a new ROI label."""
@@ -435,8 +473,7 @@ class ROIWidget:
                 if self._draw_label_submenu(index):
                     return True
         if imgui.menu_item(f"Delete##roi_{index}")[0]:
-            self.viz.wsi.remove_roi(index)
-            self._selected_rois = []
+            self.remove_rois(index)
             self.refresh_rois()
             return True
         return False
@@ -519,6 +556,27 @@ class ROIWidget:
 
     # --- ROI tools -----------------------------------------------------------
 
+    def remove_rois(self, roi_indices: Union[int, List[int]]) -> None:
+        """Remove ROIs by the given index or indices."""
+        if not self.viz.wsi:
+            return
+
+        if not isinstance(roi_indices, (list, np.ndarray, tuple)):
+            roi_indices = [roi_indices]
+
+        # Remove the old ROIs.
+        for idx in sorted(roi_indices, reverse=True):
+            self.viz.wsi.remove_roi(idx)
+        self._selected_rois = []
+
+        if isinstance(self.viz.viewer, SlideViewer):
+            # Update the ROI grid.
+            self.viz.viewer._refresh_rois()
+            self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
+
+            # Deselect ROIs.
+            self.viz.viewer.deselect_roi()
+
     def simplify_roi(self, roi_indices: List[int]) -> None:
         """Simplify the given ROIs."""
         for idx in sorted(roi_indices, reverse=True):
@@ -551,12 +609,19 @@ class ROIWidget:
         if not len(roi_indices) > 1:
             return
 
+        # Merge the polygons.
+        merged_poly = unary_union([
+            Polygon(self.viz.wsi.rois[idx].coordinates)
+            for idx in roi_indices
+        ])
+
+        if not isinstance(merged_poly, Polygon):
+            self.viz.create_toast('ROIs could not be merged.', icon='error')
+            return
+
         # Get the coordinates of the merged ROI.
         new_roi_coords = np.stack(
-            unary_union([
-                    Polygon(self.viz.wsi.rois[idx].coordinates)
-                    for idx in roi_indices
-                ]).exterior.coords.xy,
+            merged_poly.exterior.coords.xy,
             axis=-1
         )
 
@@ -574,17 +639,7 @@ class ROIWidget:
             name='merged'
         )
 
-        # Remove the old ROIs.
-        for idx in sorted(roi_indices, reverse=True):
-            self.viz.wsi.remove_roi(idx)
 
-        # Update the ROI grid.
-        self.viz.viewer._refresh_rois()
-        self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
-
-        # Deselect ROIs.
-        self.viz.viewer.deselect_roi()
-        self._selected_rois = []
 
     # --- Control & interface -------------------------------------------------
 
@@ -729,13 +784,17 @@ class ROIWidget:
             flags=imgui.WINDOW_NO_RESIZE
         )
         imgui.text('{} ROI selected ({} vertices).'.format(
-            len(self._selected_rois)),
+            len(self._selected_rois),
             sum([len(self.viz.wsi.rois[r].coordinates) for r in self._selected_rois])
-        )
+        ))
         if imgui_utils.button('Merge'):
             self.merge_roi(self._selected_rois)
+        imgui.same_line()
         if imgui_utils.button('Simplify'):
             self.simplify_roi(self._selected_rois)
+        imgui.same_line()
+        if imgui_utils.button('Delete'):
+            self.remove_rois(self._selected_rois)
 
         if imgui.is_window_hovered():
             self._should_deselect_roi_on_mouse_up = False

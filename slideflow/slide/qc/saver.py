@@ -58,7 +58,7 @@ class Save:
             None
         """
         dest = self.dest if self.dest is not None else dirname(wsi.path)
-        mask = wsi.qc_mask
+        mask = wsi.get_qc_mask(roi=False)
         if mask:
             np.savez(join(dest, wsi.name+'_qc.npz'), mask=mask)
         return None
