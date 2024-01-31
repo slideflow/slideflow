@@ -242,10 +242,14 @@ class SegmentModel(pl.LightningModule):
 
         # Generate UNet predictions.
         with torch.no_grad():
-            tile_preds = self(torch.from_numpy(batched_tiles))
+            tile_preds = []
+            for tile in batched_tiles:
+                pred = self.forward(torch.from_numpy(tile).unsqueeze(0).to(self.device))
+                tile_preds.append(pred)
+            tile_preds = torch.cat(tile_preds)
 
         # Merge predictions across the tiles.
-        tiled_preds = average_tiles(tile_preds.numpy(), ysub, xsub, ly, lx)
+        tiled_preds = average_tiles(tile_preds.cpu().numpy(), ysub, xsub, ly, lx)
 
         # Crop predictions to the original size.
         tiled_preds = tiled_preds[:orig_dims[0], :orig_dims[1]]

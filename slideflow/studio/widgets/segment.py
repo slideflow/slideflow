@@ -4,7 +4,7 @@ import numpy as np
 from os.path import join, dirname, abspath, exists
 from threading import Thread
 from tkinter.filedialog import askopenfilename
-
+from slideflow.model.torch_utils import get_device
 from ._utils import Widget
 from ..gui import imgui_utils
 
@@ -74,6 +74,7 @@ class TissueSegWidget(Widget):
     def _load_model(self, path, ignore_errors=False):
         try:
             self._segment = sf.slide.qc.Segment(path)
+            self._segment.model.to(get_device())
         except Exception as e:
             if self._load_toast is not None:
                 self._load_toast.done()
