@@ -85,6 +85,23 @@ class Segment:
             self.model_path
         )
 
+    @classmethod
+    def from_model(
+        cls,
+        model: "sf.segment.SegmentModel",
+        config: "sf.segment.SegmentConfig",
+        class_idx: Optional[int] = None,
+        threshold_direction: str = 'less'
+    ):
+        """Create a Segment object from a SegmentModel and SegmentConfig."""
+        obj = cls.__new__(cls)
+        obj.model = model
+        obj.model_path = None
+        obj.cfg = config
+        obj.class_idx = class_idx
+        obj.threshold_direction = threshold_direction
+        return obj
+
     def generate_rois(self, wsi: "sf.WSI", apply: bool = True) -> List[np.ndarray]:
         """Generate and apply ROIs to a slide using the loaded segmentation model.
 

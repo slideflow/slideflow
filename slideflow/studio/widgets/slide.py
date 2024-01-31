@@ -19,12 +19,21 @@ def stride_capture(
     viz: "sf.studio.Studio",
     current_val: int,
     capturing: Optional[int],
-    label: str = '0'
+    label: str = '0',
+    *,
+    draw_label: bool = True,
+    offset: Union[float, str] = 'auto',
+    width: Union[float, str] = 'auto'
 ) -> Tuple[int, Optional[int], bool]:
     """Draw a stride capture widget."""
-    imgui.text('Stride')
-    imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
-    with imgui_utils.item_width(viz.font_size * 7):
+    if draw_label:
+        imgui.text('Stride')
+    if offset == 'auto':
+        offset = imgui.get_content_region_max()[0] - 1 - viz.font_size*7
+    imgui.same_line(offset)
+    if width == 'auto':
+        width = viz.font_size * 7
+    with imgui_utils.item_width(width):
         _stride_changed, _stride = imgui.slider_int(f'##stride_{label}',
                                                     current_val,
                                                     min_value=1,

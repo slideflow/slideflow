@@ -598,10 +598,16 @@ class ModelWidget:
             )
             if imgui.menu_item('Load model')[0]:
                 viz.ask_load_model()
+                self._clicking = False
+                self._show_popup = False
             if imgui.menu_item('Download model')[0]:
                 self._show_download = True
+                self._clicking = False
+                self._show_popup = False
             if imgui.menu_item('Close model')[0]:
                 viz.close_model()
+                self._clicking = False
+                self._show_popup = False
             imgui.separator()
             if imgui.menu_item('Enable model', enabled=has_model, selected=self.use_model)[0]:
                 self.use_model = not self.use_model
@@ -614,6 +620,8 @@ class ModelWidget:
             imgui.separator()
             if imgui.menu_item('Show parameters', enabled=has_model)[0]:
                 self._show_params = not self._show_params
+                self._clicking = False
+                self._show_popup = False
 
             # Hide menu if we click elsewhere
             if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
