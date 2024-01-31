@@ -1580,6 +1580,21 @@ class Studio(ImguiWindow):
         else:
             return None
 
+    def get_extension(self, tag: str) -> Optional[Widget]:
+        """Returns a given widget (extension) by tag.
+
+        Args:
+            tag (str): Tag of the widget to search for.
+
+        Returns:
+            slideflow.studio.widgets.Widget if found, else None
+
+        """
+        for w in self.widgets:
+            if w.tag == tag:
+                return w
+        return None
+
     def get_widget(self, name: str) -> Widget:
         """Returns a given widget by class name.
 

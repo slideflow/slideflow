@@ -24,6 +24,7 @@ class ExtensionsWidget:
         self.mosaic = any([w.tag == 'mosaic' for w in viz.widgets])
         self.cellseg = any([w.tag == 'cellseg' for w in viz.widgets])
         self.mil = any([w.tag == 'mil' for w in viz.widgets])
+        self.segment = any([w.tag == 'segment' for w in viz.widgets])
 
         _off_path = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'small_button_verified.png')
         self._official_tex      = gl_utils.Texture(
@@ -61,6 +62,14 @@ class ExtensionsWidget:
             viz.add_widgets(MILWidget)
         else:
             viz.remove_widget(MILWidget)
+
+    def toggle_segment(self):
+        viz = self.viz
+        from ..widgets.segment import TissueSegWidget
+        if not any(isinstance(w, TissueSegWidget) for w in viz.widgets):
+            viz.add_widgets(TissueSegWidget)
+        else:
+            viz.remove_widget(TissueSegWidget)
 
     def extension_checkbox(self, title, description, check_value, official=False):
         viz = self.viz
@@ -155,6 +164,21 @@ class ExtensionsWidget:
                 except Exception as e:
                     self.show_extension_error(str(e), traceback.format_exc())
                     self.cellseg = False
+            imgui.separator()
+
+            _c5, self.segment = self.extension_checkbox(
+                'Tissue Segmentation',
+                description='Train and use segmentation models.',
+                check_value=self.segment,
+                official=True
+            )
+            if _c5:
+                try:
+                    self.toggle_segment()
+                except Exception as e:
+                    self.show_extension_error(str(e), traceback.format_exc())
+                    self.segment = False
+            imgui.separator()
 
             _c4, self.mil = self.extension_checkbox(
                 'Multiple-Instance Learning',
@@ -168,6 +192,7 @@ class ExtensionsWidget:
                 except Exception as e:
                     self.show_extension_error(str(e), traceback.format_exc())
                     self.mil = False
+
 
         if self._show_err_popup:
             self.draw_error_popup()

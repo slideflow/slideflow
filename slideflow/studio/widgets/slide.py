@@ -118,8 +118,6 @@ class SlideWidget:
         self._tile_colors_rgb   = [0, 1, (1, 0, 0), (0, 1, 0), (0, 0, 1)]
         self._gaussian          = sf.slide.qc.GaussianV2()
         self._otsu              = sf.slide.qc.Otsu()
-        self._segment           = None
-        self._segment_path      = ""
         self._use_otsu          = True
         self._use_gaussian      = False
         self._use_segment       = False
@@ -146,7 +144,19 @@ class SlideWidget:
     def apply_slide_filter(self):
         return any([self._use_otsu, self._use_gaussian, self._use_segment])
 
+    @property
+    def _segment(self):
+        seg_widget = self.viz.get_extension('segment')
+        if seg_widget:
+            return seg_widget._segment
+        else:
+            return None
+
+
     # --- Internal ------------------------------------------------------------
+
+    def _segmentation_enabled(self) -> bool:
+        return self.viz.get_extension('segment') is not None
 
     def _get_qc(self):
         _qc = []
@@ -843,38 +853,22 @@ class SlideWidget:
         _gaussian_clicked, self._use_gaussian = imgui.checkbox('Gaussian filter', self._use_gaussian)
         if imgui.is_item_hovered():
             imgui.set_tooltip("Apply Gaussian filter (GaussianV2)")
-        _segment_clicked, self._use_segment = imgui.checkbox('Segment', self._use_segment)
+
+        # Segmentation
+        ## Checkbox
+        with imgui_utils.grayed_out(not self._segment):
+            _segment_clicked, self._use_segment = imgui.checkbox('Segment', self._use_segment)
+            if not self._segment:
+                self._use_segment = False
+                _segment_clicked = False
+        ## Tooltip
         if imgui.is_item_hovered():
-            imgui.set_tooltip("Apply tissue segmentation model")
-        if _segment_clicked and not self._segment:
-            _segment_clicked = False
-            self._use_segment = False
-            viz.create_toast("No segment model loaded", icon="error")
-        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
-        with imgui_utils.item_width(viz.font_size * 7):
-            _path_changed, self._segment_path = imgui.input_text_with_hint(
-                '##segment_path',
-                '<Model path>',
-                self._segment_path,
-                flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE
-            )
-            if imgui.is_item_hovered() and self._segment_path:
-                imgui.set_tooltip(self._segment_path)
-            if _path_changed:
-                try:
-                    self._segment = sf.slide.qc.Segment(self._segment_path)
-                except Exception as e:
-                    sf.log.error(f"Error loading segment model: {e}")
-                    viz.create_toast(f"Error loading segment model: {e}", icon="error")
-                    self._segment = None
-                    self._segment_path = ""
-        imgui.text('')
-        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
-        if imgui_utils.button('Generate ROIs', enabled=(self._segment is not None), width=viz.font_size*7):
-            self._segment.generate_rois(viz.wsi)
-            self.roi_widget.refresh_rois()
-        if imgui.is_item_hovered() and not self._segment:
-            imgui.set_tooltip("No segment model loaded")
+            if not self._segmentation_enabled():
+                imgui.set_tooltip("Extension not loaded")
+            elif not self._segment:
+                imgui.set_tooltip("No segment model loaded")
+            else:
+                imgui.set_tooltip("Apply tissue segmentation model")
 
         # Apply slide filtering changes.
         _qc_clicked = any([_otsu_clicked, _gaussian_clicked, _segment_clicked])
