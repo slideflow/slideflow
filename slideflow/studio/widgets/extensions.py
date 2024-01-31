@@ -22,7 +22,7 @@ class ExtensionsWidget:
 
         self.stylegan = any([w.tag == 'stylegan' for w in viz.widgets])
         self.mosaic = any([w.tag == 'mosaic' for w in viz.widgets])
-        self.segment = any([w.tag == 'segment' for w in viz.widgets])
+        self.cellseg = any([w.tag == 'cellseg' for w in viz.widgets])
         self.mil = any([w.tag == 'mil' for w in viz.widgets])
 
         _off_path = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'small_button_verified.png')
@@ -46,13 +46,13 @@ class ExtensionsWidget:
         else:
             viz.remove_widget(MosaicWidget)
 
-    def toggle_segment(self):
+    def toggle_cellseg(self):
         viz = self.viz
-        from ..widgets.segment import SegmentWidget
-        if not any(isinstance(w, SegmentWidget) for w in viz.widgets):
-            viz.add_widgets(SegmentWidget)
+        from ..widgets.cellseg import CellSegWidget
+        if not any(isinstance(w, CellSegWidget) for w in viz.widgets):
+            viz.add_widgets(CellSegWidget)
         else:
-            viz.remove_widget(SegmentWidget)
+            viz.remove_widget(CellSegWidget)
 
     def toggle_mil(self):
         viz = self.viz
@@ -137,24 +137,24 @@ class ExtensionsWidget:
                     self.stylegan = False
             imgui.separator()
 
-            _c3, self.segment = self.extension_checkbox(
+            _c3, self.cellseg = self.extension_checkbox(
                 'Cell Segmentation',
                 description='Segment cells with Cellpose.',
-                check_value=self.segment,
+                check_value=self.cellseg,
                 official=True
             )
             if _c3:
                 try:
-                    self.toggle_segment()
+                    self.toggle_cellseg()
                 except ImportError as e:
                     self.show_extension_error(
                         'Cellpose is not installed. Cellpose can be installed '
                         'with "pip install cellpose"'
                     )
-                    self.segment = False
+                    self.cellseg = False
                 except Exception as e:
                     self.show_extension_error(str(e), traceback.format_exc())
-                    self.segment = False
+                    self.cellseg = False
 
             _c4, self.mil = self.extension_checkbox(
                 'Multiple-Instance Learning',

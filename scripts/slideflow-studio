@@ -65,8 +65,8 @@ def main(
         widgets += [CameraWidget]
 
     if cellpose:
-        from slideflow.studio.widgets.segment import SegmentWidget
-        widgets += [SegmentWidget]
+        from slideflow.studio.widgets.cellseg import CellSegWidget
+        widgets += [CellSegWidget]
 
     viz = Studio(low_memory=low_memory, widgets=widgets)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]

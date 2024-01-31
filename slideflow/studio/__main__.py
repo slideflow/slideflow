@@ -46,8 +46,8 @@ def main(
         widgets += [CameraWidget]
 
     if cellpose:
-        from .widgets.segment import SegmentWidget
-        widgets += [SegmentWidget]
+        from .widgets.cellseg import CellSegWidget
+        widgets += [CellSegWidget]
 
     viz = Studio(low_memory=low_memory, widgets=widgets)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
