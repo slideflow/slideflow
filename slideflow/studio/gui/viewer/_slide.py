@@ -42,6 +42,7 @@ class SlideViewer(Viewer):
         self.show_thumbnail = True
         self.show_rois      = True
         self._roi_vbos      = {}
+        self._scaled_roi_ind = {}
 
         self.thumb_max_width = 12
         self.thumb_max_height = 8
@@ -437,11 +438,12 @@ class SlideViewer(Viewer):
         """Refresh the ROIs for the given location and zoom."""
         self.rois = []
         for roi_idx, roi in enumerate(self.wsi.rois):
-            c = self._scale_roi_to_view(roi.coordinates)
+            c, ind = self._scale_roi_to_view(roi.coordinates)
             if c is not None:
                 c = c.astype(np.float32)
                 self.rois += [(roi_idx, c)]
                 self._roi_vbos[roi_idx] = gl_utils.create_buffer(c)
+                self._scaled_roi_ind[roi_idx] = ind
 
     def rasterize_rois_in_view(self) -> Optional[np.ndarray]:
         """Rasterize the ROIs in the current view."""
@@ -478,13 +480,15 @@ class SlideViewer(Viewer):
         roi[:, 1] = roi[:, 1] / self.view_zoom
         roi[:, 1] = roi[:, 1] + self.view_offset[1] + self.y_offset
         u_roi, ind = np.unique(roi, axis=0, return_index=True)
-        roi = u_roi[np.argsort(ind)]
+        argsort_ind = np.argsort(ind)
+        roi = u_roi[argsort_ind]
+        roi_indices = ind[argsort_ind]
         out_of_view_max = np.any(np.amax(roi, axis=0) < 0)
         out_of_view_min = np.any(np.amin(roi, axis=0) > np.array([self.width+self.x_offset, self.height+self.y_offset]))
         if not (out_of_view_min or out_of_view_max):
-            return roi
+            return roi, roi_indices
         else:
-            return None
+            return None, None
 
     def _scale_rois_to_view(self, rois):
         rois = np.copy(rois)

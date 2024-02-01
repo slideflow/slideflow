@@ -911,7 +911,7 @@ class VertexEditor:
         self.viz = viz
         self.wsi = viz.wsi
         self.roi_index = roi_index
-        self.selected_vertices = []
+        self.selected_vertices = []  # Vertex indices as stored in the viewer. These are not the same as the full ROI coordinates, as they are both scaled and culled.
         self._last_roi_viewer_index = None
         self._vbo = None
         self._box_vertex_width = 5
@@ -920,11 +920,13 @@ class VertexEditor:
         self._create_vbo()
         self._left_mouse_down = False
         self._mouse_coords_at_down = None
+        self._last_mouse_coords = None
         self._mouse_down_at_vertex = False
         self._roi_is_edited = False
         self._selection_box = None
         self._selected_vertices_at_mouse_down = []
         self._select_on_release = []
+        self._process_rois_on_release = False
 
     # --- Properties ----------------------------------------------------------
 
@@ -956,6 +958,17 @@ class VertexEditor:
             self._last_vertices = self.roi_vertices
             self._create_vbo()
         return self._last_box_vertices
+
+    @property
+    def selected_vertex_indices(self) -> List[int]:
+        """Get the indices of the selected vertices w.r.t. the full ROI coordinates.
+
+        These indices are not the same as the indices stored in the viewer
+        (``.selected_vertices``). The viewer-stored indices are scaled and culled,
+        while these indices are not. These indices represent all vertices of the ROI.
+
+        """
+        return self.viz.viewer._scaled_roi_ind[self.roi_index][self.selected_vertices]
 
     @property
     def vbo(self):
@@ -1045,6 +1058,7 @@ class VertexEditor:
         # Check if the mouse is newly down over a vertex.
         if newly_clicked_vertex is not None:
             # Mouse is newly down over a vertex.
+            self._last_mouse_coords = None
             self._selected_vertices_at_mouse_down = self.selected_vertices
             self._mouse_coords_at_down = self.viz.get_mouse_pos()
             self._mouse_down_at_vertex = True
@@ -1052,8 +1066,10 @@ class VertexEditor:
                 self.selected_vertices.append(newly_clicked_vertex)
             elif self.viz._shift_down:
                 self.selected_vertices.remove(newly_clicked_vertex)
-            else:
+            elif len(self.selected_vertices) > 1:
                 self._select_on_release = [newly_clicked_vertex]
+            else:
+                self.selected_vertices = [newly_clicked_vertex]
 
         elif imgui.is_mouse_down(LEFT_MOUSE_BUTTON):
             if not self._left_mouse_down:
@@ -1073,9 +1089,17 @@ class VertexEditor:
                 # Check if the mouse started over a vertex and is moving.
                 # If so, we should drag the vertex.
                 if self._mouse_down_at_vertex:
-                    # TODO: Implement dragging of vertices.
-                    print("Dragging vertices at", mouse_x, mouse_y)
+                    if self._last_mouse_coords is None:
+                        self._last_mouse_coords = self._mouse_coords_at_down
+                    dx = int(np.round((mouse_x - self._last_mouse_coords[0]) * self.viz.viewer.view_zoom))
+                    dy = int(np.round((mouse_y - self._last_mouse_coords[1]) * self.viz.viewer.view_zoom))
+                    svi = np.array(self.selected_vertex_indices)
+                    coords = np.array(self.viz.wsi.rois[self.roi_index].coordinates)
+                    coords[svi] += np.array([dx, dy])
+                    self.viz.wsi.rois[self.roi_index].coordinates = coords
+                    self.viz.viewer._refresh_rois()
                     self._select_on_release = []
+                    self._last_mouse_coords = (mouse_x, mouse_y)
                 # Otherwise, we should draw a selection box.
                 else:
                     # Update selection box coordinates.
@@ -1099,6 +1123,7 @@ class VertexEditor:
             if self._select_on_release:
                 self.selected_vertices = self._select_on_release
                 self._select_on_release = []
+                self._last_mouse_coords = None
 
         self._left_mouse_down = imgui.is_mouse_down(LEFT_MOUSE_BUTTON)
 
@@ -1132,7 +1157,7 @@ class VertexEditor:
         """Remove the selected vertices from the ROI."""
         if self.selected_vertices:
             raw_roi_coords = self.viz.wsi.rois[self.roi_index].coordinates
-            raw_roi_coords = np.delete(raw_roi_coords, self.selected_vertices, axis=0)
+            raw_roi_coords = np.delete(raw_roi_coords, self.selected_vertex_indices, axis=0)
             if raw_roi_coords.shape[0] < 3:
                 # ROI cannot be less than 3 vertices.
                 self.viz.slide_widget.roi_widget.remove_rois(self.roi_index)

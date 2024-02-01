@@ -111,8 +111,9 @@ class ProjectWidget:
 
     def draw_slide_list(self):
         for path in self.slide_paths:
-            if imgui.menu_item(imgui_utils.ellipsis_clip(sf.util.path_to_name(path), 33))[0]:
-                self.viz.load_slide(path)
+            with self.viz.bold_font(self.viz.wsi is not None and path == self.viz.wsi.path):
+                if imgui.menu_item(imgui_utils.ellipsis_clip(sf.util.path_to_name(path), 33))[0]:
+                    self.viz.load_slide(path)
             if imgui.is_item_hovered():
                 imgui.set_tooltip(path)
 
