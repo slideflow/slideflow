@@ -16,6 +16,7 @@ from ._utils import Widget
 from ..gui import imgui_utils, gl_utils, text_utils
 from ..gui.viewer import OpenGLMosaic, MosaicViewer
 from ..gui.annotator import AnnotationCapture
+from ..utils import LEFT_MOUSE_BUTTON
 
 
 #----------------------------------------------------------------------------
@@ -302,9 +303,9 @@ class MosaicWidget(Widget):
                 self.show_umap = not self.show_umap
 
             # Hide menu if we click elsewhere
-            if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
                 self._clicking = True
-            if self._clicking and imgui.is_mouse_released(0):
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
                 self._clicking = False
                 self._show_popup = False
 

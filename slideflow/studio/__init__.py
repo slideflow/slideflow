@@ -113,6 +113,7 @@ class Studio(ImguiWindow):
         self._message           = None
         self._pred_message      = None
         self.low_memory         = low_memory
+        self._suspend_mouse_input = False
 
         # Interface.
         self._show_about                = False
@@ -750,6 +751,30 @@ class Studio(ImguiWindow):
             if hasattr(widget, 'keyboard_callback'):
                 widget.keyboard_callback(key, action)
 
+    def suspend_mouse_input_handling(self):
+        """Suspend mouse input handling."""
+        self._suspend_mouse_input = True
+
+    def resume_mouse_input_handling(self):
+        """Resume mouse input handling."""
+        self._suspend_mouse_input = False
+
+    def mouse_input_is_suspended(self) -> bool:
+        """Check if mouse input handling is suspended."""
+        return self._suspend_mouse_input
+
+    def is_mouse_down(self, mouse_idx: int = 0) -> bool:
+        """Check if the mouse is currently down."""
+        if self._suspend_mouse_input:
+            return False
+        return imgui.is_mouse_down(mouse_idx)
+
+    def is_mouse_released(self, mouse_idx: int = 0) -> bool:
+        """Check if the mouse was released."""
+        if self._suspend_mouse_input:
+            return False
+        return imgui.is_mouse_released(mouse_idx)
+
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
 
@@ -775,6 +800,12 @@ class Studio(ImguiWindow):
             y=self.offset_y,
             width=self.content_width - self.offset_x,
             height=self.content_height - self.offset_y)
+
+        # Suspend mouse input handling if the user is interacting with a widget.
+        if self._suspend_mouse_input:
+            clicking, dragging, wheel = False, False, 0
+            dx, dy = 0, 0
+
         return EasyDict(
             clicking=clicking,
             dragging=dragging,

@@ -7,7 +7,7 @@ from array import array
 from collections import defaultdict
 from slideflow.util import isnumeric
 
-from ..utils import EasyDict
+from ..utils import EasyDict, LEFT_MOUSE_BUTTON
 from ..gui import imgui_utils
 from ..gui.annotator import AnnotationCapture
 
@@ -624,9 +624,9 @@ class ModelWidget:
                 self._show_popup = False
 
             # Hide menu if we click elsewhere
-            if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
                 self._clicking = True
-            if self._clicking and imgui.is_mouse_released(0):
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
                 self._clicking = False
                 self._show_popup = False
 

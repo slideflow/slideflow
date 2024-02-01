@@ -141,7 +141,7 @@ class SlideViewer(Viewer):
 
         # Calculate region to extract from image
         target_size = (max_w, max_h)
-        window_size = (int(self.wsi_window_size[0]), int(self.wsi_window_size[1]))
+        window_size = (int(np.floor(self.wsi_window_size[0])), int(np.floor(self.wsi_window_size[1])))
         return EasyDict(
             top_left=origin,
             window_size=window_size,
@@ -469,7 +469,6 @@ class SlideViewer(Viewer):
             gl_utils.draw_vbo_roi(roi, color=1, alpha=0.7, linewidth=5, vbo=vbo)
             gl_utils.draw_vbo_roi(roi, color=outline, alpha=1, linewidth=3, vbo=vbo)
 
-
     def _scale_roi_to_view(self, roi: np.ndarray) -> Optional[np.ndarray]:
         roi = np.copy(roi)
         roi[:, 0] = roi[:, 0] - int(self.origin[0])
@@ -606,12 +605,12 @@ class SlideViewer(Viewer):
             if i not in self.selected_rois:
                 self.selected_rois[i] = {'outline': outline}
 
-    def deselect_roi(self, idx: Optional[int] = None):
+    def deselect_roi(self, idx: Optional[int] = None, allow_errors: bool = True):
         if idx is None:
             self.selected_rois = {}
         elif idx in self.selected_rois:
             del self.selected_rois[idx]
-        else:
+        elif not allow_errors:
             raise IndexError(f"ROI {idx} is not selected.")
 
     def roi_is_selected(self, idx: int) -> bool:

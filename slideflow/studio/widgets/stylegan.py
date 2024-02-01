@@ -25,7 +25,7 @@ from slideflow.gan.stylegan3.stylegan3.viz.renderer import (
 )
 from ._utils import Widget
 from ..gui import imgui_utils
-from ..utils import EasyDict
+from ..utils import EasyDict, LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
 
 
 class StyleGANWidget(Widget):
@@ -243,9 +243,9 @@ class StyleGANWidget(Widget):
                 self.close_gan()
 
             # Hide menu if we click elsewhere
-            if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
                 self._clicking = True
-            if self._clicking and imgui.is_mouse_released(0):
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
                 self._clicking = False
                 self._show_popup = False
 

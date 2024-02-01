@@ -8,8 +8,10 @@ from threading import Thread
 from tkinter.filedialog import askopenfilename
 from slideflow.segment import TileMaskDataset
 from slideflow.model.torch_utils import get_device
+
 from ._utils import Widget
 from ..gui import imgui_utils
+from ..utils import LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
 from .slide import stride_capture
 
 from pytorch_lightning.callbacks import Callback
@@ -62,7 +64,7 @@ class TissueSegWidget(Widget):
         self.tile_um                = 2048
         self.crop_margin            = 256
         self.stride                 = 1
-        self._capturing_stride      = False
+        self._capturing_stride      = 1
 
 
     # --- Properties ---
@@ -204,7 +206,6 @@ class TissueSegWidget(Widget):
         """Train a segmentation model."""
         import pytorch_lightning as pl
 
-        model_path = sf.util.make_cache_dir_path('seg_models')
         viz = self.viz
 
         # Prepare the dataset.
@@ -338,12 +339,15 @@ class TissueSegWidget(Widget):
         if imgui.is_item_hovered():
             imgui.set_tooltip("Margin for random cropping during training.")
         imgui.same_line(viz.label_w)
-        with imgui_utils.item_width(viz.font_size * 3):
+        with imgui_utils.item_width(viz.font_size * 6):
             _, self.crop_margin = imgui.input_int(
                 "##segment_crop_margin",
                 self.crop_margin,
-                step=0,
+                step=16,
             )
+            self.crop_margin = max(0, self.crop_margin)
+        imgui.same_line()
+        imgui.text('px')
 
         # Stride.
         imgui.text_colored('Stride', *viz.theme.dim)
@@ -353,6 +357,7 @@ class TissueSegWidget(Widget):
             viz,
             self.stride,
             self._capturing_stride,
+            max_value=16,
             label='Stride',
             draw_label=False,
             offset=viz.label_w,
@@ -466,9 +471,9 @@ class TissueSegWidget(Widget):
                 self._show_popup = False
 
             # Hide menu if we click elsewhere
-            if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
                 self._clicking = True
-            if self._clicking and imgui.is_mouse_released(0):
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
                 self._clicking = False
                 self._show_popup = False
 

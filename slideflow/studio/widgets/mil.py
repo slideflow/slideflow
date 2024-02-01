@@ -20,7 +20,7 @@ from .heatmap import convert_to_overlays, HeatmapOverlay
 from .slide import stride_capture
 from ..gui import imgui_utils
 from ..gui.viewer import SlideViewer
-from ..utils import prediction_to_string
+from ..utils import prediction_to_string, LEFT_MOUSE_BUTTON
 from .._mil_renderer import MILRenderer, MultimodalMILRenderer
 
 # -----------------------------------------------------------------------------
@@ -686,9 +686,9 @@ class MILWidget(Widget):
                 self.close()
 
             # Hide menu if we click elsewhere
-            if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
                 self._clicking = True
-            if self._clicking and imgui.is_mouse_released(0):
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
                 self._clicking = False
                 self._show_popup = False
 

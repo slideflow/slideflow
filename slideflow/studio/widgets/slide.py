@@ -23,7 +23,9 @@ def stride_capture(
     *,
     draw_label: bool = True,
     offset: Union[float, str] = 'auto',
-    width: Union[float, str] = 'auto'
+    width: Union[float, str] = 'auto',
+    min_value: int = 1,
+    max_value: int = 8
 ) -> Tuple[int, Optional[int], bool]:
     """Draw a stride capture widget."""
     if draw_label:
@@ -36,8 +38,8 @@ def stride_capture(
     with imgui_utils.item_width(width):
         _stride_changed, _stride = imgui.slider_int(f'##stride_{label}',
                                                     current_val,
-                                                    min_value=1,
-                                                    max_value=8,
+                                                    min_value=min_value,
+                                                    max_value=max_value,
                                                     format=f'Stride %d')
 
         # If the stride was changed by the user, update the capturing value
@@ -336,6 +338,7 @@ class SlideWidget:
         """
         if self.preview_tiles:
             self._render_tile_boxes()
+        self.roi_widget.early_render()
 
     def keyboard_callback(self, key: int, action: int) -> None:
         """Handle keyboard events.
