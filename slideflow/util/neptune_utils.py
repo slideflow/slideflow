@@ -5,6 +5,7 @@ import slideflow as sf
 from slideflow.util import log
 
 if TYPE_CHECKING:
+    import neptune
     from slideflow import Dataset
 
 
