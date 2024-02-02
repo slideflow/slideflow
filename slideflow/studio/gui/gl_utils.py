@@ -193,12 +193,12 @@ def draw_roi_buffer(vbo, size):
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
 
 
-def draw_boxes_buffer(vbo, size):
+def draw_boxes_buffer(vbo, size, mode=gl.GL_LINE_LOOP):
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
     gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
     gl.glVertexPointer(2, gl.GL_FLOAT, 0, None)
     gl.glMultiDrawArrays(
-        gl.GL_LINE_LOOP,
+        mode,
         [i*4 for i in range(size)],
         [4 for _ in range(size)],
         size
@@ -207,7 +207,7 @@ def draw_boxes_buffer(vbo, size):
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
 
 
-def draw_boxes(vertices, *, color=1, alpha=1, linewidth=2, vbo=None):
+def draw_boxes(vertices, *, color=1, alpha=1, linewidth=2, vbo=None, mode=gl.GL_LINE_LOOP):
     """Draw multiple boxes (4 coordinates each).
 
     This implementation reduces the number of OpenGL calls with VBO.
@@ -220,10 +220,10 @@ def draw_boxes(vertices, *, color=1, alpha=1, linewidth=2, vbo=None):
     gl.glLineWidth(linewidth)
 
     if vbo is not None:
-        draw_boxes_buffer(vbo, size=vertices.shape[0])
+        draw_boxes_buffer(vbo, size=vertices.shape[0], mode=mode)
     else:
         for i in range(vertices.shape[0]):
-            draw_roi(vertices[i])
+            draw_roi(vertices[i], mode=mode)
 
     gl.glLineWidth(1)
 

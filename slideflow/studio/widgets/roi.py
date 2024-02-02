@@ -63,6 +63,7 @@ class ROIWidget:
         self._roi_filter_center         = True
         self._capturing_roi_filter_perc = False
         self._vertex_editor             = None
+        self._showing                   = False
 
     @property
     def roi_filter_method(self) -> Union[str, float]:
@@ -202,6 +203,9 @@ class ROIWidget:
 
         if self.is_vertex_editing() and self.editing:
             self._vertex_editor.keyboard_callback(key, action)
+
+        if self._showing and key == glfw.KEY_S and action == glfw.PRESS and self.viz._control_down:
+            self.save_rois()
 
     def early_render(self) -> None:
         """Render elements with OpenGL (before other UI elements are drawn)."""
@@ -697,6 +701,13 @@ class ROIWidget:
             self.viz.viewer._refresh_rois()
             self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
 
+    def save_rois(self) -> None:
+        """Save ROIs to a CSV file."""
+        viz = self.viz
+        roi_file = self.get_roi_dest(viz.wsi.name, create=True)
+        dest = viz.wsi.export_rois(roi_file)
+        viz.create_toast(f'ROIs saved to {dest}', icon='success')
+
     # --- ROI vertex editing --------------------------------------------------
 
     def is_vertex_editing(self, roi_index: Optional[int] = None) -> bool:
@@ -720,6 +731,9 @@ class ROIWidget:
 
     def update(self, show: bool) -> None:
         """Update the widget."""
+
+        self._showing = show
+
         # Reset the widget if the slide has changed.
         if self.viz.wsi is None or not show:
             self.reset_edit_state()
@@ -798,9 +812,7 @@ class ROIWidget:
 
         # Save button.
         if viz.sidebar.large_image_button('floppy', size=viz.font_size*3):
-            roi_file = self.get_roi_dest(viz.wsi.name, create=True)
-            dest = viz.wsi.export_rois(roi_file)
-            viz.create_toast(f'ROIs saved to {dest}', icon='success')
+            self.save_rois()
             self.reset_edit_state()
         if imgui.is_item_hovered():
             imgui.set_tooltip("Save ROIs")
@@ -1008,12 +1020,13 @@ class VertexEditor:
         if (imgui.is_mouse_down(LEFT_MOUSE_BUTTON)
             and not self._left_mouse_down
             and self.is_editing_vertices
+            and self.roi_vertices is not None
         ):
             # Mouse is newly down. Check if the mouse is over one of the box vertices.
             mouse_x, mouse_y = self.viz.get_mouse_pos() #self._mouse_coords_at_down
 
             # Get min/max X and Y values for the box vertices.
-            w = self._box_vertex_width
+            w = self._box_vertex_width + 2
             min_x = self.roi_vertices[:, 0] - w
             max_x = self.roi_vertices[:, 0] + w
             min_y = self.roi_vertices[:, 1] - w
@@ -1190,8 +1203,15 @@ class VertexEditor:
             gl_utils.draw_boxes(
                 box_vertices,
                 vbo=self.vbo,
+                color=(1, 1, 1),
+                linewidth=2,
+                mode=gl.GL_POLYGON
+            )
+            gl_utils.draw_boxes(
+                box_vertices,
+                vbo=self.vbo,
                 color=(1, 0, 0),
-                linewidth=3
+                linewidth=2
             )
         # Fill in the boxes for the selected vertices.
         if box_vertices is not None and self.selected_vertices and self.is_editing_vertices:
