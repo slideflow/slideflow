@@ -5,7 +5,7 @@ import os
 import OpenGL.GL as gl
 from os.path import join, exists, dirname
 from shapely.geometry import Point, Polygon
-from shapely.ops import unary_union
+from shapely.ops import unary_union, polygonize
 from tkinter.filedialog import askopenfilename
 from typing import Optional, Tuple, List, Union
 
@@ -30,6 +30,7 @@ class ROIWidget:
         self.viz                        = viz
         self.editing                    = False
         self.capturing                  = False
+        self.subtracting                = False
         self.roi_toast                  = None
         self.annotator                  = AnnotationCapture(named=False)
         self.capturing                  = False
@@ -75,6 +76,7 @@ class ROIWidget:
     def reset_edit_state(self):
         self.editing = False
         self.capturing = False
+        self.toggle_subtracting(False)
         self._should_show_advanced_editing_window = True
         if self.roi_toast is not None:
             self.roi_toast.done()
@@ -148,6 +150,30 @@ class ROIWidget:
                 # Show a label popup if the user has just created a new ROI.
                 self._show_roi_label_menu = len(viz.wsi.rois) - 1
 
+    def _process_subtract(self) -> None:
+        """Process a subtracting ROI."""
+        if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and self.viz.mouse_is_over_viewer:
+            self.toggle_subtracting(False)
+            self.annotator.reset()
+        viz = self.viz
+        new_annotation, annotation_name = self.annotator.capture(
+            x_range=(viz.viewer.x_offset, viz.viewer.x_offset + viz.viewer.width),
+            y_range=(viz.viewer.y_offset, viz.viewer.y_offset + viz.viewer.height),
+            pixel_ratio=viz.pixel_ratio
+        )
+        # Render in-progress subtraction annotation
+        if new_annotation is not None:
+            self.render_annotation(new_annotation, origin=(viz.viewer.x_offset, viz.viewer.y_offset))
+        if annotation_name:
+            wsi_coords = []
+            for c in new_annotation:
+                _x, _y = viz.viewer.display_coords_to_wsi_coords(c[0], c[1], offset=False)
+                int_coords = (int(_x), int(_y))
+                if int_coords not in wsi_coords:
+                    wsi_coords.append(int_coords)
+            if len(wsi_coords) > 2:
+                self.subtract_roi_from_selected(np.array(wsi_coords))
+
     def _set_button_style(self) -> None:
         """Set the style for the ROI buttons."""
         imgui.push_style_color(imgui.COLOR_BUTTON, 0, 0, 0, 0)
@@ -183,6 +209,15 @@ class ROIWidget:
             os.makedirs(dirname(filename))
         return filename
 
+    def ask_load_rois(self) -> None:
+        """Ask the user to load ROIs from a CSV file."""
+        viz = self.viz
+        path = askopenfilename(title="Load ROIs...", filetypes=[("CSV", "*.csv",)])
+        if path:
+            viz.wsi.load_csv_roi(path)
+            viz.viewer.refresh_view()
+        self.reset_edit_state()
+
     # --- Callbacks -----------------------------------------------------------
 
     def keyboard_callback(self, key: int, action: int) -> None:
@@ -204,8 +239,28 @@ class ROIWidget:
         if self.is_vertex_editing() and self.editing:
             self._vertex_editor.keyboard_callback(key, action)
 
-        if self._showing and key == glfw.KEY_S and action == glfw.PRESS and self.viz._control_down:
-            self.save_rois()
+        # Only process the following shortcuts if the ROI editor pane is showing.
+        if self._showing:
+            if key == glfw.KEY_A and action == glfw.PRESS:
+                self.toggle_add_roi()
+
+            if key == glfw.KEY_E and action == glfw.PRESS:
+                self.toggle_edit_roi()
+
+            if key == glfw.KEY_S and action == glfw.PRESS and self.viz._control_down:
+                self.save_rois()
+
+            if key == glfw.KEY_L and action == glfw.PRESS and self.viz._control_down:
+                self.ask_load_rois()
+
+            if key == glfw.KEY_M and action == glfw.PRESS:
+                self.merge_roi(self._selected_rois)
+
+            if key == glfw.KEY_S and action == glfw.PRESS and not self.viz._shift_down:
+                self.simplify_roi(self._selected_rois)
+
+            if key == glfw.KEY_S and action == glfw.PRESS and self.viz._shift_down and bool(self._selected_rois):
+                self.toggle_subtracting()
 
     def early_render(self) -> None:
         """Render elements with OpenGL (before other UI elements are drawn)."""
@@ -654,6 +709,30 @@ class ROIWidget:
         if is_vertex_editing:
             self.set_roi_vertex_editing(self._selected_rois[0])
 
+    def subtract_roi_from_selected(self, roi_coords: np.ndarray) -> None:
+        """Subtract the given ROI from the currently selected ROIs."""
+
+        if not len(self._selected_rois) > 0:
+            return
+        if not len(roi_coords) > 2:
+            return
+
+        for idx in self._selected_rois:
+            poly = Polygon(self.viz.wsi.rois[idx].coordinates)
+            poly_to_subtract = Polygon(roi_coords)
+            # Verify the line is non-intersecting.
+            polygons = list(polygonize(unary_union(poly_to_subtract)))
+            if len(polygons) == 0:
+                continue
+            try:
+                poly_s = poly.difference(poly_to_subtract)
+            except Exception:
+                continue
+            if isinstance(poly_s, Polygon):
+                coords_s = np.stack(poly_s.exterior.coords.xy, axis=-1)
+                self.viz.wsi.rois[idx].coordinates = coords_s
+                self.viz.viewer._refresh_rois()
+
     def merge_roi(self, roi_indices: List[int]) -> None:
         """Merge the given ROIs together."""
 
@@ -729,6 +808,41 @@ class ROIWidget:
 
     # --- Control & interface -------------------------------------------------
 
+    def toggle_add_roi(self) -> None:
+        """Toggle ROI capture mode."""
+        viz = self.viz
+        self.capturing = not self.capturing
+        self.editing = False
+        if self.roi_toast is not None:
+            self.roi_toast.done()
+        if self.capturing:
+            self.roi_toast = viz.create_toast(f'Capturing new ROIs. Right click and drag to create a new ROI.', icon='info', sticky=True)
+
+    def toggle_edit_roi(self) -> None:
+        """Toggle ROI editing mode."""
+        viz = self.viz
+        self.editing = not self.editing
+        if self.roi_toast is not None:
+            self.roi_toast.done()
+        if self.editing:
+            self.roi_toast = viz.create_toast(f'Editing ROIs. Right click to label or remove.', icon='info', sticky=False)
+        else:
+            self._should_show_advanced_editing_window = True
+            self.deselect_rois()
+        self.capturing = False
+
+    def toggle_subtracting(self, enable: Optional[bool] = None) -> None:
+        """Toggle ROI subtraction mode."""
+        if enable is not None:
+            self.subtracting = enable
+        else:
+            self.subtracting = not self.subtracting
+        self.capturing = False
+        if self.roi_toast is not None:
+            self.roi_toast.done()
+        if self.subtracting:
+            self.roi_toast = self.viz.create_toast(f'Subtracting ROIs. Right click and drag to subtract.', icon='info', sticky=True)
+
     def update(self, show: bool) -> None:
         """Update the widget."""
 
@@ -749,15 +863,19 @@ class ROIWidget:
         if self.capturing:
             self._process_capture()
 
+        if self.subtracting:
+            self._process_subtract()
+
         # Draw the advanced ROI editing window.
         self.draw_advanced_editing_window()
 
         # Process ROI hovering and clicking.
         hovered_rois = self._get_rois_at_mouse()
-        if self.editing:
+        if self.editing and not self.subtracting:
             self._process_roi_left_click(hovered_rois)
             self._process_roi_right_click(hovered_rois)
-        self._show_roi_tooltip(hovered_rois)
+        if not self.subtracting:
+            self._show_roi_tooltip(hovered_rois)
 
         # Update ROI vertex editing.
         if self.is_vertex_editing():
@@ -765,7 +883,6 @@ class ROIWidget:
                 self.disable_vertex_editing()
             else:
                 self._vertex_editor.update()
-                #self._vertex_editor.draw()
 
     def draw(self):
         """Draw the widget."""
@@ -784,30 +901,17 @@ class ROIWidget:
         # Add button.
         with viz.highlighted(self.capturing):
             if viz.sidebar.large_image_button('circle_plus', size=viz.font_size*3):
-                self.capturing = not self.capturing
-                self.editing = False
-                if self.roi_toast is not None:
-                    self.roi_toast.done()
-                if self.capturing:
-                    self.roi_toast = viz.create_toast(f'Capturing new ROIs. Right click and drag to create a new ROI.', icon='info', sticky=True)
+                self.toggle_add_roi()
             if imgui.is_item_hovered():
-                imgui.set_tooltip("Add ROI")
+                imgui.set_tooltip("Add ROI (A)")
         imgui.same_line()
 
         # Edit button.
         with viz.highlighted(self.editing):
             if viz.sidebar.large_image_button('pencil', size=viz.font_size*3):
-                self.editing = not self.editing
-                if self.roi_toast is not None:
-                    self.roi_toast.done()
-                if self.editing:
-                    self.roi_toast = viz.create_toast(f'Editing ROIs. Right click to label or remove.', icon='info', sticky=False)
-                else:
-                    self._should_show_advanced_editing_window = True
-                    self.deselect_rois()
-                self.capturing = False
+                self.toggle_edit_roi()
             if imgui.is_item_hovered():
-                imgui.set_tooltip("Edit ROIs")
+                imgui.set_tooltip("Edit ROIs (E)")
         imgui.same_line()
 
         # Save button.
@@ -815,18 +919,14 @@ class ROIWidget:
             self.save_rois()
             self.reset_edit_state()
         if imgui.is_item_hovered():
-            imgui.set_tooltip("Save ROIs")
+            imgui.set_tooltip("Save ROIs (Ctrl+S)")
         imgui.same_line()
 
         # Load button.
         if viz.sidebar.large_image_button('folder', size=viz.font_size*3):
-            path = askopenfilename(title="Load ROIs...", filetypes=[("CSV", "*.csv",)])
-            if path:
-                viz.wsi.load_csv_roi(path)
-                viz.viewer.refresh_view()
-            self.reset_edit_state()
+            self.ask_load_rois()
         if imgui.is_item_hovered():
-            imgui.set_tooltip("Load ROIs")
+            imgui.set_tooltip("Load ROIs (Ctrl+L)")
         self._end_button_style()
 
         imgui_utils.vertical_break()
@@ -884,12 +984,24 @@ class ROIWidget:
         ))
         if imgui_utils.button('Merge'):
             self.merge_roi(self._selected_rois)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip('Merge selected ROIs into a single ROI. <M>')
         imgui.same_line()
         if imgui_utils.button('Simplify'):
             self.simplify_roi(self._selected_rois, tolerance=5)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip('Simplify the selected ROIs. <S>')
         imgui.same_line()
         if imgui_utils.button('Delete'):
             self.remove_rois(self._selected_rois)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip('Delete the selected ROIs. <Delete>')
+        imgui.same_line()
+        if imgui_utils.button(('Subtract' if not self.subtracting else 'Subtracting...'),
+                              enabled=bool(self._selected_rois)):
+            self.toggle_subtracting()
+        if imgui.is_item_hovered():
+            imgui.set_tooltip('Subtract the selected ROIs from other ROIs. <Shift+S>')
 
         if imgui.is_window_hovered():
             self._should_deselect_roi_on_mouse_up = False

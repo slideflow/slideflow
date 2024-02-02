@@ -24,6 +24,14 @@ class AnnotationCapture:
         self._prompt_pos = None
         self._keyboard_focus = False
 
+    def reset(self):
+        """Resets the annotation capture."""
+        self.annotation_points = []
+        self.clicking = False
+        self._name_prompting = False
+        self._prompt_pos = None
+        self._keyboard_focus = False
+
     def capture(
         self,
         x_range: Tuple[int, int],
