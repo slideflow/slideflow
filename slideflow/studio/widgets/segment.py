@@ -132,8 +132,8 @@ class TissueSegWidget(Widget):
         destination = askdirectory(
             title="Export model (choose directory)..."
         )
-        model_path = sf.util.get_new_model_dir(destination, 'segment')
-        if model_path:
+        if destination:
+            model_path = sf.util.get_new_model_dir(destination, 'segment')
             self.export(model_path)
         return model_path
 
@@ -228,6 +228,25 @@ class TissueSegWidget(Widget):
         self._thread = Thread(target=self._train)
         self._thread.start()
 
+    def finetune(self) -> None:
+        """Finetune a segmentation model."""
+        if self.is_thread_running():
+            self.viz.create_toast("Failed to start thread.", icon="error")
+            return
+
+        # Create a progress toast.
+        if self._training_toast is not None:
+            self._training_toast.done()
+        self._training_toast = self.viz.create_toast(
+            title="Finetuning segmentation model",
+            icon='info',
+            sticky=True,
+            progress=True,
+            spinner=True
+        )
+        self._thread = Thread(target=self._finetune)
+        self._thread.start()
+
     def _train(self) -> None:
         """Train a segmentation model."""
         import pytorch_lightning as pl
@@ -285,6 +304,64 @@ class TissueSegWidget(Widget):
         self._training_toast.done()
         self._training_toast = None
         self.viz.create_toast("Training complete.", icon="success")
+
+    def _finetune(self) -> None:
+        """Finetune a segmentation model."""
+        import pytorch_lightning as pl
+
+        viz = self.viz
+        if not self._segment:
+            self.viz.create_toast("Cannot finetune; no model loaded.", icon="error")
+            return
+
+        # Prepare the dataset.
+        dataset = viz.P.dataset(filters={'slide': list(self._selected_slides.keys())})
+        dts = TileMaskDataset(
+            dataset,
+            tile_px=self.tile_px,
+            tile_um=self.tile_um,
+            stride_div=self.stride,
+            crop_margin=self.crop_margin,
+            filter_method=self.filter_method
+        )
+
+        # Set the configuration.
+        config = sf.segment.SegmentConfig(
+            arch=self.arch,
+            encoder_name=self.encoder,
+            epochs=self.max_epochs,  # 100
+            mpp=self.mpp,
+            mode=self.mode,
+        )
+
+        # Create dataloader.
+        train_dl = torch.utils.data.DataLoader(
+            dts,
+            batch_size=config.train_batch_size,
+            shuffle=True,
+            num_workers=4
+        )
+
+        # Build the model and trainer.
+        trainer = pl.Trainer(
+            max_epochs=config.epochs,
+            devices=1,   # Distributed training not supported in a GUI.
+            num_nodes=1, # Distributed training not supported in a GUI.
+            callbacks=[ProgressCallback(self._training_toast, config.epochs)]
+        )
+
+        # Train the model.
+        self._segment.model.train()
+        trainer.fit(self._segment.model, train_dataloaders=train_dl)
+
+        # Move model to eval & appropriate device.
+        self._segment.model.eval()
+        self._segment.model.to(get_device())
+
+        # Cleanup.
+        self._training_toast.done()
+        self._training_toast = None
+        self.viz.create_toast("Finetuning complete.", icon="success")
 
     # --- Drawing ---
 
@@ -481,7 +558,7 @@ class TissueSegWidget(Widget):
     def draw_training_button(self) -> None:
         """Draw the training button."""
         viz = self.viz
-        width = (self.viz.sidebar.content_width - (self.viz.spacing * 3)) / 2
+        width = (self.viz.sidebar.content_width - (self.viz.spacing * 4)) / 3
 
         # Train button.
         _button_text = "Train" if not self.is_training() else "Training" + imgui_utils.spinner_text()
@@ -490,10 +567,21 @@ class TissueSegWidget(Widget):
         if imgui.is_item_hovered() and viz.P is None:
             imgui.set_tooltip("No project loaded. Load a project to train a model.")
 
+        # Finetune button.
+        imgui.same_line()
+        if viz.sidebar.full_button2("Finetune", enabled=(sum(self._selected_slides.values()) and not self.is_training() and self._segment is not None), width=width):
+            self.finetune()
+        if imgui.is_item_hovered() and self._segment is None:
+            imgui.set_tooltip("No model loaded. Load a model to finetune.")
+        if imgui.is_item_hovered() and viz.P is None:
+            imgui.set_tooltip("No project loaded. Load a project to export a model.")
+
         # Export button.
         imgui.same_line()
-        if viz.sidebar.full_button2("Export model", enabled=(self._segment is not None), width=width):
+        if viz.sidebar.full_button2("Export", enabled=(self._segment is not None), width=width):
             self.ask_export_model()
+        if imgui.is_item_hovered() and self._segment is None:
+            imgui.set_tooltip("No model loaded.")
 
     def draw_generate_rois_button(self) -> None:
         """Show a button prompting the user to generate ROIs."""
