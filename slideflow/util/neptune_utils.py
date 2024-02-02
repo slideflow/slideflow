@@ -5,7 +5,6 @@ import slideflow as sf
 from slideflow.util import log
 
 if TYPE_CHECKING:
-    import neptune
     from slideflow import Dataset
 
 
@@ -27,6 +26,7 @@ class NeptuneLog:
     ) -> "neptune.Run":
         '''Starts a neptune run'''
 
+        import neptune
         from neptune import management
 
         if tags is None:
