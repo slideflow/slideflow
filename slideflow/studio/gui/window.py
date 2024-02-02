@@ -117,7 +117,7 @@ class ImguiWindow(GlfwWindow):
         # Begin imgui frame.
         imgui.new_frame()
         imgui.push_font(self._imgui_fonts[self._cur_font_size])
-        imgui_utils.set_default_style(spacing=self.spacing, indent=self.font_size, scrollbar=self.font_size+4)
+        imgui_utils.set_default_style(spacing=self.spacing, indent=self.font_size, scrollbar=self.font_size/2+4)
 
         # Render toasts.
         self._render_toasts()
