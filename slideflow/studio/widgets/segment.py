@@ -51,6 +51,8 @@ class TissueSegWidget(Widget):
         self._need_to_refresh_rois  = False
         self._clicking              = False
         self._show_popup            = False
+        self._load_slide_popup      = None
+        self._load_slide_popup_coords = None
 
         # Parameters
         self._supported_archs       = ['FPN', 'DeepLabV3', 'DeepLabV3Plus', 'Linknet', 'MAnet', 'PAN', 'PSPNet', 'Unet', 'UnetPlusPlus']
@@ -334,6 +336,12 @@ class TissueSegWidget(Widget):
                         name = sf.util.path_to_name(slide_path)
                         with self.viz.bold_font(self.viz.wsi is not None and slide_path == self.viz.wsi.path):
                             _, self._selected_slides[name] = imgui.selectable(name, self._selected_slides[name])
+                            if imgui.is_item_hovered():
+                                imgui.set_tooltip(slide_path)
+                                if imgui.is_mouse_down(RIGHT_MOUSE_BUTTON):
+                                    self._load_slide_popup = slide_path
+                                if imgui.is_mouse_double_clicked(LEFT_MOUSE_BUTTON):
+                                    self.viz.load_slide(slide_path)
         if imgui_utils.button('Select All'):
             for name in self._selected_slides:
                 self._selected_slides[name] = True
@@ -501,6 +509,33 @@ class TissueSegWidget(Widget):
         ):
             self.generate_rois()
 
+    def draw_load_slide_popup(self):
+        viz = self.viz
+        if self._load_slide_popup:
+            if self._load_slide_popup_coords is None:
+                self._load_slide_popup_coords = self.viz.get_mouse_pos(scale=False)
+            cx, cy = self._load_slide_popup_coords
+            imgui.set_next_window_position(cx, cy)
+            imgui.begin(
+                '##segment_load_slide_popup',
+                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+            )
+            if imgui.menu_item('Load')[0]:
+                viz.load_slide(self._load_slide_popup)
+                self._clicking = False
+                self._load_slide_popup = None
+                self._load_slide_popup_coords = None
+
+            # Hide menu if we click elsewhere
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
+                self._clicking = True
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
+                self._clicking = False
+                self._load_slide_popup = None
+                self._load_slide_popup_coords = None
+
+            imgui.end()
+
 
     def draw_config_popup(self):
         viz = self.viz
@@ -566,6 +601,7 @@ class TissueSegWidget(Widget):
 
                 if viz.collapsing_header2('Data Source', default=False):
                     self.draw_train_data_source()
+                    self.draw_load_slide_popup()
 
                 if viz.collapsing_header2('Data Processing', default=False):
                     self.draw_train_data_processing()
