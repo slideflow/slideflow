@@ -9,6 +9,7 @@ from threading import Thread
 from tkinter.filedialog import askopenfilename, askdirectory
 from slideflow.segment import TileMaskDataset
 from slideflow.model.torch_utils import get_device
+from collections import defaultdict
 
 from ._utils import Widget
 from ..gui import imgui_utils
@@ -66,6 +67,7 @@ class TissueSegWidget(Widget):
         self.crop_margin            = 256
         self.stride                 = 1
         self._capturing_stride      = 1
+        self._selected_slides       = defaultdict(bool)
 
 
     # --- Properties ---
@@ -231,7 +233,7 @@ class TissueSegWidget(Widget):
         viz = self.viz
 
         # Prepare the dataset.
-        dataset = viz.P.dataset(filters={'slide': [viz.wsi.name]})
+        dataset = viz.P.dataset(filters={'slide': list(self._selected_slides.keys())})
         dts = TileMaskDataset(
             dataset,
             tile_px=self.tile_px,
@@ -322,9 +324,33 @@ class TissueSegWidget(Widget):
         viz = self.viz
 
         # Slide sources
-        imgui.text_colored('Source', *viz.theme.dim)
-        imgui.same_line(viz.label_w)
-        imgui.text("<this slide>")
+        width = imgui.get_content_region_max()[0] - viz.spacing
+        with imgui.begin_list_box("##segment_data_source", width, 150) as list_box:
+            if list_box.opened:
+                if self.viz.P is None:
+                    imgui.text("No project loaded.")
+                else:
+                    for slide_path in self.viz.project_widget.slide_paths:
+                        name = sf.util.path_to_name(slide_path)
+                        with self.viz.bold_font(self.viz.wsi is not None and slide_path == self.viz.wsi.path):
+                            _, self._selected_slides[name] = imgui.selectable(name, self._selected_slides[name])
+        if imgui_utils.button('Select All'):
+            for name in self._selected_slides:
+                self._selected_slides[name] = True
+
+        imgui.same_line()
+        if imgui_utils.button('With ROIs'):
+            _rois = [sf.util.path_to_name(r) for r in self.viz.P.dataset().rois()]
+            for name in self._selected_slides:
+                if name in _rois:
+                    self._selected_slides[name] = True
+
+        imgui.same_line()
+        if imgui_utils.button('Select None'):
+            for name in self._selected_slides:
+                self._selected_slides[name] = False
+
+        imgui.text("{} slides selected".format(sum(self._selected_slides.values())))
 
         imgui_utils.vertical_break()
 
@@ -411,7 +437,7 @@ class TissueSegWidget(Widget):
         # Architecture.
         imgui.text_colored('Arch', *viz.theme.dim)
         if imgui.is_item_hovered():
-            imgui.set_tooltip("Model architecture.")
+            imgui.set_tooltip("Model architecture")
         imgui.same_line(viz.label_w)
         _, self._selected_arch = imgui.combo(
             "##segment_arch",
@@ -451,7 +477,7 @@ class TissueSegWidget(Widget):
 
         # Train button.
         _button_text = "Train" if not self.is_training() else "Training" + imgui_utils.spinner_text()
-        if viz.sidebar.full_button(_button_text, enabled=(viz.P is not None and not self.is_training()), width=width):
+        if viz.sidebar.full_button(_button_text, enabled=(sum(self._selected_slides.values()) and not self.is_training()), width=width):
             self.train()
         if imgui.is_item_hovered() and viz.P is None:
             imgui.set_tooltip("No project loaded. Load a project to train a model.")
