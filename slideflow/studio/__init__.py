@@ -1584,10 +1584,8 @@ class Studio(ImguiWindow):
 
     @staticmethod
     def get_default_widgets() -> List[Any]:
-        """Returns a list of the default non-mandatory widgets."""
-
-        from .widgets import MosaicWidget
-        return [MosaicWidget]
+        """Returns a list of the default non-mandatory extension widgets."""
+        return []
 
     def get_renderer(self, name: Optional[str] = None) -> Optional[Renderer]:
         """Check for the given additional renderer in the rendering pipeline.

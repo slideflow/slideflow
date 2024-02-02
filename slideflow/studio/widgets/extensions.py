@@ -1,9 +1,11 @@
+import slideflow as sf
 import traceback
 import numpy as np
 import imgui
 import textwrap
 from PIL import Image
 from os.path import join, dirname, abspath
+from typing import Union, Tuple
 
 from ..gui import imgui_utils, gl_utils
 
@@ -16,7 +18,12 @@ class ExtensionsWidget:
     icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_extensions.png')
     icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_extensions_highlighted.png')
 
-    def __init__(self, viz):
+    def __init__(
+        self,
+        viz: "sf.studio.Studio",
+        autoload: Union[bool, Tuple[str], str] = ('mil', 'segment')
+    ) -> None:
+
         self.viz                = viz
         self._show_err_popup    = False
 
@@ -30,6 +37,20 @@ class ExtensionsWidget:
         self._official_tex      = gl_utils.Texture(
             image=np.array(Image.open(_off_path)), bilinear=True, mipmap=True
         )
+
+        # Try to load all extensions at start.
+        if autoload:
+            if isinstance(autoload, bool) and autoload:
+                autoload = ['stylegan', 'mosaic', 'cellseg', 'mil', 'segment']
+            elif isinstance(autoload, str):
+                autoload = [autoload]
+            for ext in autoload:
+                try:
+                    if not getattr(self, f'{ext}'):
+                        getattr(self, f'toggle_{ext}')()
+                        setattr(self, f'{ext}', True)
+                except Exception as e:
+                    pass
 
     def toggle_stylegan(self):
         viz = self.viz
