@@ -1,11 +1,12 @@
+import os
 import torch
 import slideflow as sf
 import imgui
-import numpy as np
 import segmentation_models_pytorch as smp
+from typing import Optional
 from os.path import join, dirname, abspath, exists
 from threading import Thread
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, askdirectory
 from slideflow.segment import TileMaskDataset
 from slideflow.model.torch_utils import get_device
 
@@ -122,6 +123,27 @@ class TissueSegWidget(Widget):
         )
         if model_path:
             self.load(model_path)
+
+    def ask_export_model(self) -> Optional[str]:
+        destination = askdirectory(
+            title="Export model (choose directory)..."
+        )
+        model_path = sf.util.get_new_model_dir(destination, 'segment')
+        if model_path:
+            self.export(model_path)
+        return model_path
+
+    def export(self, path: str) -> None:
+        """Export a tissue segmentation model."""
+        if self._segment is None:
+            return
+        if not exists(path):
+            os.makedirs(path)
+        model_path = join(path, 'model.pth')
+        torch.save(self._segment.model.state_dict(), model_path)
+        self._segment.cfg.to_json(join(path, 'segment_params.json'))
+        self._segment.model_path = model_path
+        self.viz.create_toast(f"Model exported to {model_path}", icon="success")
 
     def load(self, path, ignore_errors=False):
         """Load a tissue segmentation model."""
@@ -425,15 +447,19 @@ class TissueSegWidget(Widget):
     def draw_training_button(self) -> None:
         """Draw the training button."""
         viz = self.viz
+        width = (self.viz.sidebar.content_width - (self.viz.spacing * 3)) / 2
 
         # Train button.
         _button_text = "Train" if not self.is_training() else "Training" + imgui_utils.spinner_text()
-        if viz.sidebar.full_button(_button_text, enabled=(viz.P is not None and not self.is_training())):
-            ...
+        if viz.sidebar.full_button(_button_text, enabled=(viz.P is not None and not self.is_training()), width=width):
             self.train()
-
         if imgui.is_item_hovered() and viz.P is None:
             imgui.set_tooltip("No project loaded. Load a project to train a model.")
+
+        # Export button.
+        imgui.same_line()
+        if viz.sidebar.full_button2("Export model", enabled=(self._segment is not None), width=width):
+            self.ask_export_model()
 
     def draw_generate_rois_button(self) -> None:
         """Show a button prompting the user to generate ROIs."""
@@ -524,6 +550,8 @@ class TissueSegWidget(Widget):
                 imgui_utils.vertical_break()
                 self.draw_training_button()
 
+            imgui_utils.vertical_break()
+            imgui.separator()
             imgui_utils.vertical_break()
             self.draw_generate_rois_button()
 

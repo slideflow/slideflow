@@ -2196,6 +2196,41 @@ class Sidebar:
         imgui.pop_style_color(5)
         return result
 
+    def full_button2(self, text, width=None, **kwargs):
+        """Render a button that spans the full width of the sidebar.
+
+        The color of the button is determined through the loaded theme,
+        ``bright_button2`` properties.
+
+        Args:
+            text (str): Text of the button.
+            width (int, optional): Width of the button. If not specified,
+                uses a width that spans the width of the sidebar.
+
+        Keyword args:
+            enabled (bool): Whether the button is enabled.
+
+        Returns:
+            bool: Whether the button was clicked.
+
+        """
+        t = self.theme
+        imgui.push_style_color(imgui.COLOR_BUTTON, *t.bright_button2)
+        imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, *t.bright_button2_hovered)
+        imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, *t.bright_button2_active)
+        imgui.push_style_color(imgui.COLOR_TEXT, *t.bright_button2_text)
+        imgui.push_style_color(imgui.COLOR_BORDER, 0, 0, 0, 0)
+        if width is None:
+            width = self.viz.sidebar.content_width - (self.viz.spacing * 2)
+        result = imgui_utils.button(
+            text,
+            width=width,
+            height=self.viz.font_size * 1.7,
+            **kwargs
+        )
+        imgui.pop_style_color(5)
+        return result
+
     def small_button(self, image_name):
         """Render a small button for the sidebar.
 
