@@ -811,6 +811,11 @@ class ROIWidget:
 
     # --- Control & interface -------------------------------------------------
 
+    def reset(self) -> None:
+        self.reset_edit_state()
+        self.disable_vertex_editing()
+        self._selected_rois = []
+
     def toggle_add_roi(self) -> None:
         """Toggle ROI capture mode."""
         viz = self.viz

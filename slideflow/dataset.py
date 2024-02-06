@@ -1417,8 +1417,9 @@ class Dataset:
             unique = [
                 l for l in _df.label.unique().tolist()
                 if ((l not in roi_unique_labels)
-                    and (l is not np.nan))
+                    and (not isinstance(l, float) or not np.isnan(l)))
             ]
+
             roi_unique_labels += unique
         return sorted(roi_unique_labels)
 
@@ -2051,7 +2052,7 @@ class Dataset:
         """
 
         # Load the model configuration.
-        segment = sf.slide.qc.Segment(model)
+        segment = sf.slide.qc.StridedSegment(model)
 
         for slide in track(self.slide_paths(), description='Generating...'):
 

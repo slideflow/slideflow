@@ -181,6 +181,24 @@ class StridedDL_V2(_StridedQC_V2):
     together output from a deep learning QC model for tiles using a tapered mask.
     """
 
+    def __init__(
+        self,
+        *args,
+        out_classes: int = 0,
+        **kwargs
+    ):
+        """Create a new StridedDL_V2 object.
+
+        Args:
+            *args (Any): Arguments to pass to the parent class.
+            out_classes (int): Number of output classes from the deep learning model.
+                If provided, the shape of the QC mask will be (out_classes, h, w).
+                If 0 or not provided, the shape will be (h, w).
+            **kwargs (Any): Keyword arguments to pass to the parent class.
+        """
+        super().__init__(*args, **kwargs)
+        self.out_classes = out_classes
+
     def _calc_mask(self, item):
         """Calculate a QC mask from a given tile."""
         grid_i = item['grid'][0]
@@ -195,7 +213,11 @@ class StridedDL_V2(_StridedQC_V2):
         dim = (wsi.dimensions[1], wsi.dimensions[0])
         px_ratio = wsi.tile_px / wsi.full_extract_px
         target_dim = tuple((np.array(dim) * px_ratio).astype(int))
-        qc_mask = np.zeros(target_dim, np.float32)  # Consider extra dimension for multilabel
+        if self.out_classes:
+            qc_dim = (self.out_classes, target_dim[0], target_dim[1])
+        else:
+            qc_dim = target_dim
+        qc_mask = np.zeros(qc_dim, np.float32)
         avg_mask = np.zeros(target_dim, np.float32)
         return qc_mask, avg_mask
 
@@ -235,9 +257,14 @@ class StridedDL_V2(_StridedQC_V2):
             map_fn = map
         for (tile_mask, (i, j)) in map_fn(self._calc_mask, pb):
             x0, x1, y0, y1 = self.get_tile_bounds(qc_wsi, i, j)
-            x1 = min(x1, qc_mask.shape[0])
-            y1 = min(y1, qc_mask.shape[1])
-            qc_mask[x0:x1, y0:y1] += tile_mask[0: x1-x0, 0: y1-y0] * taper_mask[0: x1-x0, 0: y1-y0]
+            if self.out_classes:
+                x1 = min(x1, qc_mask.shape[1])
+                y1 = min(y1, qc_mask.shape[2])
+                qc_mask[:, x0:x1, y0:y1] += tile_mask[:, 0: x1-x0, 0: y1-y0] * taper_mask[0: x1-x0, 0: y1-y0]
+            else:
+                x1 = min(x1, qc_mask.shape[0])
+                y1 = min(y1, qc_mask.shape[1])
+                qc_mask[x0:x1, y0:y1] += tile_mask[0: x1-x0, 0: y1-y0] * taper_mask[0: x1-x0, 0: y1-y0]
             avg_mask[x0:x1, y0:y1] += taper_mask[0: x1-x0, 0: y1-y0]
 
         # Normalize the mask

@@ -2497,23 +2497,32 @@ class WSI:
                     )
                 else:
                     self.roi_polys.append(ROIPoly(poly, annotation.name, annotation.label))
+
             # Handle polygon holes.
-            outers, inners = [], []
-            for o, outer in enumerate(self.roi_polys):
-                for i, inner in enumerate(self.roi_polys):
-                    if o == i:
-                        continue
-                    if (i in inners) or (o in inners) or (i in outers):
-                        continue
-                    if outer.poly.contains(inner.poly):
-                        log.debug(f"Rendering ROI polygon {i} as hole in {o}")
-                        self.roi_polys[o].set_hole(inner)
-                        if o not in outers:
-                            outers.append(o)
-                        if i not in inners:
-                            inners.append(i)
-            self.roi_polys = [ann for (i, ann) in enumerate(self.roi_polys)
-                             if i not in inners]
+            # Holes are only rendered for ROI polygons that are fully contained
+            # within another ROI polygon with the same label.
+            roi_labels = list(set([roi.label for roi in self.roi_polys]))
+            _roi_polys = []
+            for label in roi_labels:
+                outers, inners = [], []
+                _label_polys = [ann for ann in self.roi_polys if ann.label == label]
+                for o, outer in enumerate(_label_polys):
+                    for i, inner in enumerate(_label_polys):
+                        if o == i:
+                            continue
+                        if (i in inners) or (o in inners) or (i in outers):
+                            continue
+                        if outer.poly.contains(inner.poly):
+                            log.debug(f"Rendering ROI polygon {i} as hole in {o}")
+                            _label_polys[o].set_hole(inner)
+                            if o not in outers:
+                                outers.append(o)
+                            if i not in inners:
+                                inners.append(i)
+                label_polys = [ann for (i, ann) in enumerate(_label_polys)
+                               if i not in inners]
+                _roi_polys += label_polys
+            self.roi_polys = _roi_polys
 
         # Regenerate the grid to reflect the newly-loaded ROIs.
         self._build_coord()

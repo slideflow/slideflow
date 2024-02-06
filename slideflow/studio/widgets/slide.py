@@ -449,6 +449,9 @@ class SlideWidget:
         viz.x = None
         viz.y = None
 
+        # Reset the ROI widget.
+        self.roi_widget.reset()
+
         # Wrap the entire slide loading function in a try-catch block
         # to gracefully handle errors without crashing the application
         try:

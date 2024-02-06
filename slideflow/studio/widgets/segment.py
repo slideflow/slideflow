@@ -253,15 +253,22 @@ class TissueSegWidget(Widget):
 
         viz = self.viz
 
-        # Prepare the dataset.
+        # Prepare the slideflow dataset.
         dataset = viz.P.dataset(filters={'slide': list(self._selected_slides.keys())})
+
+        # Determine the labels, if necessary.
+        all_roi_labels = dataset.get_unique_roi_labels()
+        out_classes = 1 if self.mode == 'binary' else len(all_roi_labels)
+
+        # Prepare the tile-mask dataset.
         dts = TileMaskDataset(
             dataset,
             tile_px=self.tile_px,
             tile_um=self.tile_um,
             stride_div=self.stride,
             crop_margin=self.crop_margin,
-            filter_method=self.filter_method
+            filter_method=self.filter_method,
+            roi_labels=all_roi_labels
         )
 
         # Set the configuration.
@@ -271,6 +278,8 @@ class TissueSegWidget(Widget):
             epochs=self.max_epochs,  # 100
             mpp=self.mpp,
             mode=self.mode,
+            out_classes=out_classes,
+            labels=(all_roi_labels if self.mode != 'binary' else None)
         )
 
         # Create dataloader.
@@ -298,7 +307,7 @@ class TissueSegWidget(Widget):
         model.to(get_device())
 
         # Create the segment object.
-        self._segment = sf.slide.qc.Segment.from_model(model, config)
+        self._segment = sf.slide.qc.StridedSegment.from_model(model, config)
 
         # Cleanup.
         self._training_toast.done()

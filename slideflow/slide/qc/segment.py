@@ -257,10 +257,36 @@ class StridedSegment(Segment):
             tile_px=self.cfg.size,
             tile_um=int(np.round(self.cfg.size*self.cfg.mpp)),
             overlap=overlap,
-            filter_threads=0
+            filter_threads=0,
+            out_classes=(self.cfg.out_classes if self.cfg.mode != 'binary' else 0)
         )
         self._strided_qc.apply = self.apply
 
+    @classmethod
+    def from_model(
+        cls,
+        model: "sf.segment.SegmentModel",
+        config: "sf.segment.SegmentConfig",
+        class_idx: Optional[int] = None,
+        threshold_direction: str = 'less',
+        overlap: int = 128
+    ):
+        """Create a StridedSegment object from a SegmentModel and SegmentConfig."""
+        obj = cls.__new__(cls)
+        obj.model = model
+        obj.model_path = None
+        obj.cfg = config
+        obj.class_idx = class_idx
+        obj.threshold_direction = threshold_direction
+        obj._strided_qc = StridedDL_V2(
+            tile_px=config.size,
+            tile_um=int(np.round(config.size*config.mpp)),
+            overlap=overlap,
+            filter_threads=0,
+            out_classes=(config.out_classes if config.mode != 'binary' else 0)
+        )
+        obj._strided_qc.apply = obj.apply
+        return obj
 
     def apply(self, image: np.ndarray) -> np.ndarray:
         import torch

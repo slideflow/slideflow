@@ -222,9 +222,10 @@ class TileMaskDataset(torch.utils.data.Dataset):
         tile_px: int,
         tile_um: Union[int, str],
         *,
+        roi_labels: Optional[List[str]] = None,
         stride_div: int = 2,
         crop_margin: int = 0,
-        filter_method: str = 'roi'
+        filter_method: str = 'otsu'
     ):
         """Dataset that generates tiles and ROI masks from slides.
 
@@ -257,6 +258,9 @@ class TileMaskDataset(torch.utils.data.Dataset):
             verbose=False,
             stride_div=stride_div
         )
+        if roi_labels is None:
+            roi_labels = []
+        self.roi_labels = roi_labels
         self.tile_px = tile_px
         self.coords = []
         self.all_wsi = dict()
@@ -266,10 +270,19 @@ class TileMaskDataset(torch.utils.data.Dataset):
             name = path_to_name(slide)
             wsi = sf.WSI(slide, **kw)
             wsi_with_rois = sf.WSI(slide, roi_filter_method=0.1, rois=rois, **kw)
+
+            # Filter ROIs to only include the specified labels.
+            if self.roi_labels:
+                wsi_with_rois.rois = [roi for roi in wsi_with_rois.rois if roi.label in self.roi_labels]
+                wsi_with_rois.process_rois()
+
             if not len(wsi_with_rois.roi_polys):
                 continue
             if filter_method == 'roi':
-                wsi_inner = sf.WSI(slide, roi_filter_method=0.9, **kw)
+                wsi_inner = sf.WSI(slide, roi_filter_method=0.9, rois=rois, **kw)
+                if self.roi_labels:
+                    wsi_inner.rois = [roi for roi in wsi_with_rois.rois if roi.label in self.roi_labels]
+                    wsi_inner.process_rois()
                 coords = np.argwhere(wsi_with_rois.grid & (~wsi_inner.grid)).tolist()
             elif filter_method == 'otsu':
                 wsi.qc('otsu')
@@ -287,44 +300,92 @@ class TileMaskDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.coords)
 
+    def get_scaled_and_intersecting_polys(
+        self,
+        polys: "Polygon",
+        tile: "Polygon",
+        scale: float,
+        full_stride: int,
+        grid_idx: Tuple[int, int]
+    ):
+        """Get scaled and intersecting polygons for a given tile."""
+        gx, gy = grid_idx
+        A = polys.intersection(tile)
+
+        # Translate polygons so the intersection origin is at (0, 0)
+        B = sa.translate(A, -(full_stride*gx), -(full_stride*gy))
+
+        # Scale to the target tile size
+        C = sa.scale(B, xfact=scale, yfact=scale, origin=(0, 0))
+        return C
+
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Get an image and mask for a given index."""
         slide, gx, gy = self.coords[index]
         wsi = self.all_wsi[slide]
         wsi_with_roi = self.all_wsi_with_roi[slide]
         fe = self.all_extract_px[slide]
         fs = wsi.full_stride
+        scale = wsi.tile_px / fe
 
         # Get the image.
         img = wsi[gx, gy].transpose(2, 0, 1)
 
-        # Determine the intersection at the given tile location.
+        # Get a polygon for the tile, used for determining overlapping ROIs.
         tile = Polygon([
             [fs*gx, fs*gy],
             [fs*gx, (fs*gy)+fe],
             [(fs*gx)+fe, (fs*gy)+fe],
             [(fs*gx)+fe, fs*gy]
         ])
-        assert len(wsi_with_roi.roi_polys) > 0, "No ROIs found in slide"
-        all_polys = unary_union([p.poly for p in wsi_with_roi.roi_polys])
-        A = all_polys.intersection(tile)
 
-        # Translate polygons so the intersection origin is at (0, 0)
-        B = sa.translate(A, -(fs*gx), -(fs*gy))
+        # Compute the mask from ROIs.
+        if len(wsi_with_roi.roi_polys) == 0:
+            if self.roi_labels:
+                mask = np.zeros((len(self.roi_labels), wsi.tile_px, wsi.tile_px), dtype=int)
+            else:
+                mask = np.zeros((1, wsi.tile_px, wsi.tile_px), dtype=int)
 
-        # Scale to the target tile size
-        xscale = yscale = wsi.tile_px / fe
-        C = sa.scale(B, xfact=xscale, yfact=yscale, origin=(0, 0))
-        if isinstance(C, Polygon) and not len(C.exterior.coords.xy[0]):
-            mask = np.zeros((wsi.tile_px, wsi.tile_px), dtype=int)
+        # Handle ROIs with labels (multilabel or multiclass)
+        elif self.roi_labels:
+            labeled_masks = []
+            for i, label in enumerate(self.roi_labels):
+                wsi_polys = [p.poly for p in wsi_with_roi.roi_polys if p.label == label]
+                if len(wsi_polys) == 0:
+                    mask = np.zeros((wsi.tile_px, wsi.tile_px), dtype=int)
+                    labeled_masks.append(mask)
+                else:
+                    all_polys = unary_union(wsi_polys)
+                    polys = self.get_scaled_and_intersecting_polys(
+                        all_polys, tile, scale, fs, (gx, gy)
+                    )
+                    if isinstance(polys, Polygon) and not len(polys.exterior.coords.xy[0]):
+                        mask = np.zeros((wsi.tile_px, wsi.tile_px), dtype=int)
+                    else:
+                        # Rasterize to an int mask.
+                        mask = rasterio.features.rasterize([polys], out_shape=[wsi.tile_px, wsi.tile_px]).astype(int)
+                    labeled_masks.append(mask)
+            mask = np.stack(labeled_masks, axis=0)
+
+        # Handle ROIs without labels (binary)
         else:
-            # Rasterize to an int mask.
-            try:
-                mask = rasterio.features.rasterize([C], out_shape=[wsi.tile_px, wsi.tile_px]).astype(int)
-            except ValueError:
-                mask = np.zeros((wsi.tile_px, wsi.tile_px), dtype=int)
+            # Determine the intersection at the given tile location.
+            all_polys = unary_union([p.poly for p in wsi_with_roi.roi_polys])
+            polys = self.get_scaled_and_intersecting_polys(
+                all_polys, tile, scale, fs, (gx, gy)
+            )
 
-        # Add a dummy channel dimension.
-        mask = mask[None, :, :]
+            if isinstance(polys, Polygon) and not len(polys.exterior.coords.xy[0]):
+                mask = np.zeros((wsi.tile_px, wsi.tile_px), dtype=int)
+            else:
+                # Rasterize to an int mask.
+                try:
+                    mask = rasterio.features.rasterize([polys], out_shape=[wsi.tile_px, wsi.tile_px]).astype(bool).astype(np.int32)
+                except ValueError:
+                    mask = np.zeros((wsi.tile_px, wsi.tile_px), dtype=int)
+
+            # Add a dummy channel dimension.
+            mask = mask[None, :, :]
 
         # Process.
         img, mask = self.process(img, mask)
