@@ -293,7 +293,10 @@ class StridedSegment(Segment):
         with torch.no_grad():
             tensor = torch.from_numpy(image).unsqueeze(0).to(self.model.device)
             tensor = sf.io.torch.as_cwh(tensor)
-            return self.model.forward(tensor).squeeze(dim=0).cpu().numpy()
+            tensor = self.model.forward(tensor).squeeze(dim=0)
+            if self.cfg.mode == 'binary':
+                tensor = tensor.squeeze(dim=0)
+            return tensor.cpu().numpy()
 
     def get_slide_preds(self, wsi: "sf.WSI") -> np.ndarray:
         """Get the predictions for a slide using the loaded segmentation model."""
