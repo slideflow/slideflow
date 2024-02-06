@@ -388,10 +388,12 @@ class ROIWidget:
         viz.center_next_window(*window_size)
         imgui.set_next_window_size(*window_size)
         _, opened = imgui.begin('Add New ROI Label', closable=True, flags=imgui.WINDOW_NO_RESIZE)
+        self.viz.suspend_keyboard_input()
 
         if not opened:
             self._show_roi_new_label_popup = None
             self._new_label_popup_is_new = True
+            self.viz.resume_keyboard_input()
 
         with imgui_utils.item_width(imgui.get_content_region_max()[0] - viz.spacing*2):
             if self._new_label_popup_is_new:
@@ -408,6 +410,7 @@ class ROIWidget:
             self._show_roi_new_label_popup = None
             self._input_new_label = ''
             self._new_label_popup_is_new = True
+            self.viz.resume_keyboard_input()
         imgui.end()
 
     def should_hide_context_menu(self) -> bool:

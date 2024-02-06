@@ -114,6 +114,7 @@ class Studio(ImguiWindow):
         self._pred_message      = None
         self.low_memory         = low_memory
         self._suspend_mouse_input = False
+        self._suspend_keyboard_input = False
 
         # Interface.
         self._show_about                = False
@@ -721,6 +722,10 @@ class Studio(ImguiWindow):
     def _glfw_key_callback(self, _window, key, _scancode, action, _mods):
         """Callback for handling keyboard input."""
         super()._glfw_key_callback(_window, key, _scancode, action, _mods)
+
+        if self._suspend_keyboard_input:
+            return
+
         if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_T:
             self._show_tile_preview = not self._show_tile_preview
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_Q:
@@ -758,6 +763,14 @@ class Studio(ImguiWindow):
     def resume_mouse_input_handling(self):
         """Resume mouse input handling."""
         self._suspend_mouse_input = False
+
+    def suspend_keyboard_input(self) -> bool:
+        """Suspend keyboard input handling."""
+        self._suspend_keyboard_input = True
+
+    def resume_keyboard_input(self) -> bool:
+        """Resume keyboard input handling."""
+        self._suspend_keyboard_input = False
 
     def mouse_input_is_suspended(self) -> bool:
         """Check if mouse input handling is suspended."""
