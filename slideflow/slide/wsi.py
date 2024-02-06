@@ -2108,9 +2108,9 @@ class WSI:
             raise IndexError(f"Tile at grid=({grid_x}, {grid_y}) not found")
         assert len(grid_idx) == 1
         x, y, grid_x, grid_y = self.coord[grid_idx[0]]
-        if anchor == 'topleft':
-            x -= int(self.full_extract_px/2)
-            y -= int(self.full_extract_px/2)
+        if anchor == 'center':
+            x += int(self.full_extract_px/2)
+            y += int(self.full_extract_px/2)
         return x, y
 
     def get_tile_mask(self, index, sparse_mask) -> np.ndarray:

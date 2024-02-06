@@ -6,6 +6,8 @@ import numpy as np
 from typing import Union, Optional, List
 from scipy.ndimage import label
 
+from .strided_dl import StridedDL_V2
+
 # -----------------------------------------------------------------------------
 
 class Segment:
@@ -15,7 +17,6 @@ class Segment:
         model: str,
         class_idx: Optional[int] = None,
         threshold_direction: str = 'less'
-
     ):
         """Prepare tissue segmentation model for filtering a slide.
 
@@ -71,6 +72,7 @@ class Segment:
 
         """
         import slideflow.segment
+        from slideflow.model.torch_utils import get_device
 
         if threshold_direction not in ['less', 'greater']:
             raise ValueError("Invalid threshold_direction: {}. Expected one of: less, greater".format(threshold_direction))
@@ -78,6 +80,8 @@ class Segment:
         self.model_path = model
         self.class_idx = class_idx
         self.model, self.cfg = sf.segment.load_model_and_config(model)
+        self.model.to(get_device())
+        self.model.eval()
         self.threshold_direction = threshold_direction
 
     def __repr__(self):
@@ -191,6 +195,10 @@ class Segment:
 
         return outlines
 
+    def get_slide_preds(self, wsi: "sf.WSI") -> np.ndarray:
+        """Get the predictions for a slide using the loaded segmentation model."""
+        return self.model.run_slide_inference(wsi)
+
     def __call__(
         self,
         wsi: Union["sf.WSI", np.ndarray],
@@ -211,7 +219,7 @@ class Segment:
 
         """
         if isinstance(wsi, sf.WSI):
-            preds = self.model.run_slide_inference(wsi)
+            preds = self.get_slide_preds(wsi)
         else:
             preds = self.model.run_tiled_inference(wsi)
 
@@ -237,3 +245,30 @@ class Segment:
                 return np.all(preds < threshold, axis=0)
             else:
                 return np.all(preds > threshold, axis=0)
+
+
+# -----------------------------------------------------------------------------
+
+class StridedSegment(Segment):
+
+    def __init__(self, *args, overlap: int = 128, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._strided_qc = StridedDL_V2(
+            tile_px=self.cfg.size,
+            tile_um=int(np.round(self.cfg.size*self.cfg.mpp)),
+            overlap=overlap,
+            filter_threads=0
+        )
+        self._strided_qc.apply = self.apply
+
+
+    def apply(self, image: np.ndarray) -> np.ndarray:
+        import torch
+        with torch.no_grad():
+            tensor = torch.from_numpy(image).unsqueeze(0).to(self.model.device)
+            tensor = sf.io.torch.as_cwh(tensor)
+            return self.model.forward(tensor).squeeze().cpu().numpy()
+
+    def get_slide_preds(self, wsi: "sf.WSI") -> np.ndarray:
+        """Get the predictions for a slide using the loaded segmentation model."""
+        return self._strided_qc(wsi)

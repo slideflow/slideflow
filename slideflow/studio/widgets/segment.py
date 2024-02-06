@@ -163,7 +163,7 @@ class TissueSegWidget(Widget):
 
     def _load_model(self, path, ignore_errors=False):
         try:
-            self._segment = sf.slide.qc.Segment(path)
+            self._segment = sf.slide.qc.StridedSegment(path)
             self._segment.model.to(get_device())
         except Exception as e:
             if self._load_toast is not None:
