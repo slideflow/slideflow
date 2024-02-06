@@ -1405,7 +1405,7 @@ class Dataset:
 
         return df
 
-    def get_unique_roi_labels(self) -> List[str]:
+    def get_unique_roi_labels(self, allow_empty: bool = False) -> List[str]:
         """Get a list of unique ROI labels for all slides in this dataset."""
 
         # Get a list of unique labels.
@@ -1416,12 +1416,17 @@ class Dataset:
                 continue
             unique = [
                 l for l in _df.label.unique().tolist()
-                if ((l not in roi_unique_labels)
-                    and (not isinstance(l, float) or not np.isnan(l)))
+                if (l not in roi_unique_labels)
             ]
-
             roi_unique_labels += unique
-        return sorted(roi_unique_labels)
+        without_nan = sorted([
+            l for l in roi_unique_labels
+            if (not isinstance(l, float) or not np.isnan(l))
+        ])
+        if allow_empty and (len(roi_unique_labels) > len(without_nan)):
+                return without_nan + [None]
+        else:
+            return without_nan
 
     def extract_cells(
         self,

@@ -225,7 +225,8 @@ class TileMaskDataset(torch.utils.data.Dataset):
         roi_labels: Optional[List[str]] = None,
         stride_div: int = 2,
         crop_margin: int = 0,
-        filter_method: str = 'otsu'
+        filter_method: str = 'otsu',
+        mode: str = 'binary'
     ):
         """Dataset that generates tiles and ROI masks from slides.
 
@@ -260,6 +261,7 @@ class TileMaskDataset(torch.utils.data.Dataset):
         )
         if roi_labels is None:
             roi_labels = []
+        self.mode = mode
         self.roi_labels = roi_labels
         self.tile_px = tile_px
         self.coords = []
@@ -386,6 +388,13 @@ class TileMaskDataset(torch.utils.data.Dataset):
 
             # Add a dummy channel dimension.
             mask = mask[None, :, :]
+
+        # Process according to the mode.
+        if self.mode == 'multiclass':
+            mask = mask * np.arange(1, mask.shape[0]+1)[:, None, None]
+            mask = mask.max(axis=0)
+        elif self.mode == 'binary' and mask.ndim == 3:
+            mask = np.any(mask, axis=0)[None, :, :].astype(int)
 
         # Process.
         img, mask = self.process(img, mask)

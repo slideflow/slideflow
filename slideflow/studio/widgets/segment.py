@@ -3,7 +3,7 @@ import torch
 import slideflow as sf
 import imgui
 import segmentation_models_pytorch as smp
-from typing import Optional
+from typing import Optional, List
 from os.path import join, dirname, abspath, exists
 from threading import Thread
 from tkinter.filedialog import askopenfilename, askdirectory
@@ -70,6 +70,7 @@ class TissueSegWidget(Widget):
         self.stride                 = 1
         self._capturing_stride      = 1
         self._selected_slides       = defaultdict(bool)
+        self._unique_training_classes = dict()
 
 
     # --- Properties ---
@@ -100,6 +101,14 @@ class TissueSegWidget(Widget):
         return self._training_modes[self._selected_training_mode]
 
     # --- Internal ---
+
+    def get_training_slides(self) -> List[str]:
+        return [slide for slide in list(self._selected_slides.keys())
+                if self._selected_slides[slide]]
+
+    def get_training_classes(self) -> List[str]:
+        return [(k if k != '<No label>' else None)
+                for k, v in self._unique_training_classes.items() if v]
 
     def close(self):
         pass
@@ -254,10 +263,10 @@ class TissueSegWidget(Widget):
         viz = self.viz
 
         # Prepare the slideflow dataset.
-        dataset = viz.P.dataset(filters={'slide': list(self._selected_slides.keys())})
+        dataset = viz.P.dataset(filters={'slide': self.get_training_slides()})
 
         # Determine the labels, if necessary.
-        all_roi_labels = dataset.get_unique_roi_labels()
+        all_roi_labels = self.get_training_classes()
         out_classes = 1 if self.mode == 'binary' else len(all_roi_labels)
 
         # Prepare the tile-mask dataset.
@@ -268,7 +277,8 @@ class TissueSegWidget(Widget):
             stride_div=self.stride,
             crop_margin=self.crop_margin,
             filter_method=self.filter_method,
-            roi_labels=all_roi_labels
+            roi_labels=all_roi_labels,
+            mode=self.mode
         )
 
         # Set the configuration.
@@ -324,7 +334,7 @@ class TissueSegWidget(Widget):
             return
 
         # Prepare the dataset.
-        dataset = viz.P.dataset(filters={'slide': list(self._selected_slides.keys())})
+        dataset = viz.P.dataset(filters={'slide': self.get_training_slides()})
         dts = TileMaskDataset(
             dataset,
             tile_px=self.tile_px,
@@ -413,6 +423,8 @@ class TissueSegWidget(Widget):
 
         # Slide sources
         width = imgui.get_content_region_max()[0] - viz.spacing
+
+        changed = False
         with imgui.begin_list_box("##segment_data_source", width, 150) as list_box:
             if list_box.opened:
                 if self.viz.P is None:
@@ -421,7 +433,9 @@ class TissueSegWidget(Widget):
                     for slide_path in self.viz.project_widget.slide_paths:
                         name = sf.util.path_to_name(slide_path)
                         with self.viz.bold_font(self.viz.wsi is not None and slide_path == self.viz.wsi.path):
-                            _, self._selected_slides[name] = imgui.selectable(name, self._selected_slides[name])
+                            _clicked, self._selected_slides[name] = imgui.selectable(name, self._selected_slides[name])
+                            if _clicked:
+                                changed = True
                             if imgui.is_item_hovered():
                                 imgui.set_tooltip(slide_path)
                                 if imgui.is_mouse_down(RIGHT_MOUSE_BUTTON):
@@ -429,22 +443,63 @@ class TissueSegWidget(Widget):
                                 if imgui.is_mouse_double_clicked(LEFT_MOUSE_BUTTON):
                                     self.viz.load_slide(slide_path)
         if imgui_utils.button('Select All'):
+            changed = True
             for name in self._selected_slides:
                 self._selected_slides[name] = True
 
         imgui.same_line()
         if imgui_utils.button('With ROIs'):
+            changed = True
             _rois = [sf.util.path_to_name(r) for r in self.viz.P.dataset().rois()]
             for name in self._selected_slides:
                 if name in _rois:
                     self._selected_slides[name] = True
+                else:
+                    self._selected_slides[name] = False
 
         imgui.same_line()
         if imgui_utils.button('Select None'):
+            changed = True
             for name in self._selected_slides:
                 self._selected_slides[name] = False
 
         imgui.text("{} slides selected".format(sum(self._selected_slides.values())))
+
+        # Update the unique training classes.
+        if changed:
+            dataset = viz.P.dataset(filters={'slide': self.get_training_slides()}, verification=None)
+            _unique = dataset.get_unique_roi_labels(allow_empty=True)
+            _unique = [k if k is not None else '<No label>' for k in _unique]
+            self._unique_training_classes = {
+                k: (True if k not in self._unique_training_classes else self._unique_training_classes[k])
+                for k in _unique
+            }
+
+        imgui_utils.vertical_break()
+
+    def draw_class_selection(self) -> None:
+        """Draw class selection multi-select box."""
+        viz = self.viz
+        imgui.text_colored('Classes', *viz.theme.dim)
+        imgui.same_line(viz.label_w)
+
+        # Class selection
+        width = imgui.get_content_region_max()[0] - viz.spacing - viz.label_w
+        with imgui.begin_list_box("##segment_class_select", width, 80) as list_box:
+            if list_box.opened:
+                for _class in self._unique_training_classes:
+                    _, self._unique_training_classes[_class] = imgui.selectable(_class, self._unique_training_classes[_class])
+
+        imgui.text('')
+        imgui.same_line(viz.label_w)
+        if imgui_utils.button('Select All##segment_class_select_all'):
+            for _class in self._unique_training_classes:
+                self._unique_training_classes[_class] = True
+
+        imgui.same_line()
+        if imgui_utils.button('Select None##segment_class_select_none'):
+            for _class in self._unique_training_classes:
+                self._unique_training_classes[_class] = False
 
         imgui_utils.vertical_break()
 
@@ -563,6 +618,8 @@ class TissueSegWidget(Widget):
             step=1,
             step_fast=5
         )
+        # Class selection (for multilabel and multiclass)
+        self.draw_class_selection()
 
     def draw_training_button(self) -> None:
         """Draw the training button."""
