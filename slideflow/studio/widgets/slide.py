@@ -505,6 +505,9 @@ class SlideWidget:
             if self.apply_slide_filter:
                 self.update_slide_filter(method=self._get_qc())
 
+            # Update ROI colors.
+            self.roi_widget.refresh()
+
         except Exception as e:
             self.cur_slide = None
             self.user_slide = slide
@@ -944,15 +947,23 @@ class SlideWidget:
             self.update_slide_filter_display()
         if imgui.is_item_hovered():
             imgui.set_tooltip("Show slide filter (quality control) mask")
-        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
 
         # Show ROI outlines
         with imgui_utils.grayed_out(not viz.wsi.has_rois()):
-            _roi_clicked, _show_rois = imgui.checkbox("ROIs", viz.viewer.show_rois)
+            _roi_clicked, _show_rois = imgui.checkbox("Show ROIs", viz.viewer.show_rois)
             if _roi_clicked and viz.wsi.has_rois():
                 viz.viewer.show_rois = _show_rois
             if imgui.is_item_hovered():
                 imgui.set_tooltip("Show ROI outlines")
+
+        # Fill ROIs
+        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+        with imgui_utils.grayed_out((not viz.wsi.has_rois()) or (not viz.viewer.show_rois)):
+            _roi_clicked, _fill_rois = imgui.checkbox("Fill ROIs", self.roi_widget._fill_rois)
+            if _roi_clicked and (viz.wsi.has_rois() and viz.viewer.show_rois):
+                self.roi_widget.set_fill_rois(_fill_rois)
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Show ROIs as filled polygons")
 
         # Show only extracted tiles
         with imgui_utils.grayed_out(not self.apply_tile_filter):

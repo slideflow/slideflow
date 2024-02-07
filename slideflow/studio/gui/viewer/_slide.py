@@ -18,6 +18,8 @@ import slideflow as sf
 if TYPE_CHECKING:
     import pyvips
 
+COLOR_RED = (1, 0, 0)
+
 # -----------------------------------------------------------------------------
 
 class SlideViewer(Viewer):
@@ -30,21 +32,25 @@ class SlideViewer(Viewer):
         super().__init__(*args, **kwargs)
 
         # WSI parameters.
-        self.rois           = []
-        self.selected_rois  = {}
-        self.wsi            = wsi
-        self._tile_px       = wsi.tile_px
-        self._tile_um       = wsi.tile_um
-        self._max_w         = None  # Used for late rendering
-        self._max_h         = None  # Used for late rendering
-        self._last_update   = time.time()  # Used for tracking movement
-        self.show_scale     = True
-        self.show_thumbnail = True
-        self.show_rois      = True
-        self._roi_vbos      = {}
+        self.rois               = []
+        self.roi_colors         = {}
+        self.wsi                = wsi
+        self._tile_px           = wsi.tile_px
+        self._tile_um           = wsi.tile_um
+        self._max_w             = None  # Used for late rendering
+        self._max_h             = None  # Used for late rendering
+        self._last_update       = time.time()  # Used for tracking movement
+        self.show_scale         = True
+        self.show_thumbnail     = True
+        self.show_rois          = True
+        self._roi_vbos          = {}
         self._roi_triangle_vbos = {}
-        self._scaled_roi_ind = {}
+        self._scaled_roi_ind    = {}
+        self.highlight_fill     = None
+        self.highlight_outline  = COLOR_RED
+        self.highlighted_rois   = []
 
+        # Thumbnail parameters
         self.thumb_max_width = 12
         self.thumb_max_height = 8
 
@@ -460,19 +466,39 @@ class SlideViewer(Viewer):
             if len(roi) > 2
         ], axis=-1)
 
+    def get_roi_colors(
+        self,
+        roi_idx: int
+    ) -> Tuple[Tuple[float, float, float],
+               Optional[Tuple[float, float, float]]]:
+        """Get the colors for the given ROI index."""
+        # Get the base color.
+        if roi_idx in self.roi_colors and not self.highlighted_rois:
+            outline = self.roi_colors[roi_idx]['outline']
+            fill = self.roi_colors[roi_idx]['fill']
+        else:
+            outline = (0, 0, 0)
+            fill = None
+
+        # Highlight if necessary.
+        if self.highlighted_rois and roi_idx in self.highlighted_rois:
+            if self.highlight_fill is not None:
+                fill = self.highlight_fill
+            if self.highlight_outline is not None:
+                outline = self.highlight_outline
+
+        # Ensure property formatting.
+        if len(outline) == 4:
+            outline = (outline[0], outline[1], outline[2])
+        if fill and len(fill) == 4:
+            fill = (fill[0], fill[1], fill[2])
+
+        return outline, fill
+
     def _render_rois(self) -> None:
         """Render the ROIs with OpenGL."""
         for roi_idx, roi in self.rois:
-            if roi_idx in self.selected_rois:
-                outline = self.selected_rois[roi_idx]['outline']
-                fill = self.selected_rois[roi_idx]['fill']
-                if len(outline) == 4:
-                    outline = (outline[0], outline[1], outline[2])
-                if fill and len(fill) == 4:
-                    fill = (fill[0], fill[1], fill[2])
-            else:
-                outline = 0
-                fill = None
+            outline, fill = self.get_roi_colors(roi_idx)
             vbo = self._roi_vbos[roi_idx]
             if fill:
                 import OpenGL.GL as gl
@@ -491,7 +517,7 @@ class SlideViewer(Viewer):
                     gl_utils.draw_vbo_triangles(
                         self._roi_triangle_vbos[roi_idx]['vertices'],
                         color=fill,
-                        alpha=0.3,
+                        alpha=0.2,
                         vbo=self._roi_triangle_vbos[roi_idx]['vbo'],
                         mode=gl.GL_TRIANGLES
                     )
@@ -622,33 +648,75 @@ class SlideViewer(Viewer):
             self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
         self._max_w, self._max_h = max_w, max_h
 
-    def select_roi(
+    def set_highlight_color(
+        self,
+        outline: Optional[Tuple[float, float, float]] = None,
+        fill: Optional[Tuple[float, float, float]] = None
+    ) -> None:
+        """Set the ROI highlight color."""
+        if outline is not None:
+            self.highlight_outline = outline
+        if fill is not None:
+            self.highlight_fill = fill
+
+    def highlight_roi(self, idx: Union[int, List[int]]) -> None:
+        """Highlight the given ROI(s)."""
+        if not isinstance(idx, list):
+            idx = [idx]
+        self.highlighted_rois = idx
+
+    def reset_roi_highlight(self) -> None:
+        """Reset the highlighted ROI(s)."""
+        self.highlighted_rois = []
+
+    def set_roi_color(
         self,
         idx: Union[int, List[int]],
         outline: Optional[Tuple[float, float, float]] = None,
         fill: Optional[Tuple[float, float, float]] = None
     ) -> None:
+        """Set the color of the ROIs.
+
+        Must provide at least one of outline or fill.
+
+        Args:
+            idx (int or List[int]): Index of the ROI to set.
+            outline (Tuple[float, float, float], optional): RGB color for the
+                outline of the ROI.
+            fill (Tuple[float, float, float], optional): RGB color for the fill
+                of the ROI.
+
+        """
+        if outline is None and fill is None:
+            raise ValueError("At least one of outline or fill must be provided.")
         if not isinstance(idx, list):
             idx = [idx]
-        if outline is None:
-            outline = (1, 0, 0)
         for i in idx:
-            if i not in self.selected_rois:
-                self.selected_rois[i] = {
-                    'outline': outline,
-                    'fill': fill
+            if i not in self.roi_colors:
+                self.roi_colors[i] = {
+                    'outline': (0, 0, 0),
+                    'fill': None
                 }
+            if outline is not None:
+                self.roi_colors[i]['outline'] = outline
+            if fill is not None:
+                self.roi_colors[i]['fill'] = fill
 
-    def deselect_roi(self, idx: Optional[int] = None, allow_errors: bool = True):
+    def reset_roi_color(self, idx: Optional[Union[int, List[int]]] = None) -> None:
+        """Reset the color of the ROIs.
+
+        Args:
+            idx (int, optional): Index of the ROI to reset. If None, reset all.
+
+        """
         if idx is None:
-            self.selected_rois = {}
-        elif idx in self.selected_rois:
-            del self.selected_rois[idx]
-        elif not allow_errors:
-            raise IndexError(f"ROI {idx} is not selected.")
-
-    def roi_is_selected(self, idx: int) -> bool:
-        return idx in self.selected_rois
+            self.roi_colors = {}
+            return
+        if isinstance(idx, int):
+            idx = [idx]
+        for i in idx:
+            if i in self.roi_colors:
+                del self.roi_colors[i]
 
     def set_tile_px(self, tile_px: int):
         if tile_px != self.tile_px:

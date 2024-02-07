@@ -35,8 +35,8 @@ class ROIWidget:
         self.annotator                  = AnnotationCapture(named=False)
         self.roi_grid                   = []  # Rasterized grid of ROIs in view.
         self.unique_roi_labels          = []
-        self.roi_toast                  = None
         self.use_rois                   = True
+        self._fill_rois                 = False
 
         # Internals
         self._late_render               = []
@@ -78,11 +78,6 @@ class ROIWidget:
         self._should_show_advanced_editing_window = True
         if self.roi_toast is not None:
             self.roi_toast.done()
-
-    def select_all(self) -> None:
-        """Select all ROIs."""
-        self._selected_rois = list(range(len(self.viz.wsi.rois)))
-        self.viz.viewer.select_roi(self._selected_rois)
 
     def _get_rois_at_mouse(self) -> List[int]:
         """Get indices of ROI(s) at the current mouse position."""
@@ -240,7 +235,7 @@ class ROIWidget:
         if (key == glfw.KEY_DELETE and action == glfw.PRESS):
             if (self.editing
                and self.viz.viewer is not None
-               and hasattr(self.viz.viewer, 'selected_rois')
+               and self._selected_rois
                and not (self.is_vertex_editing() and self._vertex_editor.vertex_is_selected)):
                 self.remove_rois(self._selected_rois)
 
@@ -273,6 +268,10 @@ class ROIWidget:
             if key == glfw.KEY_A and action == glfw.PRESS and self.viz._control_down:
                 self.select_all()
 
+            if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
+                self.deselect_all()
+                self.reset_edit_state()
+
     def early_render(self) -> None:
         """Render elements with OpenGL (before other UI elements are drawn)."""
         if self.is_vertex_editing() and self.editing:
@@ -299,6 +298,34 @@ class ROIWidget:
                 text_pos = (annotation.mean(axis=0))
                 tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 
+    # --- ROI selection and coloring ------------------------------------------
+
+    def select_rois(self, rois: Union[int, List[int]]) -> None:
+        """Select ROI(s)."""
+        if isinstance(rois, int):
+            rois = [rois]
+        self._selected_rois = rois
+        self.viz.viewer.highlight_roi(self._selected_rois)
+
+    def deselect_rois(self, rois: Union[int, List[int]]) -> None:
+        """Deselect ROI(s)."""
+        if isinstance(rois, int):
+            rois = [rois]
+        self._selected_rois = [r for r in self._selected_rois if r not in rois]
+        self.viz.viewer.higlight_roi(self._selected_rois)
+        self.disable_vertex_editing()
+
+    def select_all(self) -> None:
+        """Select all ROIs."""
+        all_rois = list(range(len(self.viz.wsi.rois)))
+        self.select_rois(all_rois)
+
+    def deselect_all(self) -> None:
+        """Deselect all ROIs."""
+        self._selected_rois = []
+        self.viz.viewer.reset_roi_highlight()
+        self.disable_vertex_editing()
+
     # --- Drawing -------------------------------------------------------------
 
     def colored_label_list(
@@ -323,6 +350,7 @@ class ROIWidget:
                 )
                 if _changed:
                     self._roi_colors[label] = _color
+                    self.refresh_roi_colors()
                 imgui.same_line()
                 if self._editing_label and self._editing_label[0] == i:
                     if self._editing_label_is_new:
@@ -451,7 +479,7 @@ class ROIWidget:
             self.hide_and_reset_context_menu()
             self._is_clicking_ctx_menu = False
             self._ctx_mouse_pos = None
-            viz.viewer.deselect_roi()
+            self.viz.viewer.reset_roi_highlight()
 
     def draw_context_menu(self) -> None:
         """Show the context menu for a ROI."""
@@ -476,16 +504,14 @@ class ROIWidget:
                 imgui.text(viz.wsi.rois[self._roi_ctx_menu_items[0]].name)
             imgui.separator()
             clicked = self._draw_ctx_submenu(self._roi_ctx_menu_items[0]) or clicked
-            viz.viewer.deselect_roi()
-            viz.viewer.select_roi(self._roi_ctx_menu_items[0])
+            self.viz.viewer.highlight_roi(self._roi_ctx_menu_items[0])
         else:
             for roi_idx in self._roi_ctx_menu_items:
                 if roi_idx < len(viz.wsi.rois):
                     if imgui.begin_menu(viz.wsi.rois[roi_idx].name):
                         clicked = self._draw_ctx_submenu(roi_idx) or clicked
                         imgui.end_menu()
-                        viz.viewer.deselect_roi()
-                        viz.viewer.select_roi(roi_idx)
+                        self.viz.viewer.highlight_roi(roi_idx)
 
         # Cleanup the context menu if the user has clicked on an item.
         self.remove_context_menu_if_clicked(clicked)
@@ -508,7 +534,7 @@ class ROIWidget:
             imgui.text("Label")
         imgui.separator()
         clicked = self._draw_label_submenu(self._show_roi_label_menu, False)
-        viz.viewer.select_roi(self._show_roi_label_menu)
+        self.viz.viewer.highlight_roi(self._show_roi_label_menu)
 
         # Cleanup window
         if (viz.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered()) or clicked:
@@ -517,7 +543,7 @@ class ROIWidget:
             self._is_clicking_ctx_menu = False
             self._show_roi_label_menu = None
             self._ctx_mouse_pos = None
-            viz.viewer.deselect_roi()
+            self.viz.viewer.reset_roi_highlight()
 
         imgui.end()
 
@@ -616,7 +642,7 @@ class ROIWidget:
             and not viz.mouse_input_is_suspended()
         ):
             # Deselect ROIs if no ROIs are hovered and the mouse is released.
-            self.deselect_rois()
+            self.deselect_all()
         elif (not viz.is_mouse_down(LEFT_MOUSE_BUTTON)
               and self._mouse_is_down
               and hovered_rois
@@ -634,8 +660,7 @@ class ROIWidget:
                 self.set_roi_vertex_editing(self._selected_rois[0])
             else:
                 self.disable_vertex_editing()
-            viz.viewer.deselect_roi()
-            viz.viewer.select_roi(self._selected_rois)
+            self.viz.viewer.highlight_roi(self._selected_rois)
 
         self._mouse_is_down = viz.is_mouse_down(LEFT_MOUSE_BUTTON)
         if not self._mouse_is_down:
@@ -678,14 +703,8 @@ class ROIWidget:
             self.viz.viewer._refresh_rois()
             self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
 
-            # Deselect ROIs.
-            self.viz.viewer.deselect_roi()
-
-    def deselect_rois(self) -> None:
-        """Deselect all ROIs."""
-        self._selected_rois = []
-        self.viz.viewer.deselect_roi()
-        self.disable_vertex_editing()
+            # Reset ROI colors.
+            self.viz.viewer.reset_roi_highlight()
 
     def simplify_roi(self, roi_indices: List[int], tolerance: float = 5) -> None:
         """Simplify the given ROIs."""
@@ -716,8 +735,7 @@ class ROIWidget:
             self._selected_rois = list(range(len(self.viz.wsi.rois)-len(roi_indices), len(self.viz.wsi.rois)))
 
         # Update the ROI grid.
-        self.viz.viewer.deselect_roi()
-        self.viz.viewer.select_roi(self._selected_rois)
+        self.viz.viewer.highlight_roi(self._selected_rois)
         self.viz.viewer._refresh_rois()
         self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
         if is_vertex_editing:
@@ -832,6 +850,28 @@ class ROIWidget:
 
     # --- Control & interface -------------------------------------------------
 
+    def set_fill_rois(self, fill: bool) -> None:
+        """Set whether to fill ROIs."""
+        viz = self.viz
+        self._fill_rois = fill
+        viz.viewer.highlight_fill = ((1, 0, 0) if fill else None)
+        self.refresh_roi_colors()
+
+    def refresh_roi_colors(self) -> None:
+        """Refresh the colors of the ROIs."""
+        viz = self.viz
+        for label in self.unique_roi_labels:
+            label_rois = [
+                r for r in range(len(viz.wsi.rois))
+                if viz.wsi.rois[r].label == label
+            ]
+            viz.viewer.reset_roi_color(label_rois)
+            viz.viewer.set_roi_color(
+                label_rois,
+                outline=self.get_roi_color(label),
+                fill=(None if not self._fill_rois else self.get_roi_color(label))
+            )
+
     def reset(self) -> None:
         self.reset_edit_state()
         self.disable_vertex_editing()
@@ -873,7 +913,7 @@ class ROIWidget:
             self.roi_toast = viz.create_toast(f'Editing ROIs. Right click to label or remove.', icon='info', sticky=False)
         else:
             self._should_show_advanced_editing_window = True
-            self.deselect_rois()
+            self.deselect_all()
         self.capturing = False
 
     def toggle_subtracting(self, enable: Optional[bool] = None) -> None:
@@ -929,6 +969,13 @@ class ROIWidget:
                 self.disable_vertex_editing()
             else:
                 self._vertex_editor.update()
+
+    def refresh(self):
+        """Refresh ROI labels & colors after a slide has been loaded."""
+        self.unique_roi_labels, _ = np.unique(
+            [r.label for r in self.viz.wsi.rois if r.label], return_counts=True
+        )
+        self.refresh_roi_colors()
 
     def draw(self):
         """Draw the widget."""
@@ -987,17 +1034,17 @@ class ROIWidget:
                  for label, count in zip(self.unique_roi_labels, counts)]
             )
             if hovered is not None:
-                viz.viewer.select_roi(
+                self.viz.viewer.reset_roi_color()
+                self.viz.viewer.set_roi_color(
                     [r for r in range(len(viz.wsi.rois))
                      if viz.wsi.rois[r].label == self.unique_roi_labels[hovered]],
                     outline=self.get_roi_color(self.unique_roi_labels[hovered]),
-                    fill=self.get_roi_color(self.unique_roi_labels[hovered])
+                    fill=(None if not self._fill_rois else self.get_roi_color(self.unique_roi_labels[hovered]))
                 )
                 self._roi_hovering = hovered
             elif self._roi_hovering is not None:
                 self._roi_hovering = None
-                viz.viewer.deselect_roi()
-                self.viz.viewer.select_roi(self._selected_rois)
+                self.refresh_roi_colors()
 
             imgui.separator()
 
@@ -1342,7 +1389,8 @@ class VertexEditor:
                 self._create_vbo()
 
     def close(self) -> None:
-        self.viz.viewer.deselect_roi(self.roi_index, allow_errors=True)
+        """Close the ROI vertex editor."""
+        self.viz.viewer.reset_roi_highlight()
         if self.viz._control_down:
             self.viz.resume_mouse_input_handling()
 
