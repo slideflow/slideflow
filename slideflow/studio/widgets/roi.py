@@ -33,8 +33,6 @@ class ROIWidget:
         self.subtracting                = False
         self.roi_toast                  = None
         self.annotator                  = AnnotationCapture(named=False)
-        self.capturing                  = False
-        self.editing                    = False
         self.roi_grid                   = []  # Rasterized grid of ROIs in view.
         self.unique_roi_labels          = []
         self.roi_toast                  = None
@@ -74,8 +72,7 @@ class ROIWidget:
     # --- Internal ------------------------------------------------------------
 
     def reset_edit_state(self):
-        self.editing = False
-        self.capturing = False
+        self.disable_roi_capture()
         self.toggle_subtracting(False)
         self._should_show_advanced_editing_window = True
         if self.roi_toast is not None:
@@ -132,9 +129,11 @@ class ROIWidget:
 
         # Render in-progress annotations
         if new_annotation is not None:
+            self.viz.suspend_mouse_input_handling()
             self.render_annotation(new_annotation, origin=(viz.viewer.x_offset, viz.viewer.y_offset))
         if annotation_name:
             wsi_coords = []
+            self.viz.resume_mouse_input_handling()
             for c in new_annotation:
                 _x, _y = viz.viewer.display_coords_to_wsi_coords(c[0], c[1], offset=False)
                 int_coords = (int(_x), int(_y))
@@ -818,13 +817,29 @@ class ROIWidget:
 
     def toggle_add_roi(self) -> None:
         """Toggle ROI capture mode."""
-        viz = self.viz
-        self.capturing = not self.capturing
+        if self.capturing:
+            self.disable_roi_capture()
+        else:
+            self.enable_roi_capture()
+
+    def enable_roi_capture(self) -> None:
+        """Enable capture of ROIs with right-click and drag."""
+        self.capturing = True
         self.editing = False
         if self.roi_toast is not None:
             self.roi_toast.done()
-        if self.capturing:
-            self.roi_toast = viz.create_toast(f'Capturing new ROIs. Right click and drag to create a new ROI.', icon='info', sticky=True)
+        self.roi_toast = self.viz.create_toast(
+            f'Capturing new ROIs. Right click and drag to create a new ROI.',
+            icon='info',
+            sticky=True
+        )
+
+    def disable_roi_capture(self) -> None:
+        """Disable capture of ROIs with right-click and drag."""
+        self.capturing = False
+        self.editing = False
+        if self.roi_toast is not None:
+            self.roi_toast.done()
 
     def toggle_edit_roi(self) -> None:
         """Toggle ROI editing mode."""
@@ -845,7 +860,8 @@ class ROIWidget:
             self.subtracting = enable
         else:
             self.subtracting = not self.subtracting
-        self.capturing = False
+        if self.capturing:
+            self.disable_roi_capture()
         if self.roi_toast is not None:
             self.roi_toast.done()
         if self.subtracting:
