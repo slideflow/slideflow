@@ -517,7 +517,7 @@ class Studio(ImguiWindow):
             # --- View --------------------------------------------------------
             has_wsi = self.viewer and isinstance(self.viewer, SlideViewer)
             if imgui.begin_menu('View', True):
-                if imgui.menu_item('Fullscreen', 'Ctrl+F')[0]:
+                if imgui.menu_item('Fullscreen', 'Alt+Enter')[0]:
                     self.toggle_fullscreen()
                 imgui.separator()
 

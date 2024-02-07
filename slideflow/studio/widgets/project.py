@@ -20,10 +20,12 @@ class ProjectWidget:
         self.browse_refocus     = False
         self.P                  = None
         self.slide_paths        = []
+        self.filtered_slide_paths = []
         self.model_paths        = []
         self.slide_idx          = 0
         self.model_idx          = 0
         self.content_height     = 0
+        self.slide_search       = ''
         self._show_welcome      = False
 
     def load(self, project, ignore_errors=False):
@@ -39,6 +41,7 @@ class ProjectWidget:
             sf.log.debug("Loading project at {}...".format(project))
             self.P = sf.Project(project)
             self.slide_paths = sorted(self.P.dataset().slide_paths())
+            self.filtered_slide_paths = self.slide_paths
             self.viz.create_toast(f"Loaded project at {project}", icon="success")
 
         except Exception:
@@ -109,8 +112,23 @@ class ProjectWidget:
         items = sorted(items, key=lambda item: (item.name.replace('_', ' '), item.path))
         return items
 
-    def draw_slide_list(self):
-        for path in self.slide_paths:
+    def draw_slide_search(self) -> None:
+        """Draws the search bar for the list of slides."""
+        viz = self.viz
+        viz.icon('search')
+        imgui.same_line()
+        _changed, self.slide_search = imgui.input_text('##slide_search', self.slide_search, viz.font_size*10)
+        if _changed:
+            self.slide_search = self.slide_search.strip()
+            self.filtered_slide_paths = [path for path in self.slide_paths if self.slide_search.lower() in path.lower()]
+        imgui.same_line()
+        if imgui.button('Clear'):
+            self.slide_search = ''
+            self.filtered_slide_paths = self.slide_paths
+
+    def draw_slide_list(self) -> None:
+        """Draws the list of slides in the project."""
+        for path in self.filtered_slide_paths:
             with self.viz.bold_font(self.viz.wsi is not None and path == self.viz.wsi.path):
                 if imgui.menu_item(imgui_utils.ellipsis_clip(sf.util.path_to_name(path), 33))[0]:
                     self.viz.load_slide(path)
@@ -184,6 +202,7 @@ class ProjectWidget:
                 if not len(self.slide_paths):
                     imgui_utils.padded_text('No slides found.', vpad=[int(viz.font_size/2), int(viz.font_size)])
                 else:
+                    self.draw_slide_search()
                     self.draw_slide_list()
 
             if viz.collapsing_header('Models', default=False):

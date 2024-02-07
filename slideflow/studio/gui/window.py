@@ -54,7 +54,7 @@ class ImguiWindow(GlfwWindow):
 
         # Load icons.
         self._icon_textures = {
-            name: gl_utils.Texture(image=icon)
+            name: gl_utils.Texture(image=icon, bilinear=False)
             for name, icon in imgui_utils.icons().items()
         }
 

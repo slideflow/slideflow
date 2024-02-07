@@ -285,7 +285,7 @@ class GlfwWindow:
         # Key combinations
         if action == glfw.PRESS and key == glfw.KEY_ESCAPE:
             self.set_windowed()
-        if self._control_down and action == glfw.PRESS and key == glfw.KEY_F:
+        if self._alt_down and action == glfw.PRESS and key == glfw.KEY_ENTER:
             self.toggle_fullscreen()
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_EQUAL:
             self.increase_font_size()
