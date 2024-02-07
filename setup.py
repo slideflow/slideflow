@@ -138,6 +138,7 @@ setuptools.setup(
         'parameterized',
         'zarr',
         'gdown',
+        'triangle'
     ],
     extras_require={
         'tf': [

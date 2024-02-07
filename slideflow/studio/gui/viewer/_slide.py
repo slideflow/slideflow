@@ -42,6 +42,7 @@ class SlideViewer(Viewer):
         self.show_thumbnail = True
         self.show_rois      = True
         self._roi_vbos      = {}
+        self._roi_triangle_vbos = {}
         self._scaled_roi_ind = {}
 
         self.thumb_max_width = 12
@@ -444,6 +445,7 @@ class SlideViewer(Viewer):
                 self.rois += [(roi_idx, c)]
                 self._roi_vbos[roi_idx] = gl_utils.create_buffer(c)
                 self._scaled_roi_ind[roi_idx] = ind
+                self._roi_triangle_vbos.pop(roi_idx, None)
 
     def rasterize_rois_in_view(self) -> Optional[np.ndarray]:
         """Rasterize the ROIs in the current view."""
@@ -463,13 +465,39 @@ class SlideViewer(Viewer):
         for roi_idx, roi in self.rois:
             if roi_idx in self.selected_rois:
                 outline = self.selected_rois[roi_idx]['outline']
+                fill = self.selected_rois[roi_idx]['fill']
                 if len(outline) == 4:
                     outline = (outline[0], outline[1], outline[2])
+                if fill and len(fill) == 4:
+                    fill = (fill[0], fill[1], fill[2])
             else:
                 outline = 0
+                fill = None
             vbo = self._roi_vbos[roi_idx]
-            gl_utils.draw_vbo_roi(roi, color=1, alpha=0.7, linewidth=5, vbo=vbo)
-            gl_utils.draw_vbo_roi(roi, color=outline, alpha=1, linewidth=3, vbo=vbo)
+            if fill:
+                import OpenGL.GL as gl
+                if roi_idx not in self._roi_triangle_vbos:
+                    # Convert the polygon to triangles
+                    triangle_vertices = gl_utils.create_triangles(roi)
+                    if triangle_vertices is not None:
+                        triangle_vbo = gl_utils.create_buffer(triangle_vertices)
+                    else:
+                        triangle_vbo = None
+                    self._roi_triangle_vbos[roi_idx] = {
+                        'vertices': triangle_vertices,
+                        'vbo': triangle_vbo
+                    }
+                if self._roi_triangle_vbos[roi_idx]['vbo'] is not None:
+                    gl_utils.draw_vbo_triangles(
+                        self._roi_triangle_vbos[roi_idx]['vertices'],
+                        color=fill,
+                        alpha=0.3,
+                        vbo=self._roi_triangle_vbos[roi_idx]['vbo'],
+                        mode=gl.GL_TRIANGLES
+                    )
+            else:
+                gl_utils.draw_vbo_roi(roi, color=1, alpha=0.7, linewidth=5, vbo=vbo)
+            gl_utils.draw_vbo_roi(roi, color=outline, alpha=1, linewidth=2, vbo=vbo)
 
     def _scale_roi_to_view(self, roi: np.ndarray) -> Optional[np.ndarray]:
         roi = np.copy(roi)
@@ -599,7 +627,8 @@ class SlideViewer(Viewer):
     def select_roi(
         self,
         idx: Union[int, List[int]],
-        outline: Optional[Tuple[float, float, float]] = None
+        outline: Optional[Tuple[float, float, float]] = None,
+        fill: Optional[Tuple[float, float, float]] = None
     ) -> None:
         if not isinstance(idx, list):
             idx = [idx]
@@ -607,7 +636,10 @@ class SlideViewer(Viewer):
             outline = (1, 0, 0)
         for i in idx:
             if i not in self.selected_rois:
-                self.selected_rois[i] = {'outline': outline}
+                self.selected_rois[i] = {
+                    'outline': outline,
+                    'fill': fill
+                }
 
     def deselect_roi(self, idx: Optional[int] = None, allow_errors: bool = True):
         if idx is None:

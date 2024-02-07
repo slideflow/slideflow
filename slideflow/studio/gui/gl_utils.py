@@ -184,11 +184,44 @@ def create_buffer(vertices):
     return vbo
 
 
-def draw_roi_buffer(vbo, size):
+def create_triangles(vertices, holes=None):
+    import numpy as np
+    """
+    Tessellate a complex polygon, possibly with holes.
+
+    :param vertices: A list of vertices [(x1, y1), (x2, y2), ...] defining the polygon boundary.
+    :param holes: An optional list of points [(hx1, hy1), (hx2, hy2), ...] inside each hole in the polygon.
+    :return: A numpy array of vertices for the tessellated triangles.
+    """
+    import triangle as tr
+
+    # Prepare the segment information
+    segments = np.array([[i, (i + 1) % len(vertices)] for i in range(len(vertices))])
+
+    # Define the polygon for Triangle
+    polygon = {'vertices': np.array(vertices), 'segments': segments}
+
+    # If there are holes, add them to the polygon definition
+    if holes is not None:
+        polygon['holes'] = np.array(holes)
+
+    # Tessellate the polygon
+    tess = tr.triangulate(polygon, 'p')
+
+    # Extract tessellated triangle vertices
+    tessellated_vertices = np.array([tess['vertices'][t] for t in tess['triangles']]).reshape(-1, 2)
+
+    # Convert to float32
+    tessellated_vertices = tessellated_vertices.astype('float32')
+
+    return tessellated_vertices
+
+
+def draw_roi_buffer(vbo, size, mode):
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
     gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
     gl.glVertexPointer(2, gl.GL_FLOAT, 0, None)
-    gl.glDrawArrays(gl.GL_LINE_LOOP, 0, size)
+    gl.glDrawArrays(mode, 0, size)
     gl.glDisableClientState(gl.GL_VERTEX_ARRAY)
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
 
@@ -227,21 +260,29 @@ def draw_boxes(vertices, *, color=1, alpha=1, linewidth=2, vbo=None, mode=gl.GL_
 
     gl.glLineWidth(1)
 
-def draw_vbo_roi(vertices, vbo, *, color=1, alpha=1, linewidth=2):
+
+def draw_vbo_roi(vertices, vbo, *, color=1, alpha=1, linewidth=2, mode=gl.GL_LINE_LOOP):
     """Draw multiple ROIs (N coordinates each).
 
     This implementation reduces the number of OpenGL calls with VBO.
     """
     assert vertices.ndim == 2 and vertices.shape[1] == 2
     color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
-
-    # Set the color and alpha
     gl.glColor4f(color[0] * alpha, color[1] * alpha, color[2] * alpha, alpha)
     gl.glLineWidth(linewidth)
-
-    draw_roi_buffer(vbo, size=vertices.shape[0])
-
+    draw_roi_buffer(vbo, size=vertices.shape[0], mode=mode)
     gl.glLineWidth(1)
+
+
+def draw_vbo_triangles(vertices, vbo, *, color=1, alpha=1, linewidth=2, mode=gl.GL_TRIANGLES):
+    """Draw multiple ROIs (N coordinates each).
+
+    This implementation reduces the number of OpenGL calls with VBO.
+    """
+    assert vertices.ndim == 2 and vertices.shape[1] == 2
+    color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
+    gl.glColor4f(color[0] * alpha, color[1] * alpha, color[2] * alpha, alpha)
+    draw_roi_buffer(vbo, size=vertices.shape[0], mode=mode)
 
 
 def draw_roi(vertices, *, color=1, alpha=1, linewidth=2, mode=gl.GL_LINE_STRIP):

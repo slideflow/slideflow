@@ -50,3 +50,4 @@ cellpose<2.2
 zarr
 fastai
 gdown
+triangle

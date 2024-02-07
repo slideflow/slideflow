@@ -990,7 +990,8 @@ class ROIWidget:
                 viz.viewer.select_roi(
                     [r for r in range(len(viz.wsi.rois))
                      if viz.wsi.rois[r].label == self.unique_roi_labels[hovered]],
-                    outline=self.get_roi_color(self.unique_roi_labels[hovered])
+                    outline=self.get_roi_color(self.unique_roi_labels[hovered]),
+                    fill=self.get_roi_color(self.unique_roi_labels[hovered])
                 )
                 self._roi_hovering = hovered
             elif self._roi_hovering is not None:
