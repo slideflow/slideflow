@@ -154,7 +154,7 @@ class ImguiWindow(GlfwWindow):
         if message is None and title is None and icon is None:
             raise ValueError("Must supply either message, title, or icon to "
                              "create_toast()")
-        toast = Toast(message=message, title=title, icon=icon, **kwargs)
+        toast = Toast(message=message, title=title, icon=icon, viz=self, **kwargs)
         self._toasts.append(toast)
         return toast
 

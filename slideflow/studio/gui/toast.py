@@ -15,6 +15,7 @@ class Toast:
         message,
         title,
         icon,
+        viz,
         sticky=False,
         spinner=False,
         progress=False,
@@ -32,6 +33,7 @@ class Toast:
         self.title = title
         self.icon = icon
         self.sticky = sticky
+        self.viz = viz  # Needed to track the font size.
         self.progress = self._parse_progress(progress)
 
     def __str__(self):
@@ -90,7 +92,7 @@ class Toast:
 
     @property
     def width(self):
-        return 400
+        return 16 * self.viz.font_size
 
     def _parse_progress(self, val):
         if isinstance(val, bool):

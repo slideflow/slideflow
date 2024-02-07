@@ -1012,7 +1012,7 @@ class ROIWidget:
             return
 
         # Prepare window parameters (size, position)
-        imgui.set_next_window_size(300, 0)
+        imgui.set_next_window_size(self.viz.font_size*13.5, 0)
         if self._advanced_editor_is_new:
             imgui.set_next_window_position(
                 self.viz.offset_x + 20,
