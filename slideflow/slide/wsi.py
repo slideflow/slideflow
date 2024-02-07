@@ -2623,17 +2623,25 @@ class WSI:
         if len(self.qc_masks):
             self.apply_qc_mask()
 
-    def remove_roi(self, idx: int, *, process: bool = True) -> None:
+    def remove_roi(
+        self,
+        idx: Union[int, List[int]],
+        *,
+        process: bool = True
+    ) -> None:
         """Remove an ROI from the slide.
 
         Args:
-            idx (int): Index of the ROI to remove.
+            idx (int, list(int)): Index or indices of the ROI(s) to remove.
 
         Keyword Args:
             process (bool): Process ROIs after removing. Defaults to True.
 
         """
-        del self.rois[idx]
+        if isinstance(idx, int):
+            idx = [idx]
+        for i in sorted(idx, reverse=True):
+            del self.rois[i]
         if process:
             self.process_rois()
 

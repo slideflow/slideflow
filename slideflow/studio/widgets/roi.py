@@ -71,12 +71,18 @@ class ROIWidget:
 
     # --- Internal ------------------------------------------------------------
 
-    def reset_edit_state(self):
+    def reset_edit_state(self) -> None:
+        """Reset the state of the ROI editor."""
         self.disable_roi_capture()
         self.toggle_subtracting(False)
         self._should_show_advanced_editing_window = True
         if self.roi_toast is not None:
             self.roi_toast.done()
+
+    def select_all(self) -> None:
+        """Select all ROIs."""
+        self._selected_rois = list(range(len(self.viz.wsi.rois)))
+        self.viz.viewer.select_roi(self._selected_rois)
 
     def _get_rois_at_mouse(self) -> List[int]:
         """Get indices of ROI(s) at the current mouse position."""
@@ -243,7 +249,7 @@ class ROIWidget:
 
         # Only process the following shortcuts if the ROI editor pane is showing.
         if self._showing:
-            if key == glfw.KEY_A and action == glfw.PRESS:
+            if key == glfw.KEY_A and action == glfw.PRESS and not self.viz._control_down:
                 self.toggle_add_roi()
 
             if key == glfw.KEY_E and action == glfw.PRESS:
@@ -263,6 +269,9 @@ class ROIWidget:
 
             if key == glfw.KEY_S and action == glfw.PRESS and self.viz._shift_down and bool(self._selected_rois):
                 self.toggle_subtracting()
+
+            if key == glfw.KEY_A and action == glfw.PRESS and self.viz._control_down:
+                self.select_all()
 
     def early_render(self) -> None:
         """Render elements with OpenGL (before other UI elements are drawn)."""
@@ -658,8 +667,8 @@ class ROIWidget:
             roi_indices = [roi_indices]
 
         # Remove the old ROIs.
-        for idx in sorted(roi_indices, reverse=True):
-            self.viz.wsi.remove_roi(idx)
+        self.viz.wsi.remove_roi(roi_indices)
+        for idx in roi_indices:
             if self.is_vertex_editing(idx):
                 self.disable_vertex_editing()
         self._selected_rois = []
