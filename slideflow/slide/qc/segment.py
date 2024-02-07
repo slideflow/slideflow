@@ -1,5 +1,6 @@
 """QC algorithm for applying tissue segmentation (via U-Net-like models)."""
 
+import cv2
 import slideflow as sf
 import numpy as np
 
@@ -128,14 +129,6 @@ class Segment:
             List[np.ndarray]: List of ROIs, where each ROI is a numpy array of
                 shape (n, 2), where n is the number of vertices in the ROI.
         """
-
-        try:
-            from cellpose.utils import outlines_list
-        except ImportError:
-            raise ImportError("Cellpose must be installed for generating ROIs from a "
-                              "segmentation model. Cellpose can be installed via "
-                              "'pip install cellpose'.")
-
         # Run tiled inference.
         preds = self(wsi, threshold=None)
 
@@ -144,7 +137,7 @@ class Segment:
 
         if self.cfg.mode == 'binary':
             labeled, n_rois = label(preds > 0)
-            outlines = outlines_list(labeled)
+            outlines = find_contours(labeled)
             outlines = [o for o in outlines if o.shape[0]]
 
         elif self.cfg.mode == 'multiclass':
@@ -156,7 +149,7 @@ class Segment:
                     # Skip background class.
                     continue
                 labeled, n_rois = label(pred_max == i)
-                _outlined = outlines_list(labeled)
+                _outlined = find_contours(labeled)
                 outlines +=_outlined
                 if self.cfg.labels and len(self.cfg.labels) >= i:
                     lbl = self.cfg.labels[i-1]
@@ -172,7 +165,7 @@ class Segment:
             labels = []
             for i in range(preds.shape[0]):
                 labeled, n_rois = label(preds[i] > 0)
-                _outlined = outlines_list(labeled)
+                _outlined = find_contours(labeled)
                 outlines += _outlined
                 if self.cfg.labels and len(self.cfg.labels) > i:
                     lbl = self.cfg.labels[i]
@@ -323,3 +316,23 @@ class StridedSegment(Segment):
     def get_slide_preds(self, wsi: "sf.WSI") -> np.ndarray:
         """Get the predictions for a slide using the loaded segmentation model."""
         return self._strided_qc(wsi)
+
+# -----------------------------------------------------------------------------
+
+def find_contours(masks):
+    """Convert masks to outlines."""
+    outlines = []
+    print("Finding contours using CCOMP")
+    for n in np.unique(masks)[1:]:
+        mn = (masks == n)
+        if mn.sum() > 0:
+            *_, contours, heirarchy = cv2.findContours(
+                mn.astype(np.uint8),
+                mode=cv2.RETR_CCOMP,
+                method=cv2.CHAIN_APPROX_NONE
+            )
+            for c in contours:
+                pix = c.astype(int).squeeze()
+                if len(pix) > 4:
+                    outlines.append(pix)
+    return outlines
