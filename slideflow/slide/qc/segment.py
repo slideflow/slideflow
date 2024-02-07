@@ -106,13 +106,23 @@ class Segment:
         obj.threshold_direction = threshold_direction
         return obj
 
-    def generate_rois(self, wsi: "sf.WSI", apply: bool = True) -> List[np.ndarray]:
+    def generate_rois(
+        self,
+        wsi: "sf.WSI",
+        apply: bool = True,
+        *,
+        sq_mm_threshold: Optional[float] = None
+    ) -> List[np.ndarray]:
         """Generate and apply ROIs to a slide using the loaded segmentation model.
 
         Args:
             wsi (sf.WSI): Slideflow WSI object.
             apply (bool): Whether to apply the generated ROIs to the slide.
                 Defaults to True.
+
+        Keyword args:
+            sq_mm_threshold (float, optional): If not None, filter out ROIs with an area
+                less than the given threshold (in square millimeters). Defaults to None.
 
         Returns:
             List[np.ndarray]: List of ROIs, where each ROI is a numpy array of
@@ -185,7 +195,19 @@ class Segment:
 
         # Load ROIs.
         if apply:
+            import shapely.geometry as sg
+            import shapely.validation as sv
             for o, outline in enumerate(outlines):
+                if sq_mm_threshold:
+                    poly = sv.make_valid(sg.Polygon(outline))
+                    area_pixels = poly.area
+                    area_um = area_pixels * (wsi.mpp ** 2)
+                    area_mm = area_um / 1e6
+                    if area_mm < sq_mm_threshold:
+                        sf.log.debug("Skipping small ROI with area < {} mm^2: {} ({:.2f} mm^2)".format(
+                            sq_mm_threshold, o, area_mm
+                        ))
+                        continue
                 wsi.load_roi_array(
                     outline,
                     process=False,

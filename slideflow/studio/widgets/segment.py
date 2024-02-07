@@ -71,6 +71,7 @@ class TissueSegWidget(Widget):
         self._capturing_stride      = 1
         self._selected_slides       = defaultdict(bool)
         self._unique_training_classes = dict()
+        self._sq_mm_threshold       = 0.01
 
 
     # --- Properties ---
@@ -207,7 +208,7 @@ class TissueSegWidget(Widget):
 
     def _generate_rois(self):
         viz = self.viz
-        self._segment.generate_rois(viz.wsi)
+        self._segment.generate_rois(viz.wsi, sq_mm_threshold=self._sq_mm_threshold)
         self._need_to_refresh_rois = True
         if self._working_toast is not None:
             self._working_toast.done()
@@ -649,9 +650,37 @@ class TissueSegWidget(Widget):
         if imgui.is_item_hovered() and self._segment is None:
             imgui.set_tooltip("No model loaded.")
 
-    def draw_generate_rois_button(self) -> None:
+    def draw_apply(self) -> None:
         """Show a button prompting the user to generate ROIs."""
         viz = self.viz
+
+        # Label
+        imgui.text_colored('Min mm²', *viz.theme.dim)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Filter out ROIs smaller than this area, in square millimeters.")
+
+        # Free input
+        imgui.same_line(viz.label_w)
+        with imgui_utils.item_width(viz.font_size * 3):
+            _changed, _val = imgui.input_float('##small_roi_filter_freetext', self._sq_mm_threshold, format='%.3f')
+            if _changed:
+                self._sq_mm_threshold = _val
+
+        # Slider
+        imgui.same_line(viz.label_w + viz.font_size * 3 + viz.spacing)
+        width = imgui.get_content_region_max()[0] - viz.label_w - viz.font_size * 3 - viz.spacing
+        with imgui_utils.item_width(width):
+            _changed, _val = imgui.slider_float(
+                '##small_roi_filter',
+                self._sq_mm_threshold,
+                min_value=0.0,
+                max_value=1.0,
+                format=''
+            )
+            if _changed:
+                self._sq_mm_threshold = _val
+
+        # Generate ROIs button
         if viz.sidebar.full_button(
             'Generate ROIs',
             enabled=(
@@ -766,10 +795,10 @@ class TissueSegWidget(Widget):
                 imgui_utils.vertical_break()
                 self.draw_training_button()
 
-            imgui_utils.vertical_break()
-            imgui.separator()
-            imgui_utils.vertical_break()
-            self.draw_generate_rois_button()
+                imgui_utils.vertical_break()
+
+            if viz.collapsing_header('Apply', default=True):
+                self.draw_apply()
 
         # Refresh ROIs if necessary.
         # Must be in the main loop.

@@ -2048,11 +2048,25 @@ class Dataset:
         else:
             return matching[0]
 
-    def generate_rois(self, model: str, overwrite: bool = False, dest: Optional[str] = None):
+    def generate_rois(
+        self,
+        model: str,
+        *,
+        overwrite: bool = False,
+        dest: Optional[str] = None,
+        sq_mm_threshold: Optional[float] = None
+    ):
         """Generate ROIs using a U-Net model.
 
         Args:
             model (str): Path to model (zip) or model configuration (json).
+
+        Keyword args:
+            overwrite (bool, optional): Overwrite existing ROIs. Defaults to False.
+            dest (str, optional): Destination directory for generated ROIs.
+                If not provided, uses the dataset's default ROI directory.
+            sq_mm_threshold (float, optional): If not None, filter out ROIs with an area
+                less than the given threshold (in square millimeters). Defaults to None.
 
         """
 
@@ -2088,7 +2102,11 @@ class Dataset:
             wsi.rois = []
 
             # Generate and apply ROIs.
-            segment.generate_rois(wsi, apply=True)
+            segment.generate_rois(
+                wsi,
+                apply=True,
+                sq_mm_threshold=sq_mm_threshold
+            )
 
             # Export ROIs to CSV.
             wsi.export_rois(join(dest, wsi.name + '.csv'))

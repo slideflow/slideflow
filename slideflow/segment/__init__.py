@@ -37,7 +37,7 @@ from .utils import topleft_pad, center_square_pad, outlines_list
 
 def generate_rois(
     wsi: "sf.WSI",
-    model: str,
+    model: str
 ) -> List[np.ndarray]:
     """Generate ROIs for a single slide using a U-Net model.
 
