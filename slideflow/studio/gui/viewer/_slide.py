@@ -495,8 +495,6 @@ class SlideViewer(Viewer):
                         vbo=self._roi_triangle_vbos[roi_idx]['vbo'],
                         mode=gl.GL_TRIANGLES
                     )
-            else:
-                gl_utils.draw_vbo_roi(roi, color=1, alpha=0.7, linewidth=5, vbo=vbo)
             gl_utils.draw_vbo_roi(roi, color=outline, alpha=1, linewidth=2, vbo=vbo)
 
     def _scale_roi_to_view(self, roi: np.ndarray) -> Optional[np.ndarray]:
