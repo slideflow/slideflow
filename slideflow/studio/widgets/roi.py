@@ -195,18 +195,21 @@ class ROIWidget:
         elif view.is_moving():
             self.roi_grid = None
 
-    def get_roi_dest(self, slide: str, create: bool = False) -> str:
+    def get_roi_dest(self, slide: str, create: bool = False) -> Optional[str]:
         """Get the destination for a ROI file."""
         viz = self.viz
         if viz.P is None:
             return None
         dataset = viz.P.dataset()
         source = dataset.get_slide_source(slide)
-        filename =  (dataset.find_rois(slide)
-                     or join(dataset.sources[source]['roi'], f'{slide}.csv'))
-        if dirname(filename) and not exists(dirname(filename)) and create:
-            os.makedirs(dirname(filename))
-        return filename
+        if dataset._roi_set(dataset.get_slide_source(slide)):
+            filename =  (dataset.find_rois(slide)
+                        or join(dataset.sources[source]['roi'], f'{slide}.csv'))
+            if dirname(filename) and not exists(dirname(filename)) and create:
+                os.makedirs(dirname(filename))
+            return filename
+        else:
+            return None
 
     def ask_load_rois(self) -> None:
         """Ask the user to load ROIs from a CSV file."""
@@ -786,6 +789,16 @@ class ROIWidget:
         """Save ROIs to a CSV file."""
         viz = self.viz
         roi_file = self.get_roi_dest(viz.wsi.name, create=True)
+        if roi_file is None:
+            source = viz.P.dataset().get_slide_source(viz.wsi.name)
+            viz.create_toast(
+                'Project does not have a configured ROI folder for dataset '
+                f'source {source}. Configure this folder to auto-load ROIs.',
+                icon='warn'
+            )
+            if not exists('roi'):
+                os.makedirs('roi')
+            roi_file = join('roi', f'{viz.wsi.name}.csv')
         dest = viz.wsi.export_rois(roi_file)
         viz.create_toast(f'ROIs saved to {dest}', icon='success')
 

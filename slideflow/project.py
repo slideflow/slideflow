@@ -3145,7 +3145,10 @@ class Project:
 
         for source in sources:
             log.info(f'Working on dataset source [bold]{source}')
-            roi_dir = dataset.sources[source]['roi']
+            if dataset._roi_set(source):
+                roi_dir = dataset.sources[source]['roi']
+            else:
+                roi_dir = None
 
             # Prepare list of slides for extraction
             slide_list = dataset.slide_paths(source=source)
