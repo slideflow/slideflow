@@ -652,7 +652,11 @@ class ROIWidget:
             # Select ROIs if ROIs are hovered and the mouse is released.
             # If shift is down, then select multiple ROIs.
             if viz._shift_down:
-                self._selected_rois = list(set(self._selected_rois + hovered_rois))
+                for h in hovered_rois:
+                    if h in self._selected_rois:
+                        self._selected_rois.remove(h)
+                    else:
+                        self._selected_rois.append(h)
             else:
                 self._selected_rois = hovered_rois
             # If one ROI is selected, enable vertex editing.
