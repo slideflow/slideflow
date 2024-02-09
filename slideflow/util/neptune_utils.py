@@ -28,7 +28,8 @@ class NeptuneLog:
         '''Starts a neptune run'''
 
         from neptune import management
-
+        import neptune
+        
         if tags is None:
             tags = []
         project_name = project.replace("_", "-").replace(".", "-")
@@ -74,7 +75,7 @@ class NeptuneLog:
         }
         self.run['backend'] = sf.backend()
         self.run['project_info'] = {key: stringify_unsupported(hp_data[key]) for key in proj_keys}
-        self.run['outcomes'] = outcomes
+        self.run['outcomes'] = str(outcomes)
         self.run['model_params/validation'] = stringify_unsupported(validation_params)
         self._log_hp(hp_data, 'stage', 'stage')
         self._log_hp(hp_data, 'model_params/hp', 'hp')
@@ -94,8 +95,9 @@ class NeptuneLog:
             self._log_hp(hp_data, 'eval/max_tiles', 'max_tiles')
 
     def _log_hp(self, hp_data, run_key, hp_key) -> None:
+        from neptune.utils import stringify_unsupported
         try:
-            self.run[run_key] = hp_data[hp_key]
+            self.run[run_key] = stringify_unsupported(hp_data[hp_key])
         except KeyError:
             log.debug(f"Unable to log Neptune hp_data key '{hp_key}'")
 
