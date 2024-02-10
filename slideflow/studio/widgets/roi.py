@@ -1187,7 +1187,10 @@ class VertexEditor:
                 values as the vertices of the holes.
 
         """
-        return self.viz.viewer.scaled_holes_in_view[self.roi_id]
+        hv = self.viz.viewer.scaled_holes_in_view[self.roi_id]
+        if not hv:
+            return defaultdict(lambda: None)
+        return hv
 
     @property
     def selected_vertex_indices(self) -> List[int]:
