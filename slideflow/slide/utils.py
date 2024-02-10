@@ -5,6 +5,7 @@ import cv2
 import csv
 import io
 import numpy as np
+import shapely.validation as sv
 import shapely.geometry as sg
 import xml.etree.ElementTree as ET
 
@@ -53,69 +54,104 @@ def OPS_LEVEL_DOWNSAMPLE(level: int) -> str:
 # Classes
 
 class ROI:
-    """Object container for a single ROI annotation."""
+    """Object container for an ROI polygon annotation."""
 
     def __init__(
         self,
         name: str,
-        coordinates: List[Tuple[int, int]] = None,
-        label: Optional[str] = None
+        coordinates: List[Tuple[int, int]],
+        *,
+        label: Optional[str] = None,
+        holes: Optional[List["ROI"]] = None
     ) -> None:
         self.name = name
         self.label = label if label else None
-        if coordinates is None:
-            self.coordinates = []  # type: List[Tuple[int, int]]
-        else:
-            self.coordinates = coordinates
+        self.holes = holes if holes else []
+        self._poly = None
+        self.coordinates = coordinates
 
     def __repr__(self):
         return f"<ROI (coords={len(self.coordinates)} label={self.label})>"
 
-    def add_coord(self, coord: Tuple[int, int]) -> None:
-        self.coordinates.append(coord)
-
-    def scaled_area(self, scale: float) -> np.ndarray:
-        return np.multiply(self.coordinates, 1/scale)
-
-    def print_coord(self) -> None:
-        for c in self.coordinates:
-            print(c)
-
-    def add_shape(self, shape) -> None:
-        for point in shape:
-            self.add_coord(point)
-
-
-class ROIPoly:
-    """Rendered ROI shape.
-
-    Supports holes.
-
-    """
-    def __init__(
-        self,
-        poly: sg.Polygon,
-        name: str,
-        label: Optional[str] = None
-    ) -> None:
-        self.poly = poly
-        self.name = name
-        self.label = label if label else None
-        self._hole_names = []  # type: List[str]
-
-    def __repr__(self) -> str:
-        return f"<ROIPoly (name={self.name} label={self.label})>"
-
     @property
     def description(self) -> str:
-        if not self._hole_names:
+        """Return a description of the ROI."""
+        if not self.holes:
             return self.name
         else:
-            return self.name + ' (holes: {})'.format(', '.join(self._hole_names))
+            return self.name + ' (holes: {})'.format(', '.join(
+                [h.name for h in self.holes]
+            ))
 
-    def set_hole(self, roi: "ROIPoly") -> None:
-        self.poly = self.poly.difference(roi.poly)
-        self._hole_names.append(roi.name)
+    # --- Polygons ------------------------------------------------------------
+
+    @property
+    def poly(self) -> sg.Polygon:
+        """Return the shapely polygon object."""
+        if self._poly is None:
+            self.update_polygon()
+        return self._poly
+
+    def make_polygon(self) -> sg.Polygon:
+        """Create a shapely polygon from the coordinates.
+
+        Raises:
+            ValueError: If the coordinates do not form a valid polygon.
+
+        Returns:
+            sg.Polygon: Shapely polygon object.
+
+        """
+        poly = sv.make_valid(sg.Polygon(self.coordinates))
+        for h in self.holes:
+            poly = poly.difference(h.poly)
+        return poly
+
+    def update_polygon(self) -> None:
+        """Update the shapely polygon object."""
+        self._poly = self.make_polygon()
+
+    def scaled_poly(self, scale: float) -> sg.Polygon:
+        """Create a scaled polygon."""
+        poly = sv.make_valid(sg.Polygon(self.scaled_coords(scale)))
+        for h in self.holes:
+            poly = poly.difference(h.scaled_poly(scale))
+        return poly
+
+    def simplify(self, tolerance: float = 5) -> None:
+        """Simplify the polygon."""
+        poly_s = self.poly.simplify(tolerance=tolerance)
+        self.coordinates = np.stack(poly_s.exterior.coords.xy, axis=-1)
+        for hole in self.holes:
+            hole.simplify(tolerance)
+        self.update_polygon()
+
+    # --- Holes ---------------------------------------------------------------
+
+    def add_hole(self, roi: "ROI") -> None:
+        """Add a hole to the ROI."""
+        self.holes.append(roi)
+        self.update_polygon()
+
+    def remove_hole(self, roi: Union["ROI", str]) -> None:
+        """Remove a hole from the ROI."""
+        if isinstance(roi, str):
+            roi = self.get_hole(roi)
+        self.holes.remove(roi)
+        self.update_polygon()
+
+    def get_hole(self, name: str) -> "ROI":
+        """Get a hole by name."""
+        for h in self.holes:
+            if h.name == name:
+                return h
+        raise ValueError(f"No hole found with name {name}")
+
+    # --- Other functions -----------------------------------------------------
+
+    def scaled_coords(self, scale: float) -> np.ndarray:
+        return np.multiply(self.coordinates, 1/scale)
+
 
 
 class QCMask:
@@ -348,9 +384,7 @@ def roi_coords_from_image(
     # Scale ROI according to image resizing
     resize_scale = (args.tile_px / args.extract_px)
 
-    def proc_ann(ann):
-        # Scale to full image size
-        coord = ann.coordinates
+    def proc_coords(coords):
         # Offset coordinates to extraction window
         coord = np.add(coord, np.array([-1 * c[0], -1 * c[1]]))
         # Rescale according to downsampling and resizing
@@ -362,13 +396,19 @@ def roi_coords_from_image(
     ll = np.array([0, 0])
     ur = np.array([args.tile_px, args.tile_px])
     for roi in args.rois:
-        coord = proc_ann(roi)
+        coord = proc_coords(roi.coordinates)
         idx = np.all(np.logical_and(ll <= coord, coord <= ur), axis=1)
         coords_in_tile = coord[idx]
         if len(coords_in_tile) > 3:
             coords += [coords_in_tile]
+        for hole in roi.holes:
+            hole_coord = proc_coords(hole.coordinates)
+            hole_idx = np.all(np.logical_and(ll <= hole_coord, hole_coord <= ur), axis=1)
+            hole_coords_in_tile = hole_coord[hole_idx]
+            if len(hole_coords_in_tile) > 3:
+                coords += [hole_coords_in_tile]
 
-    # Convert ROI to bounding box that fits within tile
+    # Convert outer ROI to bounding box that fits within tile
     boxes = []
     yolo_anns = []
     for coord in coords:

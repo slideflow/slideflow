@@ -278,7 +278,7 @@ class TileMaskDataset(torch.utils.data.Dataset):
                 wsi_with_rois.rois = [roi for roi in wsi_with_rois.rois if roi.label in self.roi_labels]
                 wsi_with_rois.process_rois()
 
-            if not len(wsi_with_rois.roi_polys):
+            if not len(wsi_with_rois.rois):
                 continue
             if filter_method == 'roi':
                 wsi_inner = sf.WSI(slide, roi_filter_method=0.9, rois=rois, **kw)
@@ -342,7 +342,7 @@ class TileMaskDataset(torch.utils.data.Dataset):
         ])
 
         # Compute the mask from ROIs.
-        if len(wsi_with_roi.roi_polys) == 0:
+        if len(wsi_with_roi.rois) == 0:
             if self.roi_labels:
                 mask = np.zeros((len(self.roi_labels), wsi.tile_px, wsi.tile_px), dtype=int)
             else:
@@ -352,7 +352,7 @@ class TileMaskDataset(torch.utils.data.Dataset):
         elif self.roi_labels:
             labeled_masks = []
             for i, label in enumerate(self.roi_labels):
-                wsi_polys = [p.poly for p in wsi_with_roi.roi_polys if p.label == label]
+                wsi_polys = [p.poly for p in wsi_with_roi.rois if p.label == label]
                 if len(wsi_polys) == 0:
                     mask = np.zeros((wsi.tile_px, wsi.tile_px), dtype=int)
                     labeled_masks.append(mask)
@@ -372,7 +372,7 @@ class TileMaskDataset(torch.utils.data.Dataset):
         # Handle ROIs without labels (binary)
         else:
             # Determine the intersection at the given tile location.
-            all_polys = unary_union([p.poly for p in wsi_with_roi.roi_polys])
+            all_polys = unary_union([p.poly for p in wsi_with_roi.rois])
             polys = self.get_scaled_and_intersecting_polys(
                 all_polys, tile, scale, fs, (gx, gy)
             )
@@ -463,7 +463,7 @@ def get_thumb_and_mask(
 ) -> Dict[str, np.ndarray]:
     """Get a thumbnail and segmentation mask for a slide."""
 
-    if len(wsi.roi_polys) == 0 and skip_missing:
+    if len(wsi.rois) == 0 and skip_missing:
         return None
 
     # Sanity check.
@@ -482,7 +482,7 @@ def get_thumb_and_mask(
     xfact = thumb.size[1] / wsi.dimensions[1]
     yfact = thumb.size[0] / wsi.dimensions[0]
 
-    if len(wsi.roi_polys) == 0:
+    if len(wsi.rois) == 0:
         if roi_labels:
             mask = np.zeros((len(roi_labels), thumb.size[1], thumb.size[0])).astype(bool)
         else:
@@ -490,7 +490,7 @@ def get_thumb_and_mask(
     elif roi_labels:
         labeled_masks = []
         for i, label in enumerate(roi_labels):
-            wsi_polys = [p.poly for p in wsi.roi_polys if p.label == label]
+            wsi_polys = [p.poly for p in wsi.rois if p.label == label]
             if len(wsi_polys) == 0:
                 mask = np.zeros((thumb.size[1], thumb.size[0])).astype(bool)
                 labeled_masks.append(mask)
@@ -504,7 +504,7 @@ def get_thumb_and_mask(
         mask = np.stack(labeled_masks, axis=0)
 
     else:
-        all_polys = unary_union([p.poly for p in wsi.roi_polys])
+        all_polys = unary_union([p.poly for p in wsi.rois])
         # Scale ROIs to the thumbnail size.
         C = sa.scale(all_polys, xfact=xfact, yfact=yfact, origin=(0, 0))
         # Rasterize to an int mask.

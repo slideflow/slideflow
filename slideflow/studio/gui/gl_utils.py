@@ -184,7 +184,7 @@ def create_buffer(vertices):
     return vbo
 
 
-def create_triangles(vertices, holes=None):
+def create_triangles(vertices, hole_vertices=None, hole_points=None):
     import numpy as np
     """
     Tessellate a complex polygon, possibly with holes.
@@ -195,15 +195,27 @@ def create_triangles(vertices, holes=None):
     """
     import triangle as tr
 
-    # Prepare the segment information
+    # Prepare the segment information for the exterior boundary
     segments = np.array([[i, (i + 1) % len(vertices)] for i in range(len(vertices))])
 
-    # Define the polygon for Triangle
+    # Prepare the polygon for Triangle
     polygon = {'vertices': np.array(vertices), 'segments': segments}
 
-    # If there are holes, add them to the polygon definition
-    if holes is not None:
-        polygon['holes'] = np.array(holes)
+    # If there are holes and hole boundaries, add them to the polygon definition
+    if hole_points is not None and hole_vertices is not None:
+        polygon['holes'] = np.array(hole_points)
+
+        # Start adding hole segments after the exterior segments
+        start_idx = len(vertices)
+        for hole in hole_vertices:
+            hole_segments = [[start_idx + i, start_idx + (i + 1) % len(hole)] for i in range(len(hole))]
+            segments = np.vstack([segments, hole_segments])
+            start_idx += len(hole)
+
+        # Update the vertices and segments in the polygon
+        all_vertices = np.vstack([vertices] + hole_vertices)
+        polygon['vertices'] = all_vertices
+        polygon['segments'] = segments
 
     # Tessellate the polygon
     tess = tr.triangulate(polygon, 'p')

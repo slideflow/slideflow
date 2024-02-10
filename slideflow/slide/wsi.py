@@ -4,6 +4,7 @@ images or stored in the binary format TFRecords, with or without augmentation.''
 
 from __future__ import absolute_import, division, print_function
 
+
 import time
 import os
 import csv
@@ -15,11 +16,12 @@ import cv2
 import numpy as np
 import pandas as pd
 import rasterio.features
-import shapely.geometry as sg
 import shapely.affinity as sa
-import shapely.validation as sv
 import skimage
 import skimage.filters
+from shapely import __version__ as shapely_version
+from shapely.errors import ShapelyDeprecationWarning
+from packaging import version
 from PIL import Image, ImageDraw
 from rich.progress import Progress
 from skimage import img_as_ubyte
@@ -38,6 +40,7 @@ from .backends import tile_worker, backend_formats, wsi_reader
 
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+warnings.simplefilter("ignore", ShapelyDeprecationWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
 
 # -----------------------------------------------------------------------
@@ -146,9 +149,6 @@ class WSI:
         self.extracted_x_size = 0  # type: int
         self.extracted_y_size = 0  # type: int
         self.estimated_num_tiles = 0  # type: int
-        self.roi_polys = []  # type: List   # List of rendered ROI polygons.
-                                           # May be shorter than self.rois
-                                           # If some ROIs are rendered as holes.
         self.rois = []  # type: List[ROI]  # List of individual ROI annotations
         self.roi_method = roi_method
         self.roi_grid = None  # type: Optional[np.ndarray]
@@ -440,7 +440,7 @@ class WSI:
             # Translate ROI polygons
             translated = [
                 sa.translate(roi.poly, x_offset, y_offset)
-                for roi in self.roi_polys
+                for roi in self.rois
             ]
 
             # Set scale to 50 times greater than grid size
@@ -1257,8 +1257,8 @@ class WSI:
         """
         # Filter out masks outside of ROIs, if present.
         if self.has_rois():
-            log.debug(f"Applying {len(self.roi_polys)} ROIs to segmentation.")
-            segmentation.apply_rois(1, [r.poly for r in self.roi_polys])
+            log.debug(f"Applying {len(self.rois)} ROIs to segmentation.")
+            segmentation.apply_rois(1, [r.poly for r in self.rois])
 
         if segmentation.slide is None:
             segmentation.slide = self
@@ -2053,8 +2053,8 @@ class WSI:
                 Cannot supply both ``coord`` and ``grid``. Defaults to None.
 
         Returns:
-            Tuple[int, ROIPoly]: ROI index (index of WSI.roi_polys) and
-                the :class:`slideflow.slide.ROIPoly` that contains the tile.
+            Tuple[int, ROI]: ROI index (index of WSI.rois) and
+                the :class:`slideflow.slide.ROI` that contains the tile.
                 If no ROI contains the tile, returns (None, None).
 
         """
@@ -2071,7 +2071,7 @@ class WSI:
         if roi_idx == -1:
             return None, None
         else:
-            return roi_idx, self.roi_polys[roi_idx]
+            return roi_idx, self.rois[roi_idx]
 
     def grid_to_coord(
         self,
@@ -2179,8 +2179,7 @@ class WSI:
     def has_rois(self) -> bool:
         """Checks if the slide has loaded ROIs and they are not being ignored."""
         return (self.roi_method != 'ignore'
-                and len(self.rois)
-                and self.roi_polys is not None)
+                and len(self.rois))
 
     def load_roi_array(
         self,
@@ -2236,7 +2235,6 @@ class WSI:
         """
         # Clear any previously loaded ROIs.
         self.rois = []
-        self.roi_polys = []
 
         roi_dict = {}
         with open(path, "r") as csvfile:
@@ -2262,11 +2260,19 @@ class WSI:
                 label = None if index_label is None else row[index_label]
 
                 if roi_name not in roi_dict:
-                    roi_dict.update({roi_name: ROI(roi_name, label=label)})
-                roi_dict[roi_name].add_coord((x_coord, y_coord))
+                    roi_dict[roi_name] = {
+                        'coords': [],
+                        'label': label
+                    }
+                roi_dict[roi_name]['coords'].append((x_coord, y_coord))
 
-            for roi_object in roi_dict.values():
-                self.rois.append(roi_object)
+            for roi_name in roi_dict:
+                roi = ROI(
+                    roi_name,
+                    np.array(roi_dict[roi_name]['coords']),
+                    label=roi_dict[roi_name]['label']
+                )
+                self.rois.append(roi)
         if process:
             self.process_rois()
         log.debug(f"Loaded ROIs from {path}")
@@ -2292,15 +2298,12 @@ class WSI:
         """
         # Clear any previously loaded ROIs.
         self.rois = []
-        self.roi_polys = []
 
         with open(path, "r") as json_file:
             json_data = json.load(json_file)['shapes']
         for shape in json_data:
-            area_reduced = np.multiply(shape['points'], scale)
-            area_reduced = area_reduced.astype(np.int64)
-            self.rois.append(ROI(f"Object{len(self.rois)}"))
-            self.rois[-1].add_shape(area_reduced)
+            area_reduced = np.multiply(shape['points'], scale).astype(np.int64)
+            self.rois.append(ROI(f"Object{len(self.rois)}", area_reduced))
         if process:
             self.process_rois()
         if self.roi_method == 'auto':
@@ -2486,43 +2489,8 @@ class WSI:
         """
         # Load annotations as shapely.geometry objects.
         if self.roi_method != 'ignore':
-            self.roi_polys = []
-            for i, annotation in enumerate(self.rois):
-                try:
-                    poly = sv.make_valid(sg.Polygon(annotation.coordinates))
-                except ValueError:
-                    log.warning(
-                        f"Unable to use ROI {i} for [green]{self.name}[/]."
-                        " At least 3 points required to create a shape."
-                    )
-                else:
-                    self.roi_polys.append(ROIPoly(poly, annotation.name, annotation.label))
-
-            # Handle polygon holes.
-            # Holes are only rendered for ROI polygons that are fully contained
-            # within another ROI polygon with the same label.
-            roi_labels = list(set([roi.label for roi in self.roi_polys]))
-            _roi_polys = []
-            for label in roi_labels:
-                outers, inners = [], []
-                _label_polys = [ann for ann in self.roi_polys if ann.label == label]
-                for o, outer in enumerate(_label_polys):
-                    for i, inner in enumerate(_label_polys):
-                        if o == i:
-                            continue
-                        if (i in inners) or (o in inners) or (i in outers):
-                            continue
-                        if outer.poly.contains(inner.poly):
-                            log.debug(f"Rendering ROI polygon {i} as hole in {o}")
-                            _label_polys[o].set_hole(inner)
-                            if o not in outers:
-                                outers.append(o)
-                            if i not in inners:
-                                inners.append(i)
-                label_polys = [ann for (i, ann) in enumerate(_label_polys)
-                               if i not in inners]
-                _roi_polys += label_polys
-            self.roi_polys = _roi_polys
+            # Replace this with hole rendering
+            self._find_and_process_holes()
 
         # Regenerate the grid to reflect the newly-loaded ROIs.
         self._build_coord()
@@ -2532,6 +2500,53 @@ class WSI:
             self.apply_qc_mask()
 
         return len(self.rois)
+
+    def _find_and_process_holes(self):
+        """Find and process holes in ROIs."""
+
+        from shapely.strtree import STRtree
+
+        self.rois.sort(key=lambda x: x.poly.area, reverse=True)
+        polygons = [roi.poly for roi in self.rois]
+        strtree = STRtree(polygons)
+
+        outer_rois = []
+
+        for roi, poly in zip(self.rois, polygons):
+
+            if version.parse(shapely_version) < version.parse('2.0.0'):
+                possible_containers = strtree.query(poly)
+            else:
+                possible_containers_idx = strtree.query(poly)
+                possible_containers = [polygons[i] for i in possible_containers_idx]
+
+            # Filter out the polygon itself
+            possible_containers = [p for p in possible_containers if p != poly]
+
+            # Check if the polygon is contained by another
+            contained_by = [p for p in possible_containers if p.contains(poly)]
+
+            if not contained_by:
+                # Polygon is an outer polygon
+                outer_rois.append(roi)
+            else:
+                # Polygon is a hole, find its immediate outer polygon
+                # Sort by area (smallest to largest) to find the closets outer.
+                contained_by.sort(key=lambda x: x.area)
+                immediate_outer_poly = contained_by[0]
+                immediate_outer_roi = self.rois[polygons.index(immediate_outer_poly)]
+
+                # If the immediate outer is not already listed as an outer,
+                # then the immediate outer is a hole and this polygon is a nested
+                # polygon within a hole and should be treated as an outer.
+                if immediate_outer_roi not in outer_rois:
+                    outer_rois.append(roi)
+                else:
+                    # Otherwise, add the polygon to the immediate outer as a hole
+                    immediate_outer_roi.add_hole(roi)
+
+        # Restrict the ROIs to only outer polygons, which have now had the holes applied.
+        self.rois = outer_rois
 
     def qc(
         self,
@@ -2785,15 +2800,13 @@ class WSI:
                 draw.rectangle(coords, outline=rect_color, width=rect_linewidth)
 
         if rois and len(self.rois):
-            roi_polys = [
-                ROIPoly(sg.Polygon(annotation.scaled_area(roi_scale)),
-                        annotation.name,
-                        annotation.label)
-                for annotation in self.rois
-            ]
             draw = ImageDraw.Draw(thumb)
-            for roi in roi_polys:
-                x, y = roi.poly.exterior.coords.xy
+            roi_polys = [r.scaled_poly(roi_scale) for r in self.rois]
+            for roi in self.rois:
+                for hole in roi.holes:
+                    roi_polys.append(hole.scaled_poly(roi_scale))
+            for poly in roi_polys:
+                x, y = poly.exterior.coords.xy
                 zipped = list(zip(x.tolist(), y.tolist()))
                 draw.line(zipped, joint='curve', fill=color, width=linewidth)
             return thumb

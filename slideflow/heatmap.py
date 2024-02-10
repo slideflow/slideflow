@@ -345,9 +345,12 @@ class Heatmap:
         if show_roi:
             roi_scale = self.slide.dimensions[0] / thumb_size[0]
             annPolys = [
-                sg.Polygon(annotation.scaled_area(roi_scale))
+                sg.Polygon(annotation.scaled_coords(roi_scale))
                 for annotation in self.slide.rois
             ]
+            for roi in self.slide.rois:
+                for hole in roi.holes:
+                    annPolys.append(sg.Polygon(hole.scaled_coords(roi_scale)))
             for poly in annPolys:
                 x, y = poly.exterior.xy
                 ax.plot(x, y, zorder=20, **kwargs)

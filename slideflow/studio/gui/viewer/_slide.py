@@ -9,6 +9,8 @@ from shapely.geometry import Polygon
 from rasterio.features import rasterize
 from contextlib import contextmanager
 from typing import Tuple, Optional, TYPE_CHECKING, Union, List
+from collections import defaultdict
+
 from ._viewer import Viewer
 from .. import gl_utils, text_utils
 from ...utils import EasyDict
@@ -32,7 +34,8 @@ class SlideViewer(Viewer):
         super().__init__(*args, **kwargs)
 
         # WSI parameters.
-        self.rois               = []
+        self.scaled_rois_in_view = dict()
+        self.scaled_holes_in_view = defaultdict(dict)
         self.roi_colors         = {}
         self.wsi                = wsi
         self._tile_px           = wsi.tile_px
@@ -44,9 +47,11 @@ class SlideViewer(Viewer):
         self.show_thumbnail     = True
         self.show_rois          = True
         self._roi_vbos          = {}
+        self._roi_holes_vbos    = defaultdict(dict)
         self._roi_triangle_vbos = {}
         self._scaled_roi_ind    = {}
-        self.highlight_fill     = None
+        self._scaled_roi_holes_ind = defaultdict(dict)
+        self.highlight_fill     = COLOR_RED
         self.highlight_outline  = COLOR_RED
         self.highlighted_rois   = []
 
@@ -106,6 +111,23 @@ class SlideViewer(Viewer):
         if region.bands == 4:
             region = region.flatten()
         return sf.slide.backends.vips.vips2numpy(region)
+
+    def get_scaled_roi_vertices(self, roi_id: int) -> Optional[np.ndarray]:
+        """Get the scaled ROI of the given ID.
+
+        Args:
+            roi_id (int): The ID of the ROI to get. This is the index of the ROI
+                in the WSI's list of ROIs.
+
+        Returns:
+            Optional[np.ndarray]: The scaled ROI coordinates currently in view,
+                or None if the ROI is not in the current view.
+
+        """
+        if roi_id in self.scaled_rois_in_view:
+            return self.scaled_rois_in_view[roi_id]
+        else:
+            return None
 
     def _calculate_view_params(
         self,
@@ -443,27 +465,44 @@ class SlideViewer(Viewer):
 
     def _refresh_rois(self) -> None:
         """Refresh the ROIs for the given location and zoom."""
-        self.rois = []
+        self.scaled_rois_in_view = dict()
+        self.scaled_holes_in_view = defaultdict(dict)
         for roi_idx, roi in enumerate(self.wsi.rois):
             c, ind = self._scale_roi_to_view(roi.coordinates)
             if c is not None:
                 c = c.astype(np.float32)
-                self.rois += [(roi_idx, c)]
+                self.scaled_rois_in_view[roi_idx] = c
                 self._roi_vbos[roi_idx] = gl_utils.create_buffer(c)
                 self._scaled_roi_ind[roi_idx] = ind
                 self._roi_triangle_vbos.pop(roi_idx, None)
 
+            # Handle holes
+            for hole_idx, hole in enumerate(roi.holes):
+                c, ind = self._scale_roi_to_view(hole.coordinates)
+                if c is not None:
+                    c = c.astype(np.float32)
+                    self.scaled_holes_in_view[roi_idx][hole_idx] = c
+                    self._roi_holes_vbos[roi_idx][hole_idx] = gl_utils.create_buffer(c)
+                    self._scaled_roi_holes_ind[roi_idx][hole_idx] = ind
+
     def rasterize_rois_in_view(self) -> Optional[np.ndarray]:
         """Rasterize the ROIs in the current view."""
-        if not len(self.rois):
+        if not len(self.scaled_rois_in_view):
             return None
+
+        def get_polygon(roi_id):
+            poly = Polygon(self.scaled_rois_in_view[roi_id])
+            for hole_coord in self.scaled_holes_in_view[roi_id].values():
+                poly = poly.difference(Polygon(hole_coord))
+            return poly
+
         return np.stack([
             rasterize(
-                [sa.translate(Polygon(roi), -self.x_offset, -self.y_offset)],
+                [sa.translate(get_polygon(roi_id), -self.x_offset, -self.y_offset)],
                 out_shape=(self.height, self.width),
-                all_touched=False).astype(bool).astype(int).T * (roi_idx + 1)
-            for roi_idx, roi in self.rois
-            if len(roi) > 2
+                all_touched=False).astype(bool).astype(int).T * (roi_id + 1)
+            for roi_id in self.scaled_rois_in_view
+            if len(self.scaled_rois_in_view[roi_id]) > 2
         ], axis=-1)
 
     def get_roi_colors(
@@ -497,31 +536,52 @@ class SlideViewer(Viewer):
 
     def _render_rois(self) -> None:
         """Render the ROIs with OpenGL."""
-        for roi_idx, roi in self.rois:
-            outline, fill = self.get_roi_colors(roi_idx)
-            vbo = self._roi_vbos[roi_idx]
+        for roi_id, roi_coord in self.scaled_rois_in_view.items():
+            outline, fill = self.get_roi_colors(roi_id)
+            vbo = self._roi_vbos[roi_id]
             if fill:
                 import OpenGL.GL as gl
-                if roi_idx not in self._roi_triangle_vbos:
+                if roi_id not in self._roi_triangle_vbos:
+                    # Set up holes.
+                    holes = self.scaled_holes_in_view[roi_id]
+                    if holes:
+                        # Vertices of the hole boundaries
+                        hole_vertices = list(holes.values())
+                        # Vertices of representative points within each hole
+                        hole_points = [
+                            Polygon(hole).representative_point().coords[0] for hole in hole_vertices
+                        ]
+                    else:
+                        hole_vertices = None
+                        hole_points = None
+
                     # Convert the polygon to triangles
-                    triangle_vertices = gl_utils.create_triangles(roi)
+                    triangle_vertices = gl_utils.create_triangles(
+                        roi_coord,
+                        hole_vertices=hole_vertices,
+                        hole_points=hole_points
+                    )
                     if triangle_vertices is not None:
                         triangle_vbo = gl_utils.create_buffer(triangle_vertices)
                     else:
                         triangle_vbo = None
-                    self._roi_triangle_vbos[roi_idx] = {
+                    self._roi_triangle_vbos[roi_id] = {
                         'vertices': triangle_vertices,
                         'vbo': triangle_vbo
                     }
-                if self._roi_triangle_vbos[roi_idx]['vbo'] is not None:
+                if self._roi_triangle_vbos[roi_id]['vbo'] is not None:
                     gl_utils.draw_vbo_triangles(
-                        self._roi_triangle_vbos[roi_idx]['vertices'],
+                        self._roi_triangle_vbos[roi_id]['vertices'],
                         color=fill,
                         alpha=0.2,
-                        vbo=self._roi_triangle_vbos[roi_idx]['vbo'],
+                        vbo=self._roi_triangle_vbos[roi_id]['vbo'],
                         mode=gl.GL_TRIANGLES
                     )
-            gl_utils.draw_vbo_roi(roi, color=outline, alpha=1, linewidth=2, vbo=vbo)
+            # Render holes
+            gl_utils.draw_vbo_roi(roi_coord, color=outline, alpha=1, linewidth=2, vbo=vbo)
+            for hole_idx, hole_coord in self.scaled_holes_in_view[roi_id].items():
+                hole_vbo = self._roi_holes_vbos[roi_id][hole_idx]
+                gl_utils.draw_vbo_roi(hole_coord, color=outline, alpha=1, linewidth=2, vbo=hole_vbo)
 
     def _scale_roi_to_view(self, roi: np.ndarray) -> Optional[np.ndarray]:
         roi = np.copy(roi)
@@ -794,8 +854,7 @@ class SlideViewer(Viewer):
                       wsi_y - (cy * self.wsi_window_size[1] / self.height)]
 
         view_params = self._calculate_view_params(new_origin)
-        if view_params != self.view_params:
-            self._refresh_view_full(view_params=view_params)
+        self._refresh_view_full(view_params=view_params)
 
     def zoom_to_mpp(self, cx: int, cy: int, mpp: float) -> None:
         self.zoom_to(cx, cy, mpp / self.wsi.mpp)
