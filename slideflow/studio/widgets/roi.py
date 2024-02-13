@@ -1005,7 +1005,7 @@ class ROIWidget:
         )
         if None in all_labels:
             unique_labels = np.append(unique_labels, None)
-            counts = np.append(counts, np.sum(all_labels == None))
+            counts = np.append(counts, len([l for l in all_labels if l is None]))
         return unique_labels, counts
 
     def refresh(self):

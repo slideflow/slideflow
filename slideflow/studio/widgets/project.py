@@ -5,7 +5,7 @@ from os.path import basename
 
 from .._renderer import CapturedException
 from ..gui import imgui_utils
-from ..utils import EasyDict
+from ..utils import EasyDict, LEFT_MOUSE_BUTTON
 
 import slideflow as sf
 
@@ -27,6 +27,9 @@ class ProjectWidget:
         self.content_height     = 0
         self.slide_search       = ''
         self._show_welcome      = False
+        self._show_slide_filter_popup = False
+        self._filter_by_has_roi = None  # None = no filter, False = no ROIs, True = has ROIs
+        self._clicking = False
 
     def load(self, project, ignore_errors=False):
         viz = self.viz
@@ -117,7 +120,9 @@ class ProjectWidget:
         viz = self.viz
         viz.icon('search')
         imgui.same_line()
-        _changed, self.slide_search = imgui.input_text('##slide_search', self.slide_search, viz.font_size*10)
+        width = imgui.get_content_region_max()[0] - viz.font_size * 6
+        with imgui_utils.item_width(width):
+            _changed, self.slide_search = imgui.input_text('##slide_search', self.slide_search, 128)
         if _changed:
             self.slide_search = self.slide_search.strip()
             self.filtered_slide_paths = [path for path in self.slide_paths if self.slide_search.lower() in path.lower()]
@@ -125,6 +130,64 @@ class ProjectWidget:
         if imgui.button('Clear'):
             self.slide_search = ''
             self.filtered_slide_paths = self.slide_paths
+        imgui.same_line()
+        if viz.icon_button('filter'):
+            self._show_slide_filter_popup = not self._show_slide_filter_popup
+
+        self.draw_slide_filter_popup()
+
+    def draw_slide_filter_popup(self) -> None:
+        viz = self.viz
+
+        if self._show_slide_filter_popup:
+            cx, cy = imgui.get_cursor_pos()
+            imgui.set_next_window_position(viz.sidebar.full_width, cy)
+            imgui.begin(
+                '##slide_filter_popup',
+                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+            )
+            with viz.bold_font():
+                imgui.text("Slide Filter")
+            imgui.separator()
+            updated = False
+            if imgui.menu_item('Has ROIs', selected=(self._filter_by_has_roi == True))[0]:
+                updated = True
+                if self._filter_by_has_roi is None or self._filter_by_has_roi is False:
+                    self._filter_by_has_roi = True
+                else:
+                    self._filter_by_has_roi = None
+                # The below will close out the popup after this has been clicked,
+                # which we don't want. Kept here for reference.
+                # ----
+                #self._clicking = False
+                #self._show_slide_filter_popup = False
+                # ----
+            if imgui.menu_item('No ROIs', selected=(self._filter_by_has_roi == False))[0]:
+                updated = True
+                if self._filter_by_has_roi is None or self._filter_by_has_roi is True:
+                    self._filter_by_has_roi = False
+                else:
+                    self._filter_by_has_roi = None
+
+            # Update the filter
+            if updated:
+                rois = [sf.util.path_to_name(roi) for roi in self.P.dataset().rois()]
+                self.filtered_slide_paths = [
+                    path for path in self.slide_paths
+                    if (self.slide_search.lower() in path.lower()
+                        and (self._filter_by_has_roi is None
+                             or (self._filter_by_has_roi is True and sf.util.path_to_name(path) in rois)
+                             or (self._filter_by_has_roi is False and sf.util.path_to_name(path) not in rois)))
+                ]
+
+            # Hide menu if we click elsewhere
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
+                self._clicking = True
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
+                self._clicking = False
+                self._show_slide_filter_popup = False
+
+            imgui.end()
 
     def draw_slide_list(self) -> None:
         """Draws the list of slides in the project."""

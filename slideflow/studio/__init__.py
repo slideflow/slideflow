@@ -2077,7 +2077,7 @@ class Sidebar:
         for name in ('vips', 'cucim', 'lowmem', 'ellipsis', 'gear', 'refresh'):
             if f"small_{name}" in self._button_tex:
                 continue
-            self._button_tex[f"small_{name}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{name}.png')), bilinear=True, mipmap=True)
+            self._button_tex[f"small_{name}"] = gl_utils.Texture(image=Image.open(join(button_dir, f'small_button_{name}.png')), bilinear=True, mipmap=True, maxlevel=3)
 
     def _draw_navbar_button(self, name, start_px):
         """Draw a navigation bar button.
