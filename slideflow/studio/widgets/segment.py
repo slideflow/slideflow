@@ -208,7 +208,11 @@ class TissueSegWidget(Widget):
 
     def _generate_rois(self):
         viz = self.viz
-        self._segment.generate_rois(viz.wsi, sq_mm_threshold=self._sq_mm_threshold)
+        self._segment.generate_rois(
+            viz.wsi,
+            sq_mm_threshold=self._sq_mm_threshold,
+            simplify_tolerance=5
+        )
         self._need_to_refresh_rois = True
         if self._working_toast is not None:
             self._working_toast.done()

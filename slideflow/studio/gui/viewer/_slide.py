@@ -51,7 +51,7 @@ class SlideViewer(Viewer):
         self._roi_triangle_vbos = {}
         self._scaled_roi_ind    = {}
         self._scaled_roi_holes_ind = defaultdict(dict)
-        self.highlight_fill     = COLOR_RED
+        self.highlight_fill     = None
         self.highlight_outline  = COLOR_RED
         self.highlighted_rois   = []
 
@@ -475,6 +475,10 @@ class SlideViewer(Viewer):
                 self._roi_vbos[roi_idx] = gl_utils.create_buffer(c)
                 self._scaled_roi_ind[roi_idx] = ind
                 self._roi_triangle_vbos.pop(roi_idx, None)
+            else:
+                self.scaled_rois_in_view.pop(roi_idx, None)
+                self._roi_vbos.pop(roi_idx, None)
+                self._scaled_roi_ind.pop(roi_idx, None)
 
             # Handle holes
             for hole_idx, hole in enumerate(roi.holes):
@@ -484,6 +488,10 @@ class SlideViewer(Viewer):
                     self.scaled_holes_in_view[roi_idx][hole_idx] = c
                     self._roi_holes_vbos[roi_idx][hole_idx] = gl_utils.create_buffer(c)
                     self._scaled_roi_holes_ind[roi_idx][hole_idx] = ind
+                else:
+                    self.scaled_holes_in_view[roi_idx].pop(hole_idx, None)
+                    self._roi_holes_vbos[roi_idx].pop(hole_idx, None)
+                    self._scaled_roi_holes_ind[roi_idx].pop(hole_idx, None)
 
     def rasterize_rois_in_view(self) -> Optional[np.ndarray]:
         """Rasterize the ROIs in the current view."""
@@ -556,11 +564,14 @@ class SlideViewer(Viewer):
                         hole_points = None
 
                     # Convert the polygon to triangles
-                    triangle_vertices = gl_utils.create_triangles(
-                        roi_coord,
-                        hole_vertices=hole_vertices,
-                        hole_points=hole_points
-                    )
+                    if roi_coord.shape[0] > 2:
+                        triangle_vertices = gl_utils.create_triangles(
+                            roi_coord,
+                            hole_vertices=hole_vertices,
+                            hole_points=hole_points
+                        )
+                    else:
+                        triangle_vertices = None
                     if triangle_vertices is not None:
                         triangle_vbo = gl_utils.create_buffer(triangle_vertices)
                     else:

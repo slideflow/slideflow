@@ -2,6 +2,7 @@ import imgui
 import numpy as np
 import glfw
 import os
+import copy
 import OpenGL.GL as gl
 from collections import defaultdict
 from os.path import join, exists, dirname
@@ -240,7 +241,7 @@ class ROIWidget:
             if (self.editing
                and self.viz.viewer is not None
                and self._selected_rois
-               and not (self.is_vertex_editing() and self._vertex_editor.vertex_is_selected)):
+               and not (self.is_vertex_editing() and self._vertex_editor.any_vertex_selected)):
                 self.remove_rois(self._selected_rois)
 
         if self.is_vertex_editing() and self.editing:
@@ -1137,8 +1138,11 @@ class VertexEditor:
         self._mouse_down_at_vertex = False
         self._roi_is_edited = False
         self._selection_box = None
-        self._selected_vertices_at_mouse_down = []
-        self._select_on_release = []
+        self._selected_vertices_at_mouse_down = {
+            'outer': [],
+            'holes': defaultdict(list)
+        }
+        self._select_on_release = None
         self._process_rois_on_release = False
 
         # Vertex indices as stored in the viewer. These are not the same as
@@ -1151,11 +1155,11 @@ class VertexEditor:
         # Last vertices used to calculate boxes.
         self._last_vertices = {
             'outer': None,
-            'holes': defaultdict(lambda: None)
+            'holes': dict()
         }
         self._last_box_vertices = {
             'outer': None,
-            'holes': defaultdict(lambda: None)
+            'holes': dict()
         }
 
         # Vertices of the boxes around each ROI vertex.
@@ -1163,13 +1167,12 @@ class VertexEditor:
         self.update_box_vertices()
         self.update_vertices()
 
-        # VBOs for the outer vertices and holes.
+        # VBOs for the boxes of outer vertices and holes.
         self.vbo = {
             'outer': None,
-            'holes': defaultdict(lambda: None)
+            'holes': dict()
         }
-        self.update_vbo(full=True)
-
+        self.update_box_vbo(full=True)
 
     # --- Properties ----------------------------------------------------------
 
@@ -1187,10 +1190,7 @@ class VertexEditor:
                 values as the vertices of the holes.
 
         """
-        hv = self.viz.viewer.scaled_holes_in_view[self.roi_id]
-        if not hv:
-            return defaultdict(lambda: None)
-        return hv
+        return self.viz.viewer.scaled_holes_in_view[self.roi_id]
 
     @property
     def selected_vertex_indices(self) -> List[int]:
@@ -1201,15 +1201,33 @@ class VertexEditor:
         while these indices are not. These indices represent all vertices of the ROI.
 
         """
-        return self.viz.viewer._scaled_roi_ind[self.roi_id][self.selected_vertices['outer']]
+        selected_outer = self.selected_vertices['outer']
+        selected_holes = self.selected_vertices['holes']
+        scaled_roi_indices = self.viz.viewer._scaled_roi_ind[self.roi_id]
+        scaled_holes_indices = self.viz.viewer._scaled_roi_holes_ind[self.roi_id]
+        return {
+            'outer': scaled_roi_indices[selected_outer],
+            'holes': {
+                hole_id: scaled_holes_indices[hole_id][selected_holes[hole_id]]
+                for hole_id in selected_holes
+            }
+        }
 
     @property
-    def vertex_is_selected(self) -> bool:
-        return bool(self.selected_vertices['outer'])
+    def any_vertex_selected(self) -> bool:
+        return bool(self.selected_vertices['outer']) or any(
+            bool(h) for h in self.selected_vertices['holes'].values()
+        )
 
     @property
     def is_editing_vertices(self) -> bool:
-        return self.vertex_is_selected or self.viz._control_down
+        return True
+        #return self.any_vertex_selected or self.viz._control_down
+
+    @property
+    def num_vertex_selected(self) -> int:
+        return (len(self.selected_vertices['outer'])
+                + sum(len(h) for h in self.selected_vertices['holes'].values()))
 
     # --- User input ----------------------------------------------------------
 
@@ -1223,46 +1241,53 @@ class VertexEditor:
 
         """
         if key == glfw.KEY_DELETE and action == glfw.PRESS:
-            if self.vertex_is_selected:
+            if self.any_vertex_selected:
                 self.remove_selected_vertices()
 
-    def check_if_mouse_newly_down_over_vertex(self):
-        """Check if the mouse is newly down over a vertex."""
-        if (imgui.is_mouse_down(LEFT_MOUSE_BUTTON)
+    def check_if_mouse_newly_down_over_vertex(self) -> Tuple[Optional[str],
+                                                             Optional[int],
+                                                             Optional[int]]:
+        """Check if the mouse is newly down over a vertex.
+
+        Returns:
+            A tuple containing:
+                - The type of vertex that was clicked (either 'outer' or 'holes').
+                - The ID of the hole that was clicked (if a hole was clicked).
+                - The index of the vertex that was clicked (if a vertex was clicked).
+
+        """
+        mouse_down_and_editing = (
+            imgui.is_mouse_down(LEFT_MOUSE_BUTTON)
             and not self._left_mouse_down
             and self.is_editing_vertices
-            and self.outer_vertices is not None
-        ):
-            # Mouse is newly down. Check if the mouse is over one of the box vertices.
-            mouse_x, mouse_y = self.viz.get_mouse_pos() #self._mouse_coords_at_down
+        )
+        if not mouse_down_and_editing:
+            return None, None, None
 
-            # Get min/max X and Y values for the box vertices.
-            w = self._box_vertex_width + 2
-            min_x = self.outer_vertices[:, 0] - w
-            max_x = self.outer_vertices[:, 0] + w
-            min_y = self.outer_vertices[:, 1] - w
-            max_y = self.outer_vertices[:, 1] + w
+        # Mouse is newly down. Check if the mouse is over one of the box vertices.
+        x, y = self.viz.get_mouse_pos()
 
-            # Check if the mouse is over any of the box vertices.
-            inside_x = (mouse_x >= min_x) & (mouse_x <= max_x)
-            inside_y = (mouse_y >= min_y) & (mouse_y <= max_y)
-            inside_boxes = inside_x & inside_y
-
-            if np.any(inside_boxes):
-                return np.where(inside_boxes)[0][0]
-            else:
-                return None
+        if self.outer_vertices is not None:
+            in_outer = self._is_position_inside_vertex_box(x, y, self.outer_vertices)
+            if in_outer is not None:
+                return 'outer', None, in_outer
+        if self.hole_vertices is not None:
+            for hole_id, hole in self.hole_vertices.items():
+                in_hole = self._is_position_inside_vertex_box(x, y, hole)
+                if in_hole is not None:
+                    return 'holes', hole_id, in_hole
+        return None, None, None
 
     def handle_mouse_input(self):
         """Handle mouse input for editing vertices of an ROI."""
 
         # First, check if the mouse has newly clicked over a vertex.
-        newly_clicked_vertex = self.check_if_mouse_newly_down_over_vertex()
+        outer_or_hole, hole_id, newly_clicked_vertex = self.check_if_mouse_newly_down_over_vertex()
 
-        # === Suspend or resume mouse input handling ===
+        # === Suspend or resume mouse input handling ==========================
         # If the user is pressing control (forcing vertex view), then we should
         # suspend the mouse input handling for the viewer.
-        if self.viz._control_down:
+        if self.viz._control_down or (self.viz._shift_down and self.is_editing_vertices):
             self.viz.suspend_mouse_input_handling()
         # If the user is editing vertices and a vertex has been newly clicked,
         # then we should handle the mouse input instead of the viewer.
@@ -1277,31 +1302,32 @@ class VertexEditor:
             self.viz.resume_mouse_input_handling()
             return
 
-        # === Handle mouse input ===
+        # === Handle mouse input ==============================================
         # Check if the mouse is newly down over a vertex.
         if newly_clicked_vertex is not None:
             # Mouse is newly down over a vertex.
             self._last_mouse_coords = None
-            self._selected_vertices_at_mouse_down = self.selected_vertices['outer']
+            self._selected_vertices_at_mouse_down = self.get_selected_vertices()
             self._mouse_coords_at_down = self.viz.get_mouse_pos()
             self._mouse_down_at_vertex = True
-            if self.viz._shift_down and newly_clicked_vertex not in self.selected_vertices['outer']:
-                self.selected_vertices['outer'].append(newly_clicked_vertex)
+            if self.viz._shift_down and not self.vertex_is_selected(outer_or_hole, hole_id, newly_clicked_vertex):
+                self.select_vertex(outer_or_hole, hole_id, newly_clicked_vertex)
             elif self.viz._shift_down:
-                self.selected_vertices['outer'].remove(newly_clicked_vertex)
-            elif len(self.selected_vertices['outer']) > 1:
-                self._select_on_release = [newly_clicked_vertex]
+                self.deselect_vertex(outer_or_hole, hole_id, newly_clicked_vertex)
+            elif self.num_vertex_selected > 1 and self.vertex_is_selected(outer_or_hole, hole_id, newly_clicked_vertex):
+                self._select_on_release = (outer_or_hole, hole_id, newly_clicked_vertex)
             else:
-                self.selected_vertices['outer'] = [newly_clicked_vertex]
+                self.reset_selected_vertices()
+                self.select_vertex(outer_or_hole, hole_id, newly_clicked_vertex)
 
         elif imgui.is_mouse_down(LEFT_MOUSE_BUTTON):
             if not self._left_mouse_down:
                 # Mouse is newly down, but not over a vertex.
                 self._mouse_down_at_vertex = False
                 self._mouse_coords_at_down = self.viz.get_mouse_pos()
-                self._selected_vertices_at_mouse_down = self.selected_vertices['outer']
+                self._selected_vertices_at_mouse_down = self.get_selected_vertices()
                 if not self.viz._shift_down:
-                    self.selected_vertices['outer'] = []
+                    self.reset_selected_vertices()
 
             # Mouse is still down.
             mouse_x, mouse_y = self.viz.get_mouse_pos()
@@ -1316,37 +1342,46 @@ class VertexEditor:
                         self._last_mouse_coords = self._mouse_coords_at_down
                     dx = int(np.round((mouse_x - self._last_mouse_coords[0]) * self.viz.viewer.view_zoom))
                     dy = int(np.round((mouse_y - self._last_mouse_coords[1]) * self.viz.viewer.view_zoom))
-                    svi = np.array(self.selected_vertex_indices)
-                    if not isinstance(self.viz.wsi.rois[self.roi_id].coordinates, np.ndarray):
-                        coords = np.array(self.viz.wsi.rois[self.roi_id].coordinates)
-                        self.viz.wsi.rois[self.roi_id].coordinates = coords
-                    self.viz.wsi.rois[self.roi_id].coordinates[svi] += np.array([dx, dy])
+                    self.move_selected_vertices(dx, dy)
                     self.viz.viewer._refresh_rois()
-                    self._select_on_release = []
+                    self._select_on_release = None
                     self._last_mouse_coords = (mouse_x, mouse_y)
                 # Otherwise, we should draw a selection box.
                 else:
-                    # Update selection box coordinates.
+                    ## Update selection box coordinates.
                     self._selection_box = [self._mouse_coords_at_down, (mouse_x, mouse_y)]
-                    # Check if any vertices are inside the selection box.
-                    if self.outer_vertices is not None:
-                        min_x, max_x = np.sort([self._selection_box[0][0], self._selection_box[1][0]])
-                        min_y, max_y = np.sort([self._selection_box[0][1], self._selection_box[1][1]])
-                        inside_x = (self.outer_vertices[:, 0] >= min_x) & (self.outer_vertices[:, 0] <= max_x)
-                        inside_y = (self.outer_vertices[:, 1] >= min_y) & (self.outer_vertices[:, 1] <= max_y)
-                        inside_boxes = inside_x & inside_y
-                        selected_by_box = np.where(inside_boxes)[0]
-                        if self.viz._shift_down and all([i in self._selected_vertices_at_mouse_down for i in selected_by_box]):
-                            self.selected_vertices['outer'] = list(set(self._selected_vertices_at_mouse_down) - set(selected_by_box))
-                        elif self.viz._shift_down:
-                            self.selected_vertices['outer'] = list(set(self._selected_vertices_at_mouse_down + list(selected_by_box)))
-                        else:
-                            self.selected_vertices['outer'] = list(selected_by_box)
+                    ## Check if any vertices are inside the selection box.
+                    min_x, max_x = np.sort([self._selection_box[0][0], self._selection_box[1][0]])
+                    min_y, max_y = np.sort([self._selection_box[0][1], self._selection_box[1][1]])
+                    selected_by_box = self.get_vertices_in_bounding_box(min_x, max_x, min_y, max_y)
+
+                    # If nothing is in the box, then pass.
+                    if not len(selected_by_box['outer']) and not any(len(v) for v in selected_by_box['holes'].values()):
+                        pass
+                    # If shift is down and vertices are all already selected,
+                    # then we should deselect the vertices.
+                    elif (self.viz._shift_down
+                        and self.all_vertices_are_selected(
+                            selected_by_box,
+                            reference=self._selected_vertices_at_mouse_down
+                        )):
+                        self.deselect_vertices(selected_by_box)
+                    # If shift is down and vertices are not all already selected,
+                    # then we should select the vertices.
+                    elif self.viz._shift_down:
+                        self.reset_selected_vertices()
+                        self.select_vertices(self._selected_vertices_at_mouse_down)
+                        self.select_vertices(selected_by_box)
+                    # If shift is not down, then we should select only these vertices.
+                    else:
+                        self.reset_selected_vertices()
+                        self.select_vertices(selected_by_box)
 
         elif imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
             if self._select_on_release:
-                self.selected_vertices['outer'] = self._select_on_release
-                self._select_on_release = []
+                self.reset_selected_vertices()
+                self.select_vertex(*self._select_on_release)
+                self._select_on_release = None
                 self._last_mouse_coords = None
 
         self._left_mouse_down = imgui.is_mouse_down(LEFT_MOUSE_BUTTON)
@@ -1356,7 +1391,74 @@ class VertexEditor:
             self._mouse_down_at_vertex = False
             self._selection_box = None
 
-    # --- Logic ---------------------------------------------------------------
+    # --- Vertex logic --------------------------------------------------------
+
+    def _is_position_inside_vertex_box(
+        self,
+        x: int,
+        y: int,
+        vertices: np.ndarray
+    ) -> Optional[int]:
+        """Check if a position is inside a vertex box."""
+        # Get min/max X and Y values for the box vertices.
+        w = self._box_vertex_width + 2
+        min_x = vertices[:, 0] - w
+        max_x = vertices[:, 0] + w
+        min_y = vertices[:, 1] - w
+        max_y = vertices[:, 1] + w
+
+        # Check if the mouse is over any of the box vertices.
+        inside_x = (x >= min_x) & (x <= max_x)
+        inside_y = (y >= min_y) & (y <= max_y)
+        inside_boxes = inside_x & inside_y
+
+        if np.any(inside_boxes):
+            to_return = np.where(inside_boxes)[0][0]
+            return to_return
+        else:
+            return None
+
+    def _index_of_vertices_in_box(self, min_x, max_x, min_y, max_y, vertices):
+        """Get the indices of the vertices that are inside a bounding box."""
+        inside_x = (vertices[:, 0] >= min_x) & (vertices[:, 0] <= max_x)
+        inside_y = (vertices[:, 1] >= min_y) & (vertices[:, 1] <= max_y)
+        inside_boxes = inside_x & inside_y
+        return np.where(inside_boxes)[0]
+
+    def _calculate_box_vertices(self, vertices: Optional[np.ndarray]) -> Optional[np.ndarray]:
+        """Calculate box outlines for each vertex in the ROI."""
+        # Convert the ROI vertices (n_vertex, 2) to (n_vertex, 4, 2) for the box.
+        if vertices is None:
+            return None
+        box_vertices = np.zeros((len(vertices), 4, 2)).astype(np.float32)
+        w = self._box_vertex_width
+        box_vertices[:, :, 0] = vertices[:, np.newaxis, 0] + np.array([-w, w, w, -w])
+        box_vertices[:, :, 1] = vertices[:, np.newaxis, 1] + np.array([-w, -w, w, w])
+        return box_vertices
+
+    def get_selected_vertices(self) -> Dict[str, Union[List[int], Dict[int, List[int]]]]:
+        """Get the indices of the selected vertices."""
+        return copy.deepcopy(self.selected_vertices)
+
+    def get_vertices_in_bounding_box(
+        self,
+        min_x: int,
+        max_x: int,
+        min_y: int,
+        max_y: int
+    ) -> Dict[str, Union[List[int], Dict[int, List[int]]]]:
+        """Get the vertices that are inside a bounding box."""
+        if self.outer_vertices is not None:
+            outer_selected = self._index_of_vertices_in_box(min_x, max_x, min_y, max_y, self.outer_vertices)
+        if self.hole_vertices is not None:
+            hole_selected = {
+                hole_id: self._index_of_vertices_in_box(min_x, max_x, min_y, max_y, hole)
+                for hole_id, hole in self.hole_vertices.items()
+            }
+        return {
+            'outer': outer_selected,
+            'holes': hole_selected
+        }
 
     def get_box_vertices(self) -> Optional[np.ndarray]:
         """Get the vertices of the boxes around each ROI vertex."""
@@ -1370,73 +1472,190 @@ class VertexEditor:
             self._last_box_vertices['outer'] = None
         if not np.all(self.outer_vertices == self._last_vertices['outer']):
             # The ROI has changed since the last calculation.
-            #last_shape = self._last_box_vertices.shape[0] if self._last_box_vertices is not None else None
             self.update_box_vertices(outer=True)  # This updates the ._last_box_vertices.
-            #if last_shape != self._last_box_vertices.shape[0]:
-            #    self.selected_vertices = []
+            self.update_box_vbo(outer=True, box_vertices=self._last_box_vertices)
             updated = True
 
         # -- Next, calculate the box vertices for the holes. -------------------
         for hole_id, hole_coords in self.hole_vertices.items():
             if hole_coords is None:
                 # The hole is not in view.
-                self._last_vertices['holes'][hole_id] = defaultdict(lambda: None)
-                self._last_box_vertices['holes'][hole_id] = defaultdict(lambda: None)
-            if not np.all(hole_coords == self._last_vertices['holes'][hole_id]):
+                self._last_vertices['holes'][hole_id] = dict()
+                self._last_box_vertices['holes'][hole_id] = dict()
+            if ((hole_id not in self._last_vertices['holes']) or
+                (not np.all(hole_coords == self._last_vertices['holes'][hole_id]))):
                 # The hole has changed since the last calculation.
                 self.update_box_vertices(holes=[hole_id])  # This updates the ._last_box_vertices.
-                self.update_vertices() # This updates ._last_vertices.
+                self.update_box_vbo(holes=[hole_id], box_vertices=self._last_box_vertices)
+                updated = True
+        for hole_id in list(self._last_box_vertices['holes'].keys()):
+            if hole_id not in self.hole_vertices:
+                # The hole is no longer in view.
+                self._last_vertices['holes'].pop(hole_id, None)
+                self._last_box_vertices['holes'].pop(hole_id, None)
+                self.update_box_vbo(holes=[hole_id], box_vertices=self._last_box_vertices)
                 updated = True
 
         if updated:
             self.update_vertices() # This updates ._last_vertices.
-            self.update_vbo()
 
         return self._last_box_vertices
 
-    def update_vbo(
+    # --- Vertex selection and manipulation -----------------------------------
+
+    def vertex_is_selected(
         self,
-        full: Optional[bool] = None,
-        outer: bool = False,
-        holes: Optional[List[int]] = None
+        outer_or_hole: str,
+        hole_id: Optional[int],
+        vertex_id: int
+    ) -> bool:
+        """Check if a vertex is selected."""
+        if outer_or_hole == 'outer':
+            return vertex_id in self.selected_vertices['outer']
+        elif outer_or_hole == 'holes':
+            return vertex_id in self.selected_vertices['holes'][hole_id]
+        else:
+            raise ValueError(f'Invalid outer_or_hole: {outer_or_hole}')
+
+    def all_vertices_are_selected(
+        self,
+        vertices: Dict[str, Union[List[int], Dict[int, List[int]]]],
+        *,
+        reference: Optional[Dict[str, Union[List[int], Dict[int, List[int]]]]] = None
+    ) -> bool:
+        """Check if all of the vertices are selected."""
+
+        if reference is None:
+            reference = self.selected_vertices
+
+        if 'outer' in vertices:
+            all_outer_selected = all([
+                v in reference['outer']
+                for v in vertices['outer']
+            ])
+            if not all_outer_selected:
+                return False
+        if 'holes' in vertices:
+            for hole_id, h in vertices['holes'].items():
+                all_hole_selected = all([
+                    v in reference['holes'][hole_id]
+                    for v in h
+                ])
+                if not all_hole_selected:
+                    return False
+        return True
+
+    def select_vertex(
+        self,
+        outer_or_hole: str,
+        hole_id: Optional[int],
+        vertex_id: int
     ) -> None:
-        """Update the VBO for the box vertices, both outer and holes.
+        """Select a vertex."""
+        if outer_or_hole == 'outer':
+            self.selected_vertices['outer'].append(vertex_id)
+        elif outer_or_hole == 'holes':
+            self.selected_vertices['holes'][hole_id].append(vertex_id)
+        else:
+            raise ValueError(f'Invalid outer_or_hole: {outer_or_hole}')
 
-        Args:
-            full (bool): If True, update the VBO for both the outer and holes.
-                If ``outer`` and ``holes`` are not provided, defaults to True.
-            outer (bool): If True, update the VBO for the outer vertices.
-            holes (Optional[List[int]]): If provided, update the VBO for the
-                holes with the given IDs.
-
-        """
-        full = full if full is not None else (outer is False and holes is None)
-        box_vertices = self.get_box_vertices()
-        if (full or outer):
-            if box_vertices['outer'] is not None:
-                self.vbo['outer'] = gl_utils.create_buffer(box_vertices['outer'])
+    def select_vertices(
+        self,
+        vertices: Dict[str, Union[List[int], Dict[int, List[int]]]]
+    ) -> None:
+        """Select vertices."""
+        # Avoid duplicates by using sets.
+        if isinstance(vertices['outer'], np.ndarray):
+            to_select = vertices['outer'].tolist()
+        else:
+            to_select = vertices['outer']
+        self.selected_vertices['outer'] = list(set(
+            self.selected_vertices['outer'] + to_select
+        ))
+        for hole_id, h in vertices['holes'].items():
+            if isinstance(vertices['holes'][hole_id], np.ndarray):
+                to_select = vertices['holes'][hole_id].tolist()
             else:
-                self.vbo['outer'] = None
-        if (full or holes):
-            if holes is None:
-                holes = box_vertices['holes'].keys()
-            for hole_id in holes:
-                if box_vertices['holes'][hole_id] is not None:
-                    self.vbo['holes'][hole_id] = gl_utils.create_buffer(box_vertices['holes'][hole_id])
-                else:
-                    self.vbo['holes'][hole_id] = None
+                to_select = vertices['holes'][hole_id]
+            self.selected_vertices['holes'][hole_id] = list(set(
+                self.selected_vertices['holes'][hole_id] + to_select
+            ))
 
+    def deselect_vertex(
+        self,
+        outer_or_hole: str,
+        hole_id: Optional[int],
+        vertex_id: int
+    ) -> None:
+        """Deselect a vertex."""
+        if outer_or_hole == 'outer':
+            self.selected_vertices['outer'].remove(vertex_id)
+        elif outer_or_hole == 'holes':
+            self.selected_vertices['holes'][hole_id].remove(vertex_id)
+        else:
+            raise ValueError(f'Invalid outer_or_hole: {outer_or_hole}')
 
-    def _calculate_box_vertices(self, vertices: Optional[np.ndarray]) -> Optional[np.ndarray]:
-        """Calculate box outlines for each vertex in the ROI."""
-        # Convert the ROI vertices (n_vertex, 2) to (n_vertex, 4, 2) for the box.
-        if vertices is None:
-            return None
-        box_vertices = np.zeros((len(vertices), 4, 2)).astype(np.float32)
-        w = self._box_vertex_width
-        box_vertices[:, :, 0] = vertices[:, np.newaxis, 0] + np.array([-w, w, w, -w])
-        box_vertices[:, :, 1] = vertices[:, np.newaxis, 1] + np.array([-w, -w, w, w])
-        return box_vertices
+    def deselect_vertices(
+        self,
+        vertices: Dict[str, Union[List[int], Dict[int, List[int]]]]
+    ) -> None:
+        """Deselect vertices."""
+        for v in vertices['outer']:
+            if v in self.selected_vertices['outer']:
+                self.selected_vertices['outer'].remove(v)
+        for hole_id, h in vertices['holes'].items():
+            for v in h:
+                if v in self.selected_vertices['holes'][hole_id]:
+                    self.selected_vertices['holes'][hole_id].remove(v)
+
+    def move_selected_vertices(self, dx: int, dy: int) -> None:
+        """Move the selected vertices by a given amount."""
+        roi = self.viz.wsi.rois[self.roi_id]
+        delta = np.array([dx, dy])
+        svi = self.selected_vertex_indices
+
+        if len(svi['outer']):
+            roi.coordinates[svi['outer']] += delta
+        for hole_id, svi_hole in svi['holes'].items():
+            roi.holes[hole_id].coordinates[svi_hole] += delta
+
+    def remove_selected_vertices(self) -> None:
+        """Remove the selected vertices from the ROI."""
+        roi = self.viz.wsi.rois[self.roi_id]
+        svi = self.selected_vertex_indices
+
+        if len(svi['outer']):
+            coords = np.delete(roi.coordinates, svi['outer'], axis=0)
+            if coords.shape[0] < 4:
+                # ROI cannot be less than 3 vertices.
+                # First and last vertices are the same, so we need at least 4.
+                self.viz.slide_widget.roi_widget.remove_rois(self.roi_id)
+                self.viz.slide_widget.roi_widget.disable_vertex_editing()
+            else:
+                roi.coordinates = coords
+        for hole_id, svi_hole in svi['holes'].items():
+            coords = np.delete(roi.holes[hole_id].coordinates, svi_hole, axis=0)
+            if coords.shape[0] < 4:
+                # Hole cannot be less than 3 vertices.
+                # First and last vertices are the same, so we need at least 4.
+                del roi.holes[hole_id]
+            else:
+                roi.holes[hole_id].coordinates = coords
+
+        # Refresh the view and update the selected vertices.
+        self.viz.viewer.refresh_view()
+        self.reset_selected_vertices()
+        self.update_box_vertices()
+        self.update_box_vbo()
+
+    def reset_selected_vertices(self) -> None:
+        """Reset the selected vertices."""
+        self.selected_vertices = {
+            'outer': [],
+            'holes': defaultdict(list)
+        }
+
+    # --- Updates -------------------------------------------------------------
 
     def update_box_vertices(
         self,
@@ -1470,33 +1689,51 @@ class VertexEditor:
             'holes': self.hole_vertices
         }
 
-    def remove_selected_vertices(self) -> None:
-        """Remove the selected vertices from the ROI."""
-        if self.selected_vertices['outer']:
-            raw_roi_coords = self.viz.wsi.rois[self.roi_id].coordinates
-            raw_roi_coords = np.delete(raw_roi_coords, self.selected_vertex_indices, axis=0)
-            if raw_roi_coords.shape[0] < 3:
-                # ROI cannot be less than 3 vertices.
-                self.viz.slide_widget.roi_widget.remove_rois(self.roi_id)
-                self.viz.slide_widget.roi_widget.disable_vertex_editing()
+    def update_box_vbo(
+        self,
+        full: Optional[bool] = None,
+        outer: bool = False,
+        holes: Optional[List[int]] = None,
+        box_vertices: Optional[np.ndarray] = None
+    ) -> None:
+        """Update the VBO for the box vertices, both outer and holes.
+
+        Args:
+            full (bool): If True, update the VBO for both the outer and holes.
+                If ``outer`` and ``holes`` are not provided, defaults to True.
+            outer (bool): If True, update the VBO for the outer vertices.
+            holes (Optional[List[int]]): If provided, update the VBO for the
+                holes with the given IDs.
+
+        """
+        full = full if full is not None else (outer is False and holes is None)
+        if box_vertices is None:
+            box_vertices = self.get_box_vertices()
+        if (full or outer):
+            if box_vertices['outer'] is not None:
+                self.vbo['outer'] = gl_utils.create_buffer(box_vertices['outer'])
             else:
-                self.viz.wsi.rois[self.roi_id].coordinates = raw_roi_coords
-                self.viz.viewer.refresh_view()
-                self.selected_vertices['outer'] = []
-                self.update_box_vertices()
-                self.update_vbo()
+                self.vbo['outer'] = None
+        if (full or holes):
+            if holes is None:
+                holes = box_vertices['holes'].keys()
+            for hole_id in holes:
+                if hole_id in box_vertices['holes'] and box_vertices['holes'][hole_id] is not None:
+                    self.vbo['holes'][hole_id] = gl_utils.create_buffer(box_vertices['holes'][hole_id])
+                else:
+                    self.vbo['holes'][hole_id] = None
+
+    def update(self) -> None:
+        """Update the ROI vertex editor."""
+        self.handle_mouse_input()
+        if self.is_editing_vertices:
+            self.update_box_vertices(full=True)
 
     def close(self) -> None:
         """Close the ROI vertex editor."""
         self.viz.viewer.reset_roi_highlight()
         if self.viz._control_down:
             self.viz.resume_mouse_input_handling()
-
-    def update(self) -> None:
-        """Update the ROI vertex editor."""
-        self.handle_mouse_input()
-        self.update_box_vertices(full=True)
-        self.update_vbo(full=True)
 
     # --- Drawing -------------------------------------------------------------
 
@@ -1558,6 +1795,8 @@ class VertexEditor:
                 selected=self.selected_vertices['outer']
             )
             for hole_id, hole_vertices in box_vertices['holes'].items():
+                if hole_id not in self.vbo['holes']:
+                    continue
                 self.draw_vertex_boxes(
                     hole_vertices,
                     self.vbo['holes'][hole_id],

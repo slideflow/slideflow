@@ -59,7 +59,7 @@ class ROI:
     def __init__(
         self,
         name: str,
-        coordinates: List[Tuple[int, int]],
+        coordinates: Union[np.ndarray, List[Tuple[int, int]]],
         *,
         label: Optional[str] = None,
         holes: Optional[List["ROI"]] = None
@@ -68,7 +68,7 @@ class ROI:
         self.label = label if label else None
         self.holes = holes if holes else []
         self._poly = None
-        self.coordinates = coordinates
+        self.coordinates = np.array(coordinates)
 
     def __repr__(self):
         return f"<ROI (coords={len(self.coordinates)} label={self.label})>"

@@ -1669,13 +1669,21 @@ class WSI:
 
         """
         names, labels, x, y = [], [], [], []
-        for roi in self.rois:
+
+        def append_roi(roi):
+            nonlocal names, labels, x, y
             c = np.array(roi.coordinates)
             assert len(c.shape) == 2
             names += [roi.name] * c.shape[0]
             labels += [roi.label] * c.shape[0]
             x += list(c[:, 0])
             y += list(c[:, 1])
+
+        for roi in self.rois:
+            append_roi(roi)
+            for hole in roi.holes:
+                append_roi(hole)
+
         df = pd.DataFrame({
             'roi_name': names,
             'label': labels,

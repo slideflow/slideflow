@@ -112,7 +112,8 @@ class Segment:
         wsi: "sf.WSI",
         apply: bool = True,
         *,
-        sq_mm_threshold: Optional[float] = None
+        sq_mm_threshold: Optional[float] = None,
+        simplify_tolerance: Optional[float] = None
     ) -> List[np.ndarray]:
         """Generate and apply ROIs to a slide using the loaded segmentation model.
 
@@ -206,6 +207,8 @@ class Segment:
                     process=False,
                     label=(None if labels is None else labels[o])
                 )
+                if simplify_tolerance:
+                    wsi.rois[-1].simplify(simplify_tolerance)
             wsi.process_rois()
 
         return outlines
@@ -322,7 +325,6 @@ class StridedSegment(Segment):
 def find_contours(masks):
     """Convert masks to outlines."""
     outlines = []
-    print("Finding contours using CCOMP")
     for n in np.unique(masks)[1:]:
         mn = (masks == n)
         if mn.sum() > 0:
