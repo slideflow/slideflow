@@ -38,7 +38,7 @@ class ROIWidget:
         self.roi_grid                   = []  # Rasterized grid of ROIs in view.
         self.unique_roi_labels          = []
         self.use_rois                   = True
-        self._fill_rois                 = False
+        self._fill_rois                 = True
 
         # Internals
         self._late_render               = []
@@ -147,6 +147,10 @@ class ROIWidget:
                     wsi_coords.append(int_coords)
             if len(wsi_coords) > 2:
                 wsi_coords = np.array(wsi_coords)
+                # Verify that the annotation is a valid polygon
+                if not Polygon(wsi_coords).is_valid:
+                    viz.create_toast('Invalid shape, unable to add ROI.', icon='error')
+                    return
                 viz.wsi.load_roi_array(wsi_coords)
                 # Simplify the ROI.
                 self.simplify_roi([len(viz.wsi.rois)-1], tolerance=5)
@@ -371,14 +375,21 @@ class ROIWidget:
                          and not imgui.is_item_hovered()):
                         self._editing_label = None
                         self._editing_label_is_new = True
+                        self.viz.resume_keyboard_input()
                     if _changed:
-                        self.update_label_name(label, self._editing_label[1])
+                        self.update_label_name(
+                            label,
+                            (self._editing_label[1] if self._editing_label[1] else None)
+                        )
                         self._editing_label = None
                         self._editing_label_is_new = True
+                        self.viz.resume_keyboard_input()
                 else:
-                    imgui.text(str(label))
+                    with viz.dim_text(not label):
+                        imgui.text(str(label) if label else '<Unlabeled>')
                     if imgui.is_item_clicked():
-                        self._editing_label = [i, str(label)]
+                        self.viz.suspend_keyboard_input()
+                        self._editing_label = [i, (str(label) if label else '')]
                 imgui_utils.right_aligned_text(str(counts), spacing=viz.spacing)
             if imgui.is_item_hovered():
                 x, y = imgui.get_cursor_screen_position()
@@ -455,6 +466,8 @@ class ROIWidget:
             self._input_new_label = ''
             self._new_label_popup_is_new = True
             self.viz.resume_keyboard_input()
+            self.viz.viewer.reset_roi_highlight()
+            self.refresh()
         imgui.end()
 
     def should_hide_context_menu(self) -> bool:
@@ -598,6 +611,7 @@ class ROIWidget:
         for label in self.unique_roi_labels:
             if imgui.menu_item(f"{label}##roi_{index}")[0]:
                 self.viz.wsi.rois[index].label = label
+                self.refresh_roi_colors()
                 return True
         if len(self.unique_roi_labels):
             imgui.separator()
@@ -607,6 +621,8 @@ class ROIWidget:
         if show_remove:
             if imgui.menu_item(f"Remove##roi_{index}")[0]:
                 self.viz.wsi.rois[index].label = None
+                self.viz.viewer.reset_roi_highlight()
+                self.refresh()
                 return True
         return False
 
@@ -706,6 +722,7 @@ class ROIWidget:
             if self.is_vertex_editing(idx):
                 self.disable_vertex_editing()
         self._selected_rois = []
+        self.refresh()
 
         if refresh_view and isinstance(self.viz.viewer, SlideViewer):
             # Update the ROI grid.
@@ -729,10 +746,7 @@ class ROIWidget:
             self.viz.wsi.rois[idx].simplify(tolerance=tolerance)
 
         self.viz.viewer.refresh_view()
-        if len(roi_indices) == 1:
-            self._selected_rois = [len(self.viz.wsi.rois)-1]
-        else:
-            self._selected_rois = list(range(len(self.viz.wsi.rois)-len(roi_indices), len(self.viz.wsi.rois)))
+        self._selected_rois = roi_indices
 
         # Update the ROI grid.
         self.viz.viewer.highlight_roi(self._selected_rois)
@@ -775,10 +789,13 @@ class ROIWidget:
         self.disable_vertex_editing()
 
         # Merge the polygons.
-        merged_poly = unary_union([
-            Polygon(self.viz.wsi.rois[idx].coordinates)
-            for idx in roi_indices
-        ])
+        try:
+            merged_poly = unary_union([
+                Polygon(self.viz.wsi.rois[idx].coordinates)
+                for idx in roi_indices
+            ])
+        except Exception as e:
+            merged_poly = None
 
         if not isinstance(merged_poly, Polygon):
             self.viz.create_toast('ROIs could not be merged.', icon='error')
@@ -858,12 +875,12 @@ class ROIWidget:
     def refresh_roi_colors(self) -> None:
         """Refresh the colors of the ROIs."""
         viz = self.viz
+        viz.viewer.reset_roi_color()
         for label in self.unique_roi_labels:
             label_rois = [
                 r for r in range(len(viz.wsi.rois))
                 if viz.wsi.rois[r].label == label
             ]
-            viz.viewer.reset_roi_color(label_rois)
             viz.viewer.set_roi_color(
                 label_rois,
                 outline=self.get_roi_color(label),
@@ -968,11 +985,20 @@ class ROIWidget:
             else:
                 self._vertex_editor.update()
 
+    def get_unique_roi_label_counts(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get the unique ROI labels and their counts."""
+        all_labels = [r.label for r in self.viz.wsi.rois]
+        unique_labels, counts = np.unique(
+            [label for label in all_labels if label], return_counts=True
+        )
+        if None in all_labels:
+            unique_labels = np.append(unique_labels, None)
+            counts = np.append(counts, np.sum(all_labels == None))
+        return unique_labels, counts
+
     def refresh(self):
         """Refresh ROI labels & colors after a slide has been loaded."""
-        self.unique_roi_labels, _ = np.unique(
-            [r.label for r in self.viz.wsi.rois if r.label], return_counts=True
-        )
+        self.unique_roi_labels, _ = self.get_unique_roi_label_counts()
         self.refresh_roi_colors()
 
     def draw(self):
@@ -1023,9 +1049,7 @@ class ROIWidget:
         imgui_utils.vertical_break()
 
         # --- ROI labels ------------------------------------------------------
-        self.unique_roi_labels, counts = np.unique(
-            [r.label for r in self.viz.wsi.rois if r.label], return_counts=True
-        )
+        self.unique_roi_labels, counts = self.get_unique_roi_label_counts()
         if len(self.unique_roi_labels):
             hovered = self.colored_label_list(
                 [(label, self.get_roi_color(label), count)
@@ -1138,6 +1162,7 @@ class VertexEditor:
         self._mouse_down_at_vertex = False
         self._roi_is_edited = False
         self._selection_box = None
+        self._force_edit_vertex = False
         self._selected_vertices_at_mouse_down = {
             'outer': [],
             'holes': defaultdict(list)
@@ -1221,8 +1246,7 @@ class VertexEditor:
 
     @property
     def is_editing_vertices(self) -> bool:
-        return True
-        #return self.any_vertex_selected or self.viz._control_down
+        return self.any_vertex_selected or self.viz._control_down or self._force_edit_vertex
 
     @property
     def num_vertex_selected(self) -> int:

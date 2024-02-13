@@ -51,7 +51,7 @@ class SlideViewer(Viewer):
         self._roi_triangle_vbos = {}
         self._scaled_roi_ind    = {}
         self._scaled_roi_holes_ind = defaultdict(dict)
-        self.highlight_fill     = None
+        self.highlight_fill     = COLOR_RED
         self.highlight_outline  = COLOR_RED
         self.highlighted_rois   = []
 
@@ -520,11 +520,13 @@ class SlideViewer(Viewer):
                Optional[Tuple[float, float, float]]]:
         """Get the colors for the given ROI index."""
         # Get the base color.
-        if roi_idx in self.roi_colors and not self.highlighted_rois:
+        if roi_idx in self.roi_colors:
             outline = self.roi_colors[roi_idx]['outline']
             fill = self.roi_colors[roi_idx]['fill']
         else:
             outline = (0, 0, 0)
+            fill = None
+        if self.highlighted_rois:
             fill = None
 
         # Highlight if necessary.
