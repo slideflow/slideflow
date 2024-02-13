@@ -52,7 +52,7 @@ class ROIWidget:
         self._show_roi_new_label_popup  = None
         self._new_label_popup_is_new    = True
         self._input_new_label           = ''
-        self._roi_colors                = {}
+        self._roi_colors                = {None: (0.278, 0.592, 0.808)}
         self._last_view_params          = None
         self._editing_label             = None
         self._editing_label_is_new      = True
