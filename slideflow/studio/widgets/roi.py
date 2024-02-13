@@ -335,6 +335,10 @@ class ROIWidget:
         self.viz.viewer.reset_roi_highlight()
         self.disable_vertex_editing()
 
+    def get_rois_by_label(self, label: str) -> List[int]:
+        """Get the indices of ROIs with the given label."""
+        return [i for i, r in enumerate(self.viz.wsi.rois) if r.label == label]
+
     # --- Drawing -------------------------------------------------------------
 
     def colored_label_list(
@@ -348,7 +352,7 @@ class ROIWidget:
         for i, (label, color, counts) in enumerate(label_list):
             r, g, b = color
             with imgui.begin_group():
-                _changed, _color = imgui.color_edit3(
+                _color_changed, _color = imgui.color_edit3(
                     f"##roi_color{i}",
                     r, g, b,
                     flags=(imgui.COLOR_EDIT_NO_INPUTS
@@ -357,9 +361,10 @@ class ROIWidget:
                         | imgui.COLOR_EDIT_NO_TOOLTIP
                         | imgui.COLOR_EDIT_NO_DRAG_DROP)
                 )
-                if _changed:
+                if _color_changed:
                     self._roi_colors[label] = _color
                     self.refresh_roi_colors()
+                _color_highlighted = imgui.is_item_hovered()
                 imgui.same_line()
                 if self._editing_label and self._editing_label[0] == i:
                     if self._editing_label_is_new:
@@ -402,6 +407,13 @@ class ROIWidget:
                     imgui.get_color_u32_rgba(1, 1, 1, 0.05),
                     int(viz.font_size*0.3))
                 hovered = i
+
+                if (viz.is_mouse_down(LEFT_MOUSE_BUTTON)
+                    and not (_color_changed or _color_highlighted)
+                    and not self._editing_label
+                    and self.editing):
+                    self.select_rois(self.get_rois_by_label(label))
+
         return hovered
 
     def draw_roi_filter_capture(self) -> Optional[Union[str, float]]:
