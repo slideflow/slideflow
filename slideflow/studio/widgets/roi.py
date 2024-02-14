@@ -65,6 +65,7 @@ class ROIWidget:
         self._capturing_roi_filter_perc = False
         self._vertex_editor             = None
         self._showing                   = False
+        self._last_colored_list_hovered = None
 
     @property
     def roi_filter_method(self) -> Union[str, float]:
@@ -346,70 +347,76 @@ class ROIWidget:
         viz = self.viz
         draw_list = imgui.get_window_draw_list()
         hovered = None
-        for i, (label, color, counts) in enumerate(label_list):
-            r, g, b = color
-            with imgui.begin_group():
-                _color_changed, _color = imgui.color_edit3(
-                    f"##roi_color{i}",
-                    r, g, b,
-                    flags=(imgui.COLOR_EDIT_NO_INPUTS
-                        | imgui.COLOR_EDIT_NO_LABEL
-                        | imgui.COLOR_EDIT_NO_SIDE_PREVIEW
-                        | imgui.COLOR_EDIT_NO_TOOLTIP
-                        | imgui.COLOR_EDIT_NO_DRAG_DROP)
-                )
-                if _color_changed:
-                    self._roi_colors[label] = _color
-                    self.refresh_roi_colors()
-                _color_highlighted = imgui.is_item_hovered()
-                imgui.same_line()
-                if self._editing_label and self._editing_label[0] == i:
-                    if self._editing_label_is_new:
-                        imgui.set_keyboard_focus_here()
-                        self._editing_label_is_new = False
-                    _changed, self._editing_label[1] = imgui.input_text(
-                        f"##edit_roi_label{i}",
-                        self._editing_label[1],
-                        flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE
+        with imgui.begin_group():
+            for i, (label, color, counts) in enumerate(label_list):
+                r, g, b = color
+                with imgui.begin_group():
+                    _color_changed, _color = imgui.color_edit3(
+                        f"##roi_color{i}",
+                        r, g, b,
+                        flags=(imgui.COLOR_EDIT_NO_INPUTS
+                            | imgui.COLOR_EDIT_NO_LABEL
+                            | imgui.COLOR_EDIT_NO_SIDE_PREVIEW
+                            | imgui.COLOR_EDIT_NO_TOOLTIP
+                            | imgui.COLOR_EDIT_NO_DRAG_DROP)
                     )
-                    if ((viz.is_mouse_down(LEFT_MOUSE_BUTTON)
-                         or viz.is_mouse_down(RIGHT_MOUSE_BUTTON))
-                         and not imgui.is_item_hovered()):
-                        self._editing_label = None
-                        self._editing_label_is_new = True
-                        self.viz.resume_keyboard_input()
-                    if _changed:
-                        self.update_label_name(
-                            label,
-                            (self._editing_label[1] if self._editing_label[1] else None)
+                    if _color_changed:
+                        self._roi_colors[label] = _color
+                        self.refresh_roi_colors()
+                    _color_highlighted = imgui.is_item_hovered()
+                    imgui.same_line()
+                    if self._editing_label and self._editing_label[0] == i:
+                        if self._editing_label_is_new:
+                            imgui.set_keyboard_focus_here()
+                            self._editing_label_is_new = False
+                        _changed, self._editing_label[1] = imgui.input_text(
+                            f"##edit_roi_label{i}",
+                            self._editing_label[1],
+                            flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE
                         )
-                        self._editing_label = None
-                        self._editing_label_is_new = True
-                        self.viz.resume_keyboard_input()
-                else:
-                    with viz.dim_text(not label):
-                        imgui.text(str(label) if label else '<Unlabeled>')
-                    if imgui.is_item_clicked():
-                        self.viz.suspend_keyboard_input()
-                        self._editing_label = [i, (str(label) if label else '')]
-                imgui_utils.right_aligned_text(str(counts), spacing=viz.spacing)
-            if imgui.is_item_hovered():
-                x, y = imgui.get_cursor_screen_position()
-                y -= (viz.font_size * 1.4)
-                draw_list.add_rect_filled(
-                    x-viz.spacing,
-                    y-viz.spacing,
-                    x+imgui.get_content_region_max()[0],
-                    y+viz.font_size+(viz.spacing*0.7),
-                    imgui.get_color_u32_rgba(1, 1, 1, 0.05),
-                    int(viz.font_size*0.3))
-                hovered = i
+                        if ((viz.is_mouse_down(LEFT_MOUSE_BUTTON)
+                            or viz.is_mouse_down(RIGHT_MOUSE_BUTTON))
+                            and not imgui.is_item_hovered()):
+                            self._editing_label = None
+                            self._editing_label_is_new = True
+                            self.viz.resume_keyboard_input()
+                        if _changed:
+                            self.update_label_name(
+                                label,
+                                (self._editing_label[1] if self._editing_label[1] else None)
+                            )
+                            self._editing_label = None
+                            self._editing_label_is_new = True
+                            self.viz.resume_keyboard_input()
+                    else:
+                        with viz.dim_text(not label):
+                            imgui.text(str(label) if label else '<Unlabeled>')
+                        if imgui.is_item_clicked():
+                            self.viz.suspend_keyboard_input()
+                            self._editing_label = [i, (str(label) if label else '')]
+                    imgui_utils.right_aligned_text(str(counts), spacing=viz.spacing)
+                if imgui.is_item_hovered() or self._last_colored_list_hovered == i:
+                    x, y = imgui.get_cursor_screen_position()
+                    y -= (viz.font_size * 1.4)
+                    draw_list.add_rect_filled(
+                        x-viz.spacing,
+                        y-viz.spacing,
+                        x+imgui.get_content_region_max()[0],
+                        y+viz.font_size+(viz.spacing*0.7),
+                        imgui.get_color_u32_rgba(1, 1, 1, 0.05),
+                        int(viz.font_size*0.3))
+                    self._last_colored_list_hovered = hovered = i
 
-                if (viz.is_mouse_down(LEFT_MOUSE_BUTTON)
-                    and not (_color_changed or _color_highlighted)
-                    and not self._editing_label
-                    and self.editing):
-                    self.select_rois(self.get_rois_by_label(label))
+                    if (viz.is_mouse_down(LEFT_MOUSE_BUTTON)
+                        and not (_color_changed or _color_highlighted)
+                        and not self._editing_label
+                        and self.editing):
+                        self.select_rois(self.get_rois_by_label(label))
+
+        if imgui.is_item_hovered() and hovered is None:
+            hovered = self._last_colored_list_hovered
+        elif not imgui.is_item_hovered():
+            self._last_colored_list_hovered = None
 
         return hovered
 
@@ -579,7 +586,7 @@ class ROIWidget:
         annotation: np.ndarray,
         origin: np.ndarray,
         name: Optional[str] = None,
-        color: float = 1,
+        color: float = 0,
         alpha: float = 1,
         linewidth: int = 3
     ):

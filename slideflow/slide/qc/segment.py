@@ -3,6 +3,7 @@
 import cv2
 import slideflow as sf
 import numpy as np
+import shapely.geometry as sg
 
 from typing import Union, Optional, List
 from scipy.ndimage import label
@@ -189,11 +190,17 @@ class Segment:
 
         # Load ROIs.
         if apply:
-            import shapely.geometry as sg
-            import shapely.validation as sv
             for o, outline in enumerate(outlines):
+                # Verify that the annotation has enough vertices.
+                if len(outline) < 4:
+                    sf.log.warning("Polygon with fewer than 3 vertices detected, skipping: {}".format(o))
+                    continue
+
+                # Convert to shapely polygon.
+                poly = sg.Polygon(outline)
+
+                # Filter by area.
                 if sq_mm_threshold:
-                    poly = sv.make_valid(sg.Polygon(outline))
                     area_pixels = poly.area
                     area_um = area_pixels * (wsi.mpp ** 2)
                     area_mm = area_um / 1e6
@@ -202,13 +209,14 @@ class Segment:
                             sq_mm_threshold, o, area_mm
                         ))
                         continue
-                roi_idx = wsi.load_roi_array(
-                    outline,
-                    process=False,
-                    label=(None if labels is None else labels[o])
-                )
+
+                # Simplify.
                 if simplify_tolerance:
-                    wsi.rois[roi_idx].simplify(simplify_tolerance)
+                    poly = poly.simplify(simplify_tolerance)
+                    outline = np.array(poly.exterior.coords)
+
+                # Load the ROI.
+                wsi.load_roi_array(outline, process=False, label=(None if labels is None else labels[o]))
             wsi.process_rois()
 
         return outlines
