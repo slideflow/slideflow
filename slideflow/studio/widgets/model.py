@@ -9,7 +9,6 @@ from slideflow.util import isnumeric
 
 from ..utils import EasyDict, LEFT_MOUSE_BUTTON
 from ..gui import imgui_utils
-from ..gui.annotator import AnnotationCapture
 
 # -----------------------------------------------------------------------------
 
@@ -172,7 +171,6 @@ class ModelWidget:
     def __init__(self, viz, show_saliency=True):
         self.viz                = viz
         self.show_saliency      = show_saliency
-        self.annotator          = AnnotationCapture(named=False)
         self.search_dirs        = []
         self.cur_model          = None
         self.user_model         = ''

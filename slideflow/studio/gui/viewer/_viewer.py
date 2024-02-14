@@ -125,8 +125,8 @@ class Viewer:
 
     def display_coords_to_wsi_coords(
         self,
-        x: int,
-        y: int,
+        x: Union[int, np.ndarray],
+        y: Union[int, np.ndarray],
         offset: bool = True
     ) -> Tuple[float, float]:
         """Convert the given coordinates from screen space (with offsets)
@@ -149,10 +149,9 @@ class Viewer:
         if offset:
             all_x_offset += self.x_offset
             all_y_offset += self.y_offset
-        return (
-            (x - all_x_offset) * self.view_zoom + self.origin[0],
-            (y - all_y_offset) * self.view_zoom + self.origin[1]
-        )
+        x = (x - all_x_offset) * self.view_zoom + self.origin[0]
+        y = (y - all_y_offset) * self.view_zoom + self.origin[1]
+        return x, y
 
     def in_view(
         self,

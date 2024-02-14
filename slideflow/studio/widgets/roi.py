@@ -12,7 +12,7 @@ from tkinter.filedialog import askopenfilename
 from typing import Optional, Tuple, List, Union, Any, Dict
 
 from ..gui import imgui_utils, text_utils, gl_utils
-from ..gui.annotator import AnnotationCapture
+from ..gui.annotator import SlideAnnotationCapture
 from ..gui.viewer import SlideViewer
 from ..utils import LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
 
@@ -34,7 +34,7 @@ class ROIWidget:
         self.capturing                  = False
         self.subtracting                = False
         self.roi_toast                  = None
-        self.annotator                  = AnnotationCapture(named=False)
+        self.annotator                  = SlideAnnotationCapture(viz, named=False)
         self.roi_grid                   = []  # Rasterized grid of ROIs in view.
         self.unique_roi_labels          = []
         self.use_rois                   = True
@@ -128,31 +128,18 @@ class ROIWidget:
 
         """
         viz = self.viz
-        new_annotation, annotation_name = self.annotator.capture(
-            x_range=(viz.viewer.x_offset, viz.viewer.x_offset + viz.viewer.width),
-            y_range=(viz.viewer.y_offset, viz.viewer.y_offset + viz.viewer.height),
-            pixel_ratio=viz.pixel_ratio
-        )
+        new_annotation, annotation_name = self.annotator.capture()
 
         # Render in-progress annotations
-        if new_annotation is not None:
-            self.viz.suspend_mouse_input_handling()
+        if new_annotation is not None and not annotation_name:
             self.render_annotation(new_annotation, origin=(viz.viewer.x_offset, viz.viewer.y_offset))
         if annotation_name:
-            wsi_coords = []
-            self.viz.resume_mouse_input_handling()
-            for c in new_annotation:
-                _x, _y = viz.viewer.display_coords_to_wsi_coords(c[0], c[1], offset=False)
-                int_coords = (int(_x), int(_y))
-                if int_coords not in wsi_coords:
-                    wsi_coords.append(int_coords)
-            if len(wsi_coords) > 2:
-                wsi_coords = np.array(wsi_coords)
+            if len(new_annotation) > 2:
                 # Verify that the annotation is a valid polygon
-                if not Polygon(wsi_coords).is_valid:
+                if not Polygon(new_annotation).is_valid:
                     viz.create_toast('Invalid shape, unable to add ROI.', icon='error')
                     return
-                roi_idx = viz.wsi.load_roi_array(wsi_coords)
+                roi_idx = viz.wsi.load_roi_array(new_annotation)
                 # Simplify the ROI.
                 self.simplify_roi([roi_idx], tolerance=5)
                 # Refresh the ROI view.
@@ -163,23 +150,13 @@ class ROIWidget:
     def _process_subtract(self) -> None:
         """Process a subtracting ROI."""
         viz = self.viz
-        new_annotation, annotation_name = self.annotator.capture(
-            x_range=(viz.viewer.x_offset, viz.viewer.x_offset + viz.viewer.width),
-            y_range=(viz.viewer.y_offset, viz.viewer.y_offset + viz.viewer.height),
-            pixel_ratio=viz.pixel_ratio
-        )
+        new_annotation, annotation_name = self.annotator.capture()
+
         # Render in-progress subtraction annotation
-        if new_annotation is not None:
+        if new_annotation is not None and not annotation_name:
             self.render_annotation(new_annotation, origin=(viz.viewer.x_offset, viz.viewer.y_offset))
-        if annotation_name:
-            wsi_coords = []
-            for c in new_annotation:
-                _x, _y = viz.viewer.display_coords_to_wsi_coords(c[0], c[1], offset=False)
-                int_coords = (int(_x), int(_y))
-                if int_coords not in wsi_coords:
-                    wsi_coords.append(int_coords)
-            if len(wsi_coords) > 2:
-                self.subtract_roi_from_selected(np.array(wsi_coords))
+        if annotation_name and len(new_annotation) > 2:
+            self.subtract_roi_from_selected(new_annotation)
 
     def _set_button_style(self) -> None:
         """Set the style for the ROI buttons."""
@@ -304,6 +281,7 @@ class ROIWidget:
                 )
                 text_pos = (annotation.mean(axis=0))
                 tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
+        self.annotator.render()
 
     # --- ROI selection and coloring ------------------------------------------
 
@@ -964,6 +942,7 @@ class ROIWidget:
         """Disable capture of ROIs with right-click and drag."""
         self.capturing = False
         self.editing = False
+        self.annotator.reset()
         if self.roi_toast is not None:
             self.roi_toast.done()
 
@@ -971,6 +950,8 @@ class ROIWidget:
         """Toggle ROI editing mode."""
         viz = self.viz
         self.editing = not self.editing
+        if not self.editing:
+            self.toggle_subtracting(False)
         if self.roi_toast is not None:
             self.roi_toast.done()
         if self.editing:
@@ -986,6 +967,8 @@ class ROIWidget:
             self.subtracting = enable
         else:
             self.subtracting = not self.subtracting
+        if not self.subtracting:
+            self.annotator.reset()
         if self.capturing:
             self.disable_roi_capture()
         if self.roi_toast is not None:
