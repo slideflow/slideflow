@@ -65,7 +65,7 @@ class ROI:
         holes: Optional[List["ROI"]] = None
     ) -> None:
         self.name = name
-        self.label = label if label else None
+        self._label = label if label else None
         self.holes = holes if holes else []
         self._poly = None
         self.coordinates = np.array(coordinates)
@@ -82,6 +82,18 @@ class ROI:
             return self.name + ' (holes: {})'.format(', '.join(
                 [h.name for h in self.holes]
             ))
+
+    @property
+    def label(self) -> Optional[str]:
+        """Return the label of the ROI."""
+        return self._label
+
+    @label.setter
+    def label(self, label: str) -> None:
+        """Set the label of the ROI."""
+        self._label = label
+        for h in self.holes:
+            h.label = label
 
     # --- Polygons ------------------------------------------------------------
 
