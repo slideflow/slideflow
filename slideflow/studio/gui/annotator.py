@@ -152,17 +152,22 @@ class SlideAnnotationCapture(AnnotationCapture):
         super().__init__(mouse_idx, named)
         self.viz = viz
         self.scaled_coords = []
+        self.scaled_box_vertices = []
         self._last_view_params = None
         self._last_n_points = 0
+        self._box_vertex_width = 5
         self.vbo = None
+        self.box_vbo = None
 
     def reset(self):
         """Resets the annotation capture."""
         super().reset()
         self.scaled_coords = []
+        self.scaled_box_vertices = []
         self._last_view_params = None
         self._last_n_points = 0
         self.vbo = None
+        self.box_vbo = None
         self.viz.resume_mouse_input_handling()
 
     @property
@@ -233,19 +238,39 @@ class SlideAnnotationCapture(AnnotationCapture):
 
         # If the user presses enter, the annotation is finished.
         if imgui.is_key_pressed(glfw.KEY_ENTER):
-            print("Captured ROI!")
             annotation = self.annotation_points
-            self.annotation_points = []
-            self.scaled_coords = []
+            self.reset()
             return annotation, True
 
         # If the user has right clicked, add a new point.
         if mouse_clicked and in_range:
+
+            # Check if we clicked on the origin.
+            # If so, close the polygon and complete the annotation.
+            if len(self.scaled_coords) > 2:
+                first_point = self.scaled_coords[0]
+                if (abs(first_point[0] - mouse_x) < 5) and (abs(first_point[1] - mouse_y) < 5):
+                    annotation = self.annotation_points
+                    self.reset()
+                    return annotation, True
+
+            # Otherwise, add a new point.
             adj_x, adj_y = self.clip_to_view(mouse_x, mouse_y)
             wsi_x, wsi_y = self.to_wsi_coords(adj_x, adj_y)
             self.annotation_points.append((wsi_x, wsi_y))
 
         return None, False
+
+    def update_box_vertices(self) -> None:
+        # Convert the ROI vertices (n_vertex, 2) to (n_vertex, 4, 2) for the box.
+        v = self.scaled_coords
+        if v is None or not len(v):
+            return None
+        box_vertices = np.zeros((len(v), 4, 2)).astype(np.float32)
+        w = self._box_vertex_width
+        box_vertices[:, :, 0] = v[:, np.newaxis, 0] + np.array([-w, w, w, -w])
+        box_vertices[:, :, 1] = v[:, np.newaxis, 1] + np.array([-w, -w, w, w])
+        self.scaled_box_vertices = box_vertices
 
     def update(self) -> None:
         """Scale the annotation capture to match the current view."""
@@ -263,21 +288,40 @@ class SlideAnnotationCapture(AnnotationCapture):
             annotation = np.array(self.annotation_points)
             self.scaled_coords, _ = self.viz.viewer._scale_roi_to_view(annotation)
             self.scaled_coords = self.scaled_coords.astype(np.float32)
+            self.update_box_vertices()
             if self.scaled_coords is not None:
                 self.vbo = gl_utils.create_buffer(self.scaled_coords)
+                self.box_vbo = gl_utils.create_buffer(self.scaled_box_vertices)
 
 
     def render(self) -> None:
         """Render the annotation capture."""
         self.update()
         if self.scaled_coords is not None and len(self.scaled_coords):
+            # Draw the ROI.
             gl_utils.draw_vbo_roi(
                 self.scaled_coords,
-                color=0,
+                color=(1, 0, 0),
                 alpha=1,
                 linewidth=2,
                 vbo=self.vbo,
                 mode=gl.GL_LINE_STRIP
+            )
+            # Draw the boxes at each vertex.
+            # Start with the white fill.
+            gl_utils.draw_boxes(
+                self.scaled_box_vertices,
+                vbo=self.box_vbo,
+                color=(1, 1, 1),
+                linewidth=2,
+                mode=gl.GL_POLYGON
+            )
+            # Draw the red outline.
+            gl_utils.draw_boxes(
+                self.scaled_box_vertices,
+                vbo=self.box_vbo,
+                color=(1, 0, 0),
+                linewidth=2
             )
 
 

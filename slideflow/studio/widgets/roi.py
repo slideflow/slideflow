@@ -12,6 +12,7 @@ from tkinter.filedialog import askopenfilename
 from typing import Optional, Tuple, List, Union, Any, Dict
 
 from ..gui import imgui_utils, text_utils, gl_utils
+from ..gui.hover_button import HoverButton
 from ..gui.annotator import SlideAnnotationCapture
 from ..gui.viewer import SlideViewer
 from ..utils import LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
@@ -32,9 +33,11 @@ class ROIWidget:
         self.viz                        = viz
         self.editing                    = False
         self.capturing                  = False
+        self.capture_type               = 'freehand'
         self.subtracting                = False
         self.roi_toast                  = None
         self.annotator                  = SlideAnnotationCapture(viz, named=False)
+        self.hover_button               = HoverButton(viz)
         self.roi_grid                   = []  # Rasterized grid of ROIs in view.
         self.unique_roi_labels          = []
         self.use_rois                   = True
@@ -128,7 +131,13 @@ class ROIWidget:
 
         """
         viz = self.viz
-        new_annotation, annotation_name = self.annotator.capture()
+
+        if self.capture_type == 'freehand':
+            new_annotation, annotation_name = self.annotator.capture()
+        elif self.capture_type == 'polygon':
+            new_annotation, annotation_name = self.annotator.capture_polygon()
+        else:
+            raise ValueError(f"Invalid capture type '{self.capture_type}'.")
 
         # Render in-progress annotations
         if new_annotation is not None and not annotation_name:
@@ -150,6 +159,7 @@ class ROIWidget:
     def _process_subtract(self) -> None:
         """Process a subtracting ROI."""
         viz = self.viz
+
         new_annotation, annotation_name = self.annotator.capture()
 
         # Render in-progress subtraction annotation
@@ -260,6 +270,7 @@ class ROIWidget:
         """Render elements with OpenGL (before other UI elements are drawn)."""
         if self.is_vertex_editing() and self.editing:
             self._vertex_editor.draw()
+        self.annotator.render()
 
     def late_render(self) -> None:
         """Render elements with OpenGL (after other UI elements are drawn).
@@ -281,7 +292,6 @@ class ROIWidget:
                 )
                 text_pos = (annotation.mean(axis=0))
                 tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
-        self.annotator.render()
 
     # --- ROI selection and coloring ------------------------------------------
 
@@ -919,24 +929,28 @@ class ROIWidget:
         self.disable_vertex_editing()
         self._selected_rois = []
 
-    def toggle_add_roi(self) -> None:
+    def toggle_add_roi(self, kind: str = 'freehand') -> None:
         """Toggle ROI capture mode."""
-        if self.capturing:
+        if self.capturing and kind != self.capture_type:
+            self.disable_roi_capture()
+            self.enable_roi_capture(kind)
+        elif self.capturing:
             self.disable_roi_capture()
         else:
-            self.enable_roi_capture()
+            self.enable_roi_capture(kind)
 
-    def enable_roi_capture(self) -> None:
+    def enable_roi_capture(self, kind: str = 'freehand') -> None:
         """Enable capture of ROIs with right-click and drag."""
         self.capturing = True
         self.editing = False
+        self.capture_type = kind
         if self.roi_toast is not None:
             self.roi_toast.done()
-        self.roi_toast = self.viz.create_toast(
-            f'Capturing new ROIs. Right click and drag to create a new ROI.',
-            icon='info',
-            sticky=True
-        )
+        if self.capture_type == 'freehand':
+            message = f'Capturing new ROIs (freehand). Right click and drag to create a new ROI.'
+        elif self.capture_type == 'polygon':
+            message = f'Capturing new ROIs (polygon). Right click to add a new vertex, press Enter to finish.'
+        self.roi_toast = self.viz.create_toast(message, icon='info', sticky=True)
 
     def disable_roi_capture(self) -> None:
         """Disable capture of ROIs with right-click and drag."""
@@ -1048,19 +1062,23 @@ class ROIWidget:
         self._set_button_style()
 
         # Add button.
-        with viz.highlighted(self.capturing):
-            if viz.sidebar.large_image_button('circle_plus', size=viz.font_size*3):
-                self.toggle_add_roi()
-            if imgui.is_item_hovered():
-                imgui.set_tooltip("Add ROI (A)")
+        _clicked, _hover_clicked = self.hover_button(
+            ['circle_plus', 'pencil'],
+            ['Add ROI (Freehand)', 'Add ROI (Polygon)']
+        )
+        if _clicked and _hover_clicked == 0:
+            self.toggle_add_roi('freehand')
+        elif _clicked and _hover_clicked == 1:
+            self.toggle_add_roi('polygon')
+
         imgui.same_line()
 
         # Edit button.
-        with viz.highlighted(self.editing):
-            if viz.sidebar.large_image_button('pencil', size=viz.font_size*3):
-                self.toggle_edit_roi()
-            if imgui.is_item_hovered():
-                imgui.set_tooltip("Edit ROIs (E)")
+        #with viz.highlighted(self.editing):
+        if viz.sidebar.large_image_button('pencil', size=viz.font_size*3):
+            self.toggle_edit_roi()
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Edit ROIs (E)")
         imgui.same_line()
 
         # Save button.
