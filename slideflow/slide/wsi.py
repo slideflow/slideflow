@@ -2189,6 +2189,16 @@ class WSI:
         return (self.roi_method != 'ignore'
                 and len(self.rois))
 
+    def get_next_roi_name(self) -> str:
+        """Get the next available name for an ROI."""
+        existing = [
+            int(r.name[4:]) for r in self.rois
+            if r.name.startswith('ROI_') and r.name[4:].isnumeric()
+        ]
+        roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
+        name = f'ROI_{roi_id}'
+        return name
+
     def load_roi_array(
         self,
         array: np.ndarray,
@@ -2196,7 +2206,7 @@ class WSI:
         process: bool = True,
         label: Optional[str] = None,
         name: Optional[str] = None
-    ) -> None:
+    ) -> int:
         """Load an ROI from a numpy array.
 
         Args:
@@ -2207,18 +2217,20 @@ class WSI:
             process (bool): Process ROIs after loading. Defaults to True.
 
         """
-        existing = [
-            int(r.name[4:]) for r in self.rois
-            if r.name.startswith('ROI_') and r.name[4:].isnumeric()
-        ]
-        if name is None:
-            roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
-            name = f'ROI_{roi_id}'
-        self.rois.append(ROI(name, array, label=label))
+        name = name or self.get_next_roi_name()
+        roi = ROI(name, array, label=label)
+        self.rois.append(roi)
         if self.roi_method == 'auto':
             self.roi_method = 'inside'
         if process:
             self.process_rois()
+        for i, _roi in enumerate(self.rois):
+            if _roi == roi:
+                return i
+            for hole in _roi.holes:
+                if hole == roi:
+                    return i
+        return None
 
     def load_csv_roi(
         self,
@@ -2497,7 +2509,6 @@ class WSI:
         """
         # Load annotations as shapely.geometry objects.
         if self.roi_method != 'ignore':
-            # Replace this with hole rendering
             self._find_and_process_holes()
 
         # Regenerate the grid to reflect the newly-loaded ROIs.
@@ -2515,43 +2526,49 @@ class WSI:
         from shapely.strtree import STRtree
 
         self.rois.sort(key=lambda x: x.poly.area, reverse=True)
-        polygons = [roi.poly for roi in self.rois]
-        strtree = STRtree(polygons)
 
         outer_rois = []
 
-        for roi, poly in zip(self.rois, polygons):
+        labels = list(set([roi.label for roi in self.rois]))
 
-            if version.parse(shapely_version) < version.parse('2.0.0'):
-                possible_containers = strtree.query(poly)
-            else:
-                possible_containers_idx = strtree.query(poly)
-                possible_containers = [polygons[i] for i in possible_containers_idx]
+        for label in labels:
 
-            # Filter out the polygon itself
-            possible_containers = [p for p in possible_containers if p != poly]
+            rois = [roi for roi in self.rois if roi.label == label]
+            polygons = [roi.poly for roi in self.rois if roi.label == label]
+            strtree = STRtree(polygons)
 
-            # Check if the polygon is contained by another
-            contained_by = [p for p in possible_containers if p.contains(poly)]
+            for roi, poly in zip(rois, polygons):
 
-            if not contained_by:
-                # Polygon is an outer polygon
-                outer_rois.append(roi)
-            else:
-                # Polygon is a hole, find its immediate outer polygon
-                # Sort by area (smallest to largest) to find the closets outer.
-                contained_by.sort(key=lambda x: x.area)
-                immediate_outer_poly = contained_by[0]
-                immediate_outer_roi = self.rois[polygons.index(immediate_outer_poly)]
+                if version.parse(shapely_version) < version.parse('2.0.0'):
+                    possible_containers = strtree.query(poly)
+                else:
+                    possible_containers_idx = strtree.query(poly)
+                    possible_containers = [polygons[i] for i in possible_containers_idx]
 
-                # If the immediate outer is not already listed as an outer,
-                # then the immediate outer is a hole and this polygon is a nested
-                # polygon within a hole and should be treated as an outer.
-                if immediate_outer_roi not in outer_rois:
+                # Filter out the polygon itself
+                possible_containers = [p for p in possible_containers if p != poly]
+
+                # Check if the polygon is contained by another
+                contained_by = [p for p in possible_containers if p.contains(poly)]
+
+                if not contained_by:
+                    # Polygon is an outer polygon
                     outer_rois.append(roi)
                 else:
-                    # Otherwise, add the polygon to the immediate outer as a hole
-                    immediate_outer_roi.add_hole(roi)
+                    # Polygon is a hole, find its immediate outer polygon
+                    # Sort by area (smallest to largest) to find the closets outer.
+                    contained_by.sort(key=lambda x: x.area)
+                    immediate_outer_poly = contained_by[0]
+                    immediate_outer_roi = rois[polygons.index(immediate_outer_poly)]
+
+                    # If the immediate outer is not already listed as an outer,
+                    # then the immediate outer is a hole and this polygon is a nested
+                    # polygon within a hole and should be treated as an outer.
+                    if immediate_outer_roi not in outer_rois:
+                        outer_rois.append(roi)
+                    else:
+                        # Otherwise, add the polygon to the immediate outer as a hole
+                        immediate_outer_roi.add_hole(roi)
 
         # Restrict the ROIs to only outer polygons, which have now had the holes applied.
         self.rois = outer_rois

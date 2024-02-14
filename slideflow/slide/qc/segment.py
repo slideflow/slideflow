@@ -202,13 +202,13 @@ class Segment:
                             sq_mm_threshold, o, area_mm
                         ))
                         continue
-                wsi.load_roi_array(
+                roi_idx = wsi.load_roi_array(
                     outline,
                     process=False,
                     label=(None if labels is None else labels[o])
                 )
                 if simplify_tolerance:
-                    wsi.rois[-1].simplify(simplify_tolerance)
+                    wsi.rois[roi_idx].simplify(simplify_tolerance)
             wsi.process_rois()
 
         return outlines

@@ -151,19 +151,16 @@ class ROIWidget:
                 if not Polygon(wsi_coords).is_valid:
                     viz.create_toast('Invalid shape, unable to add ROI.', icon='error')
                     return
-                viz.wsi.load_roi_array(wsi_coords)
+                roi_idx = viz.wsi.load_roi_array(wsi_coords)
                 # Simplify the ROI.
-                self.simplify_roi([len(viz.wsi.rois)-1], tolerance=5)
+                self.simplify_roi([roi_idx], tolerance=5)
                 # Refresh the ROI view.
                 viz.viewer.refresh_view()
                 # Show a label popup if the user has just created a new ROI.
-                self._show_roi_label_menu = len(viz.wsi.rois) - 1
+                self._show_roi_label_menu = roi_idx
 
     def _process_subtract(self) -> None:
         """Process a subtracting ROI."""
-        if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and self.viz.mouse_is_over_viewer:
-            self.toggle_subtracting(False)
-            self.annotator.reset()
         viz = self.viz
         new_annotation, annotation_name = self.annotator.capture(
             x_range=(viz.viewer.x_offset, viz.viewer.x_offset + viz.viewer.width),
@@ -474,12 +471,12 @@ class ROIWidget:
         if viz.sidebar.full_button("Add", width=-1) or _changed:
             roi_idx = self._show_roi_new_label_popup
             viz.wsi.rois[roi_idx].label = self._input_new_label
+            self.refresh_rois()
             self._show_roi_new_label_popup = None
             self._input_new_label = ''
             self._new_label_popup_is_new = True
             self.viz.resume_keyboard_input()
             self.viz.viewer.reset_roi_highlight()
-            self.refresh()
         imgui.end()
 
     def should_hide_context_menu(self) -> bool:
@@ -621,11 +618,13 @@ class ROIWidget:
     def _draw_label_submenu(self, index: int, show_remove: bool = True) -> bool:
         """Draw the label submenu for an ROI."""
         for label in self.unique_roi_labels:
+            if label is None:
+                continue
             if imgui.menu_item(f"{label}##roi_{index}")[0]:
                 self.viz.wsi.rois[index].label = label
-                self.refresh_roi_colors()
+                self.refresh_rois()
                 return True
-        if len(self.unique_roi_labels):
+        if len([l for l in self.unique_roi_labels if l is not None]):
             imgui.separator()
         if imgui.menu_item(f"New...##roi_{index}")[0]:
             self._show_roi_new_label_popup = index
@@ -633,8 +632,8 @@ class ROIWidget:
         if show_remove:
             if imgui.menu_item(f"Remove##roi_{index}")[0]:
                 self.viz.wsi.rois[index].label = None
+                self.refresh_rois()
                 self.viz.viewer.reset_roi_highlight()
-                self.refresh()
                 return True
         return False
 
@@ -734,11 +733,11 @@ class ROIWidget:
             if self.is_vertex_editing(idx):
                 self.disable_vertex_editing()
         self._selected_rois = []
-        self.refresh()
+        self.refresh_labels()
 
         if refresh_view and isinstance(self.viz.viewer, SlideViewer):
             # Update the ROI grid.
-            self.viz.viewer._refresh_rois()
+            self.viz.viewer.refresh_rois()
             self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
 
             # Reset ROI colors.
@@ -746,6 +745,8 @@ class ROIWidget:
 
     def simplify_roi(self, roi_indices: List[int], tolerance: float = 5) -> None:
         """Simplify the given ROIs."""
+        if isinstance(roi_indices, int):
+            roi_indices = [roi_indices]
 
         # Disable vertex editing.
         if len(roi_indices) == 1 and self.is_vertex_editing(roi_indices[0]):
@@ -762,7 +763,7 @@ class ROIWidget:
 
         # Update the ROI grid.
         self.viz.viewer.highlight_roi(self._selected_rois)
-        self.viz.viewer._refresh_rois()
+        self.viz.viewer.refresh_rois()
         self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
         if is_vertex_editing:
             self.set_roi_vertex_editing(self._selected_rois[0])
@@ -778,18 +779,31 @@ class ROIWidget:
         for idx in self._selected_rois:
             poly = Polygon(self.viz.wsi.rois[idx].coordinates)
             poly_to_subtract = Polygon(roi_coords)
+            poly_to_subtract = poly_to_subtract.simplify(tolerance=5)
             # Verify the line is non-intersecting.
             polygons = list(polygonize(unary_union(poly_to_subtract)))
             if len(polygons) == 0:
+                sf.log.error("Error subtracting from ROI: drawn polygon is self-intersecting.")
+                self.viz.create_toast('Error subtracting from ROI: drawn polygon is self-intersecting.', icon='error')
                 continue
-            try:
-                poly_s = poly.difference(poly_to_subtract)
-            except Exception:
-                continue
-            if isinstance(poly_s, Polygon):
-                coords_s = np.stack(poly_s.exterior.coords.xy, axis=-1)
-                self.viz.wsi.rois[idx].coordinates = coords_s
-                self.viz.viewer._refresh_rois()
+            if poly.contains(poly_to_subtract):
+                roi = sf.slide.ROI(
+                    self.viz.wsi.get_next_roi_name(),
+                    roi_coords,
+                    label=self.viz.wsi.rois[idx].label
+                )
+                self.viz.wsi.rois[idx].add_hole(roi)
+                self.refresh_rois()
+            else:
+                try:
+                    poly_s = poly.difference(poly_to_subtract)
+                except Exception as e:
+                    sf.log.error("Error subtracting from ROI: {}".format(e))
+                    continue
+                if isinstance(poly_s, Polygon):
+                    coords_s = np.stack(poly_s.exterior.coords.xy, axis=-1)
+                    self.viz.wsi.rois[idx].coordinates = coords_s
+                    self.refresh_rois()
 
     def merge_roi(self, roi_indices: List[int]) -> None:
         """Merge the given ROIs together."""
@@ -830,15 +844,15 @@ class ROIWidget:
         self.remove_rois(roi_indices, refresh_view=False)
 
         # Load the merged ROI into the slide.
-        self.viz.wsi.load_roi_array(
+        roi_idx = self.viz.wsi.load_roi_array(
             new_roi_coords,
             label=new_label,
         )
-        self._selected_rois = [len(self.viz.wsi.rois)-1]
+        self._selected_rois = [roi_idx]
 
         # Update the view.
         if isinstance(self.viz.viewer, SlideViewer):
-            self.viz.viewer._refresh_rois()
+            self.viz.viewer.refresh_rois()
             self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
 
     def save_rois(self) -> None:
@@ -883,6 +897,22 @@ class ROIWidget:
         """Set whether to fill ROIs."""
         self._fill_rois = fill
         self.refresh_roi_colors()
+
+    def refresh_rois(self) -> None:
+        """Refresh ROIs in the WSI object, and rendering."""
+        # Process the ROIs. This may convert some ROIs to holes.
+        self.viz.wsi.process_rois()
+        # Update the ROI selection, as the indices may have changed.
+        prior_selected_rois = [self.viz.wsi.rois[idx] for idx in self._selected_rois]
+        self._selected_rois = [idx for idx, roi in enumerate(self.viz.wsi.rois)
+                               if roi in prior_selected_rois]
+        # Update the view. This will recalculate ROI scaling, determine
+        # which ROIs are in view, update VBOs, and regenerate triangles.
+        self.viz.viewer.refresh_rois()
+        # Update the rasterized ROI grid.
+        self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
+        # Refresh the colors of the ROIs, as the labels may have changed.
+        self.refresh_labels()
 
     def refresh_roi_colors(self) -> None:
         """Refresh the colors of the ROIs."""
@@ -1008,7 +1038,7 @@ class ROIWidget:
             counts = np.append(counts, len([l for l in all_labels if l is None]))
         return unique_labels, counts
 
-    def refresh(self):
+    def refresh_labels(self):
         """Refresh ROI labels & colors after a slide has been loaded."""
         self.unique_roi_labels, _ = self.get_unique_roi_label_counts()
         self.refresh_roi_colors()
@@ -1125,8 +1155,7 @@ class ROIWidget:
         if imgui.is_item_hovered():
             imgui.set_tooltip('Delete the selected ROIs. <Delete>')
         imgui.same_line()
-        if imgui_utils.button(('Subtract' if not self.subtracting else 'Subtracting...'),
-                              enabled=bool(self._selected_rois)):
+        if imgui_utils.button('Subtract', enabled=bool(self._selected_rois)):
             self.toggle_subtracting()
         if imgui.is_item_hovered():
             imgui.set_tooltip('Subtract the selected ROIs from other ROIs. <Shift+S>')
@@ -1141,10 +1170,6 @@ class ROIWidget:
         if label not in self._roi_colors:
             self._roi_colors[label] = imgui_utils.get_random_color('bright')
         return self._roi_colors[label]
-
-    def refresh_rois(self) -> None:
-        """Refresh ROIs in view and total ROI counts."""
-        self.viz.viewer.refresh_view()
 
     def update_label_name(self, old_name: str, new_name: str) -> None:
         """Update the name of a ROI label."""
@@ -1247,6 +1272,7 @@ class VertexEditor:
             'holes': {
                 hole_id: scaled_holes_indices[hole_id][selected_holes[hole_id]]
                 for hole_id in selected_holes
+                if hole_id in scaled_holes_indices
             }
         }
 
@@ -1379,7 +1405,7 @@ class VertexEditor:
                     dx = int(np.round((mouse_x - self._last_mouse_coords[0]) * self.viz.viewer.view_zoom))
                     dy = int(np.round((mouse_y - self._last_mouse_coords[1]) * self.viz.viewer.view_zoom))
                     self.move_selected_vertices(dx, dy)
-                    self.viz.viewer._refresh_rois()
+                    self.viz.viewer.refresh_rois()
                     self._select_on_release = None
                     self._last_mouse_coords = (mouse_x, mouse_y)
                 # Otherwise, we should draw a selection box.

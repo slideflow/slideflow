@@ -70,7 +70,7 @@ class SlideViewer(Viewer):
                              self.dimensions[1] / max_h)
         self.view_params = self._calculate_view_params()
         self._refresh_view_full()
-        self._refresh_rois()
+        self.refresh_rois()
 
         # Calculate scales
         self._um_steps = (1000, 500, 400, 250, 200, 100, 50, 30, 20, 10, 5, 3, 2, 1)
@@ -425,7 +425,7 @@ class SlideViewer(Viewer):
             self.view = new_view
             self.view_params = view_params
             self.origin = tuple(view_params.top_left)
-            self._refresh_rois()
+            self.refresh_rois()
             self._update_view_timer()
 
     def _refresh_view_full(self, view_params: Optional[EasyDict] = None):
@@ -456,17 +456,24 @@ class SlideViewer(Viewer):
             self.clear()
 
         # Refresh ROIs
-        self._refresh_rois()
+        self.refresh_rois()
         self._update_view_timer()
 
     def _update_view_timer(self) -> None:
         """Update the view timer."""
         self._last_update = time.time()
 
-    def _refresh_rois(self) -> None:
+    def refresh_rois(self) -> None:
         """Refresh the ROIs for the given location and zoom."""
         self.scaled_rois_in_view = dict()
         self.scaled_holes_in_view = defaultdict(dict)
+
+        self._roi_vbos          = {}
+        self._roi_holes_vbos    = defaultdict(dict)
+        self._roi_triangle_vbos = {}
+        self._scaled_roi_ind    = {}
+        self._scaled_roi_holes_ind = defaultdict(dict)
+
         for roi_idx, roi in enumerate(self.wsi.rois):
             c, ind = self._scale_roi_to_view(roi.coordinates)
             if c is not None:
@@ -475,10 +482,10 @@ class SlideViewer(Viewer):
                 self._roi_vbos[roi_idx] = gl_utils.create_buffer(c)
                 self._scaled_roi_ind[roi_idx] = ind
                 self._roi_triangle_vbos.pop(roi_idx, None)
-            else:
-                self.scaled_rois_in_view.pop(roi_idx, None)
-                self._roi_vbos.pop(roi_idx, None)
-                self._scaled_roi_ind.pop(roi_idx, None)
+            #else:
+            #    self.scaled_rois_in_view.pop(roi_idx, None)
+            #    self._roi_vbos.pop(roi_idx, None)
+            #    self._scaled_roi_ind.pop(roi_idx, None)
 
             # Handle holes
             for hole_idx, hole in enumerate(roi.holes):
@@ -488,10 +495,10 @@ class SlideViewer(Viewer):
                     self.scaled_holes_in_view[roi_idx][hole_idx] = c
                     self._roi_holes_vbos[roi_idx][hole_idx] = gl_utils.create_buffer(c)
                     self._scaled_roi_holes_ind[roi_idx][hole_idx] = ind
-                else:
-                    self.scaled_holes_in_view[roi_idx].pop(hole_idx, None)
-                    self._roi_holes_vbos[roi_idx].pop(hole_idx, None)
-                    self._scaled_roi_holes_ind[roi_idx].pop(hole_idx, None)
+                #else:
+                #    self.scaled_holes_in_view[roi_idx].pop(hole_idx, None)
+                #    self._roi_holes_vbos[roi_idx].pop(hole_idx, None)
+                #    self._scaled_roi_holes_ind[roi_idx].pop(hole_idx, None)
 
     def rasterize_rois_in_view(self) -> Optional[np.ndarray]:
         """Rasterize the ROIs in the current view."""

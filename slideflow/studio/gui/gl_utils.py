@@ -221,6 +221,9 @@ def create_triangles(vertices, hole_vertices=None, hole_points=None):
     tess = tr.triangulate(polygon, 'p')
 
     # Extract tessellated triangle vertices
+    if 'triangles' not in tess:
+        return None
+
     tessellated_vertices = np.array([tess['vertices'][t] for t in tess['triangles']]).reshape(-1, 2)
 
     # Convert to float32

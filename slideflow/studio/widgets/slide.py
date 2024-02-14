@@ -506,7 +506,7 @@ class SlideWidget:
                 self.update_slide_filter(method=self._get_qc())
 
             # Update ROI colors.
-            self.roi_widget.refresh()
+            self.roi_widget.refresh_labels()
 
         except Exception as e:
             self.cur_slide = None
