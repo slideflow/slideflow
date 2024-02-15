@@ -602,9 +602,6 @@ class SlideViewer(Viewer):
                         triangle_vertices = None
                     else:
                         try:
-                            print("Working on roi {}".format(roi_id))
-                            if roi_id == 13:
-                                np.savez(f'roi_coord_{roi_id}', coord=roi_coord, hole_vertices=hole_vertices, hole_points=hole_points)
                             triangle_vertices = gl_utils.create_triangles(
                                 roi_coord,
                                 hole_vertices=hole_vertices,
