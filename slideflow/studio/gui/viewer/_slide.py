@@ -647,7 +647,7 @@ class SlideViewer(Viewer):
         out_of_view_max = np.any(np.amax(roi, axis=0) < 0)
         out_of_view_min = np.any(np.amin(roi, axis=0) > np.array([self.width+self.x_offset, self.height+self.y_offset]))
         if not (out_of_view_min or out_of_view_max):
-            return roi.astype(int), roi_indices
+            return roi, roi_indices
         else:
             return None, None
 
