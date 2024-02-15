@@ -575,11 +575,15 @@ class SlideViewer(Viewer):
 
                     # Convert the polygon to triangles
                     if roi_coord.shape[0] > 2:
-                        triangle_vertices = gl_utils.create_triangles(
-                            roi_coord,
-                            hole_vertices=hole_vertices,
-                            hole_points=hole_points
-                        )
+                        try:
+                            triangle_vertices = gl_utils.create_triangles(
+                                roi_coord,
+                                hole_vertices=hole_vertices,
+                                hole_points=hole_points
+                            )
+                        except Exception as e:
+                            sf.log.error("Triangulation failed for ROI {}: {}".format(roi_id, e))
+                            triangle_vertices = None
                     else:
                         triangle_vertices = None
                     if triangle_vertices is not None:
