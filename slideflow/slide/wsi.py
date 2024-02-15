@@ -2246,7 +2246,8 @@ class WSI:
         *,
         process: bool = True,
         scale: int = 1,
-        skip_invalid: bool = True
+        skip_invalid: bool = True,
+        simplify_tolerance: Optional[float] = None
     ) -> int:
         """Load ROIs from a CSV file.
 
@@ -2309,6 +2310,8 @@ class WSI:
                     else:
                         raise
                 else:
+                    if simplify_tolerance is not None:
+                        roi.simplify(simplify_tolerance)
                     self.rois.append(roi)
         if process:
             self.process_rois()
