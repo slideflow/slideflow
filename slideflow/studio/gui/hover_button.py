@@ -115,6 +115,10 @@ class HoverButton:
             x -= viz.spacing
             y -= viz.spacing
             imgui.set_next_window_position(x, y)
+            imgui.set_next_window_size(
+                self.button_size + viz.spacing*3,
+                self.button_size*len(menu_icons) + viz.spacing*3 + viz.spacing*(len(menu_icons)-1)
+            )
             imgui.begin(
                 '##expanded_button_list{}'.format(name),
                 flags=(imgui.WINDOW_NO_TITLE_BAR
