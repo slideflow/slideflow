@@ -150,7 +150,8 @@ class ROIWidget:
                     return
                 roi_idx = viz.wsi.load_roi_array(new_annotation)
                 # Simplify the ROI.
-                self.simplify_roi([roi_idx], tolerance=5)
+                if self.capture_type == 'freehand':
+                    self.simplify_roi([roi_idx], tolerance=5)
                 # Refresh the ROI view.
                 viz.viewer.refresh_view()
                 # Show a label popup if the user has just created a new ROI.
