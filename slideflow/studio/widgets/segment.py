@@ -2,6 +2,7 @@ import os
 import torch
 import slideflow as sf
 import imgui
+import glfw
 import segmentation_models_pytorch as smp
 from typing import Optional, List
 from os.path import join, dirname, abspath, exists
@@ -386,6 +387,28 @@ class TissueSegWidget(Widget):
         self._training_toast.done()
         self._training_toast = None
         self.viz.create_toast("Finetuning complete.", icon="success")
+
+    # --- Callbacks ---
+
+    def keyboard_callback(self, key: int, action: int) -> None:
+        """Handle keyboard events.
+
+        Args:
+            key (int): The key that was pressed. See ``glfw.KEY_*``.
+            action (int): The action that was performed (e.g. ``glfw.PRESS``,
+                ``glfw.RELEASE``, ``glfw.REPEAT``).
+
+        """
+        if (key == glfw.KEY_SPACE and action == glfw.PRESS and self.viz._control_down):
+            can_generate_rois = (
+                not self.is_thread_running()
+                and (self._segment is not None)
+                and (self.viz.wsi is not None)
+                and not self.is_training()
+            )
+            if can_generate_rois:
+                self.generate_rois()
+
 
     # --- Drawing ---
 

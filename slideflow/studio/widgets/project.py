@@ -1,6 +1,7 @@
 import re
 import os
 import imgui
+import glfw
 from os.path import basename
 
 from .._renderer import CapturedException
@@ -22,14 +23,42 @@ class ProjectWidget:
         self.slide_paths        = []
         self.filtered_slide_paths = []
         self.model_paths        = []
-        self.slide_idx          = 0
-        self.model_idx          = 0
         self.content_height     = 0
         self.slide_search       = ''
         self._show_welcome      = False
         self._show_slide_filter_popup = False
         self._filter_by_has_roi = None  # None = no filter, False = no ROIs, True = has ROIs
         self._clicking = False
+
+    def keyboard_callback(self, key: int, action: int) -> None:
+        """Handle keyboard events.
+
+        Args:
+            key (int): The key that was pressed. See ``glfw.KEY_*``.
+            action (int): The action that was performed (e.g. ``glfw.PRESS``,
+                ``glfw.RELEASE``, ``glfw.REPEAT``).
+
+        """
+        if self.viz._control_down and key == glfw.KEY_RIGHT and action == glfw.PRESS:
+            # If the currently loaded slide is not in the filtered slide paths,
+            # then start at the beginning.
+            if self.viz.wsi is None or self.viz.wsi.path not in self.filtered_slide_paths:
+                idx_to_load = 0
+            # Otherwise, load the next slide in the filtered list.
+            else:
+                current_slide_idx = self.filtered_slide_paths.index(self.viz.wsi.path)
+                idx_to_load = (current_slide_idx + 1) % len(self.filtered_slide_paths)
+            self.viz.load_slide(self.filtered_slide_paths[idx_to_load])
+        if self.viz._control_down and key == glfw.KEY_LEFT and action == glfw.PRESS:
+            # If the currently loaded slide is not in the filtered slide paths,
+            # then start at the end.
+            if self.viz.wsi is None or self.viz.wsi.path not in self.filtered_slide_paths:
+                idx_to_load = len(self.filtered_slide_paths) - 1
+            # Otherwise, load the previous slide in the filtered list.
+            else:
+                current_slide_idx = self.filtered_slide_paths.index(self.viz.wsi.path)
+                idx_to_load = (current_slide_idx - 1) % len(self.filtered_slide_paths)
+            self.viz.load_slide(self.filtered_slide_paths[idx_to_load])
 
     def load(self, project, ignore_errors=False):
         viz = self.viz

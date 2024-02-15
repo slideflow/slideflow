@@ -752,6 +752,7 @@ class Studio(ImguiWindow):
             self.reset_tile_zoom()
 
         self.slide_widget.keyboard_callback(key, action)
+        self.project_widget.keyboard_callback(key, action)
         for widget in self.widgets:
             if hasattr(widget, 'keyboard_callback'):
                 widget.keyboard_callback(key, action)

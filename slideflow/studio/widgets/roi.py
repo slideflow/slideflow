@@ -237,6 +237,9 @@ class ROIWidget:
         if self.is_vertex_editing() and self.editing:
             self._vertex_editor.keyboard_callback(key, action)
 
+        if key == glfw.KEY_S and action == glfw.PRESS and self.viz._control_down:
+            self.save_rois()
+
         # Only process the following shortcuts if the ROI editor pane is showing.
         if self._showing:
             if key == glfw.KEY_A and action == glfw.PRESS and not self.viz._control_down:
@@ -244,9 +247,6 @@ class ROIWidget:
 
             if key == glfw.KEY_E and action == glfw.PRESS:
                 self.toggle_edit_roi()
-
-            if key == glfw.KEY_S and action == glfw.PRESS and self.viz._control_down:
-                self.save_rois()
 
             if key == glfw.KEY_L and action == glfw.PRESS and self.viz._control_down:
                 self.ask_load_rois()
