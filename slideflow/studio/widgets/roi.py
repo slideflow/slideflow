@@ -830,6 +830,11 @@ class ROIWidget:
             self.viz.create_toast('ROIs could not be merged.', icon='error')
             return
 
+        # First, store the holes of all ROIs.
+        holes = []
+        for idx in roi_indices:
+            holes.extend(self.viz.wsi.rois[idx].holes)
+
         # Get the coordinates of the merged ROI.
         new_roi_coords = np.stack(
             merged_poly.exterior.coords.xy,
@@ -852,6 +857,10 @@ class ROIWidget:
             label=new_label,
         )
         self._selected_rois = [roi_idx]
+
+        # Add the holes back to the merged ROI.
+        for hole in holes:
+            self.viz.wsi.rois[roi_idx].add_hole(hole)
 
         # Update the view.
         if isinstance(self.viz.viewer, SlideViewer):
