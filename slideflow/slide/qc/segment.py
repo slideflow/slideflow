@@ -113,8 +113,8 @@ class Segment:
         wsi: "sf.WSI",
         apply: bool = True,
         *,
-        sq_mm_threshold: Optional[float] = None,
-        simplify_tolerance: Optional[float] = None
+        sq_mm_threshold: Optional[float] = 0.01,
+        simplify_tolerance: Optional[float] = 5
     ) -> List[np.ndarray]:
         """Generate and apply ROIs to a slide using the loaded segmentation model.
 
