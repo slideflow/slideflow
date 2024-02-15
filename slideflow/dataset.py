@@ -2054,7 +2054,7 @@ class Dataset:
         *,
         overwrite: bool = False,
         dest: Optional[str] = None,
-        sq_mm_threshold: Optional[float] = None
+        **kwargs
     ):
         """Generate ROIs using a U-Net model.
 
@@ -2102,11 +2102,7 @@ class Dataset:
             wsi.rois = []
 
             # Generate and apply ROIs.
-            segment.generate_rois(
-                wsi,
-                apply=True,
-                sq_mm_threshold=sq_mm_threshold
-            )
+            segment.generate_rois(wsi, apply=True, **kwargs)
 
             # Export ROIs to CSV.
             wsi.export_rois(join(dest, wsi.name + '.csv'))
