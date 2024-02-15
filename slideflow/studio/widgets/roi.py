@@ -44,6 +44,10 @@ class ROIWidget:
         self._fill_rois                 = True
 
         # Internals
+        self._showed_toast_for_freehand = False
+        self._showed_toast_for_polygon  = False
+        self._showed_toast_for_subtract = False
+        self._showed_toast_for_edit     = False
         self._late_render               = []
         self._should_show_roi_ctx_menu  = False
         self._roi_ctx_menu_items        = []
@@ -80,7 +84,7 @@ class ROIWidget:
     def reset_edit_state(self) -> None:
         """Reset the state of the ROI editor."""
         self.disable_roi_capture()
-        self.toggle_subtracting(False)
+        self.disable_subtracting()
         self._should_show_advanced_editing_window = True
         if self.roi_toast is not None:
             self.roi_toast.done()
@@ -243,7 +247,10 @@ class ROIWidget:
         # Only process the following shortcuts if the ROI editor pane is showing.
         if self._showing:
             if key == glfw.KEY_A and action == glfw.PRESS and not self.viz._control_down:
-                self.toggle_add_roi()
+                self.toggle_add_roi('freehand')
+
+            if key == glfw.KEY_P and action == glfw.PRESS and not self.viz._control_down:
+                self.toggle_add_roi('polygon')
 
             if key == glfw.KEY_E and action == glfw.PRESS:
                 self.toggle_edit_roi()
@@ -942,54 +949,90 @@ class ROIWidget:
 
     def enable_roi_capture(self, kind: str = 'freehand') -> None:
         """Enable capture of ROIs with right-click and drag."""
+        self.disable_edit_roi()
         self.capturing = True
-        self.editing = False
         self.capture_type = kind
         if self.roi_toast is not None:
             self.roi_toast.done()
         if self.capture_type == 'freehand':
-            message = f'Capturing new ROIs (freehand). Right click and drag to create a new ROI.'
+            self.viz.set_status_message("Drawing ROI", "Freehand capture: right click and drag to create a new ROI.")
+            if not self._showed_toast_for_freehand:
+                message = f'Capturing new ROIs (freehand). Right click and drag to create a new ROI.'
+                self.roi_toast = self.viz.create_toast(message, icon='info', sticky=False)
+                self._showed_toast_for_freehand = True
         elif self.capture_type == 'polygon':
-            message = f'Capturing new ROIs (polygon). Right click to add a new vertex, press Enter to finish.'
-        self.roi_toast = self.viz.create_toast(message, icon='info', sticky=True)
+            self.viz.set_status_message("Adding Polygon", "Polygon mode: right click to add vertex, press Enter to finish the ROI.")
+            if not self._showed_toast_for_polygon:
+                message = f'Capturing new ROIs (polygon). Right click to add a new vertex, press Enter to finish.'
+                self.roi_toast = self.viz.create_toast(message, icon='info', sticky=False)
+                self._showed_toast_for_polygon = True
 
     def disable_roi_capture(self) -> None:
         """Disable capture of ROIs with right-click and drag."""
+        if self.capturing:
+            if self.roi_toast is not None:
+                self.roi_toast.done()
+            self.viz.clear_status_message()
+        self.disable_edit_roi()
+        self.capturing = False
+        self.annotator.reset()
+
+    def disable_edit_roi(self) -> None:
+        """Disable ROI editing mode."""
+        self.disable_subtracting()
+        self._should_show_advanced_editing_window = True
+        if self.editing:
+            self.viz.clear_status_message()
+            if self.roi_toast is not None:
+                self.roi_toast.done()
+            if isinstance(self.viz.viewer, SlideViewer):
+                self.deselect_all()
         self.capturing = False
         self.editing = False
-        self.annotator.reset()
+
+    def enable_edit_roi(self) -> None:
+        """Enable ROI editing mode."""
         if self.roi_toast is not None:
             self.roi_toast.done()
+        if not self._showed_toast_for_edit:
+            self.roi_toast = self.viz.create_toast(f'Left click to select, right click to label. Press control to edit vertices.', title='Editing ROIs', icon='info', sticky=False)
+            self._showed_toast_for_edit = True
+        self.viz.set_status_message("Editing ROIs", "Left click to select, right click to label. Hold control to edit vertices.")
+        self.capturing = False
+        self.editing = True
 
     def toggle_edit_roi(self) -> None:
         """Toggle ROI editing mode."""
-        viz = self.viz
-        self.editing = not self.editing
-        if not self.editing:
-            self.toggle_subtracting(False)
-        if self.roi_toast is not None:
-            self.roi_toast.done()
         if self.editing:
-            self.roi_toast = viz.create_toast(f'Editing ROIs. Right click to label or remove.', icon='info', sticky=False)
+            self.disable_edit_roi()
         else:
-            self._should_show_advanced_editing_window = True
-            self.deselect_all()
-        self.capturing = False
+            self.enable_edit_roi()
 
-    def toggle_subtracting(self, enable: Optional[bool] = None) -> None:
-        """Toggle ROI subtraction mode."""
-        if enable is not None:
-            self.subtracting = enable
-        else:
-            self.subtracting = not self.subtracting
-        if not self.subtracting:
-            self.annotator.reset()
+    def enable_subtracting(self) -> None:
+        """Enable ROI subtraction mode."""
         if self.capturing:
             self.disable_roi_capture()
-        if self.roi_toast is not None:
-            self.roi_toast.done()
+        if not self._showed_toast_for_subtract:
+            self.roi_toast = self.viz.create_toast(f'Right click and drag to subtract from the selected ROIs.', title='Subtracting', icon='info', sticky=False)
+            self._showed_toast_for_subtract = True
+        self.viz.set_status_message("Subtracting", "Right click and drag to subtract from selected ROIs.")
+        self.subtracting = True
+
+    def disable_subtracting(self) -> None:
+        """Disable ROI subtraction mode."""
+        self.annotator.reset()
         if self.subtracting:
-            self.roi_toast = self.viz.create_toast(f'Subtracting ROIs. Right click and drag to subtract.', icon='info', sticky=True)
+            if self.roi_toast is not None:
+                self.roi_toast.done()
+            self.viz.clear_status_message()
+        self.subtracting = False
+
+    def toggle_subtracting(self) -> None:
+        """Toggle ROI subtraction mode."""
+        if self.subtracting:
+            self.disable_subtracting()
+        else:
+            self.enable_subtracting()
 
     def update(self, show: bool) -> None:
         """Update the widget."""

@@ -7,7 +7,7 @@ import imgui
 import glfw
 import OpenGL.GL as gl
 from contextlib import contextmanager
-from typing import List, Any, Optional, Dict, Union
+from typing import List, Any, Optional, Dict, Union, Tuple
 from os.path import join, dirname, abspath
 from PIL import Image
 from tkinter import Tk
@@ -26,7 +26,7 @@ from .widgets import (
     ProjectWidget, SlideWidget, ModelWidget, HeatmapWidget, PerformanceWidget,
     CaptureWidget, SettingsWidget, ExtensionsWidget, Widget
 )
-from .utils import EasyDict, prediction_to_string
+from .utils import EasyDict, prediction_to_string, StatusMessage
 from ._renderer import Renderer
 from ._render_manager import AsyncRenderManager, Renderer, CapturedException
 
@@ -115,6 +115,7 @@ class Studio(ImguiWindow):
         self.low_memory         = low_memory
         self._suspend_mouse_input = False
         self._suspend_keyboard_input = False
+        self._status_message    = None
 
         # Interface.
         self._show_about                = False
@@ -634,6 +635,10 @@ class Studio(ImguiWindow):
             imgui.image(tex, self.font_size, self.font_size)
             imgui.same_line()
             imgui.text_colored("Low memory mode", 0.99, 0.75, 0.42, 1)
+
+        # Status messages
+        if self._status_message:
+            self._status_message.render()
 
         # Location / MPP
         if self.viewer and hasattr(self.viewer, 'mpp') and self.mouse_x is not None:
@@ -1856,6 +1861,32 @@ class Studio(ImguiWindow):
     def set_message(self, msg: str) -> None:
         """Set a message for display."""
         self._message = msg
+
+    def set_status_message(
+        self,
+        message: str,
+        description: Optional[str] = None,
+        *,
+        color: Optional[Tuple[float, float, float]] = (0.7, 0, 0, 1),
+        text_color: Tuple[float, float, float, float] = (1, 1, 1, 1),
+        rounding: int = 0
+    ) -> None:
+        """Set the status message to display in the status bar."""
+        if not message:
+            self.clear_status_message()
+            return
+        self._status_message = StatusMessage(
+            self,
+            message,
+            description=description,
+            color=color,
+            text_color=text_color,
+            rounding=rounding
+        )
+
+    def clear_status_message(self) -> None:
+        """Clear the status message from the status bar."""
+        self._status_message = None
 
     def set_prediction_message(self, msg: str) -> None:
         """Set the prediction message to display under the tile outline."""
