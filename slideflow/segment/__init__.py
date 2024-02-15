@@ -21,6 +21,7 @@ from rich.progress import track
 from scipy.ndimage import label
 
 from slideflow.util import path_to_name
+from slideflow.model import torch_utils
 
 from .model import SegmentModel
 from .data import (
@@ -378,7 +379,7 @@ def load_model_and_config(path: str):
     model = cfg.build_model()
 
     # Load the weights.
-    model.load_state_dict(torch.load(path))
+    model.load_state_dict(torch.load(path, map_location=torch_utils.get_device()))
     model.eval()
 
     return model, cfg
