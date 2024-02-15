@@ -563,7 +563,8 @@ class SlideViewer(Viewer):
                     holes = self.scaled_holes_in_view[roi_id]
                     if holes:
                         # Vertices of the hole boundaries
-                        hole_vertices = list(holes.values())
+                        hole_vertices = [h for h in holes.values()
+                                         if len(h) > 3]
                         # Vertices of representative points within each hole
                         hole_points = [
                             Polygon(hole).representative_point().coords[0] for hole in hole_vertices
