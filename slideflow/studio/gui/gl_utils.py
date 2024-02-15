@@ -185,7 +185,6 @@ def create_buffer(vertices):
 
 
 def create_triangles(vertices, hole_vertices=None, hole_points=None):
-    import numpy as np
     """
     Tessellate a complex polygon, possibly with holes.
 
@@ -218,7 +217,7 @@ def create_triangles(vertices, hole_vertices=None, hole_points=None):
         polygon['segments'] = segments
 
     # Tessellate the polygon
-    tess = tr.triangulate(polygon, 'p')
+    tess = tr.triangulate(polygon, 'pF')
 
     # Extract tessellated triangle vertices
     if 'triangles' not in tess:
