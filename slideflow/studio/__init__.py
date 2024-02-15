@@ -468,6 +468,9 @@ class Studio(ImguiWindow):
         if imgui.begin_main_menu_bar():
             # --- File --------------------------------------------------------
             if imgui.begin_menu('File', True):
+                if imgui.menu_item('New Project...', 'Ctrl+N')[1]:
+                    self.project_widget.new_project()
+                imgui.separator()
                 if imgui.menu_item('Open Project...', 'Ctrl+P')[1]:
                     self.ask_load_project()
                 if imgui.menu_item('Open Slide...', 'Ctrl+O')[1]:
@@ -731,6 +734,8 @@ class Studio(ImguiWindow):
         if self._suspend_keyboard_input:
             return
 
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_N:
+            self.project_widget.new_project()
         if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_T:
             self._show_tile_preview = not self._show_tile_preview
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_Q:

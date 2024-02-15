@@ -3,6 +3,7 @@ import os
 import imgui
 import glfw
 from os.path import basename
+from tkinter.filedialog import askopenfilename, askdirectory
 
 from .._renderer import CapturedException
 from ..gui import imgui_utils
@@ -25,10 +26,16 @@ class ProjectWidget:
         self.model_paths        = []
         self.content_height     = 0
         self.slide_search       = ''
-        self._show_welcome      = False
         self._show_slide_filter_popup = False
+        self._show_new_project  = False
         self._filter_by_has_roi = None  # None = no filter, False = no ROIs, True = has ROIs
-        self._clicking = False
+        self._clicking          = False
+        self._new_project_path  = None
+
+    def new_project(self) -> None:
+        """Open a dialog to create a new project."""
+        self._show_new_project = True
+        self._new_project_path = None
 
     def keyboard_callback(self, key: int, action: int) -> None:
         """Handle keyboard events.
@@ -149,6 +156,34 @@ class ProjectWidget:
         items = sorted(items, key=lambda item: (item.name.replace('_', ' '), item.path))
         return items
 
+    def draw_new_project_dialog(self) -> None:
+        viz = self.viz
+        imgui.open_popup('New Project')
+        if imgui.begin_popup_modal('New Project', None, imgui.WINDOW_ALWAYS_AUTO_RESIZE):
+            imgui.text('Create a new project')
+            imgui.separator()
+            if self._new_project_path is None:
+                self._new_project_path = self.project_path or ''
+            _changed, self._new_project_path = imgui.input_text('##new_project_path', self._new_project_path, 256)
+            if _changed:
+                self._new_project_path = self._new_project_path.strip()
+            imgui.same_line()
+            if imgui.button('Browse'):
+                self._new_project_path = askdirectory()
+            imgui.same_line()
+            if imgui.button('Create'):
+                if self._new_project_path:
+                    try:
+                        sf.create_project(self._new_project_path)
+                        self.load(self._new_project_path)
+                        self._show_new_project = False
+                    except Exception as e:
+                        viz.create_toast(f"Unable to create project at {self._new_project_path}", icon="error")
+            imgui.same_line()
+            if imgui.button('Cancel'):
+                self._show_new_project = False
+            imgui.end_popup()
+
     def draw_slide_search(self) -> None:
         """Draws the search bar for the list of slides."""
         viz = self.viz
@@ -232,7 +267,6 @@ class ProjectWidget:
             if imgui.is_item_hovered():
                 imgui.set_tooltip(path)
 
-
     def draw_info(self):
         viz = self.viz
         config = viz._model_config
@@ -274,6 +308,9 @@ class ProjectWidget:
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
+
+        if self._show_new_project:
+            self.draw_new_project_dialog()
 
         if show:
             if self.P is None:
