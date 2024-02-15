@@ -202,7 +202,7 @@ def create_triangles(vertices, hole_vertices=None, hole_points=None):
 
     # If there are holes and hole boundaries, add them to the polygon definition
     if hole_points is not None and hole_vertices is not None and len(hole_vertices):
-        polygon['holes'] = np.array(hole_points)
+        polygon['holes'] = np.array(hole_points).astype(np.float32)
 
         # Start adding hole segments after the exterior segments
         start_idx = len(vertices)
