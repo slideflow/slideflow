@@ -9,6 +9,7 @@ import shapely.validation as sv
 import shapely.geometry as sg
 import xml.etree.ElementTree as ET
 
+from shapely.ops import unary_union, polygonize
 from PIL import Image, ImageDraw
 from slideflow import errors, log
 from types import SimpleNamespace
@@ -69,6 +70,7 @@ class ROI:
         self.holes = holes if holes else []
         self._poly = None
         self.coordinates = np.array(coordinates)
+        self.validate()
 
     def __repr__(self):
         return f"<ROI (coords={len(self.coordinates)} label={self.label})>"
@@ -160,6 +162,16 @@ class ROI:
         raise ValueError(f"No hole found with name {name}")
 
     # --- Other functions -----------------------------------------------------
+
+    def validate(self) -> None:
+        """Validate the exterior coordinates form a valid polygon."""
+        if len(self.coordinates) < 4:
+            raise errors.InvalidROIError("ROI must contain at least 4 coordinates.")
+        poly = sg.Polygon(self.coordinates)
+        if not len(list(polygonize(unary_union(poly)))):
+            raise errors.InvalidROIError("ROI polygon is self-intersecting.")
+        if not poly.is_valid:
+            raise errors.InvalidROIError("ROI polygon is invalid.")
 
     def scaled_coords(self, scale: float) -> np.ndarray:
         return np.multiply(self.coordinates, 1/scale)

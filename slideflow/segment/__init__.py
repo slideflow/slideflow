@@ -75,7 +75,10 @@ def generate_rois(
 
     # Load ROIs.
     for outline in outlines:
-        wsi.load_roi_array(outline, process=False)
+        try:
+            wsi.load_roi_array(outline, process=False)
+        except sf.errors.InvalidROIError:
+            continue
     wsi.process_rois()
 
 # -----------------------------------------------------------------------------

@@ -2205,7 +2205,8 @@ class WSI:
         *,
         process: bool = True,
         label: Optional[str] = None,
-        name: Optional[str] = None
+        name: Optional[str] = None,
+        allow_errors: bool = False
     ) -> int:
         """Load an ROI from a numpy array.
 
@@ -2218,7 +2219,14 @@ class WSI:
 
         """
         name = name or self.get_next_roi_name()
-        roi = ROI(name, array, label=label)
+        try:
+            roi = ROI(name, array, label=label)
+        except errors.InvalidROIError as e:
+            if allow_errors:
+                log.warn("Unable to load ROI: {}".format(e))
+                return
+            else:
+                raise
         self.rois.append(roi)
         if self.roi_method == 'auto':
             self.roi_method = 'inside'
@@ -2237,7 +2245,8 @@ class WSI:
         path: str,
         *,
         process: bool = True,
-        scale: int = 1
+        scale: int = 1,
+        skip_invalid: bool = True
     ) -> int:
         """Load ROIs from a CSV file.
 
@@ -2287,12 +2296,20 @@ class WSI:
                 roi_dict[roi_name]['coords'].append((x_coord, y_coord))
 
             for roi_name in roi_dict:
-                roi = ROI(
-                    roi_name,
-                    np.array(roi_dict[roi_name]['coords']),
-                    label=roi_dict[roi_name]['label']
-                )
-                self.rois.append(roi)
+                try:
+                    roi = ROI(
+                        roi_name,
+                        np.array(roi_dict[roi_name]['coords']),
+                        label=roi_dict[roi_name]['label']
+                    )
+                except errors.InvalidROIError as e:
+                    if skip_invalid:
+                        log.warn("Skipping invalid ROI ({}): {}".format(roi_name, e))
+                        continue
+                    else:
+                        raise
+                else:
+                    self.rois.append(roi)
         if process:
             self.process_rois()
         log.debug(f"Loaded ROIs from {path}")
@@ -2303,7 +2320,8 @@ class WSI:
         path: str,
         *,
         scale: int = 1,
-        process: bool = True
+        process: bool = True,
+        skip_invalid: bool = True
     ) -> int:
         """Load ROIs from a JSON file.
 
@@ -2323,7 +2341,13 @@ class WSI:
             json_data = json.load(json_file)['shapes']
         for shape in json_data:
             area_reduced = np.multiply(shape['points'], scale).astype(np.int64)
-            self.rois.append(ROI(f"Object{len(self.rois)}", area_reduced))
+            roi_name = self.get_next_roi_name()
+            try:
+                self.rois.append(ROI(roi_name, area_reduced))
+            except errors.InvalidROIError as e:
+                if skip_invalid:
+                    log.warn("Skipping invalid ROI ({}): {}".format(roi_name, e))
+                    
         if process:
             self.process_rois()
         if self.roi_method == 'auto':

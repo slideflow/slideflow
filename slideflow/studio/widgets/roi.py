@@ -101,10 +101,18 @@ class ROIWidget:
             possible_rois = []
             for roi_id, roi_array in self.viz.viewer.scaled_rois_in_view.items():
                 try:
-                    roi_poly = Polygon(roi_array)
+                    roi_poly = sf.slide.ROI(None, roi_array).poly
+                except sf.errors.InvalidROIError:
+                    continue
+                try:
                     # Apply holes
                     for hole_array in self.viz.viewer.scaled_holes_in_view[roi_id].values():
-                        roi_poly = roi_poly.difference(Polygon(hole_array))
+                        try:
+                            hole_roi = sf.slide.ROI(None, hole_array)
+                        except sf.errors.InvalidROIError:
+                            continue
+                        else:
+                            roi_poly = roi_poly.difference(hole_roi.poly)
                 except ValueError:
                     continue
                 if roi_poly.contains(mouse_point):
@@ -149,10 +157,11 @@ class ROIWidget:
         if annotation_name:
             if len(new_annotation) > 2:
                 # Verify that the annotation is a valid polygon
-                if not Polygon(new_annotation).is_valid:
+                try:
+                    roi_idx = viz.wsi.load_roi_array(new_annotation)
+                except sf.errors.InvalidROIError:
                     viz.create_toast('Invalid shape, unable to add ROI.', icon='error')
                     return
-                roi_idx = viz.wsi.load_roi_array(new_annotation)
                 # Simplify the ROI.
                 if self.capture_type == 'freehand':
                     self.simplify_roi([roi_idx], tolerance=5)
@@ -852,10 +861,14 @@ class ROIWidget:
         self.remove_rois(roi_indices, refresh_view=False)
 
         # Load the merged ROI into the slide.
-        roi_idx = self.viz.wsi.load_roi_array(
-            new_roi_coords,
-            label=new_label,
-        )
+        try:
+            roi_idx = self.viz.wsi.load_roi_array(
+                new_roi_coords,
+                label=new_label,
+            )
+        except sf.errors.InvalidROIError:
+            self.viz.create_toast('ROIs could not be merged.', icon='error')
+            return
         self._selected_rois = [roi_idx]
 
         # Add the holes back to the merged ROI.

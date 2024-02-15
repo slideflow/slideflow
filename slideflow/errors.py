@@ -151,6 +151,10 @@ class MissingROIError(ROIError):
     pass
 
 
+class InvalidROIError(ROIError):
+    pass
+
+
 class QCError(SlideError):
     pass
 

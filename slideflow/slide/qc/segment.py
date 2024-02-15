@@ -216,7 +216,10 @@ class Segment:
                     outline = np.array(poly.exterior.coords)
 
                 # Load the ROI.
-                wsi.load_roi_array(outline, process=False, label=(None if labels is None else labels[o]))
+                try:
+                    wsi.load_roi_array(outline, process=False, label=(None if labels is None else labels[o]))
+                except sf.errors.InvalidROIError:
+                    continue
             wsi.process_rois()
 
         return outlines

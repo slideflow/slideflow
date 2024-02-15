@@ -10,6 +10,7 @@ from rasterio.features import rasterize
 from contextlib import contextmanager
 from typing import Tuple, Optional, TYPE_CHECKING, Union, List
 from collections import defaultdict
+from shapely.ops import unary_union, polygonize
 
 from ._viewer import Viewer
 from .. import gl_utils, text_utils
@@ -505,19 +506,29 @@ class SlideViewer(Viewer):
         if not len(self.scaled_rois_in_view):
             return None
 
-        def get_polygon(roi_id):
-            poly = Polygon(self.scaled_rois_in_view[roi_id])
+        def get_polygon(roi_id: int) -> Optional[Polygon]:
+            roi_coords = self.scaled_rois_in_view[roi_id]
+            try:
+                poly = sf.slide.ROI(None, roi_coords).poly
+            except sf.errors.InvalidROIError:
+                return None
             for hole_coord in self.scaled_holes_in_view[roi_id].values():
-                poly = poly.difference(Polygon(hole_coord))
+                try:
+                    hole_poly = sf.slide.ROI(None, hole_coord).poly
+                except sf.errors.InvalidROIError:
+                    continue
+                poly = poly.difference(hole_poly)
             return poly
+        
+        polygons = {_id: get_polygon(_id) for _id in self.scaled_rois_in_view}
 
         return np.stack([
             rasterize(
-                [sa.translate(get_polygon(roi_id), -self.x_offset, -self.y_offset)],
+                [sa.translate(polygons[roi_id], -self.x_offset, -self.y_offset)],
                 out_shape=(self.height, self.width),
                 all_touched=False).astype(bool).astype(int).T * (roi_id + 1)
             for roi_id in self.scaled_rois_in_view
-            if len(self.scaled_rois_in_view[roi_id]) > 2
+            if polygons[roi_id] is not None
         ], axis=-1)
 
     def get_roi_colors(
@@ -563,19 +574,37 @@ class SlideViewer(Viewer):
                     holes = self.scaled_holes_in_view[roi_id]
                     if holes:
                         # Vertices of the hole boundaries
-                        hole_vertices = [h for h in holes.values()
-                                         if len(h) > 3]
+                        hole_vertices = []
+                        for h in holes.values():
+                            try:
+                                sf.slide.ROI(None, h)
+                            except sf.errors.InvalidROIError:
+                                continue
+                            else:
+                                hole_vertices.append(h)
+
                         # Vertices of representative points within each hole
                         hole_points = [
                             Polygon(hole).representative_point().coords[0] for hole in hole_vertices
                         ]
+                        if not len(hole_vertices):
+                            hole_vertices = None
+                            hole_points = None
                     else:
                         hole_vertices = None
                         hole_points = None
 
-                    # Convert the polygon to triangles
-                    if roi_coord.shape[0] > 2:
+                    # Verify the coordinates are a valid polygon.
+                    try:
+                        sf.slide.ROI(None, roi_coord)
+                    except sf.errors.InvalidROIError as e:
+                        sf.log.warn("Not rendering invalid ROI ({}): {}".format(roi_id, e))
+                        triangle_vertices = None
+                    else:
                         try:
+                            print("Working on roi {}".format(roi_id))
+                            if roi_id == 13:
+                                np.savez(f'roi_coord_{roi_id}', coord=roi_coord, hole_vertices=hole_vertices, hole_points=hole_points)
                             triangle_vertices = gl_utils.create_triangles(
                                 roi_coord,
                                 hole_vertices=hole_vertices,
@@ -584,8 +613,6 @@ class SlideViewer(Viewer):
                         except Exception as e:
                             sf.log.error("Triangulation failed for ROI {}: {}".format(roi_id, e))
                             triangle_vertices = None
-                    else:
-                        triangle_vertices = None
                     if triangle_vertices is not None:
                         triangle_vbo = gl_utils.create_buffer(triangle_vertices)
                     else:
@@ -623,7 +650,7 @@ class SlideViewer(Viewer):
         out_of_view_max = np.any(np.amax(roi, axis=0) < 0)
         out_of_view_min = np.any(np.amin(roi, axis=0) > np.array([self.width+self.x_offset, self.height+self.y_offset]))
         if not (out_of_view_min or out_of_view_max):
-            return roi, roi_indices
+            return roi.astype(int), roi_indices
         else:
             return None, None
 
