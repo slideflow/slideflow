@@ -43,22 +43,27 @@ class ProjectWidget:
             # If the currently loaded slide is not in the filtered slide paths,
             # then start at the beginning.
             if self.viz.wsi is None or self.viz.wsi.path not in self.filtered_slide_paths:
-                idx_to_load = 0
+                idx_to_load = 0 if len(self.filtered_slide_paths) else None
             # Otherwise, load the next slide in the filtered list.
             else:
                 current_slide_idx = self.filtered_slide_paths.index(self.viz.wsi.path)
                 idx_to_load = (current_slide_idx + 1) % len(self.filtered_slide_paths)
-            self.viz.load_slide(self.filtered_slide_paths[idx_to_load])
+            if idx_to_load is not None:
+                self.viz.load_slide(self.filtered_slide_paths[idx_to_load])
         if self.viz._control_down and key == glfw.KEY_LEFT and action == glfw.PRESS:
             # If the currently loaded slide is not in the filtered slide paths,
             # then start at the end.
             if self.viz.wsi is None or self.viz.wsi.path not in self.filtered_slide_paths:
-                idx_to_load = len(self.filtered_slide_paths) - 1
+                if len(self.filtered_slide_paths):
+                    idx_to_load = len(self.filtered_slide_paths) - 1
+                else:
+                    idx_to_load = None
             # Otherwise, load the previous slide in the filtered list.
             else:
                 current_slide_idx = self.filtered_slide_paths.index(self.viz.wsi.path)
                 idx_to_load = (current_slide_idx - 1) % len(self.filtered_slide_paths)
-            self.viz.load_slide(self.filtered_slide_paths[idx_to_load])
+            if idx_to_load is not None:
+                self.viz.load_slide(self.filtered_slide_paths[idx_to_load])
 
     def load(self, project, ignore_errors=False):
         viz = self.viz
