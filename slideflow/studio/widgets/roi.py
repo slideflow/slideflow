@@ -1780,6 +1780,7 @@ class VertexEditor:
                 # Hole cannot be less than 3 vertices.
                 # First and last vertices are the same, so we need at least 4.
                 del roi.holes[hole_id]
+                roi.holes[hole_id].update_polygon()
             else:
                 roi.holes[hole_id].coordinates = coords
                 roi.holes[hole_id].update_polygon()
