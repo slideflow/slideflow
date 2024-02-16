@@ -132,6 +132,7 @@ class ROI:
     def update_polygon(self) -> None:
         """Update the shapely polygon object."""
         self._poly = self.make_polygon()
+        self._triangles = None
 
     def scaled_poly(self, scale: float) -> sg.Polygon:
         """Create a scaled polygon."""

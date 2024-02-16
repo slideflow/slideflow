@@ -815,6 +815,7 @@ class ROIWidget:
                 if isinstance(poly_s, Polygon):
                     coords_s = np.stack(poly_s.exterior.coords.xy, axis=-1)
                     self.viz.wsi.rois[idx].coordinates = coords_s
+                    self.viz.wsi.rois[idx].update_polygon()
                     self.refresh_rois()
 
     def merge_roi(self, roi_indices: List[int]) -> None:
@@ -1753,8 +1754,10 @@ class VertexEditor:
 
         if len(svi['outer']):
             roi.coordinates[svi['outer']] += delta
+            roi.update_polygon()
         for hole_id, svi_hole in svi['holes'].items():
             roi.holes[hole_id].coordinates[svi_hole] += delta
+            roi.holes[hole_id].update_polygon()
 
     def remove_selected_vertices(self) -> None:
         """Remove the selected vertices from the ROI."""
@@ -1770,6 +1773,7 @@ class VertexEditor:
                 self.viz.slide_widget.roi_widget.disable_vertex_editing()
             else:
                 roi.coordinates = coords
+                roi.update_polygon()
         for hole_id, svi_hole in svi['holes'].items():
             coords = np.delete(roi.holes[hole_id].coordinates, svi_hole, axis=0)
             if coords.shape[0] < 4:
@@ -1778,6 +1782,7 @@ class VertexEditor:
                 del roi.holes[hole_id]
             else:
                 roi.holes[hole_id].coordinates = coords
+                roi.holes[hole_id].update_polygon()
 
         # Refresh the view and update the selected vertices.
         self.viz.viewer.refresh_view()
