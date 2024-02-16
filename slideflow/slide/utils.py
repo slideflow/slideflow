@@ -151,8 +151,18 @@ class ROI:
 
     def create_triangles(self) -> np.ndarray:
         """Create a triangulated mesh from the polygon."""
+
+        def as_open_array(array):
+            if (array[0] == array[-1]).all():
+                return array[:-1]
+            else:
+                return array
+
         # Vertices of the hole boundaries
-        hole_vertices = [h.coordinates for h in self.holes]
+        hole_vertices = [
+            as_open_array(h.coordinates)
+            for h in self.holes
+        ]
 
         # Vertices of representative points within each hole
         hole_points = [
@@ -163,9 +173,9 @@ class ROI:
             hole_vertices = None
             hole_points = None
 
-        # Build triangles.
+        # Build triangles.        
         triangle_vertices = sf.util.create_triangles(
-            self.coordinates,
+            as_open_array(self.coordinates),
             hole_vertices=hole_vertices,
             hole_points=hole_points
         )
