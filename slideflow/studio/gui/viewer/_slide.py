@@ -467,6 +467,7 @@ class SlideViewer(Viewer):
     def refresh_rois(self) -> None:
         """Refresh the ROIs for the given location and zoom."""
         self.scaled_rois_in_view = dict()
+        self.scaled_roi_triangles_in_view = dict()
         self.scaled_holes_in_view = defaultdict(dict)
 
         self._roi_vbos          = {}
@@ -479,53 +480,26 @@ class SlideViewer(Viewer):
             c, ind = self._scale_roi_to_view(roi.coordinates)
             if c is not None:
                 c = c.astype(np.float32)
-
-                try:
-                    sf.slide.ROI(None, c)
-                except sf.errors.InvalidROIError as e:
-                    self.scaled_rois_in_view.pop(roi_idx, None)
-                    self._roi_vbos.pop(roi_idx, None)
-                    self._scaled_roi_ind.pop(roi_idx, None)
-                    continue
-
                 self.scaled_rois_in_view[roi_idx] = c
                 self._roi_vbos[roi_idx] = gl_utils.create_buffer(c)
                 self._scaled_roi_ind[roi_idx] = ind
                 self._roi_triangle_vbos.pop(roi_idx, None)
-            #else:
-            #    self.scaled_rois_in_view.pop(roi_idx, None)
-            #    self._roi_vbos.pop(roi_idx, None)
-            #    self._scaled_roi_ind.pop(roi_idx, None)
 
             # Handle holes
             for hole_idx, hole in enumerate(roi.holes):
                 c, ind = self._scale_roi_to_view(hole.coordinates)
                 if c is not None:
                     c = c.astype(np.float32)
-
-                    try:
-                        sf.slide.ROI(None, c)
-                    except sf.errors.InvalidROIError as e:
-                        continue
-
-                    # Verify that a representative point within the hole
-                    # is within the hole's boundary.  If not, the hole
-                    # is too small to be rendered and is discarded.
-                    hole_poly = Polygon(c)
-                    hole_point = np.array(hole_poly.representative_point().coords[0]).astype(int)
-                    if not hole_poly.contains(Point(hole_point)):
-                        self.scaled_holes_in_view[roi_idx].pop(hole_idx, None)
-                        self._roi_holes_vbos[roi_idx].pop(hole_idx, None)
-                        self._scaled_roi_holes_ind[roi_idx].pop(hole_idx, None)
-                        continue
-
                     self.scaled_holes_in_view[roi_idx][hole_idx] = c
                     self._roi_holes_vbos[roi_idx][hole_idx] = gl_utils.create_buffer(c)
                     self._scaled_roi_holes_ind[roi_idx][hole_idx] = ind
-                #else:
-                #    self.scaled_holes_in_view[roi_idx].pop(hole_idx, None)
-                #    self._roi_holes_vbos[roi_idx].pop(hole_idx, None)
-                #    self._scaled_roi_holes_ind[roi_idx].pop(hole_idx, None)
+
+            # Update triangles
+            c, ind = self._scale_roi_to_view(roi.triangles, remove_unique=False)
+            if c is not None:
+                c = c.astype(np.float32)
+                self.scaled_roi_triangles_in_view[roi_idx] = c
+                    
 
     def rasterize_rois_in_view(self) -> Optional[np.ndarray]:
         """Rasterize the ROIs in the current view."""
@@ -593,76 +567,19 @@ class SlideViewer(Viewer):
         for roi_id, roi_coord in self.scaled_rois_in_view.items():
             outline, fill = self.get_roi_colors(roi_id)
             vbo = self._roi_vbos[roi_id]
-            if fill:
+            if fill and roi_id in self.scaled_roi_triangles_in_view:
                 import OpenGL.GL as gl
                 if roi_id not in self._roi_triangle_vbos:
-                    # Verify the coordinates are a valid polygon.
-                    try:
-                        sf.slide.ROI(None, roi_coord)
-                    except sf.errors.InvalidROIError as e:
-                        sf.log.warn("Not rendering invalid ROI ({}): {}".format(roi_id, e))
-                        triangle_vertices = None
-                    else:
-                        # Set up holes.
-                        holes = self.scaled_holes_in_view[roi_id]
-                        if holes:
-                            # Vertices of the hole boundaries
-                            hole_vertices = []
-                            for h in holes.values():
-                                try:
-                                    sf.slide.ROI(None, h)
-                                except sf.errors.InvalidROIError:
-                                    continue
-                                else:
-                                    hole_vertices.append(h)
-
-                            # Vertices of representative points within each hole
-                            hole_points = [
-                                Polygon(hole).representative_point().coords[0] for hole in hole_vertices
-                            ]
-
-                            if not len(hole_vertices):
-                                hole_vertices = None
-                                hole_points = None
-                        else:
-                            hole_vertices = None
-                            hole_points = None
-
-                        # Build triangles.
-                        try:
-                            print("Attempting to create triangles for ROI", roi_id)
-                            np.savez(
-                                'coords.npz', 
-                                roi_coord=roi_coord, 
-                                hole_vertices=hole_vertices, 
-                                hole_points=hole_points,
-                                roi_id=roi_id
-                            )
-                            triangle_vertices = gl_utils.create_triangles(
-                                roi_coord,
-                                hole_vertices=hole_vertices,
-                                hole_points=hole_points
-                            )
-                            print("...done")
-                        except Exception as e:
-                            sf.log.error("Triangulation failed for ROI {}: {}".format(roi_id, e))
-                            triangle_vertices = None
-
-                    # Create buffer.
-                    if triangle_vertices is not None:
-                        triangle_vbo = gl_utils.create_buffer(triangle_vertices)
-                    else:
-                        triangle_vbo = None
-                    self._roi_triangle_vbos[roi_id] = {
-                        'vertices': triangle_vertices,
-                        'vbo': triangle_vbo
-                    }
-                if self._roi_triangle_vbos[roi_id]['vbo'] is not None:
+                    # Create triangles buffer.
+                    triangle_vertices = self.scaled_roi_triangles_in_view[roi_id]
+                    triangle_vbo = gl_utils.create_buffer(triangle_vertices)
+                    self._roi_triangle_vbos[roi_id] = triangle_vbo
+                if self._roi_triangle_vbos[roi_id] is not None:
                     gl_utils.draw_vbo_triangles(
-                        self._roi_triangle_vbos[roi_id]['vertices'],
+                        self.scaled_roi_triangles_in_view[roi_id],
                         color=fill,
                         alpha=0.2,
-                        vbo=self._roi_triangle_vbos[roi_id]['vbo'],
+                        vbo=self._roi_triangle_vbos[roi_id],
                         mode=gl.GL_TRIANGLES
                     )
             # Render holes
@@ -671,7 +588,11 @@ class SlideViewer(Viewer):
                 hole_vbo = self._roi_holes_vbos[roi_id][hole_idx]
                 gl_utils.draw_vbo_roi(hole_coord, color=outline, alpha=1, linewidth=2, vbo=hole_vbo)
 
-    def _scale_roi_to_view(self, roi: np.ndarray) -> Optional[np.ndarray]:
+    def _scale_roi_to_view(
+        self, 
+        roi: np.ndarray, 
+        remove_unique: bool = True
+    ) -> Optional[np.ndarray]:
         roi = np.copy(roi)
         roi[:, 0] = roi[:, 0] - int(self.origin[0])
         roi[:, 0] = roi[:, 0] / self.view_zoom
@@ -679,10 +600,13 @@ class SlideViewer(Viewer):
         roi[:, 1] = roi[:, 1] - int(self.origin[1])
         roi[:, 1] = roi[:, 1] / self.view_zoom
         roi[:, 1] = roi[:, 1] + self.view_offset[1] + self.y_offset
-        u_roi, ind = np.unique(roi, axis=0, return_index=True)
-        argsort_ind = np.argsort(ind)
-        roi = u_roi[argsort_ind]
-        roi_indices = ind[argsort_ind]
+        if remove_unique:
+            u_roi, ind = np.unique(roi, axis=0, return_index=True)
+            argsort_ind = np.argsort(ind)
+            roi = u_roi[argsort_ind]
+            roi_indices = ind[argsort_ind]
+        else:
+            roi_indices = None
         out_of_view_max = np.any(np.amax(roi, axis=0) < 0)
         out_of_view_min = np.any(np.amin(roi, axis=0) > np.array([self.width+self.x_offset, self.height+self.y_offset]))
         if not (out_of_view_min or out_of_view_max):

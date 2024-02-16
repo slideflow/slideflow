@@ -69,6 +69,7 @@ class ROI:
         self._label = label if label else None
         self.holes = holes if holes else []
         self._poly = None
+        self._triangles = None
         self.coordinates = np.array(coordinates)
         self.validate()
 
@@ -105,6 +106,13 @@ class ROI:
         if self._poly is None:
             self.update_polygon()
         return self._poly
+    
+    @property
+    def triangles(self) -> np.ndarray:
+        """Return the triangulated mesh."""
+        if self._triangles is None:
+            self._triangles = self.create_triangles()
+        return self._triangles
 
     def make_polygon(self) -> sg.Polygon:
         """Create a shapely polygon from the coordinates.
@@ -139,6 +147,29 @@ class ROI:
         for hole in self.holes:
             hole.simplify(tolerance)
         self.update_polygon()
+
+    def create_triangles(self) -> np.ndarray:
+        """Create a triangulated mesh from the polygon."""
+        # Vertices of the hole boundaries
+        hole_vertices = [h.coordinates for h in self.holes]
+
+        # Vertices of representative points within each hole
+        hole_points = [
+            hole.poly.representative_point().coords[0] for hole in self.holes
+        ]
+
+        if not len(hole_vertices):
+            hole_vertices = None
+            hole_points = None
+
+        # Build triangles.
+        triangle_vertices = sf.util.create_triangles(
+            self.coordinates,
+            hole_vertices=hole_vertices,
+            hole_points=hole_points
+        )
+
+        return triangle_vertices
 
     # --- Holes ---------------------------------------------------------------
 

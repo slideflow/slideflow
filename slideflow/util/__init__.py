@@ -1548,6 +1548,7 @@ def load_predictions(path: str, **kwargs) -> pd.DataFrame:
     else:
         raise ValueError(f'Unrecognized extension "{path_to_ext(path)}"')
 
+
 @contextmanager
 def cleanup_progress(pb: Optional["Progress"]):
     try:
@@ -1556,3 +1557,50 @@ def cleanup_progress(pb: Optional["Progress"]):
         if pb is not None:
             pb.refresh()
             pb.stop()
+
+
+def create_triangles(vertices, hole_vertices=None, hole_points=None):
+    """
+    Tessellate a complex polygon, possibly with holes.
+
+    :param vertices: A list of vertices [(x1, y1), (x2, y2), ...] defining the polygon boundary.
+    :param holes: An optional list of points [(hx1, hy1), (hx2, hy2), ...] inside each hole in the polygon.
+    :return: A numpy array of vertices for the tessellated triangles.
+    """
+    import triangle as tr
+
+    # Prepare the segment information for the exterior boundary
+    segments = np.array([[i, (i + 1) % len(vertices)] for i in range(len(vertices))])
+
+    # Prepare the polygon for Triangle
+    polygon = {'vertices': np.array(vertices), 'segments': segments}
+
+    # If there are holes and hole boundaries, add them to the polygon definition
+    if hole_points is not None and hole_vertices is not None and len(hole_vertices):
+        polygon['holes'] = np.array(hole_points).astype(np.float32)
+
+        # Start adding hole segments after the exterior segments
+        start_idx = len(vertices)
+        for hole in hole_vertices:
+            hole_segments = [[start_idx + i, start_idx + (i + 1) % len(hole)] for i in range(len(hole))]
+            segments = np.vstack([segments, hole_segments])
+            start_idx += len(hole)
+
+        # Update the vertices and segments in the polygon
+        all_vertices = np.vstack([vertices] + hole_vertices)
+        polygon['vertices'] = all_vertices
+        polygon['segments'] = segments
+
+    # Tessellate the polygon
+    tess = tr.triangulate(polygon, 'pF')
+
+    # Extract tessellated triangle vertices
+    if 'triangles' not in tess:
+        return None
+
+    tessellated_vertices = np.array([tess['vertices'][t] for t in tess['triangles']]).reshape(-1, 2)
+
+    # Convert to float32
+    tessellated_vertices = tessellated_vertices.astype('float32')
+
+    return tessellated_vertices
