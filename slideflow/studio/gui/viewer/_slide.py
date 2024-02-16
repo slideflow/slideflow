@@ -5,7 +5,7 @@ import imgui
 import numpy as np
 
 import shapely.affinity as sa
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, Point
 from rasterio.features import rasterize
 from contextlib import contextmanager
 from typing import Tuple, Optional, TYPE_CHECKING, Union, List
@@ -479,6 +479,15 @@ class SlideViewer(Viewer):
             c, ind = self._scale_roi_to_view(roi.coordinates)
             if c is not None:
                 c = c.astype(np.float32)
+
+                try:
+                    sf.slide.ROI(None, c)
+                except sf.errors.InvalidROIError as e:
+                    self.scaled_rois_in_view.pop(roi_idx, None)
+                    self._roi_vbos.pop(roi_idx, None)
+                    self._scaled_roi_ind.pop(roi_idx, None)
+                    continue
+
                 self.scaled_rois_in_view[roi_idx] = c
                 self._roi_vbos[roi_idx] = gl_utils.create_buffer(c)
                 self._scaled_roi_ind[roi_idx] = ind
@@ -493,6 +502,23 @@ class SlideViewer(Viewer):
                 c, ind = self._scale_roi_to_view(hole.coordinates)
                 if c is not None:
                     c = c.astype(np.float32)
+
+                    try:
+                        sf.slide.ROI(None, c)
+                    except sf.errors.InvalidROIError as e:
+                        continue
+
+                    # Verify that a representative point within the hole
+                    # is within the hole's boundary.  If not, the hole
+                    # is too small to be rendered and is discarded.
+                    hole_poly = Polygon(c)
+                    hole_point = np.array(hole_poly.representative_point().coords[0]).astype(int)
+                    if not hole_poly.contains(Point(hole_point)):
+                        self.scaled_holes_in_view[roi_idx].pop(hole_idx, None)
+                        self._roi_holes_vbos[roi_idx].pop(hole_idx, None)
+                        self._scaled_roi_holes_ind[roi_idx].pop(hole_idx, None)
+                        continue
+
                     self.scaled_holes_in_view[roi_idx][hole_idx] = c
                     self._roi_holes_vbos[roi_idx][hole_idx] = gl_utils.create_buffer(c)
                     self._scaled_roi_holes_ind[roi_idx][hole_idx] = ind
@@ -570,30 +596,6 @@ class SlideViewer(Viewer):
             if fill:
                 import OpenGL.GL as gl
                 if roi_id not in self._roi_triangle_vbos:
-                    # Set up holes.
-                    holes = self.scaled_holes_in_view[roi_id]
-                    if holes:
-                        # Vertices of the hole boundaries
-                        hole_vertices = []
-                        for h in holes.values():
-                            try:
-                                sf.slide.ROI(None, h)
-                            except sf.errors.InvalidROIError:
-                                continue
-                            else:
-                                hole_vertices.append(h)
-
-                        # Vertices of representative points within each hole
-                        hole_points = [
-                            Polygon(hole).representative_point().coords[0] for hole in hole_vertices
-                        ]
-                        if not len(hole_vertices):
-                            hole_vertices = None
-                            hole_points = None
-                    else:
-                        hole_vertices = None
-                        hole_points = None
-
                     # Verify the coordinates are a valid polygon.
                     try:
                         sf.slide.ROI(None, roi_coord)
@@ -601,15 +603,52 @@ class SlideViewer(Viewer):
                         sf.log.warn("Not rendering invalid ROI ({}): {}".format(roi_id, e))
                         triangle_vertices = None
                     else:
+                        # Set up holes.
+                        holes = self.scaled_holes_in_view[roi_id]
+                        if holes:
+                            # Vertices of the hole boundaries
+                            hole_vertices = []
+                            for h in holes.values():
+                                try:
+                                    sf.slide.ROI(None, h)
+                                except sf.errors.InvalidROIError:
+                                    continue
+                                else:
+                                    hole_vertices.append(h)
+
+                            # Vertices of representative points within each hole
+                            hole_points = [
+                                Polygon(hole).representative_point().coords[0] for hole in hole_vertices
+                            ]
+
+                            if not len(hole_vertices):
+                                hole_vertices = None
+                                hole_points = None
+                        else:
+                            hole_vertices = None
+                            hole_points = None
+
+                        # Build triangles.
                         try:
+                            print("Attempting to create triangles for ROI", roi_id)
+                            np.savez(
+                                'coords.npz', 
+                                roi_coord=roi_coord, 
+                                hole_vertices=hole_vertices, 
+                                hole_points=hole_points,
+                                roi_id=roi_id
+                            )
                             triangle_vertices = gl_utils.create_triangles(
                                 roi_coord,
                                 hole_vertices=hole_vertices,
                                 hole_points=hole_points
                             )
+                            print("...done")
                         except Exception as e:
                             sf.log.error("Triangulation failed for ROI {}: {}".format(roi_id, e))
                             triangle_vertices = None
+
+                    # Create buffer.
                     if triangle_vertices is not None:
                         triangle_vbo = gl_utils.create_buffer(triangle_vertices)
                     else:
