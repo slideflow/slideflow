@@ -1306,14 +1306,14 @@ class Studio(ImguiWindow):
 
     def ask_load_slide(self):
         """Prompt user for location of a slide and load."""
-        slide_path = askopenfilename(title="Load slide...", filetypes=[("Aperio ScanScope", ("*.svs", "*.svslide")),
+        slide_path = askopenfilename(title="Load slide...", filetypes=[("All files", ".*"),
+                                                                       ("Aperio ScanScope", ("*.svs", "*.svslide")),
                                                                        ("Hamamatsu", ("*.ndpi", "*.vms", "*.vmu")),
                                                                        ("Leica", "*.scn"),
                                                                        ("MIRAX", "*.mrxs"),
                                                                        ("Roche, Ventana", "*.bif"),
                                                                        ("Pyramid TIFF", ("*.tiff", "*.tif")),
-                                                                       ("JPEG", (".jpg", "*.jpeg")),
-                                                                       ("All files", ".*")])
+                                                                       ("JPEG", (".jpg", "*.jpeg"))])
         if slide_path:
             self.load_slide(slide_path, ignore_errors=True)
 
