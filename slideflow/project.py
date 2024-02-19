@@ -4127,6 +4127,7 @@ def create(
         cfg = sf.util.EasyDict(kwargs)
     elif issubclass(type(cfg), project_utils._ProjectConfig):
         cfg = sf.util.EasyDict(cfg.to_dict())
+
     if 'name' not in cfg:
         cfg.name = "MyProject"
     if 'slides' not in cfg:
@@ -4159,24 +4160,34 @@ def create(
             raise errors.ChecksumError(
                 "Remote annotations URL failed MD5 checksum."
             )
-    elif 'annotations' in cfg:
+    elif 'annotations' in cfg and not cfg.annotations.startswith('.'):
         try:
             shutil.copy(cfg.annotations, root)
         except shutil.SameFileError:
             pass
 
     # Set up the dataset source.
-    if 'sources' not in proj_kwargs or proj_kwargs['sources'] is not None:
+
+    source_already_exists = False
+    if 'sources' in proj_kwargs and exists(P.dataset_config):
+        _dataset_config = sf.util.load_json(P.dataset_config)
+        if isinstance(proj_kwargs['sources'], str):
+            source_already_exists = proj_kwargs['sources'] in _dataset_config
+        else:
+            source_already_exists = all(
+                [s in _dataset_config for s in proj_kwargs['sources']]
+            )
+
+    if (('sources' not in proj_kwargs or proj_kwargs['sources'] is not None)
+        and not source_already_exists):
+
+        # Create a new dataset source if it does not already exist.
         P.add_source(
             cfg.name,
             slides=cfg.slides,
             roi=cfg.roi_dest,
             tiles=cfg.tiles,
             tfrecords=cfg.tfrecords)
-
-        # Create blank annotations file, if not provided.
-        if not exists(P.annotations):
-            P.create_blank_annotations()
 
         # Set up ROIs, if provided.
         if 'rois' in cfg and not exists(cfg.roi_dest):
@@ -4198,6 +4209,10 @@ def create(
             log.info(f"Extrating ROIs from tarfile at {cfg.rois}.")
             roi_file = tarfile.open(cfg.rois)
             roi_file.extractall(cfg.roi_dest)
+
+    # Create blank annotations file, if not provided.
+    if not exists(P.annotations):
+        P.create_blank_annotations()
 
     # Download slides from GDC (TCGA), if specified.
     if download:
