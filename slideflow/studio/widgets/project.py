@@ -313,6 +313,10 @@ class ProjectWidget:
         # Label.
         with imgui_utils.item_width(self.label_width):
             imgui.text('Annotations')
+        annotations_tooltip = ("(Optional) Path to a clinical annotations (CSV). "
+                               "\nIf not provided, will create a blank file.")
+        if imgui.is_item_hovered():
+            imgui.set_tooltip(annotations_tooltip)
         # Input text.
         imgui.same_line(self.label_width)
         if not self._new_annotations_path:
@@ -326,7 +330,7 @@ class ProjectWidget:
                 '##new_annotations_path', self._new_annotations_path, 256
             )
         if not self._new_annotations_path and imgui.is_item_hovered() and not imgui.is_item_active():
-            imgui.set_tooltip("(Optional) Path to a clinical annotations (CSV). \nIf not provided, will create a blank file.")
+            imgui.set_tooltip(annotations_tooltip)
         if _changed:
             self._new_annotations_path = self._new_annotations_path.strip()
         # Browse button.
