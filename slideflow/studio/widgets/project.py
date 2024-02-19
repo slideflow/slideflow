@@ -103,6 +103,14 @@ class ProjectWidget:
         self._new_annotations_path = './annotations.csv'
         self._dataset_config = {}
 
+    def reset_add_source(self) -> None:
+        """Reset the add source dialog."""
+        self._add_source_name = ''
+        self._add_source_slides = ''
+        self._add_source_rois = ''
+        self._add_source_tfrecords = ''
+        self._add_source_n_slides = 0
+
     def new_project(self) -> None:
         """Open a dialog to create a new project."""
         self._show_new_project = True
@@ -298,6 +306,7 @@ class ProjectWidget:
         imgui.same_line()
         if imgui_utils.button('Add##add_source', width=self.viz.font_size*3):
             self._adding_source = True
+            self.reset_add_source()
         if imgui.is_item_hovered():
             imgui.set_tooltip("Add a new dataset.")
 
