@@ -88,14 +88,38 @@ def _filters_to_dataset(obj, method, model, *args, **kwargs):
 
 
 def _project_config(
+    root: str = './',
     name: str = 'MyProject',
     annotations: str = './annotations.csv',
-    dataset_config: str = './datasets.json',
+    dataset_config: Union[str, dict] = './datasets.json',
     sources: Optional[Union[str, List[str]]] = None,
     models_dir: str = './models',
-    eval_dir: str = './eval'
+    eval_dir: str = './eval',
 ) -> Dict:
+    """Returns a dictionary of project configuration settings.
+
+    Args:
+        root (str): Project root directory. Only used to resolve relative paths.
+        name (str): Project name.
+        annotations (str): Path to annotations file.
+        dataset_config (str): Path to dataset configuration file.
+        sources (str, list(str)): Dataset source(s).
+        models_dir (str): Directory to store model checkpoints.
+        eval_dir (str): Directory to store evaluation results.
+
+    Returns:
+        dict: Project configuration settings.
+
+    """
     args = locals()
+    del args['root']
+
+    # If dataset_config is a dict, write it to a file
+    if not isinstance(dataset_config, str):
+        dataset_config_path = sf.util.relative_path('./datasets.json', root)
+        dataset_config = sf.util.write_json(dataset_config, dataset_config_path)
+        args['dataset_config'] = './datasets.json'
+
     args['slideflow_version'] = sf.__version__
     if sources is None:
         args['sources'] = []

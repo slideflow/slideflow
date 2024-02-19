@@ -456,7 +456,6 @@ class ROIWidget:
         else:
             return None
 
-
     def draw_new_label_popup(self) -> None:
         """Prompt the user for a new ROI label."""
         viz = self.viz
@@ -649,10 +648,10 @@ class ROIWidget:
                 return True
         return False
 
-    def _show_roi_tooltip(self, hovered_rois: List[int]) -> None:
+    def show_roi_tooltip(self, hovered_rois: List[int]) -> None:
         """Show a tooltip if hovering over a ROI and no overlays are being shown."""
         viz = self.viz
-        if viz.viewer.is_moving():
+        if viz.viewer.is_moving() or viz.mouse_input_is_suspended():
             return
         if (hovered_rois
             and (viz.overlay is None or not viz.show_overlay)
@@ -1089,7 +1088,7 @@ class ROIWidget:
             self._process_roi_left_click(hovered_rois)
             self._process_roi_right_click(hovered_rois)
         if not self.subtracting:
-            self._show_roi_tooltip(hovered_rois)
+            self.show_roi_tooltip(hovered_rois)
 
         # Update ROI vertex editing.
         if self.is_vertex_editing():

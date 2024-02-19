@@ -7,7 +7,7 @@ from tkinter.filedialog import askopenfilename, askdirectory
 
 from .._renderer import CapturedException
 from ..gui import imgui_utils
-from ..utils import EasyDict, LEFT_MOUSE_BUTTON
+from ..utils import EasyDict, LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
 
 import slideflow as sf
 
@@ -15,27 +15,106 @@ import slideflow as sf
 
 class ProjectWidget:
     def __init__(self, viz):
-        self.viz                = viz
-        self.search_dirs        = []
-        self.project_path       = ''
-        self.browse_cache       = dict()
-        self.browse_refocus     = False
-        self.P                  = None
-        self.slide_paths        = []
-        self.filtered_slide_paths = []
-        self.model_paths        = []
-        self.content_height     = 0
-        self.slide_search       = ''
+        self.viz                    = viz
+        self.search_dirs            = []
+        self.project_path           = ''
+        self.browse_cache           = dict()
+        self.browse_refocus         = False
+        self.P                      = None
+        self.slide_paths            = []
+        self.filtered_slide_paths   = []
+        self.model_paths            = []
+        self.content_height         = 0
+        self.slide_search           = ''
         self._show_slide_filter_popup = False
-        self._show_new_project  = False
-        self._filter_by_has_roi = None  # None = no filter, False = no ROIs, True = has ROIs
-        self._clicking          = False
-        self._new_project_path  = None
+        self._show_new_project      = False
+        self._filter_by_has_roi     = None  # None = no filter, False = no ROIs, True = has ROIs
+        self._clicking              = False
+        self._new_project_path      = None
+        self._new_annotations_path  = './annotations.csv'
+        self._new_project_sources   = []
+        self._new_project_n_slides  = 0
+        self._dataset_config        = {}
+        self._adding_source         = False
+        self._add_source_name       = ''
+        self._add_source_slides     = ''
+        self._add_source_rois       = ''
+        self._add_source_tfrecords  = ''
+        self._add_source_n_slides   = 0
+
+    @property
+    def label_width(self) -> float:
+        return self.viz.font_size * 5
+
+    @property
+    def button_width(self) -> float:
+        return self.viz.font_size * 4
+
+    @property
+    def dataset_config(self) -> dict:
+        config = {
+            k: v for k, v in self._dataset_config.items()
+            if k in self._new_project_sources
+        }
+        for source in config:
+            if 'roi' not in config[source]:
+                config[source]['roi'] = os.path.join(
+                    sf.util.relative_path(
+                        './roi', self._new_project_path
+                    ),
+                    source
+                )
+            if 'tfrecords' not in config[source]:
+                config[source]['tfrecords'] = os.path.join(
+                    sf.util.relative_path(
+                        './tfrecords', self._new_project_path
+                    ),
+                    source
+                )
+        return config
+
+    def end_create_project(self) -> None:
+        """End the new project dialog."""
+        if self._show_new_project:
+            self.viz.resume_mouse_input_handling()
+        self._show_new_project = False
+
+    def ask_load_dataset_config(self) -> None:
+        """Open a dialog to load a dataset configuration."""
+        _path = askopenfilename(
+            title="Dataset configuration", filetypes=[("JSON", "*.json",)]
+        )
+        if _path:
+            try:
+                self._dataset_config.update(sf.util.load_json(_path))
+            except Exception as e:
+                self.viz.create_toast(
+                    f"Unable to load dataset configuration at {_path}",
+                    icon="error"
+                )
+                sf.log.error(f"Unable to load dataset configuration at {_path}: {e}")
+                raise
+
+    def reset_new_project(self) -> None:
+        """Reset the new project dialog."""
+        self._new_project_path = None
+        self._new_project_sources = []
+        self._new_project_n_slides = 0
+        self._new_annotations_path = './annotations.csv'
+        self._dataset_config = {}
 
     def new_project(self) -> None:
         """Open a dialog to create a new project."""
         self._show_new_project = True
-        self._new_project_path = None
+        self.reset_new_project()
+
+    def update_estimated_slides(self) -> None:
+        """Recalculate and update the estimated patients/slides in the selected dataset source(s)."""
+        self._new_project_n_slides = 0
+        for source in self._new_project_sources:
+            self._new_project_n_slides += len(sf.util.get_slide_paths(
+                self._dataset_config[source]['slides']
+            ))
 
     def keyboard_callback(self, key: int, action: int) -> None:
         """Handle keyboard events.
@@ -71,6 +150,11 @@ class ProjectWidget:
                 idx_to_load = (current_slide_idx - 1) % len(self.filtered_slide_paths)
             if idx_to_load is not None:
                 self.viz.load_slide(self.filtered_slide_paths[idx_to_load])
+        if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
+            if self._adding_source:
+                self._adding_source = False
+            else:
+                self.end_create_project()
 
     def load(self, project, ignore_errors=False):
         viz = self.viz
@@ -156,32 +240,238 @@ class ProjectWidget:
         items = sorted(items, key=lambda item: (item.name.replace('_', ' '), item.path))
         return items
 
-    def draw_new_project_dialog(self) -> None:
-        viz = self.viz
-        imgui.open_popup('New Project')
-        if imgui.begin_popup_modal('New Project', None, imgui.WINDOW_ALWAYS_AUTO_RESIZE):
-            imgui.text('Create a new project')
+    def get_path_input_width(self) -> float:
+        return imgui.get_content_region_max()[0] - self.label_width - self.button_width - self.viz.spacing
+
+    def draw_project_path(self) -> None:
+        """Draw the project path input and browse button."""
+        # Label.
+        with imgui_utils.item_width(self.label_width):
+            imgui.text('Path')
+        # Input text.
+        imgui.same_line(self.label_width)
+        if not self._new_project_path:
+            self._new_project_path = ''
+        with imgui_utils.item_width(self.get_path_input_width()):
+            _changed, self._new_project_path = imgui.input_text(
+                '##new_project_path', self._new_project_path, 256
+            )
+        if not self._new_project_path and imgui.is_item_hovered() and not imgui.is_item_active():
+            imgui.set_tooltip("Initialize a new project at this path.")
+        if _changed:
+            self._new_project_path = self._new_project_path.strip()
+        # Browse button.
+        imgui.same_line()
+        if imgui_utils.button('Browse##project_path', width=self.button_width):
+            self._new_project_path = askdirectory()
+
+    def draw_dataset_sources(self) -> None:
+        """Draw a selectable list of dataset sources."""
+        changed = False
+        with imgui.begin_list_box("##dataset_sources", -1, 100) as list_box:
+            if list_box.opened:
+                if not self._dataset_config:
+                    with self.viz.dim_text():
+                        imgui.text("No configured data sources.")
+                else:
+                    for source in self._dataset_config:
+                        _clicked, _ = imgui.selectable(source, source in self._new_project_sources)
+                        if _clicked:
+                            changed = True
+                            if source in self._new_project_sources:
+                                self._new_project_sources.remove(source)
+                            else:
+                                self._new_project_sources.append(source)
+        if changed:
+            self.update_estimated_slides()
+
+        # Show how many sources are selected.
+        imgui.text("{} source{} selected.".format(
+            len(self._new_project_sources),
+            '' if len(self._new_project_sources) == 1 else 's'
+        ))
+        imgui.same_line(imgui.get_content_region_max()[0] - self.viz.font_size*6 - self.viz.spacing)
+        if imgui_utils.button('Load##load_source', width=self.viz.font_size*3):
+            self.ask_load_dataset_config()
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Load preconfigured dataset(s).")
+        imgui.same_line()
+        if imgui_utils.button('Add##add_source', width=self.viz.font_size*3):
+            self._adding_source = True
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Add a new dataset.")
+
+        # Draw patient/slide counts.
+        with self.viz.dim_text():
+            imgui.text('Slides:')
+            imgui.same_line()
+        imgui.text(str(self._new_project_n_slides))
+
+
+    def draw_annotations_path(self) -> None:
+        """Draw the annotations path input and browse button."""
+        # Label.
+        with imgui_utils.item_width(self.label_width):
+            imgui.text('Annotations')
+        # Input text.
+        imgui.same_line(self.label_width)
+        if not self._new_annotations_path:
+            self._new_annotations_path = ''
+        elif not self._new_annotations_path and self.P is not None:
+            self._new_annotations_path = self.P.annotations or ''
+        elif not self._new_annotations_path:
+            self._new_annotations_path = ''
+        with imgui_utils.item_width(self.get_path_input_width()):
+            _changed, self._new_annotations_path = imgui.input_text(
+                '##new_annotations_path', self._new_annotations_path, 256
+            )
+        if not self._new_annotations_path and imgui.is_item_hovered() and not imgui.is_item_active():
+            imgui.set_tooltip("(Optional) Path to a clinical annotations (CSV). \nIf not provided, will create a blank file.")
+        if _changed:
+            self._new_annotations_path = self._new_annotations_path.strip()
+        # Browse button.
+        imgui.same_line()
+        if imgui_utils.button('Browse##annotations_path', width=self.button_width):
+            _path = askopenfilename(
+                title="Annotations", filetypes=[("CSV", "*.csv",)]
+            )
+            if _path:
+                self._new_annotations_path = _path
+
+    def draw_new_project_buttons(self) -> None:
+        """Draw the 'Cancel' and 'Create' buttons for the new project dialog."""
+        button_w = self.viz.font_size * 6
+        if self.viz.sidebar.full_button2('Cancel', width=button_w):
+            self.end_create_project()
+        imgui.same_line(imgui.get_content_region_max()[0] - button_w)
+        is_enabled = bool(
+            self._new_project_path
+            and self._new_project_sources
+        )
+        if self.viz.sidebar.full_button('Create', width=button_w, enabled=is_enabled):
+            if self._new_project_path:
+                try:
+                    sf.create_project(
+                        self._new_project_path,
+                        annotations=(self._new_annotations_path or None),
+                        sources=self._new_project_sources,
+                        dataset_config=self.dataset_config
+                    )
+                    self.load(self._new_project_path)
+                    self._show_new_project = False
+                except Exception as e:
+                    self.viz.create_toast(
+                        f"Unable to create project at {self._new_project_path}",
+                        icon="error"
+                    )
+                    sf.log.error(f"Unable to create project at {self._new_project_path}: {e}")
+                    raise
+
+    def draw_add_source_popup(self) -> None:
+        """Draw the popup for adding a new dataset source."""
+        imgui.open_popup('Add Dataset Source')
+        imgui.set_next_window_size(self.viz.font_size * 20, 0)
+        if imgui.begin_popup_modal('Add Dataset Source', None):
+
+            # Name.
+            with imgui_utils.item_width(self.label_width):
+                imgui.text('Name')
+            with imgui_utils.item_width(self.get_path_input_width()):
+                imgui.same_line(self.label_width)
+                _, self._add_source_name = imgui.input_text(
+                    '##add_source_name', self._add_source_name, 256
+                )
+
+            # Slides.
+            with imgui_utils.item_width(self.label_width):
+                imgui.text('Slides')
+            with imgui_utils.item_width(self.get_path_input_width()):
+                imgui.same_line(self.label_width)
+                _slides_changed, self._add_source_slides = imgui.input_text(
+                    '##add_source_slides', self._add_source_slides, 256
+                )
+            imgui.same_line()
+            if imgui_utils.button('Browse##add_source_slides', width=self.button_width):
+                _path = askdirectory(title="Path to slides")
+                if _path:
+                    self._add_source_slides = _path
+                    _slides_changed = True
+            if _slides_changed and os.path.exists(self._add_source_slides) and os.path.isdir(self._add_source_slides):
+                self._add_source_n_slides = len(sf.util.get_slide_paths(self._add_source_slides))
+
+            # ROIs.
+            with imgui_utils.item_width(self.label_width):
+                imgui.text('ROIs')
+            with imgui_utils.item_width(self.get_path_input_width()):
+                imgui.same_line(self.label_width)
+                _, self._add_source_rois = imgui.input_text(
+                    '##add_source_rois', self._add_source_rois, 256
+                )
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("(Optional) Path to a directory containing ROIs.")
+            imgui.same_line()
+            if imgui_utils.button('Browse##add_source_rois', width=self.button_width):
+                _path = askdirectory(title="Path to ROIs")
+                if _path:
+                    self._add_source_rois = _path
+
+            # TFRecords.
+            with imgui_utils.item_width(self.label_width):
+                imgui.text('TFRecords')
+            with imgui_utils.item_width(self.get_path_input_width()):
+                imgui.same_line(self.label_width)
+                _, self._add_source_tfrecords = imgui.input_text(
+                    '##add_source_tfrecords', self._add_source_tfrecords, 256
+                )
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("(Optional) Path to destination TFRecords directory.")
+            imgui.same_line()
+            if imgui_utils.button('Browse##add_source_tfrecords', width=self.button_width):
+                _path = askdirectory(title="Path to TFRecords")
+                if _path:
+                    self._add_source_tfrecords = _path
+
+            imgui.text("Slides: {}".format(self._add_source_n_slides))
+
             imgui.separator()
-            if self._new_project_path is None:
-                self._new_project_path = self.project_path or ''
-            _changed, self._new_project_path = imgui.input_text('##new_project_path', self._new_project_path, 256)
-            if _changed:
-                self._new_project_path = self._new_project_path.strip()
-            imgui.same_line()
-            if imgui.button('Browse'):
-                self._new_project_path = askdirectory()
-            imgui.same_line()
-            if imgui.button('Create'):
-                if self._new_project_path:
-                    try:
-                        sf.create_project(self._new_project_path)
-                        self.load(self._new_project_path)
-                        self._show_new_project = False
-                    except Exception as e:
-                        viz.create_toast(f"Unable to create project at {self._new_project_path}", icon="error")
-            imgui.same_line()
-            if imgui.button('Cancel'):
-                self._show_new_project = False
+
+            # Buttons.
+            button_w = self.viz.font_size * 6
+            if self.viz.sidebar.full_button2('Cancel', width=button_w):
+                self._adding_source = False
+                imgui.close_current_popup()
+            imgui.same_line(imgui.get_content_region_max()[0] - button_w)
+            is_enabled = bool(
+                self._add_source_name
+                and self._add_source_slides
+            )
+            if self.viz.sidebar.full_button('Add##add_source_button', width=button_w, enabled=is_enabled):
+                source = dict()
+                source['slides'] = self._add_source_slides
+                if self._add_source_rois:
+                    source['rois'] = self._add_source_rois
+                if self._add_source_tfrecords:
+                    source['tfrecords'] = self._add_source_tfrecords
+                self._dataset_config[self._add_source_name] = source
+                self._new_project_sources.append(self._add_source_name)
+                self.update_estimated_slides()
+                self._adding_source = False
+
+            imgui.end_popup()
+
+    def draw_new_project_dialog(self) -> None:
+        """Draw the new project dialog."""
+        self.viz.suspend_mouse_input_handling()
+        imgui.open_popup('New Project')
+        imgui.set_next_window_size(self.viz.font_size * 20, 0)
+        if imgui.begin_popup_modal('New Project', None):
+            self.draw_project_path()
+            self.draw_annotations_path()
+            self.draw_dataset_sources()
+            imgui.separator()
+            self.draw_new_project_buttons()
+            if self._adding_source:
+                self.draw_add_source_popup()
             imgui.end_popup()
 
     def draw_slide_search(self) -> None:

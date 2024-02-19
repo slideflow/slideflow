@@ -102,9 +102,9 @@ class Project:
             self._load(root)
         elif create:
             log.info(f"Creating project at {root}...")
-            self._settings = project_utils._project_config(**kwargs)
             if not exists(root):
                 os.makedirs(root)
+            self._settings = project_utils._project_config(root, **kwargs)
             self.save()
         else:
             raise errors.ProjectError(
@@ -1022,9 +1022,9 @@ class Project:
             name,
             path=path,
             slides=slides,
-            roi=roi,
+            roi=(roi or join(self._read_relative_path('./roi'), name)),
             tiles=tiles,
-            tfrecords=tfrecords,
+            tfrecords=(tfrecords or join(self._read_relative_path('./tfrecords'), name)),
         )
         if name not in self.sources:
             self.sources += [name]
