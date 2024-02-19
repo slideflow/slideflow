@@ -464,6 +464,14 @@ class SlideViewer(Viewer):
         """Update the view timer."""
         self._last_update = time.time()
 
+    def _update_roi_triangles(self, roi_idx: int) -> None:
+        """Update the triangles for the given ROI index."""
+        roi = self.wsi.rois[roi_idx]
+        c, ind = self._scale_roi_to_view(roi.triangles, remove_unique=False)
+        if c is not None:
+            c = c.astype(np.float32)
+            self.scaled_roi_triangles_in_view[roi_idx] = c
+
     def refresh_rois(self) -> None:
         """Refresh the ROIs for the given location and zoom."""
         self.scaled_rois_in_view = dict()
@@ -494,12 +502,10 @@ class SlideViewer(Viewer):
                     self._roi_holes_vbos[roi_idx][hole_idx] = gl_utils.create_buffer(c)
                     self._scaled_roi_holes_ind[roi_idx][hole_idx] = ind
 
-            # Update triangles
-            c, ind = self._scale_roi_to_view(roi.triangles, remove_unique=False)
-            if c is not None:
-                c = c.astype(np.float32)
-                self.scaled_roi_triangles_in_view[roi_idx] = c
-                    
+            # Update triangles if necessary (for fill)
+            _, fill = self.get_roi_colors(roi_idx)
+            if fill:
+                self._update_roi_triangles(roi_idx)
 
     def rasterize_rois_in_view(self) -> Optional[np.ndarray]:
         """Rasterize the ROIs in the current view."""
@@ -519,7 +525,7 @@ class SlideViewer(Viewer):
                     continue
                 poly = poly.difference(hole_poly)
             return poly
-        
+
         polygons = {_id: get_polygon(_id) for _id in self.scaled_rois_in_view}
 
         return np.stack([
@@ -567,6 +573,8 @@ class SlideViewer(Viewer):
         for roi_id, roi_coord in self.scaled_rois_in_view.items():
             outline, fill = self.get_roi_colors(roi_id)
             vbo = self._roi_vbos[roi_id]
+            if fill and roi_id not in self.scaled_roi_triangles_in_view:
+                self._update_roi_triangles(roi_id)
             if fill and roi_id in self.scaled_roi_triangles_in_view:
                 import OpenGL.GL as gl
                 if roi_id not in self._roi_triangle_vbos:
@@ -589,8 +597,8 @@ class SlideViewer(Viewer):
                 gl_utils.draw_vbo_roi(hole_coord, color=outline, alpha=1, linewidth=2, vbo=hole_vbo)
 
     def _scale_roi_to_view(
-        self, 
-        roi: np.ndarray, 
+        self,
+        roi: np.ndarray,
         remove_unique: bool = True
     ) -> Optional[np.ndarray]:
         roi = np.copy(roi)

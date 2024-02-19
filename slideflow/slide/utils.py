@@ -106,7 +106,7 @@ class ROI:
         if self._poly is None:
             self.update_polygon()
         return self._poly
-    
+
     @property
     def triangles(self) -> np.ndarray:
         """Return the triangulated mesh."""
@@ -173,7 +173,7 @@ class ROI:
             hole_vertices = None
             hole_points = None
 
-        # Build triangles.        
+        # Build triangles.
         triangle_vertices = sf.util.create_triangles(
             as_open_array(self.coordinates),
             hole_vertices=hole_vertices,

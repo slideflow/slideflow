@@ -65,6 +65,7 @@ class WSI:
         verbose: bool = True,
         use_edge_tiles: bool = False,
         mpp: Optional[float] = None,
+        simplify_roi_tolerance: Optional[float] = None,
         **reader_kwargs: Any
     ) -> None:
         """Loads slide and ROI(s).
@@ -220,19 +221,27 @@ class WSI:
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
-            self.load_csv_roi(join(roi_dir, self.name + ".csv"), process=False)
+            self.load_csv_roi(
+                join(roi_dir, self.name + ".csv"),
+                process=False,
+                simplify_tolerance=simplify_roi_tolerance
+            )
         elif rois and self.name in [path_to_name(r) for r in rois]:
             matching_rois = []
             for rp in rois:
                 rn = path_to_name(rp)
                 if rn == self.name:
                     matching_rois += [rp]
-            mr = matching_rois[0]
+            matching = matching_rois[0]
             if len(matching_rois) > 1:
                 log.warning(
                     f"Multiple ROIs found for {self.name}; using {mr}"
                 )
-            self.load_csv_roi(mr, process=False)
+            self.load_csv_roi(
+                matching,
+                process=False,
+                simplify_tolerance=simplify_roi_tolerance
+            )
 
         # Handle missing ROIs
         if (not len(self.rois)
@@ -2350,7 +2359,7 @@ class WSI:
             except errors.InvalidROIError as e:
                 if skip_invalid:
                     log.warn("Skipping invalid ROI ({}): {}".format(roi_name, e))
-                    
+
         if process:
             self.process_rois()
         if self.roi_method == 'auto':

@@ -924,6 +924,7 @@ class Studio(ImguiWindow):
                 mpp=self.slide_widget.manual_mpp,
                 use_bounds=self.settings_widget.use_bounds,
                 roi_filter_method=roi_filter_method,
+                simplify_roi_tolerance=self.settings_widget.simplify_tolerance,
                 **kwargs)
         except sf.errors.IncompatibleBackendError:
             self.create_toast(

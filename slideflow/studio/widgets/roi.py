@@ -1142,7 +1142,6 @@ class ROIWidget:
         imgui.same_line()
 
         # Edit button.
-        #with viz.highlighted(self.editing):
         if viz.sidebar.large_image_button('pencil', size=viz.font_size*3):
             self.toggle_edit_roi()
         if imgui.is_item_hovered():
