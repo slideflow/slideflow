@@ -630,6 +630,8 @@ class ProjectWidget:
             imgui_utils.padded_text('No project has been loaded.', vpad=[int(viz.font_size/2), int(viz.font_size)])
             if viz.sidebar.full_button("Load a Project"):
                 viz.ask_load_project()
+            if viz.sidebar.full_button("Create a Project"):
+                self.new_project()
 
         elif show:
             if viz.collapsing_header('Info', default=True):
