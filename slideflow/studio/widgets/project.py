@@ -453,7 +453,7 @@ class ProjectWidget:
                 source = dict()
                 source['slides'] = self._add_source_slides
                 if self._add_source_rois:
-                    source['rois'] = self._add_source_rois
+                    source['roi'] = self._add_source_rois
                 if self._add_source_tfrecords:
                     source['tfrecords'] = self._add_source_tfrecords
                 self._dataset_config[self._add_source_name] = source
