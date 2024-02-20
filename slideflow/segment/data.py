@@ -361,7 +361,7 @@ class TileMaskDataset(torch.utils.data.Dataset):
                     polys = self.get_scaled_and_intersecting_polys(
                         all_polys, tile, scale, fs, (gx, gy)
                     )
-                    if isinstance(polys, Polygon) and not len(polys.exterior.coords.xy[0]):
+                    if isinstance(polys, Polygon) and polys.is_empty:
                         mask = np.zeros((wsi.tile_px, wsi.tile_px), dtype=int)
                     else:
                         # Rasterize to an int mask.
@@ -377,7 +377,7 @@ class TileMaskDataset(torch.utils.data.Dataset):
                 all_polys, tile, scale, fs, (gx, gy)
             )
 
-            if isinstance(polys, Polygon) and not len(polys.exterior.coords.xy[0]):
+            if isinstance(polys, Polygon) and polys.is_empty:
                 mask = np.zeros((wsi.tile_px, wsi.tile_px), dtype=int)
             else:
                 # Rasterize to an int mask.

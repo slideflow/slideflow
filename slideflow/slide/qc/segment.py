@@ -210,14 +210,14 @@ class Segment:
                         ))
                         continue
 
-                # Simplify.
-                if simplify_tolerance:
-                    poly = poly.simplify(simplify_tolerance)
-                    outline = np.array(poly.exterior.coords)
-
                 # Load the ROI.
                 try:
-                    wsi.load_roi_array(outline, process=False, label=(None if labels is None else labels[o]))
+                    wsi.load_roi_array(
+                        outline, 
+                        process=False, 
+                        label=(None if labels is None else labels[o]),
+                        simplify_tolerance=simplify_tolerance
+                    )
                 except sf.errors.InvalidROIError:
                     continue
             wsi.process_rois()

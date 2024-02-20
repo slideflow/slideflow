@@ -845,10 +845,20 @@ class ROIWidget:
             holes.extend(self.viz.wsi.rois[idx].holes)
 
         # Get the coordinates of the merged ROI.
-        new_roi_coords = np.stack(
-            merged_poly.exterior.coords.xy,
-            axis=-1
-        )
+        if merged_poly.geom_type == 'Polygon':
+            new_roi_coords = np.stack(
+                merged_poly.exterior.coords.xy,
+                axis=-1
+            )
+        elif merged_poly.geom_type == 'MultiPolygon':
+            new_roi_coords = np.concatenate([
+                np.stack(p.exterior.coords.xy, axis=-1)
+                for p in merged_poly.geoms
+            ])
+        else:
+            self.viz.create_toast('ROIs could not be merged.', icon='error')
+            sf.log.error(f"Error merging ROIs: merged polygon is of type {merged_poly.geom_type}.")
+            return
 
         # Infer the ROI label.
         first_label = self.viz.wsi.rois[roi_indices[0]].label

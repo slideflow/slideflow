@@ -2215,7 +2215,8 @@ class WSI:
         process: bool = True,
         label: Optional[str] = None,
         name: Optional[str] = None,
-        allow_errors: bool = False
+        allow_errors: bool = False,
+        simplify_tolerance: Optional[float] = None
     ) -> int:
         """Load an ROI from a numpy array.
 
@@ -2236,6 +2237,8 @@ class WSI:
                 return
             else:
                 raise
+        if simplify_tolerance is not None:
+            roi.simplify(simplify_tolerance)
         self.rois.append(roi)
         if self.roi_method == 'auto':
             self.roi_method = 'inside'
@@ -2866,10 +2869,18 @@ class WSI:
             for roi in self.rois:
                 for hole in roi.holes:
                     roi_polys.append(hole.scaled_poly(roi_scale))
-            for poly in roi_polys:
-                x, y = poly.exterior.coords.xy
-                zipped = list(zip(x.tolist(), y.tolist()))
-                draw.line(zipped, joint='curve', fill=color, width=linewidth)
+            for i, poly in enumerate(roi_polys):
+                if poly.geom_type == 'Polygon':
+                    x, y = poly.exterior.coords.xy
+                    zipped = list(zip(x.tolist(), y.tolist()))
+                    draw.line(zipped, joint='curve', fill=color, width=linewidth)
+                elif poly.geom_type == 'MultiPolygon':
+                    for part in poly.geoms:
+                        x, y = part.exterior.coords.xy
+                        zipped = list(zip(x.tolist(), y.tolist()))
+                        draw.line(zipped, joint='curve', fill=color, width=linewidth)
+                else:
+                    sf.log.error(f"Unable to plot ROI {i}, unknown geometry type: {poly.geom_type}")
             return thumb
         else:
             return thumb

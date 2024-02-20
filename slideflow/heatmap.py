@@ -352,7 +352,10 @@ class Heatmap:
                 for hole in roi.holes:
                     annPolys.append(sg.Polygon(hole.scaled_coords(roi_scale)))
             for poly in annPolys:
-                x, y = poly.exterior.xy
+                if poly.geom_type == 'Polygon':
+                    x, y = poly.exterior.xy
+                elif poly.geom_type == 'MultiPolygon':
+                    x, y = poly.geoms[0].exterior.xy
                 ax.plot(x, y, zorder=20, **kwargs)
 
     def add_inset(

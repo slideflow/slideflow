@@ -141,10 +141,21 @@ class ROI:
             poly = poly.difference(h.scaled_poly(scale))
         return poly
 
+    def poly_coords(self) -> np.ndarray:
+        """Return the coordinates of the polygon."""
+        if self.poly.geom_type == 'MultiPolygon':
+            return np.concatenate([np.stack(p.exterior.coords.xy) for p in self.poly.geoms])
+        else:
+            return np.stack(self.poly.exterior.coords.xy)
+
     def simplify(self, tolerance: float = 5) -> None:
         """Simplify the polygon."""
-        poly_s = self.poly.simplify(tolerance=tolerance)
-        self.coordinates = np.stack(poly_s.exterior.coords.xy, axis=-1)
+        if self.poly.geom_type == 'MultiPolygon':
+            poly_s = sg.MultiPolygon([p.simplify(tolerance) for p in self.poly.geoms])
+            self.coordinates = np.concatenate([np.stack(p.exterior.coords.xy, axis=-1) for p in poly_s.geoms])
+        else:
+            poly_s = self.poly.simplify(tolerance=tolerance)
+            self.coordinates = np.stack(poly_s.exterior.coords.xy, axis=-1)
         for hole in self.holes:
             hole.simplify(tolerance)
         self.update_polygon()
@@ -446,9 +457,15 @@ def draw_roi(
         ))
     draw = ImageDraw.Draw(annotated_img)
     for poly in annPolys:
-        x, y = poly.exterior.coords.xy
-        zipped = list(zip(x.tolist(), y.tolist()))
-        draw.line(zipped, joint='curve', fill=color, width=linewidth)
+        if poly.geom_type == 'MultiPolygon':
+            for p in poly.geoms:
+                x, y = p.exterior.coords.xy
+                zipped = list(zip(x.tolist(), y.tolist()))
+                draw.line(zipped, joint='curve', fill=color, width=linewidth)
+        else:
+            x, y = poly.exterior.coords.xy
+            zipped = list(zip(x.tolist(), y.tolist()))
+            draw.line(zipped, joint='curve', fill=color, width=linewidth)
     return np.asarray(annotated_img)
 
 
