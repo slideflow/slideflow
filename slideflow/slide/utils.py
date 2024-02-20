@@ -153,9 +153,18 @@ class ROI:
         if self.poly.geom_type == 'MultiPolygon':
             poly_s = sg.MultiPolygon([p.simplify(tolerance) for p in self.poly.geoms])
             self.coordinates = np.concatenate([np.stack(p.exterior.coords.xy, axis=-1) for p in poly_s.geoms])
-        else:
+        elif self.poly.geom_type == 'Polygon':
             poly_s = self.poly.simplify(tolerance=tolerance)
             self.coordinates = np.stack(poly_s.exterior.coords.xy, axis=-1)
+        elif self.poly.geom_type == 'GeometryCollection':
+            log.debug("Got ROI polygon geometry: {} (geoms: {})".format(
+                self.poly.geom_type,
+                list(self.poly.geoms)
+            ))
+            poly_s = sg.MultiPolygon([p.simplify(tolerance) for p in self.poly.geoms if p.geom_type == 'Polygon'])
+            self.coordinates = np.concatenate([np.stack(p.exterior.coords.xy, axis=-1) for p in poly_s.geoms])
+        else:
+            raise ValueError(f"Unrecognized ROI polygon geometry: {self.poly.geom_type}")
         for hole in self.holes:
             hole.simplify(tolerance)
         self.update_polygon()
