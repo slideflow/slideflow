@@ -158,6 +158,12 @@ class ROI:
             else:
                 return array
 
+        # First, ensure the polygon is valid
+        if not self.polygon_is_valid():
+            raise errors.InvalidROIError(
+                "Unable to create triangles; ROI polygon is invalid."
+            )
+
         # Vertices of the hole boundaries
         hole_vertices = [
             as_open_array(h.coordinates)
@@ -209,11 +215,17 @@ class ROI:
         """Validate the exterior coordinates form a valid polygon."""
         if len(self.coordinates) < 4:
             raise errors.InvalidROIError("ROI must contain at least 4 coordinates.")
+        
+    def polygon_is_valid(self) -> bool:
+        """Check if the polygon is valid."""
         poly = sg.Polygon(self.coordinates)
         if not len(list(polygonize(unary_union(poly)))):
-            raise errors.InvalidROIError("ROI polygon is self-intersecting.")
+            # Polygon is self-intersecting
+            return False
         if not poly.is_valid:
-            raise errors.InvalidROIError("ROI polygon is invalid.")
+            # Polygon is invalid
+            return False
+        return all([h.polygon_is_valid() for h in self.holes])
 
     def scaled_coords(self, scale: float) -> np.ndarray:
         return np.multiply(self.coordinates, 1/scale)

@@ -467,7 +467,10 @@ class SlideViewer(Viewer):
     def _update_roi_triangles(self, roi_idx: int) -> None:
         """Update the triangles for the given ROI index."""
         roi = self.wsi.rois[roi_idx]
-        c, ind = self._scale_roi_to_view(roi.triangles, remove_unique=False)
+        if roi.polygon_is_valid():
+            c, ind = self._scale_roi_to_view(roi.triangles, remove_unique=False)
+        else:
+            c = None
         if c is not None:
             c = c.astype(np.float32)
             self.scaled_roi_triangles_in_view[roi_idx] = c
