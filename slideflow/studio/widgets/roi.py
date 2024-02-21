@@ -1772,6 +1772,7 @@ class VertexEditor:
         for hole_id, svi_hole in svi['holes'].items():
             roi.holes[hole_id].coordinates[svi_hole] += delta
             roi.holes[hole_id].update_polygon()
+            roi.update_polygon()
 
     def remove_selected_vertices(self) -> None:
         """Remove the selected vertices from the ROI."""
@@ -1798,6 +1799,7 @@ class VertexEditor:
             else:
                 roi.holes[hole_id].coordinates = coords
                 roi.holes[hole_id].update_polygon()
+                roi.update_polygon()
 
         for hole_id in sorted(holes_to_delete, reverse=True):
             del roi.holes[hole_id]
