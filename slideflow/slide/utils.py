@@ -152,8 +152,10 @@ class ROI:
                     np.stack(p.exterior.coords.xy, axis=-1)
                     for p in valid_polys
                 ])
-        else:
+        elif self.poly.geom_type == 'Polygon':
             coords = np.stack(self.poly.exterior.coords.xy, axis=-1)
+        else:
+            raise ValueError(f"Unrecognized ROI polygon geometry: {self.poly.geom_type}")
         # Remove duplicate points
         coords = np.concatenate([
             # Take the first coordinate
@@ -256,7 +258,17 @@ class ROI:
     def validate(self) -> None:
         """Validate the exterior coordinates form a valid polygon."""
         if len(self.poly_coords()) < 4:
-            raise errors.InvalidROIError("ROI must contain at least 4 coordinates.")
+            raise errors.InvalidROIError(f"Invalid ROI ({self.name}): ROI must contain at least 4 coordinates.")
+        if self.poly.geom_type not in ('Polygon', 'MultiPolygon', 'GeometryCollection'):
+            raise errors.InvalidROIError(
+                f"Invalid ROI ({self.name}): ROI must either be a Polygon, or "
+                "MultiPolygon/GeometryCollection containing at least one polygon."
+            )
+        if self.poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+            if not len([p for p in self.poly.geoms if p.geom_type == 'Polygon']):
+                raise errors.InvalidROIError(
+                    f"Invalid ROI ({self.name}): ROI must contain at least one valid polygon."
+                )
 
     def polygon_is_valid(self) -> bool:
         """Check if the polygon is valid."""
