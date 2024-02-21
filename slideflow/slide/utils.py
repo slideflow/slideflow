@@ -144,13 +144,21 @@ class ROI:
     def poly_coords(self) -> np.ndarray:
         """Return the coordinates of the polygon."""
         if self.poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
-            return np.concatenate([
-                np.stack(p.exterior.coords.xy)
+            coords = np.concatenate([
+                np.stack(p.exterior.coords.xy, axis=-1)
                 for p in self.poly.geoms
                 if p.geom_type == 'Polygon'
             ])
         else:
-            return np.stack(self.poly.exterior.coords.xy)
+            coords = np.stack(self.poly.exterior.coords.xy, axis=-1)
+        # Remove duplicate points
+        coords = np.concatenate([
+            # Take the first coordinate
+            np.expand_dims(coords[0], 0),
+            # Only take subsequent coordinates if they are not repeating
+            coords[1:][~np.all(coords[:-1] == coords[1:], axis=-1)]
+        ], axis=0)
+        return coords
 
     def simplify(self, tolerance: float = 5) -> None:
         """Simplify the polygon."""
@@ -180,16 +188,26 @@ class ROI:
             raise errors.InvalidROIError(
                 "Unable to create triangles; ROI polygon is invalid."
             )
+        if self.poly.geom_type != 'Polygon' or any([h.poly.geom_type != 'Polygon' for h in self.holes]):
+            raise errors.InvalidROIError(
+                "Unable to create triangles; ROI is not a simply polygon."
+            )
 
         # Vertices of the hole boundaries
         hole_vertices = [
-            as_open_array(h.coordinates)
+            as_open_array(h.poly_coords())
             for h in self.holes
         ]
 
+        # Filter out holes that are too small
+        hole_vertices = [h for h in hole_vertices if len(h) > 3]
+        valid_holes = [h for i, h in enumerate(self.holes) if len(hole_vertices[i]) > 3]
+
         # Vertices of representative points within each hole
         hole_points = [
-            hole.poly.representative_point().coords[0] for hole in self.holes
+            hole.poly.representative_point().coords[0]
+            for hole in self.holes
+            if hole in valid_holes
         ]
 
         if not len(hole_vertices):
@@ -198,11 +216,10 @@ class ROI:
 
         # Build triangles.
         triangle_vertices = sf.util.create_triangles(
-            as_open_array(self.coordinates),
+            as_open_array(self.poly_coords()),
             hole_vertices=hole_vertices,
             hole_points=hole_points
         )
-
         return triangle_vertices
 
     # --- Holes ---------------------------------------------------------------
@@ -230,7 +247,7 @@ class ROI:
 
     def validate(self) -> None:
         """Validate the exterior coordinates form a valid polygon."""
-        if len(self.coordinates) < 4:
+        if len(self.poly_coords()) < 4:
             raise errors.InvalidROIError("ROI must contain at least 4 coordinates.")
 
     def polygon_is_valid(self) -> bool:

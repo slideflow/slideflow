@@ -896,12 +896,13 @@ class ROIWidget:
         viz = self.viz
         roi_file = self.get_roi_dest(viz.wsi.name, create=True)
         if roi_file is None:
-            source = viz.P.dataset().get_slide_source(viz.wsi.name)
-            viz.create_toast(
-                'Project does not have a configured ROI folder for dataset '
-                f'source {source}. Configure this folder to auto-load ROIs.',
-                icon='warn'
-            )
+            if viz.P is not None:
+                source = viz.P.dataset().get_slide_source(viz.wsi.name)
+                viz.create_toast(
+                    'Project does not have a configured ROI folder for dataset '
+                    f'source {source}. Configure this folder to auto-load ROIs.',
+                    icon='warn'
+                )
             if not exists('roi'):
                 os.makedirs('roi')
             roi_file = join('roi', f'{viz.wsi.name}.csv')
