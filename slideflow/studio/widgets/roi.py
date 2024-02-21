@@ -1788,19 +1788,20 @@ class VertexEditor:
             else:
                 roi.coordinates = coords
                 roi.update_polygon()
+        holes_to_delete = []
         for hole_id, svi_hole in svi['holes'].items():
-            print("Hole ID:", hole_id)
-            print("Hole coordinates:", roi.holes[hole_id].coordinates)
-            print("Selected vertices:", svi_hole)
             coords = np.delete(roi.holes[hole_id].coordinates, svi_hole, axis=0)
             if coords.shape[0] < 4:
                 # Hole cannot be less than 3 vertices.
                 # First and last vertices are the same, so we need at least 4.
-                del roi.holes[hole_id]
-                roi.holes[hole_id].update_polygon()
+                holes_to_delete.append(hole_id)
             else:
                 roi.holes[hole_id].coordinates = coords
                 roi.holes[hole_id].update_polygon()
+
+        for hole_id in sorted(holes_to_delete, reverse=True):
+            del roi.holes[hole_id]
+            roi.update_polygon()
 
         # Refresh the view and update the selected vertices.
         self.viz.viewer.refresh_view()

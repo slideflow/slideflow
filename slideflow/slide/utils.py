@@ -155,7 +155,8 @@ class ROI:
         elif self.poly.geom_type == 'Polygon':
             coords = np.stack(self.poly.exterior.coords.xy, axis=-1)
         else:
-            raise ValueError(f"Unrecognized ROI polygon geometry: {self.poly.geom_type}")
+            # This should have been caught by the validate function
+            raise errors.InvalidROIError(f"Unrecognized ROI polygon geometry: {self.poly.geom_type}")
         # Remove duplicate points
         coords = np.concatenate([
             # Take the first coordinate
@@ -179,7 +180,8 @@ class ROI:
             poly_s = self.poly.simplify(tolerance=tolerance)
             self.coordinates = np.stack(poly_s.exterior.coords.xy, axis=-1)
         else:
-            raise ValueError(f"Unrecognized ROI polygon geometry: {self.poly.geom_type}")
+            # This should have been caught by the validate function
+            raise errors.InvalidROIError(f"Unrecognized ROI polygon geometry: {self.poly.geom_type}")
         for hole in self.holes:
             hole.simplify(tolerance)
         self.update_polygon()
