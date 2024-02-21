@@ -67,7 +67,7 @@ class ROI:
     ) -> None:
         self.name = name
         self._label = label if label else None
-        self.holes = holes if holes else []
+        self.holes = holes if holes else {}
         self._poly = None
         self._triangles = None
         self.coordinates = np.array(coordinates)
@@ -83,7 +83,7 @@ class ROI:
             return self.name
         else:
             return self.name + ' (holes: {})'.format(', '.join(
-                [h.name for h in self.holes]
+                [h.name for h in self.holes.values()]
             ))
 
     @property
@@ -95,7 +95,7 @@ class ROI:
     def label(self, label: str) -> None:
         """Set the label of the ROI."""
         self._label = label
-        for h in self.holes:
+        for h in self.holes.values():
             h.label = label
 
     # --- Polygons ------------------------------------------------------------
@@ -126,14 +126,14 @@ class ROI:
         """
         poly = sv.make_valid(sg.Polygon(self.coordinates))
         to_delete = []
-        for h in self.holes:
-            if not poly.contains(h.poly):
+        for h, hole in self.holes.items():
+            if not poly.contains(hole.poly):
                 # Hole is not contained within the polygon,
                 # so remove it from the list of holes.
                 to_delete.append(h)
-            poly = poly.difference(h.poly)
+            poly = poly.difference(hole.poly)
         for h in to_delete:
-            self.holes.remove(h)
+            del self.holes[h]
         return poly
 
     def update_polygon(self) -> None:
@@ -144,7 +144,7 @@ class ROI:
     def scaled_poly(self, scale: float) -> sg.Polygon:
         """Create a scaled polygon."""
         poly = sv.make_valid(sg.Polygon(self.scaled_coords(scale)))
-        for h in self.holes:
+        for h in self.holes.values():
             poly = poly.difference(h.scaled_poly(scale))
         return poly
 
@@ -189,7 +189,7 @@ class ROI:
         else:
             # This should have been caught by the validate function
             raise errors.InvalidROIError(f"Unrecognized ROI polygon geometry: {self.poly.geom_type}")
-        for hole in self.holes:
+        for hole in self.holes.values():
             hole.simplify(tolerance)
         self.update_polygon()
 
@@ -208,21 +208,21 @@ class ROI:
                 "Unable to create triangles; ROI polygon is invalid."
             )
             return None
-        if self.poly.geom_type != 'Polygon' or any([h.poly.geom_type != 'Polygon' for h in self.holes]):
+        if self.poly.geom_type != 'Polygon' or any([h.poly.geom_type != 'Polygon' for h in self.holes.values()]):
             sf.log.error(
                 "Unable to create triangles; ROI is not a simple polygon."
             )
             return None
 
         # Vertices of the hole boundaries
-        hole_vertices = [
-            as_open_array(h.poly_coords())
-            for h in self.holes
-        ]
+        hole_vertices = {
+            h: as_open_array(hole.poly_coords())
+            for h, hole in self.holes.items()
+        }
 
         # Filter out holes that are too small
-        valid_holes = [h for i, h in enumerate(self.holes) if len(hole_vertices[i]) > 3]
-        hole_vertices = [h for h in hole_vertices if len(h) > 3]
+        valid_holes = [hole for h, hole in self.holes.items() if len(hole_vertices[h]) > 3]
+        hole_vertices = [v for h, v in hole_vertices.items() if len(v) > 3]
 
         # Verify all holes are contained within the polygon
         for hole in valid_holes:
@@ -253,22 +253,28 @@ class ROI:
 
     def add_hole(self, roi: "ROI") -> None:
         """Add a hole to the ROI."""
-        self.holes.append(roi)
+        hole_name = self.get_next_hole_name()
+        self.holes[hole_name] = roi
         self.update_polygon()
 
     def remove_hole(self, roi: Union["ROI", str]) -> None:
         """Remove a hole from the ROI."""
         if isinstance(roi, str):
             roi = self.get_hole(roi)
-        self.holes.remove(roi)
+        hole_idx = [h for h, r in self.holes.items() if r == roi]
+        del self.holes[hole_idx]
         self.update_polygon()
 
     def get_hole(self, name: str) -> "ROI":
         """Get a hole by name."""
-        for h in self.holes:
+        for h in self.holes.values():
             if h.name == name:
                 return h
         raise ValueError(f"No hole found with name {name}")
+
+    def get_next_hole_name(self) -> str:
+        """Get the next available hole name."""
+        return len(self.holes)
 
     # --- Other functions -----------------------------------------------------
 
@@ -296,7 +302,7 @@ class ROI:
         if not poly.is_valid:
             # Polygon is invalid
             return False
-        return all([h.polygon_is_valid() for h in self.holes])
+        return all([h.polygon_is_valid() for h in self.holes.values()])
 
     def scaled_coords(self, scale: float) -> np.ndarray:
         return np.multiply(self.coordinates, 1/scale)
@@ -558,7 +564,7 @@ def roi_coords_from_image(
         coords_in_tile = coord[idx]
         if len(coords_in_tile) > 3:
             coords += [coords_in_tile]
-        for hole in roi.holes:
+        for hole in roi.holes.values():
             hole_coord = proc_coords(hole.coordinates)
             hole_idx = np.all(np.logical_and(ll <= hole_coord, hole_coord <= ur), axis=1)
             hole_coords_in_tile = hole_coord[hole_idx]

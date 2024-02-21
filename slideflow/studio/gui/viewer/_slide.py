@@ -497,7 +497,7 @@ class SlideViewer(Viewer):
                 self._roi_triangle_vbos.pop(roi_idx, None)
 
             # Handle holes
-            for hole_idx, hole in enumerate(roi.holes):
+            for hole_idx, hole in roi.holes.items():
                 c, ind = self._scale_roi_to_view(hole.coordinates)
                 if c is not None:
                     c = c.astype(np.float32)

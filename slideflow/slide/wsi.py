@@ -1690,7 +1690,7 @@ class WSI:
 
         for roi in self.rois:
             append_roi(roi)
-            for hole in roi.holes:
+            for hole in roi.holes.values():
                 append_roi(hole)
 
         df = pd.DataFrame({
@@ -2247,7 +2247,7 @@ class WSI:
         for i, _roi in enumerate(self.rois):
             if _roi == roi:
                 return i
-            for hole in _roi.holes:
+            for hole in _roi.holes.values():
                 if hole == roi:
                     return i
         return None
@@ -2867,7 +2867,7 @@ class WSI:
             draw = ImageDraw.Draw(thumb)
             roi_polys = [r.scaled_poly(roi_scale) for r in self.rois]
             for roi in self.rois:
-                for hole in roi.holes:
+                for hole in roi.holes.values():
                     roi_polys.append(hole.scaled_poly(roi_scale))
             for i, poly in enumerate(roi_polys):
                 if poly.geom_type == 'Polygon':

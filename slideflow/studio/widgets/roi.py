@@ -842,7 +842,7 @@ class ROIWidget:
         # First, store the holes of all ROIs.
         holes = []
         for idx in roi_indices:
-            holes.extend(self.viz.wsi.rois[idx].holes)
+            holes.extend(self.viz.wsi.rois[idx].holes.values())
 
         # Get the coordinates of the merged ROI.
         if merged_poly.geom_type == 'Polygon':
