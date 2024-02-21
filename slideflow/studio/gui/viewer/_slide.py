@@ -601,9 +601,23 @@ class SlideViewer(Viewer):
 
     def _scale_roi_to_view(
         self,
-        roi: np.ndarray,
+        roi: Optional[np.ndarray],
         remove_unique: bool = True
     ) -> Optional[np.ndarray]:
+        """Scale the given ROI to the current view.
+
+        Args:
+            roi (Optional[np.ndarray]): The ROI to scale. Should be a 2D array
+                with shape (n, 2).
+            remove_unique (bool): Whether to remove unique vertices.
+
+        Returns:
+            Optional[np.ndarray]: The scaled ROI coordinates currently in view,
+                or None if the ROI is not in the current view or is empty.
+        """
+
+        if roi is None or len(roi) == 0 or roi.ndim != 2:
+            return None, None
         roi = np.copy(roi)
         roi[:, 0] = roi[:, 0] - int(self.origin[0])
         roi[:, 0] = roi[:, 0] / self.view_zoom

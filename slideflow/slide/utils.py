@@ -125,8 +125,15 @@ class ROI:
 
         """
         poly = sv.make_valid(sg.Polygon(self.coordinates))
+        to_delete = []
         for h in self.holes:
+            if not poly.contains(h.poly):
+                # Hole is not contained within the polygon,
+                # so remove it from the list of holes.
+                to_delete.append(h)
             poly = poly.difference(h.poly)
+        for h in to_delete:
+            self.holes.remove(h)
         return poly
 
     def update_polygon(self) -> None:
@@ -186,7 +193,7 @@ class ROI:
             hole.simplify(tolerance)
         self.update_polygon()
 
-    def create_triangles(self) -> np.ndarray:
+    def create_triangles(self) -> Optional[np.ndarray]:
         """Create a triangulated mesh from the polygon."""
 
         def as_open_array(array):
@@ -197,13 +204,15 @@ class ROI:
 
         # First, ensure the polygon is valid
         if not self.polygon_is_valid():
-            raise errors.InvalidROIError(
+            sf.log.error(
                 "Unable to create triangles; ROI polygon is invalid."
             )
+            return None
         if self.poly.geom_type != 'Polygon' or any([h.poly.geom_type != 'Polygon' for h in self.holes]):
-            raise errors.InvalidROIError(
-                "Unable to create triangles; ROI is not a simply polygon."
+            sf.log.error(
+                "Unable to create triangles; ROI is not a simple polygon."
             )
+            return None
 
         # Vertices of the hole boundaries
         hole_vertices = [
@@ -215,11 +224,17 @@ class ROI:
         valid_holes = [h for i, h in enumerate(self.holes) if len(hole_vertices[i]) > 3]
         hole_vertices = [h for h in hole_vertices if len(h) > 3]
 
+        # Verify all holes are contained within the polygon
+        for hole in valid_holes:
+            poly = sv.make_valid(sg.Polygon(self.poly_coords()))
+            if not poly.contains(hole.poly):
+                # Hole is not contained within the polygon
+                return None
+
         # Vertices of representative points within each hole
         hole_points = [
             hole.poly.representative_point().coords[0]
-            for hole in self.holes
-            if hole in valid_holes
+            for hole in valid_holes
         ]
 
         if not len(hole_vertices):
