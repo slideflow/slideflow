@@ -349,7 +349,7 @@ class Heatmap:
                 for annotation in self.slide.rois
             ]
             for roi in self.slide.rois:
-                for hole in roi.holes:
+                for hole in roi.holes.values():
                     annPolys.append(sg.Polygon(hole.scaled_coords(roi_scale)))
             for i, poly in enumerate(annPolys):
                 if poly.geom_type == 'Polygon':

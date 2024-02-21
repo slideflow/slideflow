@@ -1766,9 +1766,9 @@ class VertexEditor:
         delta = np.array([dx, dy])
         svi = self.selected_vertex_indices
 
+        # First, move the coordinates.
         if len(svi['outer']):
             roi.coordinates[svi['outer']] += delta
-            roi.update_polygon()
         for hole_id, svi_hole in svi['holes'].items():
             # Need to check that the hole is still in the ROI,
             # as it may have been removed if it was reduced to less than 3 vertices
@@ -1777,6 +1777,17 @@ class VertexEditor:
                 roi.holes[hole_id].coordinates[svi_hole] += delta
                 roi.holes[hole_id].update_polygon()
                 roi.update_polygon()
+
+        # Then, update the polygons.
+        # We update the polygons after moving the coordinates
+        # to ensure that the polygons are updated correctly.
+        to_update = False
+        for hole_id, svi_hole in svi['holes'].items():
+            if hole_id in roi.holes:
+                roi.holes[hole_id].update_polygon()
+                to_update = True
+        if len(svi['outer']) or to_update:
+            roi.update_polygon()
 
     def remove_selected_vertices(self) -> None:
         """Remove the selected vertices from the ROI."""
