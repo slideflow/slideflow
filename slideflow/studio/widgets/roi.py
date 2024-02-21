@@ -851,10 +851,14 @@ class ROIWidget:
                 axis=-1
             )
         elif merged_poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+            valid_polys = [p for p in merged_poly.geoms if p.geom_type == 'Polygon']
+            if not valid_polys:
+                self.viz.create_toast('ROIs could not be merged.', icon='error')
+                sf.log.error(f"Error merging ROIs: merged polygon is of type {merged_poly.geom_type}.")
+                return
             new_roi_coords = np.concatenate([
                 np.stack(p.exterior.coords.xy, axis=-1)
-                for p in merged_poly.geoms
-                if p.geom_type == 'Polygon'
+                for p in valid_polys
             ])
         else:
             self.viz.create_toast('ROIs could not be merged.', icon='error')
@@ -1785,6 +1789,9 @@ class VertexEditor:
                 roi.coordinates = coords
                 roi.update_polygon()
         for hole_id, svi_hole in svi['holes'].items():
+            print("Hole ID:", hole_id)
+            print("Hole coordinates:", roi.holes[hole_id].coordinates)
+            print("Selected vertices:", svi_hole)
             coords = np.delete(roi.holes[hole_id].coordinates, svi_hole, axis=0)
             if coords.shape[0] < 4:
                 # Hole cannot be less than 3 vertices.

@@ -144,11 +144,14 @@ class ROI:
     def poly_coords(self) -> np.ndarray:
         """Return the coordinates of the polygon."""
         if self.poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
-            coords = np.concatenate([
-                np.stack(p.exterior.coords.xy, axis=-1)
-                for p in self.poly.geoms
-                if p.geom_type == 'Polygon'
-            ])
+            valid_polys = [p for p in self.poly.geoms if p.geom_type == 'Polygon']
+            if not len(valid_polys):
+                return np.array([])
+            else:
+                coords = np.concatenate([
+                    np.stack(p.exterior.coords.xy, axis=-1)
+                    for p in valid_polys
+                ])
         else:
             coords = np.stack(self.poly.exterior.coords.xy, axis=-1)
         # Remove duplicate points
@@ -164,7 +167,12 @@ class ROI:
         """Simplify the polygon."""
         if self.poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
             poly_s = sg.MultiPolygon([p.simplify(tolerance) for p in self.poly.geoms if p.geom_type == 'Polygon'])
-            self.coordinates = np.concatenate([np.stack(p.exterior.coords.xy, axis=-1) for p in poly_s.geoms])
+            if not len(poly_s.geoms):
+                # Polygon is empty after simplification, and thus cannot be simplified.
+                log.warning(f"ROI {self.name} is empty after simplification.")
+                pass
+            else:
+                self.coordinates = np.concatenate([np.stack(p.exterior.coords.xy, axis=-1) for p in poly_s.geoms])
         elif self.poly.geom_type == 'Polygon':
             poly_s = self.poly.simplify(tolerance=tolerance)
             self.coordinates = np.stack(poly_s.exterior.coords.xy, axis=-1)
