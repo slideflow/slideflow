@@ -2874,8 +2874,10 @@ class WSI:
                     x, y = poly.exterior.coords.xy
                     zipped = list(zip(x.tolist(), y.tolist()))
                     draw.line(zipped, joint='curve', fill=color, width=linewidth)
-                elif poly.geom_type == 'MultiPolygon':
+                elif poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
                     for part in poly.geoms:
+                        if part.is_empty or part.geom_type != 'Polygon':
+                            continue
                         x, y = part.exterior.coords.xy
                         zipped = list(zip(x.tolist(), y.tolist()))
                         draw.line(zipped, joint='curve', fill=color, width=linewidth)

@@ -143,26 +143,23 @@ class ROI:
 
     def poly_coords(self) -> np.ndarray:
         """Return the coordinates of the polygon."""
-        if self.poly.geom_type == 'MultiPolygon':
-            return np.concatenate([np.stack(p.exterior.coords.xy) for p in self.poly.geoms])
+        if self.poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+            return np.concatenate([
+                np.stack(p.exterior.coords.xy)
+                for p in self.poly.geoms
+                if p.geom_type == 'Polygon'
+            ])
         else:
             return np.stack(self.poly.exterior.coords.xy)
 
     def simplify(self, tolerance: float = 5) -> None:
         """Simplify the polygon."""
-        if self.poly.geom_type == 'MultiPolygon':
-            poly_s = sg.MultiPolygon([p.simplify(tolerance) for p in self.poly.geoms])
+        if self.poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+            poly_s = sg.MultiPolygon([p.simplify(tolerance) for p in self.poly.geoms if p.geom_type == 'Polygon'])
             self.coordinates = np.concatenate([np.stack(p.exterior.coords.xy, axis=-1) for p in poly_s.geoms])
         elif self.poly.geom_type == 'Polygon':
             poly_s = self.poly.simplify(tolerance=tolerance)
             self.coordinates = np.stack(poly_s.exterior.coords.xy, axis=-1)
-        elif self.poly.geom_type == 'GeometryCollection':
-            log.debug("Got ROI polygon geometry: {} (geoms: {})".format(
-                self.poly.geom_type,
-                list(self.poly.geoms)
-            ))
-            poly_s = sg.MultiPolygon([p.simplify(tolerance) for p in self.poly.geoms if p.geom_type == 'Polygon'])
-            self.coordinates = np.concatenate([np.stack(p.exterior.coords.xy, axis=-1) for p in poly_s.geoms])
         else:
             raise ValueError(f"Unrecognized ROI polygon geometry: {self.poly.geom_type}")
         for hole in self.holes:
@@ -235,7 +232,7 @@ class ROI:
         """Validate the exterior coordinates form a valid polygon."""
         if len(self.coordinates) < 4:
             raise errors.InvalidROIError("ROI must contain at least 4 coordinates.")
-        
+
     def polygon_is_valid(self) -> bool:
         """Check if the polygon is valid."""
         poly = sg.Polygon(self.coordinates)
@@ -466,8 +463,10 @@ def draw_roi(
         ))
     draw = ImageDraw.Draw(annotated_img)
     for poly in annPolys:
-        if poly.geom_type == 'MultiPolygon':
+        if poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
             for p in poly.geoms:
+                if p.is_empty or p.geom_type != 'Polygon':
+                    continue
                 x, y = p.exterior.coords.xy
                 zipped = list(zip(x.tolist(), y.tolist()))
                 draw.line(zipped, joint='curve', fill=color, width=linewidth)

@@ -351,12 +351,21 @@ class Heatmap:
             for roi in self.slide.rois:
                 for hole in roi.holes:
                     annPolys.append(sg.Polygon(hole.scaled_coords(roi_scale)))
-            for poly in annPolys:
+            for i, poly in enumerate(annPolys):
                 if poly.geom_type == 'Polygon':
                     x, y = poly.exterior.xy
-                elif poly.geom_type == 'MultiPolygon':
-                    x, y = poly.geoms[0].exterior.xy
-                ax.plot(x, y, zorder=20, **kwargs)
+                    ax.plot(x, y, zorder=20, **kwargs)
+                elif poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+                    for p in poly.geoms:
+                        if p.geom_type == 'Polygon':
+                            x, y = p.exterior.xy
+                            ax.plot(x, y, zorder=20, **kwargs)
+                else:
+                    log.warning("Unable to plot ROI {} (geometry={})".format(
+                        i, poly.geom_type
+                    ))
+
+
 
     def add_inset(
         self,

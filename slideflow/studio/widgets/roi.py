@@ -850,10 +850,11 @@ class ROIWidget:
                 merged_poly.exterior.coords.xy,
                 axis=-1
             )
-        elif merged_poly.geom_type == 'MultiPolygon':
+        elif merged_poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
             new_roi_coords = np.concatenate([
                 np.stack(p.exterior.coords.xy, axis=-1)
                 for p in merged_poly.geoms
+                if p.geom_type == 'Polygon'
             ])
         else:
             self.viz.create_toast('ROIs could not be merged.', icon='error')
