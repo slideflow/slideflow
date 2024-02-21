@@ -200,8 +200,8 @@ class ROI:
         ]
 
         # Filter out holes that are too small
-        hole_vertices = [h for h in hole_vertices if len(h) > 3]
         valid_holes = [h for i, h in enumerate(self.holes) if len(hole_vertices[i]) > 3]
+        hole_vertices = [h for h in hole_vertices if len(h) > 3]
 
         # Vertices of representative points within each hole
         hole_points = [
