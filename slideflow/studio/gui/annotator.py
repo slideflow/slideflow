@@ -287,9 +287,9 @@ class SlideAnnotationCapture(AnnotationCapture):
             self._last_n_points = len(self.annotation_points)
             annotation = np.array(self.annotation_points)
             self.scaled_coords, _ = self.viz.viewer._scale_roi_to_view(annotation)
-            self.scaled_coords = self.scaled_coords.astype(np.float32)
             self.update_box_vertices()
             if self.scaled_coords is not None:
+                self.scaled_coords = self.scaled_coords.astype(np.float32)
                 self.vbo = gl_utils.create_buffer(self.scaled_coords)
                 self.box_vbo = gl_utils.create_buffer(self.scaled_box_vertices)
 
