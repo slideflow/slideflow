@@ -2107,7 +2107,7 @@ class Sidebar:
     def _load_button_textures(self) -> None:
         """Reload textures for buttons."""
         button_dir = join(dirname(abspath(__file__)), 'gui', 'buttons')
-        for bname in self.navbuttons + ['gear', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy', 'model_loaded', 'extensions', 'add_freehand', 'add_polygon']:
+        for bname in self.navbuttons + ['gear', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy', 'model_loaded', 'extensions', 'add_freehand', 'add_polygon', 'add_point']:
             if bname in self._button_tex:
                 continue
             self._button_tex[bname] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}.png')), bilinear=True, mipmap=True)

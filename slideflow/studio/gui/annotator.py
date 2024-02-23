@@ -261,6 +261,35 @@ class SlideAnnotationCapture(AnnotationCapture):
 
         return None, False
 
+    def capture_point(self) -> Tuple[Optional[List[Tuple[int, int]]], bool]:
+        """Capture a circle annotation at the given point."""
+        min_x, max_x = self.x_range[0], self.x_range[1]
+        min_y, max_y = self.y_range[0], self.y_range[1]
+        mouse_x, mouse_y = imgui.get_mouse_pos()
+        if self.pixel_ratio != 1:
+            mouse_x *= self.pixel_ratio
+            mouse_y *= self.pixel_ratio
+        in_range = (max_x >= mouse_x) and (mouse_x >= min_x) and (max_y >= mouse_y) and (mouse_y >= min_y)
+        mouse_clicked = imgui.is_mouse_clicked(self.mouse_idx)
+
+        # If the user has right clicked, add a new point.
+        if mouse_clicked and in_range:
+            adj_x, adj_y = self.clip_to_view(mouse_x, mouse_y)
+            wsi_x, wsi_y = self.to_wsi_coords(adj_x, adj_y)
+
+            # Create a circle annotation with the given point as the center,
+            # with a radius of 50 pixels, every 30 degrees.
+            circle_coords = []
+            for i in range(0, 360, 30):
+                x = wsi_x + 100 * np.cos(np.radians(i))
+                y = wsi_y + 100 * np.sin(np.radians(i))
+                circle_coords.append((x, y))
+
+            self.annotation_points = circle_coords
+            return self.annotation_points, True
+
+        return None, False
+
     def update_box_vertices(self) -> None:
         # Convert the ROI vertices (n_vertex, 2) to (n_vertex, 4, 2) for the box.
         v = self.scaled_coords

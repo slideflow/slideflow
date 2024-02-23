@@ -1188,6 +1188,17 @@ class WSI:
     ) -> "Image":
         """Apply custom slide-level QC by filtering grid coordinates.
 
+        The mask should have a shape (height, width) proportional to the
+        slide's dimensions.
+
+        If the mask is numerical, the mask is thresholded at filter_threshold,
+        with values above the threshold indicating a region to discard.
+
+        If the mask is a boolean array, True indicates a region to
+        discard and False indicates a region to keep.
+
+        If the mask is a QCMask, the filter_threshold is ignored.
+
         Args:
             mask (np.ndarray or :class:`slideflow.slide.QCMask`, optional):
                 Boolean QC mask array or ``QCMask`` object. If None, will
@@ -1811,6 +1822,125 @@ class WSI:
             'label': labels
         }, index=index)
         return df
+
+    def get_tile_roi_mask(
+        self,
+        *,
+        grid: Optional[Tuple[int, int]] = None,
+        loc: Optional[Tuple[int, int]] = None,
+        mode: str = 'binary',
+        roi_labels: Optional[List[str]] = None
+    ) -> np.ndarray:
+        """Get the ROI mask for a tile at the given location.
+
+        Keyword Args:
+            grid (tuple[int, int], optional): Grid indices of the tile.
+                Must supply either ``grid`` or ``loc``. Defaults to None.
+            loc (tuple[int, int], optional): Location of the tile center.
+                Must supply either ``grid`` or ``loc``. Defaults to None.
+            mode (str, optional): 'binary', 'multiclass', or 'multilabel'.
+                Defaults to 'binary'.
+            roi_labels (list[str], optional): List of ROI labels to include.
+                Defaults to None.
+
+        Returns:
+            np.ndarray: ROI mask for the tile, with dtype int and shape
+                (n, tile_px, tile_px), where n is the number of ROI labels.
+
+        """
+        if grid is None and loc is None:
+            raise ValueError("Either grid or loc must be provided.")
+
+        # Definitions.
+        fe = self.full_extract_px
+        fs = self.full_stride
+        scale = self.tile_px / fe
+
+        # Get the polygon vertices for the tile.
+        if grid is not None:
+            # Convert from grid to top-left coordinates
+            gx, gy = grid
+            topleft = (gx * fs, gy * fs)
+            bottomleft = (gx * fs, (gy * fs) + fe)
+            bottomright = ((gx * fs) + fe, (gy * fs) + fe)
+            topright = ((gx * fs) + fe, gy * fs)
+        else:
+            # Convert from center to top-left coordinates
+            cx, cy = loc
+            cx -= int(fe / 2)
+            cy -= int(fe / 2)
+            topleft = (cx, cy)
+            bottomleft = (cx, cy + fe)
+            bottomright = (cx + fe, cy + fe)
+            topright = (cx + fe, cy)
+
+        # Get a polygon for the tile, used for determining overlapping ROIs.
+        tile = sg.Polygon([topleft, bottomleft, bottomright, topright])
+
+        # Compute the mask from ROIs.
+        if len(self.rois) == 0:
+            if roi_labels:
+                mask = np.zeros((len(roi_labels), self.tile_px, self.tile_px), dtype=int)
+            else:
+                mask = np.zeros((1, self.tile_px, self.tile_px), dtype=int)
+
+        # Handle ROIs with labels (multilabel or multiclass)
+        elif roi_labels:
+            labeled_masks = []
+            for label in roi_labels:
+                wsi_polys = [p.poly for p in self.rois if p.label == label]
+                if len(wsi_polys) == 0:
+                    mask = np.zeros((self.tile_px, self.tile_px), dtype=int)
+                    labeled_masks.append(mask)
+                else:
+                    all_polys = unary_union(wsi_polys)
+                    polys = get_scaled_and_intersecting_polys(
+                        all_polys, tile, scale, topleft
+                    )
+                    if isinstance(polys, sg.Polygon) and polys.is_empty:
+                        mask = np.zeros((self.tile_px, self.tile_px), dtype=int)
+                    else:
+                        # Rasterize to an int mask.
+                        mask = rasterio.features.rasterize(
+                            [polys],
+                            out_shape=[self.tile_px, self.tile_px]
+                        )
+                        mask = mask.astype(int)
+                    labeled_masks.append(mask)
+            mask = np.stack(labeled_masks, axis=0)
+
+        # Handle ROIs without labels (binary)
+        else:
+            # Determine the intersection at the given tile location.
+            all_polys = unary_union([p.poly for p in self.rois])
+            polys = get_scaled_and_intersecting_polys(
+                all_polys, tile, scale, topleft
+            )
+
+            if isinstance(polys, sg.Polygon) and polys.is_empty:
+                mask = np.zeros((self.tile_px, self.tile_px), dtype=int)
+            else:
+                # Rasterize to an int mask.
+                try:
+                    mask = rasterio.features.rasterize(
+                        [polys],
+                        out_shape=[self.tile_px, self.tile_px]
+                    )
+                    mask = mask.astype(bool).astype(np.int32)
+                except ValueError:
+                    mask = np.zeros((self.tile_px, self.tile_px), dtype=int)
+
+            # Add a dummy channel dimension.
+            mask = mask[None, :, :]
+
+        # Process according to the mode.
+        if mode == 'multiclass':
+            mask = mask * np.arange(1, mask.shape[0]+1)[:, None, None]
+            mask = mask.max(axis=0)
+        elif mode == 'binary' and mask.ndim == 3:
+            mask = np.any(mask, axis=0)[None, :, :].astype(int)
+
+        return mask
 
     def has_non_roi_qc(self) -> bool:
         """Check if the slide has any non-ROI QC masks."""
