@@ -112,7 +112,7 @@ class StyleGANWidget(Widget):
                     self.opt = json.load(f)
                 if 'slideflow_kwargs' in self.opt:
                     self.sf_opt = self.opt['slideflow_kwargs']
-                    if 'resize' in self.sf_opt:
+                    if 'resize' in self.sf_opt and self.sf_opt['resize']:
                         gan_px = self.sf_opt['resize']
                     else:
                         gan_px = self.sf_opt['tile_px']
