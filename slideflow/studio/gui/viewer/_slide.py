@@ -221,26 +221,37 @@ class SlideViewer(Viewer):
             imgui.push_style_color(imgui.COLOR_HEADER, 0, 0, 0, 0)
             imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, 0.16, 0.29, 0.48, 0.5)
             imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, 0.16, 0.29, 0.48, 0.9)
+            _old_rounding = imgui.get_style().window_rounding
+            imgui.get_style().window_rounding = viz.font_size / 1.5
             imgui.begin(
                 '##slide_thumb',
                 flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
             )
 
             if viz._wsi_tex_obj is not None:
-                imgui.image(viz._wsi_tex_obj.gl_id, max_width, max_height)
+                # Convert from wsi coords to thumbnail coords
+                t_xo, t_yo = imgui.get_window_position()
+                t_xo = t_xo + viz.spacing
+                t_yo = t_yo + viz.spacing
+
+                # Show rounded image
+                draw_list = imgui.get_window_draw_list()
+                draw_list.add_image_rounded(
+                    viz._wsi_tex_obj.gl_id,
+                    (t_xo, t_yo),
+                    (t_xo + max_width, t_yo + max_height),
+                    rounding=viz.font_size / 1.5
+                )
 
                 # Show location overlay
-                if viz.viewer.wsi_window_size:
-                    # Convert from wsi coords to thumbnail coords
-                    t_x, t_y = imgui.get_window_position()
-                    t_x = t_x + viz.spacing
+                if (viz.viewer.wsi_window_size
+                    and ((viz.viewer.wsi_window_size[0] != viz.wsi.dimensions[0])
+                        and (viz.viewer.wsi_window_size[1] != viz.wsi.dimensions[1]))):
+
                     t_w_ratio = max_width / viz.wsi.dimensions[0]
                     t_h_ratio = max_height / viz.wsi.dimensions[1]
-                    t_x += viz.viewer.origin[0] * t_w_ratio
-                    t_y += viz.viewer.origin[1] * t_h_ratio
-                    t_y += viz.spacing
-
-                    draw_list = imgui.get_window_draw_list()
+                    t_x = t_xo + viz.viewer.origin[0] * t_w_ratio
+                    t_y = t_yo + viz.viewer.origin[1] * t_h_ratio
                     draw_list.add_rect(
                         t_x,
                         t_y,
@@ -252,6 +263,7 @@ class SlideViewer(Viewer):
             imgui.end()
             imgui.pop_style_color(3)
             imgui.pop_style_var(1)
+            imgui.get_style().window_rounding = _old_rounding
 
     def _fast_refresh_cucim(self, new_view, p, view_params):
         # Fill in parts of the missing image
