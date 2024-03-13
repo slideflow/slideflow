@@ -122,7 +122,7 @@ class ExtensionsWidget:
         """Show an error message that an extension failed to load."""
         wrapped = textwrap.wrap(self._err_msg, width=45)
         lh = imgui.get_text_line_height_with_spacing()
-        window_size = (self.viz.font_size * 18, lh * len(wrapped) + self.viz.font_size * 4)
+        window_size = (self.viz.font_size * 20, lh * len(wrapped) + self.viz.font_size * 4)
         self.viz.center_next_window(*window_size)
         imgui.set_next_window_size(*window_size)
         _, opened = imgui.begin('Error loading extension', closable=True, flags=imgui.WINDOW_NO_RESIZE)
