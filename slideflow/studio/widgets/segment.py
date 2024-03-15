@@ -303,7 +303,8 @@ class TissueSegWidget(Widget):
             dts,
             batch_size=config.train_batch_size,
             shuffle=True,
-            num_workers=4
+            num_workers=4,
+            drop_last=True
         )
 
         # Build the model and trainer.
@@ -364,7 +365,8 @@ class TissueSegWidget(Widget):
             dts,
             batch_size=config.train_batch_size,
             shuffle=True,
-            num_workers=4
+            num_workers=4,
+            drop_last=True
         )
 
         # Build the model and trainer.
