@@ -291,6 +291,7 @@ def _create_index(tfrecord, force=False):
     if not tfrecord2idx.find_index(tfrecord) or force:
         tfrecord2idx.create_index(tfrecord, index_name)
 
+
 def _get_tile_df(
     slide_path: str,
     tile_px: int,
@@ -4180,34 +4181,38 @@ class Dataset:
 
         Returns:
             str: image format (png or jpeg)
+
         """
         tfrecords = self.tfrecords()
         if len(tfrecords):
-            img_formats = []
-            if progress:
-                pb = track(
-                    tfrecords,
-                    description="Verifying tfrecord formats...",
-                    transient=True
+            with mp.Pool(sf.util.num_cpu(),
+                         initializer=sf.util.set_ignore_sigint) as pool:
+                img_formats = []
+                mapped = pool.imap_unordered(
+                    sf.io.detect_tfrecord_format,
+                    tfrecords
                 )
-            else:
-                pb = tfrecords
-            for tfr in pb:
-                fmt = sf.io.detect_tfrecord_format(tfr)[-1]
-                if fmt is not None:
-                    img_formats += [fmt]
-            if len(set(img_formats)) > 1:
-                log_msg = "Mismatched TFRecord image formats:\n"
-                for tfr, fmt in zip(tfrecords, img_formats):
-                    log_msg += f"{tfr}: {fmt}\n"
-                log.error(log_msg)
-                raise errors.MismatchedImageFormatsError(
-                    "Mismatched TFRecord image formats detected"
-                )
-            if len(img_formats):
-                return img_formats[0]
-            else:
-                return None
+                if progress:
+                    mapped = track(
+                        mapped,
+                        description="Verifying tfrecord formats...",
+                        transient=True
+                    )
+                for *_, fmt in mapped:
+                    if fmt is not None:
+                        img_formats += [fmt]
+                if len(set(img_formats)) > 1:
+                    log_msg = "Mismatched TFRecord image formats:\n"
+                    for tfr, fmt in zip(tfrecords, img_formats):
+                        log_msg += f"{tfr}: {fmt}\n"
+                    log.error(log_msg)
+                    raise errors.MismatchedImageFormatsError(
+                        "Mismatched TFRecord image formats detected"
+                    )
+                if len(img_formats):
+                    return img_formats[0]
+                else:
+                    return None
         else:
             return None
 
