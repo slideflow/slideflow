@@ -7,6 +7,7 @@ import io
 import numpy as np
 import shapely.validation as sv
 import shapely.geometry as sg
+import shapely.affinity as sa
 import xml.etree.ElementTree as ET
 
 from shapely.ops import unary_union, polygonize
@@ -308,7 +309,6 @@ class ROI:
         return np.multiply(self.coordinates, 1/scale)
 
 
-
 class QCMask:
 
     def __init__(
@@ -387,7 +387,6 @@ class Alignment:
         obj.centroid = centroid
         obj.normal = normal
         return obj
-
 
 
 # -----------------------------------------------------------------------------
@@ -642,6 +641,40 @@ def xml_to_csv(path: str) -> str:
                 for vertex in vertices
             ])
     return new_csv_file
+
+
+def get_scaled_and_intersecting_polys(
+    polys: "sg.Polygon",
+    tile: "sg.Polygon",
+    scale: float,
+    origin: Tuple[int, int]
+):
+    """Get scaled and intersecting polygons for a given tile.
+
+    Args:
+        polys (sg.Polygon): Shapely polygon containing union of all ROIs, in
+            base dimensions.
+        tile (sg.Polygon): Shapely polygon representing the tile, in base
+            dimensions.
+        scale (float): Scale factor.
+        full_stride (int): Full stride, indictating the number of pixels in
+            between each tile.
+        grid_idx (Tuple[int, int]): Grid index of the tile (x, y).
+
+    Returns:
+        sg.Polygon: ROI polygons intersecting the tile, scaled to the tile
+            size and with the origin with reference to the tile.
+
+    """
+    topleft, topright = origin
+    A = polys.intersection(tile)
+
+    # Translate polygons so the intersection origin is at (0, 0)
+    B = sa.translate(A, -topleft, -topright)
+
+    # Scale to the target tile size
+    C = sa.scale(B, xfact=scale, yfact=scale, origin=(0, 0))
+    return C
 
 
 def _align_to_matrix(im1: np.ndarray, im2: np.ndarray, warp_matrix: np.ndarray) -> np.ndarray:

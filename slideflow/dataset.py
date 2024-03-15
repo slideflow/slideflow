@@ -1485,6 +1485,7 @@ class Dataset:
         q_size: int = 2,
         qc: Optional[Union[str, Callable, List[Callable]]] = None,
         report: bool = True,
+        use_edge_tiles: bool = False,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
         r"""Extract tiles from a group of slides.
@@ -1592,6 +1593,8 @@ class Dataset:
                 but do not export any images. Defaults to None.
             max_tiles (int, optional): Only extract this many tiles per slide.
                 Defaults to None.
+            use_edge_tiles (bool): Use edge tiles in extraction. Areas
+                outside the slide will be padded white. Defaults to False.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
@@ -1732,7 +1735,8 @@ class Dataset:
                     'roi_method': roi_method,
                     'roi_filter_method': roi_filter_method,
                     'origin': 'random' if randomize_origin else (0, 0),
-                    'pb': pb
+                    'pb': pb,
+                    'use_edge_tiles': use_edge_tiles
                 }
                 extraction_kwargs = {
                     'tfrecord_dir': tfrecord_dir,

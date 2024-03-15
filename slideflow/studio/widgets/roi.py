@@ -566,7 +566,7 @@ class ROIWidget:
         imgui.set_next_window_position(*self._ctx_mouse_pos)
         imgui.begin(
             "##roi_label_menu-{}".format((str(self._show_roi_label_menu))),
-            flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+            flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_MOVE)
         )
         with viz.bold_font():
             imgui.text("Label")

@@ -425,6 +425,9 @@ def predict_slide(
             tile_px=bags_params['tile_px'],
             tile_um=bags_params['tile_um']
         )
+    elif not isinstance(slide, sf.WSI):
+        raise ValueError("slide must either be a str (path to a slide) or a "
+                         "WSI object.")
 
     # Convert slide to bags
     if extractor_kwargs is None:
