@@ -281,7 +281,11 @@ class ROI:
 
     def validate(self) -> None:
         """Validate the exterior coordinates form a valid polygon."""
-        if len(self.poly_coords()) < 4:
+        try:
+            poly_coords = self.poly_coords()
+        except ValueError as e:
+            raise errors.InvalidROIError(f"Invalid ROI ({self.name}): {e}")
+        if len(poly_coords) < 4:
             raise errors.InvalidROIError(f"Invalid ROI ({self.name}): ROI must contain at least 4 coordinates.")
         if self.poly.geom_type not in ('Polygon', 'MultiPolygon', 'GeometryCollection'):
             raise errors.InvalidROIError(

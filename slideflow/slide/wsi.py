@@ -1761,6 +1761,21 @@ class WSI:
             mask=~np.repeat(unmasked_coord_indices[:, None], 4, axis=1)
         )
 
+    def get_roi_by_name(self, name: str) -> Optional[ROI]:
+        """Get an ROI by its name.
+
+        Args:
+            name (str): Name of the ROI.
+
+        Returns:
+            ROI: ROI object.
+
+        """
+        for roi in self.rois:
+            if roi.name == name:
+                return roi
+        return None
+
     def get_tile_coord(self) -> np.ndarray:
         """Get a coordinate grid of all tiles, restricted to those that pass QC
         and any ROI filtering.
