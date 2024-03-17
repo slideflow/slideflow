@@ -90,10 +90,10 @@ def update_manifest_at_dir(
         rel_tfr_manifest[rel_tfr]['total'] = total
         return rel_tfr_manifest
 
-    pool = DPool(sf.util.num_cpu())
+    pool = DPool(8)
     if sf.getLoggingLevel() <= 20:
         pb = Progress(transient=True)
-        task = pb.add_task("Verifying tfrecords...", total=len(rel_paths))
+        task = pb.add_task("Updating tfrecord manifest...", total=len(rel_paths))
         pb.start()
     else:
         pb = None
