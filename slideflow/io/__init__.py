@@ -93,7 +93,7 @@ def update_manifest_at_dir(
     pool = DPool(8)
     if sf.getLoggingLevel() <= 20:
         pb = Progress(transient=True)
-        task = pb.add_task("Verifying tfrecords...", total=len(rel_paths))
+        task = pb.add_task("Updating tfrecord manifest...", total=len(rel_paths))
         pb.start()
     else:
         pb = None
