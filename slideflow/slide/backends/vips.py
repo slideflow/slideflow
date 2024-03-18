@@ -268,20 +268,24 @@ def tile_worker(
     # to perform filtering; otherwise filter from our target level
     slide = get_libvips_reader(args.path, args.mpp_override, **args.reader_kwargs)
     if args.whitespace_fraction < 1 or args.grayspace_fraction < 1:
-        if args.filter_downsample_ratio > 1:
-            filter_extract_px = args.extract_px // args.filter_downsample_ratio
-            filter_region = slide.read_region(
-                (x, y),
-                args.filter_downsample_level,
-                (filter_extract_px, filter_extract_px)
-            )
-        else:
-            # Read the region and resize to target size
-            filter_region = slide.read_region(
-                (x, y),
-                args.downsample_level,
-                (args.extract_px, args.extract_px)
-            )
+        try:
+            if args.filter_downsample_ratio > 1:
+                filter_extract_px = args.extract_px // args.filter_downsample_ratio
+                filter_region = slide.read_region(
+                    (x, y),
+                    args.filter_downsample_level,
+                    (filter_extract_px, filter_extract_px)
+                )
+            else:
+                # Read the region and resize to target size
+                filter_region = slide.read_region(
+                    (x, y),
+                    args.downsample_level,
+                    (args.extract_px, args.extract_px)
+                )
+        except vips.error.Error as e:
+            log.warning(f"Error reading region at ({x}, {y}): {e}")
+            return None
         # Perform whitespace filtering [Libvips]
         if args.whitespace_fraction < 1:
             ws_fraction = filter_region.bandmean().relational_const(
@@ -325,11 +329,15 @@ def tile_worker(
 
     # Read the target downsample region now, if we were
     # filtering at a different level
-    region = slide.read_region(
-        (x, y),
-        args.downsample_level,
-        (args.extract_px, args.extract_px)
-    )
+    try:
+        region = slide.read_region(
+            (x, y),
+            args.downsample_level,
+            (args.extract_px, args.extract_px)
+        )
+    except vips.error.Error as e:
+        log.warning(f"Error reading region at ({x}, {y}): {e}")
+        return None
     if region.bands == 4:
         region = region.flatten()  # removes alpha
     if int(args.tile_px) != int(args.extract_px):
