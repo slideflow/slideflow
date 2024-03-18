@@ -365,7 +365,13 @@ def tile_worker(
                 return None
     else:
         # Read regions into memory and convert to numpy arrays
-        image = vips2numpy(region).astype(np.uint8)
+        try:
+            image = vips2numpy(region).astype(np.uint8)
+        except vips.error.Error as e:
+            log.warning('Error reading tile at ({}, {}): {}'.format(
+                x_coord, y_coord, e
+            ))
+            return None
 
         # Apply normalization
         if args.normalizer:
