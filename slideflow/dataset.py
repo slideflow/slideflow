@@ -92,6 +92,7 @@ import time
 import types
 import tempfile
 import warnings
+from contextlib import contextmanager
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
@@ -164,7 +165,27 @@ def _prepare_slide(
     except (KeyboardInterrupt, SystemExit) as e:
         print('Exiting...')
         raise e
+    except Exception as e:
+        log.error(f'Error processing slide {path}: {e}. Skipping')
+        return None
 
+
+@contextmanager
+def _handle_slide_errors(path: str):
+    try:
+        yield
+    except errors.MissingROIError:
+        log.info(f'Missing ROI for slide {path}; skipping')
+    except errors.SlideLoadError as e:
+        log.error(f'Error loading slide {path}: {e}. Skipping')
+    except errors.QCError as e:
+        log.error(e)
+    except errors.TileCorruptionError:
+        log.error(f'{path} corrupt; skipping')
+    except (KeyboardInterrupt, SystemExit) as e:
+        print('Exiting...')
+        raise e
+    
 
 def _tile_extractor(
     path: str,
@@ -190,7 +211,7 @@ def _tile_extractor(
         generator_kwargs (dict): Keyword arguments for WSI.extract_tiles()
         qc_kwargs(dict): Keyword arguments for quality control.
     """
-    try:
+    with _handle_slide_errors(path):
         log.debug(f'Extracting tiles for {path_to_name(path)}')
         slide = _prepare_slide(
             path,
@@ -207,18 +228,7 @@ def _tile_extractor(
             if render_thumb and isinstance(report, SlideReport):
                 _ = report.thumb
             reports.update({path: report})
-    except errors.MissingROIError:
-        log.info(f'Missing ROI for slide {path}; skipping')
-    except errors.SlideLoadError as e:
-        log.error(f'Error loading slide {path}: {e}. Skipping')
-    except errors.QCError as e:
-        log.error(e)
-    except errors.TileCorruptionError:
-        log.error(f'{path} corrupt; skipping')
-    except (KeyboardInterrupt, SystemExit) as e:
-        print('Exiting...')
-        raise e
-
+    
 
 def _buffer_slide(path: str, dest: str) -> str:
     """Buffer a slide to a path."""
@@ -1770,26 +1780,22 @@ class Dataset:
                         thread.join()
                     else:
                         for slide in slide_list:
-                            wsi = _prepare_slide(
-                                slide,
-                                report_dir=tfrecord_dir,
-                                wsi_kwargs=wsi_kwargs,
-                                qc=qc,
-                                qc_kwargs=qc_kwargs)
-                            if wsi is None:
-                                pb.advance(slide_task)
-                                continue
-                            try:
-                                log.debug(f'Extracting tiles for {wsi.name}')
-                                wsi_report = wsi.extract_tiles(
-                                    tfrecord_dir=tfrecord_dir,
-                                    tiles_dir=tiles_dir,
-                                    **kwargs
-                                )
-                                reports.update({wsi.path: wsi_report})
-                                del wsi
-                            except errors.TileCorruptionError:
-                                log.error(f'{wsi.path} corrupt; skipping')
+                            with _handle_slide_errors(slide):
+                                wsi = _prepare_slide(
+                                    slide,
+                                    report_dir=tfrecord_dir,
+                                    wsi_kwargs=wsi_kwargs,
+                                    qc=qc,
+                                    qc_kwargs=qc_kwargs)
+                                if wsi is not None:
+                                    log.debug(f'Extracting tiles for {wsi.name}')
+                                    wsi_report = wsi.extract_tiles(
+                                        tfrecord_dir=tfrecord_dir,
+                                        tiles_dir=tiles_dir,
+                                        **kwargs
+                                    )
+                                    reports.update({wsi.path: wsi_report})
+                                    del wsi
                             pb.advance(slide_task)
 
                 # Generate PDF report.
