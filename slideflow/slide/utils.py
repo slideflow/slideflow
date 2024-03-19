@@ -918,4 +918,3 @@ def _convert_img_to_format(image: np.ndarray, img_format: str) -> str:
         )[1].tostring()
     else:
         raise ValueError(f"Unknown image format {img_format}")
-
