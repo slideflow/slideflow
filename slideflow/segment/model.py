@@ -47,6 +47,10 @@ class SegmentModel(pl.LightningModule):
         **kwargs
     ):
         super().__init__()
+
+        if mode == 'multiclass':
+            out_classes += 1
+
         self.model = smp.create_model(
             arch,
             encoder_name=encoder_name,
