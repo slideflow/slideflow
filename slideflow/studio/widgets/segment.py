@@ -516,7 +516,7 @@ class TissueSegWidget(Widget):
 
         # Class selection
         width = imgui.get_content_region_max()[0] - viz.spacing - viz.label_w
-        with imgui.begin_list_box("##segment_class_select", width, 80) as list_box:
+        with imgui.begin_list_box("##segment_class_select", width, viz.font_size * 5) as list_box:
             if list_box.opened:
                 for _class in self._unique_training_classes:
                     _, self._unique_training_classes[_class] = imgui.selectable(_class, self._unique_training_classes[_class])
