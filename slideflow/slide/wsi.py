@@ -1256,8 +1256,9 @@ class WSI:
             qc_x = int(np.round(x * qc_ratio))
             qc_y = int(np.round(y * qc_ratio))
             submask = mask.mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
-            if np.mean(submask) > filter_threshold:
-                self.grid[xi, yi] = 0
+            if submask.size > 0:
+                if np.mean(submask) > filter_threshold:
+                    self.grid[xi, yi] = 0
 
         # Update the estimated number of tiles.
         self.estimated_num_tiles = int(self.grid.sum())
