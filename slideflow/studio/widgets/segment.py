@@ -200,7 +200,8 @@ class TissueSegWidget(Widget):
             return
         self._rois_at_start = len(self.viz.wsi.rois)
         self._working_toast = self.viz.create_toast(
-            title=f"Generating ROIs from segmentation model",
+            title="Generating ROIs",
+            message=f"Generating ROIs from segmentation model.",
             icon='info',
             sticky=True,
             spinner=True)
@@ -273,7 +274,12 @@ class TissueSegWidget(Widget):
 
         # Determine the labels, if necessary.
         all_roi_labels = self.get_training_classes()
-        out_classes = 1 if self.mode == 'binary' else len(all_roi_labels)
+        if self.mode == 'binary':
+            out_classes = 1
+        elif self.mode == 'multiclass':
+            out_classes = len(all_roi_labels) + 1
+        else:
+            out_classes = len(all_roi_labels)
 
         # Prepare the tile-mask dataset.
         dts = TileMaskDataset(
