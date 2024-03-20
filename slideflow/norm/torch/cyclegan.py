@@ -568,3 +568,23 @@ class CycleGanNormalizer(CycleGanStainTranslator):
         if len(img.shape) == 3:
             transformed = torch.squeeze(transformed, 0)
         return transformed
+
+
+class CycleGanReinhardNormalizer(CycleGanNormalizer):
+
+    preset_tag = 'cyclegan_reinhard'
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.reinhard = sf.norm.autoselect(
+            'reinhard_mask',
+            backend='torch',
+            device=self.device
+        )
+
+    def transform(self, img: torch.Tensor, augment: bool = False) -> torch.Tensor:
+        """Normalize a WxHxC H&E image (uint8)."""
+        img = self.reinhard.transform(img, augment=augment)
+        img = super().transform(img, augment=augment)
+        img = self.reinhard.transform(img, augment=augment)
+        return img
