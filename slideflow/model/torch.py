@@ -249,6 +249,7 @@ class ModelParams(_base._ModelParams):
             'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
             'SmoothL1': torch.nn.SmoothL1Loss,
             'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
+            # 'CoxProportionalHazardsLoss': torch_utils.CoxProportionalHazardsLoss,
         }
         self.AllLossDict = {
             'CrossEntropy': torch.nn.CrossEntropyLoss,
@@ -272,6 +273,7 @@ class ModelParams(_base._ModelParams):
             'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
             'SmoothL1': torch.nn.SmoothL1Loss,
             'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
+            # 'CoxProportionalHazardsLoss': torch_utils.CoxProportionalHazardsLoss,
         }
         super().__init__(loss=loss, **kwargs)
         assert self.model in self.ModelDict.keys() or self.model.startswith('timm_')
@@ -389,6 +391,7 @@ class ModelParams(_base._ModelParams):
         #check if loss is custom_[type] and returns type
         if self.loss.startswith('custom'):
             return self.loss[7:]
+        # elif self.loss == 'CoxProportionalHazardsLoss':
         elif self.loss == 'NLL':
             return 'cph'
         elif self.loss in self.LinearLossDict:
@@ -482,6 +485,11 @@ class Trainer:
                 that data. Defaults to None.
         """
         self.hp = hp
+        self.slides = list(labels.keys())
+        self.slide_input = slide_input
+        self.feature_names = feature_names
+        self.feature_sizes = feature_sizes
+        self.num_slide_features = 0 if not feature_sizes else sum(feature_sizes)
         self.outdir = outdir
         self.labels = labels
         self.patients = dict()  # type: Dict[str, str]
@@ -495,6 +503,14 @@ class Trainer:
         self.use_tensorboard: bool
         self.writer = None  # type: Optional[torch.utils.tensorboard.SummaryWriter]
         self._reset_training_params()
+        # Slide-level input args
+        if slide_input:
+            self.slide_input = {
+                k: [float(vi) for vi in v]
+                for k, v in slide_input.items()
+            }
+        else:
+            self.slide_input = None  # type: ignore
 
         if custom_objects is not None:
             log.warn("custom_objects argument ignored in PyTorch backend.")
@@ -505,17 +521,8 @@ class Trainer:
         torch.backends.cudnn.allow_tf32 = allow_tf32  # type: ignore
         self._allow_tf32 = allow_tf32
 
-        # Slide-level input args
-        if slide_input:
-            self.slide_input = {
-                k: [float(vi) for vi in v]
-                for k, v in slide_input.items()
-            }
-        else:
-            self.slide_input = None  # type: ignore
-        self.feature_names = feature_names
-        self.feature_sizes = feature_sizes
-        self.num_slide_features = 0 if not feature_sizes else sum(feature_sizes)
+        self._process_outcome_labels(outcome_names)
+        self._setup_inputs()
 
         self.normalizer = self.hp.get_normalizer()
         if self.normalizer:
@@ -525,7 +532,6 @@ class Trainer:
             os.makedirs(outdir)
 
         self._process_transforms(transform)
-        self._process_outcome_labels(outcome_names)
         if isinstance(labels, pd.DataFrame):
             cat_assign = self._process_category_assignments()
 
@@ -605,7 +611,6 @@ class Trainer:
         else:
             return {}
 
-
     def _process_transforms(
         self,
         transform: Optional[Union[Callable, Dict[str, Callable]]] = None
@@ -621,6 +626,26 @@ class Trainer:
         if 'val' not in transform:
             transform['val'] = None
         self.transform = transform
+
+    def _setup_inputs(self) -> None:
+        if self.num_slide_features:
+            assert self.slide_input is not None
+            try:
+                if self.num_slide_features:
+                    log.info(f'Training with both images and '
+                             f'{self.num_slide_features} slide-level input'
+                             'features')
+            except KeyError:
+                raise errors.ModelError("Unable to find slide-level input at "
+                                        "'input' key in annotations")
+            for slide in self.slides:
+                if len(self.slide_input[slide]) != self.num_slide_features:
+                    num_in_feature_table = len(self.slide_input[slide])
+                    raise errors.ModelError(
+                        f'Length of input for slide {slide} does not match '
+                        f'feature_sizes; expected {self.num_slide_features}, '
+                        f'got {num_in_feature_table}'
+                    )
 
     def _process_outcome_labels(
         self,
@@ -2066,11 +2091,43 @@ class LinearTrainer(Trainer):
 
 class CPHTrainer(Trainer):
 
-    """Cox proportional hazards (CPH) models are not yet implemented, but are
-    planned for a future update."""
+    """Cox Proportional Hazards model. Requires that the user provide event
+    data as the first input feature, and time to outcome as the linear outcome.
+    Uses concordance index as the evaluation metric."""
 
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError
+    _model_type = 'cph'
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if not self.num_slide_features:
+            raise errors.ModelError('Model error - CPH models must '
+                                    'include event input')
+        
+    # def _setup_inputs(self) -> None:
+    #     # Setup slide-level input
+    #     try:
+    #         num_features = self.num_slide_features - 1
+    #         if num_features:
+    #             log.info(f'Training with both images and {num_features} '
+    #                      'categories of slide-level input')
+    #             log.info('Interpreting first feature as event for CPH model')
+    #         else:
+    #             log.info('Training with images alone. Interpreting first '
+    #                      'feature as event for CPH model')
+    #     except KeyError:
+    #         raise errors.ModelError("Unable to find slide-level input at "
+    #                                 "'input' key in annotations")
+    #     assert self.slide_input is not None
+    #     for slide in self.slides:
+    #         if len(self.slide_input[slide]) != self.num_slide_features:
+    #             num_in_feature_table = len(self.slide_input[slide])
+    #             raise errors.ModelError(
+    #                 f'Length of input for slide {slide} does not match '
+    #                 f'feature_sizes; expected {self.num_slide_features}, got '
+    #                 f'{num_in_feature_table}'
+    #             )
+            
+    # TODO:
 
 # -----------------------------------------------------------------------------
 
