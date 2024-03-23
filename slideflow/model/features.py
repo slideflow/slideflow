@@ -108,6 +108,10 @@ class DatasetFeatures:
                 sorting. Defaults to True.
             progress (bool): Show a progress bar during feature calculation.
                 Defaults to True.
+            transform (Callable, optional): Custom transform to apply to
+                images. Applied before standardization. If the feature extractor
+                is a PyTorch model, the transform should be a torchvision 
+                transform.
             verbose (bool): Show verbose logging output. Defaults to True.
 
         Examples
@@ -1263,6 +1267,7 @@ class _FeatureGenerator:
         device: Optional[str] = None,
         num_workers: Optional[int] = None,
         augment: Optional[Union[bool, str]] = None,
+        transform: Optional[Callable] = None,
         **kwargs
     ) -> None:
         """Initializes FeatureGenerator.
@@ -1305,6 +1310,10 @@ class _FeatureGenerator:
             num_workers (int, optional): Number of workers to use for feature
                 extraction. Only used for PyTorch feature extractors. Defaults
                 to None.
+            transform (Callable, optional): Custom transform to apply to
+                images. Applied before standardization. If the feature extractor
+                is a PyTorch model, the transform should be a torchvision 
+                transform.
 
         """
         self.model = model
@@ -1314,6 +1323,7 @@ class _FeatureGenerator:
         self.simclr_args = None
         self.num_workers = num_workers
         self.augment = augment
+        self.transform = transform
 
         # Check if location information is stored in TFRecords
         self.tfrecords_have_loc = self.dataset.tfrecords_have_locations()
@@ -1443,6 +1453,7 @@ class _FeatureGenerator:
             'infinite': False,
             'batch_size': self.batch_size,
             'augment': self.augment,
+            'transform': self.transform,
             'incl_slidenames': True,
             'incl_loc': True,
         }
