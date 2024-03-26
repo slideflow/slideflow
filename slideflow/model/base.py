@@ -448,7 +448,7 @@ class _ModelParams:
         #check if loss is custom_[type] and returns type
         if self.loss.startswith('custom'):
             return self.loss[7:]
-        elif self.loss == 'negative_log_likelihood':
+        elif self.loss == 'negative_log_likelihood' or self.loss == 'CoxProportionalHazardsLoss':
             return 'cph'
         elif self.loss in self.LinearLossDict:
             return 'linear'
