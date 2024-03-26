@@ -235,7 +235,7 @@ class WSI:
             matching = matching_rois[0]
             if len(matching_rois) > 1:
                 log.warning(
-                    f"Multiple ROIs found for {self.name}; using {mr}"
+                    f"Multiple ROIs found for {self.name}; using {matching}"
                 )
             self.load_csv_roi(
                 matching,
