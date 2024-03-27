@@ -749,10 +749,12 @@ class WSI:
         if self.qc_mask is not None:
             mask = self.qc_mask
         else:
+            log.debug("Applying Otsu thresholding to identify tissue regions.")
             mask = sf.slide.qc.Otsu()(self)
 
         # Next, fill holes and remove small peaks through gaussian blur,
         # thresholding, and morphological closing.
+        log.debug("Filling holes and removing small peaks in tissue mask.")
         mask = skimage.morphology.binary_closing(
             skimage.filters.gaussian(mask, sigma=5) > 0.5,
             skimage.morphology.disk(5)
@@ -761,10 +763,12 @@ class WSI:
         # For each pixel in the mask, calculate the nearest distance to an
         # unmasked pixel. This will assist us with finding the densest areas
         # of tissue.
+        log.debug("Calculating distance transform of tissue mask.")
         distances = ndimage.distance_transform_edt(~mask)
 
         # Find the coordinates of the pixel with the highest average distance.
         # This is the center of the densest tissue region.
+        log.debug("Identifying target for alignment.")
         target = np.unravel_index(np.argmax(distances), distances.shape)
 
         # Convert from mask coordinates to slide coordinates.
@@ -783,6 +787,7 @@ class WSI:
         # --- 2. Align low-mag thumbnails. ------------------------------------
 
         # Calculate thumbnails for alignment.
+        log.debug("Calculating low-mag thumbnails for alignment.")
         our_thumb = np.array(self.thumb(mpp=8))
         their_thumb = np.array(slide.thumb(mpp=8))
 
@@ -800,6 +805,7 @@ class WSI:
 
         # Align thumbnails and adjust for scale.
         try:
+            log.debug("Aligning low-mag thumbnails (mpp=8)...")
             alignment_raw, mse = align_by_translation(
                 their_thumb, our_thumb, round=True, calculate_mse=True
             )
