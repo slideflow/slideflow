@@ -202,7 +202,7 @@ This code is made available under the GPLv3 License and is available for non-com
 ## 🔗 Reference
 If you find our work useful for your research, or if you use parts of this code, please consider citing as follows:
 
-Dolezal, J. M., Kochanny, S., Dyer, E., *et al*. Slideflow: Deep Learning for Digital Histopathology with Real-Time Whole-Slide Visualization. ArXiv [q-Bio.QM] (2023). http://arxiv.org/abs/2304.04142
+Dolezal, J.M., Kochanny, S., Dyer, E. et al. Slideflow: deep learning for digital histopathology with real-time whole-slide visualization. BMC Bioinformatics 25, 134 (2024). https://doi.org/10.1186/s12859-024-05758-x
 
 ```
 @Article{Dolezal2024,
