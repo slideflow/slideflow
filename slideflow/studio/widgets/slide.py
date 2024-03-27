@@ -467,7 +467,7 @@ class SlideWidget:
             if stride is not None:
                 self.stride = stride
             try:
-                success = viz._reload_wsi(
+                success = viz.reload_wsi(
                     slide,
                     stride=self.stride,
                     use_rois=self.roi_widget.use_rois,
@@ -835,7 +835,7 @@ class SlideWidget:
             self.show_slide_filter = False
             self._reset_tile_filter_and_join_thread()
             self.viz.clear_overlay()
-            self.viz._reload_wsi(stride=self.stride, use_rois=self.roi_widget.use_rois)
+            self.viz.reload_wsi(stride=self.stride, use_rois=self.roi_widget.use_rois)
             self._update_tile_coords()
 
         # ROI Filter Method

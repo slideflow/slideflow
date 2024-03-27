@@ -321,7 +321,7 @@ class MILWidget(Widget):
                 return self._load_multimodal_model(path, allow_errors=allow_errors)
 
             if self.viz.wsi:
-                self.viz._reload_wsi(
+                self.viz.reload_wsi(
                     tile_px=self.extractor_params['tile_px'],
                     tile_um=self.extractor_params['tile_um']
                 )
