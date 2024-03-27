@@ -923,6 +923,7 @@ class WSI:
         mask_on_fail: bool = True,
         align_by: str = 'fit',
         ignore_outliers = True,
+        num_workers: Optional[int] = None,
         **kwargs
     ) -> np.ndarray:
         """Align tiles to another slide.
@@ -975,7 +976,7 @@ class WSI:
         from tqdm import tqdm
 
         ctx = mp.get_context('spawn') if sf.slide_backend() == 'libvips' else mp.get_context('fork')
-        pool = ctx.Pool(sf.util.num_cpu())
+        pool = ctx.Pool(num_workers or sf.util.num_cpu())
 
         alignment_coords = np.zeros((self.coord.shape[0], 2))
         half_extract_px = int(np.round(self.full_extract_px/2))
