@@ -142,7 +142,13 @@ def addLoggingFileHandler(path):
 
 # Add tqdm-friendly stream handler
 #ch = log_utils.TqdmLoggingHandler()
-ch = RichHandler(markup=True, log_time_format="[%X]", show_path=False, highlighter=NullHighlighter(), rich_tracebacks=True)
+ch = RichHandler(
+    markup=True,
+    log_time_format="[%X]",
+    show_path=False,
+    highlighter=NullHighlighter(),
+    rich_tracebacks=True
+)
 ch.setFormatter(log_utils.LogFormatter())
 if 'SF_LOGGING_LEVEL' in os.environ:
     try:

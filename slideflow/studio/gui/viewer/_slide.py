@@ -75,7 +75,10 @@ class SlideViewer(Viewer):
 
         # Calculate scales
         self._um_steps = (1000, 500, 400, 250, 200, 100, 50, 30, 20, 10, 5, 3, 2, 1)
-        max_scale_w = (120 * self.viz.pixel_ratio)
+        if self.viz is not None:
+            max_scale_w = (120 * self.viz.pixel_ratio)
+        else:
+            max_scale_w = 120
         self._mpp_cutoffs = np.array([um / max_scale_w for um in self._um_steps])
 
     @property
@@ -180,6 +183,8 @@ class SlideViewer(Viewer):
         )
 
     def _draw_scale(self, max_w: int, max_h: int):
+        if self.viz is None:
+            return
 
         r = max(self.viz.pixel_ratio, 1)
         origin_x = self.x_offset + (30 * r)
@@ -204,6 +209,9 @@ class SlideViewer(Viewer):
         tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 
     def _draw_thumbnail(self):
+        if self.viz is None:
+            return
+
         viz = self.viz
 
         width = viz.font_size * self.thumb_max_width
@@ -688,6 +696,18 @@ class SlideViewer(Viewer):
         img_format: Optional[str] = None,
         allow_errors: bool = True
     ) -> np.ndarray:
+        """Read a tile from the slide.
+
+        Args:
+            x (int): X-coordinate of the tile (top-left).
+            y (int): Y-coordinate of the tile (top-left).
+
+        Keyword Args:
+            img_format (str, optional): Format to return the image in. If None,
+                returns as PNG. Options are 'jpg', 'jpeg', 'png'.
+            allow_errors (bool, optional): Whether to allow errors when reading
+                tiles outside of the slide bounds.
+        """
 
         # Determine destination format
         if img_format and img_format.lower() not in ('jpg', 'jpeg', 'png'):

@@ -457,6 +457,8 @@ class _VIPSReader:
         if loaded_image is None:
             loaded_image = vips.Image.new_from_file(path)
         self.vips_loader = loaded_image.get('vips-loader')
+        if isinstance(transforms, int):
+            transforms = [transforms]
         self.transforms = transforms
 
         # Load image properties
