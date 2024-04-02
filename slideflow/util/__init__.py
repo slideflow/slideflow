@@ -739,10 +739,25 @@ def load_json(filename: str) -> Any:
         return json.load(data_file)
 
 
+class ValidJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        try:
+            return super().default(obj)
+        except TypeError:
+            return "<unknown>"
+
+
 def write_json(data: Any, filename: str) -> None:
-    """Write data to JSON file."""
+    """Write data to JSON file.
+
+    Args:
+        data (Any): Data to write.
+        filename (str): Path to JSON file.
+
+    """
+    # First, remove any invalid entries that are not serializable
     with open(filename, "w") as data_file:
-        json.dump(data, data_file, indent=1)
+        json.dump(data, data_file, indent=1, cls=ValidJSONEncoder)
 
 
 def log_manifest(
