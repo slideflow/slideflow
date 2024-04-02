@@ -5,6 +5,7 @@ import glfw
 import imgui
 import slideflow as sf
 
+from collections import defaultdict
 from tkinter.filedialog import askopenfilename
 from os.path import join, dirname, abspath, exists
 from slideflow.slide import Alignment, best_fit_plane, z_on_plane
@@ -35,7 +36,9 @@ class AlignmentWidget:
         self._source_path = ''
         self._output_path = ''
         self._source_slide_paths = []
+        self._source_slide_names = []
         self._reference_slide_paths = []
+        self._reference_slide_names = []
         self._alignment_paths = []
         self.ref_viewer = None
         self.ref_wsi = None
@@ -53,7 +56,8 @@ class AlignmentWidget:
         self._last_ref_tile = None
         self._last_wsi = None
         self._last_project = None
-        self._patients_dict = None
+        self._slide_to_patient = None
+        self._patient_to_slides = None
         self._matching_patients = []
         self.mse = None
         self.batched_reference_load = False
@@ -64,12 +68,27 @@ class AlignmentWidget:
         # Enable tile preview
         self.viz._force_enable_tile_preview = True
 
-    @property
-    def patients_dict(self):
-        if self._patients_dict is None or self._last_project is not self.viz.P:
-            self._patients_dict = self.viz.P.dataset().patients()
-            self._last_project = self.viz.P
-        return self._patients_dict
+    def patient_is_known(self, slide):
+        if self.viz.P is not None and (self._slide_to_patient is None or self._last_project is not self.viz.P):
+            self._update_patient_dicts()
+        return self._slide_to_patient is not None and slide in self._slide_to_patient
+
+    def slide_to_patient(self, slide):
+        if self._slide_to_patient is None or self._last_project is not self.viz.P:
+            self._update_patient_dicts()
+        return self._slide_to_patient[slide]
+
+    def patient_to_slides(self, patient):
+        if self._patient_to_slides is None or self._last_project is not self.viz.P:
+            self._update_patient_dicts()
+        return self._patient_to_slides[patient]
+
+    def _update_patient_dicts(self):
+        self._slide_to_patient = self.viz.P.dataset().patients()
+        self._patient_to_slides = defaultdict(list)
+        for slide, patient in self._slide_to_patient.items():
+            self._patient_to_slides[patient].append(slide)
+        self._last_project = self.viz.P
 
     def _on_slide_load(self):
         """Triggered when a slide is loaded."""
@@ -119,7 +138,7 @@ class AlignmentWidget:
     def open_next_patient(self) -> None:
         """Open the next patient in the list of matching patients."""
         if self._matching_patients and self.viz.wsi is not None:
-            current_patient = self.patients_dict[self.viz.wsi.name]
+            current_patient = self.slide_to_patient(self.viz.wsi.name)
             current_index = self._matching_patients.index(current_patient)
             next_index = (current_index + 1) % len(self._matching_patients)
             next_patient = self._matching_patients[next_index]
@@ -128,7 +147,7 @@ class AlignmentWidget:
     def open_previous_patient(self) -> None:
         """Open the previous patient in the list of matching patients."""
         if self._matching_patients and self.viz.wsi is not None:
-            current_patient = self.patients_dict[self.viz.wsi.name]
+            current_patient = self.slide_to_patient(self.viz.wsi.name)
             current_index = self._matching_patients.index(current_patient)
             next_index = (current_index - 1) % len(self._matching_patients)
             next_patient = self._matching_patients[next_index]
@@ -136,8 +155,8 @@ class AlignmentWidget:
 
     def load_patient(self, patient) -> None:
         """Load the given patient."""
-        source_slide_path = [sp for sp in self._source_slide_paths if path_to_name(sp) in self.patients_dict and self.patients_dict[path_to_name(sp)] == patient][0]
-        ref_slide_path = [sp for sp in self._reference_slide_paths if path_to_name(sp) in self.patients_dict and self.patients_dict[path_to_name(sp)] == patient][0]
+        source_slide_path = [sp for sp in self._source_slide_paths if self.patient_is_known(path_to_name(sp)) and self.slide_to_patient(path_to_name(sp)) == patient][0]
+        ref_slide_path = [sp for sp in self._reference_slide_paths if self.patient_is_known(path_to_name(sp)) and self.slide_to_patient(path_to_name(sp)) == patient][0]
         self.viz.load_slide(source_slide_path)
         self.load_reference_slide(ref_slide_path)
 
@@ -390,12 +409,12 @@ class AlignmentWidget:
         ref_patients = []
         for f in self._source_slide_paths:
             slide = path_to_name(f)
-            if slide in self.patients_dict:
-                src_patients.append(self.patients_dict[slide])
+            if self.patient_is_known(slide):
+                src_patients.append(self.slide_to_patient(slide))
         for f in self._reference_slide_paths:
             slide = path_to_name(f)
-            if slide in self.patients_dict:
-                ref_patients.append(self.patients_dict[slide])
+            if self.patient_is_known(slide):
+                ref_patients.append(self.slide_to_patient(slide))
         matching_patients = set(src_patients).intersection(set(ref_patients))
         self._matching_patients = sorted(list(matching_patients))
 
@@ -509,14 +528,21 @@ class AlignmentWidget:
             )
             if _src_changed:
                 self._source_slide_paths = sf.util.get_slide_paths(self._source_path)
+                self._source_slide_names = [path_to_name(sp) for sp in self._source_slide_paths]
             if _ref_changed:
                 self._reference_slide_paths = sf.util.get_slide_paths(self._reference_path)
+                self._reference_slide_names = [path_to_name(sp) for sp in self._reference_slide_paths]
             if _ref_changed or _src_changed:
                 if viz.P is not None:
                     self.update_matching_patients()
                 else:
                     viz.create_toast('Project must be loaded for batch aligning.', icon='error')
-                self._alignment_paths = os.listdir(self._output_path)
+                if os.path.exists(self._output_path):
+                    print("output path exists", self._output_path)
+                    self._alignment_paths = os.listdir(self._output_path)
+                else:
+                    print("output path does NOT exist", self._output_path)
+                    self._alignment_paths = []
 
         # Output directory configuration for saving alignments.
         imgui.text('Output')
@@ -532,10 +558,11 @@ class AlignmentWidget:
         with imgui.begin_list_box("##matching_patients", -1, viz.font_size * 5) as list_box:
             if list_box.opened:
                 for i, patient in enumerate(self._matching_patients):
-                    _selected = viz.wsi is not None and self.patients_dict[viz.wsi.name] == patient
-                    patient_display = patient
-                    wsi_name = [path_to_name(sp) for sp in self._source_slide_paths if path_to_name(sp) in self.patients_dict and self.patients_dict[path_to_name(sp)] == patient][0]
-                    ref_name = [path_to_name(sp) for sp in self._reference_slide_paths if path_to_name(sp) in self.patients_dict and self.patients_dict[path_to_name(sp)] == patient][0]
+                    _selected = viz.wsi is not None and self.slide_to_patient(viz.wsi.name) == patient
+                    patient_display = patient 
+                    matching_slides = self.patient_to_slides(patient)
+                    wsi_name = [name for name in matching_slides if name in self._source_slide_names][0]
+                    ref_name = [name for name in matching_slides if name in self._reference_slide_names][0]
                     if self._output_path is not None and f'{wsi_name}_{ref_name}_alignment.npz' in self._alignment_paths:
                         patient_display += ' (aligned)'
                     _clicked, _sel = imgui.selectable(patient_display, selected=_selected)
