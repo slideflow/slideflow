@@ -1427,6 +1427,14 @@ def tfrecord_heatmap(
     )
 
 
+def tile_size_label(tile_px: int, tile_um: Union[str, int]) -> str:
+    """Return the string label of the given tile size."""
+    if isinstance(tile_um, str):
+        return f"{tile_px}px_{tile_um.lower()}"
+    else:
+        return f"{tile_px}px_{tile_um}um"
+
+
 def get_valid_model_dir(root: str) -> List:
     '''
     This function returns the path of the first indented directory from root.

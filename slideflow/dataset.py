@@ -185,7 +185,7 @@ def _handle_slide_errors(path: str):
     except (KeyboardInterrupt, SystemExit) as e:
         print('Exiting...')
         raise e
-    
+
 
 def _tile_extractor(
     path: str,
@@ -228,7 +228,7 @@ def _tile_extractor(
             if render_thumb and isinstance(report, SlideReport):
                 _ = report.thumb
             reports.update({path: report})
-    
+
 
 def _buffer_slide(path: str, dest: str) -> str:
     """Buffer a slide to a path."""
@@ -628,10 +628,7 @@ class Dataset:
             )
         # Create labels for each source based on tile size
         if (tile_px is not None) and (tile_um is not None):
-            if isinstance(tile_um, str):
-                label = f"{tile_px}px_{tile_um.lower()}"
-            else:
-                label = f"{tile_px}px_{tile_um}um"
+            label = sf.util.tile_size_label(tile_px, tile_um)
         else:
             label = None
         for source in self.sources:
