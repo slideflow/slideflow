@@ -21,10 +21,14 @@ def build_torch_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_torch
+def uni(tile_px, weights, **kwargs):
+    from .uni import UNIFeatures
+    return UNIFeatures(weights, center_crop=(tile_px != 224), **kwargs)
+
+@register_torch
 def vit(**kwargs):
     from .vit import ViTFeatures
     return ViTFeatures(**kwargs)
-
 
 @register_torch
 def histossl(tile_px, **kwargs):
