@@ -908,7 +908,10 @@ class WSI:
 
         # Apply alignment.
         self.origin = alignment
-        self.alignment = Alignment.from_translation(self.slide.coord_to_raw(*alignment))
+        self.alignment = Alignment.from_translation(
+            origin=self.slide.coord_to_raw(*alignment),
+            scale=(slide.mpp / self.mpp),
+        )
         log.info("Slide aligned with MSE {:.2f}. Origin set to {}".format(
                 mse, self.origin
         ))
@@ -1109,9 +1112,10 @@ class WSI:
                 all_alignment_coords = fit_alignment
 
             self.alignment = Alignment.from_fit(
-                self.slide.coord_to_raw(*self.origin),
-                (x_centroid, y_centroid),
-                (x_normal, y_normal)
+                origin=self.slide.coord_to_raw(*self.origin),
+                scale=(slide.mpp / self.mpp),
+                centroid=(x_centroid, y_centroid),
+                normal=(x_normal, y_normal)
             )
 
         for idx, (x, y, xi, yi) in enumerate(self.coord):
@@ -1136,8 +1140,9 @@ class WSI:
 
         if align_by != 'fit':
             self.alignment = Alignment.from_coord(
-                self.slide.coord_to_raw(*self.origin),
-                self.coord
+                origin=self.slide.coord_to_raw(*self.origin),
+                scale=(slide.mpp / self.mpp),
+                coord=self.coord
             )
 
         log.info("Slide alignment complete and finetuned at each unmasked tile location.")
@@ -1152,11 +1157,16 @@ class WSI:
 
         """
         self.alignment = alignment
-        self.origin = self.slide.raw_to_coord(*alignment.origin)
-
         if alignment.coord is not None:
+            self.origin = self.slide.raw_to_coord(*alignment.origin)
             self.coord = alignment.coord
+        elif alignment.centroid is None:
+            self.origin = self.slide.raw_to_coord(*alignment.origin)
+            self._build_coord()
+            if self.qc_mask is not None:
+                self.apply_qc_mask()
         else:
+            self.origin = self.slide.raw_to_coord(*alignment.origin)
             self._build_coord()
             if self.qc_mask is not None:
                 self.apply_qc_mask()
@@ -1165,6 +1175,10 @@ class WSI:
                 x_normal, y_normal = alignment.normal
                 half_extract_px = int(np.round(self.full_extract_px/2))
                 for idx, (x, y, xi, yi) in enumerate(self.coord):
+                    x = (xi * int(self.full_stride/alignment.scale)) * alignment.scale
+                    y = (yi * int(self.full_stride/alignment.scale)) * alignment.scale
+                    x += self.origin[0]
+                    y += self.origin[1]
                     bx, by = self.slide.coord_to_raw(
                         x + half_extract_px,
                         y + half_extract_px
