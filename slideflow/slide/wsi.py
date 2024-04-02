@@ -1797,7 +1797,7 @@ class WSI:
                 return roi
         return None
 
-    def get_tile_coord(self) -> np.ndarray:
+    def get_tile_coord(self, anchor='topleft') -> np.ndarray:
         """Get a coordinate grid of all tiles, restricted to those that pass QC
         and any ROI filtering.
 
@@ -1807,9 +1807,15 @@ class WSI:
         grid indices of the tile.
 
         """
-        return self.coord[
+        if anchor not in ('center', 'topleft'):
+            raise ValueError("Expected `anchor` to be 'center' or 'topleft'")
+        c = self.coord[
             self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
-        ]
+        ].copy()
+        if anchor == 'center':
+            c[:, 0] += int(self.full_extract_px/2)
+            c[:, 1] += int(self.full_extract_px/2)
+        return c
 
     def get_tile_dataframe(self) -> pd.DataFrame:
         """Build a dataframe of tiles and associated ROI labels.
