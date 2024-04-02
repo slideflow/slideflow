@@ -285,10 +285,14 @@ class RetCCLFeatures(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, device=None, center_crop=False, ckpt=None):
+    def __init__(self, device=None, center_crop=False, resize=False, ckpt=None):
         super().__init__()
 
         from slideflow.model import torch_utils
+
+        if center_crop and resize:
+            raise ValueError("center_crop and resize cannot both be True.")
+
         self.device = torch_utils.get_device(device)
         self.model = ResNet50(
             block=Bottleneck,
@@ -313,7 +317,12 @@ class RetCCLFeatures(TorchFeatureExtractor):
 
         # ---------------------------------------------------------------------
         self.num_features = 2048
-        all_transforms = [transforms.CenterCrop(256)] if center_crop else []
+        if center_crop:
+            all_transforms = [transforms.CenterCrop(256)]
+        elif resize:
+            all_transforms = [transforms.Resize(256)]
+        else:
+            all_transforms = []
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
             transforms.Normalize(
@@ -323,6 +332,7 @@ class RetCCLFeatures(TorchFeatureExtractor):
         self.transform = transforms.Compose(all_transforms)
         self.preprocess_kwargs = dict(standardize=False)
         self._center_crop = center_crop
+        self._resize = resize
         # ---------------------------------------------------------------------
 
     def dump_config(self):
@@ -335,5 +345,8 @@ class RetCCLFeatures(TorchFeatureExtractor):
         cls_name = self.__class__.__name__
         return {
             'class': f'slideflow.model.extractors.retccl.{cls_name}',
-            'kwargs': {'center_crop': self._center_crop}
+            'kwargs': {
+                'center_crop': self._center_crop,
+                'resize': self._resize
+            }
         }

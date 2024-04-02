@@ -42,10 +42,14 @@ class UNIFeatures(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, weights, device='cuda', center_crop=False):
+    def __init__(self, weights, device='cuda', center_crop=False, resize=False):
         super().__init__()
 
         from slideflow.model import torch_utils
+
+        if center_crop and resize:
+            raise ValueError("center_crop and resize cannot both be True.")
+
         self.device = torch_utils.get_device(device)
         self.model = timm.create_model(
             "vit_large_patch16_224",
@@ -61,7 +65,12 @@ class UNIFeatures(TorchFeatureExtractor):
 
         # ---------------------------------------------------------------------
         self.num_features = 1024
-        all_transforms = [transforms.CenterCrop(224)] if center_crop else []
+        if center_crop:
+            all_transforms = [transforms.CenterCrop(224)]
+        elif resize:
+            all_transforms = [transforms.Resize(224)]
+        else:
+            all_transforms = []
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
             transforms.Normalize(
@@ -72,6 +81,7 @@ class UNIFeatures(TorchFeatureExtractor):
         self.preprocess_kwargs = dict(standardize=False)
         self._center_crop = center_crop
         self._weights = weights
+        self._resize = resize
 
     def dump_config(self):
         """Return a dictionary of configuration parameters.
@@ -82,5 +92,9 @@ class UNIFeatures(TorchFeatureExtractor):
         """
         return {
             'class': 'slideflow.model.extractors.uni.UNIFeatures',
-            'kwargs': {'center_crop': self._center_crop, 'weights': self._weights}
+            'kwargs': {
+                'center_crop': self._center_crop,
+                'resize': self._resize,
+                'weights': self._weights
+            }
         }

@@ -1,18 +1,18 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Vision transformer feature extractor. 
+"""Vision transformer feature extractor.
 
 Most code comes from the timm library: https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
 
@@ -34,7 +34,7 @@ from ._factory_torch import TorchFeatureExtractor
 # -----------------------------------------------------------------------------
 
 def _no_grad_trunc_normal_(tensor, mean, std, a, b):
-    
+
     # Cut & paste from PyTorch official master until it's in a few official releases - RW
     # Method based on https://people.sc.fsu.edu/~jburkardt/presentations/truncated_normal.pdf
     def norm_cdf(x):
@@ -100,11 +100,11 @@ class DropPath(nn.Module):
 
 class Mlp(nn.Module):
     def __init__(
-        self, 
-        in_features: int, 
-        hidden_features: Optional[int] = None, 
-        out_features: Optional[int] = None, 
-        act_layer: nn.Module = nn.GELU, 
+        self,
+        in_features: int,
+        hidden_features: Optional[int] = None,
+        out_features: Optional[int] = None,
+        act_layer: nn.Module = nn.GELU,
         drop: float = 0.
     ) -> None:
         super().__init__()
@@ -126,12 +126,12 @@ class Mlp(nn.Module):
 
 class Attention(nn.Module):
     def __init__(
-        self, 
-        dim: int, 
-        num_heads: int = 8, 
-        qkv_bias: bool = False, 
-        qk_scale: Optional[float] = None, 
-        attn_drop: float = 0., 
+        self,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = False,
+        qk_scale: Optional[float] = None,
+        attn_drop: float = 0.,
         proj_drop: float = 0.
     ) -> None:
         super().__init__()
@@ -162,16 +162,16 @@ class Attention(nn.Module):
 
 class Block(nn.Module):
     def __init__(
-        self, 
-        dim: int, 
-        num_heads: int, 
-        mlp_ratio: float = 4., 
-        qkv_bias: bool = False, 
-        qk_scale: Optional[float] = None, 
-        drop: float = 0., 
+        self,
+        dim: int,
+        num_heads: int,
+        mlp_ratio: float = 4.,
+        qkv_bias: bool = False,
+        qk_scale: Optional[float] = None,
+        drop: float = 0.,
         attn_drop: float = 0.,
-        drop_path: float = 0., 
-        act_layer: nn.Module = nn.GELU, 
+        drop_path: float = 0.,
+        act_layer: nn.Module = nn.GELU,
         norm_layer: nn.Module = nn.LayerNorm
     ) -> None:
         super().__init__()
@@ -195,10 +195,10 @@ class Block(nn.Module):
 class PatchEmbed(nn.Module):
     """Image to Patch Embedding."""
     def __init__(
-        self, 
-        img_size: int = 224, 
-        patch_size: int = 16, 
-        in_chans: int = 3, 
+        self,
+        img_size: int = 224,
+        patch_size: int = 16,
+        in_chans: int = 3,
         embed_dim: int = 768
     ):
         super().__init__()
@@ -218,18 +218,18 @@ class PatchEmbed(nn.Module):
 class VisionTransformer(nn.Module):
     """Vision Transformer."""
     def __init__(
-        self, 
-        img_size: int = 224, 
-        patch_size: int = 16, 
-        in_chans: int = 3, 
-        num_classes: int = 0, 
-        embed_dim: int = 768, 
+        self,
+        img_size: int = 224,
+        patch_size: int = 16,
+        in_chans: int = 3,
+        num_classes: int = 0,
+        embed_dim: int = 768,
         depth: int = 12,
-        num_heads: int = 12, 
-        mlp_ratio: float = 4., 
-        qkv_bias: bool = False, 
-        qk_scale: Optional[float] = None, 
-        drop_rate: float = 0., 
+        num_heads: int = 12,
+        mlp_ratio: float = 4.,
+        qkv_bias: bool = False,
+        qk_scale: Optional[float] = None,
+        drop_rate: float = 0.,
         attn_drop_rate: float = 0.,
         drop_path_rate: float = 0.,
         norm_layer: nn.Module = nn.LayerNorm,
@@ -425,6 +425,7 @@ class ViTFeatures(TorchFeatureExtractor):
         self.transform = transforms.Compose(all_transforms)
         self.preprocess_kwargs = dict(standardize=False)
         self._center_crop = center_crop
+        self._resize = resize
         # ---------------------------------------------------------------------
 
     def dump_config(self):
@@ -441,5 +442,6 @@ class ViTFeatures(TorchFeatureExtractor):
                 'size': self.size,
                 'weights': self.weights,
                 'center_crop': self._center_crop,
+                'resize': self._resize
             },
         }
