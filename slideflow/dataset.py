@@ -1982,6 +1982,79 @@ class Dataset:
 
         log.info("Bag filtering complete. {} bags filtered.".format(n_complete))
 
+    def filter_bags_by_df(
+        self,
+        bags_path: str,
+        dest: str,
+        df: pd.DataFrame,
+        *,
+        column_name: str = 'extract',
+        threshold: float = None,
+        lower_than: bool = False
+    ) -> None:
+        """Filter bags by tiles in an df
+
+        Args:
+            bags_path (str): Path to the bags directory.
+            dest (str): Path to the destination directory.
+            df (pd.DataFrame): Dataframe with slide, loc_x, loc_y, and column_name.
+            column_name (str): Column name to use for filtering. Defaults to 'extract'.
+            threshold (float): Threshold for filtering, applies to column name, 
+                if None, column_name is assumed to be boolean.
+            lower_than (bool): If True, filter values lower than threshold.
+        """
+        import torch
+
+        if not exists(dest):
+            os.makedirs(dest)
+
+        n_complete = 0
+        for slide in tqdm(df.slide.unique()):
+            if not exists(join(bags_path, slide+'.pt')):
+                continue
+
+            df_slide = df.loc[df.slide == slide].copy()
+
+            # Get the bag
+            bag = torch.load(join(bags_path, slide+'.pt'))
+            bag_index = np.load(join(bags_path, slide+'.index.npz'))['arr_0']
+
+            # if threshold is set, filter the dataframe
+            if threshold is not None:
+                if lower_than:
+                    df_slide[column_name] = df_slide[column_name] < threshold
+                else:
+                    df_slide[column_name] = df_slide[column_name] > threshold
+
+            #print(df_slide)
+            # Get the common locations
+            bag_locs = {tuple(r) for r in bag_index}
+            selected_locs = {tuple(row[['loc_x', 'loc_y']]) for _, row in df_slide[df_slide[column_name]].iterrows()}
+            common_locs = bag_locs.intersection(selected_locs)
+
+            # Find indices in the bag that match the common locations (in an ROI)
+            bag_i = [i for i, row in enumerate(bag_index) if tuple(row) in common_locs]
+            if not len(bag_i):
+                log.debug("No common locations found for {}".format(slide))
+                continue
+
+            # create folder if not exists
+            if not exists(dest):
+                os.makedirs(dest)
+
+            # Subset and save the bag
+            bag = bag[bag_i]
+            torch.save(bag, join(dest, slide+'.pt'))
+
+            # Subset and save the index file
+            bag_index = bag_index[bag_i]
+            np.savez_compressed(join(dest, slide + '.index.npz'), bag_index)
+
+            log.debug("Subset size ({}): {} -> {}".format(slide, len(bag_index), len(bag)))
+            n_complete += 1
+
+        log.info("Bag filtering complete. {} bags filtered.".format(n_complete))
+
     def find_rois(self, slide: str) -> Optional[str]:
         """Find an ROI path from a given slide.
 
