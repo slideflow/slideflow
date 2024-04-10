@@ -2054,7 +2054,81 @@ class Dataset:
             n_complete += 1
 
         log.info("Bag filtering complete. {} bags filtered.".format(n_complete))
+    
+    def return_represantative_tile_df(
+        self,
+        bags_path: str,
+        aggregation_method: str = 'mean',
+        distance_method: str = 'euclidean',
+    ) -> pd.DataFrame:
+        """Return a dataframe with a representative tile for each slide.
 
+        Args:
+            bags_path (str): Path to the bags directory.
+            dest (str): Path to the destination directory.
+            aggregation_method (str): Method to aggregate the tiles in the bag.
+                Defaults to 'mean'.
+            distance_method (str): Method to find the closest tile to the centroid.
+                Defaults to 'euclidean'.
+
+        Returns:
+            pd.DataFrame: DataFrame with representative tile information for each slide.
+        """
+        import torch
+        from sklearn.metrics.pairwise import pairwise_distances
+
+        # Initialize an empty DataFrame to store the results
+        result_df = pd.DataFrame()
+
+        for slide in tqdm(os.listdir(bags_path)):
+            if not slide.endswith('.pt'):
+                continue
+
+            # Load the bag and index
+            bag_path = os.path.join(bags_path, slide)
+            index_path = os.path.join(bags_path, slide.replace('.pt', '.index.npz'))
+
+            bag = torch.load(bag_path)
+            bag_index = np.load(index_path)['arr_0']
+
+            # Aggregate the tiles using the specified method
+            if aggregation_method == 'mean':
+                centroid = torch.mean(bag, dim=0)
+            elif aggregation_method == 'median':
+                centroid = torch.median(bag, dim=0).values
+            else:
+                raise ValueError(f"Invalid aggregation method: {aggregation_method}")
+
+            # Find the closest tile to the centroid using the specified distance method
+            if distance_method == 'euclidean':
+                distances = pairwise_distances(bag.numpy(), centroid.unsqueeze(0).numpy(), metric='euclidean')
+            elif distance_method == 'manhattan':
+                distances = pairwise_distances(bag.numpy(), centroid.unsqueeze(0).numpy(), metric='manhattan')
+            elif distance_method == 'l1':
+                distances = pairwise_distances(bag.numpy(), centroid.unsqueeze(0).numpy(), metric='l1')
+            elif distance_method == 'cosine':
+                distances = pairwise_distances(bag.numpy(), centroid.unsqueeze(0).numpy(), metric='cosine')
+            else:
+                raise ValueError(f"Invalid distance method: {distance_method}")
+
+            closest_idx = np.argmin(distances)
+
+            # Get the representative tile information
+            loc_x, loc_y = bag_index[closest_idx]
+            activations = bag[closest_idx].numpy()
+
+            # Create a DataFrame for the representative tile
+            tile_df = pd.DataFrame({
+                'slide': [slide.replace('.pt', '')],
+                'locations': [np.array([loc_x, loc_y])],
+                'activations': [activations]
+            })
+
+            # Concatenate the representative tile DataFrame to the result DataFrame
+            result_df = pd.concat([result_df, tile_df], ignore_index=True)
+
+        return result_df
+    
     def find_rois(self, slide: str) -> Optional[str]:
         """Find an ROI path from a given slide.
 
