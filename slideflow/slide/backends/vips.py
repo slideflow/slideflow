@@ -910,8 +910,31 @@ class _OmeTiffVIPSReader(_VIPSReader):
 
     def __init__(self, *args, **kwargs):
         self.page_labels = None
-        self.num_pyramid_levels = 5
+        self._num_pyramid_levels = None
         super().__init__(*args, **kwargs)
+
+    @property
+    def num_pyramid_levels(self):
+        if self._num_pyramid_levels is not None:
+            return self._num_pyramid_levels
+        else:
+            # Determine the number of pyramid levels from XML
+            str_xml = self.properties['image-description']
+            root = ET.fromstring(str_xml)
+            possible_anns = [child for child in root if child.tag.endswith('StructuredAnnotations')]
+            if len(possible_anns) == 0:
+                raise errors.SlideError("Could not find pyramid levels in OME-TIFF XML.")
+            if len(possible_anns) > 1:
+                raise errors.SlideError("Could not interpret OME-TIFF XML; found multiple 'StructuredAnnotations' fields.")
+            ann = possible_anns[0]
+            page_id = self.get_page_by_label('main')
+            resolution_pyramid = [child for child in ann if child.tag.endswith('MapAnnotation') and child.attrib['ID'] == f'Annotation:Resolution:{page_id}']
+            if len(resolution_pyramid) == 0:
+                raise errors.SlideError("Could not find pyramid levels in OME-TIFF XML.")
+            if len(resolution_pyramid) > 1:
+                raise errors.SlideError("Could not interpret OME-TIFF XML; found multiple resolution pyramids.")
+            self._num_pyramid_levels = len(resolution_pyramid[0][0])
+            return self._num_pyramid_levels
 
     def build_page_labels(self):
         """Build page labels from OME-TIFF XML."""
@@ -943,13 +966,18 @@ class _OmeTiffVIPSReader(_VIPSReader):
                 "Unexpected number of pages in OME-TIFF. Expected a multiple "
                 f"of 3, but found {self.properties['n-pages']}."
             )
-        #self.level_count = int(self.properties['n-pages'] / 3) - 1
         self.level_count = self.num_pyramid_levels
         main_page = self.get_page_by_label('main')
         # Calculate level metadata
         self.levels = []
         for lev in range(self.level_count):
-            temp_img = vips.Image.new_from_file(self.path, page=main_page*3, subifd=lev-1)
+            try:
+                temp_img = vips.Image.new_from_file(self.path, page=main_page*3, subifd=lev-1)
+            except vips.error.Error as e:
+                if 'subifd' in str(e) and 'out of range' in str(e):
+                    # XML may have more levels than the actual image
+                    self.level_count = lev
+                    break
             width = int(temp_img.get('width'))
             height = int(temp_img.get('height'))
             downsample = float(int(self.properties[OPS_WIDTH]) / width)
