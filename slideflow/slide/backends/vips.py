@@ -211,9 +211,12 @@ def detect_mpp(
         xml_str = loaded_image.get('image-description')
         root = ET.fromstring(xml_str)
         try:
-            assert root[3].attrib['Name'].endswith('x_01')
-            assert root[3][3].tag.endswith('Pixels')
-            mpp_x = float(root[3][3].attrib['PhysicalSizeX'])
+            root_ids = [i for i in range(len(root)) if 'Name' in root[i].attrib and root[i].attrib['Name'].endswith('_01')]
+            assert len(root_ids) == 1
+            root_id = root_ids[0]
+            assert root[root_id].attrib['Name'].endswith('_01')
+            assert root[root_id][3].tag.endswith('Pixels')
+            mpp_x = float(root[root_id][3].attrib['PhysicalSizeX'])
             log.debug(
                 f"Using MPP {mpp_x} per OME-TIFF PhysicalSizeX field"
             )
