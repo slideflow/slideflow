@@ -7,6 +7,7 @@ import re
 import cv2
 import numpy as np
 import slideflow as sf
+import xml.etree.ElementTree as ET
 from types import SimpleNamespace
 from PIL import Image, UnidentifiedImageError
 from typing import (Any, Dict, List, Optional, Tuple, Union)
@@ -207,7 +208,6 @@ def detect_mpp(
 
     # Search for MPP within OME-TIFF format
     if path.endswith('.ome.tif') or path.endswith('.ome.tiff'):
-        import xml.etree.ElementTree as ET
         xml_str = loaded_image.get('image-description')
         root = ET.fromstring(xml_str)
         try:
@@ -909,21 +909,28 @@ class _MultiPageVIPSReader(_VIPSReader):
 class _OmeTiffVIPSReader(_VIPSReader):
 
     def __init__(self, *args, **kwargs):
-        self.page_labels = {
-            0: 'label',
-            1: 'overview',
-            2: 'main',
-            3: 'macro'
-        }
+        self.page_labels = None
         self.num_pyramid_levels = 5
         super().__init__(*args, **kwargs)
 
+    def build_page_labels(self):
+        """Build page labels from OME-TIFF XML."""
+        xml_str = self.properties['image-description']
+        root = ET.fromstring(xml_str)
+        self.page_labels = {
+            (child.attrib['Name'] if not child.attrib['Name'].endswith('_01') else 'main'): int(child.attrib['ID'].split(':')[-1])
+            for child in root
+            if 'ID' in child.attrib and 'Image' in child.attrib['ID']
+        }
+
     def get_page_by_label(self, label: str) -> int:
         """Return page number by label."""
-        for page, page_label in self.page_labels.items():
-            if page_label == label:
-                return page
-        raise ValueError(f"Unknown page label {label}")
+        if self.page_labels is None:
+            self.build_page_labels()
+        if label in self.page_labels:
+            return self.page_labels[label]
+        else:
+            raise ValueError(f"Unknown page label {label}")
 
     def _load_levels(self, vips_image: Optional["vips.Image"]):
         """Load downsample levels."""
