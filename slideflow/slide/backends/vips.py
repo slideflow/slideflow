@@ -24,7 +24,8 @@ except (ModuleNotFoundError, OSError) as e:
 # -----------------------------------------------------------------------------
 
 SUPPORTED_BACKEND_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
-                             'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png']
+                             'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png',
+                             'ome.tiff', 'ome.tif']
 
 # -----------------------------------------------------------------------------
 
