@@ -54,7 +54,8 @@ except Exception:
 # --- Global vars -------------------------------------------------------------
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
-                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png']
+                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png',
+                     'ome.tif', 'ome.tiff']
 EMPTY = ['', ' ', None, np.nan]
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:
@@ -1037,19 +1038,25 @@ def path_to_name(path: str) -> str:
     '''Returns name of a file, without extension,
     from a given full path string.'''
     _file = path.split('/')[-1]
-    if len(_file.split('.')) == 1:
+    dot_split = _file.split('.')
+    if len(dot_split) == 1:
         return _file
+    elif len(dot_split) > 2 and '.'.join(dot_split[-2:]) in SUPPORTED_FORMATS:
+        return '.'.join(dot_split[:-2])
     else:
-        return '.'.join(_file.split('.')[:-1])
+        return '.'.join(dot_split[:-1])
 
 
 def path_to_ext(path: str) -> str:
     '''Returns extension of a file path string.'''
     _file = path.split('/')[-1]
-    if len(_file.split('.')) == 1:
+    dot_split = _file.split('.')
+    if len(dot_split) == 1:
         return ''
+    elif len(dot_split) > 2 and '.'.join(dot_split[-2:]) in SUPPORTED_FORMATS:
+        return '.'.join(dot_split[-2:])
     else:
-        return _file.split('.')[-1]
+        return dot_split[-1]
 
 
 def update_results_log(
