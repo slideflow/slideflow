@@ -194,6 +194,10 @@ class ROI:
             hole.simplify(tolerance)
         self.update_polygon()
 
+    # TODO: 
+    def invert_roi():
+        pass
+
     def create_triangles(self) -> Optional[np.ndarray]:
         """Create a triangulated mesh from the polygon."""
 
