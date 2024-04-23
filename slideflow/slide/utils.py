@@ -196,6 +196,13 @@ class ROI:
 
     # TODO: 
     def invert_roi():
+        # Ensure polygon is generated
+        ## self.update_polygon()
+        # Calculate polygon bounding box (whole-slide)\
+        # Invert self._poly within the polygon
+        ## _inverted = ...
+        # Assign the inverted polygon to self._poly
+        ## self._poly = _inverted
         pass
 
     def create_triangles(self) -> Optional[np.ndarray]:
