@@ -378,7 +378,7 @@ class WSI:
         where each sublist contains the following information:
 
         - 0: **x**: x-coordinate of the top-left corner of the tile.
-        - 1: **y**: x-coordinate of the top-left corner of the tile.
+        - 1: **y**: y-coordinate of the top-left corner of the tile.
         - 2: **grid_x**: x-coordinate of the tile in self.grid.
         - 3: **grid_y**: y-coordinate of the tile in self.grid.
 
