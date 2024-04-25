@@ -1493,6 +1493,7 @@ class Dataset:
         qc: Optional[Union[str, Callable, List[Callable]]] = None,
         report: bool = True,
         use_edge_tiles: bool = False,
+        mpp_override: Optional[float] = None,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
         r"""Extract tiles from a group of slides.
@@ -1743,7 +1744,8 @@ class Dataset:
                     'roi_filter_method': roi_filter_method,
                     'origin': 'random' if randomize_origin else (0, 0),
                     'pb': pb,
-                    'use_edge_tiles': use_edge_tiles
+                    'use_edge_tiles': use_edge_tiles,
+                    'mpp': mpp_override
                 }
                 extraction_kwargs = {
                     'tfrecord_dir': tfrecord_dir,
