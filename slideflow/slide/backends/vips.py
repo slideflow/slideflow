@@ -179,8 +179,9 @@ def detect_mpp(
     if (sf.util.path_to_ext(path).lower() == 'svs'
             and 'image-description' in vips_fields):
         img_des = loaded_image.get('image-description')
-        _mpp = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)[0]
-        if _mpp is not None:
+        _mpp_matches = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)
+        if len(_mpp_matches) and _mpp_matches[0] is not None:
+            _mpp = _mpp_matches[0]
             log.debug(
                 f"Using MPP {_mpp} from 'image-description' for SCN"
                 "-converted SVS format"
