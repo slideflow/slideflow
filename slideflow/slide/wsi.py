@@ -66,6 +66,7 @@ class WSI:
         use_edge_tiles: bool = False,
         mpp: Optional[float] = None,
         simplify_roi_tolerance: Optional[float] = None,
+        artifact_rois: Optional[List[str]] = None,
         **reader_kwargs: Any
     ) -> None:
         """Loads slide and ROI(s).
@@ -133,6 +134,10 @@ class WSI:
                 ``FLIP_HORIZONTAL``, and ``FLIP_VERTICAL``. **Only available
                 when using Libvips** (``SF_SLIDE_BACKEND=libvips``).
                 Defaults to None.
+            artifact_rois (list(str), optional): List of ROI issue labels
+                to treat as artifacts. Whenever this is not None, all the ROIs with
+                referred label will be inverted with ROI.invert_roi().
+                Defaults to None.
 
         """
         # Initialize calculated variables
@@ -162,6 +167,7 @@ class WSI:
         self.__slide = None
         self._mpp_override = mpp
         self._reader_kwargs = reader_kwargs
+        self.artifact_rois = artifact_rois # type: Optional[Union[List[str], str]]
         self.grid: np.ndarray
 
         if isinstance(origin, str) and origin != 'random':
@@ -446,32 +452,97 @@ class WSI:
             x_offset = - (full_extract/2 - stride/2)
             y_offset = - (full_extract/2 - stride/2)
 
-            # Translate ROI polygons
-            translated = [
-                sa.translate(roi.poly, x_offset, y_offset)
-                for roi in self.rois
-            ]
+            if self.artifact_rois is None:
+                # Translate ROI polygons
+                translated = [
+                    sa.translate(roi.poly, x_offset, y_offset)
+                    for roi in self.rois
+                ]
 
-            # Set scale to 50 times greater than grid size
-            # if filtering by float
-            o = 1 if roi_by_center else 50
+                # Set scale to 50 times greater than grid size
+                # if filtering by float
+                o = 1 if roi_by_center else 50
 
-            # Scale ROI polygons
-            scaled = [
-                sa.scale(poly, xfact=xfact * o, yfact=yfact * o, origin=(0, 0))
-                for poly in translated
-            ]
+                # Scale ROI polygons
+                scaled = [
+                    sa.scale(poly, xfact=xfact * o, yfact=yfact * o, origin=(0, 0))
+                    for poly in translated
+                ]
 
-            # Rasterize polygons to the size of the tile extraction grid.
-            # Rasterize polygons for ROIs individually, to keep track of
-            # which ROI each tile belongs to, then merge.
-            self.roi_grid = np.stack([
-                rasterio.features.rasterize(
-                    [scaled_roi],
-                    out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
-                    all_touched=False).astype(bool).astype(int) * (i + 1)
-                for i, scaled_roi in enumerate(scaled)
-            ], axis=0).max(axis=0).T
+                # Rasterize polygons to the size of the tile extraction grid.
+                # Rasterize polygons for ROIs individually, to keep track of
+                # which ROI each tile belongs to, then merge.
+                self.roi_grid = np.stack([
+                    rasterio.features.rasterize(
+                        [scaled_roi],
+                        out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
+                        all_touched=False).astype(bool).astype(int) * (i + 1)
+                    for i, scaled_roi in enumerate(scaled)
+                ], axis=0).max(axis=0).T
+
+            else:
+                # Translate ROI polygons
+                translated = [
+                    sa.translate(roi.poly, x_offset, y_offset)
+                    for roi in self.rois if roi.label not in self.artifact_rois
+                ]
+
+                # Translate ROI issues polygons
+                translated_issues = [
+                    sa.translate(roi.invert_roi(self.dimensions).poly, x_offset, y_offset)
+                    for roi in self.rois if roi.label in self.artifact_rois
+                ]
+
+                # Set scale to 50 times greater than grid size
+                # if filtering by float
+                o = 1 if roi_by_center else 50
+
+                # Scale ROI polygons
+                scaled = [
+                    sa.scale(poly, xfact=xfact * o, yfact=yfact * o, origin=(0, 0))
+                    for poly in translated
+                ]
+
+                # Scale ROI issues polygons (ROI issues are already inverted)
+                scaled_issues = [
+                    sa.scale(poly, xfact=xfact * o, yfact=yfact * o, origin=(0, 0))
+                    for poly in translated_issues
+                ]
+
+                roi_grid_tissues = None
+                roi_grid_issues = None
+
+                # Rasterize polygons to the size of the tile extraction grid.
+                # Rasterize polygons for ROIs individually, to keep track of
+                # which ROI each tile belongs to, then merge.
+                if len(scaled) > 0:
+                    roi_grid_tissues = np.stack([
+                        rasterio.features.rasterize(
+                            [scaled_roi],
+                            out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
+                            all_touched=False).astype(bool).astype(int) * (i + 1)
+                        for i, scaled_roi in enumerate(scaled)
+                    ], axis=0).max(axis=0) # max means union of the ROIs
+
+                # Rasterize ROI issues polygons, these are the intersection of all ROI issues
+                if len(scaled_issues) > 0:
+                    roi_grid_issues = np.stack([
+                        rasterio.features.rasterize(
+                            [scaled_roi],
+                            out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
+                            all_touched=False).astype(bool).astype(int) * (i + 1)
+                        for i, scaled_roi in enumerate(scaled_issues)
+                    ], axis=0).min(axis=0) # min means intersection of the ROI issues
+
+                # Merge Raseterized ROI tissues and issues grid to self.roi_grid (treating as one big ROI)
+                if roi_grid_tissues is None:
+                    self.roi_grid = roi_grid_issues.T
+                elif roi_grid_issues is None:
+                    self.roi_grid = roi_grid_tissues.T
+                else:
+                    # roi_grid_tissues is not None and roi_grid_issues is not None
+                    # there is no case in which both are None
+                    self.roi_grid = np.stack([roi_grid_tissues, roi_grid_issues], axis=0).min(axis=0).T # min means intersection of the ROIs
 
             # Create a merged boolean mask.
             self.roi_mask = self.roi_grid.T.astype(bool)  # type: ignore

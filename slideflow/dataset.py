@@ -1496,6 +1496,7 @@ class Dataset:
         qc: Optional[Union[str, Callable, List[Callable]]] = None,
         report: bool = True,
         use_edge_tiles: bool = False,
+        artifact_rois: Optional[Union[List[str], str]] = None,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
         r"""Extract tiles from a group of slides.
@@ -1605,6 +1606,10 @@ class Dataset:
                 Defaults to None.
             use_edge_tiles (bool): Use edge tiles in extraction. Areas
                 outside the slide will be padded white. Defaults to False.
+            artifact_rois (list(str) or str, optional): List of ROI issue labels
+                to treat as artifacts. Whenever this is not None, all the ROIs with
+                referred label will be inverted with ROI.invert_roi().
+                Defaults to None.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
@@ -1625,6 +1630,11 @@ class Dataset:
             sources = list(self.sources.keys())
         all_reports = []
         self.verify_annotations_slides()
+
+        # Ensure self.artifact_rois is a list
+        if artifact_rois is not None:
+            if isinstance(artifact_rois, str):
+                artifact_rois = [artifact_rois]
 
         # Log the active slide reading backend
         col = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
@@ -1746,7 +1756,8 @@ class Dataset:
                     'roi_filter_method': roi_filter_method,
                     'origin': 'random' if randomize_origin else (0, 0),
                     'pb': pb,
-                    'use_edge_tiles': use_edge_tiles
+                    'use_edge_tiles': use_edge_tiles,
+                    'artifact_rois': artifact_rois
                 }
                 extraction_kwargs = {
                     'tfrecord_dir': tfrecord_dir,
@@ -1780,6 +1791,7 @@ class Dataset:
                         thread.join()
                     else:
                         for slide in slide_list:
+                            log.info(f'Extracting tiles from {os.path.basename(slide)}')
                             with _handle_slide_errors(slide):
                                 wsi = _prepare_slide(
                                     slide,
