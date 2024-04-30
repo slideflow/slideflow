@@ -2038,10 +2038,6 @@ class Dataset:
                 log.debug("No common locations found for {}".format(slide))
                 continue
 
-            # create folder if not exists
-            if not exists(dest):
-                os.makedirs(dest)
-
             # Subset and save the bag
             bag = bag[bag_i]
             torch.save(bag, join(dest, slide+'.pt'))
