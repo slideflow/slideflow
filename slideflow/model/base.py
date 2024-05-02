@@ -390,10 +390,11 @@ class _ModelParams:
             assert 0 <= self.l2_dense <= 1
 
         # Augmentation checks.
-        if isinstance(self.augment, str) and not all(s in 'xyrjbn' for s in self.augment):
+        valid_aug = 'xyrjbn' if sf.backend() == 'tensorflow' else 'xyrdspbjnc'
+        if isinstance(self.augment, str) and not all(s in valid_aug for s in self.augment):
             raise errors.ModelParamsError(
                 "Unrecognized augmentation(s): {}".format(
-                    ','.join([s for s in self.augment if s not in 'xyrjbn'])
+                    ','.join([s for s in self.augment if s not in valid_aug])
                 )
             )
 

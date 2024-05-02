@@ -46,6 +46,7 @@ class ROIWidget:
         # Internals
         self._showed_toast_for_freehand = False
         self._showed_toast_for_polygon  = False
+        self._showed_toast_for_point    = False
         self._showed_toast_for_subtract = False
         self._showed_toast_for_edit     = False
         self._late_render               = []
@@ -148,6 +149,8 @@ class ROIWidget:
             new_annotation, annotation_name = self.annotator.capture()
         elif self.capture_type == 'polygon':
             new_annotation, annotation_name = self.annotator.capture_polygon()
+        elif self.capture_type == 'point':
+            new_annotation, annotation_name = self.annotator.capture_point()
         else:
             raise ValueError(f"Invalid capture type '{self.capture_type}'.")
 
@@ -260,6 +263,9 @@ class ROIWidget:
 
             if key == glfw.KEY_P and action == glfw.PRESS and not self.viz._control_down:
                 self.toggle_add_roi('polygon')
+
+            if key == glfw.KEY_PERIOD and action == glfw.PRESS and not self.viz._control_down:
+                self.toggle_add_roi('point')
 
             if key == glfw.KEY_E and action == glfw.PRESS:
                 self.toggle_edit_roi()
@@ -977,6 +983,7 @@ class ROIWidget:
 
     def toggle_add_roi(self, kind: str = 'freehand') -> None:
         """Toggle ROI capture mode."""
+        print("setting roi method", kind)
         if self.capturing and kind != self.capture_type:
             self.disable_roi_capture()
             self.enable_roi_capture(kind)
@@ -1004,6 +1011,12 @@ class ROIWidget:
                 message = f'Capturing new ROIs (polygon). Right click to add a new vertex, press Enter to finish.'
                 self.roi_toast = self.viz.create_toast(message, icon='info', sticky=False)
                 self._showed_toast_for_polygon = True
+        elif self.capture_type == 'point':
+            self.viz.set_status_message("Adding Point", "Point mode: right click to add a new point.")
+            if not self._showed_toast_for_point:
+                message = f'Capturing new ROIs (point). Right click to add a new point.'
+                self.roi_toast = self.viz.create_toast(message, icon='info', sticky=False)
+                self._showed_toast_for_point = True
 
     def disable_roi_capture(self) -> None:
         """Disable capture of ROIs with right-click and drag."""
@@ -1146,13 +1159,15 @@ class ROIWidget:
         # Add button.
         _clicked, _hover_clicked = self.hover_button(
             main_icon='circle_plus_highlighted',
-            menu_icons=['add_freehand', 'add_polygon'],
-            menu_labels=['Add ROI (Freehand)', 'Add ROI (Polygon)']
+            menu_icons=['add_freehand', 'add_polygon', 'add_point'],
+            menu_labels=['Add ROI (Freehand)', 'Add ROI (Polygon)', 'Add ROI (Point)']
         )
         if _clicked and _hover_clicked == 0:
             self.toggle_add_roi('freehand')
         elif _clicked and _hover_clicked == 1:
             self.toggle_add_roi('polygon')
+        elif _clicked and _hover_clicked == 2:
+            self.toggle_add_roi('point')
 
         imgui.same_line()
 

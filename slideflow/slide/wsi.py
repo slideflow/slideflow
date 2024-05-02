@@ -235,7 +235,7 @@ class WSI:
             matching = matching_rois[0]
             if len(matching_rois) > 1:
                 log.warning(
-                    f"Multiple ROIs found for {self.name}; using {mr}"
+                    f"Multiple ROIs found for {self.name}; using {matching}"
                 )
             self.load_csv_roi(
                 matching,
@@ -749,10 +749,12 @@ class WSI:
         if self.qc_mask is not None:
             mask = self.qc_mask
         else:
+            log.debug("Applying Otsu thresholding to identify tissue regions.")
             mask = sf.slide.qc.Otsu()(self)
 
         # Next, fill holes and remove small peaks through gaussian blur,
         # thresholding, and morphological closing.
+        log.debug("Filling holes and removing small peaks in tissue mask.")
         mask = skimage.morphology.binary_closing(
             skimage.filters.gaussian(mask, sigma=5) > 0.5,
             skimage.morphology.disk(5)
@@ -761,10 +763,12 @@ class WSI:
         # For each pixel in the mask, calculate the nearest distance to an
         # unmasked pixel. This will assist us with finding the densest areas
         # of tissue.
+        log.debug("Calculating distance transform of tissue mask.")
         distances = ndimage.distance_transform_edt(~mask)
 
         # Find the coordinates of the pixel with the highest average distance.
         # This is the center of the densest tissue region.
+        log.debug("Identifying target for alignment.")
         target = np.unravel_index(np.argmax(distances), distances.shape)
 
         # Convert from mask coordinates to slide coordinates.
@@ -783,6 +787,7 @@ class WSI:
         # --- 2. Align low-mag thumbnails. ------------------------------------
 
         # Calculate thumbnails for alignment.
+        log.debug("Calculating low-mag thumbnails for alignment.")
         our_thumb = np.array(self.thumb(mpp=8))
         their_thumb = np.array(slide.thumb(mpp=8))
 
@@ -800,6 +805,7 @@ class WSI:
 
         # Align thumbnails and adjust for scale.
         try:
+            log.debug("Aligning low-mag thumbnails (mpp=8)...")
             alignment_raw, mse = align_by_translation(
                 their_thumb, our_thumb, round=True, calculate_mse=True
             )
@@ -902,7 +908,10 @@ class WSI:
 
         # Apply alignment.
         self.origin = alignment
-        self.alignment = Alignment.from_translation(self.slide.coord_to_raw(*alignment))
+        self.alignment = Alignment.from_translation(
+            origin=self.slide.coord_to_raw(*alignment),
+            scale=(slide.mpp / self.mpp),
+        )
         log.info("Slide aligned with MSE {:.2f}. Origin set to {}".format(
                 mse, self.origin
         ))
@@ -923,6 +932,7 @@ class WSI:
         mask_on_fail: bool = True,
         align_by: str = 'fit',
         ignore_outliers = True,
+        num_workers: Optional[int] = None,
         **kwargs
     ) -> np.ndarray:
         """Align tiles to another slide.
@@ -975,7 +985,7 @@ class WSI:
         from tqdm import tqdm
 
         ctx = mp.get_context('spawn') if sf.slide_backend() == 'libvips' else mp.get_context('fork')
-        pool = ctx.Pool(sf.util.num_cpu())
+        pool = ctx.Pool(num_workers or sf.util.num_cpu())
 
         alignment_coords = np.zeros((self.coord.shape[0], 2))
         half_extract_px = int(np.round(self.full_extract_px/2))
@@ -1102,9 +1112,10 @@ class WSI:
                 all_alignment_coords = fit_alignment
 
             self.alignment = Alignment.from_fit(
-                self.slide.coord_to_raw(*self.origin),
-                (x_centroid, y_centroid),
-                (x_normal, y_normal)
+                origin=self.slide.coord_to_raw(*self.origin),
+                scale=(slide.mpp / self.mpp),
+                centroid=(x_centroid, y_centroid),
+                normal=(x_normal, y_normal)
             )
 
         for idx, (x, y, xi, yi) in enumerate(self.coord):
@@ -1129,8 +1140,9 @@ class WSI:
 
         if align_by != 'fit':
             self.alignment = Alignment.from_coord(
-                self.slide.coord_to_raw(*self.origin),
-                self.coord
+                origin=self.slide.coord_to_raw(*self.origin),
+                scale=(slide.mpp / self.mpp),
+                coord=self.coord
             )
 
         log.info("Slide alignment complete and finetuned at each unmasked tile location.")
@@ -1145,11 +1157,16 @@ class WSI:
 
         """
         self.alignment = alignment
-        self.origin = self.slide.raw_to_coord(*alignment.origin)
-
         if alignment.coord is not None:
+            self.origin = self.slide.raw_to_coord(*alignment.origin)
             self.coord = alignment.coord
+        elif alignment.centroid is None:
+            self.origin = self.slide.raw_to_coord(*alignment.origin)
+            self._build_coord()
+            if self.qc_mask is not None:
+                self.apply_qc_mask()
         else:
+            self.origin = self.slide.raw_to_coord(*alignment.origin)
             self._build_coord()
             if self.qc_mask is not None:
                 self.apply_qc_mask()
@@ -1158,6 +1175,10 @@ class WSI:
                 x_normal, y_normal = alignment.normal
                 half_extract_px = int(np.round(self.full_extract_px/2))
                 for idx, (x, y, xi, yi) in enumerate(self.coord):
+                    x = (xi * int(self.full_stride/alignment.scale)) * alignment.scale
+                    y = (yi * int(self.full_stride/alignment.scale)) * alignment.scale
+                    x += self.origin[0]
+                    y += self.origin[1]
                     bx, by = self.slide.coord_to_raw(
                         x + half_extract_px,
                         y + half_extract_px
@@ -1762,7 +1783,22 @@ class WSI:
             mask=~np.repeat(unmasked_coord_indices[:, None], 4, axis=1)
         )
 
-    def get_tile_coord(self) -> np.ndarray:
+    def get_roi_by_name(self, name: str) -> Optional[ROI]:
+        """Get an ROI by its name.
+
+        Args:
+            name (str): Name of the ROI.
+
+        Returns:
+            ROI: ROI object.
+
+        """
+        for roi in self.rois:
+            if roi.name == name:
+                return roi
+        return None
+
+    def get_tile_coord(self, anchor='topleft') -> np.ndarray:
         """Get a coordinate grid of all tiles, restricted to those that pass QC
         and any ROI filtering.
 
@@ -1772,9 +1808,15 @@ class WSI:
         grid indices of the tile.
 
         """
-        return self.coord[
+        if anchor not in ('center', 'topleft'):
+            raise ValueError("Expected `anchor` to be 'center' or 'topleft'")
+        c = self.coord[
             self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
-        ]
+        ].copy()
+        if anchor == 'center':
+            c[:, 0] += int(self.full_extract_px/2)
+            c[:, 1] += int(self.full_extract_px/2)
+        return c
 
     def get_tile_dataframe(self) -> pd.DataFrame:
         """Build a dataframe of tiles and associated ROI labels.

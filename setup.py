@@ -39,6 +39,7 @@ setuptools.setup(
             'studio/gui/buttons/button_extensions_highlighted.png',
             'studio/gui/buttons/button_add_freehand.png',
             'studio/gui/buttons/button_add_polygon.png',
+            'studio/gui/buttons/button_add_point.png',
             'studio/gui/buttons/button_camera.png',
             'studio/gui/buttons/button_camera_highlighted.png',
             'studio/gui/buttons/button_circle_plus.png',

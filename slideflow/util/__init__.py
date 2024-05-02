@@ -54,7 +54,8 @@ except Exception:
 # --- Global vars -------------------------------------------------------------
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
-                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png']
+                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png',
+                     'ome.tif', 'ome.tiff']
 EMPTY = ['', ' ', None, np.nan]
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:
@@ -142,7 +143,13 @@ def addLoggingFileHandler(path):
 
 # Add tqdm-friendly stream handler
 #ch = log_utils.TqdmLoggingHandler()
-ch = RichHandler(markup=True, log_time_format="[%X]", show_path=False, highlighter=NullHighlighter(), rich_tracebacks=True)
+ch = RichHandler(
+    markup=True,
+    log_time_format="[%X]",
+    show_path=False,
+    highlighter=NullHighlighter(),
+    rich_tracebacks=True
+)
 ch.setFormatter(log_utils.LogFormatter())
 if 'SF_LOGGING_LEVEL' in os.environ:
     try:
@@ -733,10 +740,25 @@ def load_json(filename: str) -> Any:
         return json.load(data_file)
 
 
+class ValidJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        try:
+            return super().default(obj)
+        except TypeError:
+            return "<unknown>"
+
+
 def write_json(data: Any, filename: str) -> None:
-    """Write data to JSON file."""
+    """Write data to JSON file.
+
+    Args:
+        data (Any): Data to write.
+        filename (str): Path to JSON file.
+
+    """
+    # First, remove any invalid entries that are not serializable
     with open(filename, "w") as data_file:
-        json.dump(data, data_file, indent=1)
+        json.dump(data, data_file, indent=1, cls=ValidJSONEncoder)
 
 
 def log_manifest(
@@ -1016,19 +1038,25 @@ def path_to_name(path: str) -> str:
     '''Returns name of a file, without extension,
     from a given full path string.'''
     _file = path.split('/')[-1]
-    if len(_file.split('.')) == 1:
+    dot_split = _file.split('.')
+    if len(dot_split) == 1:
         return _file
+    elif len(dot_split) > 2 and '.'.join(dot_split[-2:]) in SUPPORTED_FORMATS:
+        return '.'.join(dot_split[:-2])
     else:
-        return '.'.join(_file.split('.')[:-1])
+        return '.'.join(dot_split[:-1])
 
 
 def path_to_ext(path: str) -> str:
     '''Returns extension of a file path string.'''
     _file = path.split('/')[-1]
-    if len(_file.split('.')) == 1:
+    dot_split = _file.split('.')
+    if len(dot_split) == 1:
         return ''
+    elif len(dot_split) > 2 and '.'.join(dot_split[-2:]) in SUPPORTED_FORMATS:
+        return '.'.join(dot_split[-2:])
     else:
-        return _file.split('.')[-1]
+        return dot_split[-1]
 
 
 def update_results_log(
@@ -1404,6 +1432,14 @@ def tfrecord_heatmap(
         outdir=outdir,
         **kwargs
     )
+
+
+def tile_size_label(tile_px: int, tile_um: Union[str, int]) -> str:
+    """Return the string label of the given tile size."""
+    if isinstance(tile_um, str):
+        return f"{tile_px}px_{tile_um.lower()}"
+    else:
+        return f"{tile_px}px_{tile_um}um"
 
 
 def get_valid_model_dir(root: str) -> List:

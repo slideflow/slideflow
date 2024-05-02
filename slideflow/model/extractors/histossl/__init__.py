@@ -48,10 +48,13 @@ you agree to the terms of the license.
 """
     MD5 = 'e7124eefc87fe6069bf4b864f9ed298c'
 
-    def __init__(self, device=None, center_crop=False, weights=None):
+    def __init__(self, device=None, center_crop=False, resize=False, weights=None):
         super().__init__()
 
         from slideflow.model import torch_utils
+
+        if center_crop and resize:
+            raise ValueError("center_crop and resize cannot both be True.")
 
         self.print_license()
         if weights is None:
@@ -66,7 +69,12 @@ you agree to the terms of the license.
 
         # ---------------------------------------------------------------------
         self.num_features = 768
-        all_transforms = [transforms.CenterCrop(224)] if center_crop else []
+        if center_crop:
+            all_transforms = [transforms.CenterCrop(224)]
+        elif resize:
+            all_transforms = [transforms.Resize(224)]
+        else:
+            all_transforms = []
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
             transforms.Normalize(
@@ -76,6 +84,7 @@ you agree to the terms of the license.
         self.transform = transforms.Compose(all_transforms)
         self.preprocess_kwargs = dict(standardize=False)
         self._center_crop = center_crop
+        self._resize = resize
         # ---------------------------------------------------------------------
 
     @staticmethod
@@ -101,5 +110,8 @@ you agree to the terms of the license.
         cls_name = self.__class__.__name__
         return {
             'class': f'slideflow.model.extractors.histossl.{cls_name}',
-            'kwargs': {'center_crop': self._center_crop},
+            'kwargs': {
+                'center_crop': self._center_crop,
+                'resize': self._resize
+            },
         }
