@@ -197,7 +197,7 @@ class ROI:
     def invert_roi(self, wsi_shape: Tuple[int, int]):
         '''
         Invert the ROI within the whole-slide image.
-        ROI becomes a hole in the whole-slide image.
+        ROI becomes a hole in the inverted ROI.
         Return the inverted ROI.
         '''
         # Ensure polygon is generated
@@ -205,14 +205,12 @@ class ROI:
         # Calculate polygon bounding box (whole-slide)
         width, height = wsi_shape
         roi_wsi_coords = np.array([[0., 0.], [0., width], [height, width], [height, 0.]])
-        # The current ROI will become a hole in the whole-slide image
-        hole = ROI(name='Hole', coordinates=self.poly_coords(), label=self.label)
-        # Reinitialize the ROI as the whole-slide image
-        self.__init__(name=self.name, coordinates=roi_wsi_coords) # default label=None
+        # Create the inverted ROI
+        inverted_ROI = ROI(name=self.name, coordinates=roi_wsi_coords)
         # Add the hole to the ROI
-        self.add_hole(hole)
-        # Return self to make the fluent interface
-        return self
+        inverted_ROI.add_hole(self)
+        
+        return inverted_ROI
 
     def create_triangles(self) -> Optional[np.ndarray]:
         """Create a triangulated mesh from the polygon."""

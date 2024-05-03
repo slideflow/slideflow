@@ -1496,7 +1496,7 @@ class Dataset:
         qc: Optional[Union[str, Callable, List[Callable]]] = None,
         report: bool = True,
         use_edge_tiles: bool = False,
-        artifact_rois: Optional[Union[List[str], str]] = None,
+        artifact_rois: Optional[Union[List[str], str]] = list(),
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
         r"""Extract tiles from a group of slides.
@@ -1609,7 +1609,7 @@ class Dataset:
             artifact_rois (list(str) or str, optional): List of ROI issue labels
                 to treat as artifacts. Whenever this is not None, all the ROIs with
                 referred label will be inverted with ROI.invert_roi().
-                Defaults to None.
+                Defaults to an empty list.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
@@ -1632,9 +1632,8 @@ class Dataset:
         self.verify_annotations_slides()
 
         # Ensure self.artifact_rois is a list
-        if artifact_rois is not None:
-            if isinstance(artifact_rois, str):
-                artifact_rois = [artifact_rois]
+        if isinstance(artifact_rois, str):
+            artifact_rois = [artifact_rois]
 
         # Log the active slide reading backend
         col = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
