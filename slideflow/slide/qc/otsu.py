@@ -123,17 +123,37 @@ class Otsu:
             thumb = thumb[:, :, :3]
 
         # Only apply Otsu thresholding within ROI, if present
+        # If ROI is the ROI_issues, invert it
         if wsi.has_rois():
             ofact = 1 / wsi.slide.level_downsamples[level]
             roi_mask = np.zeros((thumb.shape[0], thumb.shape[1]))
+
             scaled_polys = [
                 sa.scale(roi.poly, xfact=ofact, yfact=ofact, origin=(0, 0))
-                for roi in wsi.rois
+                for roi in wsi.rois if roi.label not in wsi.artifact_rois
             ]
-            roi_mask = rasterio.features.rasterize(
-                scaled_polys,
-                out_shape=thumb.shape[:2]
-            )
+
+            scaled_issues_polys = [
+                sa.scale(roi.invert_roi(wsi.dimensions).poly, xfact=ofact, yfact=ofact, origin=(0, 0))
+                for roi in wsi.rois if roi.label in wsi.artifact_rois
+            ]
+
+            if len(scaled_polys) > 0:
+                roi_mask = rasterio.features.rasterize(
+                    scaled_polys,
+                    out_shape=thumb.shape[:2]
+                )
+
+            if len(scaled_issues_polys) > 0:
+                roi_mask_issues = rasterio.features.rasterize(
+                    scaled_issues_polys,
+                    out_shape=thumb.shape[:2]
+                )
+                if len(scaled_polys) > 0:
+                    roi_mask = np.minimum(roi_mask_issues, roi_mask)
+                else:
+                    roi_mask = roi_mask_issues
+                
             if wsi.roi_method == 'outside':
                 roi_mask = ~roi_mask
             thumb = cv2.bitwise_or(

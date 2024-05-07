@@ -209,7 +209,6 @@ class ROI:
         inverted_ROI = ROI(name=self.name, coordinates=roi_wsi_coords)
         # Add the hole to the ROI
         inverted_ROI.add_hole(self)
-        
         return inverted_ROI
 
     def create_triangles(self) -> Optional[np.ndarray]:
