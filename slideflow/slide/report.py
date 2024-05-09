@@ -209,7 +209,7 @@ class SlideReport:
 
     def _compress(self, img: bytes) -> bytes:
         with io.BytesIO() as output:
-            pil_img = Image.open(io.BytesIO(img))
+            pil_img = Image.open(io.BytesIO(img)).convert('RGB')
             if pil_img.height > 256:
                 pil_img = Image.fromarray(
                     cv2.resize(np.array(pil_img), [256, 256])
