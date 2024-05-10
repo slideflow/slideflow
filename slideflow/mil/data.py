@@ -290,7 +290,7 @@ class MultiBagDataset(Dataset):
 
         # Sample a subset, if required
         if self.bag_size:
-            return [_to_fixed_size_bag(bag, bag_size=self.bag_size, address={0: len(bag)}, balanced=self.balanced) for bag in loaded_bags]
+            return [_to_fixed_size_bag(bag, bag_size=self.bag_size, address={0: (0, len(bag) - 1)}, balanced=self.balanced) for bag in loaded_bags]
         else:
             return [(bag, len(bag)) for bag in loaded_bags]
 
