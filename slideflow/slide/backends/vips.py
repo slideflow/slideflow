@@ -102,14 +102,14 @@ def vips2jpg(
     vi: "vips.Image",
 ) -> np.ndarray:
     '''Converts a VIPS image into a numpy array'''
-    return vi.jpegsave_buffer(Q=95)
+    return numpy2jpg(vips2numpy(vi))
 
 
 def vips2png(
     vi: "vips.Image",
 ) -> np.ndarray:
     '''Converts a VIPS image into a numpy array'''
-    return vi.pngsave_buffer()
+    return numpy2png(vips2numpy(vi))
 
 
 def vips_resize(
