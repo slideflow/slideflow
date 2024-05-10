@@ -356,9 +356,9 @@ def tile_worker(
 
     if args.img_format != 'numpy':
         if args.img_format == 'png':
-            image = region.pngsave_buffer()
+            image = vips2png(region)
         elif args.img_format in ('jpg', 'jpeg'):
-            image = region.jpegsave_buffer(Q=95)
+            image = vips2jpg(region)
         else:
             raise ValueError(f"Unknown image format {args.img_format}")
 
