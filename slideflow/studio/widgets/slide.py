@@ -77,6 +77,7 @@ class SlideWidget:
         self.alpha                  = 1.0
         self.stride                 = 1
         self.enable_stride_capture  = True
+        self.manual_mpp             = None
         self._filter_grid           = None
         self._filter_thread         = None
         self._capturing_ws_thresh   = None
@@ -292,8 +293,8 @@ class SlideWidget:
         if not len(self._tile_box_coords):
             return
         scaled_boxes = self.viz.viewer._scale_rois_to_view(self._tile_box_coords).astype(np.float32)
-        if (self._scaled_boxes is None 
-            or (not self._scaled_boxes.shape == scaled_boxes.shape) 
+        if (self._scaled_boxes is None
+            or (not self._scaled_boxes.shape == scaled_boxes.shape)
             or (not np.all(self._scaled_boxes == scaled_boxes))):
             self._scaled_boxes = scaled_boxes
             self._vbo = gl_utils.create_buffer(scaled_boxes.flatten())
