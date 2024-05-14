@@ -1720,6 +1720,10 @@ class Project:
                 but do not export any images. Defaults to None.
             max_tiles (int, optional): Only extract this many tiles per slide.
                 Defaults to None.
+            artifact_rois (list(str) or str, optional): List of ROI issue labels
+                to treat as artifacts. Whenever this is not None, all the ROIs with
+                referred label will be inverted with ROI.invert_roi().
+                Defaults to an empty list.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
