@@ -194,16 +194,22 @@ class ROI:
             hole.simplify(tolerance)
         self.update_polygon()
 
-    # TODO: 
-    def invert_roi():
+    def invert_roi(self, wsi_shape: Tuple[int, int]):
+        '''
+        Invert the ROI within the whole-slide image.
+        ROI becomes a hole in the inverted ROI.
+        Return the inverted ROI.
+        '''
         # Ensure polygon is generated
-        ## self.update_polygon()
-        # Calculate polygon bounding box (whole-slide)\
-        # Invert self._poly within the polygon
-        ## _inverted = ...
-        # Assign the inverted polygon to self._poly
-        ## self._poly = _inverted
-        pass
+        self.update_polygon()
+        # Calculate polygon bounding box (whole-slide)
+        width, height = wsi_shape
+        roi_wsi_coords = np.array([[0., 0.], [0., width], [height, width], [height, 0.]])
+        # Create the inverted ROI
+        inverted_ROI = ROI(name=self.name, coordinates=roi_wsi_coords)
+        # Add the hole to the ROI
+        inverted_ROI.add_hole(self)
+        return inverted_ROI
 
     def create_triangles(self) -> Optional[np.ndarray]:
         """Create a triangulated mesh from the polygon."""
@@ -293,7 +299,7 @@ class ROI:
     def validate(self) -> None:
         """Validate the exterior coordinates form a valid polygon."""
         if len(self.poly_coords()) < 4:
-            raise errors.InvalidROIError(f"Invalid ROI ({self.name}): ROI must contain at least 4 coordinates.")
+            raise errors.InvalidROIError(f"Invalid ROI ({self.name} - {self._label}): ROI must contain at least 4 coordinates.")
         if self.poly.geom_type not in ('Polygon', 'MultiPolygon', 'GeometryCollection'):
             raise errors.InvalidROIError(
                 f"Invalid ROI ({self.name}): ROI must either be a Polygon, or "
