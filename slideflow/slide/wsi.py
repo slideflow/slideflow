@@ -1157,16 +1157,18 @@ class WSI:
 
         """
         self.alignment = alignment
+        self.origin = self.slide.raw_to_coord(*alignment.origin)
+        self.origin = (
+            int(np.round(self.origin[0] / alignment.scale)),
+            int(np.round(self.origin[1] / alignment.scale))
+        )
         if alignment.coord is not None:
-            self.origin = self.slide.raw_to_coord(*alignment.origin)
             self.coord = alignment.coord
         elif alignment.centroid is None:
-            self.origin = self.slide.raw_to_coord(*alignment.origin)
             self._build_coord()
             if self.qc_mask is not None:
                 self.apply_qc_mask()
         else:
-            self.origin = self.slide.raw_to_coord(*alignment.origin)
             self._build_coord()
             if self.qc_mask is not None:
                 self.apply_qc_mask()
