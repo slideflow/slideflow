@@ -113,9 +113,10 @@ class Studio(ImguiWindow):
         self._message           = None
         self._pred_message      = None
         self.low_memory         = low_memory
-        self._suspend_mouse_input = False
-        self._suspend_keyboard_input = False
-        self._status_message    = None
+        self._suspend_mouse_input       = False
+        self._suspend_keyboard_input    = False
+        self._status_message            = None
+        self._force_enable_tile_preview = False
 
         # Interface.
         self._show_about                = False
@@ -237,6 +238,11 @@ class Studio(ImguiWindow):
         cy -= self.offset_y
         return (self.viewer is not None
                 and self.viewer.is_in_view(cx, cy))
+
+    @property
+    def tile_preview_enabled(self):
+        """Show a tile preview when right clicking."""
+        return self._model_path or self._force_enable_tile_preview
 
     # --- Internals -----------------------------------------------------------
 
@@ -436,7 +442,7 @@ class Studio(ImguiWindow):
             self.viewer.render_overlay_tooltip(self.overlay_original)
 
         # Calculate location for model display.
-        if (self._model_path
+        if (self.tile_preview_enabled
             and inp.clicking
             and not inp.dragging
             and self.viewer.is_in_view(inp.cx, inp.cy)):
@@ -445,7 +451,7 @@ class Studio(ImguiWindow):
             self.x = wsi_x - (self.viewer.full_extract_px/2)
             self.y = wsi_y - (self.viewer.full_extract_px/2)
 
-        # Update box location.
+        # Show box around location that a tile is being extracted for preview.
         if self.x is not None and self.y is not None:
             if inp.clicking or inp.dragging or inp.wheel or window_changed:
                 self.box_x, self.box_y = self.viewer.wsi_coords_to_display_coords(self.x, self.y)
@@ -683,7 +689,7 @@ class Studio(ImguiWindow):
                 raw_img_w = 0 if not has_raw_image else self._tex_img.shape[0] * self.tile_zoom
                 norm_img_w = 0 if not has_norm_image else self._norm_tex_img.shape[0] * self.tile_zoom
                 height = self.font_size * 2 + max(raw_img_w, norm_img_w)
-                width = raw_img_w + norm_img_w + self.spacing
+                width = raw_img_w + norm_img_w + self.spacing*2
 
             imgui.set_next_window_size(width, height)
 
@@ -946,7 +952,7 @@ class Studio(ImguiWindow):
                 wsi.process_rois()
             return wsi
 
-    def _reload_wsi(
+    def reload_wsi(
         self,
         path: Optional[str] = None,
         stride: Optional[int] = None,
@@ -2107,7 +2113,7 @@ class Sidebar:
     def _load_button_textures(self) -> None:
         """Reload textures for buttons."""
         button_dir = join(dirname(abspath(__file__)), 'gui', 'buttons')
-        for bname in self.navbuttons + ['gear', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy', 'model_loaded', 'extensions', 'add_freehand', 'add_polygon']:
+        for bname in self.navbuttons + ['gear', 'circle_lightning', 'circle_plus', 'pencil', 'folder', 'floppy', 'model_loaded', 'extensions', 'add_freehand', 'add_polygon', 'add_point']:
             if bname in self._button_tex:
                 continue
             self._button_tex[bname] = gl_utils.Texture(image=Image.open(join(button_dir, f'button_{bname}.png')), bilinear=True, mipmap=True)

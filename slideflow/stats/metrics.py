@@ -792,8 +792,10 @@ def metrics_from_dataset(
         metrics = metrics_by_level(categorical_metrics)
     elif model_type == 'linear':
         metrics = metrics_by_level(linear_metrics)
-    else:
+    elif model_type == 'cph':
         metrics = metrics_by_level(cph_metrics)
+    else: 
+        raise ValueError(f"Unrecognized model_type {model_type}")
 
     log.debug(f'Metrics generation complete.')
     return metrics, acc, total_loss

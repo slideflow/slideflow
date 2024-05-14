@@ -30,7 +30,7 @@ class DinoV2Features(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, cfg, weights, device=None, center_crop=False):
+    def __init__(self, cfg, weights, device=None, center_crop=False, resize=False):
         super().__init__()
 
         self.cfg = cfg
@@ -42,7 +42,12 @@ class DinoV2Features(TorchFeatureExtractor):
 
         # ---------------------------------------------------------------------
         self.num_features = 1024
-        all_transforms = [transforms.CenterCrop(224)] if center_crop else []
+        if center_crop:
+            all_transforms = [transforms.CenterCrop(224)]
+        elif resize:
+            all_transforms = [transforms.Resize(224)]
+        else:
+            all_transforms = []
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
             transforms.Normalize(
@@ -52,6 +57,7 @@ class DinoV2Features(TorchFeatureExtractor):
         self.transform = transforms.Compose(all_transforms)
         self.preprocess_kwargs = dict(standardize=False)
         self._center_crop = center_crop
+        self._resize = resize
         # ---------------------------------------------------------------------
 
     def dump_config(self):
@@ -65,8 +71,9 @@ class DinoV2Features(TorchFeatureExtractor):
         return {
             'class': f'slideflow.model.extractors.dinov2.{cls_name}',
             'kwargs': {
-                'center_crop': self._center_crop,
                 'cfg': self.cfg,
                 'weights': self.weights,
+                'center_crop': self._center_crop,
+                'resize': self._resize
             },
         }

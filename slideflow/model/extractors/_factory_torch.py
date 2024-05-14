@@ -21,35 +21,39 @@ def build_torch_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_torch
+def uni(weights, **kwargs):
+    from .uni import UNIFeatures
+    return UNIFeatures(weights, **kwargs)
+
+@register_torch
 def vit(**kwargs):
     from .vit import ViTFeatures
     return ViTFeatures(**kwargs)
 
-
 @register_torch
-def histossl(tile_px, **kwargs):
+def histossl(**kwargs):
     from .histossl import HistoSSLFeatures
-    return HistoSSLFeatures(center_crop=(tile_px != 224), **kwargs)
+    return HistoSSLFeatures(**kwargs)
 
 @register_torch
-def plip(tile_px, **kwargs):
+def plip(**kwargs):
     from .plip import PLIPFeatures
-    return PLIPFeatures(center_crop=(tile_px != 224), **kwargs)
+    return PLIPFeatures(**kwargs)
 
 @register_torch
-def dinov2(tile_px, **kwargs):
+def dinov2(**kwargs):
     from .dinov2 import DinoV2Features
-    return DinoV2Features(center_crop=(tile_px != 224), **kwargs)
+    return DinoV2Features(**kwargs)
 
 @register_torch
-def ctranspath(tile_px, **kwargs):
+def ctranspath(**kwargs):
     from .ctranspath import CTransPathFeatures
-    return CTransPathFeatures(center_crop=(tile_px != 224), **kwargs)
+    return CTransPathFeatures(**kwargs)
 
 @register_torch
-def retccl(tile_px, **kwargs):
+def retccl(**kwargs):
     from .retccl import RetCCLFeatures
-    return RetCCLFeatures(center_crop=(tile_px != 256), **kwargs)
+    return RetCCLFeatures(**kwargs)
 
 @register_torch
 def resnet18_imagenet(tile_px, **kwargs):

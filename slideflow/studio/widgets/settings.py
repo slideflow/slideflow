@@ -60,7 +60,7 @@ class SettingsWidget:
                 _clicked, _new_val = imgui.checkbox('Use slide bounding boxes', self.use_bounds)
             if _clicked and sf.slide_backend() == 'libvips':
                 self.use_bounds = _new_val
-                viz._reload_wsi()
+                viz.reload_wsi()
             if imgui.is_item_hovered():
                 if sf.slide_backend() == 'libvips':
                     imgui.set_tooltip("Use slide bounding boxes, if present, to crop the slide images.")

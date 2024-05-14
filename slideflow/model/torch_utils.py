@@ -255,7 +255,7 @@ def eval_from_model(
     if not predict_only and torch_args is None:
         raise ValueError("Argument `torch_args` must be supplied if evaluating.")
 
-    y_true, y_pred, tile_to_slides, locations, y_std = [], [], [], [], []
+    y_true, y_pred, tile_to_slides, locations, y_std, y_pred_ei = [], [], [], [], [], []
     losses, total, num_outcomes, batch_size = 0, 0, 0, 0
     corrects, acc, loss = None, None, None
     model.eval()
@@ -314,13 +314,24 @@ def eval_from_model(
                         img = torch_args.normalizer.preprocess(img)
 
                     # Slide-level features
-                    if torch_args is not None and torch_args.num_slide_features:
-                        slide_inp = torch.tensor([
-                            torch_args.slide_input[s] for s in slide
-                        ])
-                        inp = (img, slide_inp.to(device))
+                    if model_type != 'cph':
+                        if torch_args is not None and torch_args.num_slide_features:
+                            slide_inp = torch.tensor([
+                                torch_args.slide_input[s] for s in slide
+                            ])
+                            inp = (img, slide_inp.to(device))
+                        else:
+                            inp = (img,)  # type: ignore
                     else:
-                        inp = (img,)  # type: ignore
+                        if torch_args is not None and torch_args.num_slide_features > 1:
+                            slide_inp = torch.tensor([torch_args.slide_input[s][1:] for s in slide])
+                            inp = (img, slide_inp.to(device))
+                        else:
+                            inp = (img,)  # type: ignore
+                        event_indicator = [torch_args.slide_input[s][0] for s in slide]
+                        event_indicator = np.array(event_indicator, dtype=np.float32)
+
+                    y_pred_ei += [event_indicator]
 
                     if uq:
                         res, yp_std, num_outcomes = get_uq_predictions(
@@ -337,7 +348,10 @@ def eval_from_model(
                     if not predict_only:
                         assert torch_args is not None
                         corrects = torch_args.update_corrects(res, yt, corrects)
-                        losses = torch_args.update_loss(res, yt, losses, img.size(0))
+                        if model_type != 'cph':
+                            losses = torch_args.update_loss(res, yt, losses, img.size(0))
+                        else:
+                            losses = torch_args.update_loss(res, yt, event_indicator, losses, img.size(0))
 
                     if isinstance(res, list):
                         res = [r.float().cpu().numpy().copy() for r in res]
@@ -409,6 +423,12 @@ def eval_from_model(
         locations = None  # type: ignore
     if not uq:
         y_std = None  # type: ignore
+
+    # add event_indicator to predictions for CPH to make it consistent with TF
+    if model_type == 'cph':
+        y_pred_ei = np.concatenate(y_pred_ei)
+        y_pred_ei = np.expand_dims(y_pred_ei, axis=1)
+        y_pred = [np.concatenate((y_pred[0], y_pred_ei), axis=1)]
 
     # Create pandas DataFrame from arrays
     df = df_from_pred(y_true, y_pred, y_std, tile_to_slides, locations)
@@ -488,3 +508,52 @@ def xception(*args, **kwargs):
 def nasnetalarge(*args, **kwargs):
     import pretrainedmodels
     return pretrainedmodels.nasnetalarge(*args, **kwargs)
+
+# -----------------------------------------------------------------------------
+
+class CoxProportionalHazardsLoss(torch.nn.modules.loss._Loss):
+    """Cox proportional hazards loss.
+
+    Adapted from https://github.com/havakv/pycox/blob/master/pycox/models/loss.py
+    """
+    def __init__(self, reduction: str = 'mean', eps: float = 1e-7):
+        """
+        Args:
+            reduction (str): Specifies the reduction to apply to the output.
+                'none': no reduction will be applied,
+                'mean': the sum of the output will be divided by the number of elements in the output,
+                'sum': the output will be summed.
+            eps (float): Small constant value to avoid division by zero.
+        """
+        super().__init__(reduction=reduction)
+        self.eps = eps
+
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            y_pred (torch.Tensor): Predictions (log_h and events).
+            y_true (torch.Tensor): True labels (durations).
+
+        Returns:
+            torch.Tensor: Loss.
+        """
+        durations = y_true[:, 0]
+        events = y_true[:, 1]
+        log_h = y_pred
+        
+        # Sort by descending duration
+        idx = torch.sort(durations, descending=True)[1]
+        events = events[idx]
+        log_h = log_h[idx]
+
+        events = events.view(-1)
+        log_h = log_h.view(-1)
+
+        gamma = log_h.max()
+        log_cumsum_h = log_h.sub(gamma).exp().cumsum(0).add(self.eps).log().add(gamma)
+
+        if events.sum() == 0: # FIXME: I think should be added in TF as well
+            return torch.tensor(0.0, device=log_h.device)
+        else:
+            return - log_h.sub(log_cumsum_h).mul(events).sum().div(events.sum())
+

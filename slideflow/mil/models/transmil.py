@@ -47,10 +47,18 @@ class TransMIL(nn.Module):
     def relocate(self):
         self.to(get_device())
 
-    def forward(self, h):
-        h = self.get_last_layer_activations(h) # [B, n, 1024] -> [B, 512]
-        logits = self._fc2(h) #[B, n_classes]
-        return logits
+    def forward(self, h, return_attention=False):
+        if return_attention:
+            # FIXME: compute attention
+            B, n, _ = h.shape
+            h = self.get_last_layer_activations(h)  # [B, n, 1024] -> [B, 512]
+            logits = self._fc2(h)  # [B, n_classes]
+            temp_attention = torch.ones(B, n, 1) / n
+            return logits, temp_attention # WARNING this is a placeholder to fix a bug
+        else:
+            h = self.get_last_layer_activations(h)  # [B, n, 1024] -> [B, 512]
+            logits = self._fc2(h)  # [B, n_classes]
+            return logits
 
     def get_last_layer_activations(self, h):
         h = self._fc1(h)  # [B, n, 1024] -> [B, n, 512]

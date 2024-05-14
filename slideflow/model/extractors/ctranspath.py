@@ -592,10 +592,14 @@ class CTransPathFeatures(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, device=None, center_crop=False):
+    def __init__(self, device=None, center_crop=False, resize=False):
         super().__init__()
 
         from slideflow.model import torch_utils
+
+        if center_crop and resize:
+            raise ValueError("center_crop and resize cannot both be True.")
+
         self.device = torch_utils.get_device(device)
         self.model = _build_ctranspath_model()
         self.model.head = torch.nn.Identity().to(self.device)
@@ -611,7 +615,12 @@ class CTransPathFeatures(TorchFeatureExtractor):
 
         # ---------------------------------------------------------------------
         self.num_features = 768
-        all_transforms = [transforms.CenterCrop(224)] if center_crop else []
+        if center_crop:
+            all_transforms = [transforms.CenterCrop(224)]
+        elif resize:
+            all_transforms = [transforms.Resize(224)]
+        else:
+            all_transforms = []
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
             transforms.Normalize(
@@ -621,6 +630,7 @@ class CTransPathFeatures(TorchFeatureExtractor):
         self.transform = transforms.Compose(all_transforms)
         self.preprocess_kwargs = dict(standardize=False)
         self._center_crop = center_crop
+        self._resize = resize
         # ---------------------------------------------------------------------
 
     def dump_config(self):
@@ -632,5 +642,8 @@ class CTransPathFeatures(TorchFeatureExtractor):
         """
         return {
             'class': 'slideflow.model.extractors.ctranspath.CTransPathFeatures',
-            'kwargs': {'center_crop': self._center_crop}
+            'kwargs': {
+                'center_crop': self._center_crop,
+                'resize': self._resize
+            }
         }

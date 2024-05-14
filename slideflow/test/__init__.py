@@ -166,7 +166,7 @@ class TestSuite:
         elif model_type == 'cph':
             loss = ('negative_log_likelihood'
                     if sf.backend() == 'tensorflow'
-                    else 'NLL')
+                    else 'CoxProportionalHazardsLoss')
 
         # Create batch train file
         if sweep:
@@ -516,43 +516,37 @@ class TestSuite:
 
         if cph:
             with TaskWrapper("Training a CPH model...") as test:
-                if sf.backend() == 'tensorflow':
-                    try:
-                        results = self.project.train(
-                            exp_label='cph',
-                            outcomes='time',
-                            input_header='event',
-                            params=self.setup_hp('cph'),
-                            val_k=1,
-                            pretrain=None,
-                            **train_kwargs
-                        )
-                        _assert_valid_results(results)
-                    except Exception as e:
-                        log.error(traceback.format_exc())
-                        test.fail()
-                else:
-                    test.skip()
+                try:
+                    results = self.project.train(
+                        exp_label='cph',
+                        outcomes='time',
+                        input_header='event',
+                        params=self.setup_hp('cph'),
+                        val_k=1,
+                        pretrain=None,
+                        **train_kwargs
+                    )
+                    _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
 
         if multi_cph:
             with TaskWrapper("Training a multi-input CPH model...") as test:
-                if sf.backend() == 'tensorflow':
-                    try:
-                        results = self.project.train(
-                            exp_label='multi_cph',
-                            outcomes='time',
-                            input_header=['event', 'category1'],
-                            params=self.setup_hp('cph'),
-                            val_k=1,
-                            pretrain=None,
-                            **train_kwargs
-                        )
-                        _assert_valid_results(results)
-                    except Exception as e:
-                        log.error(traceback.format_exc())
-                        test.fail()
-                else:
-                    test.skip()
+                try:
+                    results = self.project.train(
+                        exp_label='multi_cph',
+                        outcomes='time',
+                        input_header=['event', 'category1'],
+                        params=self.setup_hp('cph'),
+                        val_k=1,
+                        pretrain=None,
+                        **train_kwargs
+                    )
+                    _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
         if from_wsi:
             # Test training from slides without TFRecords
             msg = "Training model directly from slides (from_wsi=True)..."

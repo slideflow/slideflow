@@ -182,12 +182,22 @@ class SlideReport:
             return None
 
     def calc_thumb(self) -> None:
-        wsi = sf.WSI(
-            self.path,
-            tile_px=self.tile_px,
-            tile_um=self.tile_um,
-            verbose=False
-        )
+        try:
+            wsi = sf.WSI(
+                self.path,
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
+                verbose=False,
+            )
+        except sf.errors.SlideMissingMPPError:
+            wsi = sf.WSI(
+                self.path,
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
+                verbose=False,
+                mpp=1   # Force MPP to 1 to add support for slides missing MPP.
+                        # The MPP does not need to be accurate for thumbnail generation.
+            )
         self._thumb = wsi.thumb(
             coords=self.thumb_coords,
             rois=self.has_rois,

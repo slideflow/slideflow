@@ -51,10 +51,14 @@ class PLIPFeatures(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, device=None, center_crop=False):
+    def __init__(self, device=None, center_crop=False, resize=False):
         super().__init__()
 
         from slideflow.model import torch_utils
+
+        if center_crop and resize:
+            raise ValueError("center_crop and resize cannot both be True.")
+
         self.device = torch_utils.get_device(device)
         self.model = CLIPImageFeatures("vinid/plip")
         self.model.eval()
@@ -62,7 +66,12 @@ class PLIPFeatures(TorchFeatureExtractor):
 
         # ---------------------------------------------------------------------
         self.num_features = 512
-        all_transforms = [transforms.CenterCrop(224)] if center_crop else []
+        if center_crop:
+            all_transforms = [transforms.CenterCrop(224)]
+        elif resize:
+            all_transforms = [transforms.Resize(224)]
+        else:
+            all_transforms = []
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
             transforms.Normalize(
@@ -72,6 +81,7 @@ class PLIPFeatures(TorchFeatureExtractor):
         self.transform = transforms.Compose(all_transforms)
         self.preprocess_kwargs = dict(standardize=False)
         self._center_crop = center_crop
+        self._resize = resize
         # ---------------------------------------------------------------------
 
 
@@ -105,5 +115,8 @@ class PLIPFeatures(TorchFeatureExtractor):
         cls_name = self.__class__.__name__
         return {
             'class': f'slideflow.model.extractors.plip.{cls_name}',
-            'kwargs': {'center_crop': self._center_crop},
+            'kwargs': {
+                'center_crop': self._center_crop,
+                'resize': self._resize
+            },
         }
