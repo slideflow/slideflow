@@ -212,13 +212,10 @@ def detect_mpp(
     if path.endswith('.ome.tif') or path.endswith('.ome.tiff'):
         xml_str = loaded_image.get('image-description')
         root = ET.fromstring(xml_str)
+        main_idx = get_main_index_from_xml(root)
         try:
-            root_ids = [i for i in range(len(root)) if 'Name' in root[i].attrib and root[i].attrib['Name'].endswith('_01')]
-            assert len(root_ids) == 1
-            root_id = root_ids[0]
-            assert root[root_id].attrib['Name'].endswith('_01')
-            assert root[root_id][3].tag.endswith('Pixels')
-            mpp_x = float(root[root_id][3].attrib['PhysicalSizeX'])
+            pixels_idx = [i for i, x in enumerate(root[main_idx]) if x.tag.endswith('Pixels')][0]
+            mpp_x = float(root[main_idx][pixels_idx].attrib['PhysicalSizeX'])
             log.debug(
                 f"Using MPP {mpp_x} per OME-TIFF PhysicalSizeX field"
             )
@@ -249,6 +246,19 @@ def detect_mpp(
 
     return None
 
+
+def get_main_index_from_xml(xml_root: ET.Element) -> int:
+    '''Returns the main ID from an OME-XML root.'''
+    # First, look for an element with the name ending in '_01'
+    for i in range(len(xml_root)):
+        if 'Name' in xml_root[i].attrib and xml_root[i].attrib['Name'].endswith('_01'):
+            return i
+    # If not found, return the first element with an empty name.
+    for i in range(len(xml_root)):
+        if 'Name' in xml_root[i].attrib and not xml_root[i].attrib['Name']:
+            return i
+    # If still not found, raise an error.
+    raise errors.SlideError("Unable to find main ID in OME-XML root.")
 
 
 # -----------------------------------------------------------------------------
@@ -942,9 +952,10 @@ class _OmeTiffVIPSReader(_VIPSReader):
         """Build page labels from OME-TIFF XML."""
         xml_str = self.properties['image-description']
         root = ET.fromstring(xml_str)
+        main_idx = get_main_index_from_xml(root)
         self.page_labels = {
-            (child.attrib['Name'] if not child.attrib['Name'].endswith('_01') else 'main'): int(child.attrib['ID'].split(':')[-1])
-            for child in root
+            ('main' if i == main_idx else child.attrib['Name']): int(child.attrib['ID'].split(':')[-1])
+            for i, child in enumerate(root)
             if 'ID' in child.attrib and 'Image' in child.attrib['ID']
         }
 
