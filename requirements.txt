@@ -8,7 +8,7 @@ imageio
 opencv-python-headless
 shapely
 umap-learn
-seaborn<0.12
+seaborn<=0.13
 pandas<2
 pyvips>=2.1.11
 fpdf2
