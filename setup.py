@@ -107,7 +107,7 @@ setuptools.setup(
         'opencv-python-headless',
         'shapely',
         'umap-learn',
-        'seaborn<=0.13',
+        'seaborn<0.14',
         'pandas<2',
         'pyvips',
         'fpdf2',
