@@ -126,6 +126,7 @@ class TrainerConfigFastAI(_TrainerConfig):
         lr: Optional[float] = None,
         wd: float = 1e-5,
         bag_size: int = 512,
+        balanced: bool = False,
         fit_one_cycle: bool = True,
         epochs: int = 32,
         batch_size: int = 64,
@@ -156,6 +157,8 @@ class TrainerConfigFastAI(_TrainerConfig):
             wd (float): Weight decay. Only used if ``fit_one_cycle=False``.
                 Defaults to 1e-5.
             bag_size (int): Bag size. Defaults to 512.
+            balanced (bool): if True and bag contains features from multiple slides, draw the same
+                number of features from each slide
             fit_one_cycle (bool): Use `1cycle <https://sgugger.github.io/the-1cycle-policy.html>`_
                 learning rate schedule. Defaults to True.
             epochs (int): Maximum number of epochs. Defaults to 32.
@@ -169,6 +172,7 @@ class TrainerConfigFastAI(_TrainerConfig):
         self.lr = lr
         self.wd = wd
         self.bag_size = bag_size
+        self.balanced = balanced
         self.fit_one_cycle = fit_one_cycle
         self.epochs = epochs
         self.batch_size = batch_size

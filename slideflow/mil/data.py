@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 
 # -----------------------------------------------------------------------------
 
-def build_dataset(bags, targets, encoder, bag_size, use_lens=False):
+def build_dataset(bags, targets, encoder, bag_size, use_lens=False, balanced=False):
     assert len(bags) == len(targets)
 
     def _zip(bag, targets):
@@ -23,13 +23,13 @@ def build_dataset(bags, targets, encoder, bag_size, use_lens=False):
 
     dataset = MapDataset(
         _zip,
-        BagDataset(bags, bag_size=bag_size),
+        BagDataset(bags, bag_size=bag_size, balanced=balanced),
         EncodedDataset(encoder, targets),
     )
     dataset.encoder = encoder
     return dataset
 
-def build_clam_dataset(bags, targets, encoder, bag_size):
+def build_clam_dataset(bags, targets, encoder, bag_size, balanced=False):
     assert len(bags) == len(targets)
 
     def _zip(bag, targets):
@@ -38,7 +38,7 @@ def build_clam_dataset(bags, targets, encoder, bag_size):
 
     dataset = MapDataset(
         _zip,
-        BagDataset(bags, bag_size=bag_size),
+        BagDataset(bags, bag_size=bag_size, balanced=balanced),
         EncodedDataset(encoder, targets),
     )
     dataset.encoder = encoder
@@ -64,12 +64,43 @@ def build_multibag_dataset(bags, targets, encoder, bag_size, n_bags, use_lens=Fa
 # -----------------------------------------------------------------------------
 
 def _to_fixed_size_bag(
-    bag: torch.Tensor,
-    bag_size: int = 512
+    bag: Union[torch.Tensor, List[torch.Tensor]],
+    bag_size: int = 512,
+    balanced: bool = False
 ) -> Tuple[torch.Tensor, int]:
-    # get up to bag_size elements
-    bag_idxs = torch.randperm(bag.shape[0])[:bag_size]
-    bag_samples = bag[bag_idxs]
+    '''
+    Get up to bag_size elements
+    Args:
+        bag (torch.Tensor), list(torch.Tensor):
+            if torch.Tensor, bag consists of features from a slide
+            if list(torch.Tensor), each torch.Tensor is a collection of features from a slide
+        bag_size (int): the number of features to be chosen to return
+        balanced (bool):
+            if True, bag must be list(torch.Tensor) and the number of features chosen are the same for each
+            element in bag
+            if False, features are randomly selected
+    '''
+    if balanced:
+        # Expect bag to be a list
+        if not isinstance(bag, list):
+            raise TypeError(f"Bag must be a list of Tensors to activate balanced mode. Instead, received {type(bag)}")
+        # All elements in bag must be torch.Tensor
+        if any([not isinstance(tensor, torch.Tensor) for tensor in bag]):
+            raise TypeError("All elements in bag must be torch.Tensor to activate balanced mode.")
+        # Get the number of features to be chosen from each Tensor in bag
+        num_features = min(bag_size // len(bag), min([tensor.shape[0] for tensor in bag]))
+        # Get features from each tensor and concatenate them in dimension 0
+        bag_samples = torch.cat([bag[i][torch.randperm(bag[i].shape[0])[:num_features]] for i in range(len(bag))])
+
+    else:
+        # If bag is a list, concatenate them
+        if isinstance(bag, list):
+            bag = torch.cat(bag)
+        # Else, bag must be torch.Tensor
+        elif not isinstance(bag, torch.Tensor):
+            raise TypeError(f"Bag must be either a list[torch.Tensor] or torch.Tensor. Instead, received {type(bag)}")
+        bag_idxs = torch.randperm(bag.shape[0])[:bag_size]
+        bag_samples = bag[bag_idxs]
 
     # zero-pad if we don't have enough samples
     zero_padded = torch.cat(
@@ -78,7 +109,7 @@ def _to_fixed_size_bag(
             torch.zeros(bag_size - bag_samples.shape[0], bag_samples.shape[1]),
         )
     )
-    return zero_padded, min(bag_size, len(bag))
+    return zero_padded, min(bag_size, len(bag_samples))
 
 # -----------------------------------------------------------------------------
 
@@ -89,7 +120,8 @@ class BagDataset(Dataset):
         self,
         bags: Union[List[Path], List[np.ndarray], List[torch.Tensor], List[List[str]]],
         bag_size: Optional[int] = None,
-        preload: bool = False
+        preload: bool = False,
+        balanced: bool = False
     ):
         """A dataset of bags of instances.
 
@@ -107,12 +139,18 @@ class BagDataset(Dataset):
                 containing more instances, a random sample of `bag_size`
                 instances will be drawn.  Smaller bags are padded with zeros.
                 If `bag_size` is None, all the samples will be used.
+            balanced (bool): if True, choose an equal number of features from each tensor in the bags
 
         """
         super().__init__()
         self.bags = bags
         self.bag_size = bag_size
         self.preload = preload
+        self.balanced = balanced
+
+        # If balanced is True, every element in the bags must be a list or tuple
+        if balanced and not all([isinstance(element, list) or isinstance(element, tuple) for element in bags]):
+            raise TypeError(f"Every element in bags must be a list or tuple to activate Balanced mode.")
 
         if self.preload:
             self.bags = [self._load(i) for i in range(len(self.bags))]
@@ -128,10 +166,13 @@ class BagDataset(Dataset):
         elif isinstance(self.bags[index], torch.Tensor):
             feats = self.bags[index]
         else:
-            feats = torch.cat([
-                torch.load(slide).to(torch.float32)
+            feats = [
+                torch.load(slide).to(torch.float32) if isinstance(slide, str)
+                    else slide if isinstance(slide, torch.Tensor)
+                    else torch.from_numpy(slide).to(torch.float32) if isinstance(slide, np.ndarray)
+                    else list(slide)
                 for slide in self.bags[index]
-            ])
+            ]
         return feats
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
@@ -143,7 +184,7 @@ class BagDataset(Dataset):
 
         # sample a subset, if required
         if self.bag_size:
-            return _to_fixed_size_bag(feats, bag_size=self.bag_size)
+            return _to_fixed_size_bag(feats, bag_size=self.bag_size, balanced=self.balanced)
         else:
             return feats, len(feats)
 
