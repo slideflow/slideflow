@@ -186,6 +186,7 @@ class BagDataset(Dataset):
         if self.bag_size:
             return _to_fixed_size_bag(feats, bag_size=self.bag_size, balanced=self.balanced)
         else:
+            feats = torch.cat(feats) if isinstance(feats, list) else feats
             return feats, len(feats)
 
 # -----------------------------------------------------------------------------
