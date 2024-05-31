@@ -345,7 +345,7 @@ def aggregate_trainval_bags_by_patient(
             Defaults to None.
 
     Returns:
-        tuple: (bags, targets, train_idx, val_idx)
+        tuple: (bags (np.ndarray[List]), targets, train_idx, val_idx)
 
     """
     # Create a reverse dictionary, mapping patient codes to a list of bags.
@@ -357,7 +357,12 @@ def aggregate_trainval_bags_by_patient(
         patient_to_bags[patient].append(bag)
 
     # Create array where each element contains the list of slides for a patient.
-    bags = np.array([lst for lst in patient_to_bags.values()], dtype=object)
+    # Create a placeholder for each list in the bags
+    bags = np.empty((len(patient_to_bags), ), dtype=object)
+    # Replace the placeholder with the list of bag paths. This way ensures that
+    # each element of bags is of type list
+    for i, lst in enumerate(patient_to_bags.values()):
+        bags[i] = lst
 
     # Create a dictionary mapping patients to their labels.
     patients_labels = {}
