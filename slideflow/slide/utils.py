@@ -204,7 +204,7 @@ class ROI:
         self.update_polygon()
         # Calculate polygon bounding box (whole-slide)
         width, height = wsi_shape
-        roi_wsi_coords = np.array([[0., 0.], [0., width], [height, width], [height, 0.]])
+        roi_wsi_coords = np.array([[0., 0.], [0., height], [width, height], [width, 0.]])
         # Create the inverted ROI
         inverted_ROI = ROI(name=self.name, coordinates=roi_wsi_coords)
         # Add the hole to the ROI
