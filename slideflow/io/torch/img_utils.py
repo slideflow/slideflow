@@ -141,6 +141,9 @@ def decode_image(
         image = cwh_to_whc(torchvision.io.decode_image(np_data))
         # Alternative method using PIL decoding:
         # image = np.array(Image.open(BytesIO(img_string)))
+        # Remove alpha, if present.
+        if image.shape[-1] == 4:
+            image = image[..., :3]
 
     assert isinstance(image, torch.Tensor)
 

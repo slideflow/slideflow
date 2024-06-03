@@ -422,6 +422,19 @@ class Alignment:
 # -----------------------------------------------------------------------------
 # Functions
 
+def numpy2jpg(img: np.ndarray) -> str:
+    if img.shape[-1] == 4:
+        img = img[:, :, 0:3]
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    return cv2.imencode(".jpg", img)[1].tobytes()   # Default quality = 95%
+
+
+def numpy2png(img: np.ndarray) -> str:
+    if img.shape[-1] == 4:
+        img = img[:, :, 0:3]
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    return cv2.imencode(".png", img)[1].tobytes()
+
 
 def predict(
     slide: str,
@@ -709,7 +722,6 @@ def get_scaled_and_intersecting_polys(
 
 def _align_to_matrix(im1: np.ndarray, im2: np.ndarray, warp_matrix: np.ndarray) -> np.ndarray:
     """Align an image to a warp matrix."""
-    import cv2
     # Use the warpAffine function to apply the transformation
     return cv2.warpAffine(im1, warp_matrix, (im2.shape[1], im2.shape[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
 
@@ -733,8 +745,6 @@ def _find_translation_matrix(
     :param im2: The reference image.
     :return: Aligned image of im1.
     """
-    import cv2
-
     # Convert images to grayscale
     im1_gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
     im2_gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
@@ -795,7 +805,6 @@ def align_by_translation(
             Defaults to False.
 
     """
-    import cv2
     try:
         warp_matrix = _find_translation_matrix(im1, im2, **kwargs)
     except cv2.error:
