@@ -1266,21 +1266,28 @@ class DatasetFeatures:
             # Encode it if not encoded
             if col not in self.encodes:
                 # If all the values in the annotation file are already encoded
-                if all([isinstance(val, int) for val in annotations[col].tolist()]):
-                    self.encodes[col] = {val: val for val in set(annotations[col].tolist())}
-                else:
+                try:
+                    # Try to cast all values in col to numeric
+                    self.encodes[col] = {float(val): float(val) for val in set(annotations[col].tolist())}
+                    # Create a mapping from slide to the encoded value
+                    slide_to_encoded = {row[slide_col]: float(row[col]) for i, row in annotations.iterrows()}
+                except:
+                    # All values in col cannot be cast to numeric
                     self.encodes[col] = {
                         val: index for index, val in enumerate(set(annotations[col].tolist()))
                     }
-            # Create a mapping from slide to the encoded value
-            slide_to_encoded = {row[slide_col]: self.encodes[col][row[col]] for i, row in annotations.iterrows()}
+                    # Create a mapping from slide to the encoded value
+                    slide_to_encoded = {row[slide_col]: self.encodes[col][row[col]] for i, row in annotations.iterrows()}
             # Add new feature encoded from column to feature vectors
             self._add_features(slide_to_encoded)
 
         # For each column in numerical_cols:
         for col in numerical_cols:
             # Create a mapping from slide to value in the column
-            slide_to_encoded = {row[slide_col]: row[col] for i, row in annotations.iterrows()}
+            try:
+                slide_to_encoded = {row[slide_col]: float(row[col]) for i, row in annotations.iterrows()}
+            except:
+                raise TypeError(f"Cannot convert data in '{col}' in numeric. Perhaps, '{col}' does not contain numerical data")
             # Add new feature encoded from column to feature vectors
             self._add_features(slide_to_encoded)
         
@@ -1314,6 +1321,8 @@ class DatasetFeatures:
         '''
         Export encodes dictionary for later reference
         '''
+        if not exists(outdir):
+            os.makedirs(outdir)
         sf.util.write_json(self.encodes, join(outdir, 'encodes.json'))
 
     # --- Deprecated functions ----------------------------------------------------
