@@ -19,6 +19,7 @@ import pandas as pd
 import scipy.stats as stats
 import slideflow as sf
 from rich.progress import track, Progress
+from tqdm import tqdm
 from slideflow import errors
 from slideflow.util import log, Labels, ImgBatchSpeedColumn, tfrecord2idx
 from .base import BaseFeatureExtractor
@@ -444,7 +445,7 @@ class DatasetFeatures:
         progress: bool = True,
         verbose: bool = True,
         pool_sort: bool = True,
-        pb: Optional[Progress] = None,
+        pb: Optional[tqdm] = None,
         **kwargs
     ) -> None:
 
@@ -510,11 +511,14 @@ class DatasetFeatures:
                     self.dataset.get_tfrecord_locations, slides_to_sort
                 )
             if progress and not pb:
-                iterable = track(
+                num_slides_to_sort = len(slides_to_sort)
+                iterable = tqdm(
                     imap_iterable,
-                    transient=False,
-                    total=len(slides_to_sort),
-                    description="Sorting...")
+                    total=num_slides_to_sort,
+                    desc='Sorting...',
+                    file=sys.stdout,
+                    miniters=max(num_slides_to_sort // 5, 1),
+                )
             else:
                 iterable = imap_iterable
 
@@ -1687,7 +1691,7 @@ class _FeatureGenerator:
         *,
         verbose: bool = True,
         progress: bool = True,
-        pb: Optional[Progress] = None,
+        pb: Optional[tqdm] = None,
     ):
 
         # Get the dataloader for iterating through tfrecords
@@ -1733,22 +1737,31 @@ class _FeatureGenerator:
         batch_proc_thread.start()
 
         if progress and not pb:
-            pb = Progress(*Progress.get_default_columns(),
-                        ImgBatchSpeedColumn(),
-                        transient=sf.getLoggingLevel()>20)
-            task = pb.add_task("Generating...", total=estimated_tiles)
-            pb.start()
+            length_dataset = len(dataset)
+            miniters = 1 if length_dataset < 10 \
+                else 10 if 10 <= length_dataset < 100 \
+                    else 100 if 100 <= length_dataset < 1000 \
+                        else 1000 if 1000 <= length_dataset < 10000 \
+                            else 10000
+            num_workers = dataset.num_workers
+            total = ((estimated_tiles // self.batch_size) // num_workers) * num_workers + num_workers
+            pb = tqdm(dataset, desc='Generating...', file=sys.stdout, miniters=miniters, total=total)
+            iterable = pb
         elif pb:
             task = 0
             progress = False
+            iterable = pb
         else:
             pb = None
-        with sf.util.cleanup_progress((pb if progress else None)):
-            for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataset:
-                model_output = self._calculate_feature_batch(batch_img)
-                q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
-                if pb:
-                    pb.advance(task, self.batch_size)
+            iterable = dataset
+        
+        for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in iterable:
+            model_output = self._calculate_feature_batch(batch_img)
+            q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
+
+        if pb:
+            pb.close()
+
         q.put((None, None, None))
         batch_proc_thread.join()
         if hasattr(dataset, 'close'):
