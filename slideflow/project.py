@@ -1503,6 +1503,8 @@ class Project:
         dataset: Dataset,
         bags: Union[str, List[str]],
         config: Optional["mil._TrainerConfig"] = None,
+        *,
+        outdir: Optional[str] = None,
         **kwargs
     ):
         r"""Evaluate a multi-instance learning model.
@@ -1545,13 +1547,16 @@ class Project:
         """
         from .mil import eval_mil
 
+        if outdir is None:
+            outdir = join(self.root, 'mil_eval')
+
         return eval_mil(
             model,
             dataset=dataset,
             outcomes=outcomes,
             bags=bags,
             config=config,
-            outdir=join(self.root, 'mil_eval'),
+            outdir=outdir,
             **kwargs
         )
 
@@ -3946,6 +3951,7 @@ class Project:
         bags: Union[str, List[str]],
         *,
         exp_label: Optional[str] = None,
+        outdir: Optional[str] = None,
         **kwargs
     ):
         r"""Train a multi-instance learning model.
@@ -3982,13 +3988,16 @@ class Project:
         """
         from .mil import train_mil
 
+        if outdir is None:
+            outdir = join(self.root, 'mil')
+
         return train_mil(
             config,
             train_dataset,
             val_dataset,
             outcomes,
             bags,
-            outdir=join(self.root, 'mil'),
+            outdir=outdir,
             exp_label=exp_label,
             **kwargs
         )
