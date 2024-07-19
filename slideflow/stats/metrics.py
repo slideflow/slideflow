@@ -198,7 +198,7 @@ def categorical_metrics(
     df: DataFrame,
     label: str = '',
     level: str = 'tile',
-    data_dir: str = '',
+    data_dir: Optional[str] = '',
     neptune_run: Optional["neptune.Run"] = None
 ) -> Dict[str, Dict[str, float]]:
     """Generates categorical metrics (AUC/AP) from a set of predictions.
@@ -213,7 +213,7 @@ def categorical_metrics(
         level (str, optional): Group-level for the predictions. Used for
             labeling plots. Defaults to 'tile'.
         data_dir (str, optional): Path to data directory for saving plots.
-            Defaults to None.
+            If None, plots are not saved. Defaults to the current directory.
 
     Returns:
         Dict containing metrics, with the keys 'auc' and 'ap'.
@@ -276,8 +276,9 @@ def categorical_metrics(
         ]
         try:
             for i, fit in enumerate(p.imap(_generate_tile_roc, yt_and_yp)):
-                fit.save_roc(data_dir, f"{label_start}{outcome}_{level}_ROC{i}")
-                fit.save_prc(data_dir, f"{label_start}{outcome}_{level}_PRC{i}")
+                if data_dir is not None:
+                    fit.save_roc(data_dir, f"{label_start}{outcome}_{level}_ROC{i}")
+                    fit.save_prc(data_dir, f"{label_start}{outcome}_{level}_PRC{i}")
                 all_auc[outcome] += [fit.auroc]
                 all_ap[outcome] += [fit.ap]
                 auroc_str = 'NA' if not fit.auroc else f'{fit.auroc:.3f}'
