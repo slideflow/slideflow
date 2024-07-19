@@ -261,7 +261,7 @@ def _train_multimodal_mil(
         columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'},
         inplace=True
     )
-    sf.stats.metrics.categorical_metrics(df, level='slide')
+    sf.stats.metrics.categorical_metrics(df, level='slide', data_dir=outdir)
 
     # Export predictions.
     if outdir:
@@ -427,7 +427,7 @@ def train_clam(
         columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'},
         inplace=True
     )
-    sf.stats.metrics.categorical_metrics(df, level='slide')
+    sf.stats.metrics.categorical_metrics(df, level='slide', data_dir=outdir)
 
     # Attention heatmaps
     if isinstance(bags, str):
@@ -771,7 +771,7 @@ def train_fastai(
         columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'},
         inplace=True
     )
-    sf.stats.metrics.categorical_metrics(df, level='slide')
+    sf.stats.metrics.categorical_metrics(df, level='slide', data_dir=outdir)
 
     # Export attention to numpy arrays
     if attention and outdir:
