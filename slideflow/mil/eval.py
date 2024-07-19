@@ -214,7 +214,7 @@ def _eval_mil(
     metrics_df = df.rename(
         columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
     )
-    sf.stats.metrics.categorical_metrics(metrics_df, level='slide')
+    sf.stats.metrics.categorical_metrics(metrics_df, level='slide', data_dir=outdir)
 
     # Export attention
     if outdir and y_att:
@@ -319,7 +319,7 @@ def _eval_multimodal_mil(
     metrics_df = df.rename(
         columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
     )
-    sf.stats.metrics.categorical_metrics(metrics_df, level='slide')
+    sf.stats.metrics.categorical_metrics(metrics_df, level='slide', data_dir=outdir)
 
     # Export attention
     if outdir and y_att:
