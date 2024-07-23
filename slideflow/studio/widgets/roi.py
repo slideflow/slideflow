@@ -1157,7 +1157,7 @@ class ROIWidget:
         _clicked, _hover_clicked = self.hover_button(
             main_icon='circle_plus_highlighted',
             menu_icons=['add_freehand', 'add_polygon'],
-            menu_labels=['Add ROI (Freehand)', 'Add ROI (Polygon)', 'Add ROI (Point)']
+            menu_labels=['Add ROI (Freehand)', 'Add ROI (Polygon)']
         )
         if _clicked and _hover_clicked == 0:
             self.toggle_add_roi('freehand')
