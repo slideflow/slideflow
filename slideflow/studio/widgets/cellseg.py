@@ -292,6 +292,7 @@ class CellSegWidget(Widget):
             self.viz.wsi.path,
             tile_px=self.tile_px,
             tile_um=self.tile_um,
+            mpp=self.mpp,
             use_bounds=self.viz.settings_widget.use_bounds,
             verbose=False
         )
