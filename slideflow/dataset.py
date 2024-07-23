@@ -1603,6 +1603,10 @@ class Dataset:
                 Defaults to None.
             use_edge_tiles (bool): Use edge tiles in extraction. Areas
                 outside the slide will be padded white. Defaults to False.
+            mpp_override (float, optional): Override the microns-per-pixel
+                for each slide. If None, will auto-detect microns-per-pixel
+                for all slides and raise an error if MPP is not found.
+                Defaults to None.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
