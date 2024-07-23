@@ -32,7 +32,6 @@ class ExtensionsWidget:
         self.cellseg = any([w.tag == 'cellseg' for w in viz.widgets])
         self.mil = any([w.tag == 'mil' for w in viz.widgets])
         self.segment = any([w.tag == 'segment' for w in viz.widgets])
-        self.alignment = any([w.tag == 'alignment' for w in viz.widgets])
 
         _off_path = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'small_button_verified.png')
         self._official_tex      = gl_utils.Texture(
@@ -92,14 +91,6 @@ class ExtensionsWidget:
             viz.add_widgets(TissueSegWidget)
         else:
             viz.remove_widget(TissueSegWidget)
-
-    def toggle_alignment(self):
-        viz = self.viz
-        from ..widgets.alignment import AlignmentWidget
-        if not any(isinstance(w, AlignmentWidget) for w in viz.widgets):
-            viz.add_widgets(AlignmentWidget)
-        else:
-            viz.remove_widget(AlignmentWidget)
 
     def extension_checkbox(self, title, description, check_value, official=False):
         viz = self.viz
@@ -222,20 +213,6 @@ class ExtensionsWidget:
                 except Exception as e:
                     self.show_extension_error(str(e), traceback.format_exc())
                     self.mil = False
-
-            _c6, self.alignment = self.extension_checkbox(
-                'Alignment',
-                description='Align slides.',
-                check_value=self.alignment,
-                official=True
-            )
-            if _c6:
-                try:
-                    self.toggle_alignment()
-                except Exception as e:
-                    self.show_extension_error(str(e), traceback.format_exc())
-                    self.alignment = False
-
 
         if self._show_err_popup:
             self.draw_error_popup()
