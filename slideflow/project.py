@@ -4059,9 +4059,9 @@ def create(
     Alternatively, you can create a project using a prespecified configuration,
     of which there are three available:
 
-    - ``sf.project.LungAdenoSquam``
-    - ``sf.project.ThyroidBRS``
-    - ``sf.project.BreastER``
+    - ``sf.project.LungAdenoSquam()``
+    - ``sf.project.ThyroidBRS()``
+    - ``sf.project.BreastER()``
 
     When creating a project from a configuration, setting ``download=True``
     will download the annoations file and slides from The Cancer Genome Atlas
@@ -4073,7 +4073,7 @@ def create(
 
         project = sf.create_project(
             root='path',
-            cfg=sf.project.LungAdenoSquam,
+            cfg=sf.project.LungAdenoSquam(),
             download=True
         )
 

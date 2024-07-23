@@ -108,7 +108,7 @@ import slideflow as sf
 
 P = sf.create_project(
     root='/project/destination',
-    cfg=sf.project.LungAdenoSquam,
+    cfg=sf.project.LungAdenoSquam(),
     download=True
 )
 ```

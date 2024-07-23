@@ -17,7 +17,7 @@ For this example, we will the ``LungAdenoSquam`` project to train a classifier t
     # Download preconfigured project, with slides and annotations.
     project = sf.create_project(
         root='data',
-        cfg=sf.project.LungAdenoSquam,
+        cfg=sf.project.LungAdenoSquam(),
         download=True
     )
 
