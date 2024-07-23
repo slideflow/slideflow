@@ -611,7 +611,13 @@ class Project:
         if dataset is None:
             dataset = self.dataset(hp.tile_px, hp.tile_um)
         else:
-            if dataset.tile_px != hp.tile_px or dataset.tile_um != hp.tile_um:
+            _compatible = sf.util.is_tile_size_compatible(
+                dataset.tile_px,
+                dataset.tile_um,
+                hp.tile_px,
+                hp.tile_um
+            )
+            if not _compatible:
                 raise errors.ModelParamsError(
                     "Dataset tile size (px={}, um={}) does not match provided "
                     "hyperparameters (px={}, um={})".format(

@@ -2633,7 +2633,13 @@ class WSI:
         from slideflow import Heatmap
 
         config = sf.util.get_model_config(model)
-        if config['tile_px'] != self.tile_px or config['tile_um'] != self.tile_um:
+        _compatible = sf.util.is_tile_size_compatible(
+            config['tile_px'],
+            config['tile_um'],
+            self.tile_px,
+            self.tile_um
+        )
+        if not _compatible:
             raise ValueError(
                 "Slide tile size (tile_px={}, tile_um={}) does not match the "
                 "model (tile_px={}, tile_um={}).".format(
