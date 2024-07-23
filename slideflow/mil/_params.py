@@ -157,8 +157,8 @@ class TrainerConfigFastAI(_TrainerConfig):
             wd (float): Weight decay. Only used if ``fit_one_cycle=False``.
                 Defaults to 1e-5.
             bag_size (int): Bag size. Defaults to 512.
-            balanced (bool): if True and bag contains features from multiple slides, draw the same
-                number of features from each slide
+            balanced (bool): if True and bag contains feature vectors from 
+                multiple slides, draw the same number of vectors from each slide
             fit_one_cycle (bool): Use `1cycle <https://sgugger.github.io/the-1cycle-policy.html>`_
                 learning rate schedule. Defaults to True.
             epochs (int): Maximum number of epochs. Defaults to 32.
