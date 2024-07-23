@@ -113,7 +113,7 @@ def build_feature_extractor(
                 # Create a feature extractor
                 retccl = sf.build_feature_extractor(
                     'retccl',
-                    tile_px=299
+                    resize=True
                 )
 
                 # Create a feature map, a 2D array of shape

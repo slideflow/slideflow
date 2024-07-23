@@ -122,7 +122,7 @@ class DatasetFeatures:
                     import slideflow as sf
 
                     # Create a feature extractor
-                    retccl = sf.build_feature_extractor('retccl', tile_px=299)
+                    retccl = sf.build_feature_extractor('retccl', resize=True)
 
                     # Load a dataset
                     P = sf.load_project(...)
