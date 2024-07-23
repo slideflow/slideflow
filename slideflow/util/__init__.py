@@ -569,6 +569,81 @@ def to_mag(arg1: str) -> Union[int, float]:
         return float(arg1.lower().split('x')[0])
 
 
+def is_tile_size_compatible(
+    tile_px1: int,
+    tile_um1: Union[str, int],
+    tile_px2: int,
+    tile_um2: Union[str, int]
+) -> bool:
+    """Check whether tile sizes are compatible.
+
+    Compatibility is defined as:
+        - Equal size in pixels
+        - If tile width (tile_um) is defined in microns (int) for both, these must be equal
+        - If tile width (tile_um) is defined as a magnification (str) for both, these must be equal
+        - If one is defined in microns and the other as a magnification, the calculated magnification must be +/- 2.
+
+    Example 1:
+    - tile_px1=299, tile_um1=302
+    - tile_px2=299, tile_um2=304
+    - Incompatible (unequal micron width)
+
+    Example 2:
+    - tile_px1=299, tile_um1=10x
+    - tile_px2=299, tile_um2=9x
+    - Incompatible (unequal magnification)
+
+    Example 3:
+    - tile_px1=299, tile_um1=302
+    - tile_px2=299, tile_um2=10x
+    - Compatible (first has an equivalent magnification of 9.9x, which is +/- 2 compared to 10x)
+
+
+    Args:
+        tile_px1 (int): Tile size (in pixels) of first slide.
+        tile_um1 (int or str): Tile size (in microns) of first slide.
+            Can also be expressed as a magnification level, e.g. ``'10x'``
+        tile_px2 (int): Tile size (in pixels) of second slide.
+        tile_um2 (int or str): Tile size (in microns) of second slide.
+            Can also be expressed as a magnification level, e.g. ``'10x'``
+
+    Returns:
+        bool: Whether the tile sizes are compatible.
+
+    """
+    # Type checks
+    if not isinstance(tile_px1, int):
+        raise ValueError("Expected tile_px1 to be an int, got: {}".format(type(tile_px1)))
+    if not isinstance(tile_um1, (str, int)):
+        raise ValueError("Expected tile_um1 to be a str or int, got: {}".format(type(tile_um1)))
+    if not isinstance(tile_px2, int):
+        raise ValueError("Expected tile_px2 to be an int, got: {}".format(type(tile_px2)))
+    if not isinstance(tile_um2, (str, int)):
+        raise ValueError("Expected tile_um2 to be a str or int, got: {}".format(type(tile_um2)))
+
+    # Enforce equivalent pixel size
+    if tile_px1 != tile_px2:
+        return False
+    # If both are defined as a magnification, check if these are equal
+    if isinstance(tile_um1, str) and isinstance(tile_um2, str):
+        return tile_um1 == tile_um2
+    # If both are defined in microns, check if these are equal
+    if isinstance(tile_um1, int) and isinstance(tile_um2, int):
+        return tile_um1 == tile_um2
+    # If one is defined in microns and the other as magnification,
+    # check if they are compatible.
+    if isinstance(tile_um1, str) and isinstance(tile_um2, int):
+        mag2 = 10 / (tile_um2 / tile_px2)
+        return abs(mag2 - to_mag(tile_um1)) <= 2
+    if isinstance(tile_um1, int) and isinstance(tile_um2, str):
+        mag1 = 10 / (tile_um1 / tile_px1)
+        return abs(mag1 - to_mag(tile_um2)) <= 2
+    else:
+        raise ValueError("Error assessing tile size compatibility between px={}, um={} and px={}, um={}".format(
+            tile_px1, tile_um1, tile_px2, tile_um2
+        ))
+
+
 def multi_warn(arr: List, compare: Callable, msg: Union[Callable, str]) -> int:
     """Logs multiple warning
 
