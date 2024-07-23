@@ -1,11 +1,9 @@
 """Categorical, linear, and CPH metrics for predictions."""
 
-import math
 import multiprocessing as mp
 import warnings
 import numpy as np
 import pandas as pd
-from lifelines.utils import concordance_index as c_index
 from pandas.core.frame import DataFrame
 from sklearn import metrics
 from os.path import join
@@ -17,7 +15,9 @@ from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union,
 import slideflow as sf
 from slideflow import errors
 from slideflow.util import log
+
 from .delong import delong_roc_variance
+from .concordance import concordance_index as c_index
 
 if TYPE_CHECKING:
     import neptune.new as neptune
@@ -985,7 +985,11 @@ def save_dfs(
         if format == 'csv':
             _df.to_csv(path+'.csv')
         elif format == 'feather':
-            import pyarrow.feather as feather
+            try:
+                import pyarrow.feather as feather
+            except ImportError:
+                raise ImportError("Saving to a feather file requires the package `pyarrow`. "
+                                  "Please install with `pip install pyarrow`")
             feather.write_feather(_df, path+'.feather')
         else:
             _df.to_parquet(path+'.parquet.gzip', compression='gzip')
