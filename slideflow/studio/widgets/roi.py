@@ -264,9 +264,6 @@ class ROIWidget:
             if key == glfw.KEY_P and action == glfw.PRESS and not self.viz._control_down:
                 self.toggle_add_roi('polygon')
 
-            if key == glfw.KEY_PERIOD and action == glfw.PRESS and not self.viz._control_down:
-                self.toggle_add_roi('point')
-
             if key == glfw.KEY_E and action == glfw.PRESS:
                 self.toggle_edit_roi()
 
