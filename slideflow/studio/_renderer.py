@@ -479,11 +479,6 @@ class Renderer:
         # Otherwise, use the viewer to find the tile image.
         elif viewer is not None:
 
-            if not self._model:
-                res.message = "Model not loaded"
-                print(res.message)
-                return
-
             res.predictions = None
             res.uncertainty = None
 
@@ -505,7 +500,7 @@ class Renderer:
 
         # ---------------------------------------------------------------------
 
-        if use_model:
+        if use_model and self._model:
             self._run_models(
                 img,
                 res,

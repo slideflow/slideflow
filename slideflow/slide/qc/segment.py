@@ -213,8 +213,8 @@ class Segment:
                 # Load the ROI.
                 try:
                     wsi.load_roi_array(
-                        outline, 
-                        process=False, 
+                        outline,
+                        process=False,
                         label=(None if labels is None else labels[o]),
                         simplify_tolerance=simplify_tolerance
                     )

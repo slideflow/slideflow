@@ -2159,7 +2159,7 @@ class Project:
         if isinstance(model, str) and sf.model.is_extractor(model):
             log.info(f"Building feature extractor: [green]{model}[/]")
             layer_kw = dict(layers=kwargs['layers']) if 'layers' in kwargs else dict()
-            model = sf.model.build_feature_extractor(
+            model = sf.build_feature_extractor(
                 model, tile_px=dataset.tile_px, **layer_kw
             )
 
