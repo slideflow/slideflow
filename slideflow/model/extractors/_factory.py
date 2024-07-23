@@ -58,9 +58,9 @@ def build_feature_extractor(
 
             .. code-block:: python
 
-                from slideflow.model import build_feature_extractor
+                import slideflow as sf
 
-                extractor = build_feature_extractor(
+                extractor = sf.build_feature_extractor(
                     'resnet50_imagenet'
                 )
 
@@ -69,9 +69,7 @@ def build_feature_extractor(
 
             .. code-block:: python
 
-                from slideflow.model import build_feature_extractor
-
-                extractor = build_feature_extractor(
+                extractor = sf.build_feature_extractor(
                     'resnet50_imagenet',
                     layers='conv4_block4_2_relu
                 )
@@ -80,9 +78,7 @@ def build_feature_extractor(
 
             .. code-block:: python
 
-                from slideflow.model import build_feature_extractor
-
-                extractor = build_feature_extractor('ctranspath')
+                extractor = sf.build_feature_extractor('ctranspath')
 
         Use an extractor to calculate layer activations for an entire dataset.
 
@@ -95,7 +91,7 @@ def build_feature_extractor(
                 dataset = P.dataset(...)
 
                 # Create a feature extractor
-                resnet = sf.model.build_feature_extractor(
+                resnet = sf.build_feature_extractor(
                     'resnet50_imagenet'
                 )
 
@@ -110,13 +106,12 @@ def build_feature_extractor(
             .. code-block:: python
 
                 import slideflow as sf
-                from slideflow.model import build_feature_extractor
 
                 # Load a slide
                 wsi = sf.WSI(...)
 
                 # Create a feature extractor
-                retccl = build_feature_extractor(
+                retccl = sf.build_feature_extractor(
                     'retccl',
                     tile_px=299
                 )

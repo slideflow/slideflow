@@ -130,10 +130,10 @@ Generating features from a trained SSL is straightforward - use the same :meth:`
 
 .. code-block:: python
 
-    from slideflow.model import build_feature_extractor
+    import slideflow as sf
 
     # Create the SimCLR feature extractor
-    simclr = build_feature_extractor(
+    simclr = sf.build_feature_extractor(
         'simclr',
         ckpt='/path/to/simclr.ckpt'
     )

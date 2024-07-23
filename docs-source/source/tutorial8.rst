@@ -28,8 +28,7 @@ Once a dataset has been prepared, the next step in training an MIL model is :ref
 
 .. code-block:: python
 
-    >>> from slideflow.model import build_feature_extractor
-    >>> histossl = build_feature_extractor('histossl', tile_px=256)
+    >>> histossl = sf.build_feature_extractor('histossl', center_crop=True)
 
     This model is developed and licensed by Owkin, Inc. The license for use is
     provided in the LICENSE file in the same directory as this source file

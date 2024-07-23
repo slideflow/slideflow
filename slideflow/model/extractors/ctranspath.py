@@ -637,7 +637,7 @@ class CTransPathFeatures(TorchFeatureExtractor):
         """Return a dictionary of configuration parameters.
 
         These configuration parameters can be used to reconstruct the
-        feature extractor, using ``slideflow.model.build_feature_extractor()``.
+        feature extractor, using ``slideflow.build_feature_extractor()``.
 
         """
         return {

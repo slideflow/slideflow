@@ -339,7 +339,7 @@ class RetCCLFeatures(TorchFeatureExtractor):
         """Return a dictionary of configuration parameters.
 
         These configuration parameters can be used to reconstruct the
-        feature extractor, using ``slideflow.model.build_feature_extractor()``.
+        feature extractor, using ``slideflow.build_feature_extractor()``.
 
         """
         cls_name = self.__class__.__name__

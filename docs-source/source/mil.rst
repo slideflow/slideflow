@@ -10,7 +10,7 @@ Skip to :ref:`tutorial8` for a complete example of MIL training.
 Generating features
 *******************
 
-The first step in MIL model development is generating features from image tiles. Many types of feature extractors can be used, including imagenet-pretrained models, models finetuned in Slideflow, histology-specific pretrained feature extractors (such as CTransPath or RetCCL), or fine-tuned SSL models.  In all cases, feature extractors are built with :func:`slideflow.model.build_feature_extractor`, and features are generated for a dataset using either with :ref:`slideflow.DatasetFeatures.to_torch() <activations>` or :meth:`slideflow.Project.generate_feature_bags`.
+The first step in MIL model development is generating features from image tiles. Many types of feature extractors can be used, including imagenet-pretrained models, models finetuned in Slideflow, histology-specific pretrained feature extractors (such as CTransPath or RetCCL), or fine-tuned SSL models.  In all cases, feature extractors are built with :func:`slideflow.build_feature_extractor`, and features are generated for a dataset using either with :ref:`slideflow.DatasetFeatures.to_torch() <activations>` or :meth:`slideflow.Project.generate_feature_bags`.
 
 Pretrained Feature Extractor
 ----------------------------
@@ -26,18 +26,16 @@ Use :func:`slideflow.model.build_feature_extractor` to build one of these featur
 
 .. code-block:: python
 
-    ctranspath = build_feature_extractor('ctranspath', tile_px=299)
+    ctranspath = sf.build_feature_extractor('ctranspath', center_crop=True)
 
 ImageNet Features
 -----------------
 
-To calculate features from an ImageNet-pretrained network, first build an imagenet feature extractor with :func:`slideflow.model.build_feature_extractor`. The first argument should be the name of an architecture followed by ``_imagenet``, and the expected tile size should be passed to the keyword argument ``tile_px``. You can optionally specify the layer from which to generate features with the ``layers`` argument; if not provided, it will default to calculating features from post-convolutional layer activations. For example, to build a ResNet50 feature extractor for images at 299 x 299 pixels:
+To calculate features from an ImageNet-pretrained network, first build an imagenet feature extractor with :func:`slideflow.build_feature_extractor`. The first argument should be the name of an architecture followed by ``_imagenet``, and the expected tile size should be passed to the keyword argument ``tile_px``. You can optionally specify the layer from which to generate features with the ``layers`` argument; if not provided, it will default to calculating features from post-convolutional layer activations. For example, to build a ResNet50 feature extractor for images at 299 x 299 pixels:
 
 .. code-block:: python
 
-    from slideflow.model import build_feature_extractor
-
-    resnet50 = build_feature_extractor(
+    resnet50 = sf.build_feature_extractor(
         'resnet50_imagenet',
         tile_px=299
     )
@@ -46,7 +44,7 @@ This will calculate features using activations from the post-convolutional layer
 
 .. code-block:: python
 
-    resnet50 = build_feature_extractor(
+    resnet50 = sf.build_feature_extractor(
         'resnet50_imagenet',
         layers=['conv1_relu', 'conv3_block1_2_relu'],
         pooling='avg',
@@ -58,7 +56,7 @@ If a model architecture is available in both the Tensorflow and PyTorch backends
 .. code-block:: python
 
     # Create a PyTorch feature extractor
-    extractor = build_feature_extractor(
+    extractor = sf.build_feature_extractor(
         'resnet50_imagenet',
         layers=['layer2.0.conv1', 'layer3.1.conv2'],
         pooling='avg',
@@ -90,7 +88,7 @@ For SimCLR models, use ``'simclr'`` as the first argument to ``build_feature_ext
 
 .. code-block:: python
 
-    simclr = build_feature_extractor(
+    simclr = sf.build_feature_extractor(
         'simclr',
         ckpt='/path/to/simclr.ckpt'
     )
@@ -99,7 +97,7 @@ For DinoV2 models, use ``'dinov2'`` as the first argument, and pass the model co
 
 .. code-block:: python
 
-    dinov2 = build_feature_extractor(
+    dinov2 = sf.build_feature_extractor(
         'dinov2',
         weights='/path/to/teacher_checkpoint.pth',
         cfg='/path/to/config.yaml'
@@ -119,7 +117,7 @@ Once you have prepared a feature extractor, features can be generated for a data
     dataset = P.dataset(tile_px=299, tile_um=302)
 
     # Create a feature extractor.
-    ctranspath = build_feature_extractor('ctranspath', tile_px=299)
+    ctranspath = sf.build_feature_extractor('ctranspath', resize=True)
 
     # Calculate & export feature bags.
     P.generate_feature_bags(ctranspath, dataset)
@@ -382,14 +380,13 @@ To evaluate a saved MIL model on an external dataset, first extract features fro
 .. code-block:: python
 
     import slideflow as sf
-    from slideflow.model import build_feature_extractor
 
     # Prepare a project and dataset
     P = sf.Project(...)
     dataset = P.dataset(tile_px=299, tile_um=302)
 
     # Generate features using CTransPath
-    ctranspath = build_feature_extractor('ctranspath', tile_px=299)
+    ctranspath = sf.build_feature_extractor('ctranspath', resize=True)
     features = sf.DatasetFeatures(ctranspath, dataset=dataset)
     features.to_torch('/path/to/bag_directory')
 
