@@ -1159,7 +1159,7 @@ class ROIWidget:
         # Add button.
         _clicked, _hover_clicked = self.hover_button(
             main_icon='circle_plus_highlighted',
-            menu_icons=['add_freehand', 'add_polygon', 'add_point'],
+            menu_icons=['add_freehand', 'add_polygon'],
             menu_labels=['Add ROI (Freehand)', 'Add ROI (Polygon)', 'Add ROI (Point)']
         )
         if _clicked and _hover_clicked == 0:
