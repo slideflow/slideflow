@@ -130,7 +130,8 @@ def _build_clam_learner(
         bags[train_idx],
         targets[train_idx],
         encoder=encoder,
-        bag_size=config.bag_size
+        bag_size=config.bag_size,
+        balanced=config.balanced
     )
     train_dl = DataLoader(
         train_dataset,
@@ -145,7 +146,8 @@ def _build_clam_learner(
         bags[val_idx],
         targets[val_idx],
         encoder=encoder,
-        bag_size=None
+        bag_size=None,
+        balanced=config.balanced
     )
     val_dl = DataLoader(
         val_dataset,
@@ -229,7 +231,8 @@ def _build_fastai_learner(
         targets[train_idx],
         encoder=encoder,
         bag_size=config.bag_size,
-        use_lens=config.model_config.use_lens
+        use_lens=config.model_config.use_lens,
+        balanced=config.balanced
     )
     train_dl = DataLoader(
         train_dataset,
@@ -245,7 +248,8 @@ def _build_fastai_learner(
         targets[val_idx],
         encoder=encoder,
         bag_size=None,
-        use_lens=config.model_config.use_lens
+        use_lens=config.model_config.use_lens,
+        balanced=config.balanced
     )
     val_dl = DataLoader(
         val_dataset,
