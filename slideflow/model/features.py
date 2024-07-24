@@ -1350,17 +1350,6 @@ class DatasetFeatures:
                                 (curr_fts.shape[0], 1))
             self.activations[slide] = np.hstack((curr_fts, ft_vector))
 
-    def save_encodes(
-        self,
-        outdir: str,
-    ) -> None:
-        '''
-        Export encodes dictionary for later reference
-        '''
-        if not exists(outdir):
-            os.makedirs(outdir)
-        sf.util.write_json(self.encodes, join(outdir, 'encodes.json'))
-
     # --- Deprecated functions ----------------------------------------------------
 
     def logits_mean(self):
