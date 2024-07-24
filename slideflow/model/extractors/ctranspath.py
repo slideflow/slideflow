@@ -15,8 +15,10 @@ from typing import Optional
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
 from itertools import repeat
+from packaging import version
 import collections.abc
 
+from timm import __version__ as timm_version
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.models.helpers import build_model_with_cfg
 from timm.models.layers import PatchEmbed, Mlp, DropPath, trunc_normal_, lecun_normal_
@@ -32,6 +34,13 @@ def to_2tuple(x):
     if isinstance(x, collections.abc.Iterable) and not isinstance(x, str):
         return x
     return tuple(repeat(x, 2))
+
+
+def _window_partition(mask, window_size):
+    if version.parse(timm_version) < version.parse("1.0"):
+        return window_partition(mask, window_size)
+    else:
+        return window_partition(mask, to_2tuple(window_size))
 
 
 def _init_vit_weights(module: nn.Module, name: str = '', head_bias: float = 0., jax_impl: bool = False):
@@ -241,7 +250,7 @@ class SwinTransformerBlock(nn.Module):
                     img_mask[:, h, w, :] = cnt
                     cnt += 1
 
-            mask_windows = window_partition(img_mask, self.window_size)  # nW, window_size, window_size, 1
+            mask_windows = _window_partition(img_mask, self.window_size)  # nW, window_size, window_size, 1
             mask_windows = mask_windows.view(-1, self.window_size * self.window_size)
             attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
             attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
@@ -266,7 +275,7 @@ class SwinTransformerBlock(nn.Module):
             shifted_x = x
 
         # partition windows
-        x_windows = window_partition(shifted_x, self.window_size)  # nW*B, window_size, window_size, C
+        x_windows = _window_partition(shifted_x, self.window_size)  # nW*B, window_size, window_size, C
         x_windows = x_windows.view(-1, self.window_size * self.window_size, C)  # nW*B, window_size*window_size, C
 
         # W-MSA/SW-MSA
