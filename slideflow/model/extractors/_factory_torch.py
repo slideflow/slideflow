@@ -21,6 +21,11 @@ def build_torch_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_torch
+def virchow(weights, **kwargs):
+    from .virchow import VirchowFeatures
+    return VirchowFeatures(weights, **kwargs)
+
+@register_torch
 def uni(weights, **kwargs):
     from .uni import UNIFeatures
     return UNIFeatures(weights, **kwargs)
@@ -152,6 +157,10 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         self.channels_last = channels_last
         self.mixed_precision = mixed_precision
 
+    def _process_output(self, output):
+        """Process model output."""
+        return output
+
     def __call__(self, obj, **kwargs):
         """Generate features for a batch of images or a WSI."""
         import torch
@@ -172,7 +181,7 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
             with torch.inference_mode():
                 if self.channels_last:
                     obj = obj.to(memory_format=torch.channels_last)
-                return self.model(obj)
+                return self._process_output(self.model(obj))
 
 
 class TorchImagenetLayerExtractor(BaseFeatureExtractor):
