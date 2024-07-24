@@ -1366,10 +1366,10 @@ class _FeatureGenerator:
     def _calculate_feature_batch(self, batch_img):
         """Calculate features from a batch of images."""
 
-        # If a PyTorch generator, wrap in no_grad() and perform on CUDA
+        # If a PyTorch generator, wrap in inference_mode() and perform on CUDA
         if self.is_torch():
             import torch
-            with torch.no_grad():
+            with torch.inference_mode():
                 batch_img = batch_img.to(self.device)
                 if self.has_torch_gpu_normalizer():
                     batch_img = self.normalizer.preprocess(

@@ -319,7 +319,7 @@ class StridedSegment(Segment):
 
     def apply(self, image: np.ndarray) -> np.ndarray:
         import torch
-        with torch.no_grad():
+        with torch.inference_mode():
             tensor = torch.from_numpy(image).unsqueeze(0).to(self.model.device)
             tensor = sf.io.torch.as_cwh(tensor)
             tensor = self.model.forward(tensor).squeeze(dim=0)

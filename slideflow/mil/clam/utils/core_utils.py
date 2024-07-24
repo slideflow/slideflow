@@ -353,7 +353,7 @@ def validate(cur, epoch, model, loader, n_classes, early_stopping = None, writer
     prob = np.zeros((len(loader), n_classes))
     labels = np.zeros(len(loader))
 
-    with torch.no_grad():
+    with torch.inference_mode():
         for batch_idx, (data, label) in enumerate(loader):
             data, label = data.to(device, non_blocking=True), label.to(device, non_blocking=True)
 
@@ -417,7 +417,7 @@ def validate_clam(cur, epoch, model, loader, n_classes, early_stopping = None, w
     prob = np.zeros((len(loader), n_classes))
     labels = np.zeros(len(loader))
     sample_size = model.k_sample
-    with torch.no_grad():
+    with torch.inference_mode():
         for batch_idx, (data, label) in enumerate(loader):
             data, label = data.to(device), label.to(device)
             logits, instance_dict = model(data, label=label, instance_eval=True)
@@ -515,7 +515,7 @@ def summary(model, loader, n_classes):
     for batch_idx, (data, label) in enumerate(loader):
         data, label = data.to(device), label.to(device)
         slide_id = slide_ids.iloc[batch_idx]
-        with torch.no_grad():
+        with torch.inference_mode():
             logits, _ = model(data)
             Y_hat = torch.topk(logits, 1, dim=1)[1]
             Y_prob = F.softmax(logits, dim=1)

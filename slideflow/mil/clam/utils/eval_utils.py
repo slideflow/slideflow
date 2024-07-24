@@ -72,7 +72,7 @@ def summary(model, loader, args):
     for batch_idx, (data, label) in enumerate(loader):
         data, label = data.to(device), label.to(device)
         slide_id = slide_ids.iloc[batch_idx]
-        with torch.no_grad():
+        with torch.inference_mode():
             logits, results_dict = model(data)
             Y_hat = torch.topk(logits, 1, dim=1)[1]
             Y_prob = F.softmax(logits, dim=1)

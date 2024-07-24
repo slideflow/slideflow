@@ -308,7 +308,7 @@ def eval_from_model(
             img = img.to(device, non_blocking=True)
             img = img.to(memory_format=torch.channels_last)
             with autocast(device.type, mixed_precision=_mp):
-                with torch.no_grad():
+                with torch.inference_mode():
                     # GPU normalization
                     if torch_args is not None and torch_args.normalizer:
                         img = torch_args.normalizer.preprocess(img)

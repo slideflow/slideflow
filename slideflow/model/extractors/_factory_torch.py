@@ -169,7 +169,7 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         obj = obj.to(self.device)
         obj = self.transform(obj)
         with autocast(self.device.type, mixed_precision=self.mixed_precision):
-            with torch.no_grad():
+            with torch.inference_mode():
                 if self.channels_last:
                     obj = obj.to(memory_format=torch.channels_last)
                 return self.model(obj)

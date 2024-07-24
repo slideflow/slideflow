@@ -1000,7 +1000,7 @@ def _predict_clam(
             loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
         else:
             loaded = utils._load_bag(bag).to(device)
-        with torch.no_grad():
+        with torch.inference_mode():
             if clam_kw:
                 logits, att, _ = model(loaded, **clam_kw)
             else:
@@ -1042,7 +1042,7 @@ def _predict_mil(
             loaded = utils._load_bag(bag).to(device)
         loaded = torch.unsqueeze(loaded, dim=0)
 
-        with torch.no_grad():
+        with torch.inference_mode():
             # Run inference.
             _y_pred, _y_att, _y_uq = run_inference(
                 model,
@@ -1113,7 +1113,7 @@ def _predict_mil_tiles(
         use_lens = torch.ones(loaded.shape[0]).to(device)
 
     # Inference.
-    with torch.no_grad():
+    with torch.inference_mode():
         y_pred, y_att, uncertainty = run_inference(
             model,
             loaded,
@@ -1168,7 +1168,7 @@ def _predict_multimodal_mil(
     for bag in bags:
         loaded = [torch.unsqueeze(utils._load_bag(b).to(device), dim=0)
                   for b in bag]
-        with torch.no_grad():
+        with torch.inference_mode():
             if use_lens:
                 model_args = [(mag_bag, torch.from_numpy(np.array([mag_bag.shape[1]])).to(device))
                               for mag_bag in loaded]

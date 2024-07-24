@@ -251,7 +251,7 @@ class Renderer:
             reduce_fn = _reduce_dropout_preds_tf
         else:
             import torch
-            with torch.no_grad():
+            with torch.inference_mode():
                 yp = self._model(img.expand(uq_n, -1, -1, -1))
             reduce_fn = _reduce_dropout_preds_torch
 
@@ -297,7 +297,7 @@ class Renderer:
                 preds = preds[0]
         else:
             if self.model_type == 'torch':
-                with torch.no_grad():
+                with torch.inference_mode():
                     preds = self._model(img)
             else:
                 preds = self._model(img, training=False)

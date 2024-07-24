@@ -240,7 +240,7 @@ class SegmentModel(pl.LightningModule):
         batched_tiles = tiles.reshape(-1, 3, 1024, 1024)
 
         # Generate UNet predictions.
-        with torch.no_grad():
+        with torch.inference_mode():
             tile_preds = []
             for tile in batched_tiles:
                 pred = self.forward(torch.from_numpy(tile).unsqueeze(0).to(self.device))

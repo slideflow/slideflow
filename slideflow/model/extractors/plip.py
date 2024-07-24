@@ -100,7 +100,7 @@ class PLIPFeatures(TorchFeatureExtractor):
         if isinstance(x, str):
             x = self.text_preprocess(x)
         x = x.to(self.device)
-        with torch.no_grad():
+        with torch.inference_mode():
             x = self.model._model.get_text_features(**x)
         return x
 
