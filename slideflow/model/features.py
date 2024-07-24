@@ -1231,6 +1231,7 @@ class DatasetFeatures:
 
     def add_features(
         self,
+        annotations: Optional[Union[str, pd.DataFrame]] = None,
         categorical_cols: Optional[List[str]] = [],
         numerical_cols: Optional[List[str]] = [],
         slide_col: str = 'slide'
@@ -1239,84 +1240,99 @@ class DatasetFeatures:
         Add features from the specified columns from annotations file.
 
         Args:
-            categorical_cols (list(str), optional): names of the categorical columns.
-                Defaults to an empty list.
+            annotations (str or pd.DataFrame, optional): Path to CSV file or 
+                pandas DataFrame containing annotations. If not provided, will
+                use self.dataset.annotations.
+            categorical_cols (list(str), optional): names of the categorical 
+                columns. Defaults to an empty list.
             numerical_cols (list(str), optional): names of the numerical columns.
                 Defaults to an empty list.
-            slide_col (str): the name of the column that stores the slide name in annotation file.
-                Defaults to 'slide'
+            slide_col (str): the name of the column that stores the slide name
+                in annotation file. Defaults to 'slide'
         '''
         if not categorical_cols and not numerical_cols:
             return
         
-        annotations = self.dataset.annotations
-        # Assert all specified columns are available
+        # Handle annotations input
+        if annotations is not None:
+            if isinstance(annotations, str):
+                annotations = pd.read_csv(annotations)
+            elif not isinstance(annotations, pd.DataFrame):
+                raise ValueError(
+                    "annotations must be either a path to a CSV file or a pandas DataFrame")
+        elif self.dataset is not None:
+            annotations = self.dataset.annotations
+        else:
+            raise ValueError(
+                "Feature object does not contain a dataset. " + 
+                "Provide annotations manually by specifying a path or providing a dataframe.")
+        
+        # Raise error if specified columns are not available
         all_cols = set(categorical_cols).union(set(numerical_cols))
         for col in all_cols:
-            assert col in annotations.columns, f"'{col}' is not present in annotations file."
+            if col not in annotations.columns:
+                raise ValueError(f"'{col}' is not present in annotations file.")
 
-        # Assert slide_col is a column in annotations file
-        assert slide_col in annotations.columns, f"'{slide_col}' is not present in annotations file."
+        # Raise error if slide_col is not a column in annotations file
+        if (slide_col not in annotations.columns):
+            raise ValueError(f"'{slide_col}' is not present in annotations file.")
+
+        # Ensure all slides in self.activations are present in annotations
+        missing_slides = [slide for slide in self.slides if slide not in annotations[slide_col].values]
+        if missing_slides:
+            raise ValueError(f"{missing_slides} were not found in the annotations")
+
+        # Initialize the feature matrix
+        num_features = 0
+        feature_matrix = {slide: [] for slide in self.slides}
+
+        # Process categorical columns
+        for col in categorical_cols:
+            unique_values = annotations[col].unique()
+            num_unique_values = len(unique_values)
+            has_na = annotations[col].isna().any()
+            one_hot_encoded = pd.get_dummies(annotations[col], dummy_na=has_na).values
+            # Remove the last column to avoid redundancy
+            one_hot_encoded = one_hot_encoded[:, :-1]
+            print(one_hot_encoded.shape)
+
+            for i, row in annotations.iterrows():
+                slide = row[slide_col]
+                if slide in feature_matrix:
+                    feature_matrix[slide].extend(one_hot_encoded[i])
+
+            num_features += num_unique_values - 1
+
+        # Process numerical columns
+        if numerical_cols:
+            numerical_features = annotations[numerical_cols].apply(
+                lambda x: pd.to_numeric(x, errors='coerce'))
+
+            # Check for non-numerical values
+            non_numerical = numerical_features.isnull().any()
+            if non_numerical.any():
+                problematic_cols = non_numerical[non_numerical].index.tolist()
+                raise ValueError(
+                    f"The following columns have non-numerical values: {problematic_cols}")
+
+            # Add numerical features to the feature matrix
+            for slide in self.slides:
+                slide_features = numerical_features[
+                    annotations[slide_col] == slide].values
+                if slide_features.size > 0:
+                    feature_matrix[slide].extend(slide_features[0].tolist())
+
+            num_features += len(numerical_cols)
 
         # Update self.num_features with the number of added features
-        self.num_features = self.activations[self.slides[0]].shape[1] + len(all_cols)
+        self.num_features = (self.activations[self.slides[0]].shape[1] 
+                            + num_features)
 
-        # Create the mapping from a slide to the encoded features
-        slide_to_encoded = {
-            slide: [] for slide in self.slides
-        }
-        
-        # For each column in categorical_cols
-        for col in categorical_cols:
-            # Encode it if not encoded
-            if col not in self.encodes:
-                # If all the values in the annotation file are already encoded
-                try:
-                    # Try to cast all values in col to numeric
-                    self.encodes[col] = {val: float(val) for val in set(annotations[col].tolist())}
-                except:
-                    # All values in col cannot be cast to numeric
-                    self.encodes[col] = {
-                        val: index for index, val in enumerate(set(annotations[col].tolist()))
-                    }
-            # Create a mapping from slide to the encoded value
-            for i, row in annotations.iterrows():
-                slide_to_encoded[row[slide_col]].append(self.encodes[col][row[col]])
-
-        # For each column in numerical_cols:
-        for col in numerical_cols:
-            # Create a mapping from slide to value in the column
-            try:
-                for i, row in annotations.iterrows():
-                    slide_to_encoded[row[slide_col]].append(float(row[col]))
-            except:
-                raise TypeError(f"Cannot convert data in '{col}' to numeric. Perhaps, '{col}' does not contain numerical data")
-        
-        # Add new feature encoded from column to feature vectors
-        self._add_features(slide_to_encoded)
-        
-    def _add_features(
-        self,
-        encoded_dict: dict,
-    ) -> None:
-        '''
-        Add the encoded features in the encoded_dict to all the slides
-
-        Args:
-            encoded_dict (dict): the encoded feature for each slide.
-                For example, {slide_1: [0, 0, 1], slide_2: [1, 1, 0]}
-        '''
-        slides = self.activations.keys()
-        assert not set(slides).difference(set(encoded_dict.keys())), "Not all slides are encoded"
-        for slide in slides:
-            # Assert that values in the encoded_dict is numerical
-            assert all([isinstance(val, (float, int)) for val in encoded_dict[slide]]),\
-            f'Encoded feature must all be of type int or float.'
-            # The current feature vectors
+        # Add new features to the activations
+        for slide in self.slides:
             curr_fts = self.activations[slide]
-            # Turn the list of encoded features to numpy array and repeat it to match the number of rows of curr_fts
-            ft_vector = np.tile(np.array(encoded_dict[slide]), (curr_fts.shape[0], 1))
-            # Add ft_vector to the end of curr_fts
+            ft_vector = np.tile(np.array(feature_matrix[slide]), 
+                                (curr_fts.shape[0], 1))
             self.activations[slide] = np.hstack((curr_fts, ft_vector))
 
     def save_encodes(
