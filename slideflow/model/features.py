@@ -1294,7 +1294,10 @@ class DatasetFeatures:
             one_hot_encoded = pd.get_dummies(annotations[col], dummy_na=has_na).values
             # Remove the last column to avoid redundancy
             one_hot_encoded = one_hot_encoded[:, :-1]
-            print(one_hot_encoded.shape)
+
+            start_feature = self.activations[self.slides[0]].shape[1] + num_features
+            end_feature = start_feature + num_unique_values - 1
+            print(f"Features {start_feature} through {end_feature} correspond to categorical column '{col}'")
 
             for i, row in annotations.iterrows():
                 slide = row[slide_col]
@@ -1324,16 +1327,18 @@ class DatasetFeatures:
 
             num_features += len(numerical_cols)
 
-        # Update self.num_features with the number of added features
-        self.num_features = (self.activations[self.slides[0]].shape[1] 
-                            + num_features)
+            # Add numerical features to the feature matrix
+            for col in numerical_cols:
+                feature_index = self.activations[self.slides[0]].shape[1] + num_features
+                print(f"Feature {feature_index} corresponds to numerical column '{col}'")
+                num_features += 1
 
-        # Add new features to the activations
-        for slide in self.slides:
-            curr_fts = self.activations[slide]
-            ft_vector = np.tile(np.array(feature_matrix[slide]), 
-                                (curr_fts.shape[0], 1))
-            self.activations[slide] = np.hstack((curr_fts, ft_vector))
+            # Add new features to the activations
+            for slide in self.slides:
+                curr_fts = self.activations[slide]
+                ft_vector = np.tile(np.array(feature_matrix[slide]), 
+                                    (curr_fts.shape[0], 1))
+                self.activations[slide] = np.hstack((curr_fts, ft_vector))
 
     def save_encodes(
         self,
