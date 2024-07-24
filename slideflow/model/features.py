@@ -1285,6 +1285,9 @@ class DatasetFeatures:
         # Initialize the feature matrix
         num_features = 0
         feature_matrix = {slide: [] for slide in self.slides}
+        
+        # Keep track of feature indices
+        feature_index = self.activations[self.slides[0]].shape[1]
 
         # Process categorical columns
         for col in categorical_cols:
@@ -1294,12 +1297,19 @@ class DatasetFeatures:
             one_hot_encoded = pd.get_dummies(annotations[col], dummy_na=has_na).values
             # Remove the last column to avoid redundancy
             one_hot_encoded = one_hot_encoded[:, :-1]
-            print(one_hot_encoded.shape)
 
             for i, row in annotations.iterrows():
                 slide = row[slide_col]
                 if slide in feature_matrix:
                     feature_matrix[slide].extend(one_hot_encoded[i])
+
+            # Print feature correspondence
+            start_index = feature_index
+            end_index = feature_index + num_unique_values - 2
+            through = f" through Feature_{end_index} " if end_index != start_index else ''
+            s = '' if through == '' else 's'
+            print(f"Feature_{start_index}{through} correspon{s} to {col}")
+            feature_index = end_index + 1
 
             num_features += num_unique_values - 1
 
@@ -1321,6 +1331,11 @@ class DatasetFeatures:
                     annotations[slide_col] == slide].values
                 if slide_features.size > 0:
                     feature_matrix[slide].extend(slide_features[0].tolist())
+
+            # Print feature correspondence for numerical columns
+            for col in numerical_cols:
+                print(f"Feature_{feature_index} corresponds to {col}")
+                feature_index += 1
 
             num_features += len(numerical_cols)
 
