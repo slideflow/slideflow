@@ -37,20 +37,6 @@ def cucim2numpy(img: "CuImage") -> np.ndarray:
     return ((img_as_float32(np.asarray(img))) * 255).astype(np.uint8)
 
 
-def numpy2jpg(img: np.ndarray) -> str:
-    if img.shape[-1] == 4:
-        img = img[:, :, 0:3]
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return cv2.imencode(".jpg", img)[1].tobytes()   # Default quality = 95%
-
-
-def numpy2png(img: np.ndarray) -> str:
-    if img.shape[-1] == 4:
-        img = img[:, :, 0:3]
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return cv2.imencode(".png", img)[1].tobytes()
-
-
 def cucim2jpg(img: "CuImage") -> str:
     img = cucim2numpy(img)
     return numpy2jpg(img)

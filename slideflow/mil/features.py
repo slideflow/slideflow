@@ -219,7 +219,7 @@ class MILFeatures:
             loaded = torch.load(bag).to(self.device)
             loaded = torch.unsqueeze(loaded, dim=0)
 
-            with torch.no_grad():
+            with torch.inference_mode():
 
                 # Apply lens to model input.
                 if self.use_lens:

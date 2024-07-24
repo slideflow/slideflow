@@ -21,35 +21,44 @@ def build_torch_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_torch
+def virchow(weights, **kwargs):
+    from .virchow import VirchowFeatures
+    return VirchowFeatures(weights, **kwargs)
+
+@register_torch
+def uni(weights, **kwargs):
+    from .uni import UNIFeatures
+    return UNIFeatures(weights, **kwargs)
+
+@register_torch
 def vit(**kwargs):
     from .vit import ViTFeatures
     return ViTFeatures(**kwargs)
 
-
 @register_torch
-def histossl(tile_px, **kwargs):
+def histossl(**kwargs):
     from .histossl import HistoSSLFeatures
-    return HistoSSLFeatures(center_crop=(tile_px != 224), **kwargs)
+    return HistoSSLFeatures(**kwargs)
 
 @register_torch
-def plip(tile_px, **kwargs):
+def plip(**kwargs):
     from .plip import PLIPFeatures
-    return PLIPFeatures(center_crop=(tile_px != 224), **kwargs)
+    return PLIPFeatures(**kwargs)
 
 @register_torch
-def dinov2(tile_px, **kwargs):
+def dinov2(**kwargs):
     from .dinov2 import DinoV2Features
-    return DinoV2Features(center_crop=(tile_px != 224), **kwargs)
+    return DinoV2Features(**kwargs)
 
 @register_torch
-def ctranspath(tile_px, **kwargs):
+def ctranspath(**kwargs):
     from .ctranspath import CTransPathFeatures
-    return CTransPathFeatures(center_crop=(tile_px != 224), **kwargs)
+    return CTransPathFeatures(**kwargs)
 
 @register_torch
-def retccl(tile_px, **kwargs):
+def retccl(**kwargs):
     from .retccl import RetCCLFeatures
-    return RetCCLFeatures(center_crop=(tile_px != 256), **kwargs)
+    return RetCCLFeatures(**kwargs)
 
 @register_torch
 def resnet18_imagenet(tile_px, **kwargs):
@@ -148,6 +157,10 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         self.channels_last = channels_last
         self.mixed_precision = mixed_precision
 
+    def _process_output(self, output):
+        """Process model output."""
+        return output
+
     def __call__(self, obj, **kwargs):
         """Generate features for a batch of images or a WSI."""
         import torch
@@ -165,10 +178,10 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         obj = obj.to(self.device)
         obj = self.transform(obj)
         with autocast(self.device.type, mixed_precision=self.mixed_precision):
-            with torch.no_grad():
+            with torch.inference_mode():
                 if self.channels_last:
                     obj = obj.to(memory_format=torch.channels_last)
-                return self.model(obj)
+                return self._process_output(self.model(obj))
 
 
 class TorchImagenetLayerExtractor(BaseFeatureExtractor):
@@ -249,7 +262,7 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
         """Return a dictionary of configuration parameters.
 
         These configuration parameters can be used to reconstruct the
-        feature extractor, using ``slideflow.model.build_feature_extractor()``.
+        feature extractor, using ``slideflow.build_feature_extractor()``.
 
         """
         return {

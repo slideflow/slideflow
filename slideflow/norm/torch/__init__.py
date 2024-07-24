@@ -23,7 +23,7 @@ class TorchStainNormalizer(StainNormalizer):
         'reinhard_fast_mask': reinhard.ReinhardFastMaskNormalizer,
         'macenko': macenko.MacenkoNormalizer,
         'macenko_fast': macenko.MacenkoFastNormalizer,
-        'cyclegan': cyclegan.CycleGanNormalizer,
+        'cyclegan': cyclegan.CycleGanNormalizer
     }
 
     def __init__(

@@ -342,7 +342,7 @@ class StyleGAN2Interpolator:
             gan_embed1_dts
         )
         for (seed_batch, embed0_batch, embed1_batch) in tqdm(seeds_and_embeddings, total=int(len(seeds) / batch_size)):
-            with torch.no_grad():
+            with torch.inference_mode():
                 res0 = self.features(embed0_batch)
                 res1 = self.features(embed1_batch)
             if isinstance(res0, tuple) and len(res0) == 1:

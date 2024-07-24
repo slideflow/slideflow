@@ -54,7 +54,8 @@ except Exception:
 # --- Global vars -------------------------------------------------------------
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
-                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png']
+                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png',
+                     'ome.tif', 'ome.tiff']
 EMPTY = ['', ' ', None, np.nan]
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:
@@ -142,7 +143,13 @@ def addLoggingFileHandler(path):
 
 # Add tqdm-friendly stream handler
 #ch = log_utils.TqdmLoggingHandler()
-ch = RichHandler(markup=True, log_time_format="[%X]", show_path=False, highlighter=NullHighlighter(), rich_tracebacks=True)
+ch = RichHandler(
+    markup=True,
+    log_time_format="[%X]",
+    show_path=False,
+    highlighter=NullHighlighter(),
+    rich_tracebacks=True
+)
 ch.setFormatter(log_utils.LogFormatter())
 if 'SF_LOGGING_LEVEL' in os.environ:
     try:
@@ -569,6 +576,81 @@ def to_mag(arg1: str) -> Union[int, float]:
         return float(arg1.lower().split('x')[0])
 
 
+def is_tile_size_compatible(
+    tile_px1: int,
+    tile_um1: Union[str, int],
+    tile_px2: int,
+    tile_um2: Union[str, int]
+) -> bool:
+    """Check whether tile sizes are compatible.
+
+    Compatibility is defined as:
+        - Equal size in pixels
+        - If tile width (tile_um) is defined in microns (int) for both, these must be equal
+        - If tile width (tile_um) is defined as a magnification (str) for both, these must be equal
+        - If one is defined in microns and the other as a magnification, the calculated magnification must be +/- 2.
+
+    Example 1:
+    - tile_px1=299, tile_um1=302
+    - tile_px2=299, tile_um2=304
+    - Incompatible (unequal micron width)
+
+    Example 2:
+    - tile_px1=299, tile_um1=10x
+    - tile_px2=299, tile_um2=9x
+    - Incompatible (unequal magnification)
+
+    Example 3:
+    - tile_px1=299, tile_um1=302
+    - tile_px2=299, tile_um2=10x
+    - Compatible (first has an equivalent magnification of 9.9x, which is +/- 2 compared to 10x)
+
+
+    Args:
+        tile_px1 (int): Tile size (in pixels) of first slide.
+        tile_um1 (int or str): Tile size (in microns) of first slide.
+            Can also be expressed as a magnification level, e.g. ``'10x'``
+        tile_px2 (int): Tile size (in pixels) of second slide.
+        tile_um2 (int or str): Tile size (in microns) of second slide.
+            Can also be expressed as a magnification level, e.g. ``'10x'``
+
+    Returns:
+        bool: Whether the tile sizes are compatible.
+
+    """
+    # Type checks
+    if not isinstance(tile_px1, int):
+        raise ValueError("Expected tile_px1 to be an int, got: {}".format(type(tile_px1)))
+    if not isinstance(tile_um1, (str, int)):
+        raise ValueError("Expected tile_um1 to be a str or int, got: {}".format(type(tile_um1)))
+    if not isinstance(tile_px2, int):
+        raise ValueError("Expected tile_px2 to be an int, got: {}".format(type(tile_px2)))
+    if not isinstance(tile_um2, (str, int)):
+        raise ValueError("Expected tile_um2 to be a str or int, got: {}".format(type(tile_um2)))
+
+    # Enforce equivalent pixel size
+    if tile_px1 != tile_px2:
+        return False
+    # If both are defined as a magnification, check if these are equal
+    if isinstance(tile_um1, str) and isinstance(tile_um2, str):
+        return tile_um1 == tile_um2
+    # If both are defined in microns, check if these are equal
+    if isinstance(tile_um1, int) and isinstance(tile_um2, int):
+        return tile_um1 == tile_um2
+    # If one is defined in microns and the other as magnification,
+    # check if they are compatible.
+    if isinstance(tile_um1, str) and isinstance(tile_um2, int):
+        mag2 = 10 / (tile_um2 / tile_px2)
+        return abs(mag2 - to_mag(tile_um1)) <= 2
+    if isinstance(tile_um1, int) and isinstance(tile_um2, str):
+        mag1 = 10 / (tile_um1 / tile_px1)
+        return abs(mag1 - to_mag(tile_um2)) <= 2
+    else:
+        raise ValueError("Error assessing tile size compatibility between px={}, um={} and px={}, um={}".format(
+            tile_px1, tile_um1, tile_px2, tile_um2
+        ))
+
+
 def multi_warn(arr: List, compare: Callable, msg: Union[Callable, str]) -> int:
     """Logs multiple warning
 
@@ -733,10 +815,25 @@ def load_json(filename: str) -> Any:
         return json.load(data_file)
 
 
+class ValidJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        try:
+            return super().default(obj)
+        except TypeError:
+            return "<unknown>"
+
+
 def write_json(data: Any, filename: str) -> None:
-    """Write data to JSON file."""
+    """Write data to JSON file.
+
+    Args:
+        data (Any): Data to write.
+        filename (str): Path to JSON file.
+
+    """
+    # First, remove any invalid entries that are not serializable
     with open(filename, "w") as data_file:
-        json.dump(data, data_file, indent=1)
+        json.dump(data, data_file, indent=1, cls=ValidJSONEncoder)
 
 
 def log_manifest(
@@ -1016,19 +1113,25 @@ def path_to_name(path: str) -> str:
     '''Returns name of a file, without extension,
     from a given full path string.'''
     _file = path.split('/')[-1]
-    if len(_file.split('.')) == 1:
+    dot_split = _file.split('.')
+    if len(dot_split) == 1:
         return _file
+    elif len(dot_split) > 2 and '.'.join(dot_split[-2:]) in SUPPORTED_FORMATS:
+        return '.'.join(dot_split[:-2])
     else:
-        return '.'.join(_file.split('.')[:-1])
+        return '.'.join(dot_split[:-1])
 
 
 def path_to_ext(path: str) -> str:
     '''Returns extension of a file path string.'''
     _file = path.split('/')[-1]
-    if len(_file.split('.')) == 1:
+    dot_split = _file.split('.')
+    if len(dot_split) == 1:
         return ''
+    elif len(dot_split) > 2 and '.'.join(dot_split[-2:]) in SUPPORTED_FORMATS:
+        return '.'.join(dot_split[-2:])
     else:
-        return _file.split('.')[-1]
+        return dot_split[-1]
 
 
 def update_results_log(
@@ -1404,6 +1507,14 @@ def tfrecord_heatmap(
         outdir=outdir,
         **kwargs
     )
+
+
+def tile_size_label(tile_px: int, tile_um: Union[str, int]) -> str:
+    """Return the string label of the given tile size."""
+    if isinstance(tile_um, str):
+        return f"{tile_px}px_{tile_um.lower()}"
+    else:
+        return f"{tile_px}px_{tile_um}um"
 
 
 def get_valid_model_dir(root: str) -> List:

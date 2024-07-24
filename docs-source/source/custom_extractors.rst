@@ -157,8 +157,8 @@ Once registered, a feature extractor can be built by name:
 
 .. code-block:: python
 
-    from slideflow.model import build_feature_extractor
-    extractor = build_feature_extractor('my_feature_extractor')
+    import slideflow as sf
+    extractor = sf.build_feature_extractor('my_feature_extractor')
 
 
 Tensorflow
@@ -284,5 +284,5 @@ To register your feature extractor, use the :func:`slideflow.model.extractors.re
 
 .. code-block:: python
 
-    from slideflow.model import build_feature_extractor
-    extractor = build_feature_extractor('my_feature_extractor')
+    import slideflow as sf
+    extractor = sf.build_feature_extractor('my_feature_extractor')

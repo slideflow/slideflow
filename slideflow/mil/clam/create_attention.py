@@ -34,7 +34,7 @@ def path_to_ext(path):
 def infer_single_slide(model, features, label, reverse_label_dict, k=1, silent=False):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     features = features.to(device)
-    with torch.no_grad():
+    with torch.inference_mode():
         if isinstance(model, (CLAM_SB, CLAM_MB)):
             logits, A, _ = model(features, return_attention=True)
             Y_hat = torch.topk(logits, 1, dim=1)[1].item()

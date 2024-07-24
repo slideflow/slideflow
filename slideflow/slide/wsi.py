@@ -384,7 +384,7 @@ class WSI:
         where each sublist contains the following information:
 
         - 0: **x**: x-coordinate of the top-left corner of the tile.
-        - 1: **y**: x-coordinate of the top-left corner of the tile.
+        - 1: **y**: y-coordinate of the top-left corner of the tile.
         - 2: **grid_x**: x-coordinate of the tile in self.grid.
         - 3: **grid_y**: y-coordinate of the tile in self.grid.
 
@@ -947,7 +947,10 @@ class WSI:
 
         # Apply alignment.
         self.origin = alignment
-        self.alignment = Alignment.from_translation(self.slide.coord_to_raw(*alignment))
+        self.alignment = Alignment.from_translation(
+            origin=self.slide.coord_to_raw(*alignment),
+            scale=(slide.mpp / self.mpp),
+        )
         log.info("Slide aligned with MSE {:.2f}. Origin set to {}".format(
                 mse, self.origin
         ))
@@ -1148,9 +1151,10 @@ class WSI:
                 all_alignment_coords = fit_alignment
 
             self.alignment = Alignment.from_fit(
-                self.slide.coord_to_raw(*self.origin),
-                (x_centroid, y_centroid),
-                (x_normal, y_normal)
+                origin=self.slide.coord_to_raw(*self.origin),
+                scale=(slide.mpp / self.mpp),
+                centroid=(x_centroid, y_centroid),
+                normal=(x_normal, y_normal)
             )
 
         for idx, (x, y, xi, yi) in enumerate(self.coord):
@@ -1175,8 +1179,9 @@ class WSI:
 
         if align_by != 'fit':
             self.alignment = Alignment.from_coord(
-                self.slide.coord_to_raw(*self.origin),
-                self.coord
+                origin=self.slide.coord_to_raw(*self.origin),
+                scale=(slide.mpp / self.mpp),
+                coord=self.coord
             )
 
         log.info("Slide alignment complete and finetuned at each unmasked tile location.")
@@ -1192,9 +1197,12 @@ class WSI:
         """
         self.alignment = alignment
         self.origin = self.slide.raw_to_coord(*alignment.origin)
-
         if alignment.coord is not None:
             self.coord = alignment.coord
+        elif alignment.centroid is None:
+            self._build_coord()
+            if self.qc_mask is not None:
+                self.apply_qc_mask()
         else:
             self._build_coord()
             if self.qc_mask is not None:
@@ -1204,6 +1212,10 @@ class WSI:
                 x_normal, y_normal = alignment.normal
                 half_extract_px = int(np.round(self.full_extract_px/2))
                 for idx, (x, y, xi, yi) in enumerate(self.coord):
+                    x = (xi * int(np.round(self.full_stride/alignment.scale))) * alignment.scale
+                    y = (yi * int(np.round(self.full_stride/alignment.scale))) * alignment.scale
+                    x += self.origin[0]
+                    y += self.origin[1]
                     bx, by = self.slide.coord_to_raw(
                         x + half_extract_px,
                         y + half_extract_px
@@ -1807,7 +1819,22 @@ class WSI:
             mask=~np.repeat(unmasked_coord_indices[:, None], 4, axis=1)
         )
 
-    def get_tile_coord(self) -> np.ndarray:
+    def get_roi_by_name(self, name: str) -> Optional[ROI]:
+        """Get an ROI by its name.
+
+        Args:
+            name (str): Name of the ROI.
+
+        Returns:
+            ROI: ROI object.
+
+        """
+        for roi in self.rois:
+            if roi.name == name:
+                return roi
+        return None
+
+    def get_tile_coord(self, anchor='topleft') -> np.ndarray:
         """Get a coordinate grid of all tiles, restricted to those that pass QC
         and any ROI filtering.
 
@@ -1817,9 +1844,15 @@ class WSI:
         grid indices of the tile.
 
         """
-        return self.coord[
+        if anchor not in ('center', 'topleft'):
+            raise ValueError("Expected `anchor` to be 'center' or 'topleft'")
+        c = self.coord[
             self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
-        ]
+        ].copy()
+        if anchor == 'center':
+            c[:, 0] += int(self.full_extract_px/2)
+            c[:, 1] += int(self.full_extract_px/2)
+        return c
 
     def get_tile_dataframe(self) -> pd.DataFrame:
         """Build a dataframe of tiles and associated ROI labels.
@@ -2639,7 +2672,13 @@ class WSI:
         from slideflow import Heatmap
 
         config = sf.util.get_model_config(model)
-        if config['tile_px'] != self.tile_px or config['tile_um'] != self.tile_um:
+        _compatible = sf.util.is_tile_size_compatible(
+            config['tile_px'],
+            config['tile_um'],
+            self.tile_px,
+            self.tile_um
+        )
+        if not _compatible:
             raise ValueError(
                 "Slide tile size (tile_px={}, tile_um={}) does not match the "
                 "model (tile_px={}, tile_um={}).".format(

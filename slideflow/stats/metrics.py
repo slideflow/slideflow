@@ -1,11 +1,9 @@
 """Categorical, linear, and CPH metrics for predictions."""
 
-import math
 import multiprocessing as mp
 import warnings
 import numpy as np
 import pandas as pd
-from lifelines.utils import concordance_index as c_index
 from pandas.core.frame import DataFrame
 from sklearn import metrics
 from os.path import join
@@ -17,7 +15,9 @@ from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union,
 import slideflow as sf
 from slideflow import errors
 from slideflow.util import log
+
 from .delong import delong_roc_variance
+from .concordance import concordance_index as c_index
 
 if TYPE_CHECKING:
     import neptune.new as neptune
@@ -198,7 +198,7 @@ def categorical_metrics(
     df: DataFrame,
     label: str = '',
     level: str = 'tile',
-    data_dir: str = '',
+    data_dir: Optional[str] = '',
     neptune_run: Optional["neptune.Run"] = None
 ) -> Dict[str, Dict[str, float]]:
     """Generates categorical metrics (AUC/AP) from a set of predictions.
@@ -213,7 +213,7 @@ def categorical_metrics(
         level (str, optional): Group-level for the predictions. Used for
             labeling plots. Defaults to 'tile'.
         data_dir (str, optional): Path to data directory for saving plots.
-            Defaults to None.
+            If None, plots are not saved. Defaults to the current directory.
 
     Returns:
         Dict containing metrics, with the keys 'auc' and 'ap'.
@@ -276,8 +276,9 @@ def categorical_metrics(
         ]
         try:
             for i, fit in enumerate(p.imap(_generate_tile_roc, yt_and_yp)):
-                fit.save_roc(data_dir, f"{label_start}{outcome}_{level}_ROC{i}")
-                fit.save_prc(data_dir, f"{label_start}{outcome}_{level}_PRC{i}")
+                if data_dir is not None:
+                    fit.save_roc(data_dir, f"{label_start}{outcome}_{level}_ROC{i}")
+                    fit.save_prc(data_dir, f"{label_start}{outcome}_{level}_PRC{i}")
                 all_auc[outcome] += [fit.auroc]
                 all_ap[outcome] += [fit.ap]
                 auroc_str = 'NA' if not fit.auroc else f'{fit.auroc:.3f}'
@@ -984,7 +985,11 @@ def save_dfs(
         if format == 'csv':
             _df.to_csv(path+'.csv')
         elif format == 'feather':
-            import pyarrow.feather as feather
+            try:
+                import pyarrow.feather as feather
+            except ImportError:
+                raise ImportError("Saving to a feather file requires the package `pyarrow`. "
+                                  "Please install with `pip install pyarrow`")
             feather.write_feather(_df, path+'.feather')
         else:
             _df.to_parquet(path+'.parquet.gzip', compression='gzip')

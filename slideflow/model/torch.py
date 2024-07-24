@@ -1164,7 +1164,7 @@ class Trainer:
             val_img = val_img.to(self.device)
             val_img = val_img.to(memory_format=torch.channels_last)
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
                 with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
 
@@ -2345,7 +2345,7 @@ class Features(BaseFeatureExtractor):
         assert torch.is_floating_point(inp), "Input tensor must be float"
         _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
         with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
-            with torch.no_grad() if no_grad else no_scope():
+            with torch.inference_mode() if no_grad else no_scope():
                 inp = inp.to(self.device)
                 if self.channels_last:
                     inp = inp.to(memory_format=torch.channels_last)
@@ -2555,7 +2555,7 @@ class UncertaintyInterface(Features):
             out_act_drop = [[] for _ in range(len(self.layers))]
         for _ in range(30):
             with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
-                with torch.no_grad() if no_grad else no_scope():
+                with torch.inference_mode() if no_grad else no_scope():
                     inp = inp.to(self.device)
                     if self.channels_last:
                         inp = inp.to(memory_format=torch.channels_last)

@@ -611,7 +611,13 @@ class Project:
         if dataset is None:
             dataset = self.dataset(hp.tile_px, hp.tile_um)
         else:
-            if dataset.tile_px != hp.tile_px or dataset.tile_um != hp.tile_um:
+            _compatible = sf.util.is_tile_size_compatible(
+                dataset.tile_px,
+                dataset.tile_um,
+                hp.tile_px,
+                hp.tile_um
+            )
+            if not _compatible:
                 raise errors.ModelParamsError(
                     "Dataset tile size (px={}, um={}) does not match provided "
                     "hyperparameters (px={}, um={})".format(
@@ -1503,6 +1509,8 @@ class Project:
         dataset: Dataset,
         bags: Union[str, List[str]],
         config: Optional["mil._TrainerConfig"] = None,
+        *,
+        outdir: Optional[str] = None,
         **kwargs
     ):
         r"""Evaluate a multi-instance learning model.
@@ -1545,13 +1553,16 @@ class Project:
         """
         from .mil import eval_mil
 
+        if outdir is None:
+            outdir = join(self.root, 'mil_eval')
+
         return eval_mil(
             model,
             dataset=dataset,
             outcomes=outcomes,
             bags=bags,
             config=config,
-            outdir=join(self.root, 'mil_eval'),
+            outdir=outdir,
             **kwargs
         )
 
@@ -2154,7 +2165,7 @@ class Project:
         if isinstance(model, str) and sf.model.is_extractor(model):
             log.info(f"Building feature extractor: [green]{model}[/]")
             layer_kw = dict(layers=kwargs['layers']) if 'layers' in kwargs else dict()
-            model = sf.model.build_feature_extractor(
+            model = sf.build_feature_extractor(
                 model, tile_px=dataset.tile_px, **layer_kw
             )
 
@@ -3949,6 +3960,7 @@ class Project:
         bags: Union[str, List[str]],
         *,
         exp_label: Optional[str] = None,
+        outdir: Optional[str] = None,
         **kwargs
     ):
         r"""Train a multi-instance learning model.
@@ -3985,13 +3997,16 @@ class Project:
         """
         from .mil import train_mil
 
+        if outdir is None:
+            outdir = join(self.root, 'mil')
+
         return train_mil(
             config,
             train_dataset,
             val_dataset,
             outcomes,
             bags,
-            outdir=join(self.root, 'mil'),
+            outdir=outdir,
             exp_label=exp_label,
             **kwargs
         )
@@ -4050,9 +4065,9 @@ def create(
     Alternatively, you can create a project using a prespecified configuration,
     of which there are three available:
 
-    - ``sf.project.LungAdenoSquam``
-    - ``sf.project.ThyroidBRS``
-    - ``sf.project.BreastER``
+    - ``sf.project.LungAdenoSquam()``
+    - ``sf.project.ThyroidBRS()``
+    - ``sf.project.BreastER()``
 
     When creating a project from a configuration, setting ``download=True``
     will download the annoations file and slides from The Cancer Genome Atlas
@@ -4064,7 +4079,7 @@ def create(
 
         project = sf.create_project(
             root='path',
-            cfg=sf.project.LungAdenoSquam,
+            cfg=sf.project.LungAdenoSquam(),
             download=True
         )
 

@@ -552,7 +552,8 @@ def train(
         batch_size=config.train_batch_size,
         shuffle=True,
         num_workers=num_workers,
-        drop_last=True
+        drop_last=True,
+        persistent_workers=True
     )
     if val_ds is not None:
         val_dl = torch.utils.data.DataLoader(

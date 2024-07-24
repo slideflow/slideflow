@@ -13,6 +13,12 @@ Generative Networks (GANs)
 
 Slideflow includes tools to easily interface with the PyTorch implementations of `StyleGAN2 <https://github.com/jamesdolezal/stylegan2-slideflow>`_ and `StyleGAN3 <https://github.com/jamesdolezal/stylegan3-slideflow>`_, allowing you to train these Generative Adversarial Networks (GANs). Slideflow additionally includes tools to assist with image generation, interpolation between class labels, and interactively visualize GAN-generated images and their predictions. See our manuscript on the use of GANs to `generate synthetic histology <https://arxiv.org/abs/2211.06522>`_ for an example of how these networks might be used.
 
+
+.. note::
+
+    Ensure StyleGAN dependencies are installed using ``pip install slideflow[stylegan]``
+
+
 Training StyleGAN
 *****************
 

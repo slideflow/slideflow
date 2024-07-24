@@ -112,25 +112,21 @@ setuptools.setup(
         'opencv-python-headless',
         'shapely',
         'umap-learn',
-        'seaborn<0.12',
-        'pandas<2',
+        'seaborn<0.14',
+        'pandas',
         'pyvips',
         'fpdf2',
-        'lifelines',
         'scikit-image',
         'tqdm',
         'click',
         'protobuf<3.21',
         'tensorboard',
         'crc32c',
-        'h5py',
         'numpy',
         'tabulate',
 		'rasterio',
         'smac==1.4.0',
         'ConfigSpace',
-        'pyarrow',
-        'ninja',
         'rich',
         'pillow>=6.0.0',
         'imgui>=2.0.0',
@@ -171,6 +167,9 @@ setuptools.setup(
         'cellpose': [
             'cellpose<2.2',
         ],
+        'stylegan': [
+            'ninja',
+        ],
         'all': [
             'cellpose<2.2',
             'cucim',
@@ -183,7 +182,8 @@ setuptools.setup(
             'pretrainedmodels',
             'tensorflow>=2.7,<2.12',
             'tensorflow_probability<0.20',
-            'tensorflow_datasets'
+            'tensorflow_datasets',
+            'ninja'
         ]
     },
 )

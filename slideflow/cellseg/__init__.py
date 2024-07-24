@@ -555,7 +555,13 @@ def segment_slide(
     # Set up model and parameters. --------------------------------------------
     start_time = time.time()
     device = torch_utils.get_device(device)
-    model = Cellpose(gpu=True, device=device)
+    if device.type == 'cpu':
+        # Run from CPU if CUDA is not available
+        model = Cellpose(gpu=False, device=device)
+        gpus = None
+        log.info("No GPU detected - running from CPU")
+    else:
+        model = Cellpose(gpu=True, device=device)
     cp = model.cp
     cp.batch_size = batch_size
     cp.net.load_model(cp.pretrained_model[0], cpu=(not cp.gpu))  # Modify to accept different models

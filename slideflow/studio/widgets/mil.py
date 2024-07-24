@@ -321,7 +321,7 @@ class MILWidget(Widget):
                 return self._load_multimodal_model(path, allow_errors=allow_errors)
 
             if self.viz.wsi:
-                self.viz._reload_wsi(
+                self.viz.reload_wsi(
                     tile_px=self.extractor_params['tile_px'],
                     tile_um=self.extractor_params['tile_um']
                 )
@@ -535,7 +535,13 @@ class MILWidget(Widget):
         viz = self.viz
         mil_tile_um = self.extractor_params['tile_um']
         mil_tile_px = self.extractor_params['tile_px']
-        if viz.wsi.tile_px != mil_tile_px or viz.wsi.tile_um != mil_tile_um:
+        _compatible = sf.util.is_tile_size_compatible(
+            viz.wsi.tile_px,
+            viz.wsi.tile_um,
+            mil_tile_px,
+            mil_tile_um
+        )
+        if not _compatible:
             viz.create_toast(
                 "MIL model tile size (tile_px={}, tile_um={}) does not match "
                 "the currently loaded slide (tile_px={}, tile_um={}).".format(

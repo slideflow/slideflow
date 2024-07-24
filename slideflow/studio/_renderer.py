@@ -251,7 +251,7 @@ class Renderer:
             reduce_fn = _reduce_dropout_preds_tf
         else:
             import torch
-            with torch.no_grad():
+            with torch.inference_mode():
                 yp = self._model(img.expand(uq_n, -1, -1, -1))
             reduce_fn = _reduce_dropout_preds_torch
 
@@ -297,7 +297,7 @@ class Renderer:
                 preds = preds[0]
         else:
             if self.model_type == 'torch':
-                with torch.no_grad():
+                with torch.inference_mode():
                     preds = self._model(img)
             else:
                 preds = self._model(img, training=False)
@@ -479,11 +479,6 @@ class Renderer:
         # Otherwise, use the viewer to find the tile image.
         elif viewer is not None:
 
-            if not self._model:
-                res.message = "Model not loaded"
-                print(res.message)
-                return
-
             res.predictions = None
             res.uncertainty = None
 
@@ -505,7 +500,7 @@ class Renderer:
 
         # ---------------------------------------------------------------------
 
-        if use_model:
+        if use_model and self._model:
             self._run_models(
                 img,
                 res,

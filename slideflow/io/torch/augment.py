@@ -6,6 +6,7 @@ from torchvision import transforms
 from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
 from .img_utils import cwh_to_whc, whc_to_cwh
+from .color import generate_random_color_mapping, ColorProfile
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
@@ -63,6 +64,18 @@ class RandomJPEGCompression:
         )
 
 
+class RandomColorProfile:
+    """Generate and apply a random histogram color profile."""
+
+    def __init__(self):
+        pass
+
+    def __call__(self, x):
+        mapping = generate_random_color_mapping(plot=False)
+        profile = ColorProfile(mapping)
+        return profile.apply(x)
+
+
 class RandomColorDistortion:
     """Torchvision transform for random color distortion."""
     def __init__(self, s: float = 1.0):
@@ -101,11 +114,11 @@ def compose_color_distortion(s=1.0):
         Callable: PyTorch transform
 
     """
-    color_jitter = transforms.ColorJitter(0.8*s, 0.8*s, 0.8*s, 0.2*s)
+    color_jitter = transforms.ColorJitter(0.8*s, 0.8*s, 0, 0)
     rnd_color_jitter = transforms.RandomApply([color_jitter], p=0.8)
     rnd_gray = transforms.RandomGrayscale(p=0.2)
     color_distort = transforms.Compose(
-        [whc_to_cwh, rnd_color_jitter, rnd_gray, cwh_to_whc])
+        [rnd_color_jitter, rnd_gray])
     return color_distort
 
 
@@ -114,7 +127,8 @@ def decode_augmentation_string(augment: str) -> List[Callable]:
     augmentation functions.
 
     Args:
-        augment (str): Augmentation string.
+        augment (str): Augmentation string. Each character represents an
+            augmentation function.
 
     Returns:
         List[Callable]: List of augmentation functions.
@@ -137,6 +151,12 @@ def decode_augmentation_string(augment: str) -> List[Callable]:
         elif a == 'd':
             # Random color distortion.
             transformations.append(RandomColorDistortion(s=1.0))
+        elif a == 's':
+            # Random sharpen
+            transformations.append(transforms.RandomAdjustSharpness(sharpness_factor=2.0))
+        elif a == 'p':
+            # Random posterize
+            transformations.append(transforms.RandomPosterize(bits=2))
         elif a == 'b':
             # Random Gaussian blur.
             transformations.append(
@@ -147,7 +167,10 @@ def decode_augmentation_string(augment: str) -> List[Callable]:
             )
         elif a == 'j':
             # Random JPEG compression.
-            transformations.append(RandomJPEGCompression(p=0.5, q_min=50, q_max=100))
+            transformations.append(RandomJPEGCompression(p=0.5, q_min=30, q_max=100))
+        elif a == 'c':
+            # Random color profile.
+            transformations.append(RandomColorProfile())
         elif a != 'n':
             raise ValueError(f"Invalid augmentation: {a}")
     return transformations
@@ -171,6 +194,10 @@ def compose_augmentations(
             * ``'r'``: Random 90-degree rotation
             * ``'j'``: Random JPEG compression (50% chance to compress with quality between 50-100)
             * ``'b'``: Random Gaussian blur (10% chance to blur with sigma between 0.5-2.0)
+            * ``'d'``: Random color distortion (contrast and brightness)
+            * ``'s'``: Random sharpen (sharpness_factor=2.0)
+            * ``'p'``: Random posterize (bits=2)
+            * ``'c'``: Random color profile
 
             Combine letters to define augmentations, such as ``'xyrj'``.
             A value of True will use ``'xyrjb'``.

@@ -7,6 +7,7 @@ import re
 import cv2
 import numpy as np
 import slideflow as sf
+import xml.etree.ElementTree as ET
 from types import SimpleNamespace
 from PIL import Image, UnidentifiedImageError
 from typing import (Any, Dict, List, Optional, Tuple, Union)
@@ -23,7 +24,8 @@ except (ModuleNotFoundError, OSError) as e:
 # -----------------------------------------------------------------------------
 
 SUPPORTED_BACKEND_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
-                             'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png']
+                             'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png',
+                             'ome.tiff', 'ome.tif']
 
 # -----------------------------------------------------------------------------
 
@@ -100,14 +102,14 @@ def vips2jpg(
     vi: "vips.Image",
 ) -> np.ndarray:
     '''Converts a VIPS image into a numpy array'''
-    return vi.jpegsave_buffer(Q=95)
+    return numpy2jpg(vips2numpy(vi))
 
 
 def vips2png(
     vi: "vips.Image",
 ) -> np.ndarray:
     '''Converts a VIPS image into a numpy array'''
-    return vi.pngsave_buffer()
+    return numpy2png(vips2numpy(vi))
 
 
 def vips_resize(
@@ -177,8 +179,9 @@ def detect_mpp(
     if (sf.util.path_to_ext(path).lower() == 'svs'
             and 'image-description' in vips_fields):
         img_des = loaded_image.get('image-description')
-        _mpp = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)[0]
-        if _mpp is not None:
+        _mpp_matches = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)
+        if len(_mpp_matches) and _mpp_matches[0] is not None:
+            _mpp = _mpp_matches[0]
             log.debug(
                 f"Using MPP {_mpp} from 'image-description' for SCN"
                 "-converted SVS format"
@@ -207,13 +210,12 @@ def detect_mpp(
 
     # Search for MPP within OME-TIFF format
     if path.endswith('.ome.tif') or path.endswith('.ome.tiff'):
-        import xml.etree.ElementTree as ET
         xml_str = loaded_image.get('image-description')
         root = ET.fromstring(xml_str)
+        main_idx = get_main_index_from_xml(root)
         try:
-            assert root[3].attrib['Name'].endswith('x_01')
-            assert root[3][3].tag.endswith('Pixels')
-            mpp_x = float(root[3][3].attrib['PhysicalSizeX'])
+            pixels_idx = [i for i, x in enumerate(root[main_idx]) if x.tag.endswith('Pixels')][0]
+            mpp_x = float(root[main_idx][pixels_idx].attrib['PhysicalSizeX'])
             log.debug(
                 f"Using MPP {mpp_x} per OME-TIFF PhysicalSizeX field"
             )
@@ -244,6 +246,19 @@ def detect_mpp(
 
     return None
 
+
+def get_main_index_from_xml(xml_root: ET.Element) -> int:
+    '''Returns the main ID from an OME-XML root.'''
+    # First, look for an element with the name ending in '_01'
+    for i in range(len(xml_root)):
+        if 'Name' in xml_root[i].attrib and xml_root[i].attrib['Name'].endswith('_01'):
+            return i
+    # If not found, return the first element with an empty name.
+    for i in range(len(xml_root)):
+        if 'Name' in xml_root[i].attrib and not xml_root[i].attrib['Name']:
+            return i
+    # If still not found, raise an error.
+    raise errors.SlideError("Unable to find main ID in OME-XML root.")
 
 
 # -----------------------------------------------------------------------------
@@ -351,9 +366,9 @@ def tile_worker(
 
     if args.img_format != 'numpy':
         if args.img_format == 'png':
-            image = region.pngsave_buffer()
+            image = vips2png(region)
         elif args.img_format in ('jpg', 'jpeg'):
-            image = region.jpegsave_buffer(Q=95)
+            image = vips2jpg(region)
         else:
             raise ValueError(f"Unknown image format {args.img_format}")
 
@@ -457,6 +472,8 @@ class _VIPSReader:
         if loaded_image is None:
             loaded_image = vips.Image.new_from_file(path)
         self.vips_loader = loaded_image.get('vips-loader')
+        if isinstance(transforms, int):
+            transforms = [transforms]
         self.transforms = transforms
 
         # Load image properties
@@ -904,21 +921,52 @@ class _MultiPageVIPSReader(_VIPSReader):
 class _OmeTiffVIPSReader(_VIPSReader):
 
     def __init__(self, *args, **kwargs):
-        self.page_labels = {
-            0: 'label',
-            1: 'overview',
-            2: 'main',
-            3: 'macro'
-        }
-        self.num_pyramid_levels = 5
+        self.page_labels = None
+        self._num_pyramid_levels = None
         super().__init__(*args, **kwargs)
+
+    @property
+    def num_pyramid_levels(self):
+        if self._num_pyramid_levels is not None:
+            return self._num_pyramid_levels
+        else:
+            # Determine the number of pyramid levels from XML
+            str_xml = self.properties['image-description']
+            root = ET.fromstring(str_xml)
+            possible_anns = [child for child in root if child.tag.endswith('StructuredAnnotations')]
+            if len(possible_anns) == 0:
+                raise errors.SlideError("Could not find pyramid levels in OME-TIFF XML.")
+            if len(possible_anns) > 1:
+                raise errors.SlideError("Could not interpret OME-TIFF XML; found multiple 'StructuredAnnotations' fields.")
+            ann = possible_anns[0]
+            page_id = self.get_page_by_label('main')
+            resolution_pyramid = [child for child in ann if child.tag.endswith('MapAnnotation') and child.attrib['ID'] == f'Annotation:Resolution:{page_id}']
+            if len(resolution_pyramid) == 0:
+                raise errors.SlideError("Could not find pyramid levels in OME-TIFF XML.")
+            if len(resolution_pyramid) > 1:
+                raise errors.SlideError("Could not interpret OME-TIFF XML; found multiple resolution pyramids.")
+            self._num_pyramid_levels = len(resolution_pyramid[0][0])
+            return self._num_pyramid_levels
+
+    def build_page_labels(self):
+        """Build page labels from OME-TIFF XML."""
+        xml_str = self.properties['image-description']
+        root = ET.fromstring(xml_str)
+        main_idx = get_main_index_from_xml(root)
+        self.page_labels = {
+            ('main' if i == main_idx else child.attrib['Name']): int(child.attrib['ID'].split(':')[-1])
+            for i, child in enumerate(root)
+            if 'ID' in child.attrib and 'Image' in child.attrib['ID']
+        }
 
     def get_page_by_label(self, label: str) -> int:
         """Return page number by label."""
-        for page, page_label in self.page_labels.items():
-            if page_label == label:
-                return page
-        raise ValueError(f"Unknown page label {label}")
+        if self.page_labels is None:
+            self.build_page_labels()
+        if label in self.page_labels:
+            return self.page_labels[label]
+        else:
+            raise ValueError(f"Unknown page label {label}")
 
     def _load_levels(self, vips_image: Optional["vips.Image"]):
         """Load downsample levels."""
@@ -931,13 +979,18 @@ class _OmeTiffVIPSReader(_VIPSReader):
                 "Unexpected number of pages in OME-TIFF. Expected a multiple "
                 f"of 3, but found {self.properties['n-pages']}."
             )
-        #self.level_count = int(self.properties['n-pages'] / 3) - 1
         self.level_count = self.num_pyramid_levels
         main_page = self.get_page_by_label('main')
         # Calculate level metadata
         self.levels = []
         for lev in range(self.level_count):
-            temp_img = vips.Image.new_from_file(self.path, page=main_page*3, subifd=lev-1)
+            try:
+                temp_img = vips.Image.new_from_file(self.path, page=main_page*3, subifd=lev-1)
+            except vips.error.Error as e:
+                if 'subifd' in str(e) and 'out of range' in str(e):
+                    # XML may have more levels than the actual image
+                    self.level_count = lev
+                    break
             width = int(temp_img.get('width'))
             height = int(temp_img.get('height'))
             downsample = float(int(self.properties[OPS_WIDTH]) / width)

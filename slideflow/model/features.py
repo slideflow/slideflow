@@ -110,7 +110,7 @@ class DatasetFeatures:
                 Defaults to True.
             transform (Callable, optional): Custom transform to apply to
                 images. Applied before standardization. If the feature extractor
-                is a PyTorch model, the transform should be a torchvision 
+                is a PyTorch model, the transform should be a torchvision
                 transform.
             verbose (bool): Show verbose logging output. Defaults to True.
 
@@ -120,10 +120,9 @@ class DatasetFeatures:
                 .. code-block:: python
 
                     import slideflow as sf
-                    from slideflow.model import build_feature_extractor
 
                     # Create a feature extractor
-                    retccl = build_feature_extractor('retccl', tile_px=299)
+                    retccl = sf.build_feature_extractor('retccl', resize=True)
 
                     # Load a dataset
                     P = sf.load_project(...)
@@ -136,10 +135,10 @@ class DatasetFeatures:
 
                 .. code-block:: python
 
-                    from slideflow.model import build_feature_extractor
+                    import slideflow as sf
 
                     # Create a feature extractor from the saved model.
-                    extractor = build_feature_extractor(
+                    extractor = sf.build_feature_extractor(
                         '/path/to/trained_model.zip',
                         layers=['postconv']
                     )
@@ -1312,7 +1311,7 @@ class _FeatureGenerator:
                 to None.
             transform (Callable, optional): Custom transform to apply to
                 images. Applied before standardization. If the feature extractor
-                is a PyTorch model, the transform should be a torchvision 
+                is a PyTorch model, the transform should be a torchvision
                 transform.
 
         """
@@ -1367,10 +1366,10 @@ class _FeatureGenerator:
     def _calculate_feature_batch(self, batch_img):
         """Calculate features from a batch of images."""
 
-        # If a PyTorch generator, wrap in no_grad() and perform on CUDA
+        # If a PyTorch generator, wrap in inference_mode() and perform on CUDA
         if self.is_torch():
             import torch
-            with torch.no_grad():
+            with torch.inference_mode():
                 batch_img = batch_img.to(self.device)
                 if self.has_torch_gpu_normalizer():
                     batch_img = self.normalizer.preprocess(
