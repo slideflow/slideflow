@@ -2267,6 +2267,17 @@ class Project:
                     )
                 import torch
                 model_cfg = sf.model.extractors.extractor_to_config(model)
+
+                # Mixed precision and channels_last config
+                if hasattr(model, "mixed_precision"):
+                    mixed_precision = model.mixed_precision
+                else:
+                    mixed_precision = None
+                if hasattr(model, "channels_last"):
+                    channels_last = model.channels_last
+                else:
+                    channels_last = None
+
                 with MultiprocessProgress(pb) as mp_pb:
                     torch.multiprocessing.spawn(
                         sf.model.features._distributed_export,
@@ -2279,7 +2290,9 @@ class Project:
                             mp_pb.tracker,
                             outdir,
                             slide_task,
-                            dts_kwargs
+                            dts_kwargs,
+                            mixed_precision,
+                            channels_last
                         ),
                         nprocs=num_gpus
                     )

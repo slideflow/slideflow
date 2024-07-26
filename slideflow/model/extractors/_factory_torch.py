@@ -195,7 +195,6 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
         from .. import torch_utils
         from torchvision import transforms
 
-
         self.device = torch_utils.get_device(device)
         _hp = ModelParams(tile_px=tile_px, model=model_name, include_top=False, hidden_layers=0)
         model = _hp.build_model(num_classes=1, pretrain='imagenet').to(self.device)

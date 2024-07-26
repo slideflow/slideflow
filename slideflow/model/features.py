@@ -1788,10 +1788,16 @@ def _distributed_export(
     pb: Any,
     outdir: str,
     slide_task: int = 0,
-    dts_kwargs: Any = None
+    dts_kwargs: Any = None,
+    mixed_precision: Optional[bool] = None,
+    channels_last: Optional[bool] = None
 ) -> None:
     """Distributed export across multiple GPUs."""
     model = sf.model.extractors.build_extractor_from_cfg(model_cfg, device=f'cuda:{device}')
+    if mixed_precision is not None:
+        model.mixed_precision = mixed_precision
+    if channels_last is not None:
+        model.channels_last = channels_last
     return _export_bags(
         model,
         dataset,
