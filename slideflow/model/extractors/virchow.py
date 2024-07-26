@@ -107,7 +107,7 @@ class VirchowFeatures(TorchFeatureExtractor):
 
         """
         return {
-            'class': 'slideflow.model.extractors.uni.UNIFeatures',
+            'class': 'slideflow.model.extractors.virchow.VirchowFeatures',
             'kwargs': {
                 'center_crop': self._center_crop,
                 'resize': self._resize,
