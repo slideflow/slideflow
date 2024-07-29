@@ -2215,6 +2215,15 @@ class Project:
             dataset = dataset.filter(filters={'slide': slides_to_generate})
             filtered_slides_to_generate = dataset.slides()
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
+        
+        # Verify TFRecords are available
+        n_tfrecords = len(dataset.tfrecords())
+        n_slides = len(dataset.slides())
+        if not n_tfrecords:
+            log.warning("Unable to generate features; no TFRecords found.")
+            return outdir
+        elif n_tfrecords < n_slides:
+            log.warning("{} tfrecords missing.".format(n_slides - n_tfrecords))
 
         # Rebuild any missing index files.
         # Must be done before the progress bar is started.
@@ -2225,11 +2234,13 @@ class Project:
         pb.add_task(
             "Speed: ",
             progress_type="speed",
-            total=None)
+            total=None
+        )
         slide_task = pb.add_task(
             "Generating...",
             progress_type="slide_progress",
-            total=len(dataset.slides()))
+            total=n_slides
+        )
         pb.start()
 
         # Prepare keyword arguments.
