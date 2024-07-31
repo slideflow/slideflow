@@ -966,9 +966,11 @@ def run_inference(
     else:
         kw = forward_kwargs
 
-    # First, handle CLAM, which returns instance loss as well as logits/attention
+    # Check if the model can return attention during inference. 
+    # If so, this saves us a forward pass through the model.
     if attention and 'return_attention' in inspect.signature(model.forward).parameters:
         model_out, y_att = model(*model_args, return_attention=True, **kw)
+    # Otherwise, use the model's `calculate_attention` function directly.
     elif attention:
         model_out = model(*model_args, **kw)
         y_att = model.calculate_attention(*model_args)
