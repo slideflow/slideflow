@@ -531,7 +531,8 @@ def get_mil_tile_predictions(
                             description="Generating tile predictions",
                             total=len(bags)):
         if is_clam:
-            pred_out = _predict_mil_tiles(model, bag, use_first_out=True, uq=uq)
+            fw_kw = dict(return_instance_loss=False)
+            pred_out = _predict_mil_tiles(model, bag, forward_kwargs=fw_kw, uq=uq)
         else:
             pred_out = _predict_mil_tiles(
                 model,
@@ -914,7 +915,7 @@ def _validate_model(
             log.warning(msg)
         else:
             raise RuntimeError(msg)
-    if uq and not inspect.signature(model.forward).parameters['uq']:
+    if uq and not ('uq' in inspect.signature(model.forward).parameters):
         msg = (
             "Model '{}' does not support UQ. "
             "Unable to calculate uncertainty.".format(
@@ -936,13 +937,16 @@ def run_inference(
     attention: bool = False,
     attention_pooling: str = 'avg',
     uq: bool = False,
-    use_first_out: bool = False,
+    forward_kwargs: Optional[dict] = None,
     apply_softmax: bool = True,
     use_lens: bool = False,
     device: Optional[Any] = None
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
     """Run inference on a MIL model."""
     import torch
+
+    if forward_kwargs is None:
+        forward_kwargs = dict()
 
     y_pred, y_att, y_uncertainty = None, None, None
 
@@ -956,17 +960,16 @@ def run_inference(
     else:
         model_args = (input,)
 
-    if uq and inspect.signature(model.forward).parameters['uq']:
-        kw = dict(uq=True)
+    if uq and 'uq' in inspect.signature(model.forward).parameters:
+        kw = dict(uq=True, **forward_kwargs)
     elif uq:
         raise RuntimeError("Model does not support UQ.")
     else:
-        kw = dict()
-    if attention and inspect.signature(model.forward).parameters['return_attention']:
+        kw = forward_kwargs
+
+    # First, handle CLAM, which returns instance loss as well as logits/attention
+    if attention and 'return_attention' in inspect.signature(model.forward).parameters:
         model_out, y_att = model(*model_args, return_attention=True, **kw)
-    elif use_first_out:
-        # CLAM models return attention scores as well as logits.
-        model_out, y_att = model(*model_args, **kw)
     elif attention:
         model_out = model(*model_args, **kw)
         y_att = model.calculate_attention(*model_args)
@@ -1110,7 +1113,7 @@ def _predict_mil_tiles(
     use_lens: bool = False,
     device: Optional[Any] = None,
     apply_softmax: bool = True,
-    use_first_out: bool = False,
+    forward_kwargs: Optional[dict] = None,
     attention: bool = False,
     attention_pooling: str = 'avg',
     uq: bool = False,
@@ -1118,6 +1121,9 @@ def _predict_mil_tiles(
     """Generate tile predictions from an MIL model from a bag."""
 
     import torch
+
+    if forward_kwargs is None:
+        forward_kwargs = dict()
 
     attention, uq = _validate_model(model, attention, uq, allow_errors=True)
 
@@ -1145,7 +1151,7 @@ def _predict_mil_tiles(
             attention=attention,
             attention_pooling=attention_pooling,
             uq=uq,
-            use_first_out=use_first_out,
+            forward_kwargs=forward_kwargs,
             apply_softmax=apply_softmax,
             use_lens=use_lens,
             device=device
