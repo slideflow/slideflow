@@ -502,9 +502,7 @@ def get_mil_tile_predictions(
 
     is_clam = (isinstance(config, TrainerConfigCLAM)
                 or isinstance(config.model_config, ModelConfigCLAM))
-
-    print("Generating predictions for {} slides and {} bags.".format(len(slides), len(bags)))
-
+    
     # First, start with slide-level inference and attention.
     if (isinstance(config, TrainerConfigCLAM)
        or isinstance(config.model_config, ModelConfigCLAM)):
@@ -846,7 +844,6 @@ def generate_attention_heatmaps(
                 # as well as a heatmap reduced by mean.
                 # The attention values are assumed to have the shape (n_attention, n_tiles).
                 for att_idx in range(attention[i].shape[0]):
-                    print(attention[i].shape)
                     sf.util.location_heatmap(
                         values=attention[i][att_idx, :],
                         filename=join(outdir, f'{sf.util.path_to_name(slide_path)}_attn-{att_idx}.png'),
@@ -1014,7 +1011,7 @@ def _predict_clam(
     from slideflow.mil.models import CLAM_MB, CLAM_SB
 
     if isinstance(model, (CLAM_MB, CLAM_SB)):
-        clam_kw = dict(return_attention=True)
+        clam_kw = dict(return_attention=True, return_instance_loss=False)
     else:
         clam_kw = {}
         attention = False
@@ -1029,10 +1026,7 @@ def _predict_clam(
         else:
             loaded = utils._load_bag(bag).to(device)
         with torch.inference_mode():
-            if clam_kw:
-                logits, att, _ = model(loaded, **clam_kw)
-            else:
-                logits, att = model(loaded, **clam_kw)
+            logits, att = model(loaded, **clam_kw)
             if attention:
                 y_att.append(np.squeeze(att.cpu().numpy()))
             y_pred.append(torch.nn.functional.softmax(logits, dim=1).cpu().numpy())
@@ -1145,24 +1139,33 @@ def _predict_mil_tiles(
 
     # Inference.
     with torch.inference_mode():
-        y_pred, y_att, uncertainty = run_inference(
-            model,
-            loaded,
-            attention=attention,
-            attention_pooling=attention_pooling,
-            uq=uq,
-            forward_kwargs=forward_kwargs,
-            apply_softmax=apply_softmax,
-            use_lens=use_lens,
-            device=device
-        )
+        if "CLAM" in model.__class__.__name__:
+            y_pred, y_att = _predict_clam(
+                model,
+                loaded,
+                attention=attention,
+                device=device
+            )
+            uncertainty = None
+        else:
+            y_pred, y_att, uncertainty = run_inference(
+                model,
+                loaded,
+                attention=attention,
+                attention_pooling=attention_pooling,
+                uq=uq,
+                forward_kwargs=forward_kwargs,
+                apply_softmax=apply_softmax,
+                use_lens=use_lens,
+                device=device
+            )
 
     # Convert to numpy.
-    if y_pred is not None:
+    if y_pred is not None and isinstance(y_pred, torch.Tensor):
         y_pred = y_pred.cpu().numpy()
-    if y_att is not None:
+    if y_att is not None and isinstance(y_att, torch.Tensor):
         y_att = y_att.cpu().numpy()
-    if uncertainty is not None:
+    if uncertainty is not None and isinstance(uncertainty, torch.Tensor):
         uncertainty = uncertainty.cpu().numpy()
 
     if uq:
