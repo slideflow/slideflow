@@ -1499,7 +1499,7 @@ class Project:
                 dataset.tfrecord_heatmap(
                     tfr,
                     tile_dict=attention_dict,
-                    outdir=heatmaps_dir
+                    filename=join(heatmaps_dir, f'{sf.util.path_to_name(tfr)}_attn.png')
                 )
 
     def evaluate_mil(
@@ -2761,7 +2761,7 @@ class Project:
         tile_px: int,
         tile_um: Union[int, str],
         tile_dict: Dict[int, float],
-        outdir: Optional[str] = None
+        filename: Optional[str] = None
     ) -> None:
         """Create a tfrecord-based WSI heatmap.
 
@@ -2775,16 +2775,18 @@ class Project:
             tile_px (int): Tile width in pixels
             tile_um (int or str): Tile width in microns (int) or magnification
                 (str, e.g. "20x").
-            outdir (str, optional): Destination path to save heatmap.
+            filename (str, optional): Destination path to save heatmap.
+                Defaults to saving as ``{slide_name}.png`` in the project
+                root directory.
 
         Returns:
             None
 
         """
         dataset = self.dataset(tile_px=tile_px, tile_um=tile_um)
-        if outdir is None:
-            outdir = self.root
-        dataset.tfrecord_heatmap(tfrecord, tile_dict, outdir)
+        if filename is None:
+            filename = join(self.root, sf.util.path_to_name(tfrecord) + '.png')
+        dataset.tfrecord_heatmap(tfrecord, tile_dict, filename)
 
     def dataset(
         self,
