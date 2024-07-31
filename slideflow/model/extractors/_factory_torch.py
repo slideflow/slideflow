@@ -152,7 +152,7 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
     def __init__(
         self, 
         channels_last: bool = False, 
-        mixed_precision: bool = False
+        mixed_precision: bool = True
     ) -> None:
         from .. import torch_utils
 
@@ -203,7 +203,6 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
         from ..torch import ModelParams, Features
         from .. import torch_utils
         from torchvision import transforms
-
 
         self.device = torch_utils.get_device(device)
         _hp = ModelParams(tile_px=tile_px, model=model_name, include_top=False, hidden_layers=0)

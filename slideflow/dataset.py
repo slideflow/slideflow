@@ -3580,7 +3580,7 @@ class Dataset:
         self,
         tfrecord: Union[str, List[str]],
         tile_dict: Dict[int, float],
-        outdir: str,
+        filename: str,
         **kwargs
     ) -> None:
         """Create a tfrecord-based WSI heatmap.
@@ -3592,7 +3592,7 @@ class Dataset:
             tfrecord (str or list(str)): Path(s) to tfrecord(s).
             tile_dict (dict): Dictionary mapping tfrecord indices to a
                 tile-level value for display in heatmap format
-            outdir (str): Path to destination directory.
+            filename (str): Destination filename for heatmap.
 
         """
         slide_paths = {
@@ -3612,7 +3612,7 @@ class Dataset:
                 tile_px=self.tile_px,
                 tile_um=self.tile_um,
                 tile_dict=tile_dict,
-                outdir=outdir,
+                filename=filename,
                 **kwargs
             )
 

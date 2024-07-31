@@ -1499,7 +1499,7 @@ class Project:
                 dataset.tfrecord_heatmap(
                     tfr,
                     tile_dict=attention_dict,
-                    outdir=heatmaps_dir
+                    filename=join(heatmaps_dir, f'{sf.util.path_to_name(tfr)}_attn.png')
                 )
 
     def evaluate_mil(
@@ -2215,6 +2215,15 @@ class Project:
             dataset = dataset.filter(filters={'slide': slides_to_generate})
             filtered_slides_to_generate = dataset.slides()
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
+        
+        # Verify TFRecords are available
+        n_tfrecords = len(dataset.tfrecords())
+        n_slides = len(dataset.slides())
+        if not n_tfrecords:
+            log.warning("Unable to generate features; no TFRecords found.")
+            return outdir
+        elif n_tfrecords < n_slides:
+            log.warning("{} tfrecords missing.".format(n_slides - n_tfrecords))
 
         # Rebuild any missing index files.
         # Must be done before the progress bar is started.
@@ -2225,11 +2234,13 @@ class Project:
         pb.add_task(
             "Speed: ",
             progress_type="speed",
-            total=None)
+            total=None
+        )
         slide_task = pb.add_task(
             "Generating...",
             progress_type="slide_progress",
-            total=len(dataset.slides()))
+            total=n_slides
+        )
         pb.start()
 
         # Prepare keyword arguments.
@@ -2267,6 +2278,17 @@ class Project:
                     )
                 import torch
                 model_cfg = sf.model.extractors.extractor_to_config(model)
+
+                # Mixed precision and channels_last config
+                if hasattr(model, "mixed_precision"):
+                    mixed_precision = model.mixed_precision
+                else:
+                    mixed_precision = None
+                if hasattr(model, "channels_last"):
+                    channels_last = model.channels_last
+                else:
+                    channels_last = None
+
                 with MultiprocessProgress(pb) as mp_pb:
                     torch.multiprocessing.spawn(
                         sf.model.features._distributed_export,
@@ -2279,7 +2301,9 @@ class Project:
                             mp_pb.tracker,
                             outdir,
                             slide_task,
-                            dts_kwargs
+                            dts_kwargs,
+                            mixed_precision,
+                            channels_last
                         ),
                         nprocs=num_gpus
                     )
@@ -2761,7 +2785,7 @@ class Project:
         tile_px: int,
         tile_um: Union[int, str],
         tile_dict: Dict[int, float],
-        outdir: Optional[str] = None
+        filename: Optional[str] = None
     ) -> None:
         """Create a tfrecord-based WSI heatmap.
 
@@ -2775,16 +2799,18 @@ class Project:
             tile_px (int): Tile width in pixels
             tile_um (int or str): Tile width in microns (int) or magnification
                 (str, e.g. "20x").
-            outdir (str, optional): Destination path to save heatmap.
+            filename (str, optional): Destination path to save heatmap.
+                Defaults to saving as ``{slide_name}.png`` in the project
+                root directory.
 
         Returns:
             None
 
         """
         dataset = self.dataset(tile_px=tile_px, tile_um=tile_um)
-        if outdir is None:
-            outdir = self.root
-        dataset.tfrecord_heatmap(tfrecord, tile_dict, outdir)
+        if filename is None:
+            filename = join(self.root, sf.util.path_to_name(tfrecord) + '.png')
+        dataset.tfrecord_heatmap(tfrecord, tile_dict, filename)
 
     def dataset(
         self,

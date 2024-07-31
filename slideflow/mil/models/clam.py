@@ -269,6 +269,7 @@ class _CLAM_Base(nn.Module):
         label=None,
         instance_eval=False,
         return_attention=False,
+        return_instance_loss=True
     ):
         """Forward pass.
 
@@ -277,10 +278,12 @@ class _CLAM_Base(nn.Module):
             label: ground truth label
             instance_eval: whether to perform instance-level evaluation
             return_attention: whether to return attention weights
+            return_instance_loss: whether to return instance loss.
+                Defaults to True.
 
         Returns:
             logits: logits
-            inst_loss_dict: instance loss dictionary
+            inst_loss_dict: instance loss dictionary (if ``return_instance_loss=True``)
             A_raw: attention weights
 
         """
@@ -307,10 +310,14 @@ class _CLAM_Base(nn.Module):
         M = torch.mm(A, h)
         logits = self._logits_from_m(M)
 
-        if return_attention:
+        if return_attention and return_instance_loss:
             return logits, A_raw, inst_loss_dict
-        else:
+        elif return_attention:
+            return logits, A_raw
+        elif return_instance_loss:
             return logits, inst_loss_dict
+        else:
+            return logits
 
     def calculate_attention(self, h):
         """Calculate attention weights.
