@@ -503,6 +503,8 @@ def get_mil_tile_predictions(
     is_clam = (isinstance(config, TrainerConfigCLAM)
                 or isinstance(config.model_config, ModelConfigCLAM))
     
+    log.info("Generating predictions for {} slides and {} bags.".format(len(slides), len(bags)))
+    
     # First, start with slide-level inference and attention.
     if (isinstance(config, TrainerConfigCLAM)
        or isinstance(config.model_config, ModelConfigCLAM)):
@@ -1139,6 +1141,8 @@ def _predict_mil_tiles(
 
     # Inference.
     with torch.inference_mode():
+        # CLAM models do not support inference with batch_size > 1, 
+        # and thus require a different, less efficient pipeline.
         if "CLAM" in model.__class__.__name__:
             y_pred, y_att = _predict_clam(
                 model,
