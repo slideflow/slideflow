@@ -487,10 +487,22 @@ class MILWidget(Widget):
         # Only show prediction and attention for tiles with non-zero
         # attention values (tiles that passed the attention gate)
         sf.log.debug("Masking {} zero-attention tiles:".format((self.attention == 0).sum()))
-        bags = np.expand_dims(bags[0][self.attention != 0], axis=0)
-        valid_indices = valid_indices[self.attention != 0]
-        self.attention = self.attention[self.attention != 0]
-        sf.log.debug("Total tiles after masking: {}".format(len(self.attention)))
+
+        # Handle multi-dimensional attention
+        if len(self.attention.shape) < 2:
+            att_mask = (self.attention != 0)
+        else:
+            att_mask = (np.max(self.attention, axis=0) != 0)
+
+        bags = np.expand_dims(bags[0][att_mask], axis=0)
+        valid_indices = valid_indices[att_mask]
+
+        if len(self.attention.shape) < 2:
+            self.attention = self.attention[att_mask]
+            sf.log.debug("Total tiles after masking: {}".format(len(self.attention)))
+        else:
+            self.attention = self.attention[:, att_mask]
+            sf.log.debug("Total tiles after masking: {}".format(self.attention.shape[1]))
 
         # Generate tile-level predictions.
         # Reshape the bags from (1, n_bags, n_feats) to (n_bags, 1, n_feats)
@@ -508,9 +520,15 @@ class MILWidget(Widget):
                 tile_predictions, valid_indices, original_shape, masked_bags.shape[0]
             )
         if self.attention is not None:
-            att_heatmap = _reshape_as_heatmap(
-                self.attention, valid_indices, original_shape, masked_bags.shape[0]
-            )
+            if len(self.attention.shape) == 2:
+                att_heatmap = np.stack([
+                    _reshape_as_heatmap(self.attention[n, :], valid_indices, original_shape, masked_bags.shape[0])
+                    for n in range(self.attention.shape[0])
+                ], axis=2)
+            else:
+                att_heatmap = _reshape_as_heatmap(
+                    self.attention, valid_indices, original_shape, masked_bags.shape[0]
+                )
             self.render_dual_heatmap(att_heatmap, tile_heatmap)
         else:
             self.render_tile_prediction_heatmap(tile_heatmap)
@@ -559,7 +577,10 @@ class MILWidget(Widget):
     def render_attention_heatmap(self, attention: np.ndarray) -> None:
         self.viz.heatmap = _AttentionHeatmapWrapper(attention, self.viz.wsi)
         self.viz.heatmap_widget.predictions = convert_to_overlays(attention)
-        self.viz.heatmap_widget.render_heatmap(outcome_names=["Attention"])
+        if len(attention.shape) < 3:
+            attention = attention[:, :, np.newaxis]
+        att_names = ['Attention'] if attention.shape[2] == 1 else [f'Attention-{n}' for n in range(attention.shape[2])]
+        self.viz.heatmap_widget.render_heatmap(outcome_names=att_names)
 
     def render_tile_prediction_heatmap(self, tile_preds: np.ndarray) -> None:
         self.viz.heatmap_widget.predictions = convert_to_overlays(tile_preds)
@@ -570,13 +591,14 @@ class MILWidget(Widget):
     def render_dual_heatmap(self, attention: np.ndarray, tile_preds: np.ndarray) -> None:
         if tile_preds.shape[0:2] != attention.shape[0:2]:
             raise ValueError("Attention and tile_preds must have the same shape.")
-
-        self.viz.heatmap = _AttentionHeatmapWrapper(attention, self.viz.wsi)
-        self.viz.heatmap_widget.predictions = convert_to_overlays(
-            np.concatenate((attention[:, :, np.newaxis], tile_preds), axis=2)
-        )
+        if len(attention.shape) < 3:
+            attention = attention[:, :, np.newaxis]
+        merged = np.concatenate((attention, tile_preds), axis=2)
+        self.viz.heatmap = _AttentionHeatmapWrapper(merged, self.viz.wsi)
+        self.viz.heatmap_widget.predictions = convert_to_overlays(merged)
         pred_outcomes = self.viz.heatmap_widget.get_outcome_names(self.mil_params)
-        self.viz.heatmap_widget.render_heatmap(outcome_names=["Attention"] + pred_outcomes)
+        att_names = ['Attention'] if attention.shape[2] == 1 else [f'Attention-{n}' for n in range(attention.shape[2])]
+        self.viz.heatmap_widget.render_heatmap(outcome_names=att_names + pred_outcomes)
 
     def draw_extractor_info(self, c):
         """Draw a description of the extractor information."""
