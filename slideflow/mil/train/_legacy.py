@@ -201,7 +201,7 @@ def legacy_train_clam(
                     dataset.tfrecord_heatmap(
                         att_tfr,
                         tile_dict=attention_dict,
-                        outdir=heatmaps_dir,
+                        outdir=join(heatmaps_dir, f'{sf.util.path_to_name(att_tfr)}_attn.png'),
                         cmap='coolwarm'
                     )
                 except errors.SlideNotFoundError:
