@@ -1986,34 +1986,58 @@ class Dataset:
         self,
         bags_path: str,
         dest: str,
-        df: pd.DataFrame,
+        data: pd.DataFrame,
+        by: str,
         *,
-        column_name: str = 'extract',
         threshold: float = None,
-        lower_than: bool = False
+        direction: str = "greater"
     ) -> None:
-        """Filter bags by tiles in an df
+        """Filter bags using tile-level values stored in a dataframe.
+
+        Example:
+            >>> # Keep data from tiles that have a 'value' above 0.5.
+            >>> dataset.filter_bags_by_df(
+            ...   'pt_files/bags',
+            ...   'pt_files/filtered_bags',
+            ...   data=df,
+            ...   by="value",
+            ...   threshold=0.5,
+            ...   direction="greater"
+            ... )
 
         Args:
             bags_path (str): Path to the bags directory.
             dest (str): Path to the destination directory.
-            df (pd.DataFrame): Dataframe with slide, loc_x, loc_y, and column_name.
-            column_name (str): Column name to use for filtering. Defaults to 'extract'.
-            threshold (float): Threshold for filtering, applies to column name, 
-                if None, column_name is assumed to be boolean.
-            lower_than (bool): If True, filter values lower than threshold.
+            data (pd.DataFrame): Dataframe with ``slide``, ``loc_x``, ``loc_y``, 
+                and a column to use for filtering. 
+            by (str): Column name to use for filtering. 
+
+        Keyword args:
+            threshold (float, optional): Threshold for filtering.
+                If None, values are assumed to be boolean.
+                Defaults to None.
+            direction (str): Direction of filtering, if filtering by threshold.
+                Accepted values are 'greater', 'greater_or_equal', 'less', 
+                'less_or_equal', and 'equal'.
+                Defaults to 'greater'. 
+
         """
         import torch
+
+        if direction not in ("greater", "greater_or_equal", "less", "less_or_equal", "equal"):
+            raise ValueError("direction must be one of 'greater', 'greater_or_equal', "
+                             "'less', 'less_or_equal', or 'equal'")
 
         if not exists(dest):
             os.makedirs(dest)
 
         n_complete = 0
-        for slide in tqdm(df.slide.unique()):
+        for slide in tqdm(data.slide.unique()):
             if not exists(join(bags_path, slide+'.pt')):
+                log.debug(f"Skipping slide {slide}: no bags found.")
                 continue
 
-            df_slide = df.loc[df.slide == slide].copy()
+            df_slide = data.loc[data.slide == slide].copy()
 
             # Get the bag
             bag = torch.load(join(bags_path, slide+'.pt'))
@@ -2021,15 +2045,20 @@ class Dataset:
 
             # if threshold is set, filter the dataframe
             if threshold is not None:
-                if lower_than:
-                    df_slide[column_name] = df_slide[column_name] < threshold
-                else:
-                    df_slide[column_name] = df_slide[column_name] > threshold
+                if direction == "greater":
+                    df_slide[by] = df_slide[by] > threshold
+                elif direction == "greater_or_equal":
+                    df_slide[by] = df_slide[by] >= threshold
+                elif direction == "less":
+                    df_slide[by] = df_slide[by] < threshold
+                elif direction == "less_or_equal":
+                    df_slide[by] = df_slide[by] <= threshold
+                elif direction == "equal":
+                    df_slide[by] = df_slide[by] == threshold
 
-            #print(df_slide)
             # Get the common locations
             bag_locs = {tuple(r) for r in bag_index}
-            selected_locs = {tuple(row[['loc_x', 'loc_y']]) for _, row in df_slide[df_slide[column_name]].iterrows()}
+            selected_locs = {tuple(row[['loc_x', 'loc_y']]) for _, row in df_slide[df_slide[by]].iterrows()}
             common_locs = bag_locs.intersection(selected_locs)
 
             # Find indices in the bag that match the common locations (in an ROI)
