@@ -432,7 +432,10 @@ class Trainer:
         load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
         device: Optional[str] = None,
-        transform: Optional[Union[Callable, Dict[str, Callable]]] = None
+        transform: Optional[Union[Callable, Dict[str, Callable]]] = None,
+        pin_memory: bool = True,
+        num_workers: int = 4,
+        chunk_size: int = 8
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -480,6 +483,12 @@ class Trainer:
                 applied to validation data. If a dict is provided and either
                 'train' or 'val' is None, no transform will be applied to
                 that data. Defaults to None.
+            pin_memory (bool): Set the ``pin_memory`` attribute for dataloaders.
+                Defaults to True.
+            num_workers (int): Set the number of workers for dataloaders.
+                Defaults to 4.
+            chunk_size (int): Set the chunk size for TFRecord reading.
+                Defaults to 8.
         """
         self.hp = hp
         self.outdir = outdir
@@ -494,7 +503,11 @@ class Trainer:
         self.loss_fn: torch.nn.modules.loss._Loss
         self.use_tensorboard: bool
         self.writer = None  # type: Optional[torch.utils.tensorboard.SummaryWriter]
+        self.pin_memory = pin_memory
+        self.num_workers = num_workers
+        self.chunk_size = chunk_size
         self._reset_training_params()
+        self._set_dataloader_args()
 
         if custom_objects is not None:
             log.warn("custom_objects argument ignored in PyTorch backend.")
@@ -604,7 +617,6 @@ class Trainer:
                 return int_to_str
         else:
             return {}
-
 
     def _process_transforms(
         self,
@@ -1070,7 +1082,6 @@ class Trainer:
                     step=step
                 )
 
-
     def _log_early_stop_to_neptune(self) -> None:
         # Log early stop to neptune
         if self.neptune_run:
@@ -1315,9 +1326,9 @@ class Trainer:
             rank=0,
             num_replicas=1,
             labels=(self.labels if incl_labels else None),
-            chunk_size=8,
-            pin_memory=True,
-            num_workers=4 if not from_wsi else 0,
+            chunk_size=self.chunk_size,
+            pin_memory=self.pin_memory,
+            num_workers=self.num_workers if not from_wsi else 0,
             onehot=False,
             incl_slidenames=True,
             from_wsi=from_wsi,

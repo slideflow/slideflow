@@ -13,17 +13,17 @@ class VirchowFeatures(TorchFeatureExtractor):
     """Virchow pretrained feature extractor.
 
     The feature extractor is a Vision Transformer (ViT) model pretrained on a
-    1.5M whole-slide dataset of histopathology images. Virchow is built and 
+    1.5M whole-slide dataset of histopathology images. Virchow is built and
     distributed by Paige, and is available on Hugging Face at hf-hub:paige-ai/Virchow.
 
     The transformer outputs both a class token (size: 1280) and patch token (256 x 1280).
-    As recommended by the authors, the final downstream feature vector is a concatenation 
+    As recommended by the authors, the final downstream feature vector is a concatenation
     of the class token and an average pool of the patch token, resulting in a final
-    vector size of 2560. 
+    vector size of 2560.
 
     Feature dimensions: 2560
 
-    Manuscript: Vorontsov, E., et al. (2023). Virchow: A Million-Slide Digital Pathology 
+    Manuscript: Vorontsov, E., et al. (2023). Virchow: A Million-Slide Digital Pathology
     Foundation Model. arXiv preprint arXiv:2309.07778.
 
     Hugging Face: https://huggingface.co/paige-ai/Virchow
@@ -34,13 +34,13 @@ class VirchowFeatures(TorchFeatureExtractor):
     license = """CC-BY-NC-ND 4.0 (non-commercial use only). Please see the original license at https://huggingface.co/paige-ai/Virchow."""
     citation = """
 @misc{vorontsov2024virchowmillionslidedigitalpathology,
-      title={Virchow: A Million-Slide Digital Pathology Foundation Model}, 
+      title={Virchow: A Million-Slide Digital Pathology Foundation Model},
       author={Eugene Vorontsov and Alican Bozkurt and Adam Casson and George Shaikovski and Michal Zelechowski and Siqi Liu and Kristen Severson and Eric Zimmermann and James Hall and Neil Tenenholtz and Nicolo Fusi and Philippe Mathieu and Alexander van Eck and Donghun Lee and Julian Viret and Eric Robert and Yi Kan Wang and Jeremy D. Kunz and Matthew C. H. Lee and Jan Bernhard and Ran A. Godrich and Gerard Oakley and Ewan Millar and Matthew Hanna and Juan Retamero and William A. Moye and Razik Yousfi and Christopher Kanan and David Klimstra and Brandon Rothrock and Thomas J. Fuchs},
       year={2024},
       eprint={2309.07778},
       archivePrefix={arXiv},
       primaryClass={eess.IV},
-      url={https://arxiv.org/abs/2309.07778}, 
+      url={https://arxiv.org/abs/2309.07778},
 }
 """
 
@@ -54,7 +54,7 @@ class VirchowFeatures(TorchFeatureExtractor):
 
         self.device = torch_utils.get_device(device)
         self.model = timm.create_model(
-            "vit_huge_patch14_224", 
+            "vit_huge_patch14_224",
             img_size=224,
             patch_size=14,
             init_values=1e-5,
@@ -62,7 +62,7 @@ class VirchowFeatures(TorchFeatureExtractor):
             mlp_ratio=5.3375,
             #dynamic_img_size=True,
             global_pool="",
-            mlp_layer=SwiGLUPacked, 
+            mlp_layer=SwiGLUPacked,
             act_layer=torch.nn.SiLU
         )
         td = torch.load(weights, map_location=self.device)
@@ -77,7 +77,7 @@ class VirchowFeatures(TorchFeatureExtractor):
         elif resize:
             # Note that Virchow uses bicubic interpolation
             # https://huggingface.co/paige-ai/Virchow/blob/main/config.json
-            all_transforms = [transforms.Resize(224, interpolation='bicubic')]
+            all_transforms = [transforms.Resize(224, interpolation=transforms.InterpolationMode.BICUBIC)]
         else:
             all_transforms = []
         all_transforms += [
@@ -107,7 +107,7 @@ class VirchowFeatures(TorchFeatureExtractor):
 
         """
         return {
-            'class': 'slideflow.model.extractors.uni.UNIFeatures',
+            'class': 'slideflow.model.extractors.virchow.VirchowFeatures',
             'kwargs': {
                 'center_crop': self._center_crop,
                 'resize': self._resize,

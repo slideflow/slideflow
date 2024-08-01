@@ -824,15 +824,40 @@ def generate_attention_heatmaps(
                     f"Unable to find locations index file for {slidename}"
                 )
                 continue
-            sf.util.location_heatmap(
+            
+            # Handle the case of multiple attention values at each tile location.
+            heatmap_kwargs = dict(
                 locations=locations,
-                values=attention[i],
                 slide=slide_path,
                 tile_px=dataset.tile_px,
                 tile_um=dataset.tile_um,
-                outdir=outdir,
                 **kwargs
             )
+            if (len(attention[i].shape) < 2) or (attention[i].shape[0] == 1):
+                # If there is a single attention value, create a single map.
+                sf.util.location_heatmap(
+                    values=attention[i],
+                    filename=join(outdir, f'{sf.util.path_to_name(slide_path)}_attn.png'),
+                    **heatmap_kwargs
+                )
+            else:
+                # Otherwise, create a separate heatmap for each value,
+                # as well as a heatmap reduced by mean.
+                # The attention values are assumed to have the shape (n_attention, n_tiles).
+                for att_idx in range(attention[i].shape[0]):
+                    print(attention[i].shape)
+                    sf.util.location_heatmap(
+                        values=attention[i][att_idx, :],
+                        filename=join(outdir, f'{sf.util.path_to_name(slide_path)}_attn-{att_idx}.png'),
+                        **heatmap_kwargs
+                    )
+                sf.util.location_heatmap(
+                        values=np.mean(attention[i], axis=0),
+                        filename=join(outdir, f'{sf.util.path_to_name(slide_path)}_attn-avg.png'),
+                        **heatmap_kwargs
+                    )
+
+
     log.info(f"Attention heatmaps saved to [green]{outdir}[/]")
 
 # -----------------------------------------------------------------------------

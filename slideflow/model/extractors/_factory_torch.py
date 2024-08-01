@@ -149,7 +149,7 @@ def nasnet_large_imagenet(tile_px, **kwargs):
 class TorchFeatureExtractor(BaseFeatureExtractor):
     """Feature extractor for PyTorch models."""
 
-    def __init__(self, channels_last=False, mixed_precision=False):
+    def __init__(self, channels_last=False, mixed_precision=True):
         from .. import torch_utils
 
         super().__init__(backend='torch')
@@ -194,7 +194,6 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
         from ..torch import ModelParams, Features
         from .. import torch_utils
         from torchvision import transforms
-
 
         self.device = torch_utils.get_device(device)
         _hp = ModelParams(tile_px=tile_px, model=model_name, include_top=False, hidden_layers=0)

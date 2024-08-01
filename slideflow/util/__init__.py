@@ -1351,13 +1351,13 @@ def location_heatmap(
     slide: str,
     tile_px: int,
     tile_um: Union[int, str],
-    outdir: str,
+    filename: str,
     *,
     interpolation: Optional[str] = 'bicubic',
     cmap: str = 'inferno',
     norm: Optional[str] = None,
     background: str = 'min'
-) -> Dict[str, Dict[str, float]]:
+) -> None:
     """Generate a heatmap for a slide.
 
     Args:
@@ -1369,7 +1369,7 @@ def location_heatmap(
         slide (str): Path to corresponding slide.
         tile_px (int): Tile pixel size.
         tile_um (int, str): Tile micron or magnification size.
-        outdir (str): Directory in which to save heatmap.
+        filename (str): Destination filename for heatmap.
 
     Keyword args:
         interpolation (str, optional): Interpolation strategy for smoothing
@@ -1381,12 +1381,22 @@ def location_heatmap(
             for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
-    """
 
+    """
     import matplotlib.pyplot as plt
     import matplotlib.colors as mcol
 
-    slide_name = sf.util.path_to_name(slide)
+    if not isinstance(values, np.ndarray):
+        raise ValueError(
+            "Error generating heatmap. 'values' should be a numpy array "
+            "with shape (n_tiles, )"
+        )
+    if (len(values.shape) > 1) and (values.shape[1] != 1):
+        raise ValueError(
+            "Error generating heatmap. Expected 'values' to have (n_tiles,) "
+            "but got shape {}".format(values.shape)
+        )
+
     log.info(f'Generating heatmap for [green]{slide}[/]...')
     log.debug(f"Plotting {len(values)} values")
     wsi = sf.WSI(slide, tile_px, tile_um, verbose=False)
@@ -1402,13 +1412,6 @@ def location_heatmap(
     elif stride != 1:
         log.debug(f"Inferred stride: {stride}")
         wsi = sf.WSI(slide, tile_px, tile_um, stride_div=stride, verbose=False)
-
-    stats = {
-        slide_name: {
-            'mean': np.mean(values),
-            'median': np.median(values)
-        }
-    }
 
     try:
         masked_grid = map_values_to_slide_grid(
@@ -1458,11 +1461,10 @@ def location_heatmap(
     ax.set_xlim(0, thumb.size[0])
     ax.set_ylim(thumb.size[1], 0)
     log.debug('Saving figure...')
-    plt.savefig(join(outdir, f'{slide_name}_attn.png'), bbox_inches='tight')
+    plt.savefig(filename, bbox_inches='tight')
     plt.close(fig)
     del wsi
     del thumb
-    return stats
 
 
 def tfrecord_heatmap(
@@ -1471,9 +1473,9 @@ def tfrecord_heatmap(
     tile_px: int,
     tile_um: Union[int, str],
     tile_dict: Dict[int, float],
-    outdir: str,
+    filename: str,
     **kwargs
-) -> Dict[str, Dict[str, float]]:
+) -> None:
     """Creates a tfrecord-based WSI heatmap using a dictionary of tile values
     for heatmap display.
 
@@ -1485,11 +1487,8 @@ def tfrecord_heatmap(
         tile_px (int): Tile width in pixels.
         tile_um (int or str): Tile width in microns (int) or magnification
             (str, e.g. "20x").
-        outdir (str): Path to directory in which to save images.
+        filename (str): Destination filename for heatmap.
 
-    Returns:
-        Dictionary mapping slide names to dict of statistics
-        (mean, median)
     """
     locations = sf.io.get_locations_from_tfrecord(tfrecord)
     if len(tile_dict) != len(locations):
@@ -1504,7 +1503,7 @@ def tfrecord_heatmap(
         slide=slide,
         tile_px=tile_px,
         tile_um=tile_um,
-        outdir=outdir,
+        filename=filename,
         **kwargs
     )
 
