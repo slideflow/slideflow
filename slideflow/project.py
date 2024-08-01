@@ -4166,7 +4166,7 @@ def create(
             cfg.rois = join(dirname(cfg_path), cfg.rois)
     elif cfg is None:
         cfg = sf.util.EasyDict(kwargs)
-    elif issubclass(cfg, project_utils._ProjectConfig):
+    elif issubclass(type(cfg), project_utils._ProjectConfig):
         cfg = sf.util.EasyDict(cfg.to_dict())
 
     if 'name' not in cfg:
