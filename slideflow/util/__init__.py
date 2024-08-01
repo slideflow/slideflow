@@ -1715,17 +1715,3 @@ def create_triangles(vertices, hole_vertices=None, hole_points=None):
     tessellated_vertices = tessellated_vertices.astype('float32')
 
     return tessellated_vertices
-
-def get_splits(splits_file, id=None):
-    """
-    Load splits from a file, returning the split corresponding to the given ID.
-    :param splits_file: Path to the splits file.
-    :param id: The ID of the split to return. Default to None, which returns all splits.
-    :return: The splits dictionary or the split corresponding to the given ID.
-    """
-    if not os.path.exists(splits_file):
-        raise FileNotFoundError(f"File not found: {splits_file}")
-    splits = load_json(splits_file)
-    if id is not None and id >= len(splits):
-        raise IndexError(f"Split ID {id} is out of range (0-{len(splits)-1}).")
-    return splits if id is None else splits[id]
