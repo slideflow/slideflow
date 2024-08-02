@@ -1112,7 +1112,7 @@ def contains_nested_subdirs(directory: str) -> bool:
 def path_to_name(path: str) -> str:
     '''Returns name of a file, without extension,
     from a given full path string.'''
-    _file = path.split('/')[-1]
+    _file = os.path.basename(path)
     dot_split = _file.split('.')
     if len(dot_split) == 1:
         return _file
@@ -1124,7 +1124,7 @@ def path_to_name(path: str) -> str:
 
 def path_to_ext(path: str) -> str:
     '''Returns extension of a file path string.'''
-    _file = path.split('/')[-1]
+    _file = os.path.basename(path)
     dot_split = _file.split('.')
     if len(dot_split) == 1:
         return ''
