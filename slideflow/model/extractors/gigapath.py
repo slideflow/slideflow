@@ -78,7 +78,7 @@ class GigapathFeatures(TorchFeatureExtractor):
 
         """
         return {
-            'class': 'slideflow.model.extractors.virchow.VirchowFeatures',
+            'class': 'slideflow.model.extractors.gigapath.GigapathFeatures',
             'kwargs': {
                 'weights': self._weights
             }
