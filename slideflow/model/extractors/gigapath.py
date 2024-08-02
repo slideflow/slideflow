@@ -69,6 +69,8 @@ class GigapathFeatures(TorchFeatureExtractor):
         self.transform = transforms.Compose(all_transforms)
         self.preprocess_kwargs = dict(standardize=False)
         self._weights = weights
+        self._resize = resize
+        self._center_crop = center_crop
 
     def dump_config(self):
         """Return a dictionary of configuration parameters.
@@ -80,7 +82,9 @@ class GigapathFeatures(TorchFeatureExtractor):
         return {
             'class': 'slideflow.model.extractors.gigapath.GigapathFeatures',
             'kwargs': {
-                'weights': self._weights
+                'weights': self._weights,
+                'resize': self._resize,
+                'center_crop': self._center_crop,
             }
         }
 
