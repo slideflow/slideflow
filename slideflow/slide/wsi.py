@@ -136,7 +136,7 @@ class WSI:
                 Defaults to None.
             artifact_rois (list(str), optional): List of ROI issue labels
                 to treat as artifacts. Whenever this is not None, all the ROIs with
-                referred label will be inverted with ROI.invert_roi().
+                referred label will be inverted with ROI.invert().
                 Defaults to an empty list.
 
         """
@@ -484,7 +484,7 @@ class WSI:
             if self.artifact_rois:
                 # Translate ROI issues polygons
                 translated_issues = [
-                    sa.translate(roi.invert_roi(self.dimensions).poly, x_offset, y_offset)
+                    sa.translate(roi.invert(*self.dimensions).poly, x_offset, y_offset)
                     for roi in self.rois if roi.label in self.artifact_rois
                 ]
 

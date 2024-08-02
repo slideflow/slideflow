@@ -134,7 +134,7 @@ class Otsu:
             ]
 
             scaled_issues_polys = [
-                sa.scale(roi.invert_roi(wsi.dimensions).poly, xfact=ofact, yfact=ofact, origin=(0, 0))
+                sa.scale(roi.invert(*wsi.dimensions).poly, xfact=ofact, yfact=ofact, origin=(0, 0))
                 for roi in wsi.rois if roi.label in wsi.artifact_rois
             ]
 

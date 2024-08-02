@@ -1606,7 +1606,7 @@ class Dataset:
                 outside the slide will be padded white. Defaults to False.
             artifact_rois (list(str) or str, optional): List of ROI issue labels
                 to treat as artifacts. Whenever this is not None, all the ROIs with
-                referred label will be inverted with ROI.invert_roi().
+                referred label will be inverted with ROI.invert().
                 Defaults to an empty list.
             mpp_override (float, optional): Override the microns-per-pixel
                 for each slide. If None, will auto-detect microns-per-pixel
