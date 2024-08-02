@@ -149,13 +149,19 @@ def nasnet_large_imagenet(tile_px, **kwargs):
 class TorchFeatureExtractor(BaseFeatureExtractor):
     """Feature extractor for PyTorch models."""
 
-    def __init__(self, channels_last=False, mixed_precision=True):
+    def __init__(
+        self, 
+        channels_last: bool = False, 
+        mixed_precision: bool = True
+    ) -> None:
         from .. import torch_utils
 
         super().__init__(backend='torch')
         self.device = torch_utils.get_device()
         self.channels_last = channels_last
         self.mixed_precision = mixed_precision
+        self.inference_mode = True
+        self.force_uint8 = True
 
     def _process_output(self, output):
         """Process model output."""
@@ -174,11 +180,14 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
                 f"{self.__class__.__name__} does not accept keyword arguments "
                 "when extracting features from a batch of images."
             )
-        assert obj.dtype == torch.uint8
+        if not (obj.dtype == torch.uint8) and self.force_uint8:
+            raise RuntimeError("Expected input to be a uint8 tensor, got: {}".format(
+                obj.dtype
+            ))
         obj = obj.to(self.device)
         obj = self.transform(obj)
         with autocast(self.device.type, mixed_precision=self.mixed_precision):
-            with torch.inference_mode():
+            with torch.inference_mode(self.inference_mode):
                 if self.channels_last:
                     obj = obj.to(memory_format=torch.channels_last)
                 return self._process_output(self.model(obj))
