@@ -194,6 +194,27 @@ class ROI:
             hole.simplify(tolerance)
         self.update_polygon()
 
+    def invert(self, width: int, height: int) -> "ROI":
+        """Invert the ROI within the bounds of a whole-slide image.
+
+        Args:
+            width (int): Width of the whole-slide image.
+            height (int): Height of the whole-slide image.
+
+        Returns:
+            ROI: Inverted ROI of shape (width, height) with this ROI as a hole.
+
+        """
+        # Ensure polygon is generated
+        self.update_polygon()
+        # Calculate polygon bounding box (whole-slide)
+        roi_wsi_coords = np.array([[0., 0.], [0., height], [width, height], [width, 0.]])
+        # Create the inverted ROI
+        inverted_ROI = ROI(name=self.name, coordinates=roi_wsi_coords)
+        # Add the hole to the ROI
+        inverted_ROI.add_hole(self)
+        return inverted_ROI
+
     def create_triangles(self) -> Optional[np.ndarray]:
         """Create a triangulated mesh from the polygon."""
 

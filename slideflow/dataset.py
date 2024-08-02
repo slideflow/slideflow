@@ -1493,6 +1493,7 @@ class Dataset:
         qc: Optional[Union[str, Callable, List[Callable]]] = None,
         report: bool = True,
         use_edge_tiles: bool = False,
+        artifact_labels: Optional[Union[List[str], str]] = list(),
         mpp_override: Optional[float] = None,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
@@ -1603,6 +1604,10 @@ class Dataset:
                 Defaults to None.
             use_edge_tiles (bool): Use edge tiles in extraction. Areas
                 outside the slide will be padded white. Defaults to False.
+            artifact_labels (list(str) or str, optional): List of ROI issue labels
+                to treat as artifacts. Whenever this is not None, all the ROIs with
+                referred label will be inverted with ROI.invert().
+                Defaults to an empty list.
             mpp_override (float, optional): Override the microns-per-pixel
                 for each slide. If None, will auto-detect microns-per-pixel
                 for all slides and raise an error if MPP is not found.
@@ -1627,6 +1632,9 @@ class Dataset:
             sources = list(self.sources.keys())
         all_reports = []
         self.verify_annotations_slides()
+
+        if isinstance(artifact_labels, str):
+            artifact_labels = [artifact_labels]
 
         # Log the active slide reading backend
         col = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
@@ -1749,6 +1757,7 @@ class Dataset:
                     'origin': 'random' if randomize_origin else (0, 0),
                     'pb': pb,
                     'use_edge_tiles': use_edge_tiles,
+                    'artifact_labels': artifact_labels,
                     'mpp': mpp_override
                 }
                 extraction_kwargs = {

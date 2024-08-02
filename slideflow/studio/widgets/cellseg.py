@@ -123,7 +123,8 @@ class CellSegWidget(Widget):
 
         # Apply ROIs to the segmentation, if applicable.
         if self.viz.wsi.roi_method != 'ignore' and self.viz.wsi.rois is not None:
-            self.segmentation.apply_rois(1, [r.poly for r in self.viz.wsi.rois])
+            rois = self.viz.wsi.get_rois(ignore_artifact=True)
+            self.segmentation.apply_rois(1, [r.poly for r in rois])
 
         self.refresh_segmentation_view()
         self._load_toast.done()

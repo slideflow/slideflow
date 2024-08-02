@@ -66,6 +66,7 @@ class WSI:
         use_edge_tiles: bool = False,
         mpp: Optional[float] = None,
         simplify_roi_tolerance: Optional[float] = None,
+        artifact_labels: Optional[List[str]] = None,
         **reader_kwargs: Any
     ) -> None:
         """Loads slide and ROI(s).
@@ -133,6 +134,10 @@ class WSI:
                 ``FLIP_HORIZONTAL``, and ``FLIP_VERTICAL``. **Only available
                 when using Libvips** (``SF_SLIDE_BACKEND=libvips``).
                 Defaults to None.
+            artifact_labels (list(str), optional): List of ROI issue labels
+                to treat as artifacts. Whenever this is not None, all the ROIs with
+                referred label will be inverted with ROI.invert().
+                Defaults to an empty list.
 
         """
         # Initialize calculated variables
@@ -163,6 +168,9 @@ class WSI:
         self._mpp_override = mpp
         self._reader_kwargs = reader_kwargs
         self.grid: np.ndarray
+        self.artifact_labels = artifact_labels # type: Optional[List[str]]
+        if self.artifact_labels is None:
+            self.artifact_labels = []
 
         if isinstance(origin, str) and origin != 'random':
             raise ValueError(
@@ -371,6 +379,119 @@ class WSI:
     def __setstate__(self, state):
         self.__dict__.update(state)
 
+    def _rasterize_rois_to_grid(
+        self,
+        rois: List["ROI"],
+        x_offset: float = 0,
+        y_offset: float = 0,
+        xfact: float = 1.,
+        yfact: float = 1.,
+        *,
+        grid_scale: int = 1,
+        invert: bool = False
+    ) -> np.ndarray:
+        """Rasterize ROIs to the size of the tile extraction grid.
+
+        Args:
+            rois (List[ROI]): ROIs to rasterize.
+            x_offset (float): Offset to align the ROI polygons with the image tile grid.
+            y_offset (float): Offset to align the ROI polygons with the image tile grid.
+            xfact (float): Scaling factor along x dimension.
+            yfact (float): Scaling factor along y dimension.
+
+        Keyword Args:
+            grid_scale (int): Scaling factor for the grid. Defaults to 1.
+            invert (bool): Whether to invert the ROI. Defaults to False.
+
+        Returns:
+            Optional[np.ndarray]: Rasterized ROIs.
+
+        """
+        def _get_poly(_roi):
+            if invert:
+                return _roi.invert(*self.dimensions).poly
+            else:
+                return _roi.poly
+
+        # Convert ROIs to polygons.
+        polys = list(map(_get_poly, rois))
+
+        # Translate and scale.
+        if x_offset or y_offset:
+            polys = [sa.translate(poly, x_offset, y_offset) for poly in polys]
+        if xfact != 1 or yfact != 1:
+            polys = self._scale_polys(polys, xfact * grid_scale, yfact * grid_scale)
+
+        # Rasterize polygons to the size of the tile extraction grid.
+        return self._rasterize_polys(
+            polys,
+            grid_scale=grid_scale,
+            intersection=('min' if invert else 'max')
+        )
+
+    def _rasterize_polys(
+        self,
+        polys: List["sg.Polygon"],
+        *,
+        grid_scale: float = 1,
+        intersection: str = 'max'
+    ) -> np.ndarray:
+        """Rasterize polygons to the size of the tile extraction grid.
+
+        Args:
+            polys (List[sg.Polygon]): Polygons to rasterize.
+
+        Keyword args:
+            scale (float): Scaling factor for the grid.
+                Defaults to 1.
+            intersection (str): Method for combining multiple polygons.
+                Either 'max' or 'min'. 'max' yields the union of the polygons,
+                'min' yields the intersection. Defaults to 'max'.
+
+        Returns:
+            np.ndarray: Rasterized polygons.
+        """
+        # Rasterize polygons for ROIs individually, to keep track of
+        # which ROI each tile belongs to, then merge.
+        roi_grid = np.stack([
+            rasterio.features.rasterize(
+                [poly],
+                out_shape=(self.grid.shape[1] * grid_scale,
+                           self.grid.shape[0] * grid_scale),
+                all_touched=False).astype(bool).astype(int) * (i + 1)
+            for i, poly in enumerate(polys)
+        ], axis=0)
+        if intersection == 'max':
+            return roi_grid.max(axis=0).T
+        elif intersection == 'min':
+            return roi_grid.min(axis=0).T
+        else:
+            raise ValueError(
+                f"Unrecognized value for 'intersection': {intersection}"
+            )
+
+    def _scale_polys(
+        self,
+        polys: List["sg.Polyon"],
+        xfact: float,
+        yfact: float,
+    ):
+        """Scale polygons.
+
+        Args:
+            polys (List[sg.Polygon]): Polygons to scale.
+            xfact (float): Scaling factor along x dimension.
+            yfact (float): Scaling factor along y dimension.
+
+        Returns:
+            List[sg.Polygon]: Scaled polygons.
+
+        """
+        return [
+            sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
+            for poly in polys
+        ]
+
     def _build_coord(self) -> None:
         """Set up coordinate grid for image tiles.
 
@@ -446,32 +567,33 @@ class WSI:
             x_offset = - (full_extract/2 - stride/2)
             y_offset = - (full_extract/2 - stride/2)
 
-            # Translate ROI polygons
-            translated = [
-                sa.translate(roi.poly, x_offset, y_offset)
-                for roi in self.rois
-            ]
+            # Separate ROIs by whether they are artifact or not
+            rois = self.get_rois(ignore_artifact=True)
+            artifacts = self.get_artifacts()
 
-            # Set scale to 50 times greater than grid size
-            # if filtering by float
-            o = 1 if roi_by_center else 50
+            # Prepare ROI rasterization arguments
+            rasterize_kw = dict(
+                x_offset=x_offset,
+                y_offset=y_offset,
+                xfact=xfact,
+                yfact=yfact,
+                grid_scale=(1 if roi_by_center else 50),
+            )
 
-            # Scale ROI polygons
-            scaled = [
-                sa.scale(poly, xfact=xfact * o, yfact=yfact * o, origin=(0, 0))
-                for poly in translated
-            ]
+            # Rasterize ROIs to the grid
+            if len(rois):
+                self.roi_grid = self._rasterize_rois_to_grid(rois, **rasterize_kw)
+            else:
+                self.roi_grid = None
 
-            # Rasterize polygons to the size of the tile extraction grid.
-            # Rasterize polygons for ROIs individually, to keep track of
-            # which ROI each tile belongs to, then merge.
-            self.roi_grid = np.stack([
-                rasterio.features.rasterize(
-                    [scaled_roi],
-                    out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
-                    all_touched=False).astype(bool).astype(int) * (i + 1)
-                for i, scaled_roi in enumerate(scaled)
-            ], axis=0).max(axis=0).T
+            # If there are artifact ROIs, rasterize these to the grid
+            # and subtract them from the main ROI grid.
+            if len(artifacts):
+                roi_grid_issues = self._rasterize_rois_to_grid(artifacts, invert=True, **rasterize_kw)
+                if self.roi_grid is None:
+                    self.roi_grid = roi_grid_issues
+                else:
+                    self.roi_grid = np.minimum(roi_grid_issues, self.roi_grid)
 
             # Create a merged boolean mask.
             self.roi_mask = self.roi_grid.T.astype(bool)  # type: ignore
@@ -1297,7 +1419,8 @@ class WSI:
         # Filter out masks outside of ROIs, if present.
         if self.has_rois():
             log.debug(f"Applying {len(self.rois)} ROIs to segmentation.")
-            segmentation.apply_rois(1, [r.poly for r in self.rois])
+            rois = self.get_rois(ignore_artifact=True)
+            segmentation.apply_rois(1, [r.poly for r in rois])
 
         if segmentation.slide is None:
             segmentation.slide = self
@@ -1779,6 +1902,29 @@ class WSI:
             self.coord,
             mask=~np.repeat(unmasked_coord_indices[:, None], 4, axis=1)
         )
+
+    def get_rois(self, ignore_artifact: bool = False) -> List[ROI]:
+        """Get a list of ROIs.
+
+        Args:
+            ignore_artifact (bool): Ignore artifact ROIs. Defaults to False.
+
+        Returns:
+            List[ROI]: List of ROI objects.
+
+        """
+        if ignore_artifact:
+            return [roi for roi in self.rois if roi.label not in self.artifact_labels]
+        return self.rois
+
+    def get_artifacts(self) -> List[ROI]:
+        """Get a list of artifact ROIs.
+
+        Returns:
+            List[ROI]: List of artifact ROI objects.
+
+        """
+        return [roi for roi in self.rois if roi.label in self.artifact_labels]
 
     def get_roi_by_name(self, name: str) -> Optional[ROI]:
         """Get an ROI by its name.
@@ -2899,6 +3045,26 @@ class WSI:
             del self.rois[i]
         if process:
             self.process_rois()
+
+    def set_artifacts(
+        self,
+        artifact_labels: Optional[Union[str, List[str]]]
+    ) -> None:
+        """Set artifact labels for all ROIs in the slide.
+
+        Rebuilds the ROI grid after setting the artifacts.
+
+        Args:
+            artifact_labels (str, list(str)): Artifact label(s) to set.
+                ROIs with these labels will be marked as artifacts.
+
+        """
+        if isinstance(artifact_labels, str):
+            artifact_labels = [artifact_labels]
+        if artifact_labels is not None and not all(isinstance(label, str) for label in artifact_labels):
+            raise TypeError("Artifact labels must be strings.")
+        self.artifact_labels = artifact_labels if artifact_labels is not None else []
+        self.process_rois()
 
     def show_alignment(
         self,
