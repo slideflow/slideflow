@@ -3253,4 +3253,7 @@ class WSI:
 
         studio = Studio()
         studio.load_slide(self.path, stride=self.stride_div, tile_px=self.tile_px, tile_um=self.tile_um)
+        if self.has_rois():
+            studio.wsi.rois = self.rois
+            studio.wsi.process_rois()
         studio.run()
