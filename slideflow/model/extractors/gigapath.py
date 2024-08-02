@@ -27,8 +27,8 @@ class GigapathFeatures(TorchFeatureExtractor):
     ...
 """
 
-    def __init__(self, weights=None, device='cuda'):
-        super().__init__()
+    def __init__(self, weights=None, device='cuda', **kwargs):
+        super().__init__(**kwargs)
 
         from slideflow.model import torch_utils
 
@@ -103,13 +103,25 @@ class GigapathSlideFeatures:
             weights=tile_encoder_weights,
             device=self.device,
         )
+        if slide_encoder_weights is None:
+            slide_encoder_weights = "hf_hub:prov-gigapath/prov-gigapath"
         self.slide_encoder = slide_encoder.create_model(
-            "hf_hub:prov-gigapath/prov-gigapath",
+            slide_encoder_weights,
             "gigapath_slide_enc12l768d",
             1536,
             global_pool=global_pool
         ).to(self.device)
         self.slide_encoder.eval()
+
+    def _reshape_coords(self, coords, height, width):
+        tile_x = coords[:, 0]
+        tile_y = coords[:, 1]
+        grid_x = coords[:, 2]
+        grid_y = coords[:, 3]
+        coord_grid = np.zeros((height, width, 2), dtype=tile_x.dtype)
+        coord_grid[grid_y, grid_x, 0] = tile_x
+        coord_grid[grid_y, grid_x, 1] = tile_y
+        return coord_grid
 
     def __call__(self, wsi):
         """Generate whole-slide feature embedding."""
@@ -122,14 +134,8 @@ class GigapathSlideFeatures:
 
         # Get coordinates and reshape into a grid
         coords = wsi.get_tile_coord(anchor='center')
-        tile_x = coords[:, 0]
-        tile_y = coords[:, 1]
-        grid_x = coords[:, 2]
-        grid_y = coords[:, 3]
         width, height = wsi.shape
-        coord_grid = np.zeros((height, width, 2), dtype=tile_x.dtype)
-        coord_grid[grid_y, grid_x, 0] = tile_x
-        coord_grid[grid_y, grid_x, 1] = tile_y
+        coord_grid = self._reshape_coords(coords, height, width)
 
         # Reshape grids to (1, n_tiles, 1536)
         tile_embeds = torch.from_numpy(embed_grid[unmasked_indices].data)
