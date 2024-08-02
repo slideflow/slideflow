@@ -27,7 +27,7 @@ class GigapathFeatures(TorchFeatureExtractor):
     ...
 """
 
-    def __init__(self, weights=None, device='cuda', **kwargs):
+    def __init__(self, weights=None, device='cuda', resize=256, center_crop=224, **kwargs):
         super().__init__(**kwargs)
 
         from slideflow.model import torch_utils
@@ -47,10 +47,19 @@ class GigapathFeatures(TorchFeatureExtractor):
         self.num_features = 1536
         # This preprocessing, with resizing to 256 followed by
         # center crop to 224, is the same as the original Gigapath
-        all_transforms = [
-            transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
-            transforms.CenterCrop(224),
-        ]
+        all_transforms = []
+
+        if resize:
+            all_transforms += [
+                transforms.Resize(
+                    256 if resize is True else resize,
+                    interpolation=transforms.InterpolationMode.BICUBIC),
+            ]
+        if center_crop:
+            all_transforms += [
+                transforms.CenterCrop(
+                    224 if center_crop is True else center_crop),
+            ]
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
             transforms.Normalize(
