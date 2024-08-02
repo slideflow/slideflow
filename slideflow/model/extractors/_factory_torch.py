@@ -21,6 +21,11 @@ def build_torch_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_torch
+def gigapath(**kwargs):
+    from .gigapath import GigapathFeatures
+    return GigapathFeatures(**kwargs)
+
+@register_torch
 def virchow(weights, **kwargs):
     from .virchow import VirchowFeatures
     return VirchowFeatures(weights, **kwargs)
