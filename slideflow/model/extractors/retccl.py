@@ -285,8 +285,8 @@ class RetCCLFeatures(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, device=None, center_crop=False, resize=False, ckpt=None):
-        super().__init__()
+    def __init__(self, device=None, center_crop=False, resize=False, ckpt=None, **kwargs):
+        super().__init__(**kwargs)
 
         from slideflow.model import torch_utils
 

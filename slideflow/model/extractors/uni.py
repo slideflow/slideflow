@@ -42,8 +42,8 @@ class UNIFeatures(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, weights, device='cuda', center_crop=False, resize=False):
-        super().__init__()
+    def __init__(self, weights, device='cuda', center_crop=False, resize=False, **kwargs):
+        super().__init__(**kwargs)
 
         from slideflow.model import torch_utils
 

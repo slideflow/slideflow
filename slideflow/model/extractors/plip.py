@@ -51,8 +51,8 @@ class PLIPFeatures(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, device=None, center_crop=False, resize=False):
-        super().__init__()
+    def __init__(self, device=None, center_crop=False, resize=False, **kwargs):
+        super().__init__(**kwargs)
 
         from slideflow.model import torch_utils
 
