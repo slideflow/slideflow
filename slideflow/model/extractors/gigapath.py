@@ -35,7 +35,7 @@ class GigapathFeatures(TorchFeatureExtractor):
         self.device = torch_utils.get_device(device)
         self.model = timm.create_model(
             "hf_hub:prov-gigapath/prov-gigapath", 
-            pretrained=(weights is not None)
+            pretrained=(weights is None)
         )
         if weights is not None:
             td = torch.load(weights, map_location=self.device)
