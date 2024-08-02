@@ -391,7 +391,7 @@ class MILWidget(Widget):
             normalizer = self.normalizers[i]
 
             # Load the slide.
-            wsi = self.viz._reload_and_return_wsi(
+            wsi = self.viz._load_and_return_wsi(
                 self.viz.wsi.path,
                 tile_um=params['tile_um'],
                 tile_px=params['tile_px'],

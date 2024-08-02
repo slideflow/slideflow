@@ -420,7 +420,7 @@ class SlideWidget:
 
     def load(
         self,
-        slide: str,
+        slide: Union[str, sf.WSI],
         stride: Optional[int] = None,
         ignore_errors: bool = False,
         mpp: Optional[float] = None,
@@ -429,7 +429,8 @@ class SlideWidget:
         """Load a slide.
 
         Args:
-            slide (str): The path to the slide to load.
+            slide (str, sf.WSI): The slide to load. May be a slide path or 
+                ``sf.WSI`` object.
             stride (int, optional): The stride to use when extracting tiles.
                 If a slide is currently loaded and this value is not None, this
                 will override the current stride. Defaults to None.
@@ -458,17 +459,32 @@ class SlideWidget:
         # Wrap the entire slide loading function in a try-catch block
         # to gracefully handle errors without crashing the application
         try:
+            # Preparations.
             if hasattr(viz, 'close_gan'):
                 viz.close_gan()
-            name = slide.replace('\\', '/').split('/')[-1]
-            self.cur_slide = slide
-            self.user_slide = slide
-            self.manual_mpp = mpp
+
+            
+            if isinstance(slide, str):
+                slide_path = slide
+            elif isinstance(slide, sf.WSI):
+                slide_path = slide.path
+            else:
+                raise ValueError(
+                    "Error in load(): Expected slide to be type 'str' or "
+                    f"'WSI', got: {type(slide)}"
+                )
+
+            self.manual_mpp = mpp    
+            self.cur_slide = slide_path
+            self.user_slide = slide_path
+            name = slide_path.replace('\\', '/').split('/')[-1]
             viz.set_message(f'Loading {name}...')
-            sf.log.debug(f"Loading slide {slide}...")
+            sf.log.debug(f"Loading slide {slide_path}...")
             viz.defer_rendering()
             if stride is not None:
                 self.stride = stride
+            
+            # Load the slide.
             try:
                 success = viz.reload_wsi(
                     slide,
@@ -481,15 +497,17 @@ class SlideWidget:
                     return
             except sf.errors.SlideMissingMPPError:
                 self.cur_slide = None
-                self.user_slide = slide
+                self.user_slide = slide_path
                 self._show_mpp_popup = True
                 self._mpp_reload_kwargs = dict(
-                    slide=slide,
+                    slide=slide_path,
                     stride=stride,
                     ignore_errors=ignore_errors,
                     **kwargs
                 )
                 return
+            
+            # Clear the heatmap, if one exists.
             viz.heatmap_widget.reset()
 
             # Generate WSI thumbnail.

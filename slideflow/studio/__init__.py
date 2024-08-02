@@ -846,7 +846,7 @@ class Studio(ImguiWindow):
             dy=int(dy * self.pixel_ratio)
         )
 
-    def _reload_and_return_wsi(
+    def _load_and_return_wsi(
         self,
         path: Optional[str] = None,
         stride: Optional[int] = None,
@@ -855,7 +855,7 @@ class Studio(ImguiWindow):
         tile_um: Optional[Union[str, int]] = None,
         **kwargs
     ) -> Optional[sf.WSI]:
-        """Reload and return a Whole-Slide Image, with modified parameters.
+        """Load and return a Whole-Slide Image, with modified parameters.
 
         Args:
             path (str, optional): Path to the slide to reload. If not provided,
@@ -954,7 +954,7 @@ class Studio(ImguiWindow):
 
     def reload_wsi(
         self,
-        path: Optional[str] = None,
+        slide: Optional[Union[str, sf.WSI]] = None,
         stride: Optional[int] = None,
         use_rois: bool = True,
         tile_px: Optional[int] = None,
@@ -964,8 +964,9 @@ class Studio(ImguiWindow):
         """Reload the currently loaded Whole-Slide Image.
 
         Args:
-            path (str, optional): Path to the slide to reload. If not provided,
-                will reload the currently loaded slide.
+            path (str or sf.WSI, optional): Slide to reload. May be a path
+                or a sf.WSI object. If not provided, will reload the 
+                currently loaded slide.
             stride (int, optional): Stride to use for the loaded slide. If not
                 provided, will use the stride value from the currently loaded
                 slide.
@@ -975,9 +976,13 @@ class Studio(ImguiWindow):
             bool: True if slide loaded successfully, False otherwise.
 
         """
-        wsi = self._reload_and_return_wsi(
-            path, stride, use_rois, tile_px, tile_um, **kwargs
-        )
+        if isinstance(slide, sf.WSI):
+            wsi = slide
+        else:
+            wsi = self._load_and_return_wsi(
+                slide, stride, use_rois, tile_px, tile_um, **kwargs
+            )
+
         if wsi:
             self.wsi = wsi
             old_viewer = self.viewer
