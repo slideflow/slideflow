@@ -22,8 +22,8 @@ def build_torch_feature_extractor(name, **kwargs):
 
 @register_torch
 def gigapath(**kwargs):
-    from .gigapath import GigapathFeatures
-    return GigapathFeatures(**kwargs)
+    from .gigapath import GigapathTileFeatures
+    return GigapathTileFeatures(**kwargs)
 
 @register_torch
 def virchow(weights, **kwargs):

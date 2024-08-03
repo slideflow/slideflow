@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 # -----------------------------------------------------------------------------
 
-class GigapathFeatures(TorchFeatureExtractor):
+class GigapathTileFeatures(TorchFeatureExtractor):
     """Gigapath pretrained feature extractor.
 
     ...
@@ -86,7 +86,7 @@ class GigapathFeatures(TorchFeatureExtractor):
 
         """
         return {
-            'class': 'slideflow.model.extractors.gigapath.GigapathFeatures',
+            'class': 'slideflow.model.extractors.gigapath.GigapathTileFeatures',
             'kwargs': {
                 'weights': self._weights,
                 'resize': self._resize,
@@ -118,7 +118,7 @@ class GigapathSlideFeatures:
         self.device = torch_utils.get_device(device)
 
         # Build the encoders.
-        self.tile_encoder = GigapathFeatures(
+        self.tile_encoder = GigapathTileFeatures(
             weights=tile_encoder_weights,
             device=self.device,
         )
