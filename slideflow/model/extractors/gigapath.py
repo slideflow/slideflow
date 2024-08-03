@@ -202,15 +202,18 @@ class GigapathFeatures:
             device (str): Device to use for inference. Defaults to 'cuda'.
 
         """
+        from slideflow.model import torch_utils
+
+        self.device = torch_utils.get_device(device)
         self.tile_encoder = GigapathTileFeatures(
             weights=tile_encoder_weights,
-            device=device,
+            device=self.device,
             **kwargs
         )
         self.slide_encoder = GigapathSlideFeatures(
             slide_encoder_weights,
             global_pool=global_pool,
-            device=device
+            device=self.device
         )
 
     def _reshape_coords(self, coords: np.ndarray, height: int, width: int) -> np.ndarray:
