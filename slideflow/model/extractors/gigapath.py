@@ -1,10 +1,15 @@
 import timm
 import torch
 import numpy as np
+from tqdm import tqdm
 from torchvision import transforms
-from typing import Optional
+from typing import Optional, List, TYPE_CHECKING
+from slideflow.util.tfrecord2idx import find_index
 
 from ._factory_torch import TorchFeatureExtractor
+
+if TYPE_CHECKING:
+    from slideflow import WSI, Dataset
 
 # -----------------------------------------------------------------------------
 
@@ -126,7 +131,18 @@ class GigapathSlideFeatures:
         ).to(self.device)
         self.slide_encoder.eval()
 
-    def _reshape_coords(self, coords, height, width):
+    def _reshape_coords(self, coords: np.ndarray, height: int, width: int) -> np.ndarray:
+        """Reshape tile coordinates into a grid.
+
+        Args:
+            coords (np.ndarray): Tile coordinates.
+            height (int): Slide height.
+            width (int): Slide width.
+
+        Returns:
+            np.ndarray: Grid of tile coordinates.
+
+        """
         tile_x = coords[:, 0]
         tile_y = coords[:, 1]
         grid_x = coords[:, 2]
@@ -136,11 +152,16 @@ class GigapathSlideFeatures:
         coord_grid[grid_y, grid_x, 1] = tile_y
         return coord_grid
 
-    def __call__(self, wsi):
-        """Generate whole-slide feature embedding."""
+    def __call__(self, wsi: "WSI") -> torch.Tensor:
+        """Generate whole-slide feature embedding.
 
-        from slideflow.model.torch import autocast
+        Args:
+            wsi (WSI): Whole-slide image.
 
+        Returns:
+            torch.Tensor: Whole-slide embedding.
+
+        """
         # Generate tile embeddings
         embed_grid = self.tile_encoder(wsi)
         unmasked_indices = np.where(~embed_grid.mask.any(axis=-1))
@@ -157,9 +178,67 @@ class GigapathSlideFeatures:
         coords = coords.unsqueeze(0).to(self.device)
 
         # Run slide inference
+        return self.run_inference(tile_embeds, coords)
+
+    def run_inference(self, tile_embed: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
+        """Run inference on a single slide.
+
+        Args:
+            tile_embed (torch.Tensor): Tile embeddings. Shape: (1, n_tiles, 1536).
+            coords (torch.Tensor): Tile coordinates. Shape: (1, n_tiles, 2).
+
+        Returns:
+            torch.Tensor: Whole-slide embedding.
+
+        """
+        from slideflow.model.torch import autocast
+
         with autocast(self.device.type, torch.float16):
             with torch.inference_mode():
-                return self.slide_encoder(tile_embeds, coords)
+                return self.slide_encoder(tile_embed, coords)
 
+    def inference_from_bags(self, bags: List[str], indices: List[str]) -> torch.Tensor:
+        """Run inference on a set of bags.
 
+        Args:
+            bags (List[str]): List of paths to bags (tile embeddings).
+            indices (List[str]): List of paths to bag indices (tile coordinates).
 
+        Returns:
+            torch.Tensor: Whole-slide embeddings.
+
+        """
+        slide_embeds = []
+        for bag, index in tqdm(zip(bags, indices), total=len(bags)):
+            tile_embed = torch.load(bag).unsqueeze(0).to(self.device)
+            coords = torch.from_numpy(np.load(index)['arr_0']).unsqueeze(0).to(self.device)
+            slide_embed = self.run_inference(tile_embed, coords)[0]
+            slide_embeds.append(slide_embed)
+        return torch.cat(slide_embeds, dim=0)
+
+# -----------------------------------------------------------------------------
+
+def generate_slide_embeddings(
+    dataset: "Dataset",
+    bags_path: str,
+    **kwargs
+) -> torch.Tensor:
+    """Generate slide embeddings from a dataset.
+
+    Args:
+        dataset (Dataset): Dataset.
+        bags_path (str): Path to bags.
+
+    Returns:
+        torch.Tensor: Slide embeddings.
+
+    """
+    # Initialize Gigapath
+    prov_gigapath = GigapathSlideFeatures(**kwargs)
+
+    # Load bags & coords
+    bags = dataset.pt_files(bags_path)
+    coords = [find_index(b) for b in bags]
+
+    # Inference
+    return prov_gigapath.inference_from_bags(bags, coords)
