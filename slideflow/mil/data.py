@@ -113,6 +113,7 @@ class BagDataset(Dataset):
         self.bags = bags
         self.bag_size = bag_size
         self.preload = preload
+        self.dtype = torch.float16
 
         if self.preload:
             self.bags = [self._load(i) for i in range(len(self.bags))]
@@ -122,14 +123,14 @@ class BagDataset(Dataset):
 
     def _load(self, index: int):
         if isinstance(self.bags[index], str):
-            feats = torch.load(self.bags[index]).to(torch.float32)
+            feats = torch.load(self.bags[index]).to(self.dtype)
         elif isinstance(self.bags[index], np.ndarray):
-            feats = torch.from_numpy(self.bags[index]).to(torch.float32)
+            feats = torch.from_numpy(self.bags[index]).to(self.dtype)
         elif isinstance(self.bags[index], torch.Tensor):
             feats = self.bags[index]
         else:
             feats = torch.cat([
-                torch.load(slide).to(torch.float32)
+                torch.load(slide).to(self.dtype)
                 for slide in self.bags[index]
             ])
         return feats
