@@ -208,13 +208,15 @@ def _eval_mil(
         pred_out = join(model_dir, 'predictions.parquet')
         df.to_parquet(pred_out)
         log.info(f"Predictions saved to [green]{pred_out}[/]")
+    else:
+        model_dir = None
 
     # Print categorical metrics, including per-category accuracy
     outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
     metrics_df = df.rename(
         columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
     )
-    sf.stats.metrics.categorical_metrics(metrics_df, level='slide', data_dir=outdir)
+    sf.stats.metrics.categorical_metrics(metrics_df, level='slide', data_dir=model_dir)
 
     # Export attention
     if outdir and y_att:
@@ -313,13 +315,15 @@ def _eval_multimodal_mil(
         pred_out = join(model_dir, 'predictions.parquet')
         df.to_parquet(pred_out)
         log.info(f"Predictions saved to [green]{pred_out}[/]")
+    else:
+        model_dir = None
 
     # Print categorical metrics, including per-category accuracy
     outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
     metrics_df = df.rename(
         columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
     )
-    sf.stats.metrics.categorical_metrics(metrics_df, level='slide', data_dir=outdir)
+    sf.stats.metrics.categorical_metrics(metrics_df, level='slide', data_dir=model_dir)
 
     # Export attention
     if outdir and y_att:
