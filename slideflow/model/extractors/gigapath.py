@@ -17,20 +17,25 @@ if TYPE_CHECKING:
 class GigapathTileFeatures(TorchFeatureExtractor):
     """Gigapath pretrained feature extractor.
 
-    ...
+    This class is used to extract tile-level features from Gigapath.
 
     Feature dimensions: 1536
 
-    Manuscript: ...
+    Manuscript: https://aka.ms/gigapath
 
-    Hugging Face: ...
+    Hugging Face: https://huggingface.co/prov-gigapath/prov-gigapath
 
     """
-
     tag = 'gigapath'
-    license = """..."""
+    license = """License available at https://github.com/prov-gigapath/prov-gigapath"""
     citation = """
-    ...
+@article{xu2024gigapath,
+  title={A whole-slide foundation model for digital pathology from real-world data},
+  author={Xu, Hanwen and Usuyama, Naoto and Bagga, Jaspreet and Zhang, Sheng and Rao, Rajesh and Naumann, Tristan and Wong, Cliff and Gero, Zelalem and González, Javier and Gu, Yu and Xu, Yanbo and Wei, Mu and Wang, Wenhui and Ma, Shuming and Wei, Furu and Yang, Jianwei and Li, Chunyuan and Gao, Jianfeng and Rosemon, Jaylen and Bower, Tucker and Lee, Soohee and Weerasinghe, Roshanthi and Wright, Bill J. and Robicsek, Ari and Piening, Brian and Bifulco, Carlo and Wang, Sheng and Poon, Hoifung},
+  journal={Nature},
+  year={2024},
+  publisher={Nature Publishing Group UK London}
+}
 """
 
     def __init__(self, weights=None, device='cuda', resize=256, center_crop=224, **kwargs):
@@ -96,13 +101,16 @@ class GigapathTileFeatures(TorchFeatureExtractor):
 
 # -----------------------------------------------------------------------------
 
-class GigapathSlideFeatures:
-    """Gigapath whole-slide feature embedding generator."""
 
+class GigapathSlideFeatures:
+    """Gigapath slide-level feature embedding generator.
+
+    This class is used to generate slide-level embeddings from tile-level embeddings.
+
+    """
     def __init__(
         self,
-        tile_encoder_weights: Optional[str] = None,
-        slide_encoder_weights: Optional[str] = None,
+        weights: Optional[str] = None,
         *,
         global_pool: bool = False,
         device: str = 'cuda',
@@ -117,20 +125,93 @@ class GigapathSlideFeatures:
 
         self.device = torch_utils.get_device(device)
 
-        # Build the encoders.
-        self.tile_encoder = GigapathTileFeatures(
-            weights=tile_encoder_weights,
-            device=self.device,
-        )
-        if slide_encoder_weights is None:
-            slide_encoder_weights = "hf_hub:prov-gigapath/prov-gigapath"
+        # Build the encoder.
+        if weights is None:
+            weights = "hf_hub:prov-gigapath/prov-gigapath"
         self.slide_encoder = slide_encoder.create_model(
-            slide_encoder_weights,
+            weights,
             "gigapath_slide_enc12l768d",
             1536,
             global_pool=global_pool
         ).to(self.device)
         self.slide_encoder.eval()
+
+    def run_inference(self, tile_embed: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
+        """Run inference on a single slide.
+
+        Args:
+            tile_embed (torch.Tensor): Tile embeddings. Shape: (1, n_tiles, 1536).
+            coords (torch.Tensor): Tile coordinates. Shape: (1, n_tiles, 2).
+
+        Returns:
+            torch.Tensor: Whole-slide embedding.
+
+        """
+        from slideflow.model.torch import autocast
+
+        with autocast(self.device.type, torch.float16):
+            with torch.inference_mode():
+                return self.slide_encoder(tile_embed, coords)
+
+    def inference_from_bags(self, bags: List[str], indices: List[str]) -> torch.Tensor:
+        """Run inference on a set of bags.
+
+        Args:
+            bags (List[str]): List of paths to bags (tile embeddings).
+            indices (List[str]): List of paths to bag indices (tile coordinates).
+
+        Returns:
+            torch.Tensor: Whole-slide embeddings.
+
+        """
+        slide_embeds = []
+        for bag, index in tqdm(zip(bags, indices), total=len(bags)):
+            tile_embed = torch.load(bag).unsqueeze(0).to(self.device)
+            coords = torch.from_numpy(np.load(index)['arr_0']).unsqueeze(0).to(self.device)
+            slide_embed = self.run_inference(tile_embed, coords)[0]
+            slide_embeds.append(slide_embed)
+        return torch.cat(slide_embeds, dim=0)
+
+# -----------------------------------------------------------------------------
+
+class GigapathFeatures:
+    """Gigapath whole-slide feature embedding generator.
+
+    This class is used to generate whole-slide embeddings from a whole-slide image.
+
+    """
+    def __init__(
+        self,
+        tile_encoder_weights: Optional[str] = None,
+        slide_encoder_weights: Optional[str] = None,
+        *,
+        global_pool: bool = False,
+        device: str = 'cuda',
+        **kwargs
+    ):
+        """Initialize the Gigapath slide feature generator.
+
+        Args:
+            tile_encoder_weights (Optional[str]): Path to tile encoder weights.
+                If not provided, the model will be loaded from the Hugging Face model hub.
+                Defaults to None.
+            slide_encoder_weights (Optional[str]): Path to slide encoder weights.
+                If not provided, the model will be loaded from the Hugging Face model hub.
+                Defaults to None.
+            global_pool (bool): Use global pooling. Defaults to False.
+            device (str): Device to use for inference. Defaults to 'cuda'.
+
+        """
+        self.tile_encoder = GigapathTileFeatures(
+            weights=tile_encoder_weights,
+            device=device,
+            **kwargs
+        )
+        self.slide_encoder = GigapathSlideFeatures(
+            slide_encoder_weights,
+            global_pool=global_pool,
+            device=device
+        )
 
     def _reshape_coords(self, coords: np.ndarray, height: int, width: int) -> np.ndarray:
         """Reshape tile coordinates into a grid.
@@ -179,43 +260,8 @@ class GigapathSlideFeatures:
         coords = coords.unsqueeze(0).to(self.device)
 
         # Run slide inference
-        return self.run_inference(tile_embeds, coords)
+        return self.slide_encoder.run_inference(tile_embeds, coords)
 
-    def run_inference(self, tile_embed: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
-        """Run inference on a single slide.
-
-        Args:
-            tile_embed (torch.Tensor): Tile embeddings. Shape: (1, n_tiles, 1536).
-            coords (torch.Tensor): Tile coordinates. Shape: (1, n_tiles, 2).
-
-        Returns:
-            torch.Tensor: Whole-slide embedding.
-
-        """
-        from slideflow.model.torch import autocast
-
-        with autocast(self.device.type, torch.float16):
-            with torch.inference_mode():
-                return self.slide_encoder(tile_embed, coords)
-
-    def inference_from_bags(self, bags: List[str], indices: List[str]) -> torch.Tensor:
-        """Run inference on a set of bags.
-
-        Args:
-            bags (List[str]): List of paths to bags (tile embeddings).
-            indices (List[str]): List of paths to bag indices (tile coordinates).
-
-        Returns:
-            torch.Tensor: Whole-slide embeddings.
-
-        """
-        slide_embeds = []
-        for bag, index in tqdm(zip(bags, indices), total=len(bags)):
-            tile_embed = torch.load(bag).unsqueeze(0).to(self.device)
-            coords = torch.from_numpy(np.load(index)['arr_0']).unsqueeze(0).to(self.device)
-            slide_embed = self.run_inference(tile_embed, coords)[0]
-            slide_embeds.append(slide_embed)
-        return torch.cat(slide_embeds, dim=0)
 
 # -----------------------------------------------------------------------------
 
