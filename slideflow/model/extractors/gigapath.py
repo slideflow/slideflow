@@ -1,9 +1,10 @@
+import slideflow as sf
 import timm
 import torch
 import numpy as np
 from tqdm import tqdm
 from torchvision import transforms
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, Tuple, TYPE_CHECKING
 from slideflow.util.tfrecord2idx import find_index
 
 from ._factory_torch import TorchFeatureExtractor
@@ -222,7 +223,7 @@ def generate_slide_embeddings(
     dataset: "Dataset",
     bags_path: str,
     **kwargs
-) -> torch.Tensor:
+) -> Tuple[torch.Tensor, List[str]]:
     """Generate slide embeddings from a dataset.
 
     Args:
@@ -239,6 +240,7 @@ def generate_slide_embeddings(
     # Load bags & coords
     bags = dataset.pt_files(bags_path)
     coords = [find_index(b) for b in bags]
+    slides = [sf.util.path_to_name(b) for b in bags]
 
     # Inference
-    return prov_gigapath.inference_from_bags(bags, coords)
+    return prov_gigapath.inference_from_bags(bags, coords), slides
