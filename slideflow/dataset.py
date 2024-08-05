@@ -2590,7 +2590,15 @@ class Dataset:
                     result[slide] = patient
         return result
 
-    def pt_files(self, path, warn_missing=True):
+    def pt_files(self, *args, **kwargs):
+        """Deprecated function. Please use `Dataset.get_bags()`."""
+        warnings.warn(
+            "pt_files() is deprecated. Please use Dataset.get_bags()",
+            DeprecationWarning
+        )
+        return self.get_bags(*args, **kwargs)
+
+    def get_bags(self, path, warn_missing=True):
         """Return list of all \*.pt files with slide names in this dataset.
 
         May return more than one \*.pt file for each slide.

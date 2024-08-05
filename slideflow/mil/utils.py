@@ -178,7 +178,7 @@ def _detect_device(
 def _get_nested_bags(dataset, bag_directories):
     # This is a nested list of bag paths, where each nested list contains
     # the paths to bags at one magnification level.
-    _matching_bag_paths = [dataset.pt_files(b) for b in bag_directories]
+    _matching_bag_paths = [dataset.get_bags(b) for b in bag_directories]
 
     # Convert the above to a nested list of slide names.
     _nested_slides = [[path_to_name(b) for b in _bag] for _bag in _matching_bag_paths]

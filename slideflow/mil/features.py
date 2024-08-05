@@ -119,7 +119,7 @@ class MILFeatures:
 
         """
         if isinstance(bags, str) and dataset is not None:
-            return dataset.pt_files(bags)
+            return dataset.get_bags(bags)
         elif isinstance(bags, str) and slides:
             return np.array([
                 join(bags, f) for f in os.listdir(bags)

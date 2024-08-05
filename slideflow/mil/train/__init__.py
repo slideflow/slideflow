@@ -350,8 +350,8 @@ def train_clam(
 
     # Set up bags.
     if isinstance(bags, str):
-        train_bags = train_dataset.pt_files(bags)
-        val_bags = val_dataset.pt_files(bags)
+        train_bags = train_dataset.get_bags(bags)
+        val_bags = val_dataset.get_bags(bags)
     else:
         train_bags = val_bags = bags
 
@@ -431,7 +431,7 @@ def train_clam(
 
     # Attention heatmaps
     if isinstance(bags, str):
-        val_bags = val_dataset.pt_files(bags)
+        val_bags = val_dataset.get_bags(bags)
     else:
         val_bags = np.array(bags)
 
@@ -499,11 +499,11 @@ def build_fastai_learner(
 
     # Prepare bags
     if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
-        train_bags = train_dataset.pt_files(bags)
+        train_bags = train_dataset.get_bags(bags)
         if val_dataset is train_dataset:
             bags = train_bags
         else:
-            val_bags = val_dataset.pt_files(bags)
+            val_bags = val_dataset.get_bags(bags)
             bags = np.concatenate((train_bags, val_bags))
     else:
         bags = np.array(bags)
@@ -720,7 +720,7 @@ def train_fastai(
 
     # Prepare validation bags.
     if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
-        val_bags = val_dataset.pt_files(bags)
+        val_bags = val_dataset.get_bags(bags)
     else:
         val_bags = np.array([b for b in bags if sf.util.path_to_name(b) in val_dataset.slides()])
 
