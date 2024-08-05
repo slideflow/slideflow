@@ -187,18 +187,18 @@ class GigapathSlideFeatures:
             embeds = self.slide_encoder(tile_embed, coords, all_layer_embed=all_layer_embed)
             if all_layer_embed:
                 return {
-                    (f"layer_{i}_embed" if i < (len(embeds) - 1) else "last_layer_embed"): embed
+                    (f"layer_{i}_embed" if i < (len(embeds) - 1) else "last_layer_embed"): embed.cpu()
                     for i, embed in enumerate(embeds)
                 }
             else:
-                return embeds[0]
+                return embeds[0].cpu()
 
     def inference_from_bags(
         self,
         bags: List[str],
         *,
         indices: Optional[List[str]] = None,
-        all_layer_embed: bool = True
+        all_layer_embed: bool = True,
     ) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
         """Run inference on a set of bags.
 
