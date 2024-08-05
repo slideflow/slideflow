@@ -173,7 +173,7 @@ def _eval_mil(
     labels, _ = dataset.labels(outcomes, format='id')
     slides = list(labels.keys())
     if isinstance(bags, str):
-        bags = dataset.pt_files(bags)
+        bags = dataset.get_bags(bags)
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
 
@@ -497,7 +497,7 @@ def get_mil_tile_predictions(
     # Prepare bags.
     slides = dataset.slides()
     if isinstance(bags, str):
-        bags = dataset.pt_files(bags)
+        bags = dataset.get_bags(bags)
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
 
@@ -664,7 +664,7 @@ def predict_from_model(
     # Prepare bags and targets.
     slides = list(labels.keys())
     if isinstance(bags, str):
-        bags = dataset.pt_files(bags)
+        bags = dataset.get_bags(bags)
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
 
@@ -762,7 +762,7 @@ def generate_mil_features(
     # Prepare bags and targets.
     slides = dataset.slides()
     if isinstance(bags, str):
-        bags = dataset.pt_files(bags)
+        bags = dataset.get_bags(bags)
     else:
         bags = np.array([b for b in bags if path_to_name(b) in slides])
 
