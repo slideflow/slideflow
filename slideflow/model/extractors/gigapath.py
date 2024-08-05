@@ -1,16 +1,18 @@
+import os
 import slideflow as sf
 import timm
 import torch
 import numpy as np
+from os.path import join, exists, isdir
 from tqdm import tqdm
 from torchvision import transforms
-from typing import Optional, List, Tuple, TYPE_CHECKING
+from typing import Optional, List, Tuple, Dict, Union, TYPE_CHECKING
 from slideflow.util.tfrecord2idx import find_index
 
 from ._factory_torch import TorchFeatureExtractor
 
 if TYPE_CHECKING:
-    from slideflow import WSI, Dataset
+    from slideflow import WSI
 
 # -----------------------------------------------------------------------------
 
@@ -26,7 +28,7 @@ class GigapathTileFeatures(TorchFeatureExtractor):
     Hugging Face: https://huggingface.co/prov-gigapath/prov-gigapath
 
     """
-    tag = 'gigapath'
+    tag = 'gigapath.tile'
     license = """License available at https://github.com/prov-gigapath/prov-gigapath"""
     citation = """
 @article{xu2024gigapath,
@@ -108,6 +110,9 @@ class GigapathSlideFeatures:
     This class is used to generate slide-level embeddings from tile-level embeddings.
 
     """
+
+    tag = 'gigapath.slide'
+
     def __init__(
         self,
         weights: Optional[str] = None,
@@ -136,41 +141,156 @@ class GigapathSlideFeatures:
         ).to(self.device)
         self.slide_encoder.eval()
 
-    def run_inference(self, tile_embed: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
+    def __call__(self, tile_embed: torch.Tensor, coords: torch.Tensor, **kwargs) -> torch.Tensor:
+        """Generate whole-slide feature embedding.
+
+        Args:
+            tile_embed (torch.Tensor): Tile embeddings. Shape: (1, n_tiles, 1536).
+            coords (torch.Tensor): Tile coordinates. Shape: (1, n_tiles, 2).
+
+        Keyword Args:
+            all_layer_embed (bool): Return embeddings from all layers.
+                Defaults to True.
+
+        Returns:
+            torch.Tensor: Whole-slide embedding.
+
+        """
+        return self.run_inference(tile_embed, coords, **kwargs)
+
+    def run_inference(
+        self,
+        tile_embed: torch.Tensor,
+        coords: torch.Tensor,
+        *,
+        all_layer_embed: bool = True
+    ) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
         """Run inference on a single slide.
 
         Args:
             tile_embed (torch.Tensor): Tile embeddings. Shape: (1, n_tiles, 1536).
             coords (torch.Tensor): Tile coordinates. Shape: (1, n_tiles, 2).
 
+        Keyword Args:
+            all_layer_embed (bool): Return embeddings from all layers.
+                Defaults to True.
+
         Returns:
-            torch.Tensor: Whole-slide embedding.
+            dict or torch.Tensor: Whole-slide embeddings. If `all_layer_embed` is True,
+                returns a dict mapping layer names to embeddings from each layer.
+                Otherwise, returns only the last layer embedding.
 
         """
         from slideflow.model.torch import autocast
 
-        with autocast(self.device.type, torch.float16):
-            with torch.inference_mode():
-                return self.slide_encoder(tile_embed, coords)
+        with autocast(self.device.type, torch.float16), torch.inference_mode():
+            embeds = self.slide_encoder(tile_embed, coords, all_layer_embed=all_layer_embed)
+            if all_layer_embed:
+                return {
+                    (f"layer_{i}_embed" if i < (len(embeds) - 1) else "last_layer_embed"): embed
+                    for i, embed in enumerate(embeds)
+                }
+            else:
+                return embeds[0]
 
-    def inference_from_bags(self, bags: List[str], indices: List[str]) -> torch.Tensor:
+    def inference_from_bags(
+        self,
+        bags: List[str],
+        *,
+        indices: Optional[List[str]] = None,
+        all_layer_embed: bool = True
+    ) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
         """Run inference on a set of bags.
 
         Args:
             bags (List[str]): List of paths to bags (tile embeddings).
             indices (List[str]): List of paths to bag indices (tile coordinates).
+                If not provided, the indices will be inferred from the bags.
+
+        Keyword Args:
+            all_layer_embed (bool): Return embeddings from all layers.
+                Defaults to True.
 
         Returns:
             torch.Tensor: Whole-slide embeddings.
 
         """
-        slide_embeds = []
+        if indices is None:
+            indices = [find_index(b) for b in bags]
+        slide_embeds = {} if all_layer_embed else []
         for bag, index in tqdm(zip(bags, indices), total=len(bags)):
             tile_embed = torch.load(bag).unsqueeze(0).to(self.device)
             coords = torch.from_numpy(np.load(index)['arr_0']).unsqueeze(0).to(self.device)
-            slide_embed = self.run_inference(tile_embed, coords)[0]
-            slide_embeds.append(slide_embed)
-        return torch.cat(slide_embeds, dim=0)
+            slide_embed = self.run_inference(tile_embed, coords, all_layer_embed=all_layer_embed)
+            if all_layer_embed:
+                for layer_name, embedding in slide_embed.keys():
+                    if layer_name not in slide_embeds:
+                        slide_embeds[layer_name] = []
+                    slide_embeds[layer_name].append(embedding)
+            else:
+                slide_embeds.append(slide_embed)
+        if all_layer_embed:
+            return {k: torch.cat(v, dim=0) for k, v in slide_embeds.items()}
+        else:
+            return torch.cat(slide_embeds, dim=0)
+
+    def generate_and_save(
+        self,
+        bags: Union[str, List[str]],
+        outdir: str,
+        *,
+        indices: Optional[List[str]] = None,
+        all_layer_embed: bool = True,
+        overwrite: bool = False
+    ) -> None:
+        """Generate and save whole-slide embeddings from bags.
+
+        Args:
+            bags (List[str]): List of paths to bags (tile embeddings).
+            outdir (str): Output directory.
+
+        Keyword Args:
+            indices (List[str]): List of paths to bag indices (tile coordinates).
+                If not provided, the indices will be inferred from the bags.
+            all_layer_embed (bool): Return embeddings from all layers.
+                Defaults to True.
+            overwrite (bool): Overwrite existing embeddings. Defaults to False.
+
+        """
+        # Interpret the bags argument.
+        if isinstance(bags, str):
+            if exists(bags) and isdir(bags):
+                bags = [join(bags, f) for f in os.listdir(bags) if f.endswith('.pt')]
+            elif exists(bags):
+                bags = [bags]
+            else:
+                raise ValueError("Invalid bags path: {}".format(bags))
+
+        # Find indices for the bags (containing tile coordinates).
+        if indices is None:
+            indices = [find_index(b) for b in bags]
+
+        if not exists(outdir):
+            os.makedirs(outdir)
+
+        # Run inference.
+        complete = 0
+        for bag, index in tqdm(zip(bags, indices), total=len(bags)):
+            filename = join(outdir, sf.util.path_to_name(bag) + '.pt')
+            if exists(filename):
+                if overwrite:
+                    sf.log.debug("Overwriting slide embedding at {}".format(filename))
+                else:
+                    sf.log.debug("Slide embedding already exists at {}".format(filename))
+                    continue
+            tile_embed = torch.load(bag).unsqueeze(0).to(self.device)
+            coords = torch.from_numpy(np.load(index)['arr_0']).unsqueeze(0).to(self.device)
+            slide_embed = self.run_inference(tile_embed, coords, all_layer_embed=all_layer_embed)
+            torch.save(slide_embed, filename)
+            complete += 1
+
+        sf.log.info("Generated and saved {} slide embeddings ({} bags skipped)".format(complete, len(bags) - complete))
+
 
 # -----------------------------------------------------------------------------
 
@@ -180,6 +300,9 @@ class GigapathFeatures:
     This class is used to generate whole-slide embeddings from a whole-slide image.
 
     """
+
+    tag = 'gigapath'
+
     def __init__(
         self,
         tile_encoder_weights: Optional[str] = None,
@@ -205,16 +328,26 @@ class GigapathFeatures:
         from slideflow.model import torch_utils
 
         self.device = torch_utils.get_device(device)
-        self.tile_encoder = GigapathTileFeatures(
+        self.tile = GigapathTileFeatures(
             weights=tile_encoder_weights,
             device=self.device,
             **kwargs
         )
-        self.slide_encoder = GigapathSlideFeatures(
+        self.slide = GigapathSlideFeatures(
             slide_encoder_weights,
             global_pool=global_pool,
             device=self.device
         )
+
+    @property
+    def tile_encoder(self):
+        """Tile encoder model."""
+        return self.tile
+
+    @property
+    def slide_encoder(self):
+        """Slide encoder model."""
+        return self.slide
 
     def _reshape_coords(self, coords: np.ndarray, height: int, width: int) -> np.ndarray:
         """Reshape tile coordinates into a grid.
@@ -237,7 +370,7 @@ class GigapathFeatures:
         coord_grid[grid_y, grid_x, 1] = tile_y
         return coord_grid
 
-    def __call__(self, wsi: "WSI") -> torch.Tensor:
+    def __call__(self, wsi: "WSI", **kwargs) -> torch.Tensor:
         """Generate whole-slide feature embedding.
 
         Args:
@@ -263,33 +396,5 @@ class GigapathFeatures:
         coords = coords.unsqueeze(0).to(self.device)
 
         # Run slide inference
-        return self.slide_encoder.run_inference(tile_embeds, coords)
+        return self.slide_encoder.run_inference(tile_embeds, coords, **kwargs)
 
-
-# -----------------------------------------------------------------------------
-
-def generate_slide_embeddings(
-    dataset: "Dataset",
-    bags_path: str,
-    **kwargs
-) -> Tuple[torch.Tensor, List[str]]:
-    """Generate slide embeddings from a dataset.
-
-    Args:
-        dataset (Dataset): Dataset.
-        bags_path (str): Path to bags.
-
-    Returns:
-        torch.Tensor: Slide embeddings.
-
-    """
-    # Initialize Gigapath
-    prov_gigapath = GigapathSlideFeatures(**kwargs)
-
-    # Load bags & coords
-    bags = dataset.pt_files(bags_path)
-    coords = [find_index(b) for b in bags]
-    slides = [sf.util.path_to_name(b) for b in bags]
-
-    # Inference
-    return prov_gigapath.inference_from_bags(bags, coords), slides

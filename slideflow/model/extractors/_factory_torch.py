@@ -20,7 +20,17 @@ def build_torch_feature_extractor(name, **kwargs):
 
 # -----------------------------------------------------------------------------
 
-@register_torch
+@register_torch("gigapath")
+def gigapath(**kwargs):
+    from .gigapath import GigapathFeatures
+    return GigapathFeatures(**kwargs)
+
+@register_torch("gigapath.slide")
+def gigapath(**kwargs):
+    from .gigapath import GigapathSlideFeatures
+    return GigapathSlideFeatures(**kwargs)
+
+@register_torch("gigapath.tile")
 def gigapath(**kwargs):
     from .gigapath import GigapathTileFeatures
     return GigapathTileFeatures(**kwargs)
