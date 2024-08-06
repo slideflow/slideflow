@@ -5,7 +5,7 @@ API for common functionality, such as tile extraction from whole
 slide images, model training and evaluation, feature calculation, and
 heatmap generation.
 """
-
+import re
 import copy
 import csv
 import itertools
@@ -2811,6 +2811,37 @@ class Project:
         if filename is None:
             filename = join(self.root, sf.util.path_to_name(tfrecord) + '.png')
         dataset.tfrecord_heatmap(tfrecord, tile_dict, filename)
+
+    def inspect_tfrecords(self):
+        """Inspect TFRecords in the project dataset configuration."""
+        from rich import print as rprint
+
+        config = sf.util.load_json(self.dataset_config)
+        rprint("[b]Dataset sources:[/]")
+        for source in self.sources:
+            rprint(". {}".format(source))
+            if source not in config:
+                rprint("    {}: Source not found in dataset"
+                      " configuration".format(source))
+                continue
+            if 'tfrecords' not in config[source]:
+                rprint("    {}: TFRecords directory not set".format(source))
+                continue
+            tfr_path = config[source]['tfrecords']
+            subdirs = [f for f in os.listdir(tfr_path) 
+                       if isdir(join(tfr_path, f))]
+            for subdir in subdirs:
+                # Check if this is a valid subdir with a tile size label
+                # (e.g. "256px_10um" or "256px_20x")
+                if re.match(r'\d+px_\d+(um|x)$', subdir):
+                    px_str, um_str = subdir.split('_')
+                    _tile_px = px_str.split('px')[0]
+                    _tile_um = um_str.split('um')[0] if 'um' in um_str else um_str.split('x')[0]
+                    tfr_files = [f for f in os.listdir(join(tfr_path, subdir)) 
+                                 if f.endswith('.tfrecords')]
+                    rprint("    tile_px={}, tile_um={}: {} TFRecords".format(
+                        _tile_px, _tile_um, len(tfr_files)
+                    ))
 
     def dataset(
         self,
