@@ -2828,6 +2828,9 @@ class Project:
                 rprint("    {}: TFRecords directory not set".format(source))
                 continue
             tfr_path = config[source]['tfrecords']
+            if not exists(tfr_path):
+                rprint("    {}: TFRecords directory not found".format(source))
+                continue
             subdirs = [f for f in os.listdir(tfr_path) 
                        if isdir(join(tfr_path, f))]
             for subdir in subdirs:
