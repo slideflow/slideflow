@@ -1463,8 +1463,6 @@ def location_heatmap(
     log.debug('Saving figure...')
     plt.savefig(filename, bbox_inches='tight')
     plt.close(fig)
-    del wsi
-    del thumb
 
 
 def tfrecord_heatmap(
