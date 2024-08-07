@@ -2141,11 +2141,15 @@ class Dataset:
 
             # Load the slide and remove any existing auto-loaded ROIs.
             log.info("Working on {}...".format(slide))
-            wsi = sf.WSI(slide, 299, 512, verbose=False)
-            wsi.rois = []
+            try:
+                wsi = sf.WSI(slide, 299, 512, verbose=False)
+                wsi.rois = []
 
-            # Generate and apply ROIs.
-            segment.generate_rois(wsi, apply=True, **kwargs)
+                # Generate and apply ROIs.
+                segment.generate_rois(wsi, apply=True, **kwargs)
+            except Exception as e:
+                log.error(f"Failed to generate ROIs for {slide}: {e}")
+                continue
 
             # Export ROIs to CSV.
             wsi.export_rois(join(dest, wsi.name + '.csv'))
