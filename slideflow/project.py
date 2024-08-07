@@ -30,7 +30,7 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
 
 import slideflow as sf
 from . import errors, project_utils
-from .util import log, path_to_name, path_to_ext, MultiprocessProgress
+from .util import log, path_to_name, path_to_ext
 from .dataset import Dataset
 from .model import ModelParams
 from .project_utils import (  # noqa: F401
@@ -2072,13 +2072,9 @@ class Project:
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 16,
         max_tiles: int = 0,
-        force_regenerate: bool = False,
-        batch_size: int = 32,
-        slide_batch_size: int = 16,
-        num_gpus: int = 0,
         **kwargs: Any
     ) -> str:
-        """Generate tile-level features for slides for use with MIL models.
+        """Generate bags of tile-level features for slides for use with MIL models.
 
         By default, features are exported to the ``pt_files`` folder
         within the project root directory.
@@ -2106,6 +2102,7 @@ class Project:
                 per slide. Defaults to 0 (all tiles).
             layers (list): Which model layer(s) generate activations.
                 If ``model`` is a saved model, this defaults to 'postconv'.
+                Not used if ``model`` is pretrained feature extractor.
                 Defaults to None.
             force_regenerate (bool): Forcibly regenerate activations
                 for all slides even if .pt file exists. Defaults to False.
@@ -2116,6 +2113,8 @@ class Project:
             slide_batch_size (int): Interleave feature calculation across
                 this many slides. Higher values may improve performance
                 but require more memory. Defaults to 16.
+            num_gpus (int): Number of GPUs to use for feature extraction.
+                Defaults to 0.
             **kwargs: Additional keyword arguments are passed to
                 :class:`slideflow.DatasetFeatures`.
 
@@ -2123,33 +2122,15 @@ class Project:
             Path to directory containing exported .pt files
 
         """
-        if not sf.util.torch_available:
-            raise RuntimeError(
-                "Pytorch is required for generating feature bags. "
-                "Please install Pytorch and try again."
-            )
-
         # Check if the model exists and has a valid parameters file
-        if isinstance(model, str) and exists(model):
+        if isinstance(model, str) and exists(model) and dataset is None:
+            log.debug(f"Auto-building dataset from provided model {model}")
             config = sf.util.get_model_config(model)
-
-            if dataset is None:
-                log.debug(f"Auto-building dataset from provided model {model}")
-                dataset = self.dataset(
-                    tile_px=config['tile_px'],
-                    tile_um=config['tile_um'],
-                    min_tiles=min_tiles
-                )
-
-            # Set up the pt_files directory for storing model activations
-            if outdir.lower() == 'auto':
-                if 'k_fold_i' in config:
-                    _end = f"_kfold{config['k_fold_i']}"
-                else:
-                    _end = ''
-                outdir = join(
-                    self.root, 'pt_files', config['model_name'] + _end
-                )
+            dataset = self.dataset(
+                tile_px=config['tile_px'],
+                tile_um=config['tile_um'],
+                min_tiles=min_tiles
+            )
         elif dataset is None:
             raise ValueError(
                 'Argument "dataset" is required when "model" is '
@@ -2157,156 +2138,35 @@ class Project:
                 'saved Slideflow model.'
             )
 
-        # Ensure min_tiles is applied to the dataset.
+        # Ensure min_tiles and max_tiles is applied to the dataset.
+        # max_tiles has already been applied via @auto_dataset decorator.
         dataset = dataset.filter(min_tiles=min_tiles)
 
-        # Check if the model is an architecture name
-        # (for using an Imagenet pretrained model)
-        if isinstance(model, str) and sf.model.is_extractor(model):
-            log.info(f"Building feature extractor: [green]{model}[/]")
-            layer_kw = dict(layers=kwargs['layers']) if 'layers' in kwargs else dict()
-            model = sf.build_feature_extractor(
-                model, tile_px=dataset.tile_px, **layer_kw
-            )
-
-            # Set the pt_files directory if not provided
-            if outdir.lower() == 'auto':
-                outdir = join(self.root, 'pt_files', model.tag)
-
-        elif isinstance(model, str) and not exists(model):
-            raise ValueError(
-                f"'{model}' is neither a path to a saved model nor the name "
-                "of a valid feature extractor (use sf.model.list_extractors() "
-                "for a list of all available feature extractors).")
-
-        elif not isinstance(model, str):
-            from slideflow.model.base import BaseFeatureExtractor
-            if not isinstance(model, BaseFeatureExtractor):
-                raise ValueError(
-                    f"'{model}' is neither a path to a saved model nor the name "
-                    "of a valid feature extractor (use sf.model.list_extractors() "
-                    "for a list of all available feature extractors).")
-
-            log.info(f"Using feature extractor: [green]{model.tag}[/]")
-            # Set the pt_files directory if not provided
-            if outdir.lower() == 'auto':
-                outdir = join(self.root, 'pt_files', model.tag)
-
-        # Create the pt_files directory
-        if not exists(outdir):
-            os.makedirs(outdir)
-
-        # Detect already generated pt files
-        done = [
-            path_to_name(f) for f in os.listdir(outdir)
-            if sf.util.path_to_ext(join(outdir, f)) == 'pt'
-        ]
-
-        if not force_regenerate and len(done):
-            all_slides = dataset.slides()
-            slides_to_generate = [s for s in all_slides if s not in done]
-            if len(slides_to_generate) != len(all_slides):
-                to_skip = len(all_slides) - len(slides_to_generate)
-                skip_p = f'{to_skip}/{len(all_slides)}'
-                log.info(f"Skipping {skip_p} finished slides.")
-            if not slides_to_generate:
-                log.warn("No slides for which to generate features.")
-                return outdir
-            dataset = dataset.filter(filters={'slide': slides_to_generate})
-            filtered_slides_to_generate = dataset.slides()
-            log.info(f'Working on {len(filtered_slides_to_generate)} slides')
-        
-        # Verify TFRecords are available
-        n_tfrecords = len(dataset.tfrecords())
-        n_slides = len(dataset.slides())
-        if not n_tfrecords:
-            log.warning("Unable to generate features; no TFRecords found.")
-            return outdir
-        elif n_tfrecords < n_slides:
-            log.warning("{} tfrecords missing.".format(n_slides - n_tfrecords))
-
-        # Rebuild any missing index files.
-        # Must be done before the progress bar is started.
-        dataset.build_index(False)
-
-        # Set up progress bar.
-        pb = sf.util.TileExtractionProgress()
-        pb.add_task(
-            "Speed: ",
-            progress_type="speed",
-            total=None
-        )
-        slide_task = pb.add_task(
-            "Generating...",
-            progress_type="slide_progress",
-            total=n_slides
-        )
-        pb.start()
-
-        # Prepare keyword arguments.
-        dts_kwargs = dict(
-            include_preds=False,
-            include_uncertainty=False,
-            batch_size=batch_size,
-            verbose=False,
-            progress=False,
-            **kwargs
-        )
-
-        # Set up activations interface.
-        # Calculate features one slide at a time to reduce memory consumption.
-        with sf.util.cleanup_progress(pb):
-            if not num_gpus > 1:
-                sf.model.features._export_bags(
-                    model,
-                    dataset,
-                    slides=dataset.slides(),
-                    slide_batch_size=slide_batch_size,
-                    pb=pb,
-                    outdir=outdir,
-                    slide_task=slide_task,
-                    **dts_kwargs
+        # Prepare output directory
+        if outdir.lower() == 'auto':
+            # Check if the model is an architecture name
+            # (for using an Imagenet pretrained model)
+            if isinstance(model, str) and sf.model.is_extractor(model):
+                outdir = join(self.root, 'pt_files', model)
+            # Check if the model is a trained model
+            elif isinstance(model, str) and exists(model):
+                config = sf.util.get_model_config(model)
+                if 'k_fold_i' in config:
+                    _end = f"_kfold{config['k_fold_i']}"
+                else:
+                    _end = ''
+                outdir = join(
+                    self.root, 'pt_files', config['model_name'] + _end
                 )
-
+            # Otherwise, it's a pretrained feature extractor
+            # and the subdirectory can be named by its tag.
             else:
-                if not hasattr(model, 'dump_config'):
-                    raise ValueError(
-                        "Feature extraction with multiple GPUs is only "
-                        "supported for feature extractors with a dump_config() "
-                        "attribute. Please set num_gpus=1 or use a different "
-                        "feature extractor."
-                    )
-                import torch
-                model_cfg = sf.model.extractors.extractor_to_config(model)
+                from slideflow.model.base import BaseFeatureExtractor
+                if isinstance(model, BaseFeatureExtractor):
+                    outdir = join(self.root, 'pt_files', model.tag)
 
-                # Mixed precision and channels_last config
-                if hasattr(model, "mixed_precision"):
-                    mixed_precision = model.mixed_precision
-                else:
-                    mixed_precision = None
-                if hasattr(model, "channels_last"):
-                    channels_last = model.channels_last
-                else:
-                    channels_last = None
-
-                with MultiprocessProgress(pb) as mp_pb:
-                    torch.multiprocessing.spawn(
-                        sf.model.features._distributed_export,
-                        args=(
-                            model_cfg,
-                            dataset,
-                            [n.tolist() for n in np.array_split(dataset.slides(),
-                                                                num_gpus)],
-                            slide_batch_size,
-                            mp_pb.tracker,
-                            outdir,
-                            slide_task,
-                            dts_kwargs,
-                            mixed_precision,
-                            channels_last
-                        ),
-                        nprocs=num_gpus
-                    )
+        # Generate feature bags.
+        dataset.generate_feature_bags(model, outdir, **kwargs)
 
         return outdir
 

@@ -92,7 +92,7 @@ def get_libvips_reader(path: str, *args, **kwargs):
 def vips2numpy(
     vi: "vips.Image",
 ) -> np.ndarray:
-    '''Converts a VIPS image into a numpy array'''
+    """Converts a VIPS image into a numpy array"""
     return np.ndarray(buffer=vi.write_to_memory(),
                       dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
                       shape=[vi.height, vi.width, vi.bands])
@@ -101,14 +101,14 @@ def vips2numpy(
 def vips2jpg(
     vi: "vips.Image",
 ) -> np.ndarray:
-    '''Converts a VIPS image into a numpy array'''
+    """Converts a VIPS image into a numpy array"""
     return numpy2jpg(vips2numpy(vi))
 
 
 def vips2png(
     vi: "vips.Image",
 ) -> np.ndarray:
-    '''Converts a VIPS image into a numpy array'''
+    """Converts a VIPS image into a numpy array"""
     return numpy2png(vips2numpy(vi))
 
 
@@ -140,6 +140,19 @@ def vips_resize(
 
 
 def vips_padded_crop(image, x, y, width, height):
+    """Crops an image with padding if the crop is out-of-bounds.
+
+    Args:
+        image (vips.Image): Image to crop.
+        x (int): X-coordinate of crop.
+        y (int): Y-coordinate of crop.
+        width (int): Width of crop.
+        height (int): Height of crop.
+
+    Returns:
+        vips.Image: Cropped image.
+
+    """
     bg = [255]
     if x+width <= image.width and y+height <= image.height:
         return image.crop(x, y, width, height)
@@ -762,11 +775,12 @@ class _VIPSReader:
         base_level_dim: Tuple[int, int],
         downsample_level: int,
         extract_size: Tuple[int, int],
+        *,
         convert: Optional[str] = None,
         flatten: bool = False,
         resize_factor: Optional[float] = None,
         pad_missing: Optional[bool] = None
-    ) -> "vips.Image":
+    ) -> Union["vips.Image", np.ndarray, str]:
         """Extracts a region from the image at the given downsample level.
 
         Args:
@@ -779,8 +793,20 @@ class _VIPSReader:
                 If None, uses the value of the `pad_missing` attribute.
                 Defaults to None.
 
+        Keyword args:
+            pad_missing (bool, optional): Pad missing regions with black.
+                If None, uses the value of the `pad_missing` attribute.
+                Defaults to None.
+            convert (str, optional): Convert the image to a different format.
+                Supported formats are 'jpg', 'jpeg', 'png', and 'numpy'.
+                Defaults to None.
+            flatten (bool, optional): Flatten the image to 3 channels.
+                Defaults to False.
+            resize_factor (float, optional): Resize the image by this factor.
+                Defaults to None.
+
         Returns:
-            vips.Image: VIPS image.
+            Image in the specified format.
         """
         base_level_x, base_level_y = base_level_dim
         extract_width, extract_height = extract_size
@@ -818,6 +844,7 @@ class _VIPSReader:
         top_left: Tuple[int, int],
         window_size: Tuple[int, int],
         target_size: Tuple[int, int],
+        *,
         convert: Optional[str] = None,
         flatten: bool = False,
         pad_missing: Optional[bool] = None
@@ -832,12 +859,19 @@ class _VIPSReader:
                 height) using base layer coordinates.
             target_size (Tuple[int, int]): Resize the region to this target
                 size (width, height).
+
+        Keyword args:
+            convert (str, optional): Convert the image to a different format.
+                Supported formats are 'jpg', 'jpeg', 'png', and 'numpy'.
+                Defaults to None.
+            flatten (bool, optional): Flatten the image to 3 channels.
+                Defaults to False.
             pad_missing (bool, optional): Pad missing regions with black.
                 If None, uses the value of the `pad_missing` attribute.
                 Defaults to None.
 
         Returns:
-            vips.Image: VIPS image. Dimensions will equal target_size unless
+            Image in the specified format. Dimensions will equal target_size unless
             the window includes an area of the image which is out of bounds.
             In this case, the returned image will be cropped.
         """

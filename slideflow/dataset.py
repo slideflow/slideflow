@@ -115,11 +115,12 @@ import slideflow as sf
 from slideflow import errors
 from slideflow.slide import WSI, ExtractionReport, SlideReport
 from slideflow.util import (log, Labels, _shortname, path_to_name,
-                            tfrecord2idx, TileExtractionProgress)
+                            tfrecord2idx, TileExtractionProgress, MultiprocessProgress)
 
 if TYPE_CHECKING:
     import tensorflow as tf
     import cellpose
+    from slideflow.model import BaseFeatureExtractor
     from slideflow.model import ModelParams
     from torch.utils.data import DataLoader
     from slideflow.norm import StainNormalizer
@@ -963,15 +964,26 @@ class Dataset:
             }
         return ret
 
-    def build_index(self, force: bool = True) -> None:
+    def build_index(
+        self,
+        force: bool = True,
+        *,
+        num_workers: Optional[int] = None
+    ) -> None:
         """Build index files for TFRecords.
 
         Args:
             force (bool): Force re-build existing indices.
 
+        Keyword args:
+            num_workers (int, optional): Number of workers to use for
+                building indices. Defaults to num_cpus, up to maximum of 32.
+
         Returns:
             None
         """
+        if num_workers is None:
+            num_workers = min(sf.util.num_cpu(), 32)
         if force:
             index_to_update = self.tfrecords()
             # Remove existing indices
@@ -991,17 +1003,25 @@ class Dataset:
                     index_to_update.append(tfr)
             if not index_to_update:
                 return
-
-        index_fn = partial(_create_index, force=force)
-        pool = mp.Pool(
-            sf.util.num_cpu(),
-            initializer=sf.util.set_ignore_sigint
-        )
-        for _ in track(pool.imap_unordered(index_fn, index_to_update),
-                       description=f'Updating index files...',
-                       total=len(index_to_update),
-                       transient=True):
-            pass
+        if num_workers == 0:
+            # Single thread.
+            for tfr in track(index_to_update,
+                             description=f'Updating index files...',
+                             total=len(index_to_update),
+                             transient=True):
+                _create_index(tfr, force=force)
+        else:
+            # Multiprocessing.
+            index_fn = partial(_create_index, force=force)
+            pool = mp.Pool(
+                sf.util.num_cpu(),
+                initializer=sf.util.set_ignore_sigint
+            )
+            for _ in track(pool.imap_unordered(index_fn, index_to_update),
+                        description=f'Updating index files...',
+                        total=len(index_to_update),
+                        transient=True):
+                pass
         pool.close()
 
     def cell_segmentation(
@@ -2071,6 +2091,195 @@ class Dataset:
         else:
             return matching[0]
 
+    def generate_feature_bags(
+        self,
+        model: Union[str, "BaseFeatureExtractor"],
+        outdir: str,
+        *,
+        force_regenerate: bool = False,
+        batch_size: int = 32,
+        slide_batch_size: int = 16,
+        num_gpus: int = 0,
+        **kwargs: Any
+    ) -> None:
+        """Generate bags of tile-level features for slides for use with MIL models.
+
+        Args:
+            model (str): Path to model from which to generate activations.
+                May provide either this or "pt_files"
+            outdir (str, optional): Save exported activations in .pt format.
+
+        Keyword Args:
+            layers (list): Which model layer(s) generate activations.
+                If ``model`` is a saved model, this defaults to 'postconv'.
+                Not used if ``model`` is pretrained feature extractor.
+                Defaults to None.
+            force_regenerate (bool): Forcibly regenerate activations
+                for all slides even if .pt file exists. Defaults to False.
+            batch_size (int): Batch size during feature calculation.
+                Defaults to 32.
+            slide_batch_size (int): Interleave feature calculation across
+                this many slides. Higher values may improve performance
+                but require more memory. Defaults to 16.
+            num_gpus (int): Number of GPUs to use for feature extraction.
+                Defaults to 0.
+            **kwargs: Additional keyword arguments are passed to
+                :class:`slideflow.DatasetFeatures`.
+
+        """
+        if not sf.util.torch_available:
+            raise RuntimeError(
+                "Pytorch is required for generating feature bags. "
+                "Please install Pytorch and try again."
+            )
+
+        # Interpret model argument.
+        if isinstance(model, str) and sf.model.is_extractor(model):
+            # Model is a architecture name (for Imagenet pretrained model)
+            log.info(f"Building feature extractor: [green]{model}[/]")
+            layer_kw = dict(layers=kwargs['layers']) if 'layers' in kwargs else dict()
+            model = sf.build_feature_extractor(model, **layer_kw)
+
+        elif isinstance(model, str) and exists(model):
+            # Model is a path to a trained slideflow model
+            log.info(f"Using model: [green]{model}[/]")
+
+        elif isinstance(model, str) and not exists(model):
+            # Model is a string but not a path to a saved model
+            raise ValueError(
+                f"'{model}' is neither a path to a saved model nor the name "
+                "of a valid feature extractor (use sf.model.list_extractors() "
+                "for a list of all available feature extractors).")
+
+        elif not isinstance(model, str):
+            # Model is a feature extractor object
+            from slideflow.model.base import BaseFeatureExtractor
+            if not isinstance(model, BaseFeatureExtractor):
+                raise ValueError(
+                    f"'{model}' is neither a path to a saved model nor the name "
+                    "of a valid feature extractor (use sf.model.list_extractors() "
+                    "for a list of all available feature extractors).")
+            log.info(f"Using feature extractor: [green]{model.tag}[/]")
+
+        # Create the pt_files directory
+        if not exists(outdir):
+            os.makedirs(outdir)
+
+        # Detect already generated pt files
+        done = [
+            path_to_name(f) for f in os.listdir(outdir)
+            if sf.util.path_to_ext(join(outdir, f)) == 'pt'
+        ]
+
+        # Work from this dataset.
+        dataset = self
+
+        if not force_regenerate and len(done):
+            all_slides = dataset.slides()
+            slides_to_generate = [s for s in all_slides if s not in done]
+            if len(slides_to_generate) != len(all_slides):
+                to_skip = len(all_slides) - len(slides_to_generate)
+                skip_p = f'{to_skip}/{len(all_slides)}'
+                log.info(f"Skipping {skip_p} finished slides.")
+            if not slides_to_generate:
+                log.warn("No slides for which to generate features.")
+                return outdir
+            dataset = dataset.filter(filters={'slide': slides_to_generate})
+            filtered_slides_to_generate = dataset.slides()
+            log.info(f'Working on {len(filtered_slides_to_generate)} slides')
+
+        # Verify TFRecords are available
+        n_tfrecords = len(dataset.tfrecords())
+        n_slides = len(dataset.slides())
+        if not n_tfrecords:
+            log.warning("Unable to generate features; no TFRecords found.")
+            return outdir
+        elif n_tfrecords < n_slides:
+            log.warning("{} tfrecords missing.".format(n_slides - n_tfrecords))
+
+        # Rebuild any missing index files.
+        # Must be done before the progress bar is started.
+        dataset.build_index(False)
+
+        # Set up progress bar.
+        pb = sf.util.TileExtractionProgress()
+        pb.add_task(
+            "Speed: ",
+            progress_type="speed",
+            total=None
+        )
+        slide_task = pb.add_task(
+            "Generating...",
+            progress_type="slide_progress",
+            total=n_slides
+        )
+        pb.start()
+
+        # Prepare keyword arguments.
+        dts_kwargs = dict(
+            include_preds=False,
+            include_uncertainty=False,
+            batch_size=batch_size,
+            verbose=False,
+            progress=False,
+            **kwargs
+        )
+
+        # Set up activations interface.
+        # Calculate features one slide at a time to reduce memory consumption.
+        with sf.util.cleanup_progress(pb):
+            if not num_gpus > 1:
+                sf.model.features._export_bags(
+                    model,
+                    dataset,
+                    slides=dataset.slides(),
+                    slide_batch_size=slide_batch_size,
+                    pb=pb,
+                    outdir=outdir,
+                    slide_task=slide_task,
+                    **dts_kwargs
+                )
+
+            else:
+                if not hasattr(model, 'dump_config'):
+                    raise ValueError(
+                        "Feature extraction with multiple GPUs is only "
+                        "supported for feature extractors with a dump_config() "
+                        "attribute. Please set num_gpus=1 or use a different "
+                        "feature extractor."
+                    )
+                import torch
+                model_cfg = sf.model.extractors.extractor_to_config(model)
+
+                # Mixed precision and channels_last config
+                if hasattr(model, "mixed_precision"):
+                    mixed_precision = model.mixed_precision
+                else:
+                    mixed_precision = None
+                if hasattr(model, "channels_last"):
+                    channels_last = model.channels_last
+                else:
+                    channels_last = None
+
+                with MultiprocessProgress(pb) as mp_pb:
+                    torch.multiprocessing.spawn(
+                        sf.model.features._distributed_export,
+                        args=(
+                            model_cfg,
+                            dataset,
+                            [n.tolist() for n in np.array_split(dataset.slides(),
+                                                                num_gpus)],
+                            slide_batch_size,
+                            mp_pb.tracker,
+                            outdir,
+                            slide_task,
+                            dts_kwargs,
+                            mixed_precision,
+                            channels_last
+                        ),
+                        nprocs=num_gpus
+                    )
+
     def generate_rois(
         self,
         model: str,
@@ -2121,15 +2330,19 @@ class Dataset:
                     continue
 
             # Load the slide and remove any existing auto-loaded ROIs.
-            wsi = sf.WSI(slide, 299, 512, verbose=False)
-            wsi.rois = []
+            log.info("Working on {}...".format(slide))
+            try:
+                wsi = sf.WSI(slide, 299, 512, verbose=False)
+                wsi.rois = []
 
-            # Generate and apply ROIs.
-            segment.generate_rois(wsi, apply=True, **kwargs)
+                # Generate and apply ROIs.
+                segment.generate_rois(wsi, apply=True, **kwargs)
+            except Exception as e:
+                log.error(f"Failed to generate ROIs for {slide}: {e}")
+                continue
 
             # Export ROIs to CSV.
             wsi.export_rois(join(dest, wsi.name + '.csv'))
-
 
     def get_slide_source(self, slide: str) -> str:
         """Return the source of a given slide.
