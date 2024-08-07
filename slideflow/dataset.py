@@ -963,15 +963,26 @@ class Dataset:
             }
         return ret
 
-    def build_index(self, force: bool = True) -> None:
+    def build_index(
+        self,
+        force: bool = True,
+        *,
+        num_workers: Optional[int] = None
+    ) -> None:
         """Build index files for TFRecords.
 
         Args:
             force (bool): Force re-build existing indices.
 
+        Keyword args:
+            num_workers (int, optional): Number of workers to use for
+                building indices. Defaults to num_cpus, up to maximum of 32.
+
         Returns:
             None
         """
+        if num_workers is None:
+            num_workers = min(sf.util.num_cpu(), 32)
         if force:
             index_to_update = self.tfrecords()
             # Remove existing indices
@@ -991,17 +1002,25 @@ class Dataset:
                     index_to_update.append(tfr)
             if not index_to_update:
                 return
-
-        index_fn = partial(_create_index, force=force)
-        pool = mp.Pool(
-            sf.util.num_cpu(),
-            initializer=sf.util.set_ignore_sigint
-        )
-        for _ in track(pool.imap_unordered(index_fn, index_to_update),
-                       description=f'Updating index files...',
-                       total=len(index_to_update),
-                       transient=True):
-            pass
+        if num_workers == 0:
+            # Single thread.
+            for tfr in track(index_to_update,
+                             description=f'Updating index files...',
+                             total=len(index_to_update),
+                             transient=True):
+                _create_index(tfr, force=force)
+        else:
+            # Multiprocessing.
+            index_fn = partial(_create_index, force=force)
+            pool = mp.Pool(
+                sf.util.num_cpu(),
+                initializer=sf.util.set_ignore_sigint
+            )
+            for _ in track(pool.imap_unordered(index_fn, index_to_update),
+                        description=f'Updating index files...',
+                        total=len(index_to_update),
+                        transient=True):
+                pass
         pool.close()
 
     def cell_segmentation(
