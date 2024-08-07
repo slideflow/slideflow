@@ -2121,6 +2121,7 @@ class Dataset:
                     continue
 
             # Load the slide and remove any existing auto-loaded ROIs.
+            log.info("Working on {}...".format(slide))
             wsi = sf.WSI(slide, 299, 512, verbose=False)
             wsi.rois = []
 
