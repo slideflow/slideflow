@@ -977,13 +977,13 @@ class Dataset:
 
         Keyword args:
             num_workers (int, optional): Number of workers to use for
-                building indices. Defaults to num_cpus, up to maximum of 32.
+                building indices. Defaults to num_cpus, up to maximum of 16.
 
         Returns:
             None
         """
         if num_workers is None:
-            num_workers = min(sf.util.num_cpu(), 32)
+            num_workers = min(sf.util.num_cpu(), 16)
         if force:
             index_to_update = self.tfrecords()
             # Remove existing indices
