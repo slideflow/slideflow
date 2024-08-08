@@ -40,7 +40,7 @@ def register_torch(key_name=None):
 
     def decorator(fn):
         # Use the custom key name if provided, otherwise use the function's name
-        name = key_name if key_name else fn.__name__
+        name = key_name if isinstance(key_name, str) else fn.__name__
         _torch_extractors[name] = fn
         return fn
 
@@ -55,7 +55,7 @@ def register_tf(key_name=None):
 
     def decorator(fn):
         # Use the custom key name if provided, otherwise use the function's name
-        name = key_name if key_name else fn.__name__
+        name = key_name if isinstance(key_name, str) else fn.__name__
         _tf_extractors[name] = fn
         return fn
 
