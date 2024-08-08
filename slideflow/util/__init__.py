@@ -1357,6 +1357,8 @@ def location_heatmap(
     """
     import matplotlib.pyplot as plt
     import matplotlib.colors as mcol
+    import matplotlib
+    matplotlib.use('Agg')
 
     if not isinstance(values, np.ndarray):
         raise ValueError(
@@ -1397,6 +1399,7 @@ def location_heatmap(
             locations, values, wsi, background=background
         )
 
+    thumb = wsi.thumb(mpp=5)
     fig = plt.figure(figsize=(18, 16))
     ax = fig.add_subplot(111)
     fig.subplots_adjust(bottom=0.25, top=0.95)
@@ -1408,7 +1411,6 @@ def location_heatmap(
         bottom=False,
         labelbottom=False
     )
-    thumb = wsi.thumb(mpp=5)
     ax.imshow(thumb, zorder=0)
 
     # Calculate overlay offset

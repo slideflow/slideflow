@@ -986,6 +986,7 @@ class SlideMap:
 
         self.plot(**kwargs)
         plt.savefig(filename, bbox_inches='tight', dpi=dpi)
+        plt.close()
         log.info(f"Saved 2D UMAP to [green]{filename}")
 
     def save_3d(
@@ -1014,6 +1015,7 @@ class SlideMap:
 
         self.plot_3d(**kwargs)
         plt.savefig(filename, bbox_inches='tight', dpi=dpi)
+        plt.close()
         log.info(f"Saved 3D UMAP to [green]{filename}")
 
     def save_coordinates(self, path: str) -> None:
