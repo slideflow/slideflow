@@ -231,7 +231,7 @@ def get_tfrecord_parser(
 
 class TFRecordParser:
 
-    def __init__(self, features_to_return, decode_images, img_type, transform):
+    def __init__(self, features_to_return, decode_images, img_type, transform=None):
         self.features_to_return = features_to_return
         self.decode_images = decode_images
         self.img_type = img_type

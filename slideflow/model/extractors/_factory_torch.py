@@ -2,11 +2,15 @@
 
 import numpy as np
 import slideflow as sf
+from typing import Tuple, Generator, TYPE_CHECKING
 from slideflow import errors
 
 from ._slide import features_from_slide
 from ._registry import _torch_extractors, is_torch_extractor, register_torch
 from ..base import BaseFeatureExtractor
+
+if TYPE_CHECKING:
+    import torch
 
 
 def build_torch_feature_extractor(name, **kwargs):
@@ -175,6 +179,15 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         if isinstance(obj, sf.WSI):
             grid = features_from_slide(self, obj, **kwargs)
             return np.ma.masked_where(grid == sf.heatmap.MASK, grid)
+        elif isinstance(obj, str) and obj.endswith('.tfrecords'):
+            tfr_generator = self.tfrecord_inference(obj, **kwargs)
+            # Concatenate features from all batches
+            features = []
+            locations = []
+            for batch_features, batch_locations in tfr_generator:
+                features.append(batch_features)
+                locations.append(batch_locations)
+            return torch.cat(features), torch.cat(locations)
         elif kwargs:
             raise ValueError(
                 f"{self.__class__.__name__} does not accept keyword arguments "
@@ -191,6 +204,27 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
                 if self.channels_last:
                     obj = obj.to(memory_format=torch.channels_last)
                 return self._process_output(self.model(obj))
+
+    def tfrecord_inference(
+        self,
+        tfrecord_path: str,
+        batch_size: int = 32,
+        num_workers: int = 2
+    ) -> Generator[Tuple["torch.Tensor", "torch.Tensor"], None, None]:
+        """Generate features from a TFRecord file."""
+        import torch
+        from torch.utils.data import DataLoader
+
+        tfr = sf.TFRecord(tfrecord_path, decode_images=True)
+        tfr_dl = DataLoader(
+            tfr,
+            batch_size=batch_size,
+            num_workers=num_workers
+        )
+        for batch in tfr_dl:
+            features = self(sf.io.torch.whc_to_cwh(batch['image_raw']))
+            locations = torch.stack([batch['loc_x'], batch['loc_y']], dim=1)
+            yield features, locations
 
 
 class TorchImagenetLayerExtractor(BaseFeatureExtractor):
