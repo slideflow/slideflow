@@ -465,6 +465,7 @@ def build_fastai_learner(
     *,
     outdir: str = 'mil',
     return_shape: bool = False,
+    **kwargs
 ) -> "Learner":
     """Build a FastAI Learner for training an aMIL model.
 
@@ -485,6 +486,7 @@ def build_fastai_learner(
         lr (float): Learning rate, or maximum learning rate if
             ``fit_one_cycle=True``.
         epochs (int): Maximum epochs.
+        **kwargs: Additional keyword arguments to pass to the FastAI learner.
 
     Returns:
         fastai.learner.Learner
@@ -555,7 +557,7 @@ def build_fastai_learner(
         val_idx=val_idx,
         unique_categories=unique_categories,
         outdir=outdir,
-        pin_memory=True
+        **kwargs
     )
     if return_shape:
         return learner, (n_in, n_out)
@@ -661,7 +663,6 @@ def build_multimodal_learner(
         unique_categories,
         num_modes,
         outdir=outdir,
-        pin_memory=True,
     )
     if return_shape:
         return learner, (n_in, n_out)
@@ -679,6 +680,7 @@ def train_fastai(
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
+    device: Optional[str] = None,
     **heatmap_kwargs
 ) -> None:
     """Train an aMIL model using FastAI.
@@ -732,6 +734,7 @@ def train_fastai(
         outcomes,
         bags=bags,
         outdir=outdir,
+        device=device,
         return_shape=True
     )
 
