@@ -273,6 +273,14 @@ class _cuCIMReader:
             elif 'DICOM_PIXEL_SPACING' in self.metadata[prop_key]:
                 ps = self.metadata[prop_key]['DICOM_PIXEL_SPACING'][0]
                 self._mpp = ps * 1000  # Convert from millimeters -> microns
+            elif 'spacing' in self.metadata[prop_key]:
+                ps = self.metadata[prop_key]['spacing']
+                if isinstance(ps, (list, tuple)):
+                    ps = ps[0]
+                if 'spacing_units' in self.metadata[prop_key]:
+                    if self.metadata[prop_key]['spacing_units'] in ('mm', 'millimeters'):
+                        ps = ps * 1000
+                self._mpp = ps
         if not self.mpp:
             log.warn("Unable to auto-detect microns-per-pixel (MPP).")
 
