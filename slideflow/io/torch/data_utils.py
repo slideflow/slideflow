@@ -219,35 +219,51 @@ def get_tfrecord_parser(
         normalizer=normalizer,
         whc=True
     )
+    parser = TFRecordParser(
+        features_to_return,
+        decode_images,
+        img_type,
+        transform
+    )
+    return parser
 
-    def parser(record):
+# -------------------------------------------------------------------------
+
+class TFRecordParser:
+
+    def __init__(self, features_to_return, decode_images, img_type, transform):
+        self.features_to_return = features_to_return
+        self.decode_images = decode_images
+        self.img_type = img_type
+        self.transform = transform
+
+    def __call__(self, record):
         """Each item in args is an array with one item, as the dareblopy reader
         returns items in batches and we have set our batch_size = 1 for
         interleaving.
         """
         features = {}
-        if ('slide' in features_to_return):
+        if ('slide' in self.features_to_return):
             slide = bytes(record['slide']).decode('utf-8')
             features['slide'] = slide
-        if ('image_raw' in features_to_return):
+        if ('image_raw' in self.features_to_return):
             img = bytes(record['image_raw'])
-            if decode_images:
+            if self.decode_images:
                 features['image_raw'] = decode_image(
                     img,
-                    img_type=img_type,
-                    transform=transform
+                    img_type=self.img_type,
+                    transform=self.transform
                 )
             else:
                 features['image_raw'] = img
-        if ('loc_x' in features_to_return):
+        if ('loc_x' in self.features_to_return):
             features['loc_x'] = record['loc_x'][0]
-        if ('loc_y' in features_to_return):
+        if ('loc_y' in self.features_to_return):
             features['loc_y'] = record['loc_y'][0]
-        if type(features_to_return) == dict:
+        if type(self.features_to_return) == dict:
             return {
                 label: features[f]
-                for label, f in features_to_return.items()
+                for label, f in self.features_to_return.items()
             }
         else:
-            return [features[f] for f in features_to_return]
-    return parser
+            return [features[f] for f in self.features_to_return]

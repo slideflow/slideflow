@@ -221,12 +221,7 @@ def compose_augmentations(
 
     # Stain normalization.
     if normalizer is not None:
-        transformations.append(
-            lambda img: normalizer.torch_to_torch(  # type: ignore
-                img,
-                augment=(isinstance(augment, str) and 'n' in augment)
-            )
-        )
+        transformations.append(NormalizerAugment(normalizer, augment))
     elif isinstance(augment, str) and 'n' in augment:
         raise ValueError(
             "Stain augmentation (n) requires a stain normalizer, which was not "
@@ -247,7 +242,7 @@ def compose_augmentations(
     # Note: not the same as tensorflow's per_image_standardization
     # Convert back: image = (image + 1) * (255/2)
     if standardize:
-        transformations.append(lambda img: img / (255/2) - 1)
+        transformations.append(StandardizeAugment())
 
     if transformations and whc:
         return transforms.Compose([whc_to_cwh] + transformations + [cwh_to_whc])
@@ -255,3 +250,22 @@ def compose_augmentations(
         return transforms.Compose(transformations)
 
 # -----------------------------------------------------------------------------
+
+class NormalizerAugment:
+
+    def __init__(self, normalizer: "StainNormalizer", augment: str):
+        self.normalizer = normalizer
+        self.augment = augment
+
+    def __call__(self, img):
+        img = self.normalizer.torch_to_torch(img, augment=('n' in self.augment))
+        return img
+
+
+class StandardizeAugment:
+
+    def __init__(self):
+        pass
+
+    def __call__(self, img):
+        return img / (255/2) - 1
