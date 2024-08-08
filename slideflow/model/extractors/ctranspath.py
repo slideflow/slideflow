@@ -43,6 +43,13 @@ def _window_partition(mask, window_size):
         return window_partition(mask, to_2tuple(window_size))
 
 
+def _window_reverse(mask, window_size, *args, **kwargs):
+    if version.parse(timm_version) < version.parse("1.0"):
+        return window_reverse(mask, window_size, *args, **kwargs)
+    else:
+        return window_reverse(mask, to_2tuple(window_size), *args, **kwargs)
+
+
 def _init_vit_weights(module: nn.Module, name: str = '', head_bias: float = 0., jax_impl: bool = False):
     """ ViT weight initialization
     * When called without n, head_bias, jax_impl args it will behave exactly the same
@@ -283,7 +290,7 @@ class SwinTransformerBlock(nn.Module):
 
         # merge windows
         attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
-        shifted_x = window_reverse(attn_windows, self.window_size, H, W)  # B H' W' C
+        shifted_x = _window_reverse(attn_windows, self.window_size, H, W)  # B H' W' C
 
         # reverse cyclic shift
         if self.shift_size > 0:
