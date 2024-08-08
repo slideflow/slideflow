@@ -333,12 +333,13 @@ class ExtractionReport:
                 with tempfile.NamedTemporaryFile(suffix='.png') as temp:
                     plt.savefig(temp.name)
                     pdf.image(temp.name, 107, pdf.y, w=50)
-                    plt.clf()
+                    plt.close()
 
             if np.any(bb) and self.blur_chart(bb):
                 with tempfile.NamedTemporaryFile(suffix='.png') as temp:
                     plt.savefig(temp.name)
                     pdf.image(temp.name, 155, pdf.y, w=50)
+                    plt.close()
 
             # Bounding box
             pdf.set_x(20)

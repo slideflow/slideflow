@@ -57,6 +57,7 @@ def combined_roc(
         neptune_run[f'results/graphs/{name}'].upload(
             os.path.join(save_dir, f'{name}.png')
         )
+    plt.close()
     return aurocs
 
 

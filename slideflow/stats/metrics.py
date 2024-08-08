@@ -85,6 +85,7 @@ class ClassifierMetrics:
         sf.stats.plot.roc(self.fpr, self.tpr, f'AUC = {auroc_str}')
         full_path = join(outdir, f'{name}.png')
         plt.savefig(full_path)
+        plt.close()
         if self.neptune_run:
             self.neptune_run[f'results/graphs/{name}'].upload(full_path)
 
@@ -94,6 +95,7 @@ class ClassifierMetrics:
         sf.stats.plot.prc(self.precision, self.recall, label=f'AP = {ap_str}')
         full_path = join(outdir, f'{name}.png')
         plt.savefig(full_path)
+        plt.close()
         if self.neptune_run:
             self.neptune_run[f'results/graphs/{name}'].upload(full_path)
 
