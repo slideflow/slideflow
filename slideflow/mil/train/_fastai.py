@@ -146,6 +146,7 @@ def _build_clam_learner(
         bags[val_idx],
         targets[val_idx],
         encoder=encoder,
+        bag_size=None,
         max_bag_size=config.max_val_bag_size
     )
     val_dl = DataLoader(
