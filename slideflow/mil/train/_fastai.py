@@ -139,13 +139,14 @@ def _build_clam_learner(
         num_workers=1,
         drop_last=False,
         device=device,
+        pin_memory=True,
         **dl_kwargs
     )
     val_dataset = data_utils.build_clam_dataset(
         bags[val_idx],
         targets[val_idx],
         encoder=encoder,
-        bag_size=None
+        max_bag_size=config.max_val_bag_size
     )
     val_dl = DataLoader(
         val_dataset,
@@ -154,6 +155,7 @@ def _build_clam_learner(
         num_workers=8,
         persistent_workers=True,
         device=device,
+        pin_memory=False,
         **dl_kwargs
     )
 
@@ -161,7 +163,10 @@ def _build_clam_learner(
     batch = train_dl.one_batch()
     n_features = batch[0][0].shape[-1]
     n_classes = batch[-1].shape[-1]
-    config_size = config.model_fn.sizes[config.model_config.model_size]
+    if isinstance(config.model_config.model_size, str):
+        config_size = config.model_fn.sizes[config.model_config.model_size]
+    else:
+        config_size = config.model_config.model_size
     model_size = [n_features] + config_size[1:]
     log.info(f"Training model [bold]{config.model_fn.__name__}[/] "
              f"(size={model_size}, loss={config.loss_fn.__name__})")
@@ -238,6 +243,7 @@ def _build_fastai_learner(
         num_workers=1,
         drop_last=config.drop_last,
         device=device,
+        pin_memory=True,
         **dl_kwargs
     )
     val_dataset = data_utils.build_dataset(
@@ -245,6 +251,7 @@ def _build_fastai_learner(
         targets[val_idx],
         encoder=encoder,
         bag_size=None,
+        max_bag_size=config.max_val_bag_size,
         use_lens=config.model_config.use_lens
     )
     val_dl = DataLoader(
@@ -254,6 +261,7 @@ def _build_fastai_learner(
         num_workers=8,
         persistent_workers=True,
         device=device,
+        pin_memory=False,
         **dl_kwargs
     )
 
@@ -344,6 +352,7 @@ def _build_multimodal_learner(
         num_workers=1,
         drop_last=config.drop_last,
         device=device,
+        pin_memory=True,
         **dl_kwargs
     )
     val_dataset = data_utils.build_multibag_dataset(
@@ -351,6 +360,7 @@ def _build_multimodal_learner(
         targets[val_idx],
         encoder=encoder,
         bag_size=None,
+        max_bag_size=config.max_val_bag_size,
         n_bags=n_magnifications,
         use_lens=config.model_config.use_lens
     )
@@ -361,6 +371,7 @@ def _build_multimodal_learner(
         num_workers=1,
         persistent_workers=True,
         device=device,
+        pin_memory=False,
         **dl_kwargs
     )
 

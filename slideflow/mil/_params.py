@@ -126,6 +126,7 @@ class TrainerConfigFastAI(_TrainerConfig):
         lr: Optional[float] = None,
         wd: float = 1e-5,
         bag_size: int = 512,
+        max_val_bag_size: Optional[int] = None,
         fit_one_cycle: bool = True,
         epochs: int = 32,
         batch_size: int = 64,
@@ -156,6 +157,9 @@ class TrainerConfigFastAI(_TrainerConfig):
             wd (float): Weight decay. Only used if ``fit_one_cycle=False``.
                 Defaults to 1e-5.
             bag_size (int): Bag size. Defaults to 512.
+            max_val_bag_size (int, optional): Maximum validation bag size. If
+                None, all validation bags will be unclipped and unpadded (full size).
+                Defaults to None.
             fit_one_cycle (bool): Use `1cycle <https://sgugger.github.io/the-1cycle-policy.html>`_
                 learning rate schedule. Defaults to True.
             epochs (int): Maximum number of epochs. Defaults to 32.
@@ -169,6 +173,7 @@ class TrainerConfigFastAI(_TrainerConfig):
         self.lr = lr
         self.wd = wd
         self.bag_size = bag_size
+        self.max_val_bag_size = max_val_bag_size
         self.fit_one_cycle = fit_one_cycle
         self.epochs = epochs
         self.batch_size = batch_size
