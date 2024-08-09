@@ -504,7 +504,7 @@ def get_mil_tile_predictions(
     is_clam = (isinstance(config, TrainerConfigCLAM)
                 or isinstance(config.model_config, ModelConfigCLAM))
 
-    print("Generating predictions for {} slides and {} bags.".format(len(slides), len(bags)))
+    log.info("Generating predictions for {} slides and {} bags.".format(len(slides), len(bags)))
 
     # First, start with slide-level inference and attention.
     if (isinstance(config, TrainerConfigCLAM)
@@ -532,7 +532,8 @@ def get_mil_tile_predictions(
                             description="Generating tile predictions",
                             total=len(bags)):
         if is_clam:
-            pred_out = _predict_mil_tiles(model, bag, use_first_out=True, uq=uq)
+            fw_kw = dict(return_instance_loss=False)
+            pred_out = _predict_mil_tiles(model, bag, forward_kwargs=fw_kw, uq=uq)
         else:
             pred_out = _predict_mil_tiles(
                 model,
@@ -846,7 +847,6 @@ def generate_attention_heatmaps(
                 # as well as a heatmap reduced by mean.
                 # The attention values are assumed to have the shape (n_attention, n_tiles).
                 for att_idx in range(attention[i].shape[0]):
-                    print(attention[i].shape)
                     sf.util.location_heatmap(
                         values=attention[i][att_idx, :],
                         filename=join(outdir, f'{sf.util.path_to_name(slide_path)}_attn-{att_idx}.png'),
@@ -915,7 +915,7 @@ def _validate_model(
             log.warning(msg)
         else:
             raise RuntimeError(msg)
-    if uq and not inspect.signature(model.forward).parameters['uq']:
+    if uq and not ('uq' in inspect.signature(model.forward).parameters):
         msg = (
             "Model '{}' does not support UQ. "
             "Unable to calculate uncertainty.".format(
@@ -937,13 +937,16 @@ def run_inference(
     attention: bool = False,
     attention_pooling: str = 'avg',
     uq: bool = False,
-    use_first_out: bool = False,
+    forward_kwargs: Optional[dict] = None,
     apply_softmax: bool = True,
     use_lens: bool = False,
     device: Optional[Any] = None
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
     """Run inference on a MIL model."""
     import torch
+
+    if forward_kwargs is None:
+        forward_kwargs = dict()
 
     y_pred, y_att, y_uncertainty = None, None, None
 
@@ -957,17 +960,20 @@ def run_inference(
     else:
         model_args = (input,)
 
-    if uq and inspect.signature(model.forward).parameters['uq']:
-        kw = dict(uq=True)
+    if uq and 'uq' in inspect.signature(model.forward).parameters:
+        kw = dict(uq=True, **forward_kwargs)
     elif uq:
         raise RuntimeError("Model does not support UQ.")
     else:
         kw = dict()
     if attention and inspect.signature(model.forward).parameters['return_attention']:
+        kw = forward_kwargs
+
+    # Check if the model can return attention during inference. 
+    # If so, this saves us a forward pass through the model.
+    if attention and 'return_attention' in inspect.signature(model.forward).parameters:
         model_out, y_att = model(*model_args, return_attention=True, **kw)
-    elif use_first_out:
-        # CLAM models return attention scores as well as logits.
-        model_out, y_att = model(*model_args, **kw)
+    # Otherwise, use the model's `calculate_attention` function directly.
     elif attention:
         model_out = model(*model_args, **kw)
         y_att = model.calculate_attention(*model_args)
@@ -1012,7 +1018,7 @@ def _predict_clam(
     from slideflow.mil.models import CLAM_MB, CLAM_SB
 
     if isinstance(model, (CLAM_MB, CLAM_SB)):
-        clam_kw = dict(return_attention=True)
+        clam_kw = dict(return_attention=True, return_instance_loss=False)
     else:
         clam_kw = {}
         attention = False
@@ -1027,10 +1033,7 @@ def _predict_clam(
         else:
             loaded = utils._load_bag(bag).to(device)
         with torch.no_grad():
-            if clam_kw:
-                logits, att, _ = model(loaded, **clam_kw)
-            else:
-                logits, att = model(loaded, **clam_kw)
+            logits, att = model(loaded, **clam_kw)
             if attention:
                 y_att.append(np.squeeze(att.cpu().numpy()))
             y_pred.append(torch.nn.functional.softmax(logits, dim=1).cpu().numpy())
@@ -1111,7 +1114,7 @@ def _predict_mil_tiles(
     use_lens: bool = False,
     device: Optional[Any] = None,
     apply_softmax: bool = True,
-    use_first_out: bool = False,
+    forward_kwargs: Optional[dict] = None,
     attention: bool = False,
     attention_pooling: str = 'avg',
     uq: bool = False,
@@ -1119,6 +1122,9 @@ def _predict_mil_tiles(
     """Generate tile predictions from an MIL model from a bag."""
 
     import torch
+
+    if forward_kwargs is None:
+        forward_kwargs = dict()
 
     attention, uq = _validate_model(model, attention, uq, allow_errors=True)
 
@@ -1140,24 +1146,35 @@ def _predict_mil_tiles(
 
     # Inference.
     with torch.no_grad():
-        y_pred, y_att, uncertainty = run_inference(
-            model,
-            loaded,
-            attention=attention,
-            attention_pooling=attention_pooling,
-            uq=uq,
-            use_first_out=use_first_out,
-            apply_softmax=apply_softmax,
-            use_lens=use_lens,
-            device=device
-        )
+        # CLAM models do not support inference with batch_size > 1, 
+        # and thus require a different, less efficient pipeline.
+        if "CLAM" in model.__class__.__name__:
+            y_pred, y_att = _predict_clam(
+                model,
+                loaded,
+                attention=attention,
+                device=device
+            )
+            uncertainty = None
+        else:
+            y_pred, y_att, uncertainty = run_inference(
+                model,
+                loaded,
+                attention=attention,
+                attention_pooling=attention_pooling,
+                uq=uq,
+                forward_kwargs=forward_kwargs,
+                apply_softmax=apply_softmax,
+                use_lens=use_lens,
+                device=device
+            )
 
     # Convert to numpy.
-    if y_pred is not None:
+    if y_pred is not None and isinstance(y_pred, torch.Tensor):
         y_pred = y_pred.cpu().numpy()
-    if y_att is not None:
+    if y_att is not None and isinstance(y_att, torch.Tensor):
         y_att = y_att.cpu().numpy()
-    if uncertainty is not None:
+    if uncertainty is not None and isinstance(uncertainty, torch.Tensor):
         uncertainty = uncertainty.cpu().numpy()
 
     if uq:
