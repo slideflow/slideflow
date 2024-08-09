@@ -8,7 +8,7 @@ from slideflow import errors
 from slideflow.model import BaseFeatureExtractor
 
 from ._registry import (is_tensorflow_extractor, is_torch_extractor,
-                        _tf_extractors, _torch_extractors)
+                        _tf_extractors, _torch_extractors, _extras_extractors)
 from ._factory_tensorflow import build_tensorflow_feature_extractor
 from ._factory_torch import build_torch_feature_extractor
 
@@ -168,6 +168,11 @@ def build_feature_extractor(
         return build_tensorflow_feature_extractor(name, **kwargs)
     elif is_torch_extractor(name):
         return build_torch_feature_extractor(name, **kwargs)
+    elif name in _extras_extractors:
+        raise errors.InvalidFeatureExtractor(
+            "{} requires the package {}, please install with 'pip install {}'".format(
+                name, _extras_extractors[name], _extras_extractors[name]
+        ))
     else:
         raise errors.InvalidFeatureExtractor(f"Unrecognized feature extractor: {name}")
 

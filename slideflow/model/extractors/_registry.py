@@ -2,6 +2,15 @@
 
 _tf_extractors = dict()
 _torch_extractors = dict()
+_known_extras_packages = {
+     'slideflow_extras': ['histossl', 'plip', 'retccl', 'ctranspath'],
+     'slideflow_gigapath': ['gigapath', 'gigapath.tile', 'gigapath.slide']
+}
+_extras_extractors = {
+    extractor: package 
+    for package, extractors in _known_extras_packages.items() 
+    for extractor in extractors
+}
 
 __all__ = ['list_extractors', 'list_tensorflow_extractors', 'list_torch_extractors',
            'is_extractor', 'is_tensorflow_extractor', 'is_torch_extractor']
