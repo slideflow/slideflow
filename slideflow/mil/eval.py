@@ -551,7 +551,7 @@ def get_mil_tile_predictions(
             tile_pred, tile_att = pred_out
 
         # Verify the shapes are consistent.
-        assert len(tile_pred) == len(attention[i])
+        assert len(tile_pred) == attention[i].shape[-1]
         n_bags = len(tile_pred)
 
         # Find the associated locations.
@@ -585,7 +585,11 @@ def get_mil_tile_predictions(
 
     # Attention
     if attention is not None:
-        df_dict['attention'] = df_attention
+        if len(df_attention.shape) == 1:
+            df_dict['attention'] = df_attention
+        else:
+            for _a in range(len(df_attention)):
+                df_dict[f'attention-{_a}'] = df_attention[_a]
 
     # Uncertainty
     if uq:
