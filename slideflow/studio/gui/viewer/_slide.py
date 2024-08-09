@@ -875,9 +875,9 @@ class SlideViewer(Viewer):
         wsi_ratio = wsi_width / wsi_height
         max_w, max_h = self.width, self.height
         if wsi_ratio < self.width / self.height:
-            max_w = int(wsi_ratio * max_h)
+            max_w = int(np.round(wsi_ratio * max_h))
         else:
-            max_h = int(max_w / wsi_ratio)
+            max_h = int(np.round(max_w / wsi_ratio))
         self.view_zoom = max(wsi_width / max_w,
                              wsi_height / max_h)
 
