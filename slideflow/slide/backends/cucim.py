@@ -268,19 +268,32 @@ class _cuCIMReader:
             log.debug(f"Manually setting MPP to {mpp}")
             self._mpp = mpp
         for prop_key in self.metadata:
+            if self._mpp is not None:
+                break
             if 'MPP' in self.metadata[prop_key]:
                 self._mpp = self.metadata[prop_key]['MPP']
+                log.debug(f'Setting MPP by metadata ({prop_key}) "MPP" to {self._mpp}')
             elif 'DICOM_PIXEL_SPACING' in self.metadata[prop_key]:
                 ps = self.metadata[prop_key]['DICOM_PIXEL_SPACING'][0]
                 self._mpp = ps * 1000  # Convert from millimeters -> microns
+                log.debug(f'Setting MPP by metadata ({prop_key}) "DICOM_PIXEL_SPACING" to {self._mpp}')
             elif 'spacing' in self.metadata[prop_key]:
                 ps = self.metadata[prop_key]['spacing']
                 if isinstance(ps, (list, tuple)):
                     ps = ps[0]
                 if 'spacing_units' in self.metadata[prop_key]:
-                    if self.metadata[prop_key]['spacing_units'] in ('mm', 'millimeters'):
-                        ps = ps * 1000
-                self._mpp = ps
+                    spacing_unit = self.metadata[prop_key]['spacing_units']
+                    if isinstance(spacing_unit, (list, tuple)):
+                        spacing_unit = spacing_unit[0]
+                    if spacing_unit in ('mm', 'millimeters'):
+                        self._mpp = ps * 1000
+                    elif spacing_unit in ('cm', 'centimeters'):
+                        self._mpp = ps * 10000
+                    elif spacing_unit in ('um', 'microns', 'micrometers'):
+                        self._mpp = ps
+                    else:
+                        continue
+                    log.debug(f'Setting MPP by metadata ({prop_key}) "spacing" ({spacing_unit}) to {self._mpp}')
         if not self.mpp:
             log.warn("Unable to auto-detect microns-per-pixel (MPP).")
 
