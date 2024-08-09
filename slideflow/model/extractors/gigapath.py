@@ -103,6 +103,17 @@ class GigapathTileFeatures(TorchFeatureExtractor):
 
 # -----------------------------------------------------------------------------
 
+def _verify_gigapath_imports():
+    try:
+        from gigapath import slide_encoder
+        from gigapath.torchscale.component.flash_attention import flash_attn_func
+    except ImportError:
+        raise ImportError("Please install the gigapath package to use this feature extractor.")
+    if flash_attn_func is None:
+        raise ImportError("Unable to verify status of flash attention module. "
+                          "Please ensure flash_attn is installed ('pip install flash_attn'), "
+                          "or xformers ('pip install xformers') if your CUDA device capability is < 7.0")
+
 
 class GigapathSlideFeatures:
     """Gigapath slide-level feature embedding generator.
@@ -121,11 +132,10 @@ class GigapathSlideFeatures:
         device: str = 'cuda',
     ):
         """Initialize the Gigapath slide feature generator."""
-        try:
-            from gigapath import slide_encoder
-        except ImportError:
-            raise ImportError("Please install the gigapath package to use this feature extractor.")
 
+        _verify_gigapath_imports()
+
+        from gigapath import slide_encoder
         from slideflow.model import torch_utils
 
         self.device = torch_utils.get_device(device)
