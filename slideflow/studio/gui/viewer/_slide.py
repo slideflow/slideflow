@@ -858,7 +858,15 @@ class SlideViewer(Viewer):
             raise NotImplementedError
 
     def update(self, width: int, height: int, x_offset: int, y_offset: int, **kwargs) -> None:
-        """Update the viewer with a new width, height, and offset."""
+        """Update the viewer with a new width, height, and offset.
+
+        Args:
+            width (int): New width of the viewer.
+            height (int): New height of the viewer.
+            x_offset (int): New X offset of the viewer.
+            y_offset (int): New Y offset of the viewer.
+
+        """
         should_refresh = ((width, height, x_offset, y_offset)
                           != (self.width, self.height, self.x_offset, self.y_offset))
         if should_refresh:
@@ -869,7 +877,6 @@ class SlideViewer(Viewer):
         self.y_offset = y_offset
 
         # Update current zoom (affected by window resizing)
-        #self.view_zoom = self.wsi_window_size[0] / self.width
         wsi_width = self.wsi_window_size[0]  # self.dimensions[0]
         wsi_height = self.wsi_window_size[1]  # self.dimensions[1]
         wsi_ratio = wsi_width / wsi_height
