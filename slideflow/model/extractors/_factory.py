@@ -244,10 +244,18 @@ def rebuild_extractor(
     extractor_name = bags_config['extractor']['class'].split('.')
     extractor_class = extractor_name[-1]
     extractor_kwargs = bags_config['extractor']['kwargs']
-    module = importlib.import_module('.'.join(extractor_name[:-1]))
     try:
+        module = importlib.import_module('.'.join(extractor_name[:-1]))
         extractor = getattr(module, extractor_class)(**extractor_kwargs)
     except Exception:
+        submodule_name = extractor_name[-2]
+        if submodule_name in _extras_extractors:
+            raise errors.InvalidFeatureExtractor(
+                "{} requires the package {}, please install with 'pip install {}'".format(
+                    submodule_name, 
+                    _extras_extractors[submodule_name], 
+                    _extras_extractors[submodule_name]
+            ))
         if allow_errors:
             return None
         else:

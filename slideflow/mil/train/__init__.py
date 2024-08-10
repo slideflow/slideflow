@@ -13,7 +13,7 @@ from os.path import join, isdir
 from .. import utils
 from ..eval import predict_from_model, generate_attention_heatmaps, _export_attention
 from .._params import (
-    _TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
+    BaseTrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
 )
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 # -----------------------------------------------------------------------------
 
 def train_mil(
-    config: _TrainerConfig,
+    config: BaseTrainerConfig,
     train_dataset: Dataset,
     val_dataset: Optional[Dataset],
     outcomes: Union[str, List[str]],
@@ -81,7 +81,7 @@ def train_mil(
 
 
 def _train_mil(
-    config: _TrainerConfig,
+    config: BaseTrainerConfig,
     train_dataset: Dataset,
     val_dataset: Optional[Dataset],
     outcomes: Union[str, List[str]],
@@ -125,11 +125,8 @@ def _train_mil(
     """
     log.info("Training FastAI MIL model with config:")
     log.info(f"{config}")
-    if isinstance(config, TrainerConfigFastAI):
-        train_fn = train_fastai
-    elif isinstance(config, TrainerConfigCLAM):
-        train_fn = train_clam
-    else:
+    train_fn = config.get_trainer()
+    if not isinstance(config, BaseTrainerConfig):
         raise ValueError(f"Unrecognized training configuration of type {type(config)}")
     if val_dataset is None:
         sf.log.info(

@@ -14,7 +14,7 @@ from slideflow.util import path_to_name
 from slideflow.model.extractors import rebuild_extractor
 from slideflow.stats.metrics import ClassifierMetrics
 from ._params import (
-    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM, TrainerConfigFastAI
+    BaseTrainerConfig, ModelConfigCLAM, TrainerConfigCLAM, TrainerConfigFastAI
 )
 from . import utils
 
@@ -31,7 +31,7 @@ def eval_mil(
     dataset: Dataset,
     outcomes: Union[str, List[str]],
     bags: Union[str, List[str]],
-    config: Optional[_TrainerConfig] = None,
+    config: Optional[BaseTrainerConfig] = None,
     *,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
@@ -133,7 +133,7 @@ def _eval_mil(
     dataset: Dataset,
     outcomes: Union[str, List[str]],
     bags: Union[str, List[str]],
-    config: _TrainerConfig,
+    config: BaseTrainerConfig,
     *,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
@@ -246,7 +246,7 @@ def _eval_multimodal_mil(
     dataset: Dataset,
     outcomes: Union[str, List[str]],
     bags: List[List[str]],
-    config: _TrainerConfig,
+    config: BaseTrainerConfig,
     *,
     outdir: str = 'mil',
     params: Optional[dict] = None,
@@ -339,7 +339,7 @@ def predict_slide(
     extractor: Optional["BaseFeatureExtractor"] = None,
     *,
     normalizer: Optional["StainNormalizer"] = None,
-    config: Optional[_TrainerConfig] = None,
+    config: Optional[BaseTrainerConfig] = None,
     attention: bool = False,
     native_normalizer: Optional[bool] = True,
     extractor_kwargs: Optional[dict] = None,
@@ -484,7 +484,7 @@ def get_mil_tile_predictions(
     dataset: "sf.Dataset",
     bags: Union[str, np.ndarray, List[str]],
     *,
-    config: Optional[_TrainerConfig] = None,
+    config: Optional[BaseTrainerConfig] = None,
     outcomes: Union[str, List[str]] = None,
     dest: Optional[str] = None,
     uq: bool = False
@@ -616,7 +616,7 @@ def save_mil_tile_predictions(
     weights: str,
     dataset: "sf.Dataset",
     bags: Union[str, np.ndarray, List[str]],
-    config: Optional[_TrainerConfig] = None,
+    config: Optional[BaseTrainerConfig] = None,
     outcomes: Union[str, List[str]] = None,
     dest: str = 'mil_tile_preds.parquet',
 ) -> pd.DataFrame:
@@ -632,7 +632,7 @@ def save_mil_tile_predictions(
 
 def predict_from_model(
     model: Callable,
-    config: _TrainerConfig,
+    config: BaseTrainerConfig,
     dataset: "sf.Dataset",
     outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]],
@@ -730,7 +730,7 @@ def generate_mil_features(
     dataset: "sf.Dataset",
     bags: Union[str, np.ndarray, List[str]],
     *,
-    config: Optional[_TrainerConfig] = None,
+    config: Optional[BaseTrainerConfig] = None,
 ) -> "MILFeatures":
     """Generate activations weights from the last layer of an MIL model.
 

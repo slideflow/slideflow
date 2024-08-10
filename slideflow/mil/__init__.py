@@ -14,7 +14,7 @@ from .eval import (
 from .train._legacy import legacy_train_clam
 from ._params import (
     mil_config,
-    _TrainerConfig,
+    BaseTrainerConfig,
     TrainerConfigFastAI,
     TrainerConfigCLAM,
     ModelConfigCLAM,

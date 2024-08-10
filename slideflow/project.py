@@ -1508,7 +1508,7 @@ class Project:
         outcomes: Union[str, List[str]],
         dataset: Dataset,
         bags: Union[str, List[str]],
-        config: Optional["mil._TrainerConfig"] = None,
+        config: Optional["mil.BaseTrainerConfig"] = None,
         *,
         outdir: Optional[str] = None,
         **kwargs
@@ -3873,7 +3873,7 @@ class Project:
 
     def train_mil(
         self,
-        config: "mil._TrainerConfig",
+        config: "mil.BaseTrainerConfig",
         train_dataset: Dataset,
         val_dataset: Dataset,
         outcomes: Union[str, List[str]],

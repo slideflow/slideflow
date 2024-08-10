@@ -9,7 +9,7 @@ from slideflow import errors, log
 from slideflow.util import path_to_name
 from slideflow.model.torch_utils import get_device
 from ._params import (
-    _TrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
+    BaseTrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
 )
 
 if TYPE_CHECKING:
@@ -21,12 +21,12 @@ if TYPE_CHECKING:
 
 def load_model_weights(
     weights: str,
-    config: Optional[_TrainerConfig] = None,
+    config: Optional[BaseTrainerConfig] = None,
     *,
     input_shape: Optional[int] = None,
     output_shape: Optional[int] = None,
     strict: bool = False
-) -> Tuple["torch.nn.Module", _TrainerConfig]:
+) -> Tuple["torch.nn.Module", BaseTrainerConfig]:
     """Load weights and build model.
 
     Args:

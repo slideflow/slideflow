@@ -54,7 +54,7 @@ class DictConfig:
                 ) and not k.startswith('_')}
 
 
-class _TrainerConfig(DictConfig):
+class BaseTrainerConfig(DictConfig):
 
     def __init__(self, *args, **kwargs):
         """Multiple-instance learning (MIL) training configuration.
@@ -117,7 +117,7 @@ class _TrainerConfig(DictConfig):
 
 # -----------------------------------------------------------------------------
 
-class TrainerConfigFastAI(_TrainerConfig):
+class TrainerConfigFastAI(BaseTrainerConfig):
     def __init__(
         self,
         model: Union[str, Callable] = 'attention_mil',
@@ -184,8 +184,12 @@ class TrainerConfigFastAI(_TrainerConfig):
         else:
             self.model_config = ModelConfigFastAI(model=model, **kwargs)
 
+    def get_trainer(self):
+        from slideflow.mil.train import train_fastai
+        return train_fastai
 
-class TrainerConfigCLAM(_TrainerConfig):
+
+class TrainerConfigCLAM(BaseTrainerConfig):
     def __init__(
         self,
         *,
@@ -256,6 +260,10 @@ class TrainerConfigCLAM(_TrainerConfig):
         del all_kw['dropout']
         del all_kw['model_kwargs']
         return CLAM_Args(**all_kw)
+    
+    def get_trainer(self):
+        from slideflow.mil.train import train_clam
+        return train_clam
 
 # -----------------------------------------------------------------------------
 

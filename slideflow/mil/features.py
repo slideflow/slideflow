@@ -10,7 +10,7 @@ from slideflow import log, errors
 from slideflow.util import log, path_to_name
 
 from ._params import (
-    _TrainerConfig
+    BaseTrainerConfig
 )
 from .models.mil_fc import MIL_fc, MIL_fc_mc
 from .models.att_mil import Attention_MIL
@@ -31,7 +31,7 @@ class MILFeatures:
         bags: Union[np.ndarray, List[str], str],
         *,
         slides: Optional[list] = None,
-        config: Optional[_TrainerConfig] = None,
+        config: Optional[BaseTrainerConfig] = None,
         dataset: Optional["sf.Dataset"] = None,
         attention_pooling: Optional[str] = 'avg',
         device: Optional[Any] = None
@@ -165,7 +165,7 @@ class MILFeatures:
     def _load_model(
         self,
         model: Union[str, "torch.nn.Module"],
-        config: Optional[_TrainerConfig]
+        config: Optional[BaseTrainerConfig]
     ) -> Tuple[Callable, bool]:
         """Loads in model from Callable or path to model weights and config.
 
