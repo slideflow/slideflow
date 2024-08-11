@@ -11,8 +11,6 @@ from tkinter.filedialog import askdirectory
 from os.path import join, exists, dirname, abspath
 from typing import Dict, Optional, List, Union
 from slideflow.util import isnumeric
-from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
-from slideflow.mil.eval import _predict_clam, _predict_mil
 
 from ._utils import Widget
 from .model import draw_tile_predictions
@@ -351,27 +349,15 @@ class MILWidget(Widget):
 
     def _calculate_predictions(self, bags, **kwargs):
         """Calculate MIL predictions and attention from a set of bags."""
-        if (isinstance(self.mil_config, TrainerConfigCLAM)
-        or isinstance(self.mil_config.model_config, ModelConfigCLAM)):
-            predictions, attention = _predict_clam(
-                self.model,
-                bags,
-                attention=self.calculate_attention,
-                device=self.viz._render_manager.device,
-                **kwargs
-            )
-        else:
-            predictions, attention = _predict_mil(
-                self.model,
-                bags,
-                attention=self.calculate_attention,
-                use_lens=self.mil_config.model_config.use_lens,
-                apply_softmax=self.mil_config.model_config.apply_softmax,
-                device=self.viz._render_manager.device,
-                **kwargs
-            )
+        predictions, attention = self.mil_config.predict(
+            self.model,
+            bags,
+            attention=self.calculate_attention,
+            device=self.viz._render_manager.device,
+            **kwargs
+        )
         return predictions, attention
-
+    
     def _progress_callback(self, grid_idx, bar_id=0, max_val=None):
         self._progress_count[bar_id] += len(grid_idx)
         if max_val is None:
@@ -416,7 +402,7 @@ class MILWidget(Widget):
             print("Generated feature bags for {} tiles".format(ext_bags.shape[1]))
 
         # Generate slide prediction & attention.
-        self.predictions, self.attention = sf.mil.eval._predict_multimodal_mil(
+        self.predictions, self.attention = sf.mil.eval.run_multimodal_eval(
             self.model, [bags], attention=True, use_lens=self.mil_config.model_config.use_lens
         )
         print("Slide prediction: {}".format(self.predictions[0]))
@@ -439,7 +425,6 @@ class MILWidget(Widget):
         #TODO: extend for multi-attention
         self.viz.heatmap = _AttentionHeatmapWrapper(None, self.viz.wsi)
         self.viz.heatmap_widget.render_heatmap()
-
 
     def _predict_slide(self):
         viz = self.viz

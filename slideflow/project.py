@@ -1330,185 +1330,13 @@ class Project:
         # Evaluate
         return trainer.evaluate(eval_dts, **kwargs)
 
-    def evaluate_clam(
-        self,
-        exp_name: str,
-        pt_files: str,
-        outcomes: Union[str, List[str]],
-        tile_px: int,
-        tile_um: Union[int, str],
-        *,
-        k: int = 0,
-        eval_tag: Optional[str] = None,
-        filters: Optional[Dict] = None,
-        filter_blank: Optional[Union[str, List[str]]] = None,
-        attention_heatmaps: bool = True
-    ) -> None:
-        """Deprecated function.
-
-        Evaluate CLAM model on activations and export attention heatmaps.
-
-        Args:
-            exp_name (str): Name of experiment to evaluate (subfolder in clam/)
-            pt_files (str): Path to pt_files containing tile-level features.
-            outcomes (str or list): Annotation column that specifies labels.
-            tile_px (int): Tile width in pixels.
-            tile_um (int or str): Tile width in microns (int) or magnification
-                (str, e.g. "20x").
-
-        Keyword Args:
-            k (int, optional): K-fold / split iteration to evaluate. Evaluates
-                the model saved as s_{k}_checkpoint.pt. Defaults to 0.
-            eval_tag (str, optional): Unique identifier for this evaluation.
-                Defaults to None
-            filters (dict, optional): Dataset filters to use for
-                selecting slides. See :meth:`slideflow.Dataset.filter` for
-                more information. Defaults to None.
-            filter_blank (list(str) or str, optional): Skip slides that have
-                blank values in these patient annotation columns.
-                Defaults to None.
-            attention_heatmaps (bool, optional): Save attention heatmaps of
-                validation dataset. Defaults to True.
-
-        Returns:
-            None
-
-        """
-        warnings.warn("Project.evaluate_clam() is deprecated. Please use "
-                      "Project.evaluate_mil()",
-                      DeprecationWarning)
-
-        import slideflow.clam as clam
-        from slideflow.clam import export_attention
-        from slideflow.clam import Generic_MIL_Dataset
-
-        # Detect source CLAM experiment which we are evaluating.
-        # First, assume it lives in this project's clam folder
-        if exists(join(self.root, 'clam', exp_name, 'experiment.json')):
-            exp_name = join(self.root, 'clam', exp_name)
-        elif exists(join(exp_name, 'experiment.json')):
-            pass
-        else:
-            raise errors.CLAMError(f"Unable to find experiment '{exp_name}'")
-
-        log.info(f'Loading experiment from [green]{exp_name}[/], k={k}')
-        eval_dir = join(exp_name, 'eval')
-        if not exists(eval_dir):
-            os.makedirs(eval_dir)
-
-        # Set up evaluation directory with unique evaluation tag
-        existing_tags = [int(d) for d in os.listdir(eval_dir) if d.isdigit()]
-        if eval_tag is None:
-            eval_tag = '0' if not existing_tags else str(max(existing_tags))
-
-        # Ensure evaluation tag will not overwrite existing results
-        if eval_tag in existing_tags:
-            unique, base_tag = 1, eval_tag
-            eval_tag = f'{base_tag}_{unique}'
-            while exists(join(eval_dir, eval_tag)):
-                eval_tag = f'{base_tag}_{unique}'
-                unique += 1
-            log.info(f"Tag {base_tag} already exists, using tag 'eval_tag'")
-
-        # Load trained model checkpoint
-        ckpt_path = join(exp_name, 'results', f's_{k}_checkpoint.pt')
-        eval_dir = join(eval_dir, eval_tag)
-        if not exists(eval_dir):
-            os.makedirs(eval_dir)
-        args_dict = sf.util.load_json(join(exp_name, 'experiment.json'))
-        args = SimpleNamespace(**args_dict)
-        args.save_dir = eval_dir
-        # Update any missing arguments with current defaults
-        _default_args = clam.get_args()
-        for _a in _default_args.__dict__:
-            if not hasattr(args, _a):
-                _default = getattr(_default_args, _a)
-                log.info(
-                    f"Argument {_a} not found in CLAM model configuration "
-                    f"file; using default value of {_default}."
-                )
-                setattr(args, _a, _default)
-
-        dataset = self.dataset(
-            tile_px=tile_px,
-            tile_um=tile_um,
-            filters=filters,
-            filter_blank=filter_blank
-        )
-        slides = dataset.slides()
-        eval_slides = [s for s in slides if exists(join(pt_files, s+'.pt'))]
-        dataset = dataset.filter(filters={'slide': eval_slides})
-        slide_labels, unique_labels = dataset.labels(outcomes, use_float=False)
-
-        # Set up evaluation annotations file based off existing pt_files
-        outcome_dict = dict(zip(range(len(unique_labels)), unique_labels))
-        with open(join(eval_dir, 'eval_annotations.csv'), 'w') as eval_file:
-            writer = csv.writer(eval_file)
-            header = ['patient', 'slide', outcomes]
-            writer.writerow(header)
-            for slide in eval_slides:
-                row = [slide, slide]
-                row += [outcome_dict[slide_labels[slide]]]  # type: ignore
-                writer.writerow(row)
-
-        clam_dataset = Generic_MIL_Dataset(
-            annotations=dataset.filtered_annotations,
-            data_dir=pt_files,
-            shuffle=False,
-            seed=args.seed,
-            print_info=True,
-            label_col=outcomes,
-            label_dict=dict(zip(unique_labels, range(len(unique_labels)))),
-            patient_strat=False,
-            ignore=[]
-        )
-
-        clam.evaluate(ckpt_path, args, clam_dataset)
-
-        # Get attention from trained model on validation set
-        attention_tfrecords = dataset.tfrecords()
-        attention_dir = join(eval_dir, 'attention')
-        if not exists(attention_dir):
-            os.makedirs(attention_dir)
-        reverse_labels = dict(zip(range(len(unique_labels)), unique_labels))
-        export_attention(
-            args_dict,
-            ckpt_path=ckpt_path,
-            outdir=attention_dir,
-            pt_files=pt_files,
-            slides=dataset.slides(),
-            reverse_labels=reverse_labels,
-            labels=slide_labels
-        )
-        if attention_heatmaps:
-            heatmaps_dir = join(eval_dir, 'attention_heatmaps')
-            if not exists(heatmaps_dir):
-                os.makedirs(heatmaps_dir)
-
-            for tfr in attention_tfrecords:
-                attention_dict = {}
-                slide = path_to_name(tfr)
-                try:
-                    with open(join(attention_dir, slide+'.csv'), 'r') as f:
-                        reader = csv.reader(f)
-                        for row in reader:
-                            attention_dict.update({int(row[0]): float(row[1])})
-                except FileNotFoundError:
-                    print(f'No attention scores for slide {slide}, skipping')
-                    continue
-                dataset.tfrecord_heatmap(
-                    tfr,
-                    tile_dict=attention_dict,
-                    filename=join(heatmaps_dir, f'{sf.util.path_to_name(tfr)}_attn.png')
-                )
-
     def evaluate_mil(
         self,
         model: str,
         outcomes: Union[str, List[str]],
         dataset: Dataset,
         bags: Union[str, List[str]],
-        config: Optional["mil.BaseTrainerConfig"] = None,
+        config: Optional["mil.TrainerConfig"] = None,
         *,
         outdir: Optional[str] = None,
         **kwargs
@@ -1530,7 +1358,7 @@ class Project:
                 of paths to individual \*.pt files. Each file should contain
                 exported feature vectors, with each file containing all tile
                 features for one patient.
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            config (:class:`slideflow.mil.TrainerConfig`):
                 Training configuration, as obtained by
                 :func:`slideflow.mil.mil_config()`.
 
@@ -2052,14 +1880,6 @@ class Project:
                                 annotations=labels,
                                 **kwargs)
         return df
-
-    def generate_features_for_clam(self, *args, **kwargs):
-        warnings.warn(
-            "Project.generate_features_for_clam() is deprecated. "
-            "Please use .generate_feature_bags()",
-            DeprecationWarning
-        )
-        self.generate_feature_bags(*args, **kwargs)
 
     @auto_dataset_allow_none
     def generate_feature_bags(
@@ -3810,70 +3630,9 @@ class Project:
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
-    def train_clam(self, *args, splits: str = 'splits.json', **kwargs):
-        """Deprecated function.
-
-        Train a CLAM model from layer activations
-        exported with :meth:`slideflow.Project.generate_features_for_clam`.
-
-        Preferred API is :meth:`slideflow.Project.train_mil()`.
-
-        See :ref:`mil` for more information.
-
-        Examples
-            Train with basic settings:
-
-                >>> dataset = P.dataset(tile_px=299, tile_um=302)
-                >>> P.generate_features_for_clam('/model', outdir='/pt_files')
-                >>> P.train_clam('NAME', '/pt_files', 'category1', dataset)
-
-            Specify a specific layer from which to generate activations:
-
-                >>> P.generate_features_for_clam(..., layers=['postconv'])
-
-            Manually configure CLAM, with 5-fold validation and SVM bag loss:
-
-                >>> import slideflow.clam as clam
-                >>> clam_args = clam.get_args(k=5, bag_loss='svm')
-                >>> P.generate_features_for_clam(...)
-                >>> P.train_clam(..., clam_args=clam_args)
-
-        Args:
-            exp_name (str): Name of experiment. Makes clam/{exp_name} folder.
-            pt_files (str): Path to pt_files containing tile-level features.
-            outcomes (str): Annotation column which specifies the outcome.
-            dataset (:class:`slideflow.Dataset`): Dataset object from
-                which to generate activations.
-            train_slides (str, optional): List of slide names for training.
-                If 'auto' (default), will auto-generate training/val split.
-            validation_slides (str, optional): List of slides for validation.
-                If 'auto' (default), will auto-generate training/val split.
-            splits (str, optional): Filename of JSON file in which to log
-                training/val splits. Looks for filename in project root
-                directory. Defaults to "splits.json".
-            clam_args (optional): Namespace with clam arguments, as provided
-                by :func:`slideflow.clam.get_args`.
-            attention_heatmaps (bool, optional): Save attention heatmaps of
-                validation dataset.
-
-        Returns:
-            None
-
-        """
-        from slideflow.mil import legacy_train_clam
-        warnings.warn("Project.train_clam() is deprecated. Please use "
-                      "Project.train_mil()",
-                      DeprecationWarning)
-        return legacy_train_clam(
-            *args,
-            outdir=join(self.root, 'clam'),
-            splits=join(self.root, splits),
-            **kwargs
-        )
-
     def train_mil(
         self,
-        config: "mil.BaseTrainerConfig",
+        config: "mil.TrainerConfig",
         train_dataset: Dataset,
         val_dataset: Dataset,
         outcomes: Union[str, List[str]],
@@ -3886,7 +3645,7 @@ class Project:
         r"""Train a multi-instance learning model.
 
         Args:
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            config (:class:`slideflow.mil.TrainerConfig`):
                 Training configuration, as obtained by
                 :func:`slideflow.mil.mil_config()`.
             train_dataset (:class:`slideflow.Dataset`): Training dataset.

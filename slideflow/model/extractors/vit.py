@@ -392,7 +392,8 @@ class ViTFeatures(TorchFeatureExtractor):
     }
 
     def __init__(self, size, weights, device=None, center_crop=False, resize=False, **kwargs):
-        super().__init__()
+        kw = {k: w for k, w in kwargs.items() if k in ['mixed_precision', 'channels_last']}
+        super().__init__(**kw)
 
         if size not in self.sizes:
             raise ValueError("Unrecognized size '{}'. Expected one of: {}".format(

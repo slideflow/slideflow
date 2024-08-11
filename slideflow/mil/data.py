@@ -29,23 +29,9 @@ def build_dataset(bags, targets, encoder, bag_size, use_lens=False,  max_bag_siz
     dataset.encoder = encoder
     return dataset
 
-def build_clam_dataset(bags, targets, encoder, bag_size, max_bag_size=None, dtype=torch.float32):
+def build_multibag_dataset(bags, targets, encoder, bag_size, use_lens=False, max_bag_size=None, dtype=torch.float32):
     assert len(bags) == len(targets)
-
-    def _zip(bag, targets):
-        features, lengths = bag
-        return (features, targets.squeeze(), True), targets.squeeze()
-
-    dataset = MapDataset(
-        _zip,
-        BagDataset(bags, bag_size=bag_size, max_bag_size=max_bag_size, dtype=dtype),
-        EncodedDataset(encoder, targets),
-    )
-    dataset.encoder = encoder
-    return dataset
-
-def build_multibag_dataset(bags, targets, encoder, bag_size, n_bags, use_lens=False, max_bag_size=None, dtype=torch.float32):
-    assert len(bags) == len(targets)
+    n_bags = len(bags[0])
 
     def _zip(bags_and_lengths, targets):
         if use_lens:

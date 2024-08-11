@@ -752,7 +752,7 @@ class TestSuite:
                 test.skip()
             else:
                 passed = process_isolate(
-                    sf.test.functional.clam_feature_generator_tester,
+                    sf.test.functional.feature_generator_tester,
                     project=self.project,
                     model=model
                 )
@@ -767,13 +767,13 @@ class TestSuite:
                     dataset = self.project.dataset(self.tile_px, 1208)
                     train_dts, val_dts = dataset.split(val_fraction=0.3)
                     import slideflow.mil
-                    config = sf.mil.mil_config('clam_sb', epochs=5, lr=1e-4)
+                    config = sf.mil.mil_config('attention_mil', epochs=5, lr=1e-4)
                     self.project.train_mil(
                         config,
                         train_dts,
                         val_dts,
                         outcomes='category1',
-                        bags=join(self.project.root, 'clam'),
+                        bags=join(self.project.root, 'mil'),
                         attention_heatmaps=True
                     )
                 except Exception as e:

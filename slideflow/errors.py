@@ -81,11 +81,6 @@ class ProjectError(Exception):
     pass
 
 
-# --- CLAM errors -------------------------------------------------------------
-class CLAMError(Exception):
-    pass
-
-
 # --- Model and hyperparameters errors ----------------------------------------
 class ModelError(Exception):
     pass

@@ -30,8 +30,8 @@ class DinoV2Features(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, cfg, weights, device=None, center_crop=False, resize=False):
-        super().__init__()
+    def __init__(self, cfg, weights, device=None, center_crop=False, resize=False, **kwargs):
+        super().__init__(**kwargs)
 
         self.cfg = cfg
         self.weights = weights

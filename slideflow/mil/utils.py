@@ -1,5 +1,7 @@
 """Utility functions for MIL."""
 
+import os
+import inspect
 import slideflow as sf
 import numpy as np
 
@@ -8,30 +10,29 @@ from typing import Optional, Tuple, Union, Dict, List, TYPE_CHECKING
 from slideflow import errors, log
 from slideflow.util import path_to_name
 from slideflow.model.torch_utils import get_device
-from ._params import (
-    BaseTrainerConfig, ModelConfigCLAM, TrainerConfigCLAM
-)
+from ._params import TrainerConfig
 
 if TYPE_CHECKING:
     import torch
     from slideflow.model.base import BaseFeatureExtractor
     from slideflow.norm import StainNormalizer
 
+
 # -----------------------------------------------------------------------------
 
 def load_model_weights(
     weights: str,
-    config: Optional[BaseTrainerConfig] = None,
+    config: Optional[TrainerConfig] = None,
     *,
     input_shape: Optional[int] = None,
     output_shape: Optional[int] = None,
     strict: bool = False
-) -> Tuple["torch.nn.Module", BaseTrainerConfig]:
+) -> Tuple["torch.nn.Module", TrainerConfig]:
     """Load weights and build model.
 
     Args:
         weights (str): Path to model weights.
-        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+        config (:class:`slideflow.mil.TrainerConfig`):
             Configuration for building model. If ``weights`` is a path to a
             model directory, will attempt to read ``mil_params.json`` from this
             location and load saved configuration. Defaults to None.
@@ -46,9 +47,6 @@ def load_model_weights(
         :class:`torch.nn.Module`: Loaded model.
     """
     import torch
-
-    if isinstance(config, TrainerConfigCLAM):
-        raise NotImplementedError
 
     if exists(join(weights, 'mil_params.json')):
         mil_params = sf.util.load_json(join(weights, 'mil_params.json'))
@@ -94,20 +92,8 @@ def load_model_weights(
                 )
 
     # Build the model
-    if isinstance(config, TrainerConfigCLAM):
-        config_size = config.model_fn.sizes[config.model_config.model_size]
-        _size = [input_shape] + config_size[1:]
-        model = config.build_model(size=_size, n_classes=output_shape)
-        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
-    elif isinstance(config.model_config, ModelConfigCLAM):
-        config_size = config.model_fn.sizes[config.model_config.model_size]
-        _size = [input_shape] + config_size[1:]
-        model = config.build_model(size=_size, n_classes=output_shape)
-        log.info(f"Building model {config.model_fn.__name__} (size={_size})")
-    else:
-        model = config.build_model(input_shape, output_shape)
-        log.info(f"Building model {config.model_fn.__name__} "
-                 f"(in={input_shape}, out={output_shape})")
+    log.info(f"Building model {config.rich_name} (n_in={input_shape}, n_out={output_shape})")
+    model = config.build_model(input_shape, output_shape)
     if isdir(weights):
         weights = _find_weights_path(weights, mil_params)
     log.info(f"Loading model weights from [green]{weights}[/]")
@@ -140,16 +126,22 @@ def _find_weights_path(path: str, mil_params: Dict) -> str:
     return weights
 
 
-def _load_bag(bag: Union[str, np.ndarray, "torch.Tensor"]) -> "torch.Tensor":
+def _load_bag(
+    bag: Union[str, np.ndarray, "torch.Tensor", List[str]],
+    device='cpu'
+) -> "torch.Tensor":
     """Load bag from file or convert to torch.Tensor."""
     import torch
 
+    if _is_list_of_paths(bag):
+        # If bags are passed as a list of paths, load them individually.
+        return torch.cat([_load_bag(b, device=device) for b in bag], dim=0)
     if isinstance(bag, str):
-        return torch.load(bag).to(torch.float32)
+        return torch.load(bag, map_location=device).to(torch.float32)
     elif isinstance(bag, np.ndarray):
-        return torch.from_numpy(bag).to(torch.float32)
+        return torch.from_numpy(bag).to(torch.float32).to(device)
     elif isinstance(bag, torch.Tensor):
-        return bag
+        return bag.to(device)
     else:
         raise ValueError(
             "Unrecognized bag type '{}'".format(type(bag))
@@ -395,3 +387,105 @@ def aggregate_trainval_bags_by_patient(
 def _is_list_of_paths(bag):
     return ((isinstance(bag, list) or (isinstance(bag, np.ndarray))
              and isinstance(bag[0], str)))
+
+
+def _output_to_numpy(*args):
+    """Process model outputs."""
+    return [
+        arg.cpu().numpy() if (arg is not None and isinstance(arg, torch.Tensor))
+                          else arg
+        for arg in args
+    ]
+
+
+def _pool_attention(
+    y_att: "torch.Tensor",
+    pooling: Optional[str] = 'avg',
+    log_level: str = 'warning'
+) -> "torch.Tensor":
+    """Pool attention scores."""
+    if pooling not in ('avg', 'max', None):
+            raise ValueError(
+                f"Unrecognized attention pooling strategy '{pooling}'"
+            )
+    if (len(y_att.shape) == 2) and pooling:
+        msg = "Pooling attention scores from 2D to 1D"
+        if log_level == 'warning':
+            log.warning(msg)
+        elif log_level == 'info':
+            log.info(msg)
+        else:
+            log.debug(msg)
+        # Attention needs to be pooled
+        if pooling == 'avg':
+            y_att = torch.mean(y_att, dim=-1)
+        elif pooling == 'max':
+            y_att = torch.amax(y_att, dim=-1)
+    return y_att
+
+
+def _validate_model(
+    model: "torch.nn.Module",
+    attention: bool,
+    uq: bool,
+    *,
+    allow_errors: bool = False
+) -> Tuple[bool, bool]:
+    """Validate that a model supports attention and/or UQ."""
+    if attention and not hasattr(model, 'calculate_attention'):
+        msg = (
+            "Model '{}' does not have a method 'calculate_attention'. "
+            "Unable to calculate or display attention heatmaps.".format(
+                model.__class__.__name__
+            )
+        )
+        attention = False
+        if allow_errors:
+            log.warning(msg)
+        else:
+            raise RuntimeError(msg)
+    if uq and not ('uq' in inspect.signature(model.forward).parameters):
+        msg = (
+            "Model '{}' does not support UQ. "
+            "Unable to calculate uncertainty.".format(
+                model.__class__.__name__
+            )
+        )
+        uq = False
+        if allow_errors:
+            log.warning(msg)
+        else:
+            raise RuntimeError(msg)
+    return attention, uq
+
+
+def _export_attention(
+    dest: str,
+    y_att: Union[List[np.ndarray], List[List[np.ndarray]]],
+    slides: List[str]
+) -> None:
+    """Export attention scores to a directory."""
+    if not exists(dest):
+        os.makedirs(dest)
+    for slide, att in zip(slides, y_att):
+
+        if isinstance(att, (list, tuple)) and not sf.util.zip_allowed():
+            raise RuntimeError(
+                "Cannot export multimodal attention scores to a directory (NPZ) "
+                "when ZIP functionality is disabled. Enable zip functionality "
+                "by setting 'SF_ALLOW_ZIP=1' in your environment, or by "
+                "wrapping your script in 'with sf.util.enable_zip():'.")
+
+        elif isinstance(att, (list, tuple)):
+            out_path = join(dest, f'{slide}_att.npz')
+            np.savez(out_path, *att)
+
+        elif sf.util.zip_allowed():
+            out_path = join(dest, f'{slide}_att.npz')
+            np.savez(out_path, att)
+
+        else:
+            out_path = join(dest, f'{slide}_att.npy')
+            np.save(out_path, att)
+
+    log.info(f"Attention scores exported to [green]{out_path}[/]")
