@@ -92,7 +92,7 @@ def load_model_weights(
                 )
 
     # Build the model
-    log.info(f"Building model {config.rich_name} (n_in={input_shape}, n_out={output_shape})")
+    log.info(f"Building model {config.model_config.rich_name} (n_in={input_shape}, n_out={output_shape})")
     model = config.build_model(input_shape, output_shape)
     if isdir(weights):
         weights = _find_weights_path(weights, mil_params)

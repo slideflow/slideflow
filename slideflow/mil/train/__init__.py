@@ -30,7 +30,7 @@ def train_mil(
     outdir: str = 'mil',
     exp_label: Optional[str] = None,
     **kwargs
-):
+) -> "Learner":
     """Train a multiple-instance learning (MIL) model.
 
     Args:
@@ -303,7 +303,7 @@ def train_fastai(
     uq: bool = False,
     device: Optional[str] = None,
     **heatmap_kwargs
-) -> None:
+) -> "Learner":
     """Train an aMIL model using FastAI.
 
     Args:

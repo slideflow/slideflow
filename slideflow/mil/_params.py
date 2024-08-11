@@ -6,10 +6,13 @@ import torch
 import slideflow as sf
 import pandas as pd
 from torch import nn
-from typing import Optional, Union, Callable, List, Tuple, Any
+from typing import Optional, Union, Callable, List, Tuple, Any, TYPE_CHECKING
 from slideflow import log, errors, Dataset
 
-from ._registry import register_trainer, get_trainer, get_model_config
+from ._registry import get_trainer, get_model_config
+
+if TYPE_CHECKING:
+    from fastai.learner import Learner
 
 # -----------------------------------------------------------------------------
 
@@ -34,6 +37,8 @@ def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
 # -----------------------------------------------------------------------------
 
 class TrainerConfig:
+
+    tag = 'fastai'
 
     def __init__(
         self,
@@ -122,10 +127,6 @@ class TrainerConfig:
         """Whether the model is multimodal."""
         return self.model_config.is_multimodal
 
-    @property
-    def rich_name(self):
-        return f"[bold]{self.model_fn.__name__}[/]"
-
     def _verify_eval_params(self, **kwargs):
         pass
 
@@ -206,7 +207,7 @@ class TrainerConfig:
         outdir: str = 'mil',
         exp_label: Optional[str] = None,
         **kwargs
-    ) -> None:
+    ) -> "Learner":
         """Train a multiple-instance learning (MIL) model.
 
         Args:
@@ -507,6 +508,10 @@ class MILModelConfig:
                 or (hasattr(self.model_fn, 'is_multimodal')
                     and self.model_fn.is_multimodal))
 
+    @property
+    def rich_name(self):
+        return f"[bold]{self.model_fn.__name__}[/]"
+
     def verify_trainer(self, trainer):
         pass
 
@@ -577,7 +582,7 @@ class MILModelConfig:
         dataset_kwargs = None,
         dataloader_kwargs = None
     ) -> "torch.utils.DataLoader":
-        from torch.utils.data import DataLoader
+        from fastai.vision.all import DataLoader
         from slideflow.mil import data as data_utils
 
         dataset_kwargs = dataset_kwargs or dict()
@@ -604,7 +609,6 @@ class MILModelConfig:
             attention=attention,
             use_lens=self.use_lens,
             apply_softmax=self.apply_softmax,
-            uq=kwargs.get('uq', False),
             **kwargs
         )
 

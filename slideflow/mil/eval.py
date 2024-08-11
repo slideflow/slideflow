@@ -74,6 +74,7 @@ def eval_mil(
 
     """
     model, config = utils.load_model_weights(weights, config)
+    model.eval()
     params = {
         'model_path': weights,
         'eval_bags': bags,
@@ -161,6 +162,7 @@ def predict_mil(
         df_dict = dict(slide=slides, y_true=y_true)
 
     # Inference.
+    model.eval()
     pred_out = config.predict(model, bags, attention=attention, uq=uq)
     if uq:
         y_pred, y_att, y_uq = pred_out
@@ -256,6 +258,7 @@ def predict_slide(
 
     # Load model
     model_fn, config = utils.load_model_weights(model, config)
+    model_fn.eval()
     mil_params = sf.util.load_json(join(model, 'mil_params.json'))
     if 'bags_extractor' not in mil_params:
         raise ValueError(
@@ -335,6 +338,7 @@ def predict_from_bags(
     import torch
 
     attention, uq = utils._validate_model(model, attention, uq, allow_errors=True)
+    model.eval()
 
     y_pred = []
     y_att  = []
@@ -455,7 +459,7 @@ def run_inference(
     # Prepare lens
     device = utils._detect_device(model, device, verbose=False)
     if isinstance(use_lens, bool) and use_lens:
-        lens = torch.ones(loaded_bags.shape[:-1]).to(device)
+        lens = torch.ones(loaded_bags.shape[0]).to(device)
         model_args = (loaded_bags, lens)
     elif use_lens is not False and use_lens is not None:
         model_args = (loaded_bags, use_lens)
