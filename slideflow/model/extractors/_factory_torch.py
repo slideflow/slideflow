@@ -30,11 +30,6 @@ def virchow(weights, **kwargs):
     return VirchowFeatures(weights, **kwargs)
 
 @register_torch
-def uni(weights, **kwargs):
-    from .uni import UNIFeatures
-    return UNIFeatures(weights, **kwargs)
-
-@register_torch
 def vit(**kwargs):
     from .vit import ViTFeatures
     return ViTFeatures(**kwargs)
