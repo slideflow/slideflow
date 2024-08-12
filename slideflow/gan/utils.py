@@ -1,10 +1,11 @@
 import numpy as np
-from typing import Any
-import torch
-from torchvision import transforms
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import torch
 
 def crop(
-    img: torch.Tensor,
+    img: "torch.Tensor",
     gan_um: int,
     gan_px: int,
     target_um: int
@@ -21,6 +22,7 @@ def crop(
     Returns:
         Cropped image.
     """
+    from torchvision import transforms
 
     # Calculate parameters for resize/crop.
     crop_factor = target_um / gan_um
@@ -42,4 +44,5 @@ def noise_tensor(seed: int, z_dim: int) -> torch.Tensor:
     Returns:
         torch.Tensor: Noise vector of shape (1, z_dim)
     """
+    import torch
     return torch.from_numpy(np.random.RandomState(seed).randn(1, z_dim))
