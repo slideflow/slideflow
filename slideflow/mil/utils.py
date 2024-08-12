@@ -391,11 +391,12 @@ def _is_list_of_paths(bag):
 
 def _output_to_numpy(*args):
     """Process model outputs."""
-    return [
+    import torch
+    return tuple([
         arg.cpu().numpy() if (arg is not None and isinstance(arg, torch.Tensor))
                           else arg
         for arg in args
-    ]
+    ])
 
 
 def _pool_attention(

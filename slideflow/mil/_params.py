@@ -197,6 +197,28 @@ class TrainerConfig:
         self._verify_eval_params(**kwargs)
         return self.model_config.predict(model, bags, attention=attention, **kwargs)
 
+    def batched_predict(
+        self,
+        model: "torch.nn.Module",
+        loaded_bags: torch.Tensor,
+        *,
+        device: Optional[Any] = None,
+        forward_kwargs: Optional[dict] = None,
+        attention: bool = False,
+        attention_pooling: str = 'avg',
+        uq: bool = False,
+    ) -> Tuple[np.ndarray, List[np.ndarray]]:
+        """Batched prediction for MIL models."""
+        return self.model_config.batched_predict(
+            model,
+            loaded_bags,
+            device=device,
+            forward_kwargs=forward_kwargs,
+            attention=attention,
+            attention_pooling=attention_pooling,
+            uq=uq,
+        )
+
     def train(
         self,
         train_dataset: Dataset,

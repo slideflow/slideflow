@@ -459,7 +459,7 @@ def run_inference(
     # Prepare lens
     device = utils._detect_device(model, device, verbose=False)
     if isinstance(use_lens, bool) and use_lens:
-        lens = torch.ones(loaded_bags.shape[0]).to(device)
+        lens = torch.full((loaded_bags.shape[0],), loaded_bags.shape[1], device=device)
         model_args = (loaded_bags, lens)
     elif use_lens is not False and use_lens is not None:
         model_args = (loaded_bags, use_lens)
@@ -712,8 +712,34 @@ def get_mil_tile_predictions(
     config: Optional[TrainerConfig] = None,
     outcomes: Union[str, List[str]] = None,
     dest: Optional[str] = None,
-    uq: bool = False
+    uq: bool = False,
+    device: Optional[Any] = None
 ) -> pd.DataFrame:
+    """Generate tile-level predictions for a MIL model.
+
+    Args:
+        weights (str): Path to model weights to load.
+        dataset (:class:`slideflow.Dataset`): Dataset.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+
+    Keyword Args:
+        config (:class:`slideflow.mil.TrainerConfig`):
+            Configuration for building model. If ``weights`` is a path to a
+            model directory, will attempt to read ``mil_params.json`` from this
+            location and load saved configuration. Defaults to None.
+        outcomes (str, list(str)): Outcomes.
+        dest (str): Path at which to save tile predictions.
+        uq (bool): Whether to generate uncertainty estimates. Defaults to False.
+        device (str, optional): Device on which to run inference. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Dataframe of tile predictions.
+
+    """
+    import torch
+
     # Load model and configuration.
     model, config = utils.load_model_weights(weights, config)
     model.eval()
@@ -756,12 +782,12 @@ def get_mil_tile_predictions(
         loaded_bags = torch.unsqueeze(utils._load_bag(bag, device=device), dim=1)
 
         with torch.inference_mode():
-            pred_out = config.batched_predict(model, loaded_bags, uq=uq, device=device)
+            pred_out = config.batched_predict(model, loaded_bags, uq=uq, device=device, attention=True)
 
-        if uq:
-            tile_pred, tile_att, tile_uq = utils._output_to_numpy(pred_out)
+        if uq or len(pred_out) == 3:
+            tile_pred, tile_att, tile_uq = utils._output_to_numpy(*pred_out)
         else:
-            tile_pred, tile_att = utils._output_to_numpy(pred_out)       
+            tile_pred, tile_att = utils._output_to_numpy(*pred_out)
 
         # Verify the shapes are consistent.
         assert len(tile_pred) == attention[i].shape[-1]
