@@ -1686,10 +1686,14 @@ class Project:
         if model not in supported_models:
             raise ValueError(f"Unknown method '{model}'. Valid methods "
                              f"include: {', '.join(supported_models)}")
-        if model == 'stylegan2':
-            from slideflow.gan.stylegan2 import stylegan2 as network
-        elif model == 'stylegan3':
-            from slideflow.gan.stylegan3 import stylegan3 as network  # type: ignore
+        try:
+            if model == 'stylegan2':
+                from slideflow.gan.stylegan2 import stylegan2 as network
+            elif model == 'stylegan3':
+                from slideflow.gan.stylegan3 import stylegan3 as network  # type: ignore
+        except ImportError:
+            raise ImportError("StyleGAN functions require 'slideflow-noncommercial'. "
+                                "Please install with 'pip install slideflow-noncommercial'")
         if metrics is not None:
             log.warn(
                 "StyleGAN2 metrics are not fully implemented for Slideflow."

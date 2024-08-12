@@ -1,15 +1,6 @@
-
-# Standard
-# stylemix_widget.StyleMixingWidget
-
-# Advanced
-# trunc_noise_widget.TruncationNoiseWidget
-# equivariance_widget.EquivarianceWidget
-
-# Custom
-# .widgets.seed_map.SeedMapWidget
-
+import sys
 import time
+import traceback
 import slideflow as sf
 import imgui
 import numpy as np
@@ -17,15 +8,33 @@ import json
 import glfw
 import csv
 import re
+
 from os.path import join, dirname, abspath, basename, exists
 from tkinter.filedialog import askopenfilename
+from typing import Optional
 from .model import draw_tile_predictions
-from slideflow.gan.stylegan3.stylegan3.viz.renderer import (
-    Renderer, CapturedException
-)
 from ._utils import Widget
 from ..gui import imgui_utils
 from ..utils import EasyDict, LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
+ 
+
+# -----------------------------------------------------------------------------
+
+
+class CapturedException(Exception):
+    def __init__(self, message: Optional[str] = None) -> None:
+        if message is None:
+            _type, value, _traceback = sys.exc_info()
+            assert value is not None
+            if isinstance(value, CapturedException):
+                message = str(value)
+            else:
+                message = traceback.format_exc()
+        assert isinstance(message, str)
+        super().__init__(message)
+
+
+# -----------------------------------------------------------------------------
 
 
 class StyleGANWidget(Widget):
@@ -66,6 +75,12 @@ class StyleGANWidget(Widget):
         self.enable_mix_class   = False
         self.enable_mix_seed    = False
 
+
+        try:
+            from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer
+        except ImportError:
+            raise ImportError("StyleGAN functions require 'slideflow-noncommercial'. "
+                               "Please install with 'pip install slideflow-noncommercial'")
         viz.add_to_render_pipeline(Renderer(), name='stylegan')
 
     @property
@@ -134,6 +149,7 @@ class StyleGANWidget(Widget):
             if pkl == '':
                 viz.result = EasyDict(message='No network pickle loaded')
             else:
+                
                 viz.result = EasyDict(error=CapturedException())
             if not ignore_errors:
                 raise

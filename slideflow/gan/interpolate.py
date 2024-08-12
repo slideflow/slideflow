@@ -13,8 +13,7 @@ from PIL import Image
 from tqdm import tqdm
 from functools import partial
 
-from slideflow.gan.stylegan2.stylegan2 import embedding, utils
-from slideflow.gan.utils import crop
+from slideflow.gan.utils import crop, noise_tensor
 from slideflow import errors
 from slideflow.model.torch_utils import get_device
 
@@ -68,6 +67,8 @@ class StyleGAN2Interpolator:
             **gan_kwargs: Additional keyword arguments for GAN inference.
 
         """
+        from slideflow.gan.stylegan2.stylegan2 import embedding
+
         training_options = join(dirname(gan_pkl), 'training_options.json')
         if exists(training_options):
             with open(training_options, 'r') as f:
@@ -227,10 +228,10 @@ class StyleGAN2Interpolator:
             torch.tensor: Noise tensor for the corresponding seed.
         """
         if isinstance(seed, int):
-            return utils.noise_tensor(seed, self.E_G.z_dim).to(self.device)  # type: ignore
+            return noise_tensor(seed, self.E_G.z_dim).to(self.device)  # type: ignore
         elif isinstance(seed, list):
             return torch.stack(
-                [utils.noise_tensor(s, self.E_G.z_dim).to(self.device)
+                [noise_tensor(s, self.E_G.z_dim).to(self.device)
                  for s in seed],
                 dim=0)
         else:
@@ -322,7 +323,7 @@ class StyleGAN2Interpolator:
             def generator():
                 for seed_batch in sf.util.batch(seeds, batch_size):
                     z = torch.stack([
-                        utils.noise_tensor(s, z_dim=self.E_G.z_dim)[0]
+                        noise_tensor(s, z_dim=self.E_G.z_dim)[0]
                         for s in seed_batch]
                     ).to(self.device)
                     img_batch = self.E_G(z, embedding.expand(z.shape[0], -1), **self.gan_kwargs)
@@ -620,6 +621,8 @@ class StyleGAN2Interpolator:
         Yields:
             Generator: images (torch.tensor, dtype=uint8)
         """
+        from slideflow.gan.stylegan2.stylegan2 import embedding
+
         return embedding.class_interpolate(
             self.E_G,
             self.z(seed),
@@ -646,6 +649,8 @@ class StyleGAN2Interpolator:
         Yields:
             Generator: images (torch.tensor, dtype=uint8)
         """
+        from slideflow.gan.stylegan2.stylegan2 import embedding
+
         return embedding.linear_interpolate(
             self.G,
             self.z(seed),

@@ -1,3 +1,4 @@
+import numpy as np
 from typing import Any
 import torch
 from torchvision import transforms
@@ -29,3 +30,16 @@ def crop(
 
     # Perform crop/resize and convert to tensor
     return transforms.functional.crop(img, upper, left, crop_width, crop_width)
+
+
+def noise_tensor(seed: int, z_dim: int) -> torch.Tensor:
+    """Creates a noise tensor based on a given seed and dimension size.
+
+    Args:
+        seed (int): Seed.
+        z_dim (int): Dimension of noise vector to create.
+
+    Returns:
+        torch.Tensor: Noise vector of shape (1, z_dim)
+    """
+    return torch.from_numpy(np.random.RandomState(seed).randn(1, z_dim))
