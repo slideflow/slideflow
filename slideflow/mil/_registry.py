@@ -1,7 +1,5 @@
 """Feature extractor registry."""
 
-import inspect
-
 _mil_trainers = dict()
 _mil_models = dict()
 _known_extras_trainers = {
@@ -68,7 +66,19 @@ def get_model(model_name):
     raise ValueError(f"Unknown model '{model_name}'. Valid options are: {list_models()}")
 
 
-def get_model_config(model_name, **kwargs):
+def get_model_config_class(model_name):
+    """Get the model configuration class."""
+    if is_model(model_name):
+        _, config_class = _mil_models[model_name]
+        return config_class
+    if model_name in _extras_models:
+        package = _extras_models[model_name]
+        raise ValueError(f"Model '{model_name}' is part of the '{package}' package. Please install it to use this model.")
+    raise ValueError(f"Unknown model '{model_name}'. Valid options are: {list_models()}")
+
+
+
+def build_model_config(model_name, **kwargs):
     """Get a model config by name."""
     if is_model(model_name):
         model_fn, config_class = _mil_models[model_name]

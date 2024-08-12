@@ -9,7 +9,7 @@ from torch import nn
 from typing import Optional, Union, Callable, List, Tuple, Any, TYPE_CHECKING
 from slideflow import log, errors, Dataset
 
-from ._registry import get_trainer, get_model_config
+from ._registry import get_trainer, build_model_config
 
 if TYPE_CHECKING:
     from fastai.learner import Learner
@@ -101,7 +101,7 @@ class TrainerConfig:
         self.drop_last = drop_last
         self.save_monitor = save_monitor
         self.weighted_loss = weighted_loss
-        self.model_config = get_model_config(model, **kwargs)
+        self.model_config = build_model_config(model, **kwargs)
         self.model_config.verify_trainer(self)
 
     def __str__(self):
