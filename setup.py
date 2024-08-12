@@ -1,8 +1,24 @@
 import versioneer
 import setuptools
+import pkg_resources
+
+
+# Check for existing OpenCV installation
+opencv_pkg = None
+try:
+    pkg_resources.get_distribution("opencv-python-headless")
+    opencv_pkg = "opencv-python-headless"
+except pkg_resources.DistributionNotFound:
+    try:
+        pkg_resources.get_distribution("opencv-python")
+        opencv_pkg = "opencv-python"
+    except pkg_resources.DistributionNotFound:
+        opencv_pkg = "opencv-python-headless"  # Default to headless if neither is installed
+
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
+
 
 setuptools.setup(
     name="slideflow",
@@ -109,7 +125,7 @@ setuptools.setup(
         'scikit-learn',
         'matplotlib>=3.2',
         'imageio',
-        'opencv-python-headless',
+        opencv_pkg,
         'shapely',
         'umap-learn',
         'seaborn<0.14',
