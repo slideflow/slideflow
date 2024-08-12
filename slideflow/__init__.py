@@ -23,7 +23,7 @@ from ._backend import backend, slide_backend
 from slideflow.util import getLoggingLevel, log, setLoggingLevel, about
 
 ...
-from slideflow import io, model, norm, stats
+from slideflow import io, model, norm, stats, gan
 from slideflow.dataset import Dataset
 from slideflow.heatmap import Heatmap
 from slideflow.model import DatasetFeatures, ModelParams

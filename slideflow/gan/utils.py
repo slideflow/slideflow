@@ -34,7 +34,7 @@ def crop(
     return transforms.functional.crop(img, upper, left, crop_width, crop_width)
 
 
-def noise_tensor(seed: int, z_dim: int) -> torch.Tensor:
+def noise_tensor(seed: int, z_dim: int) -> "torch.Tensor":
     """Creates a noise tensor based on a given seed and dimension size.
 
     Args:
