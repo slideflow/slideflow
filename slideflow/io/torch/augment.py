@@ -255,10 +255,10 @@ class NormalizerAugment:
 
     def __init__(self, normalizer: "StainNormalizer", augment: str):
         self.normalizer = normalizer
-        self.augment = augment
+        self.augment = (isinstance(augment, str) and 'n' in augment)
 
     def __call__(self, img):
-        img = self.normalizer.torch_to_torch(img, augment=('n' in self.augment))
+        img = self.normalizer.torch_to_torch(img, augment=self.augment)
         return img
 
 
