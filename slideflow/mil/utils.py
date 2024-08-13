@@ -405,6 +405,8 @@ def _pool_attention(
     log_level: str = 'warning'
 ) -> "torch.Tensor":
     """Pool attention scores."""
+    import torch
+
     if pooling not in ('avg', 'max', None):
             raise ValueError(
                 f"Unrecognized attention pooling strategy '{pooling}'"

@@ -441,7 +441,7 @@ def run_inference(
     loaded_bags: "torch.Tensor",
     *,
     attention: bool = False,
-    attention_pooling: str = 'avg',
+    attention_pooling: Optional[str] = 'avg',
     uq: bool = False,
     forward_kwargs: Optional[dict] = None,
     apply_softmax: bool = True,
@@ -492,6 +492,7 @@ def run_inference(
 
     if attention:
         y_att = utils._pool_attention(torch.squeeze(y_att), pooling=attention_pooling)
+        #y_att = torch.squeeze(y_att)
     if apply_softmax:
         y_pred = torch.nn.functional.softmax(y_pred, dim=1)
     return y_pred, y_att, y_uncertainty
@@ -790,7 +791,8 @@ def get_mil_tile_predictions(
             tile_pred, tile_att = utils._output_to_numpy(*pred_out)
 
         # Verify the shapes are consistent.
-        assert len(tile_pred) == attention[i].shape[-1]
+        if attention is not None and len(attention):
+            assert len(tile_pred) == attention[i].shape[-1]
         n_bags = len(tile_pred)
 
         # Find the associated locations.
@@ -805,7 +807,7 @@ def get_mil_tile_predictions(
         df_preds.append(tile_pred)
         if uq:
             df_uq.append(tile_uq)
-        if attention is not None:
+        if attention is not None and len(attention):
             df_attention.append(attention[i])
         df_slides += [slide for _ in range(n_bags)]
         if outcomes is not None:
@@ -814,7 +816,8 @@ def get_mil_tile_predictions(
 
     # Update dataframe with predictions.
     df_dict = dict(slide=df_slides)
-    df_attention = np.concatenate(df_attention, axis=0)
+    if len(df_attention):
+        df_attention = np.concatenate(df_attention, axis=0)
     df_preds = np.concatenate(df_preds, axis=0)
 
     # Tile location
@@ -823,7 +826,7 @@ def get_mil_tile_predictions(
         df_dict['loc_y'] = np.concatenate(df_loc_y, axis=0)
 
     # Attention
-    if attention is not None:
+    if attention is not None and len(attention):
         if len(df_attention.shape) == 1:
             df_dict['attention'] = df_attention
         else:

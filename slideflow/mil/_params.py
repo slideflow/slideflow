@@ -378,9 +378,6 @@ class TrainerConfig:
         dataloader_kwargs,
     ) -> "torch.utils.DataLoader":
 
-        if 'use_lens' not in dataset_kwargs:
-            dataset_kwargs['use_lens'] = self.model_config.use_lens
-
         return self.model_config._build_dataloader(
             bags,
             targets,
@@ -609,6 +606,9 @@ class MILModelConfig:
 
         dataset_kwargs = dataset_kwargs or dict()
         dataloader_kwargs = dataloader_kwargs or dict()
+
+        if 'use_lens' not in dataset_kwargs:
+            dataset_kwargs['use_lens'] = self.use_lens
 
         if self.is_multimodal:
             dts_fn = data_utils.build_multibag_dataset
