@@ -367,9 +367,10 @@ def _rename_categorical_df_cols(df, outcomes, inplace=False):
 
 
 def _rename_linear_df_cols(df, outcomes, inplace=False):
-    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
-    cols_to_rename = {f'y_pred{o}': f"{outcome_name}-y_pred" for o in range(len(outcome_name))}
-    cols_to_rename.update({f'y_true{o}': f"{outcome_name}-y_true" for o in range(len(outcome_name))})
+    if isinstance(outcomes, str):
+        outcomes = [outcomes]
+    cols_to_rename = {f'y_pred{o}': f"{outcomes[o]}-y_pred" for o in range(len(outcomes))}
+    cols_to_rename.update({f'y_true{o}': f"{outcomes[o]}-y_true" for o in range(len(outcomes))})
     return df.rename(columns=cols_to_rename, inplace=inplace)
 
 # -----------------------------------------------------------------------------
