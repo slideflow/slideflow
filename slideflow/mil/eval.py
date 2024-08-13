@@ -728,7 +728,8 @@ def get_mil_tile_predictions(
     outcomes: Union[str, List[str]] = None,
     dest: Optional[str] = None,
     uq: bool = False,
-    device: Optional[Any] = None
+    device: Optional[Any] = None,
+    tile_batch_size: int = 512,
 ) -> pd.DataFrame:
     """Generate tile-level predictions for a MIL model.
 
@@ -748,6 +749,8 @@ def get_mil_tile_predictions(
         dest (str): Path at which to save tile predictions.
         uq (bool): Whether to generate uncertainty estimates. Defaults to False.
         device (str, optional): Device on which to run inference. Defaults to None.
+        tile_batch_size (int): Batch size for tile-level predictions. Defaults
+            to 512.
 
     Returns:
         pd.DataFrame: Dataframe of tile predictions.
@@ -757,7 +760,10 @@ def get_mil_tile_predictions(
 
     # Load model and configuration.
     model, config = utils.load_model_weights(weights, config)
+    device = utils._detect_device(model, device, verbose=True)
     model.eval()
+    model.to(device)
+
     if outcomes is not None:
         labels, unique = dataset.labels(outcomes, format='id')
 
@@ -773,12 +779,11 @@ def get_mil_tile_predictions(
     
     log.info("Generating predictions for {} slides and {} bags.".format(len(slides), len(bags)))
     
-    # First, start with slide-level inference and attention.
-    slide_pred, attention = config.predict(model, bags, attention=True)
+    # Set model to eval, and prepare bags.
+    use_attention, uq = utils._validate_model(model, True, uq, allow_errors=True)
 
-    # Detect device, set model to eval, and prepare bags.
-    device = utils._detect_device(model, device, verbose=True)
-    attention, uq = utils._validate_model(model, attention, uq, allow_errors=True)
+    # First, start with slide-level inference and attention.
+    slide_pred, attention = config.predict(model, bags, attention=use_attention)
 
     df_slides = []
     df_attention = []
@@ -792,17 +797,36 @@ def get_mil_tile_predictions(
     for i, (bag, slide) in track(enumerate(zip(bags, slides)),
                             description="Generating tile predictions",
                             total=len(bags)):
-        
+
         # Prepare bags, and resize bag dimension to the batch dimension.
         loaded_bags = torch.unsqueeze(utils._load_bag(bag, device=device), dim=1)
 
-        with torch.inference_mode():
-            pred_out = config.batched_predict(model, loaded_bags, uq=uq, device=device, attention=True)
-
-        if uq or len(pred_out) == 3:
-            tile_pred, tile_att, tile_uq = utils._output_to_numpy(*pred_out)
+        # Split loaded bags into smaller batches for inference (tile_batch_size)
+        if len(loaded_bags) > tile_batch_size:
+            loaded_bags = torch.split(loaded_bags, tile_batch_size, dim=0)
         else:
-            tile_pred, tile_att = utils._output_to_numpy(*pred_out)
+            loaded_bags = [loaded_bags]
+
+        _running_pred = []
+        _running_uq = []
+
+        # Run inference on each batch.
+        for batch in loaded_bags:
+            with torch.inference_mode():
+                pred_out = config.batched_predict(model, batch, uq=uq, device=device, attention=True)
+
+            if uq or len(pred_out) == 3:
+                _pred, _att, _uq = utils._output_to_numpy(*pred_out)
+                if _uq is not None and len(_uq):
+                    _running_uq.append(_uq)
+            else:
+                _pred, _att = utils._output_to_numpy(*pred_out)
+            _running_pred.append(_pred)
+
+        # Concatenate predictions and attention.
+        tile_pred = np.concatenate(_running_pred, axis=0)
+        if len(_running_uq):
+            tile_uq = np.concatenate(_running_uq, axis=0)
 
         # Verify the shapes are consistent.
         if attention is not None and len(attention):
@@ -831,7 +855,7 @@ def get_mil_tile_predictions(
     # Update dataframe with predictions.
     df_dict = dict(slide=df_slides)
     if len(df_attention):
-        df_attention = np.concatenate(df_attention, axis=0)
+        df_attention = np.concatenate(df_attention, axis=-1)
     df_preds = np.concatenate(df_preds, axis=0)
 
     # Tile location

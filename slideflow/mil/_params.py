@@ -209,6 +209,7 @@ class TrainerConfig:
         uq: bool = False,
     ) -> Tuple[np.ndarray, List[np.ndarray]]:
         """Batched prediction for MIL models."""
+
         return self.model_config.batched_predict(
             model,
             loaded_bags,

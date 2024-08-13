@@ -121,7 +121,7 @@ def _find_weights_path(path: str, mil_params: Dict) -> str:
             weights = join(path, mil_params['weights'])
     else:
         raise errors.ModelError(
-            f"Could not find model weights at path {weights}"
+            f"Could not find model weights at path {path}"
         )
     return weights
 
@@ -438,7 +438,7 @@ def _validate_model(
     if attention and not hasattr(model, 'calculate_attention'):
         msg = (
             "Model '{}' does not have a method 'calculate_attention'. "
-            "Unable to calculate or display attention heatmaps.".format(
+            "Unable to calculate or display attention.".format(
                 model.__class__.__name__
             )
         )
