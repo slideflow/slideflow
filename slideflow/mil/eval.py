@@ -106,7 +106,6 @@ def predict_mil(
     *,
     config: Optional[TrainerConfig] = None,
     attention: bool = False,
-    uq: bool = False,
     aggregation_level: Optional[str] = None,
     **kwargs
 ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, List[np.ndarray]]]:
@@ -196,8 +195,8 @@ def predict_mil(
 
     # Inference.
     model.eval()
-    pred_out = config.predict(model, bags, attention=attention, uq=uq, **kwargs)
-    if uq:
+    pred_out = config.predict(model, bags, attention=attention, **kwargs)
+    if kwargs.get('uq'):
         y_pred, y_att, y_uq = pred_out
     else:
         y_pred, y_att = pred_out
@@ -205,9 +204,110 @@ def predict_mil(
     # Update dataframe with predictions.
     for i in range(y_pred.shape[-1]):
         df_dict[f'y_pred{i}'] = y_pred[:, i]
-    if uq:
+    if kwargs.get('uq'):
         for i in range(y_uq.shape[-1]):
             df_dict[f'uncertainty{i}'] = y_uq[:, i]
+    df = pd.DataFrame(df_dict)
+
+    if attention:
+        return df, y_att
+    else:
+        return df
+
+
+def predict_multimodal_mil(
+    model: Union[str, Callable],
+    dataset: "sf.Dataset",
+    outcomes: Union[str, List[str]],
+    bags: Union[np.ndarray, List[List[str]]],
+    *,
+    config: Optional[TrainerConfig] = None,
+    attention: bool = False,
+    aggregation_level: Optional[str] = None,
+    **kwargs
+) -> Union[pd.DataFrame, Tuple[pd.DataFrame, List[np.ndarray]]]:
+    """Generate predictions for a dataset from a saved MIL model.
+
+    Args:
+        model (torch.nn.Module): Model from which to generate predictions.
+
+        dataset (sf.Dataset): Dataset from which to generation predictions.
+        outcomes (str, list(str)): Outcomes.
+        bags (str, list(str)): Path to bags, or list of bag file paths.
+            Each bag should contain PyTorch array of features from all tiles in
+            a slide, with the shape ``(n_tiles, n_features)``.
+
+    Keyword args:
+        config (:class:`slideflow.mil.TrainerConfig`):
+            Configuration for the MIL model. Required if model is a loaded ``torch.nn.Module``.
+            Defaults to None.
+        attention (bool): Whether to calculate attention scores. Defaults to False.
+        uq (bool): Whether to generate uncertainty estimates. Defaults to False.
+        aggregation_level (str): Aggregation level for predictions. Either 'slide'
+            or 'patient'. Defaults to None.
+        attention_pooling (str): Attention pooling strategy. Either 'avg'
+                or 'max'. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Dataframe of predictions.
+
+        list(np.ndarray): Attention scores (if ``attention=True``)
+    """
+
+    # Load the model
+    if isinstance(model, str):
+        model_path = model
+        model, config = utils.load_model_weights(model_path, config)
+        model.eval()
+
+        # Verify tile size compatibility for each bag source.
+        for b in bags:
+            if isinstance(b, str):
+                utils._verify_compatible_tile_size(model_path, b)
+    elif config is None:
+        raise ValueError("If model is not a path, a TrainerConfig object must be provided via the 'config' argument.")
+
+    # Validate aggregation level.
+    if aggregation_level is not None and aggregation_level != 'slide':
+        raise ValueError(
+            f"Unrecognized aggregation level: '{aggregation_level}'. "
+            "Multimodal MIL models only support 'slide' aggregation."
+        )
+
+    # Prepare labels.
+    labels, _ = utils.get_labels(dataset, outcomes, config.is_categorical(), format='id')
+
+    # Prepare bags and targets.
+    slides = list(labels.keys())
+
+    # Load multimodal bags.
+    if isinstance(bags[0], str):
+        bags, val_slides = utils._get_nested_bags(dataset, bags)
+
+    # This is where we would aggregate bags by slide or patient.
+    # This is not yet supported.
+
+    # Ensure slide names are sorted according to the bags.
+    slides = [path_to_name(b[0]) for b in bags]
+    y_true = np.array([labels[s] for s in slides])
+
+    # Create prediction dataframe.
+    df_dict = dict(slide=slides)
+
+    # Handle continous outcomes.
+    if len(y_true.shape) > 1:
+        for i in range(y_true.shape[-1]):
+            df_dict[f'y_true{i}'] = y_true[:, i]
+    else:
+        df_dict['y_true'] = y_true
+
+    # Inference.
+    model.eval()
+    y_pred, y_att = config.predict(model, bags, attention=attention, **kwargs)
+
+    # Update dataframe with predictions.
+    for i in range(y_pred.shape[-1]):
+        df_dict[f'y_pred{i}'] = y_pred[:, i]
     df = pd.DataFrame(df_dict)
 
     if attention:
@@ -472,9 +572,12 @@ def predict_from_bags(
 def predict_from_multimodal_bags(
     model: "torch.nn.Module",
     bags: Union[List[np.ndarray], List[List[str]]],
+    *,
     attention: bool = True,
+    attention_pooling: Optional[str] = None,
     use_lens: bool = True,
-    device: Optional[Any] = None
+    device: Optional[Any] = None,
+    apply_softmax: Optional[bool] = None,
 ) -> Tuple[np.ndarray, List[List[np.ndarray]]]:
     """Generate multi-mag MIL predictions for a nested list of bags."""
     import torch
@@ -508,8 +611,15 @@ def predict_from_multimodal_bags(
                 raw_att = model.calculate_attention(*model_args)
                 for mag in range(n_mag):
                     att = torch.squeeze(raw_att[mag], dim=0)
+                    att = utils._pool_attention(torch.squeeze(att), pooling=attention_pooling)
+                    # If we have multi-channel attention, then the attenion channel (last) needs to
+                    # be moved to the first dimension.
+                    if len(att.shape) == 2:
+                        att = torch.moveaxis(att, -1, 0)
                     y_att[mag].append(att.cpu().numpy())
-            y_pred.append(torch.nn.functional.softmax(model_out, dim=1).cpu().numpy())
+            if apply_softmax:
+                model_out = torch.nn.functional.softmax(model_out, dim=1)
+            y_pred.append(model_out.cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att
 
@@ -648,25 +758,22 @@ def run_eval(
             separately. Defaults to None.
 
     """
-    # Prepare lists of bags.
-    labels, _ = utils.get_labels(dataset, outcomes, config.is_categorical())
-    slides = list(labels.keys())
-    if isinstance(bags, str):
-        bags = dataset.get_bags(bags)
-    else:
-        bags = np.array([b for b in bags if path_to_name(b) in slides])
-
     # Generate predictions.
-    df, y_att = predict_mil(
-        model,
-        dataset,
+    predict_kwargs = dict(
+        model=model,
+        dataset=dataset,
         config=config,
         outcomes=outcomes,
         bags=bags,
         attention=True,
-        uq=uq,
         aggregation_level=aggregation_level
     )
+    if config.is_multimodal():
+        if uq:
+            log.warning("Uncertainty estimates are not supported for multi-modal models.")
+        df, y_att = predict_multimodal_mil(**predict_kwargs)
+    else:
+        df, y_att = predict_mil(uq=uq, **predict_kwargs)
 
     # Save results.
     if outdir:
@@ -683,7 +790,7 @@ def run_eval(
 
     # Print categorical metrics, including per-category accuracy)
     metrics_df = utils.rename_df_cols(df, outcomes, categorical=config.is_categorical())
-    config.run_metrics(metrics_df, level='slide', data_dir=model_dir)
+    config.run_metrics(metrics_df, level='slide', outdir=model_dir)
 
     # Export attention
     if outdir and y_att:
@@ -696,7 +803,10 @@ def run_eval(
         utils._export_attention(join(model_dir, 'attention'), y_att, slides_or_patients)
 
     # Attention heatmaps
-    if outdir and y_att and attention_heatmaps:
+    # Not supported for multimodal models
+    if attention_heatmaps and not config.is_multimodal():
+        log.warning("Cannot generate attention heatmaps for multi-modal models.")
+    elif outdir and y_att and attention_heatmaps:
         generate_attention_heatmaps(
             outdir=join(model_dir, 'heatmaps'),
             dataset=dataset,
@@ -704,97 +814,6 @@ def run_eval(
             attention=y_att,
             **heatmap_kwargs
         )
-
-    return df
-
-
-def run_multimodal_eval(
-    model: "torch.nn.Module",
-    dataset: Dataset,
-    outcomes: Union[str, List[str]],
-    bags: List[List[str]],
-    config: TrainerConfig,
-    *,
-    outdir: str = 'mil',
-    params: Optional[dict] = None,
-) -> pd.DataFrame:
-    """Evaluate a multi-modal (e.g. multi-magnification) MIL model.
-
-    Args:
-        model (torch.nn.Module): Loaded PyTorch MIL model.
-        dataset (sf.Dataset): Dataset to evaluation.
-        outcomes (str, list(str)): Outcomes.
-        bags (str, list(str)): Path to bags, or list of bag file paths.
-            Each bag should contain PyTorch array of features from all tiles in
-            a slide, with the shape ``(n_tiles, n_features)``.
-        config (:class:`slideflow.mil.TrainerConfig`):
-            Configuration for building model.
-
-    Keyword arguments:
-        outdir (str): Path at which to save results.
-        attention_heatmaps (bool): Generate attention heatmaps for slides.
-            Defaults to False.
-        interpolation (str, optional): Interpolation strategy for smoothing
-            attention heatmaps. Defaults to 'bicubic'.
-        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
-            valid matplotlib colormap. Defaults to 'inferno'.
-        norm (str, optional): Normalization strategy for assigning heatmap
-            values to colors. Either 'two_slope', or any other valid value
-            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
-            If 'two_slope', normalizes values less than 0 and greater than 0
-            separately. Defaults to None.
-
-    """
-     # Prepare ground-truth labels
-    labels, _ = utils.get_labels(dataset, outcomes, config.is_categorical(), format='id')
-
-    # Prepare bags and targets
-    bags, slides = utils._get_nested_bags(dataset, bags)
-    y_true = np.array([labels[s] for s in slides])
-
-    # Inference.
-    y_pred, y_att = predict_from_multimodal_bags(
-        model, bags, attention=True, use_lens=config.model_config.use_lens
-    )
-
-    # Generate metrics
-    for idx in range(y_pred.shape[-1]):
-        m = ClassifierMetrics(
-            y_true=(y_true == idx).astype(int),
-            y_pred=y_pred[:, idx]
-        )
-        log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
-        log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
-
-    # Assemble dataframe
-    df_dict = dict(slide=slides, y_true=y_true)
-    for i in range(y_pred.shape[-1]):
-        df_dict[f'y_pred{i}'] = y_pred[:, i]
-    df = pd.DataFrame(df_dict)
-
-    # Save results
-    if outdir:
-        if not exists(outdir):
-            os.makedirs(outdir)
-        model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
-        if params is not None:
-            sf.util.write_json(params, join(model_dir, 'mil_params.json'))
-        pred_out = join(model_dir, 'predictions.parquet')
-        df.to_parquet(pred_out)
-        log.info(f"Predictions saved to [green]{pred_out}[/]")
-    else:
-        model_dir = None
-
-    # Print categorical metrics, including per-category accuracy
-    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
-    metrics_df = df.rename(
-        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
-    )
-    sf.stats.metrics.categorical_metrics(metrics_df, level='slide', data_dir=model_dir)
-
-    # Export attention
-    if outdir and y_att:
-        utils._export_attention(join(model_dir, 'attention'), y_att, df.slide.values)
 
     return df
 

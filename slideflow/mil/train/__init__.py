@@ -11,7 +11,7 @@ from slideflow.util import path_to_name
 from os.path import join, isdir
 
 from .. import utils
-from ..eval import predict_mil, generate_attention_heatmaps
+from ..eval import predict_mil, predict_multimodal_mil, generate_attention_heatmaps
 from .._params import TrainerConfig
 
 if TYPE_CHECKING:
@@ -383,7 +383,7 @@ def train_fastai(
 
     # Print categorical metrics, including per-category accuracy
     utils.rename_df_cols(df, outcomes, categorical=config.is_categorical(), inplace=True)
-    config.run_metrics(df, level='slide', data_dir=outdir)
+    config.run_metrics(df, level='slide', outdir=outdir)
 
     # Export attention to numpy arrays
     if attention and outdir:
@@ -429,12 +429,6 @@ def train_multimodal_mil(
                 "multi-modal attention."
             )
 
-    # Prepare validation bags and targets.
-    val_labels, _ = utils.get_labels(val_dataset, outcomes, config.is_categorical())
-
-    val_bags, val_slides = utils._get_nested_bags(val_dataset, bags)
-    val_targets = np.array([val_labels[slide] for slide in val_slides])
-
     # Build learner.
     learner, (n_in, n_out) = build_multimodal_learner(
         config,
@@ -461,27 +455,18 @@ def train_multimodal_mil(
     # Execute training.
     _fastai.train(learner, config)
 
-    # Generate validation predictions
-    y_pred, y_att = sf.mil.eval._predict_multimodal_mil(
+    df, attention = predict_multimodal_mil(
         learner.model,
-        val_bags,
-        attention=True,
-        use_lens=config.model_config.use_lens
+        dataset=val_dataset,
+        config=config,
+        outcomes=outcomes,
+        bags=bags,
+        attention=True
     )
-
-    # Combine to a dataframe.
-    df_dict = dict(slide=val_slides, y_true=val_targets)
-    for i in range(y_pred.shape[-1]):
-        df_dict[f'y_pred{i}'] = y_pred[:, i]
-    df = pd.DataFrame(df_dict)
 
     # Print categorical metrics, including per-category accuracy
-    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
-    df.rename(
-        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'},
-        inplace=True
-    )
-    sf.stats.metrics.categorical_metrics(df, level='slide', data_dir=outdir)
+    utils.rename_df_cols(df, outcomes, categorical=config.is_categorical(), inplace=True)
+    config.run_metrics(df, level='slide', outdir=outdir)
 
     # Export predictions.
     if outdir:
@@ -490,8 +475,8 @@ def train_multimodal_mil(
         log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Export attention.
-    if y_att and outdir:
-        utils._export_attention(join(outdir, 'attention'), y_att, df.slide.values)
+    if attention and outdir:
+        utils._export_attention(join(outdir, 'attention'), attention, df.slide.values)
 
     return learner
 

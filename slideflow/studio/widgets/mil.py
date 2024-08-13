@@ -404,15 +404,11 @@ class MILWidget(Widget):
             print("Generated feature bags for {} tiles".format(ext_bags.shape[1]))
 
         # Generate slide prediction & attention.
-        self.predictions, self.attention = sf.mil.eval.run_multimodal_eval(
-            self.model, [bags], attention=True, use_lens=self.mil_config.model_config.use_lens
-        )
-        print("Slide prediction: {}".format(self.predictions[0]))
-        print("Attention shape: {}".format([a[0].shape for a in self.attention]))
+        self.predictions, self.attention = self.mil_config.predict(self.model, [bags], attention=True)
 
         # Reshape as heatmaps.
         self.attention_heatmaps = [
-            _reshape_as_heatmap(att[0][:, 0], valid_indices[i], orig_shape[i], grid_size[i])
+            _reshape_as_heatmap(att[0], valid_indices[i], orig_shape[i], grid_size[i])
             for i, att in enumerate(self.attention)
         ]
 

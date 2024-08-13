@@ -355,7 +355,7 @@ class TrainerConfig:
                 separately. Defaults to None.
 
         """
-        from slideflow.mil.eval import run_eval, run_multimodal_eval
+        from slideflow.mil.eval import run_eval
 
         params_to_verify = dict(
             attention_heatmaps=attention_heatmaps,
@@ -377,16 +377,13 @@ class TrainerConfig:
             aggregation_level=(aggregation_level or self.aggregation_level)
         )
 
-        if self.is_multimodal:
-            return run_multimodal_eval(model, **eval_kwargs)
-        else:
-            return run_eval(
-                model,
-                attention_heatmaps=attention_heatmaps,
-                uq=uq,
-                **heatmap_kwargs,
-                **eval_kwargs
-            )
+        return run_eval(
+            model,
+            attention_heatmaps=attention_heatmaps,
+            uq=uq,
+            **heatmap_kwargs,
+            **eval_kwargs
+        )
 
     def _build_dataloader(
         self,
@@ -671,12 +668,13 @@ class MILModelConfig:
         """Predict for MIL models."""
         self._verify_eval_params(**kwargs)
 
-        from slideflow.mil.eval import predict_from_bags
+        from slideflow.mil.eval import predict_from_bags, predict_from_multimodal_bags
 
         if apply_softmax is None:
             apply_softmax = self.apply_softmax
 
-        return predict_from_bags(
+        pred_fn = predict_from_multimodal_bags if self.is_multimodal else predict_from_bags
+        return pred_fn(
             model,
             bags,
             attention=attention,

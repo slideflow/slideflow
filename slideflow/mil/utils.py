@@ -140,7 +140,8 @@ def aggregate_bags_by_patient(
     """Aggregate bags by patient.
 
     Args:
-        bags (np.ndarray): Array of bag paths.
+        bags (np.ndarray): Array of bag paths. May be nested, with outer list
+            containing sublists of bags for each patient.
         labels (dict): Dictionary mapping slide names to labels.
 
     Returns:
@@ -150,7 +151,11 @@ def aggregate_bags_by_patient(
     # Create a reverse dictionary, mapping patient codes to a list of bags.
     patient_to_bags = {}  # type: Dict[str, List[str]]
     for bag in bags:
-        patient = slide_to_patient[path_to_name(bag)]
+        if not isinstance(bag, str):
+            slide_name = path_to_name(bag[0])
+        else:
+            slide_name = path_to_name(bag)
+        patient = slide_to_patient[slide_name]
         if patient not in patient_to_bags:
             patient_to_bags[patient] = []
         patient_to_bags[patient].append(bag)
@@ -162,13 +167,14 @@ def aggregate_bags_by_patient(
     patients_labels = {}
     for patient, patient_bags in patient_to_bags.items():
         # Confirm that all slides for a patient have the same label.
-        if len(np.unique([labels[path_to_name(b)] for b in patient_bags])) != 1:
+        if len(np.unique([labels[path_to_name((b if isinstance(b, str) else b[0]))] for b in patient_bags])) != 1:
             raise ValueError(
                 "Patient {} has slides/bags with different labels".format(patient))
-        patients_labels[patient] = labels[path_to_name(patient_bags[0])]
+        first_bag = patient_bags[0] if isinstance(patient_bags[0], str) else patient_bags[0][0]
+        patients_labels[patient] = labels[path_to_name(first_bag)]
 
     # Prepare targets, mapping each bag sublist to the label of the first bag.
-    targets = np.array([patients_labels[slide_to_patient[path_to_name(sublist[0])]]
+    targets = np.array([patients_labels[slide_to_patient[path_to_name((sublist[0] if isinstance(sublist[0], str) else sublist[0][0]))]]
                         for sublist in bags])
 
     return bags, targets
