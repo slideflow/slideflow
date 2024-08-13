@@ -507,7 +507,6 @@ class Trainer:
         self.num_workers = num_workers
         self.chunk_size = chunk_size
         self._reset_training_params()
-        self._set_dataloader_args()
 
         if custom_objects is not None:
             log.warn("custom_objects argument ignored in PyTorch backend.")
