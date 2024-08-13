@@ -226,9 +226,10 @@ def predict_slide(
 
     Returns:
         Tuple[np.ndarray, Optional[np.ndarray]]: Predictions and attention scores.
-        Attention scores are None if ``attention`` is False, otherwise
-        a masked 2D array with the same shape as the slide grid (arranged as a
-        heatmap, with unused tiles masked).
+        Attention scores are None if ``attention`` is False. For single-channel attention,
+        this is a masked 2D array with the same shape as the slide grid (arranged as a
+        heatmap, with unused tiles masked). For multi-channel attention, this is a
+        masked 3D array with shape ``(n_channels, X, Y)``.
 
     """
     # Try to auto-determine the extractor
@@ -308,12 +309,25 @@ def predict_slide(
     if attention and raw_att is not None and len(raw_att):
         y_att = raw_att[0]
 
-        # Create a fully masked array of shape (X, Y)
-        att_heatmap = np.ma.masked_all(masked_bags.shape[0], dtype=y_att.dtype)
+        # If attention is a 1D array
+        if len(y_att.shape) == 1:
+            # Create a fully masked array of shape (X, Y)
+            att_heatmap = np.ma.masked_all(masked_bags.shape[0], dtype=y_att.dtype)
 
-        # Unmask and fill the transformed data into the corresponding positions
-        att_heatmap[valid_indices] = y_att
-        y_att = np.reshape(att_heatmap, original_shape[0:2])
+            # Unmask and fill the transformed data into the corresponding positions
+            att_heatmap[valid_indices] = y_att
+            y_att = np.reshape(att_heatmap, original_shape[0:2])
+
+        # If attention is a 2D array (multi-channel attention)
+        elif len(y_att.shape) == 2:
+           att_heatmaps = []
+           for i in range(y_att.shape[0]):
+               att = y_att[i]
+               att_heatmap = np.ma.masked_all(masked_bags.shape[0], dtype=att.dtype)
+               att_heatmap[valid_indices] = att
+               att_heatmap = np.reshape(att_heatmap, original_shape[0:2])
+               att_heatmaps.append(att_heatmap)
+           y_att = np.ma.stack(att_heatmaps, axis=0)
     else:
         y_att = None
 
