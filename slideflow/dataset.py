@@ -2202,11 +2202,11 @@ class Dataset:
         dataset.build_index(False)
 
         # Set up progress bar.
-        pb = sf.util.TileExtractionProgress()
+        pb = sf.util.FeatureExtractionProgress()
         pb.add_task(
             "Speed: ",
             progress_type="speed",
-            total=None
+            total=self.num_tiles
         )
         slide_task = pb.add_task(
             "Generating...",

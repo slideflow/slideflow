@@ -179,6 +179,24 @@ class TileExtractionSpeedColumn(progress.ProgressColumn):
         data_speed = f'{int(speed)} img'
         return progress.Text(f"{data_speed}/s", style="progress.data.speed")
 
+
+class LabeledMofNCompleteColumn(progress.MofNCompleteColumn):
+    """Renders a completion column with labels."""
+
+    def __init__(self, unit: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.unit = unit
+
+    def render(self, task: "progress.Task") -> progress.Text:
+        """Show completion status with labels."""
+        if task.total is None:
+            return progress.Text("?", style="progress.spinner")
+        return progress.Text(
+            f"{task.completed}/{task.total} {self.unit}",
+            style="progress.spinner"
+        )
+
+
 class ImgBatchSpeedColumn(progress.ProgressColumn):
     """Renders human readable transfer speed."""
 
@@ -201,7 +219,8 @@ class TileExtractionProgress(Progress):
             if task.fields.get("progress_type") == 'speed':
                 self.columns = (
                     TextColumn("[progress.description]{task.description}"),
-                    TileExtractionSpeedColumn(),)
+                    TileExtractionSpeedColumn()
+                )
             if task.fields.get("progress_type") == 'slide_progress':
                 self.columns = (
                     TextColumn("[progress.description]{task.description}"),
@@ -210,6 +229,27 @@ class TileExtractionProgress(Progress):
                     progress.MofNCompleteColumn(),
                     "●",
                     progress.TimeRemainingColumn(),
+                )
+            yield self.make_tasks_table([task])
+
+
+class FeatureExtractionProgress(Progress):
+    def get_renderables(self):
+        for task in self.tasks:
+            if task.fields.get("progress_type") == 'speed':
+                self.columns = (
+                    TextColumn("[progress.description]{task.description}"),
+                    TileExtractionSpeedColumn(),
+                    LabeledMofNCompleteColumn('tiles'),
+                    "●",
+                    progress.TimeRemainingColumn(),
+                )
+            if task.fields.get("progress_type") == 'slide_progress':
+                self.columns = (
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    progress.TaskProgressColumn(),
+                    LabeledMofNCompleteColumn('slides')
                 )
             yield self.make_tasks_table([task])
 
