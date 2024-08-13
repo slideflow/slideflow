@@ -319,17 +319,18 @@ class ExtractionReport:
                 if b is not None and b > self.bb_threshold:
                     self.warn_txt += f'{slide},{b}\n'
 
-            if np.any(n_tiles) and self.num_tiles_chart(n_tiles):
-                with tempfile.NamedTemporaryFile(suffix='.png') as temp:
-                    plt.savefig(temp.name)
-                    pdf.image(temp.name, 107, pdf.y, w=50)
-                    plt.close()
+            with sf.util.matplotlib_backend('Agg'):
+                if np.any(n_tiles) and self.num_tiles_chart(n_tiles):
+                    with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                        plt.savefig(temp.name)
+                        pdf.image(temp.name, 107, pdf.y, w=50)
+                        plt.close()
 
-            if np.any(bb) and self.blur_chart(bb):
-                with tempfile.NamedTemporaryFile(suffix='.png') as temp:
-                    plt.savefig(temp.name)
-                    pdf.image(temp.name, 155, pdf.y, w=50)
-                    plt.close()
+                if np.any(bb) and self.blur_chart(bb):
+                    with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                        plt.savefig(temp.name)
+                        pdf.image(temp.name, 155, pdf.y, w=50)
+                        plt.close()
 
             # Bounding box
             pdf.set_x(20)
@@ -451,11 +452,12 @@ class ExtractionReport:
         import matplotlib.pyplot as plt
         import seaborn as sns
         if np.any(num_tiles):
-            plt.rc('font', size=14)
-            sns.histplot(num_tiles, bins=20)
-            plt.title('Number of tiles extracted')
-            plt.ylabel('Number of slides', fontsize=16, fontname='Arial')
-            plt.xlabel('Tiles extracted', fontsize=16, fontname='Arial')
+            with sf.util.matplotlib_backend('Agg'):
+                plt.rc('font', size=14)
+                sns.histplot(num_tiles, bins=20)
+                plt.title('Number of tiles extracted')
+                plt.ylabel('Number of slides', fontsize=16, fontname='Arial')
+                plt.xlabel('Tiles extracted', fontsize=16, fontname='Arial')
             return True
         else:
             return False
@@ -472,12 +474,14 @@ class ExtractionReport:
             with np.errstate(divide='ignore'):
                 log_b = np.log(blur_arr)
             log_b = log_b[np.isfinite(log_b)]
-            plt.rc('font', size=14)
-            sns.histplot(log_b, bins=20)
-            plt.title('Quality Control: Blur Burden'+warn_txt)
-            plt.ylabel('Count', fontsize=16, fontname='Arial')
-            plt.xlabel('log(blur burden)', fontsize=16, fontname='Arial')
-            plt.axvline(x=-3, color='r', linestyle='--')
+
+            with sf.util.matplotlib_backend('Agg'):
+                plt.rc('font', size=14)
+                sns.histplot(log_b, bins=20)
+                plt.title('Quality Control: Blur Burden'+warn_txt)
+                plt.ylabel('Count', fontsize=16, fontname='Arial')
+                plt.xlabel('log(blur burden)', fontsize=16, fontname='Arial')
+                plt.axvline(x=-3, color='r', linestyle='--')
             return True
         else:
             return False

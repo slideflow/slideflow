@@ -81,21 +81,23 @@ class ClassifierMetrics:
 
     def save_roc(self, outdir, name):
         import matplotlib.pyplot as plt
-        auroc_str = 'NA' if not self.auroc else f'{self.auroc:.2f}'
-        sf.stats.plot.roc(self.fpr, self.tpr, f'AUC = {auroc_str}')
-        full_path = join(outdir, f'{name}.png')
-        plt.savefig(full_path)
-        plt.close()
+        with sf.util.matplotlib_backend('Agg'):
+            auroc_str = 'NA' if not self.auroc else f'{self.auroc:.2f}'
+            sf.stats.plot.roc(self.fpr, self.tpr, f'AUC = {auroc_str}')
+            full_path = join(outdir, f'{name}.png')
+            plt.savefig(full_path)
+            plt.close()
         if self.neptune_run:
             self.neptune_run[f'results/graphs/{name}'].upload(full_path)
 
     def save_prc(self, outdir, name):
         import matplotlib.pyplot as plt
-        ap_str = 'NA' if not self.ap else f'{self.ap:.2f}'
-        sf.stats.plot.prc(self.precision, self.recall, label=f'AP = {ap_str}')
-        full_path = join(outdir, f'{name}.png')
-        plt.savefig(full_path)
-        plt.close()
+        with sf.util.matplotlib_backend('Agg'):
+            ap_str = 'NA' if not self.ap else f'{self.ap:.2f}'
+            sf.stats.plot.prc(self.precision, self.recall, label=f'AP = {ap_str}')
+            full_path = join(outdir, f'{name}.png')
+            plt.savefig(full_path)
+            plt.close()
         if self.neptune_run:
             self.neptune_run[f'results/graphs/{name}'].upload(full_path)
 

@@ -1,3 +1,4 @@
+import slideflow as sf
 import os
 import warnings
 from typing import TYPE_CHECKING, List, Optional, Union
@@ -36,28 +37,29 @@ def combined_roc(
     """
     import matplotlib.pyplot as plt
 
-    plt.clf()
-    plt.title(name)
-    colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
-    aurocs = []
-    for i, (yt, yp) in enumerate(zip(y_true, y_pred)):
-        fpr, tpr, threshold = metrics.roc_curve(yt, yp)
-        roc_auc = metrics.auc(fpr, tpr)
-        aurocs += [roc_auc]
-        label = f'{labels[i]} (AUC: {roc_auc:.2f})'
-        plt.plot(fpr, tpr, colors[i % len(colors)], label=label)
-    plt.legend(loc='lower right')
-    plt.plot([0, 1], [0, 1], 'r--')
-    plt.xlim([0, 1])
-    plt.ylim([0, 1])
-    plt.ylabel('TPR')
-    plt.xlabel('FPR')
-    plt.savefig(os.path.join(save_dir, f'{name}.png'))
-    if neptune_run:
-        neptune_run[f'results/graphs/{name}'].upload(
-            os.path.join(save_dir, f'{name}.png')
-        )
-    plt.close()
+    with sf.util.matplotlib_backend('Agg'):
+        plt.clf()
+        plt.title(name)
+        colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
+        aurocs = []
+        for i, (yt, yp) in enumerate(zip(y_true, y_pred)):
+            fpr, tpr, threshold = metrics.roc_curve(yt, yp)
+            roc_auc = metrics.auc(fpr, tpr)
+            aurocs += [roc_auc]
+            label = f'{labels[i]} (AUC: {roc_auc:.2f})'
+            plt.plot(fpr, tpr, colors[i % len(colors)], label=label)
+        plt.legend(loc='lower right')
+        plt.plot([0, 1], [0, 1], 'r--')
+        plt.xlim([0, 1])
+        plt.ylim([0, 1])
+        plt.ylabel('TPR')
+        plt.xlabel('FPR')
+        plt.savefig(os.path.join(save_dir, f'{name}.png'))
+        if neptune_run:
+            neptune_run[f'results/graphs/{name}'].upload(
+                os.path.join(save_dir, f'{name}.png')
+            )
+        plt.close()
     return aurocs
 
 
@@ -176,16 +178,17 @@ def scatter(
         yp_sub = y_pred
 
     # Perform scatter for each outcome
-    for i in range(y_true.shape[1]):
-        r_squared += [metrics.r2_score(y_true[:, i], y_pred[:, i])]
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=UserWarning)
-            p = sns.jointplot(x=yt_sub[:, i], y=yp_sub[:, i], kind="reg")
-        p.set_axis_labels('y_true', 'y_pred')
-        plt.savefig(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
-        if neptune_run:
-            neptune_run[f'results/graphs/Scatter{name}-{i}'].upload(
-                os.path.join(data_dir, f'Scatter{name}-{i}.png')
-            )
-        plt.close()
+    with sf.util.matplotlib_backend('Agg'):
+        for i in range(y_true.shape[1]):
+            r_squared += [metrics.r2_score(y_true[:, i], y_pred[:, i])]
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                p = sns.jointplot(x=yt_sub[:, i], y=yp_sub[:, i], kind="reg")
+            p.set_axis_labels('y_true', 'y_pred')
+            plt.savefig(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
+            if neptune_run:
+                neptune_run[f'results/graphs/Scatter{name}-{i}'].upload(
+                    os.path.join(data_dir, f'Scatter{name}-{i}.png')
+                )
+            plt.close()
     return r_squared
