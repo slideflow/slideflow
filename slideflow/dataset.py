@@ -1762,7 +1762,7 @@ class Dataset:
                     progress_type="speed",
                     total=None)
                 slide_task = pb.add_task(
-                    "Extracting...",
+                    f"Extracting ({source})...",
                     progress_type="slide_progress",
                     total=len(slide_list))
 
