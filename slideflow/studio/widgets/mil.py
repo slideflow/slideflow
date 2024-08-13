@@ -466,28 +466,28 @@ class MILWidget(Widget):
         self.predictions, self.attention = self._calculate_predictions(bags)
         if self.attention:
             self.attention = self.attention[0]
+
+            # Only show prediction and attention for tiles with non-zero
+            # attention values (tiles that passed the attention gate)
+            sf.log.debug("Masking {} zero-attention tiles:".format((self.attention == 0).sum()))
+
+            # Handle multi-dimensional attention
+            if len(self.attention.shape) < 2:
+                att_mask = (self.attention != 0)
+            else:
+                att_mask = (np.max(self.attention, axis=0) != 0)
+
+            bags = np.expand_dims(bags[0][att_mask], axis=0)
+            valid_indices = valid_indices[att_mask]
+
+            if len(self.attention.shape) < 2:
+                self.attention = self.attention[att_mask]
+                sf.log.debug("Total tiles after masking: {}".format(len(self.attention)))
+            else:
+                self.attention = self.attention[:, att_mask]
+                sf.log.debug("Total tiles after masking: {}".format(self.attention.shape[1]))
         else:
             self.attention = None
-
-        # Only show prediction and attention for tiles with non-zero
-        # attention values (tiles that passed the attention gate)
-        sf.log.debug("Masking {} zero-attention tiles:".format((self.attention == 0).sum()))
-
-        # Handle multi-dimensional attention
-        if len(self.attention.shape) < 2:
-            att_mask = (self.attention != 0)
-        else:
-            att_mask = (np.max(self.attention, axis=0) != 0)
-
-        bags = np.expand_dims(bags[0][att_mask], axis=0)
-        valid_indices = valid_indices[att_mask]
-
-        if len(self.attention.shape) < 2:
-            self.attention = self.attention[att_mask]
-            sf.log.debug("Total tiles after masking: {}".format(len(self.attention)))
-        else:
-            self.attention = self.attention[:, att_mask]
-            sf.log.debug("Total tiles after masking: {}".format(self.attention.shape[1]))
 
         # Generate tile-level predictions.
         # Reshape the bags from (1, n_bags, n_feats) to (n_bags, 1, n_feats)
@@ -568,6 +568,7 @@ class MILWidget(Widget):
         self.viz.heatmap_widget.render_heatmap(outcome_names=att_names)
 
     def render_tile_prediction_heatmap(self, tile_preds: np.ndarray) -> None:
+        self.viz.heatmap = _AttentionHeatmapWrapper([], self.viz.wsi)
         self.viz.heatmap_widget.predictions = convert_to_overlays(tile_preds)
         self.viz.heatmap_widget.render_heatmap(
             outcome_names=self.viz.heatmap_widget.get_outcome_names(self.mil_params)
