@@ -402,7 +402,7 @@ def _output_to_numpy(*args):
 def _pool_attention(
     y_att: "torch.Tensor",
     pooling: Optional[str] = 'avg',
-    log_level: str = 'warning'
+    log_level: str = 'debug'
 ) -> "torch.Tensor":
     """Pool attention scores."""
     import torch

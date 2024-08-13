@@ -201,24 +201,29 @@ class TrainerConfig:
         self,
         model: "torch.nn.Module",
         loaded_bags: torch.Tensor,
-        *,
-        device: Optional[Any] = None,
-        forward_kwargs: Optional[dict] = None,
-        attention: bool = False,
-        attention_pooling: str = 'avg',
-        uq: bool = False,
+        **kwargs
     ) -> Tuple[np.ndarray, List[np.ndarray]]:
-        """Batched prediction for MIL models."""
+        """Generate predictions from a batch of bags.
 
-        return self.model_config.batched_predict(
-            model,
-            loaded_bags,
-            device=device,
-            forward_kwargs=forward_kwargs,
-            attention=attention,
-            attention_pooling=attention_pooling,
-            uq=uq,
-        )
+        Args:
+            model (torch.nn.Module): Loaded PyTorch MIL model.
+            loaded_bags (torch.Tensor): Loaded bags, with shape ``(n_bags, n_tiles, n_features)``.
+
+        Keyword args:
+            device (torch.device, optional): Device on which to run the model.
+                If None, uses the default device.
+            forward_kwargs (dict, optional): Additional keyword arguments to
+                pass to the model's forward function.
+            attention (bool): Whether to return attention maps.
+            attention_pooling (str): Attention pooling strategy. Either 'avg'
+                or 'max'. Defaults to 'avg'.
+            uq (bool): Whether to return uncertainty quantification.
+
+        Returns:
+            Tuple[np.ndarray, List[np.ndarray]]: Predictions and attention.
+
+        """
+        return self.model_config.batched_predict(model, loaded_bags, **kwargs)
 
     def train(
         self,
@@ -620,18 +625,21 @@ class MILModelConfig:
         dataloader = DataLoader(dataset, **dataloader_kwargs)
         return dataloader
 
-    def predict(self, model, bags, attention=False, **kwargs):
+    def predict(self, model, bags, attention=False, apply_softmax=None, **kwargs):
         """Predict for MIL models."""
         self._verify_eval_params(**kwargs)
 
         from slideflow.mil.eval import predict_from_bags
+
+        if apply_softmax is None:
+            apply_softmax = self.apply_softmax
 
         return predict_from_bags(
             model,
             bags,
             attention=attention,
             use_lens=self.use_lens,
-            apply_softmax=self.apply_softmax,
+            apply_softmax=apply_softmax,
             **kwargs
         )
 
@@ -643,19 +651,42 @@ class MILModelConfig:
         device: Optional[Any] = None,
         forward_kwargs: Optional[dict] = None,
         attention: bool = False,
-        attention_pooling: str = 'avg',
+        attention_pooling: Optional[str] = None,
         uq: bool = False,
+        apply_softmax: Optional[bool] = None
     ) -> Tuple[np.ndarray, List[np.ndarray]]:
-        """Batched prediction for MIL models."""
+        """Generate predictions from a batch of bags.
+
+        Args:
+            model (torch.nn.Module): Loaded PyTorch MIL model.
+            loaded_bags (torch.Tensor): Loaded bags, with shape ``(n_bags, n_tiles, n_features)``.
+
+        Keyword args:
+            device (torch.device, optional): Device on which to run the model.
+                If None, uses the default device.
+            forward_kwargs (dict, optional): Additional keyword arguments to
+                pass to the model's forward function.
+            attention (bool): Whether to return attention maps.
+            attention_pooling (str): Attention pooling strategy. Either 'avg'
+                or 'max'. Defaults to None.
+            uq (bool): Whether to return uncertainty quantification.
+
+        Returns:
+            Tuple[np.ndarray, List[np.ndarray]]: Predictions and attention.
+
+        """
         from slideflow.mil.eval import run_inference
+
+        if apply_softmax is None:
+            apply_softmax = self.apply_softmax
 
         return run_inference(
             model,
             loaded_bags,
             attention=attention,
             attention_pooling=attention_pooling,
-            forward_kwargs=(forward_kwargs or dict()),
-            apply_softmax=self.apply_softmax,
+            forward_kwargs=forward_kwargs,
+            apply_softmax=apply_softmax,
             use_lens=self.use_lens,
             device=device,
             uq=uq,

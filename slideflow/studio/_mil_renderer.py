@@ -83,7 +83,8 @@ class MILRenderer(Renderer):
             self.mil_model,
             bag,
             attention=attention,
-            device=self.device
+            device=self.device,
+            attention_pooling='avg'
         )
         return preds, att
 
@@ -104,8 +105,15 @@ class MILRenderer(Renderer):
 
         bag = self._convert_img_to_bag(img, res)
         preds, att = self._predict_bag(bag, attention=True)
+        if isinstance(att, list):
+            if len(att):
+                att = np.stack(att)
+            else:
+                att = None
+        if att is not None and len(att.shape):
+            att = np.mean(att)
         res.predictions = preds[0]
-        res.uncertainty = None if att is None else att[0]
+        res.uncertainty = None if att is None else att
 
     def _render_impl(self, res, *args, **kwargs):
         if self.mil_model is not None:

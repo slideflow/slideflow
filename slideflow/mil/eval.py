@@ -105,6 +105,7 @@ def predict_mil(
     attention: bool = False,
     uq: bool = False,
     aggregation_level: Optional[str] = None,
+    **kwargs
 ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, List[np.ndarray]]]:
     """Generate predictions for a dataset from a saved MIL model.
 
@@ -117,6 +118,14 @@ def predict_mil(
         bags (str, list(str)): Path to bags, or list of bag file paths.
             Each bag should contain PyTorch array of features from all tiles in
             a slide, with the shape ``(n_tiles, n_features)``.
+
+    Keyword args:
+        attention (bool): Whether to calculate attention scores. Defaults to False.
+        uq (bool): Whether to generate uncertainty estimates. Defaults to False.
+        aggregation_level (str): Aggregation level for predictions. Either 'slide'
+            or 'patient'. Defaults to None.
+        attention_pooling (str): Attention pooling strategy. Either 'avg'
+                or 'max'. Defaults to None.
 
     Returns:
         pd.DataFrame: Dataframe of predictions.
@@ -163,7 +172,7 @@ def predict_mil(
 
     # Inference.
     model.eval()
-    pred_out = config.predict(model, bags, attention=attention, uq=uq)
+    pred_out = config.predict(model, bags, attention=attention, uq=uq, **kwargs)
     if uq:
         y_pred, y_att, y_uq = pred_out
     else:
@@ -193,6 +202,7 @@ def predict_slide(
     attention: bool = False,
     native_normalizer: Optional[bool] = True,
     extractor_kwargs: Optional[dict] = None,
+    **kwargs
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """Generate predictions (and attention) for a single slide.
 
@@ -217,6 +227,8 @@ def predict_slide(
             configuration. Defaults to None.
         attention (bool): Whether to return attention scores. Defaults to
             False.
+        attention_pooling (str): Attention pooling strategy. Either 'avg'
+                or 'max'. Defaults to None.
         native_normalizer (bool, optional): Whether to use PyTorch/Tensorflow-native
             stain normalization, if applicable. If False, will use the OpenCV/Numpy
             implementations. Defaults to None, which auto-detects based on the
@@ -303,7 +315,7 @@ def predict_slide(
     sf.log.info("Generated feature bags for {} tiles".format(bags.shape[1]))
 
     # Generate predictions.
-    y_pred, raw_att = config.predict(model_fn, bags, attention=attention)
+    y_pred, raw_att = config.predict(model_fn, bags, attention=attention, **kwargs)
 
     # Reshape attention to match original shape
     if attention and raw_att is not None and len(raw_att):
@@ -341,14 +353,37 @@ def predict_from_bags(
     bags: Union[np.ndarray, List[str]],
     *,
     attention: bool = False,
-    attention_pooling: str = 'avg',
+    attention_pooling: Optional[str] = None,
     use_lens: bool = False,
     device: Optional[Any] = None,
     apply_softmax: bool = True,
     uq: bool = False
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
-    """Generate MIL predictions for a list of bags."""
+    """Generate MIL predictions for a list of bags.
 
+    Predictions are generated for each bag in the list one at a time, and not batched.
+
+    Args:
+        model (torch.nn.Module): Loaded PyTorch MIL model.
+        bags (np.ndarray, list(str)): Bags to generate predictions for. Each bag
+            should contain PyTorch array of features from all tiles in a slide,
+            with the shape ``(n_tiles, n_features)``.
+
+    Keyword Args:
+        attention (bool): Whether to calculate attention scores. Defaults to False.
+        attention_pooling (str, optional): Pooling strategy for attention scores.
+            Can be 'avg', 'max', or None. Defaults to None.
+        use_lens (bool): Whether to use the length of each bag as an additional
+            input to the model. Defaults to False.
+        device (str, optional): Device on which to run inference. Defaults to None.
+        apply_softmax (bool): Whether to apply softmax to the model output. Defaults
+            to True.
+        uq (bool): Whether to generate uncertainty estimates. Defaults to False.
+
+    Returns:
+        Tuple[np.ndarray, List[np.ndarray]]: Predictions and attention scores.
+
+    """
     import torch
 
     attention, uq = utils._validate_model(model, attention, uq, allow_errors=True)
@@ -455,14 +490,39 @@ def run_inference(
     loaded_bags: "torch.Tensor",
     *,
     attention: bool = False,
-    attention_pooling: Optional[str] = 'avg',
+    attention_pooling: Optional[str] = None,
     uq: bool = False,
     forward_kwargs: Optional[dict] = None,
     apply_softmax: bool = True,
     use_lens: Union[bool, "torch.Tensor"] = False,
     device: Optional[Any] = None
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
-    """Run inference on a MIL model."""
+    """Low-level interface for running inference on a MIL model.
+
+    Args:
+        model (torch.nn.Module): Loaded PyTorch MIL model.
+        loaded_bags (torch.Tensor): Loaded bags to run inference on.
+
+    Keyword Args:
+        attention (bool): Whether to calculate attention scores. Defaults to False.
+        attention_pooling (str, optional): Pooling strategy for attention scores.
+            Can be 'avg', 'max', or None. Defaults to None.
+        uq (bool): Whether to generate uncertainty estimates. Defaults to False.
+        forward_kwargs (dict, optional): Additional keyword arguments to pass to
+            the model's forward function. Defaults to None.
+        apply_softmax (bool): Whether to apply softmax to the model output. Defaults
+            to True.
+        use_lens (bool, torch.Tensor): Whether to use the length of each bag as an
+            additional input to the model. If a tensor is passed, this will be used
+            as the lens. Defaults to False.
+        device (str, optional): Device on which to run inference. Defaults to None.
+
+    Returns:
+        Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]: Predictions,
+        attention scores, and uncertainty estimates. For multi-dimensional attention,
+        the first dimension of the attention scores will be the attention channel.
+
+    """
     import torch
 
     if forward_kwargs is None:
@@ -506,7 +566,11 @@ def run_inference(
 
     if attention:
         y_att = utils._pool_attention(torch.squeeze(y_att), pooling=attention_pooling)
-        #y_att = torch.squeeze(y_att)
+        # If we have multi-channel attention, then the attenion channel (last) needs to
+        # be moved to the first dimension.
+        if len(y_att.shape) == 2:
+            y_att = torch.moveaxis(y_att, -1, 0)
+
     if apply_softmax:
         y_pred = torch.nn.functional.softmax(y_pred, dim=1)
     return y_pred, y_att, y_uncertainty
@@ -730,6 +794,7 @@ def get_mil_tile_predictions(
     uq: bool = False,
     device: Optional[Any] = None,
     tile_batch_size: int = 512,
+    **kwargs
 ) -> pd.DataFrame:
     """Generate tile-level predictions for a MIL model.
 
@@ -751,6 +816,8 @@ def get_mil_tile_predictions(
         device (str, optional): Device on which to run inference. Defaults to None.
         tile_batch_size (int): Batch size for tile-level predictions. Defaults
             to 512.
+        attention_pooling (str): Attention pooling strategy. Either 'avg'
+            or 'max'. Defaults to None.
 
     Returns:
         pd.DataFrame: Dataframe of tile predictions.
@@ -783,7 +850,7 @@ def get_mil_tile_predictions(
     use_attention, uq = utils._validate_model(model, True, uq, allow_errors=True)
 
     # First, start with slide-level inference and attention.
-    slide_pred, attention = config.predict(model, bags, attention=use_attention)
+    slide_pred, attention = config.predict(model, bags, attention=use_attention, **kwargs)
 
     df_slides = []
     df_attention = []
@@ -813,7 +880,7 @@ def get_mil_tile_predictions(
         # Run inference on each batch.
         for batch in loaded_bags:
             with torch.inference_mode():
-                pred_out = config.batched_predict(model, batch, uq=uq, device=device, attention=True)
+                pred_out = config.batched_predict(model, batch, uq=uq, device=device, attention=True, **kwargs)
 
             if uq or len(pred_out) == 3:
                 _pred, _att, _uq = utils._output_to_numpy(*pred_out)
