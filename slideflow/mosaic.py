@@ -594,18 +594,19 @@ class Mosaic:
             focus (list, optional): List of tfrecords (paths) to highlight on
                 the mosaic.
         """
-        import matplotlib.pyplot as plt
+        with sf.util.matplotlib_backend('Agg'):
+            import matplotlib.pyplot as plt
 
-        self.plot(**kwargs)
-        log.info('Exporting figure...')
-        try:
-            if not os.path.exists(os.path.dirname(filename)):
-                os.makedirs(os.path.dirname(filename))
-        except FileNotFoundError:
-            pass
-        plt.savefig(filename, bbox_inches='tight')
-        log.info(f'Saved figure to [green]{filename}')
-        plt.close()
+            self.plot(**kwargs)
+            log.info('Exporting figure...')
+            try:
+                if not os.path.exists(os.path.dirname(filename)):
+                    os.makedirs(os.path.dirname(filename))
+            except FileNotFoundError:
+                pass
+            plt.savefig(filename, bbox_inches='tight')
+            log.info(f'Saved figure to [green]{filename}')
+            plt.close()
 
     def save_report(self, filename: str) -> None:
         """Saves a report of which tiles (and their corresponding slide)

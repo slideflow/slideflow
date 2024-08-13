@@ -1383,11 +1383,6 @@ def location_heatmap(
             separately. Defaults to None.
 
     """
-    import matplotlib.pyplot as plt
-    import matplotlib.colors as mcol
-    import matplotlib
-    matplotlib.use('Agg')
-
     if not isinstance(values, np.ndarray):
         raise ValueError(
             "Error generating heatmap. 'values' should be a numpy array "
@@ -1427,44 +1422,47 @@ def location_heatmap(
             locations, values, wsi, background=background
         )
 
-    thumb = wsi.thumb(mpp=5)
-    fig = plt.figure(figsize=(18, 16))
-    ax = fig.add_subplot(111)
-    fig.subplots_adjust(bottom=0.25, top=0.95)
-    gca = plt.gca()
-    gca.tick_params(
-        axis='x',
-        top=True,
-        labeltop=True,
-        bottom=False,
-        labelbottom=False
-    )
-    ax.imshow(thumb, zorder=0)
-
-    # Calculate overlay offset
-    extent = sf.heatmap.calculate_heatmap_extent(wsi, thumb, masked_grid)
-
-    # Plot
-    if norm == 'two_slope':
-        norm = mcol.TwoSlopeNorm(
-            vmin=min(-0.01, min(values)),
-            vcenter=0,
-            vmax=max(0.01, max(values))
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as mcol
+    with matplotlib_backend('Agg'):
+        thumb = wsi.thumb(mpp=5)
+        fig = plt.figure(figsize=(18, 16))
+        ax = fig.add_subplot(111)
+        fig.subplots_adjust(bottom=0.25, top=0.95)
+        gca = plt.gca()
+        gca.tick_params(
+            axis='x',
+            top=True,
+            labeltop=True,
+            bottom=False,
+            labelbottom=False
         )
-    ax.imshow(
-        masked_grid,
-        zorder=10,
-        alpha=0.6,
-        extent=extent,
-        interpolation=interpolation,
-        cmap=cmap,
-        norm=norm
-    )
-    ax.set_xlim(0, thumb.size[0])
-    ax.set_ylim(thumb.size[1], 0)
-    log.debug('Saving figure...')
-    plt.savefig(filename, bbox_inches='tight')
-    plt.close()
+        ax.imshow(thumb, zorder=0)
+
+        # Calculate overlay offset
+        extent = sf.heatmap.calculate_heatmap_extent(wsi, thumb, masked_grid)
+
+        # Plot
+        if norm == 'two_slope':
+            norm = mcol.TwoSlopeNorm(
+                vmin=min(-0.01, min(values)),
+                vcenter=0,
+                vmax=max(0.01, max(values))
+            )
+        ax.imshow(
+            masked_grid,
+            zorder=10,
+            alpha=0.6,
+            extent=extent,
+            interpolation=interpolation,
+            cmap=cmap,
+            norm=norm
+        )
+        ax.set_xlim(0, thumb.size[0])
+        ax.set_ylim(thumb.size[1], 0)
+        log.debug('Saving figure...')
+        plt.savefig(filename, bbox_inches='tight')
+        plt.close()
 
 
 def tfrecord_heatmap(
@@ -1669,6 +1667,17 @@ def cleanup_progress(pb: Optional["Progress"]):
             pb.stop()
 
 
+@contextmanager
+def matplotlib_backend(backend):
+    import matplotlib
+    original_backend = matplotlib.get_backend()
+    try:
+        matplotlib.use(backend)
+        yield
+    finally:
+        matplotlib.use(original_backend)
+
+
 def create_triangles(vertices, hole_vertices=None, hole_points=None):
     """
     Tessellate a complex polygon, possibly with holes.
@@ -1714,3 +1723,4 @@ def create_triangles(vertices, hole_vertices=None, hole_points=None):
     tessellated_vertices = tessellated_vertices.astype('float32')
 
     return tessellated_vertices
+

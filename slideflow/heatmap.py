@@ -753,73 +753,74 @@ class Heatmap:
                 Defaults to 1.
 
         """
-        import matplotlib.pyplot as plt
+        with sf.util.matplotlib_backend('Agg'):
+            import matplotlib.pyplot as plt
 
-        if self.predictions is None:
-            raise errors.HeatmapError(
-                "Cannot plot Heatmap which is not yet generated; generate with "
-                "either heatmap.generate() or Heatmap(..., generate=True)"
-            )
+            if self.predictions is None:
+                raise errors.HeatmapError(
+                    "Cannot plot Heatmap which is not yet generated; generate with "
+                    "either heatmap.generate() or Heatmap(..., generate=True)"
+                )
 
-        # Save heatmaps in .npz format
-        self.save_npz(os.path.join(outdir, f'{self.slide.name}.npz'))
+            # Save heatmaps in .npz format
+            self.save_npz(os.path.join(outdir, f'{self.slide.name}.npz'))
 
-        def _savefig(label, bbox_inches='tight', **kwargs):
-            plt.savefig(
-                os.path.join(outdir, f'{self.slide.name}-{label}.png'),
-                bbox_inches=bbox_inches,
-                **kwargs
-            )
+            def _savefig(label, bbox_inches='tight', **kwargs):
+                plt.savefig(
+                    os.path.join(outdir, f'{self.slide.name}-{label}.png'),
+                    bbox_inches=bbox_inches,
+                    **kwargs
+                )
 
-        log.info('Saving base figures...')
+            log.info('Saving base figures...')
 
-        # Prepare matplotlib figure
-        ax = self._prepare_ax()
+            # Prepare matplotlib figure
+            ax = self._prepare_ax()
 
-        thumb_kwargs = dict(roi_color=roi_color, linewidth=linewidth)
+            thumb_kwargs = dict(roi_color=roi_color, linewidth=linewidth)
 
-        # Save base thumbnail as separate figure
-        self.plot_thumbnail(show_roi=False, ax=ax, **thumb_kwargs)  # type: ignore
-        _savefig('raw')
+            # Save base thumbnail as separate figure
+            self.plot_thumbnail(show_roi=False, ax=ax, **thumb_kwargs)  # type: ignore
+            _savefig('raw')
 
-        # Save thumbnail + ROI as separate figure
-        self.plot_thumbnail(show_roi=True, ax=ax, **thumb_kwargs)  # type: ignore
-        _savefig('raw+roi')
+            # Save thumbnail + ROI as separate figure
+            self.plot_thumbnail(show_roi=True, ax=ax, **thumb_kwargs)  # type: ignore
+            _savefig('raw+roi')
 
-        if logit_cmap:
-            self.plot_with_logit_cmap(logit_cmap, show_roi=show_roi, ax=ax)
-            _savefig('custom')
-        else:
-            heatmap_kwargs = dict(
-                show_roi=show_roi,
-                interpolation=interpolation,
-                **kwargs
-            )
-            save_kwargs = dict(
-                bbox_inches='tight',
-                facecolor=ax.get_facecolor(),
-                edgecolor='none'
-            )
-            # Make heatmap plots and sliders for each outcome category
-            for i in range(self.num_classes):
-                log.info(f'Making {i+1}/{self.num_classes}...')
-                self.plot(i, heatmap_alpha=0.6, ax=ax, **heatmap_kwargs)
-                _savefig(str(i), **save_kwargs)
+            if logit_cmap:
+                self.plot_with_logit_cmap(logit_cmap, show_roi=show_roi, ax=ax)
+                _savefig('custom')
+            else:
+                heatmap_kwargs = dict(
+                    show_roi=show_roi,
+                    interpolation=interpolation,
+                    **kwargs
+                )
+                save_kwargs = dict(
+                    bbox_inches='tight',
+                    facecolor=ax.get_facecolor(),
+                    edgecolor='none'
+                )
+                # Make heatmap plots and sliders for each outcome category
+                for i in range(self.num_classes):
+                    log.info(f'Making {i+1}/{self.num_classes}...')
+                    self.plot(i, heatmap_alpha=0.6, ax=ax, **heatmap_kwargs)
+                    _savefig(str(i), **save_kwargs)
 
-                self.plot(i, heatmap_alpha=1, ax=ax, **heatmap_kwargs)
-                _savefig(f'{i}-solid', **save_kwargs)
+                    self.plot(i, heatmap_alpha=1, ax=ax, **heatmap_kwargs)
+                    _savefig(f'{i}-solid', **save_kwargs)
 
-            # Uncertainty map
-            if self.uq:
-                log.info('Making uncertainty heatmap...')
-                self.plot_uncertainty(heatmap_alpha=0.6, ax=ax, **heatmap_kwargs)
-                _savefig('UQ', **save_kwargs)
+                # Uncertainty map
+                if self.uq:
+                    log.info('Making uncertainty heatmap...')
+                    self.plot_uncertainty(heatmap_alpha=0.6, ax=ax, **heatmap_kwargs)
+                    _savefig('UQ', **save_kwargs)
 
-                self.plot_uncertainty(heatmap_alpha=1, ax=ax, **heatmap_kwargs)
-                _savefig('UQ-solid', **save_kwargs)
+                    self.plot_uncertainty(heatmap_alpha=1, ax=ax, **heatmap_kwargs)
+                    _savefig('UQ-solid', **save_kwargs)
 
-        plt.close()
-        log.info(f'Saved heatmaps for [green]{self.slide.name}')
+            plt.close()
+            log.info(f'Saved heatmaps for [green]{self.slide.name}')
 
     def view(self):
         """Load the Heatmap into Slideflow Studio for interactive view.
