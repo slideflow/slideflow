@@ -63,6 +63,10 @@ class MismatchedSlideNamesError(DatasetError):
     pass
 
 
+class IncompatibleTileSizeError(DatasetError):
+    pass
+
+
 # --- Mosaic & Heatmap Errors -------------------------------------------------
 class HeatmapError(Exception):
     pass

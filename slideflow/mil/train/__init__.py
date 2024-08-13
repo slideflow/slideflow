@@ -377,8 +377,8 @@ def train_fastai(
     # Generate validation predictions.
     df, attention = predict_mil(
         learner.model,
-        config,
         dataset=val_dataset,
+        config=config,
         outcomes=outcomes,
         bags=val_bags,
         attention=True,

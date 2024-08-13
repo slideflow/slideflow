@@ -618,7 +618,7 @@ class Project:
                 hp.tile_um
             )
             if not _compatible:
-                raise errors.ModelParamsError(
+                raise errors.IncompatibleTileSizeError(
                     "Dataset tile size (px={}, um={}) does not match provided "
                     "hyperparameters (px={}, um={})".format(
                         dataset.tile_px, dataset.tile_um,

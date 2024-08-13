@@ -106,101 +106,6 @@ def load_model_weights(
     return model, config
 
 
-def _find_weights_path(path: str, mil_params: Dict) -> str:
-    """Determine location of model weights from a given model directory."""
-    if exists(join(path, 'models', 'best_valid.pth')):
-        weights = join(path, 'models', 'best_valid.pth')
-    elif exists(join(path, 'results', 's_0_checkpoint.pt')):
-        weights = join(path, 'results', 's_0_checkpoint.pt')
-    elif 'weights' in mil_params and mil_params['weights']:
-        if mil_params['weights'].startswith('/'):
-            weights = mil_params['weights']
-        elif mil_params['weights'].startswith('./'):
-            weights = join(path, mil_params['weights'][2:])
-        else:
-            weights = join(path, mil_params['weights'])
-    else:
-        raise errors.ModelError(
-            f"Could not find model weights at path {path}"
-        )
-    return weights
-
-
-def _load_bag(
-    bag: Union[str, np.ndarray, "torch.Tensor", List[str]],
-    device='cpu'
-) -> "torch.Tensor":
-    """Load bag from file or convert to torch.Tensor."""
-    import torch
-
-    if _is_list_of_paths(bag):
-        # If bags are passed as a list of paths, load them individually.
-        return torch.cat([_load_bag(b, device=device) for b in bag], dim=0)
-    if isinstance(bag, str):
-        return torch.load(bag, map_location=device).to(torch.float32)
-    elif isinstance(bag, np.ndarray):
-        return torch.from_numpy(bag).to(torch.float32).to(device)
-    elif isinstance(bag, torch.Tensor):
-        return bag.to(device)
-    else:
-        raise ValueError(
-            "Unrecognized bag type '{}'".format(type(bag))
-        )
-
-
-def _detect_device(
-    model: "torch.nn.Module",
-    device: Optional[str] = None,
-    verbose: bool = False
-) -> "torch.device":
-    """Auto-detect device from the given model."""
-    import torch
-
-    if device is None:
-        device = next(model.parameters()).device
-        if verbose:
-            log.debug(f"Auto device detection: using {device}")
-    elif isinstance(device, str):
-        if verbose:
-            log.debug(f"Using {device}")
-        device = torch.device(device)
-    return device
-
-
-def _get_nested_bags(dataset, bag_directories):
-    # This is a nested list of bag paths, where each nested list contains
-    # the paths to bags at one magnification level.
-    _matching_bag_paths = [dataset.get_bags(b) for b in bag_directories]
-
-    # Convert the above to a nested list of slide names.
-    _nested_slides = [[path_to_name(b) for b in _bag] for _bag in _matching_bag_paths]
-
-    # Identify the subset of slide names present in all of the outer lists.
-    # These are the slides that have bags at all magnification levels.
-    slides = list(set.intersection(*[set(s) for s in _nested_slides]))
-
-    # Filter the bags to only those that have all magnification levels.
-    nested_bag_paths = [
-        [b for b in _bag if path_to_name(b) in slides]
-        for _bag in _matching_bag_paths
-    ]
-    assert(all([len(b) == len(slides) for b in nested_bag_paths]))
-    nested_bags = np.array(nested_bag_paths)  # shape: (num_modes, num_train_slides)
-    # Transpose the above, so that each row is a slide, and each column is a
-    # magnification level.
-    nested_bags = nested_bags.T  # shape: (num_train_slides, num_modes)
-
-    # Sort the slides by the bag order.
-    slides = np.array(slides)
-    slides = slides[np.argsort(slides)]
-    bag_to_slide = np.array([path_to_name(b) for b in nested_bags[:, 0]])
-    bag_order = np.argsort(bag_to_slide)
-    nested_bags = nested_bags[bag_order]
-    assert(np.all(bag_to_slide[bag_order] == slides))
-
-    return nested_bags, list(slides)
-
-
 def aggregate_bags_by_slide(
     bags: np.ndarray,
     labels: Dict[str, int],
@@ -384,6 +289,103 @@ def aggregate_trainval_bags_by_patient(
 
     return bags, targets, train_idx, val_idx
 
+# -----------------------------------------------------------------------------
+
+def _find_weights_path(path: str, mil_params: Dict) -> str:
+    """Determine location of model weights from a given model directory."""
+    if exists(join(path, 'models', 'best_valid.pth')):
+        weights = join(path, 'models', 'best_valid.pth')
+    elif exists(join(path, 'results', 's_0_checkpoint.pt')):
+        weights = join(path, 'results', 's_0_checkpoint.pt')
+    elif 'weights' in mil_params and mil_params['weights']:
+        if mil_params['weights'].startswith('/'):
+            weights = mil_params['weights']
+        elif mil_params['weights'].startswith('./'):
+            weights = join(path, mil_params['weights'][2:])
+        else:
+            weights = join(path, mil_params['weights'])
+    else:
+        raise errors.ModelError(
+            f"Could not find model weights at path {path}"
+        )
+    return weights
+
+
+def _load_bag(
+    bag: Union[str, np.ndarray, "torch.Tensor", List[str]],
+    device='cpu'
+) -> "torch.Tensor":
+    """Load bag from file or convert to torch.Tensor."""
+    import torch
+
+    if _is_list_of_paths(bag):
+        # If bags are passed as a list of paths, load them individually.
+        return torch.cat([_load_bag(b, device=device) for b in bag], dim=0)
+    if isinstance(bag, str):
+        return torch.load(bag, map_location=device).to(torch.float32)
+    elif isinstance(bag, np.ndarray):
+        return torch.from_numpy(bag).to(torch.float32).to(device)
+    elif isinstance(bag, torch.Tensor):
+        return bag.to(device)
+    else:
+        raise ValueError(
+            "Unrecognized bag type '{}'".format(type(bag))
+        )
+
+
+def _detect_device(
+    model: "torch.nn.Module",
+    device: Optional[str] = None,
+    verbose: bool = False
+) -> "torch.device":
+    """Auto-detect device from the given model."""
+    import torch
+
+    if device is None:
+        device = next(model.parameters()).device
+        if verbose:
+            log.debug(f"Auto device detection: using {device}")
+    elif isinstance(device, str):
+        if verbose:
+            log.debug(f"Using {device}")
+        device = torch.device(device)
+    return device
+
+
+def _get_nested_bags(dataset, bag_directories):
+    # This is a nested list of bag paths, where each nested list contains
+    # the paths to bags at one magnification level.
+    _matching_bag_paths = [dataset.get_bags(b) for b in bag_directories]
+
+    # Convert the above to a nested list of slide names.
+    _nested_slides = [[path_to_name(b) for b in _bag] for _bag in _matching_bag_paths]
+
+    # Identify the subset of slide names present in all of the outer lists.
+    # These are the slides that have bags at all magnification levels.
+    slides = list(set.intersection(*[set(s) for s in _nested_slides]))
+
+    # Filter the bags to only those that have all magnification levels.
+    nested_bag_paths = [
+        [b for b in _bag if path_to_name(b) in slides]
+        for _bag in _matching_bag_paths
+    ]
+    assert(all([len(b) == len(slides) for b in nested_bag_paths]))
+    nested_bags = np.array(nested_bag_paths)  # shape: (num_modes, num_train_slides)
+    # Transpose the above, so that each row is a slide, and each column is a
+    # magnification level.
+    nested_bags = nested_bags.T  # shape: (num_train_slides, num_modes)
+
+    # Sort the slides by the bag order.
+    slides = np.array(slides)
+    slides = slides[np.argsort(slides)]
+    bag_to_slide = np.array([path_to_name(b) for b in nested_bags[:, 0]])
+    bag_order = np.argsort(bag_to_slide)
+    nested_bags = nested_bags[bag_order]
+    assert(np.all(bag_to_slide[bag_order] == slides))
+
+    return nested_bags, list(slides)
+
+
 def _is_list_of_paths(bag):
     return ((isinstance(bag, list) or (isinstance(bag, np.ndarray))
              and isinstance(bag[0], str)))
@@ -397,6 +399,43 @@ def _output_to_numpy(*args):
                           else arg
         for arg in args
     ])
+
+
+def _verify_compatible_tile_size(mil_path: str, bag_path: str, strict: bool = False):
+    """Verify that the tile size of the MIL model is compatible with the bag.
+
+    Args:
+        mil_path: Path to trained model directory, containing mil_params.json.
+        bag_path: Path to bag directory, containing bags_config.json
+
+
+
+    """
+    msg = None
+    if not exists(join(mil_path, 'mil_params.json')):
+        msg = f"Could not find mil_params.json at {mil_path}; unable to verify tile size compatibility."
+    if not exists(join(bag_path, 'bags_config.json')):
+        msg = f"Could not find bags_config.json at {bag_path}; unable to verify tile size compatibility."
+    if msg and strict:
+        raise errors.IncompatibleTileSizeError(msg)
+    elif msg:
+        log.warning(msg)
+        return
+
+    mil_params = sf.util.load_json(join(mil_path, 'mil_params.json'))
+    mil_bags_params = mil_params['bags_extractor']
+    bags_config = sf.util.load_json(join(bag_path, 'bags_config.json'))
+
+    def _has_px(d):
+        return 'tile_px' in d and 'tile_um' in d
+
+    # Verify that the slide has the same tile size as the bags
+    if _has_px(mil_bags_params) and _has_px(bags_config):
+        mil_px, mil_um = mil_bags_params['tile_px'], mil_bags_params['tile_um']
+        bag_px, bag_um = bags_config['tile_px'], bags_config['tile_um']
+        if not sf.util.is_tile_size_compatible(bag_px, bag_um, mil_px, mil_um):
+            log.error(f"Model tile size (px={bag_px}, um={bag_um}) does not match the tile size "
+                      f"of indicated bags (px={mil_px}, um={mil_um}). Predictions may be unreliable.")
 
 
 def _pool_attention(

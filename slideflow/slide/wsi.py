@@ -2786,7 +2786,7 @@ class WSI:
             self.tile_um
         )
         if not _compatible:
-            raise ValueError(
+            raise errors.IncompatibleTileSizeError(
                 "Slide tile size (tile_px={}, tile_um={}) does not match the "
                 "model (tile_px={}, tile_um={}).".format(
                     self.tile_px, self.tile_um,

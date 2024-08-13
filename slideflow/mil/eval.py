@@ -73,6 +73,9 @@ def eval_mil(
             separately. Defaults to None.
 
     """
+    if isinstance(bags, str):
+        utils._verify_compatible_tile_size(weights, bags)
+
     model, config = utils.load_model_weights(weights, config)
     model.eval()
     params = {
@@ -96,12 +99,12 @@ def eval_mil(
 
 
 def predict_mil(
-    model: Callable,
-    config: TrainerConfig,
+    model: Union[str, Callable],
     dataset: "sf.Dataset",
     outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]],
     *,
+    config: Optional[TrainerConfig] = None,
     attention: bool = False,
     uq: bool = False,
     aggregation_level: Optional[str] = None,
@@ -111,8 +114,7 @@ def predict_mil(
 
     Args:
         model (torch.nn.Module): Model from which to generate predictions.
-        config (:class:`slideflow.mil.TrainerConfig`):
-            Configuration for the MIL model.
+
         dataset (sf.Dataset): Dataset from which to generation predictions.
         outcomes (str, list(str)): Outcomes.
         bags (str, list(str)): Path to bags, or list of bag file paths.
@@ -120,6 +122,9 @@ def predict_mil(
             a slide, with the shape ``(n_tiles, n_features)``.
 
     Keyword args:
+        config (:class:`slideflow.mil.TrainerConfig`):
+            Configuration for the MIL model. Required if model is a loaded ``torch.nn.Module``.
+            Defaults to None.
         attention (bool): Whether to calculate attention scores. Defaults to False.
         uq (bool): Whether to generate uncertainty estimates. Defaults to False.
         aggregation_level (str): Aggregation level for predictions. Either 'slide'
@@ -139,6 +144,17 @@ def predict_mil(
             f"Unrecognized aggregation level: '{aggregation_level}'. "
             "Must be either 'patient' or 'slide'."
         )
+
+    # Load the model
+    if isinstance(model, str):
+        model_path = model
+        model, config = utils.load_model_weights(model_path, config)
+        model.eval()
+
+        if isinstance(bags, str):
+            utils._verify_compatible_tile_size(model_path, bags)
+    elif config is None:
+        raise ValueError("If model is not a path, a TrainerConfig object must be provided via the 'config' argument.")
 
     # Prepare labels.
     labels, unique = dataset.labels(outcomes, format='id')
@@ -296,6 +312,13 @@ def predict_slide(
     elif not isinstance(slide, sf.WSI):
         raise ValueError("slide must either be a str (path to a slide) or a "
                          "WSI object.")
+
+    # Verify that the slide has the same tile size as the bags
+    if 'tile_px' in bags_params and 'tile_um' in bags_params:
+        bag_px, bag_um = bags_params['tile_px'], bags_params['tile_um']
+        if not sf.util.is_tile_size_compatible(slide.tile_px, slide.tile_um, bag_px, bag_um):
+            log.error(f"Slide tile size (px={slide.tile_px}, um={slide.tile_um}) does not match the tile size "
+                      f"used for bags (px={bag_px}, um={bag_um}). Predictions may be unreliable.")
 
     # Convert slide to bags
     if extractor_kwargs is None:
@@ -628,8 +651,8 @@ def run_eval(
     # Generate predictions.
     df, y_att = predict_mil(
         model,
-        config,
         dataset,
+        config=config,
         outcomes=outcomes,
         bags=bags,
         attention=True,
@@ -824,6 +847,9 @@ def get_mil_tile_predictions(
 
     """
     import torch
+
+    if isinstance(bags, str):
+        utils._verify_compatible_tile_size(weights, bags)
 
     # Load model and configuration.
     model, config = utils.load_model_weights(weights, config)
