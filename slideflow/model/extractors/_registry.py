@@ -3,8 +3,8 @@
 _tf_extractors = dict()
 _torch_extractors = dict()
 _known_extras_packages = {
-     'slideflow_extras': ['histossl', 'plip', 'retccl', 'ctranspath'],
-     'slideflow_gigapath': ['gigapath', 'gigapath.tile', 'gigapath.slide']
+     'slideflow-gpl': ['retccl', 'ctranspath'],
+     'slideflow-noncommercial': ['gigapath', 'gigapath.tile', 'gigapath.slide', 'histossl', 'plip']
 }
 _extras_extractors = {
     extractor: package 
