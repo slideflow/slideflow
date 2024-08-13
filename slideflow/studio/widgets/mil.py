@@ -129,6 +129,7 @@ class MILWidget(Widget):
         self.viz.mil_widget = self  #TODO: hacky, remove this
         self.uncertainty_color = GRAY
         self.uncertainty_range = None
+        self.attention_pooling = True
 
     # --- Hooks, triggers, and internal functions -----------------------------
 
@@ -354,6 +355,7 @@ class MILWidget(Widget):
             bags,
             attention=self.calculate_attention,
             device=self.viz._render_manager.device,
+            attention_pooling=('avg' if self.attention_pooling else None),
             **kwargs
         )
         return predictions, attention
@@ -556,8 +558,7 @@ class MILWidget(Widget):
         return True
 
     def is_categorical(self) -> bool:
-        return (('model_type' not in self.mil_params)
-                or (self.mil_params['model_type'] == 'categorical'))
+        return self.mil_config is None or self.mil_config.is_categorical()
 
     def render_attention_heatmap(self, attention: np.ndarray) -> None:
         self.viz.heatmap = _AttentionHeatmapWrapper(attention, self.viz.wsi)
@@ -571,7 +572,7 @@ class MILWidget(Widget):
         self.viz.heatmap = _AttentionHeatmapWrapper([], self.viz.wsi)
         self.viz.heatmap_widget.predictions = convert_to_overlays(tile_preds)
         self.viz.heatmap_widget.render_heatmap(
-            outcome_names=self.viz.heatmap_widget.get_outcome_names(self.mil_params)
+            outcome_names=self.viz.heatmap_widget.get_outcome_names(self.mil_params, categorical=self.is_categorical())
         )
 
     def render_dual_heatmap(self, attention: np.ndarray, tile_preds: np.ndarray) -> None:
@@ -582,7 +583,7 @@ class MILWidget(Widget):
         merged = np.concatenate((attention, tile_preds), axis=2)
         self.viz.heatmap = _AttentionHeatmapWrapper(merged, self.viz.wsi)
         self.viz.heatmap_widget.predictions = convert_to_overlays(merged)
-        pred_outcomes = self.viz.heatmap_widget.get_outcome_names(self.mil_params)
+        pred_outcomes = self.viz.heatmap_widget.get_outcome_names(self.mil_params, categorical=self.is_categorical())
         att_names = ['Attention'] if attention.shape[2] == 1 else [f'Attention-{n}' for n in range(attention.shape[2])]
         self.viz.heatmap_widget.render_heatmap(outcome_names=att_names + pred_outcomes)
 
@@ -665,11 +666,19 @@ class MILWidget(Widget):
         prediction = self.predictions[0]
 
         # Assemble outcome category labels.
-        outcome_labels = [
-            f"Outcome {i}" if 'outcome_labels' not in self.mil_params or str(i) not in self.mil_params['outcome_labels']
-                           else self.mil_params['outcome_labels'][str(i)]
-            for i in range(len(prediction))
-        ]
+        if self.is_categorical():
+            outcome_labels = [
+                f"Outcome {i}" if 'outcome_labels' not in self.mil_params or str(i) not in self.mil_params['outcome_labels']
+                            else self.mil_params['outcome_labels'][str(i)]
+                for i in range(len(prediction))
+            ]
+        else:
+            outcome_labels = self.mil_params['outcomes']
+            if isinstance(outcome_labels, str):
+                outcome_labels = [outcome_labels]
+            if len(outcome_labels) != len(prediction):
+                sf.log.warning("Unable to determine outcome label names from MIL model params.")
+                outcome_labels = [f"Outcome {i}" for i in range(len(prediction))]
 
         # Show prediction for each category.
         imgui.text(self.mil_params['outcomes'])
@@ -680,9 +689,10 @@ class MILWidget(Widget):
             imgui_utils.right_aligned_text(f"{pred_val:.3f}")
         imgui.separator()
         # Show final prediction based on which category has the highest probability.
-        imgui.text("Final prediction")
-        imgui.same_line(self.viz.font_size * 12)
-        imgui_utils.right_aligned_text(f"{outcome_labels[np.argmax(prediction)]}")
+        if self.is_categorical():
+            imgui.text("Final prediction")
+            imgui.same_line(self.viz.font_size * 12)
+            imgui_utils.right_aligned_text(f"{outcome_labels[np.argmax(prediction)]}")
 
     def draw_config_popup(self):
         viz = self.viz
@@ -698,6 +708,9 @@ class MILWidget(Widget):
                 self.ask_load_model()
             if imgui.menu_item('Close MIL model')[0]:
                 self.close()
+            imgui.separator()
+            if imgui.menu_item('Pool attention', selected=self.attention_pooling)[0]:
+                self.attention_pooling = not self.attention_pooling
 
             # Hide menu if we click elsewhere
             if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():

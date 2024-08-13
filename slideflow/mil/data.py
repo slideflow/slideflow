@@ -16,10 +16,11 @@ def build_dataset(bags, targets, encoder, bag_size, use_lens=False,  max_bag_siz
 
     def _zip(bag, targets):
         features, lengths = bag
+        _targets = targets if encoder is None else targets.squeeze()
         if use_lens:
-            return (features, lengths, targets.squeeze())
+            return (features, lengths, _targets)
         else:
-            return (features, targets.squeeze())
+            return (features, _targets)
 
     dataset = MapDataset(
         _zip,
@@ -34,10 +35,11 @@ def build_multibag_dataset(bags, targets, encoder, bag_size, use_lens=False, max
     n_bags = len(bags[0])
 
     def _zip(bags_and_lengths, targets):
+        _targets = targets if encoder is None else targets.squeeze()
         if use_lens:
-            return *bags_and_lengths, targets.squeeze()
+            return *bags_and_lengths, _targets
         else:
-            return [b[0] for b in bags_and_lengths], targets.squeeze()
+            return [b[0] for b in bags_and_lengths], _targets
 
     dataset = MapDataset(
         _zip,
@@ -283,6 +285,8 @@ class EncodedDataset(MapDataset):
         self.encode = encode
 
     def _unsqueeze_to_float32(self, x):
+        if self.encode is None:
+            return torch.tensor(x, dtype=torch.float32)
         return torch.tensor(
             self.encode.transform(np.array(x).reshape(1, -1)), dtype=torch.float32
         )

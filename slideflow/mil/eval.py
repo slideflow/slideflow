@@ -137,14 +137,6 @@ def predict_mil(
 
         list(np.ndarray): Attention scores (if ``attention=True``)
     """
-    if aggregation_level is None:
-        aggregation_level = config.aggregation_level
-    if aggregation_level not in ('slide', 'patient'):
-        raise ValueError(
-            f"Unrecognized aggregation level: '{aggregation_level}'. "
-            "Must be either 'patient' or 'slide'."
-        )
-
     # Load the model
     if isinstance(model, str):
         model_path = model
@@ -156,8 +148,17 @@ def predict_mil(
     elif config is None:
         raise ValueError("If model is not a path, a TrainerConfig object must be provided via the 'config' argument.")
 
+    # Validate aggregation level.
+    if aggregation_level is None:
+        aggregation_level = config.aggregation_level
+    if aggregation_level not in ('slide', 'patient'):
+        raise ValueError(
+            f"Unrecognized aggregation level: '{aggregation_level}'. "
+            "Must be either 'patient' or 'slide'."
+        )
+
     # Prepare labels.
-    labels, unique = dataset.labels(outcomes, format='id')
+    labels, _ = utils.get_labels(dataset, outcomes, config.is_categorical(), format='id')
 
     # Prepare bags and targets.
     slides = list(labels.keys())
@@ -184,7 +185,14 @@ def predict_mil(
         y_true = np.array([labels[s] for s in slides])
 
         # Create prediction dataframe.
-        df_dict = dict(slide=slides, y_true=y_true)
+        df_dict = dict(slide=slides)
+
+        # Handle continous outcomes.
+        if len(y_true.shape) > 1:
+            for i in range(y_true.shape[-1]):
+                df_dict[f'y_true{i}'] = y_true[:, i]
+        else:
+            df_dict['y_true'] = y_true
 
     # Inference.
     model.eval()
@@ -379,7 +387,7 @@ def predict_from_bags(
     attention_pooling: Optional[str] = None,
     use_lens: bool = False,
     device: Optional[Any] = None,
-    apply_softmax: bool = True,
+    apply_softmax: Optional[bool] = None,
     uq: bool = False
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
     """Generate MIL predictions for a list of bags.
@@ -400,7 +408,7 @@ def predict_from_bags(
             input to the model. Defaults to False.
         device (str, optional): Device on which to run inference. Defaults to None.
         apply_softmax (bool): Whether to apply softmax to the model output. Defaults
-            to True.
+            to True for categorical outcomes, False for continuous outcomes.
         uq (bool): Whether to generate uncertainty estimates. Defaults to False.
 
     Returns:
@@ -516,7 +524,7 @@ def run_inference(
     attention_pooling: Optional[str] = None,
     uq: bool = False,
     forward_kwargs: Optional[dict] = None,
-    apply_softmax: bool = True,
+    apply_softmax: Optional[bool] = None,
     use_lens: Union[bool, "torch.Tensor"] = False,
     device: Optional[Any] = None
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
@@ -534,7 +542,7 @@ def run_inference(
         forward_kwargs (dict, optional): Additional keyword arguments to pass to
             the model's forward function. Defaults to None.
         apply_softmax (bool): Whether to apply softmax to the model output. Defaults
-            to True.
+            to True for categorical outcomes, False for continuous outcomes.
         use_lens (bool, torch.Tensor): Whether to use the length of each bag as an
             additional input to the model. If a tensor is passed, this will be used
             as the lens. Defaults to False.
@@ -641,7 +649,7 @@ def run_eval(
 
     """
     # Prepare lists of bags.
-    labels, _ = dataset.labels(outcomes, format='id')
+    labels, _ = utils.get_labels(dataset, outcomes, config.is_categorical())
     slides = list(labels.keys())
     if isinstance(bags, str):
         bags = dataset.get_bags(bags)
@@ -660,16 +668,6 @@ def run_eval(
         aggregation_level=aggregation_level
     )
 
-    # Generate metrics.
-    y_pred_cols = [c for c in df.columns if c.startswith('y_pred')]
-    for idx in range(len(y_pred_cols)):
-        m = ClassifierMetrics(
-            y_true=(df.y_true.values == idx).astype(int),
-            y_pred=df[f'y_pred{idx}'].values
-        )
-        log.info(f"AUC (cat #{idx+1}): {m.auroc:.3f}")
-        log.info(f"AP  (cat #{idx+1}): {m.ap:.3f}")
-
     # Save results.
     if outdir:
         if not exists(outdir):
@@ -683,12 +681,9 @@ def run_eval(
     else:
         model_dir = None
 
-    # Print categorical metrics, including per-category accuracy
-    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
-    metrics_df = df.rename(
-        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'}
-    )
-    sf.stats.metrics.categorical_metrics(metrics_df, level='slide', data_dir=model_dir)
+    # Print categorical metrics, including per-category accuracy)
+    metrics_df = utils.rename_df_cols(df, outcomes, categorical=config.is_categorical())
+    config.run_metrics(metrics_df, level='slide', data_dir=model_dir)
 
     # Export attention
     if outdir and y_att:
@@ -751,7 +746,7 @@ def run_multimodal_eval(
 
     """
      # Prepare ground-truth labels
-    labels, unique = dataset.labels(outcomes, format='id')
+    labels, _ = utils.get_labels(dataset, outcomes, config.is_categorical(), format='id')
 
     # Prepare bags and targets
     bags, slides = utils._get_nested_bags(dataset, bags)
@@ -858,7 +853,7 @@ def get_mil_tile_predictions(
     model.to(device)
 
     if outcomes is not None:
-        labels, unique = dataset.labels(outcomes, format='id')
+        labels, _ = utils.get_labels(dataset, outcomes, config.is_categorical(), format='id')
 
     # Prepare bags.
     slides = dataset.slides()

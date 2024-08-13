@@ -127,14 +127,27 @@ class TrainerConfig:
         """Whether the model is multimodal."""
         return self.model_config.is_multimodal
 
+    @property
+    def model_type(self):
+        """Type of model (categorical or linear)."""
+        return self.model_config.model_type
+
     def _verify_eval_params(self, **kwargs):
         pass
 
-    def get_metrics(self):
-        from fastai.vision.all import RocAuc
-        model_metrics = self.model_config.get_metrics()
-        return model_metrics or [RocAuc()]
+    def is_categorical(self):
+        return self.model_config.is_categorical()
 
+    def get_metrics(self):
+        from fastai.vision.all import RocAuc, mse, PearsonCorrCoef
+
+        model_metrics = self.model_config.get_metrics()
+
+        if self.is_categorical():
+            fallback = [RocAuc()]
+        else:
+            fallback = [mse, PearsonCorrCoef()]
+        return model_metrics or fallback
 
     def prepare_training(
         self,
@@ -468,10 +481,18 @@ class TrainerConfig:
         """
         return self.model_config.inspect_batch(batch)
 
+    def run_metrics(self, df, level='slide', outdir=None):
+        self.model_config.run_metrics(df, level=level, outdir=outdir)
+
 
 # -----------------------------------------------------------------------------
 
 class MILModelConfig:
+
+    losses = {
+        'cross_entropy': nn.CrossEntropyLoss,
+        'mse': nn.MSELoss,
+    }
 
     def __init__(
         self,
@@ -481,6 +502,7 @@ class MILModelConfig:
         apply_softmax: bool = True,
         model_kwargs: Optional[dict] = None,
         validate: bool = True,
+        loss: Union[str, Callable] = 'cross_entropy',
         **kwargs
     ) -> None:
         """Model configuration for an MIL model.
@@ -499,8 +521,9 @@ class MILModelConfig:
 
         """
         self.model = model
-        self.apply_softmax = apply_softmax
+        self._apply_softmax = apply_softmax
         self.model_kwargs = model_kwargs
+        self.loss = loss
         if use_lens is None and (hasattr(self.model_fn, 'use_lens')
                                  and self.model_fn.use_lens):
             self.use_lens = True
@@ -518,6 +541,10 @@ class MILModelConfig:
             ))
 
     @property
+    def apply_softmax(self):
+        return self.is_categorical() and self._apply_softmax
+
+    @property
     def model_fn(self):
         if not isinstance(self.model, str):
             return self.model
@@ -525,7 +552,7 @@ class MILModelConfig:
 
     @property
     def loss_fn(self):
-        return nn.CrossEntropyLoss
+        return self.losses[self.loss]
 
     @property
     def is_multimodal(self):
@@ -536,6 +563,16 @@ class MILModelConfig:
     @property
     def rich_name(self):
         return f"[bold]{self.model_fn.__name__}[/]"
+
+    @property
+    def model_type(self):
+        if self.loss == 'mse':
+            return 'linear'
+        else:
+            return 'categorical'
+
+    def is_categorical(self):
+        return self.model_type == 'categorical'
 
     def verify_trainer(self, trainer):
         pass
@@ -591,11 +628,16 @@ class MILModelConfig:
                 n_in = [b.shape[-1] for b in batch[:-1][0]]
         else:
             n_in = batch[0].shape[-1]
-        n_out = batch[-1].shape[-1]
+        targets = batch[-1]
+        if len(targets.shape) == 1:
+            n_out = 1
+        else:
+            n_out = targets.shape[-1]
         return n_in, n_out
 
-    def build_model(self, n_in: int, n_out:int, **kwargs):
+    def build_model(self, n_in: int, n_out: int, **kwargs):
         """Build the model."""
+        log.info(f"Building model {self.rich_name} (n_in={n_in}, n_out={n_out})")
         return self.model_fn(n_in, n_out, **kwargs)
 
     def _build_dataloader(
@@ -691,6 +733,13 @@ class MILModelConfig:
             device=device,
             uq=uq,
         )
+
+    def run_metrics(self, df, level='slide', outdir=None) -> None:
+        """Run metrics and save plots to disk."""
+        if self.is_categorical():
+            sf.stats.metrics.categorical_metrics(df, level=level, data_dir=outdir)
+        else:
+            sf.stats.metrics.linear_metrics(df, level=level, data_dir=outdir)
 
 # -----------------------------------------------------------------------------
 

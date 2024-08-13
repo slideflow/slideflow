@@ -115,11 +115,7 @@ def build_fastai_learner(
     """
     from . import _fastai
 
-    # Prepare labels and slides
-    labels, unique_train = train_dataset.labels(outcomes, format='name')
-    val_labels, unique_val = val_dataset.labels(outcomes, format='name')
-    labels.update(val_labels)
-    unique_categories = np.unique(unique_train + unique_val)
+    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_categorical())
 
     # Prepare bags
     if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
@@ -137,7 +133,6 @@ def build_fastai_learner(
 
     if config.aggregation_level == 'slide':
         # Aggregate feature bags across slides.
-
         bags, targets, train_idx, val_idx = utils.aggregate_trainval_bags_by_slide(
             bags,  # type: ignore
             labels,
@@ -177,7 +172,7 @@ def build_fastai_learner(
         targets=targets,
         train_idx=train_idx,
         val_idx=val_idx,
-        unique_categories=unique_categories,
+        unique_categories=unique,
         outdir=outdir,
         **kwargs
     )
@@ -209,10 +204,7 @@ def build_multimodal_learner(
     num_modes = len(bags)
 
     # Prepare labels and slides
-    labels, unique_train = train_dataset.labels(outcomes, format='name')
-    val_labels, unique_val = val_dataset.labels(outcomes, format='name')
-    labels.update(val_labels)
-    unique_categories = np.unique(unique_train + unique_val)
+    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_categorical())
 
     # --- Prepare bags --------------------------------------------------------
 
@@ -248,7 +240,7 @@ def build_multimodal_learner(
         + "\n  - [blue]Modes[/]: {}".format(num_modes)
         + "\n  - [blue]Slides with bags[/]: {}".format(len(np.unique(all_slides)))
         + "\n  - [blue]Multi-modal bags[/]: {}".format(all_bags.shape[0])
-        + "\n  - [blue]Unique categories[/]: {}".format(len(unique_categories))
+        + "\n  - [blue]Unique categories[/]: {}".format(len(unique))
         + "\n  - [blue]Training multi-modal bags[/]: {}".format(len(train_idx))
         + "\n  - [blue]Training slides[/]: {}".format(len(np.unique(train_slides)))
         + "\n  - [blue]Validation multi-modal bags[/]: {}".format(len(val_idx))
@@ -282,7 +274,7 @@ def build_multimodal_learner(
         targets,
         train_idx,
         val_idx,
-        unique_categories,
+        unique_categories=unique,
         outdir=outdir,
     )
     if return_shape:
@@ -390,12 +382,8 @@ def train_fastai(
         log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print categorical metrics, including per-category accuracy
-    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
-    df.rename(
-        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'},
-        inplace=True
-    )
-    sf.stats.metrics.categorical_metrics(df, level='slide', data_dir=outdir)
+    utils.rename_df_cols(df, outcomes, categorical=config.is_categorical(), inplace=True)
+    config.run_metrics(df, level='slide', data_dir=outdir)
 
     # Export attention to numpy arrays
     if attention and outdir:
@@ -442,7 +430,8 @@ def train_multimodal_mil(
             )
 
     # Prepare validation bags and targets.
-    val_labels, val_unique = val_dataset.labels(outcomes, format='id')
+    val_labels, _ = utils.get_labels(val_dataset, outcomes, config.is_categorical())
+
     val_bags, val_slides = utils._get_nested_bags(val_dataset, bags)
     val_targets = np.array([val_labels[slide] for slide in val_slides])
 

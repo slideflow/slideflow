@@ -248,7 +248,7 @@ class HeatmapWidget:
         _thread.start()
         self.show = True
 
-    def get_outcome_names(self, config=None):
+    def get_outcome_names(self, config=None, categorical=None):
         if self._outcome_names is not None and config is None:
             return self._outcome_names
         if config is None:
@@ -262,7 +262,12 @@ class HeatmapWidget:
 
         outcomes = config['outcomes']
         outcomes = [outcomes] if isinstance(outcomes, str) else outcomes
-        if 'model_type' in config and config['model_type'] != 'categorical':
+        if categorical is None:
+            categorical = ('model_type' in config and config['model_type'] != 'categorical')
+        if categorical:
+            return outcomes
+        if config['outcome_labels'] is None:
+            # This is the case with MIL models
             return outcomes
         if len(outcomes) > 1:
             return [config['outcome_labels'][outcome][o] for outcome in outcomes for o in config['outcome_labels'][outcome]]

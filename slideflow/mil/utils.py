@@ -6,7 +6,7 @@ import slideflow as sf
 import numpy as np
 
 from os.path import exists, join, isdir
-from typing import Optional, Tuple, Union, Dict, List, TYPE_CHECKING
+from typing import Optional, Tuple, Union, Dict, List, Any, TYPE_CHECKING
 from slideflow import errors, log
 from slideflow.util import path_to_name
 from slideflow.model.torch_utils import get_device
@@ -92,7 +92,6 @@ def load_model_weights(
                 )
 
     # Build the model
-    log.info(f"Building model {config.model_config.rich_name} (n_in={input_shape}, n_out={output_shape})")
     model = config.build_model(input_shape, output_shape)
     if isdir(weights):
         weights = _find_weights_path(weights, mil_params)
@@ -288,6 +287,84 @@ def aggregate_trainval_bags_by_patient(
         )
 
     return bags, targets, train_idx, val_idx
+
+def get_labels(
+    datasets: Union[sf.Dataset, List[sf.Dataset]],
+    outcomes: Union[str, List[str]],
+    categorical: bool,
+    *,
+    format: str = 'name'
+) -> Tuple[Dict[str, Any], np.ndarray]:
+    """Get labels for a dataset.
+
+    Args:
+        datasets (Dataset or list(Dataset)): Dataset(s) containing labels.
+        outcomes (str or list(str)): Outcome(s) to extract.
+        categorical (bool): Whether to treat outcomes as categorical.
+
+    Keyword Args:
+        format (str): Format for categorical labels. Either 'id' or 'name'.
+            Defaults to 'name'.
+
+    """
+    if isinstance(datasets, sf.Dataset):
+        datasets = [datasets]
+
+    # Prepare labels and slides
+    labels = {}
+    if categorical:
+        all_unique = []
+        for dts in datasets:
+            _labels, _unique = dts.labels(outcomes, format=format)
+            labels.update(_labels)
+            all_unique.append(_unique)
+        unique = np.unique(all_unique)
+    else:
+        for dts in datasets:
+            _labels, _unique = dts.labels(outcomes, use_float=True)
+            labels.update(_labels)
+        unique = None
+    return labels, unique
+
+
+def rename_df_cols(df, outcomes, categorical, inplace=False):
+    """Rename columns of a DataFrame based on outcomes.
+
+    This standarization of column names enables metrics calculation
+    to be consistent across different models and outcomes.
+
+    Args:
+        df (pd.DataFrame): DataFrame with columns to rename.
+            For categorical outcomes, there is assumed to be a single "y_true"
+            column which will be renamed to "{outcome}-y_true", and multiple
+            "y_pred{n}" columns which will be renamed to "{outcome}-y_pred{n}".
+            For linear outcomes, there are assumed to be multiple "y_true{n}"
+            and "y_pred{n}" columns which will be renamed to "{outcome}-y_true{n}"
+            and "{outcome}-y_pred{n}", respectively.
+        outcomes (str or list(str)): Outcome(s) to append to column names.
+            If there are multiple outcome names, these are joined with a hyphen.
+        categorical (bool): Whether the outcomes are categorical.
+
+    """
+    if categorical:
+        return _rename_categorical_df_cols(df, outcomes, inplace=inplace)
+    else:
+        return _rename_linear_df_cols(df, outcomes, inplace=inplace)
+
+
+def _rename_categorical_df_cols(df, outcomes, inplace=False):
+    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
+    return df.rename(
+        columns={c: f"{outcome_name}-{c}" for c in df.columns if c != 'slide'},
+        inplace=inplace
+    )
+
+
+def _rename_linear_df_cols(df, outcomes, inplace=False):
+    outcome_name = outcomes if isinstance(outcomes, str) else '-'.join(outcomes)
+    cols_to_rename = {f'y_pred{o}': f"{outcome_name}-y_pred" for o in range(len(outcome_name))}
+    cols_to_rename.update({f'y_true{o}': f"{outcome_name}-y_true" for o in range(len(outcome_name))})
+    return df.rename(columns=cols_to_rename, inplace=inplace)
 
 # -----------------------------------------------------------------------------
 

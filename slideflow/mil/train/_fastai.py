@@ -82,7 +82,7 @@ def build_learner(
             number of input features and output classes.
 
     """
-    log.info(f"Training model {config.model_config.rich_name}")
+    log.debug("Building FastAI learner")
 
     # Prepare device.
     device = torch_utils.get_device(device)
@@ -95,7 +95,11 @@ def build_learner(
         oh_kw = {"sparse": False}
     else:
         oh_kw = {"sparse_output": False}
-    encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
+
+    if config.is_categorical():
+        encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
+    else:
+        encoder = None
 
     # Build the dataloaders.
     train_dl = config.build_train_dataloader(
@@ -132,7 +136,7 @@ def build_learner(
         model.relocate()
 
     # Loss should weigh inversely to class occurences.
-    if config.weighted_loss:
+    if config.is_categorical() and config.weighted_loss:
         counts = pd.value_counts(targets[train_idx])
         weights = counts.sum() / counts
         weights /= weights.sum()
