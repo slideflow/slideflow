@@ -663,6 +663,7 @@ class MILWidget(Widget):
 
         # Assemble outcome category labels.
         if self.is_categorical():
+            imgui.text(self.mil_params['outcomes'])
             outcome_labels = [
                 f"Outcome {i}" if 'outcome_labels' not in self.mil_params or str(i) not in self.mil_params['outcome_labels']
                             else self.mil_params['outcome_labels'][str(i)]
@@ -677,7 +678,6 @@ class MILWidget(Widget):
                 outcome_labels = [f"Outcome {i}" for i in range(len(prediction))]
 
         # Show prediction for each category.
-        imgui.text(self.mil_params['outcomes'])
         imgui.separator()
         for i, pred_val in enumerate(prediction):
             imgui.text_colored(outcome_labels[i], *self.viz.theme.dim)

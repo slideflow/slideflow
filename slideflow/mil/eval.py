@@ -768,7 +768,7 @@ def run_eval(
         attention=True,
         aggregation_level=aggregation_level
     )
-    if config.is_multimodal():
+    if config.is_multimodal:
         if uq:
             log.warning("Uncertainty estimates are not supported for multi-modal models.")
         df, y_att = predict_multimodal_mil(**predict_kwargs)
@@ -804,7 +804,7 @@ def run_eval(
 
     # Attention heatmaps
     # Not supported for multimodal models
-    if attention_heatmaps and not config.is_multimodal():
+    if attention_heatmaps and not config.is_multimodal:
         log.warning("Cannot generate attention heatmaps for multi-modal models.")
     elif outdir and y_att and attention_heatmaps:
         generate_attention_heatmaps(
