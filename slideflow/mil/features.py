@@ -221,8 +221,8 @@ class MILFeatures:
 
                 else:
                     raise NotImplementedError(
-                        f"Layer activation support for model {self.model.__name__} is not implemented.
-                    ")
+                        f"Layer activation support for model {self.model.__name__} is not implemented."
+                    )
 
                 hs.append(h.cpu())
                 yp = torch.nn.functional.softmax(model_out, dim=1).cpu().numpy()

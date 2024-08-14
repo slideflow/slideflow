@@ -593,12 +593,12 @@ def roi_coords_from_image(
     # Scale ROI according to image resizing
     resize_scale = (args.tile_px / args.extract_px)
 
-    def proc_coords(coords):
+    def proc_coords(_coords):
         # Offset coordinates to extraction window
-        coord = np.add(coord, np.array([-1 * c[0], -1 * c[1]]))
+        _coords = np.add(_coords, np.array([-1 * c[0], -1 * c[1]]))
         # Rescale according to downsampling and resizing
-        coord = np.multiply(coord, (extract_scale * resize_scale))
-        return coord
+        _coords = np.multiply(_coords, (extract_scale * resize_scale))
+        return _coords
 
     # Filter out ROIs not in this tile
     coords = []
