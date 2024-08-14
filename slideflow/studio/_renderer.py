@@ -5,6 +5,7 @@ import traceback
 import numpy as np
 import slideflow as sf
 import slideflow.grad
+from scipy.special import softmax
 from typing import Optional
 from slideflow.util import model_backend
 from rich import print
@@ -70,6 +71,7 @@ def _reduce_dropout_preds_torch(yp_drop, num_outcomes, stack=True):
             yp_drop = yp_drop[0]
         yp_mean = torch.mean(yp_drop, dim=0)  # type: ignore
         yp_std = torch.std(yp_drop, dim=0)  # type: ignore
+    
     return yp_mean.cpu().numpy(), yp_std.cpu().numpy()
 
 
@@ -112,6 +114,21 @@ def _prepare_args(args, kwargs):
     args['use_model'] = False
     return args
 
+def _is_categorical(model_path):
+    try:
+        config = sf.util.get_model_config(model_path)
+        if config.get('model_type') == 'categorical':
+            return True
+        return False
+    except Exception:
+        return False
+
+def _apply_softmax(x):
+    if isinstance(x, (tuple, list)):
+        return [softmax(l) for l in x]
+    else:
+        return softmax(x)
+
 #----------------------------------------------------------------------------
 
 class Renderer:
@@ -130,6 +147,7 @@ class Renderer:
         self.extract_px         = extract_px
         self.tile_px            = tile_px
         self.device             = device
+        self.apply_softmax      = False
         self._umap_encoders     = None
         self._addl_renderers    = []
 
@@ -222,6 +240,7 @@ class Renderer:
         self.set_model(_model, uq=sf.util.is_uq_model(model_path))
         self.set_saliency(_saliency)
         self.set_umap_encoders(_umap_encoders)
+        self.apply_softmax = (self.model_type == 'torch' and _is_categorical(model_path))
 
     def set_model(self, model, uq=False):
         """Set a loaded model to the active model."""
@@ -269,7 +288,10 @@ class Renderer:
             uncertainty = [np.mean(s) for s in yp_std]
         else:
             uncertainty = np.mean(yp_std)
-        predictions = yp_mean
+        if self.apply_softmax:
+            predictions = _apply_softmax(yp_mean)
+        else:
+            predictions = yp_mean
         return predictions, uncertainty
 
     def _classify_img(self, img, use_uncertainty=False):
@@ -302,6 +324,8 @@ class Renderer:
             else:
                 preds = self._model(img, training=False)
             preds = self.process_tf_preds(preds)
+        if self.apply_softmax:
+            preds = _apply_softmax(preds)
         return preds, None
 
     def _read_tile_from_viewer(self, x, y, viewer, use_model, img_format):
