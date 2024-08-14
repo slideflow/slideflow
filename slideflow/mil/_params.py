@@ -90,7 +90,7 @@ class TrainerConfig:
                 :class:`slideflow.mil.MILModelConfig`.
 
         """
-        self.aggregation_level = aggregation_level
+        self._aggregation_level = aggregation_level
         self.lr = lr
         self.wd = wd
         self.bag_size = bag_size
@@ -131,6 +131,20 @@ class TrainerConfig:
     def model_type(self):
         """Type of model (categorical or linear)."""
         return self.model_config.model_type
+
+    @property
+    def aggregation_level(self):
+        """Aggregation level for MIL training."""
+        if hasattr(self, '_aggregation_level'):
+            return self._aggregation_level
+        else:
+            return 'slide'
+
+    @aggregation_level.setter
+    def aggregation_level(self, value):
+        if value not in ('slide', 'patient'):
+            raise ValueError("Aggregation level must be either 'slide' or 'patient'.")
+        self._aggregation_level = value
 
     def _verify_eval_params(self, **kwargs):
         pass
