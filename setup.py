@@ -183,9 +183,6 @@ setuptools.setup(
         'cellpose': [
             'cellpose<2.2',
         ],
-        'stylegan': [
-            'ninja',
-        ],
         'all': [
             'cellpose<2.2',
             'cucim',
@@ -199,7 +196,6 @@ setuptools.setup(
             'tensorflow>=2.7,<2.12',
             'tensorflow_probability<0.20',
             'tensorflow_datasets',
-            'ninja'
         ]
     },
 )
