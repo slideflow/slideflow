@@ -1,3 +1,4 @@
+import slideflow as sf
 import os
 import warnings
 import slideflow as sf

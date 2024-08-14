@@ -1763,4 +1763,3 @@ def create_triangles(vertices, hole_vertices=None, hole_points=None):
     tessellated_vertices = tessellated_vertices.astype('float32')
 
     return tessellated_vertices
-

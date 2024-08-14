@@ -202,15 +202,20 @@ This code is made available under the GPLv3 License and is available for non-com
 ## 🔗 Reference
 If you find our work useful for your research, or if you use parts of this code, please consider citing as follows:
 
-Dolezal, J. M., Kochanny, S., Dyer, E., *et al*. Slideflow: Deep Learning for Digital Histopathology with Real-Time Whole-Slide Visualization. ArXiv [q-Bio.QM] (2023). http://arxiv.org/abs/2304.04142
+Dolezal, J.M., Kochanny, S., Dyer, E. et al. Slideflow: deep learning for digital histopathology with real-time whole-slide visualization. BMC Bioinformatics 25, 134 (2024). https://doi.org/10.1186/s12859-024-05758-x
 
 ```
-@misc{dolezal2023slideflow,
-      title={Slideflow: Deep Learning for Digital Histopathology with Real-Time Whole-Slide Visualization},
-      author={James M. Dolezal and Sara Kochanny and Emma Dyer and Andrew Srisuwananukorn and Matteo Sacco and Frederick M. Howard and Anran Li and Prajval Mohan and Alexander T. Pearson},
-      year={2023},
-      eprint={2304.04142},
-      archivePrefix={arXiv},
-      primaryClass={q-bio.QM}
+@Article{Dolezal2024,
+    author={Dolezal, James M. and Kochanny, Sara and Dyer, Emma and Ramesh, Siddhi and Srisuwananukorn, Andrew and Sacco, Matteo and Howard, Frederick M. and Li, Anran and Mohan, Prajval and Pearson, Alexander T.},
+    title={Slideflow: deep learning for digital histopathology with real-time whole-slide visualization},
+    journal={BMC Bioinformatics},
+    year={2024},
+    month={Mar},
+    day={27},
+    volume={25},
+    number={1},
+    pages={134},
+    doi={10.1186/s12859-024-05758-x},
+    url={https://doi.org/10.1186/s12859-024-05758-x}
 }
 ```

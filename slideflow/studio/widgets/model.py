@@ -71,6 +71,8 @@ def _draw_tile_pred_result(
 
     # Uncertainty bar
     if uq_array is not None:
+        if not isinstance(uq_array, (int, float)) or (hasattr(uq_array, 'shape') and len(uq_array.shape)):
+            uq_array = uq_array.mean()
         # Uncertainty bar
         draw_list = imgui.get_window_draw_list()
         w = imgui.get_content_region_max()[0]
