@@ -1,17 +1,23 @@
-![slideflow logo](https://github.com/jamesdolezal/slideflow/raw/master/docs-source/pytorch_sphinx_theme/images/slideflow-banner.png)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5703792.svg)](https://doi.org/10.5281/zenodo.5703792)
-[![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml)
-[![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
+<div align="center">
+  <img src="https://github.com/jamesdolezal/slideflow/raw/master/docs-source/pytorch_sphinx_theme/images/slideflow-banner.png" alt="slideflow logo">
 
-[ArXiv](https://arxiv.org/abs/2304.04142) | [Docs](https://slideflow.dev) | [Slideflow Studio](https://slideflow.dev/studio/) | [Cite](#reference)
+  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5703792.svg)](https://doi.org/10.5281/zenodo.5703792)
+  [![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml)
+  [![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
 
-## 🔬 Overview
+  [ArXiv](https://arxiv.org/abs/2304.04142) | [Docs](https://slideflow.dev) | [Slideflow Studio](https://slideflow.dev/studio/) | [Cite](#reference)
 
-![Slideflow Studio: a visualization tool for interacting with models and whole-slide images.](https://github.com/jamesdolezal/slideflow/assets/48372806/7f43d8cb-dc80-427d-84c4-3e5a35fa1472)
+  ______________________________________________________________________
+
+  ![Slideflow Studio: a visualization tool for interacting with models and whole-slide images.](https://github.com/jamesdolezal/slideflow/assets/48372806/7f43d8cb-dc80-427d-84c4-3e5a35fa1472)
+
+</div>
 
 **Slideflow is a deep learning library for digital pathology, offering a user-friendly interface for model development.**
-
+  
 Designed at University of Chicago for both medical researchers and AI enthusiasts, the goal of Slideflow is to provide an accessible, easy-to-use interface for developing state-of-the-art pathology models. Slideflow has been built with the future in mind, offering a scalable platform for digital biomarker development that bridges the gap between ever-evolving, sophisticated methods and the needs of a clinical researcher. For developers, Slideflow provides multiple endpoints for integration with other packages and external training paradigms, allowing you to leverage highly optimized, pathology-specific processes with the latest ML methodologies.
+
+
 
 ## 🚀 Features
 - Easy-to-use, highly customizable training pipelines
@@ -30,8 +36,7 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
 
 ## Requirements
 - Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
-- [Tensorflow](https://www.tensorflow.org/) 2.5-2.11 _or_ [PyTorch](https://pytorch.org/) 1.9-2.1
-  - GAN functions require PyTorch <1.13
+- [Tensorflow](https://www.tensorflow.org/) 2.5-2.11 _or_ [PyTorch](https://pytorch.org/) >= 1.9
 
 ### Optional
 - [Libvips](https://libvips.github.io/libvips/) >= 8.9 (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files).
@@ -74,12 +79,20 @@ To run from source, clone this repository, install the conda development environ
 
 ```
 git clone https://github.com/jamesdolezal/slideflow
-cd slideflow
-conda env create -f environment.yml
+conda env create -f slideflow/environment.yml
 conda activate slideflow
-python setup.py bdist_wheel
-pip install dist/slideflow* cupy-cuda11x
+pip install -e slideflow/ cupy-cuda11x
 ```
+
+### Non-Commercial Add-ons
+
+To add additional tools and pretrained models available under a non-commercial license, install `slideflow-gpl` and `slideflow-noncommercial`:
+
+```
+pip install slideflow-gpl slideflow-noncommercial
+```
+
+This will provide integrated access to 6 additional pretrained foundation models ([UNI](https://www.nature.com/articles/s41591-024-02857-3), [HistoSSL](https://www.medrxiv.org/content/10.1101/2023.07.21.23292757v2.full.pdf), [GigaPath](https://aka.ms/gigapath), [PLIP](https://www.nature.com/articles/s41591-023-02504-3), [RetCCL](https://www.sciencedirect.com/science/article/abs/pii/S1361841522002730), and [CTransPath](https://www.sciencedirect.com/science/article/abs/pii/S1361841522002043)), the MIL architecture [CLAM](https://www.nature.com/articles/s41551-020-00682-w), the UQ algorithm [BISCUIT](https://www.nature.com/articles/s41467-022-34025-x), and the GAN framework [StyleGAN3](https://nvlabs-fi-cdn.nvidia.com/stylegan3/stylegan3-paper.pdf).
 
 ## ⚙️ Configuration
 
