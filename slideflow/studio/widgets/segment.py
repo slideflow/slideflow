@@ -37,8 +37,8 @@ class TissueSegWidget(Widget):
 
     tag = 'segment'
     description = 'Tissue Segmentation'
-    #icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_segment.png')
-    #icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_segment_highlighted.png')
+    icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_segment.png')
+    icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_segment_highlighted.png')
 
     def __init__(self, viz):
         self.viz                    = viz
