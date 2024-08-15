@@ -2043,9 +2043,9 @@ class Sidebar:
         self.viz                = viz
         self.expanded           = False
         self.selected           = None
-        self._buttonbar_width    = 72
-        self._navbutton_width    = 70
-        self._imagebutton_width  = 64
+        self._buttonbar_width   = 63
+        self._navbutton_width   = 61
+        self._imagebutton_width = 56
         self._button_tex        = dict()
         self._pane_w_div        = 15
         self.navbuttons         = ['project', 'slide', 'model', 'heatmap']
