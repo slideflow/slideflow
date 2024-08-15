@@ -214,10 +214,10 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         img_size: Optional[int] = None,
         center_crop: Optional[int] = None,
         resize: Optional[int] = None,
+        interpolation: str = 'bilinear',
+        antialias: bool = False,
         norm_mean: Optional[Tuple[float, float, float]] = (0.485, 0.456, 0.406),
         norm_std: Optional[Tuple[float, float, float]] = (0.229, 0.224, 0.225),
-        interpolation: str = 'bilinear',
-        antialias: bool = False
     ):
         """Get a list of preprocessing image transforms."""
         from torchvision import transforms
