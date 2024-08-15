@@ -308,37 +308,49 @@ class MILWidget(Widget):
             raise e
         return True
 
+    def _load_model(self, path: str) -> bool:
+        """Load a standard MIL model from a given path."""
+        if self.viz.wsi:
+            self.viz.reload_wsi(
+                tile_px=self.extractor_params['tile_px'],
+                tile_um=self.extractor_params['tile_um']
+            )
+        self.viz.close_model(True)  # Close a tile-based model, if one is loaded
+        self.viz.tile_um = self.extractor_params['tile_um']
+        self.viz.tile_px = self.extractor_params['tile_px']
+
+        # Update the tile size in the viewer.
+        if self.viz.viewer and not isinstance(self.viz.viewer, SlideViewer):
+            self.viz.viewer.set_tile_px(self.viz.tile_px)
+            self.viz.viewer.set_tile_um(self.viz.tile_um)
+
+        # Add MIL renderer to the render pipeline.
+        self.viz._render_manager.set_renderer(MILRenderer, mil_model_path=path)
+        self.viz._model_path = path
+        self._mil_path = path
+        self.viz.create_toast('MIL model loaded', icon='success')
+        return True
+
     def load(self, path: str, allow_errors: bool = True) -> bool:
         try:
-            self.close(close_renderer=False)
-            self.mil_params = _get_mil_params(path)
-            self.mil_config = sf.mil.mil_config(trainer=self.mil_params['trainer'],
-                                                **self.mil_params['params'])
+            # First, check if we need to switch the renderer.
+            _params = _get_mil_params(path)
+            _cfg = sf.mil.mil_config(trainer=_params['trainer'], **_params['params'])
+            is_multimodal = (_cfg.model_config.model == 'mm_attention_mil')
+            is_new_renderer = is_multimodal != self.is_multimodal
+
+            # Close the current renderer if it's not the right type.
+            self.close(close_renderer=is_new_renderer)
+
+            self.mil_params = _params
+            self.mil_config = _cfg
             self.extractor_params = self.mil_params['bags_extractor']
-            is_multimodal = (self.mil_config.model_config.model == 'mm_attention_mil')
+
             if is_multimodal:
                 return self._load_multimodal_model(path, allow_errors=allow_errors)
+            else:
+                return self._load_model(path)
 
-            if self.viz.wsi:
-                self.viz.reload_wsi(
-                    tile_px=self.extractor_params['tile_px'],
-                    tile_um=self.extractor_params['tile_um']
-                )
-
-            self.viz.close_model(True)  # Close a tile-based model, if one is loaded
-            self.viz.tile_um = self.extractor_params['tile_um']
-            self.viz.tile_px = self.extractor_params['tile_px']
-
-            if self.viz.viewer and not isinstance(self.viz.viewer, SlideViewer):
-                self.viz.viewer.set_tile_px(self.viz.tile_px)
-                self.viz.viewer.set_tile_um(self.viz.tile_um)
-
-            # Add MIL renderer to the render pipeline.
-            self.viz._render_manager.set_renderer(MILRenderer, mil_model_path=path)
-
-            self.viz._model_path = path
-            self._mil_path = path
-            self.viz.create_toast('MIL model loaded', icon='success')
         except Exception as e:
             if allow_errors:
                 self.viz.create_toast('Error loading MIL model', icon='error')
@@ -346,7 +358,6 @@ class MILWidget(Widget):
                 sf.log.error(traceback.format_exc())
                 return False
             raise e
-        return True
 
     def _calculate_predictions(self, bags, **kwargs):
         """Calculate MIL predictions and attention from a set of bags."""
@@ -581,6 +592,8 @@ class MILWidget(Widget):
         self.viz.heatmap_widget.predictions = convert_to_overlays(merged)
         pred_outcomes = self.viz.heatmap_widget.get_outcome_names(self.mil_params, categorical=self.is_categorical())
         att_names = ['Attention'] if attention.shape[2] == 1 else [f'Attention-{n}' for n in range(attention.shape[2])]
+        print("Rendering dual heatmap with attention names: ", att_names)
+        print("Rendering dual heatmap with prediction names: ", pred_outcomes)
         self.viz.heatmap_widget.render_heatmap(outcome_names=att_names + pred_outcomes)
 
     def draw_extractor_info(self, c):

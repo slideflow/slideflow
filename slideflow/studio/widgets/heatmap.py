@@ -264,10 +264,8 @@ class HeatmapWidget:
         outcomes = [outcomes] if isinstance(outcomes, str) else outcomes
         if categorical is None:
             categorical = ('model_type' in config and config['model_type'] != 'categorical')
-        if categorical:
-            return outcomes
         if config['outcome_labels'] is None:
-            # This is the case with MIL models
+            # This is the case with linear outcome MIL models
             return outcomes
         if len(outcomes) > 1:
             return [config['outcome_labels'][outcome][o] for outcome in outcomes for o in config['outcome_labels'][outcome]]
