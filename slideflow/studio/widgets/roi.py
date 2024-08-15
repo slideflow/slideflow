@@ -1634,7 +1634,7 @@ class VertexEditor:
             # The ROI is not in view.
             self._last_vertices['outer'] = None
             self._last_box_vertices['outer'] = None
-        if not np.all(self.outer_vertices == self._last_vertices['outer']):
+        if not (self.outer_vertices.shape == self._last_vertices['outer'].shape) or not (np.all(self.outer_vertices == self._last_vertices['outer'])):
             # The ROI has changed since the last calculation.
             self.update_box_vertices(outer=True)  # This updates the ._last_box_vertices.
             self.update_box_vbo(outer=True, box_vertices=self._last_box_vertices)
@@ -1647,6 +1647,7 @@ class VertexEditor:
                 self._last_vertices['holes'][hole_id] = dict()
                 self._last_box_vertices['holes'][hole_id] = dict()
             if ((hole_id not in self._last_vertices['holes']) or
+                (hole_coords.shape != self._last_vertices['holes'][hole_id].shape) or
                 (not np.all(hole_coords == self._last_vertices['holes'][hole_id]))):
                 # The hole has changed since the last calculation.
                 self.update_box_vertices(holes=[hole_id])  # This updates the ._last_box_vertices.
