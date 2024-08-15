@@ -1,8 +1,9 @@
 """Factory for building PyTorch feature extractors."""
 
+import inspect
 import numpy as np
 import slideflow as sf
-from typing import Tuple, Generator, TYPE_CHECKING
+from typing import Tuple, Generator, Optional, TYPE_CHECKING
 from slideflow import errors
 
 from ._slide import features_from_slide
@@ -131,7 +132,8 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
     def __init__(
         self, 
         channels_last: bool = False, 
-        mixed_precision: bool = True
+        mixed_precision: bool = True,
+        **transform_kwargs
     ) -> None:
         from .. import torch_utils
 
@@ -141,6 +143,7 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         self.mixed_precision = mixed_precision
         self.inference_mode = True
         self.force_uint8 = True
+        self.transform_kwargs = self._verify_transform_args(transform_kwargs)
 
     def _process_output(self, output):
         """Process model output."""
@@ -180,6 +183,77 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
                     obj = obj.to(memory_format=torch.channels_last)
                 return self._process_output(self.model(obj))
 
+    def _verify_transform_args(self, kwargs):
+        sig = inspect.signature(self.get_transforms)
+        valid_kwargs = [
+            p.name for p in sig.parameters.values() 
+            if (p.kind == p.KEYWORD_ONLY
+                and p.name != 'img_size')
+        ]
+        for k in kwargs:
+            if k not in valid_kwargs:
+                raise ValueError(f"Unrecognized argument: {k}")
+        return kwargs
+
+    @staticmethod
+    def _get_interpolation(mode: str):
+        from torchvision.transforms import InterpolationMode
+        if mode == 'bilinear':
+            return InterpolationMode.BILINEAR
+        if mode == 'bicubic':
+            return InterpolationMode.BICUBIC
+        if mode == 'nearest':
+            return InterpolationMode.NEAREST
+        if mode == 'nearest_exact':
+            return InterpolationMode.NEAREST_EXACT
+        raise ValueError("Unrecognized interpolation mode: {}".format(mode))
+
+    def get_transforms(
+        self,
+        *,
+        img_size: Optional[int] = None,
+        center_crop: Optional[int] = None,
+        resize: Optional[int] = None,
+        norm_mean: Optional[Tuple[float, float, float]] = (0.485, 0.456, 0.406),
+        norm_std: Optional[Tuple[float, float, float]] = (0.229, 0.224, 0.225),
+        interpolation: str = 'bilinear',
+        antialias: bool = False
+    ):
+        """Get a list of preprocessing image transforms."""
+        from torchvision import transforms
+
+        all_transforms = []
+        if center_crop:
+            all_transforms += [
+                transforms.CenterCrop(
+                    img_size if center_crop is True else center_crop
+                )
+            ]
+        if resize:
+            all_transforms += [
+                transforms.Resize(
+                    img_size if resize is True else resize,
+                    interpolation=self._get_interpolation(interpolation),
+                    antialias=antialias
+                )
+            ]
+        all_transforms += [
+            transforms.Lambda(lambda x: x / 255.),
+            transforms.Normalize(
+                mean=norm_mean,
+                std=norm_std
+            )
+        ]
+        return all_transforms
+
+    def build_transform(self, **kwargs):
+        """Compose the preprocessing transforms, updated with user keyword arguments"""
+        # Use the user-specified transforms, if provided.
+        from torchvision import transforms
+        kwargs.update(self.transform_kwargs)
+        return transforms.Compose(self.get_transforms(**kwargs))
+    
+
     def tfrecord_inference(
         self,
         tfrecord_path: str,
@@ -200,6 +274,21 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
             features = self(sf.io.torch.whc_to_cwh(batch['image_raw']))
             locations = torch.stack([batch['loc_x'], batch['loc_y']], dim=1)
             yield features, locations
+
+    def _dump_config(self, class_name, **kwargs):
+        """Return a dictionary of configuration parameters.
+
+        These configuration parameters can be used to reconstruct the
+        feature extractor, using ``slideflow.build_feature_extractor()``.
+
+        """
+        return {
+            'class': class_name,
+            'kwargs': {
+                **self.transform_kwargs,
+                **kwargs
+            }
+        }
 
 
 class TorchImagenetLayerExtractor(BaseFeatureExtractor):

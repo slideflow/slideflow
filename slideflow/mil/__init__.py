@@ -1,11 +1,17 @@
 from .train import (
     train_mil,
     train_fastai,
-    build_fastai_learner
+    build_fastai_learner,
+    build_multimodal_learner,
+    train_multimodal_mil
 )
 from .eval import (
     eval_mil,
+    predict_mil,
+    predict_multimodal_mil,
     predict_slide,
+    predict_from_bags,
+    predict_from_multimodal_bags,
     save_mil_tile_predictions,
     get_mil_tile_predictions,
     generate_mil_features

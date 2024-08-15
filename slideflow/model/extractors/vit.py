@@ -353,6 +353,7 @@ def vit_base(patch_size=16, **kwargs):
         qkv_bias=True, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     return model
 
+
 def load_pretrained_weights(weights):
     state_dict = torch.load(weights)
     # If this is a DINO model, load only the teacher.
@@ -391,7 +392,7 @@ class ViTFeatures(TorchFeatureExtractor):
         'base': vit_base
     }
 
-    def __init__(self, size, weights, device=None, center_crop=False, resize=False, **kwargs):
+    def __init__(self, size, weights, device=None, **kwargs):
         kw = {k: w for k, w in kwargs.items() if k in ['mixed_precision', 'channels_last']}
         super().__init__(**kw)
 
@@ -399,8 +400,6 @@ class ViTFeatures(TorchFeatureExtractor):
             raise ValueError("Unrecognized size '{}'. Expected one of: {}".format(
                 size, ', '.join(list(self.sizes.keys()))
             ))
-        if center_crop and resize:
-            raise ValueError("center_crop and resize cannot both be True.")
         self.size = size
         self.weights = weights
         self.device = torch_utils.get_device(device)
@@ -411,22 +410,8 @@ class ViTFeatures(TorchFeatureExtractor):
 
         # ---------------------------------------------------------------------
         self.num_features = self.model.num_features
-        if center_crop:
-            all_transforms = [transforms.CenterCrop(self.model.img_size)]
-        elif resize:
-            all_transforms = [transforms.Resize(self.model.img_size)]
-        else:
-            all_transforms = []
-        all_transforms += [
-            transforms.Lambda(lambda x: x / 255.),
-            transforms.Normalize(
-                mean=(0.485, 0.456, 0.406),
-                std=(0.229, 0.224, 0.225)),
-        ]
-        self.transform = transforms.Compose(all_transforms)
+        self.transform = self.build_transform(img_size=self.model.img_size)
         self.preprocess_kwargs = dict(standardize=False)
-        self._center_crop = center_crop
-        self._resize = resize
         # ---------------------------------------------------------------------
 
     def dump_config(self):
@@ -436,13 +421,8 @@ class ViTFeatures(TorchFeatureExtractor):
         feature extractor, using ``slideflow.build_feature_extractor()``.
 
         """
-        cls_name = self.__class__.__name__
-        return {
-            'class': f'slideflow.model.extractors.vit.{cls_name}',
-            'kwargs': {
-                'size': self.size,
-                'weights': self.weights,
-                'center_crop': self._center_crop,
-                'resize': self._resize
-            },
-        }
+        return self._dump_config(
+            class_name=f'slideflow.model.extractors.vit.{self.__class__.__name__}',
+            size=self.size,
+            weights=self.weights
+        )

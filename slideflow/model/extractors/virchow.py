@@ -44,13 +44,10 @@ class VirchowFeatures(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, weights, device='cuda', center_crop=False, resize=False, **kwargs):
+    def __init__(self, weights, device='cuda', **kwargs):
         super().__init__(**kwargs)
 
         from slideflow.model import torch_utils
-
-        if center_crop and resize:
-            raise ValueError("center_crop and resize cannot both be True.")
 
         self.device = torch_utils.get_device(device)
         self.model = timm.create_model(
@@ -60,7 +57,6 @@ class VirchowFeatures(TorchFeatureExtractor):
             init_values=1e-5,
             num_classes=0,
             mlp_ratio=5.3375,
-            #dynamic_img_size=True,
             global_pool="",
             mlp_layer=SwiGLUPacked,
             act_layer=torch.nn.SiLU
@@ -72,25 +68,12 @@ class VirchowFeatures(TorchFeatureExtractor):
 
         # ---------------------------------------------------------------------
         self.num_features = 2560
-        if center_crop:
-            all_transforms = [transforms.CenterCrop(224)]
-        elif resize:
-            # Note that Virchow uses bicubic interpolation
-            # https://huggingface.co/paige-ai/Virchow/blob/main/config.json
-            all_transforms = [transforms.Resize(224, interpolation=transforms.InterpolationMode.BICUBIC)]
-        else:
-            all_transforms = []
-        all_transforms += [
-            transforms.Lambda(lambda x: x / 255.),
-            transforms.Normalize(
-                mean=(0.485, 0.456, 0.406),
-                std=(0.229, 0.224, 0.225))
-        ]
-        self.transform = transforms.Compose(all_transforms)
+
+        # Note that Virchow uses bicubic interpolation
+        # https://huggingface.co/paige-ai/Virchow/blob/main/config.json
+        self.transform = self.build_transform(img_size=224, interpolation='bicubic')
         self.preprocess_kwargs = dict(standardize=False)
-        self._center_crop = center_crop
         self._weights = weights
-        self._resize = resize
 
     def _process_output(self, output):
         """Concatenate class and patch tokens into a single embedding."""
@@ -106,11 +89,7 @@ class VirchowFeatures(TorchFeatureExtractor):
         feature extractor, using ``slideflow.build_feature_extractor()``.
 
         """
-        return {
-            'class': 'slideflow.model.extractors.virchow.VirchowFeatures',
-            'kwargs': {
-                'center_crop': self._center_crop,
-                'resize': self._resize,
-                'weights': self._weights
-            }
-        }
+        return self._dump_config(
+            class_name='slideflow.model.extractors.virchow.VirchowFeatures',
+            weights=self._weights
+        )
