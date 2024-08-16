@@ -98,7 +98,7 @@ Now that we have our dataset and we've completed the initial tile image processi
 
     # Split our dataset into a training and held-out test set.
     train_dataset, test_dataset = dataset.split(
-        model_type='categorical',
+        model_type='classification',
         labels='subtype',
         val_fraction=0.3
     )

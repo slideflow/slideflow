@@ -306,7 +306,7 @@ class Project:
         """Prepare dataset and labels."""
         # Assign labels into int
         conf_labels = config['outcome_labels']
-        if hp.model_type() == 'categorical':
+        if hp.model_type() == 'classification':
             if len(outcomes) == 1 and outcomes[0] not in conf_labels:
                 outcome_label_to_int = {
                     outcomes[0]: {
@@ -323,14 +323,14 @@ class Project:
             outcome_label_to_int = None
 
         # Get patient-level labels
-        use_float = (hp.model_type() in ['linear', 'cph'])
+        use_float = (hp.model_type() in ['regression', 'survival'])
         labels, unique = dataset.labels(
             outcomes,
             use_float=use_float,
             assign=outcome_label_to_int
         )
         # Prepare labels for validation splitting
-        if hp.model_type() == 'categorical' and len(outcomes) > 1:
+        if hp.model_type() == 'classification' and len(outcomes) > 1:
             def process_label(v):
                 return '-'.join(map(str, v)) if isinstance(v, list) else v
             split_labels = {k: process_label(v) for k, v in labels.items()}
@@ -472,7 +472,7 @@ class Project:
             )
 
         # Log model settings and hyperparameters
-        if hp.model_type() == 'categorical':
+        if hp.model_type() == 'classification':
             outcome_labels = dict(zip(range(len(unique)), unique))
         else:
             outcome_labels = None
@@ -631,11 +631,11 @@ class Project:
             min_tiles=min_tiles
         )
         # --- Load labels -------------------------------------------------
-        use_float = (hp.model_type() in ['linear', 'cph'])
+        use_float = (hp.model_type() in ['regression', 'survival'])
         labels, unique = dataset.labels(outcomes, use_float=use_float)
-        if hp.model_type() == 'categorical' and len(outcomes) == 1:
+        if hp.model_type() == 'classification' and len(outcomes) == 1:
             outcome_labels = dict(zip(range(len(unique)), unique))
-        elif hp.model_type() == 'categorical':
+        elif hp.model_type() == 'classification':
             assert isinstance(unique, dict)
             outcome_labels = {
                 k: dict(zip(range(len(ul)), ul))  # type: ignore
@@ -643,12 +643,12 @@ class Project:
             }
         else:
             outcome_labels = dict(zip(range(len(outcomes)), outcomes))
-        if hp.model_type() != 'linear' and len(outcomes) > 1:
-            log.info('Using multi-outcome approach for categorical outcome')
+        if hp.model_type() != 'regression' and len(outcomes) > 1:
+            log.info('Using multi-outcome approach for classification')
 
-        # If multiple categorical outcomes are used,
+        # If multiple classification outcomes are used,
         # create a merged variable for k-fold splitting
-        if hp.model_type() == 'categorical' and len(outcomes) > 1:
+        if hp.model_type() == 'classification' and len(outcomes) > 1:
             split_labels = {
                 k: '-'.join(map(str, v))  # type: ignore
                 for k, v in labels.items()
@@ -775,7 +775,7 @@ class Project:
         if val_settings.dataset:
             train_dts = dataset
             val_dts = val_settings.dataset
-            is_float = (hp.model_type() in ['linear', 'cph'])
+            is_float = (hp.model_type() in ['regression', 'survival'])
             val_labels, _ = val_dts.labels(s_args.outcomes, use_float=is_float)
             s_args.labels.update(val_labels)
         elif val_settings.source:
@@ -789,7 +789,7 @@ class Project:
                 filters=val_settings.filters,
                 filter_blank=val_settings.filter_blank
             )
-            is_float = (hp.model_type() in ['linear', 'cph'])
+            is_float = (hp.model_type() in ['regression', 'survival'])
             val_labels, _ = val_dts.labels(s_args.outcomes, use_float=is_float)
             s_args.labels.update(val_labels)
         # Use manual k-fold assignments if indicated
@@ -837,7 +837,7 @@ class Project:
             train_dts = train_dts.balance(
                 s_args.bal_headers,
                 hp.training_balance,
-                force=(hp.model_type() == 'categorical')
+                force=(hp.model_type() == 'classification')
             )
         elif from_wsi and hp.training_balance not in ('none', None):
             log.warning(
@@ -856,7 +856,7 @@ class Project:
             val_dts = val_dts.balance(
                 s_args.bal_headers,
                 hp.validation_balance,
-                force=(hp.model_type() == 'categorical')
+                force=(hp.model_type() == 'classification')
             )
         elif val_dts and from_wsi and hp.validation_balance not in (
             'none', None
@@ -1713,7 +1713,7 @@ class Project:
             project_path=self.root,
             tile_px=dataset.tile_px,
             tile_um=dataset.tile_um,
-            model_type='categorical',
+            model_type='classification',
             outcome_label_headers=outcomes,
             filters=dataset._filters,
             filter_blank=dataset._filter_blank,
@@ -2244,7 +2244,7 @@ class Project:
         # If a header category is supplied and we are not showing predictions,
         # then assign slide labels from annotations
         model_type = config['model_type']
-        if model_type == 'linear':
+        if model_type == 'regression':
             use_float = True
         if outcomes and (show_prediction is None):
             labels, _ = dataset.labels(outcomes,
@@ -2273,11 +2273,11 @@ class Project:
         if (map_slide == 'centroid') and show_prediction is not None:
             log.info('Showing slide-level predictions at point of centroid')
 
-            # If not model has not been assigned, assume categorical model
-            model_type = model_type if model_type else 'categorical'
+            # If not model has not been assigned, assume classification model
+            model_type = model_type if model_type else 'classification'
 
             # Get predictions
-            if model_type == 'categorical':
+            if model_type == 'classification':
                 s_pred = df.softmax_predict()
                 s_perc = df.softmax_percent()
             else:
@@ -2304,7 +2304,7 @@ class Project:
             elif use_float:
                 # Displaying linear predictions needs to be implemented here
                 raise NotImplementedError(
-                    "Showing slide preds not supported for linear outcomes."
+                    "Showing slide preds not supported for regression models."
                 )
             # Otherwise, show_prediction is assumed to be just "True",
             # in which case show categorical predictions

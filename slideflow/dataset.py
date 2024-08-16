@@ -2524,7 +2524,7 @@ class Dataset:
             A tuple containing
 
                 **dict**: Dictionary mapping slides to outcome labels in
-                numerical format (float for linear outcomes, int of outcome
+                numerical format (float for continuous outcomes, int of outcome
                 label id for categorical outcomes).
 
                 **list**: List of unique labels. For categorical outcomes,
@@ -3147,8 +3147,8 @@ class Dataset:
         directory so future models may use the same split for consistency.
 
         Args:
-            model_type (str): Either 'categorical' or 'linear'. Defaults
-                to 'categorical' if ``labels`` is provided.
+            model_type (str): Either 'classification' or 'regression'. Defaults
+                to 'classification' if ``labels`` is provided.
             labels (dict or str):  Either a dictionary of slides: labels,
                 or an outcome label (``str``). Used for balancing outcome
                 labels in training and validation cohorts. Defaults to None.
@@ -3207,9 +3207,26 @@ class Dataset:
             labels = self.labels(labels)[0]
         if labels is None and model_type is None:
             labels = self.patients()
-            model_type = 'linear'
+            model_type = 'regression'
         elif model_type is None:
-            model_type = 'categorical'
+            model_type = 'classification'
+        if model_type == 'categorical':
+            warnings.warn(
+                "model_type='categorical' is deprecated. Please use "
+                "'classification' instead."
+            )
+            model_type = 'classification'
+        if model_type == 'linear':
+            warnings.warn(
+                "model_type='linear' is deprecated. Please use "
+                "'regression' instead."
+            )
+            model_type = 'regression'
+        if model_type not in ('classification', 'regression'):
+            raise ValueError(
+                f"Invalid model_type {model_type}; must be either "
+                "'classification' or 'regression'"
+            )
 
         # Prepare dataset
         patients = self.patients()
@@ -3379,10 +3396,10 @@ class Dataset:
                             patients_dict,
                             val_k_fold,
                             balance=('outcome_label'
-                                     if model_type == 'categorical'
+                                     if model_type == 'classification'
                                      else None)
                         )
-                    elif model_type == 'categorical':
+                    elif model_type == 'classification':
                         k_fold_patients = split_patients_balanced(
                             patients_dict,
                             val_k_fold,
@@ -4121,8 +4138,8 @@ class Dataset:
         Args:
             labels (dict, str, or pd.DataFrame, optional): If a dict is provided,
                 expect a dict mapping slide names to outcome labels. If a str,
-                will intepret as categorical annotation header. For linear
-                outcomes, or outcomes with manually assigned labels, pass the
+                will intepret as categorical annotation header. For regression
+                tasks, or outcomes with manually assigned labels, pass the
                 first result of dataset.labels(...). If None, returns slide
                 instead of label.
             batch_size (int): Batch size.
@@ -4157,7 +4174,7 @@ class Dataset:
             max_size (bool, optional): Unused argument present for legacy
                 compatibility; will be removed.
             model_type (str, optional): Used to generate random labels
-                (for StyleGAN2). Not required. Defaults to 'categorical'.
+                (for StyleGAN2). Not required. Defaults to 'classification'.
             num_replicas (int, optional): Number of GPUs or unique instances which
                 will have their own DataLoader. Used to interleave results among
                 workers without duplications. Defaults to 1.

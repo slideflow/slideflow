@@ -432,7 +432,7 @@ class StyleGANWidget(Widget):
         if hasattr(viz, 'mil_widget') and viz.mil_widget.model is not None:
             draw_tile_predictions(
                 viz,
-                is_categorical=viz.mil_widget.is_categorical(),
+                is_classification=viz.mil_widget.is_classification(),
                 config=viz.mil_widget.mil_params,
                 has_preds=(viz._predictions is not None),
                 using_model=viz.mil_widget.model_loaded,
@@ -445,7 +445,7 @@ class StyleGANWidget(Widget):
             if viz.sidebar.full_button("Load a Model"):
                 viz.ask_load_model()
         else:
-            draw_tile_predictions(viz, viz.model_widget.is_categorical())
+            draw_tile_predictions(viz, viz.model_widget.is_classification())
 
         imgui_utils.vertical_break()
 

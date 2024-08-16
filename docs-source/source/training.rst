@@ -35,7 +35,7 @@ See the :class:`slideflow.ModelParams` API documentation for a list of available
 
 .. note::
 
-    If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.ModelParams.LinearLossDict``, and all available loss functions are in ``slideflow.ModelParams.AllLossDict``.
+    If you are using a continuous variable as an outcome measure, be sure to use a regression loss function. Regression loss functions can be viewed in ``slideflow.ModelParams.RegressionLossDict``, and all available loss functions are in ``slideflow.ModelParams.AllLossDict``.
 
 Training a model
 ****************
@@ -191,15 +191,15 @@ Read more about the ``Trainer`` class and available keyword arguments in the :cl
 Multiple outcomes
 *****************
 
-Slideflow supports both categorical and continuous outcomes, as well as training to single or multiple outcomes at once. To train with multiple outcomes simultaneously, simply pass multiple annotation headers to the ``outcomes`` argument of :meth:`slideflow.Project.train`.
+Slideflow supports both classification and regression, as well as training to single or multiple outcomes at once. To train with multiple outcomes simultaneously, simply pass multiple annotation headers to the ``outcomes`` argument of :meth:`slideflow.Project.train`.
 
-Time-to-event outcomes
-**********************
+Time-to-event / survival outcomes
+*********************************
 
-Models can also be trained to a time series outcome using Cox Proportional Hazards (CPH) and negative log likelihood loss. For CPH models, use ``'negative_log_likelihood'`` loss and set ``outcomes`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type. CPH models are not compatible with multiple outcomes.
+Models can also be trained to a time series outcome using Cox Proportional Hazards (CPH) and negative log likelihood loss. For time-to-event / survival models, use ``'negative_log_likelihood'`` loss and set ``outcomes`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type. Survival models are not compatible with multiple outcomes.
 
 .. note::
-    CPH models are currently only available with the Tensorflow backend. PyTorch support for CPH outcomes is in development.
+    Survival models are currently only available with the Tensorflow backend. PyTorch support for survival outcomes is in development.
 
 Multimodal models
 *****************
@@ -322,25 +322,25 @@ Customizing model or loss
 
 Slideflow supports dozens of model architectures, but you can also train with a custom architecture, as demonstrated in :ref:`tutorial3`.
 
-Similarly, you can also train with a custom loss function by supplying a dictionary to the ``loss`` argument in ``ModelParams``, with the keys ``type`` (which must be either ``'categorical'``, ``'linear'``, or ``'cph'``) and ``fn`` (a callable loss function).
+Similarly, you can also train with a custom loss function by supplying a dictionary to the ``loss`` argument in ``ModelParams``, with the keys ``type`` (which must be either ``'classification'``, ``'regression'``, or ``'survival'``) and ``fn`` (a callable loss function).
 
-For Tensorflow/Keras, the loss function must accept arguments ``y_true, y_pred``. For linear losses, ``y_true`` may need to be cast to ``tf.float32``. An example custom linear loss is given below:
+For Tensorflow/Keras, the loss function must accept arguments ``y_true, y_pred``. For regression losses, ``y_true`` may need to be cast to ``tf.float32``. An example custom regression loss is given below:
 
 .. code-block:: python
 
   # Custom Tensorflow loss
-  def custom_linear_loss(y_true, y_pred):
+  def custom_regression_loss(y_true, y_pred):
     y_true = tf.cast(y_true, tf.float32)
     squared_difference = tf.square(y_true - y_pred)
     return tf.reduce_mean(squared_difference, axis=-1)
 
 
-For PyTorch, the loss function must return a nested loss function with arguments ``output, target``. An example linear loss is given below:
+For PyTorch, the loss function must return a nested loss function with arguments ``output, target``. An example regression loss is given below:
 
 .. code-block:: python
 
   # Custom PyTorch loss
-  def custom_linear_loss():
+  def custom_regression_loss():
     def loss_fn(output, target):
       return torch.mean((target - output) ** 2)
     return loss_fn
@@ -350,7 +350,7 @@ In both cases, the loss function is applied as follows:
 
 .. code-block:: python
 
-  hp = sf.ModelParams(..., loss={'type': 'linear', 'fn': custom_linear_loss})
+  hp = sf.ModelParams(..., loss={'type': 'regression', 'fn': custom_regression_loss})
 
 
 Using multiple GPUs

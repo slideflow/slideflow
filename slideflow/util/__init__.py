@@ -983,7 +983,9 @@ def get_gan_config(model_path: str) -> Dict:
 def get_model_config(model_path: str) -> Dict:
     """Loads model configuration JSON file."""
 
-    if exists(join(model_path, 'params.json')):
+    if model_path.endswith('params.json'):
+        config = load_json(model_path)
+    elif exists(join(model_path, 'params.json')):
         config = load_json(join(model_path, 'params.json'))
     elif exists(model_path) and exists(join(dirname(model_path), 'params.json')):
         if not (sf.util.torch_available
@@ -1004,6 +1006,11 @@ def get_model_config(model_path: str) -> Dict:
     if 'outcome_label_headers' in config:
         log.debug("Replacing outcome_label_headers in params.json -> outcomes")
         config['outcomes'] = config.pop('outcome_label_headers')
+    # Compatibility for pre-3.0
+    if 'model_type' in config and config['model_type'] == 'categorical':
+        config['model_type'] = 'classification'
+    if 'model_type' in config and config['model_type'] == 'linear':
+        config['model_type'] = 'regression'
     return config
 
 

@@ -297,7 +297,7 @@ def aggregate_trainval_bags_by_patient(
 def get_labels(
     datasets: Union[sf.Dataset, List[sf.Dataset]],
     outcomes: Union[str, List[str]],
-    categorical: bool,
+    classification: bool,
     *,
     format: str = 'name'
 ) -> Tuple[Dict[str, Any], np.ndarray]:
@@ -306,7 +306,7 @@ def get_labels(
     Args:
         datasets (Dataset or list(Dataset)): Dataset(s) containing labels.
         outcomes (str or list(str)): Outcome(s) to extract.
-        categorical (bool): Whether to treat outcomes as categorical.
+        classification (bool): Whether to treat outcomes as categorical.
 
     Keyword Args:
         format (str): Format for categorical labels. Either 'id' or 'name'.
@@ -318,7 +318,7 @@ def get_labels(
 
     # Prepare labels and slides
     labels = {}
-    if categorical:
+    if classification:
         all_unique = []
         for dts in datasets:
             _labels, _unique = dts.labels(outcomes, format=format)
@@ -341,10 +341,10 @@ def rename_df_cols(df, outcomes, categorical, inplace=False):
 
     Args:
         df (pd.DataFrame): DataFrame with columns to rename.
-            For categorical outcomes, there is assumed to be a single "y_true"
+            For classification outcomes, there is assumed to be a single "y_true"
             column which will be renamed to "{outcome}-y_true", and multiple
             "y_pred{n}" columns which will be renamed to "{outcome}-y_pred{n}".
-            For linear outcomes, there are assumed to be multiple "y_true{n}"
+            For regression outcomes, there are assumed to be multiple "y_true{n}"
             and "y_pred{n}" columns which will be renamed to "{outcome}-y_true{n}"
             and "{outcome}-y_pred{n}", respectively.
         outcomes (str or list(str)): Outcome(s) to append to column names.
@@ -355,7 +355,7 @@ def rename_df_cols(df, outcomes, categorical, inplace=False):
     if categorical:
         return _rename_categorical_df_cols(df, outcomes, inplace=inplace)
     else:
-        return _rename_linear_df_cols(df, outcomes, inplace=inplace)
+        return _rename_continuous_df_cols(df, outcomes, inplace=inplace)
 
 
 def _rename_categorical_df_cols(df, outcomes, inplace=False):
@@ -366,7 +366,7 @@ def _rename_categorical_df_cols(df, outcomes, inplace=False):
     )
 
 
-def _rename_linear_df_cols(df, outcomes, inplace=False):
+def _rename_continuous_df_cols(df, outcomes, inplace=False):
     if isinstance(outcomes, str):
         outcomes = [outcomes]
     cols_to_rename = {f'y_pred{o}': f"{outcomes[o]}-y_pred" for o in range(len(outcomes))}

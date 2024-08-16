@@ -96,7 +96,7 @@ def build_learner(
     else:
         oh_kw = {"sparse_output": False}
 
-    if config.is_categorical():
+    if config.is_classification():
         encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
     else:
         encoder = None
@@ -136,7 +136,7 @@ def build_learner(
         model.relocate()
 
     # Loss should weigh inversely to class occurences.
-    if config.is_categorical() and config.weighted_loss:
+    if config.is_classification() and config.weighted_loss:
         counts = pd.value_counts(targets[train_idx])
         weights = counts.sum() / counts
         weights /= weights.sum()

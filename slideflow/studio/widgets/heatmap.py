@@ -99,7 +99,7 @@ class HeatmapWidget:
         else:
             mp_kw = dict()
         if sf.util.model_backend(self.viz.model) == 'torch':
-            mp_kw['apply_softmax'] = self.is_categorical()
+            mp_kw['apply_softmax'] = self.is_classification()
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
             viz.model,
@@ -119,9 +119,9 @@ class HeatmapWidget:
                 if not ignore_errors:
                     raise
 
-    def is_categorical(self):
-        """Check if model is a categorical model."""
-        return self.viz.model_widget.is_categorical()
+    def is_classification(self):
+        """Check if model is a classification model."""
+        return self.viz.model_widget.is_classification()
 
     def _generate(self):
         """Create and generate a heatmap asynchronously."""
@@ -248,7 +248,7 @@ class HeatmapWidget:
         _thread.start()
         self.show = True
 
-    def get_outcome_names(self, config=None, categorical=None):
+    def get_outcome_names(self, config=None, classification=None):
         if self._outcome_names is not None and config is None:
             return self._outcome_names
         if config is None:
@@ -262,10 +262,10 @@ class HeatmapWidget:
 
         outcomes = config['outcomes']
         outcomes = [outcomes] if isinstance(outcomes, str) else outcomes
-        if categorical is None:
-            categorical = ('model_type' in config and config['model_type'] != 'categorical')
+        if classification is None:
+            classification = ('model_type' in config and config['model_type'] not in ('categorical', 'classification'))
         if config['outcome_labels'] is None:
-            # This is the case with linear outcome MIL models
+            # This is the case with regression outcome MIL models
             return outcomes
         if len(outcomes) > 1:
             return [config['outcome_labels'][outcome][o] for outcome in outcomes for o in config['outcome_labels'][outcome]]

@@ -115,7 +115,7 @@ def build_fastai_learner(
     """
     from . import _fastai
 
-    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_categorical())
+    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_classification())
 
     # Prepare bags
     if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
@@ -204,7 +204,7 @@ def build_multimodal_learner(
     num_modes = len(bags)
 
     # Prepare labels and slides
-    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_categorical())
+    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_classification())
 
     # --- Prepare bags --------------------------------------------------------
 
@@ -381,8 +381,8 @@ def train_fastai(
         df.to_parquet(pred_out)
         log.info(f"Predictions saved to [green]{pred_out}[/]")
 
-    # Print categorical metrics, including per-category accuracy
-    utils.rename_df_cols(df, outcomes, categorical=config.is_categorical(), inplace=True)
+    # Print classification metrics, including per-category accuracy
+    utils.rename_df_cols(df, outcomes, categorical=config.is_classification(), inplace=True)
     config.run_metrics(df, level='slide', outdir=outdir)
 
     # Export attention to numpy arrays
@@ -464,8 +464,8 @@ def train_multimodal_mil(
         attention=True
     )
 
-    # Print categorical metrics, including per-category accuracy
-    utils.rename_df_cols(df, outcomes, categorical=config.is_categorical(), inplace=True)
+    # Print classification metrics, including per-category accuracy
+    utils.rename_df_cols(df, outcomes, categorical=config.is_classification(), inplace=True)
     config.run_metrics(df, level='slide', outdir=outdir)
 
     # Export predictions.

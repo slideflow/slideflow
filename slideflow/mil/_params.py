@@ -129,7 +129,7 @@ class TrainerConfig:
 
     @property
     def model_type(self):
-        """Type of model (categorical or linear)."""
+        """Type of model (classification or regression)."""
         return self.model_config.model_type
 
     @property
@@ -149,15 +149,15 @@ class TrainerConfig:
     def _verify_eval_params(self, **kwargs):
         pass
 
-    def is_categorical(self):
-        return self.model_config.is_categorical()
+    def is_classification(self):
+        return self.model_config.is_classification()
 
     def get_metrics(self):
         from fastai.vision.all import RocAuc, mse, PearsonCorrCoef
 
         model_metrics = self.model_config.get_metrics()
 
-        if self.is_categorical():
+        if self.is_classification():
             fallback = [RocAuc()]
         else:
             fallback = [mse, PearsonCorrCoef()]
@@ -503,6 +503,8 @@ class MILModelConfig:
     losses = {
         'cross_entropy': nn.CrossEntropyLoss,
         'mse': nn.MSELoss,
+        'l1': nn.L1Loss,
+        'huber': nn.SmoothL1Loss
     }
 
     def __init__(
@@ -553,7 +555,7 @@ class MILModelConfig:
 
     @property
     def apply_softmax(self):
-        return self.is_categorical() and self._apply_softmax
+        return self.is_classification() and self._apply_softmax
 
     @property
     def model_fn(self):
@@ -577,13 +579,13 @@ class MILModelConfig:
 
     @property
     def model_type(self):
-        if self.loss == 'mse':
-            return 'linear'
+        if self.loss == 'cross_entropy':
+            return 'classification'
         else:
-            return 'categorical'
+            return 'regression'
 
-    def is_categorical(self):
-        return self.model_type == 'categorical'
+    def is_classification(self):
+        return self.model_type == 'classification'
 
     def verify_trainer(self, trainer):
         pass
@@ -748,10 +750,10 @@ class MILModelConfig:
 
     def run_metrics(self, df, level='slide', outdir=None) -> None:
         """Run metrics and save plots to disk."""
-        if self.is_categorical():
-            sf.stats.metrics.categorical_metrics(df, level=level, data_dir=outdir)
+        if self.is_classification():
+            sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
         else:
-            sf.stats.metrics.linear_metrics(df, level=level, data_dir=outdir)
+            sf.stats.metrics.regression_metrics(df, level=level, data_dir=outdir)
 
 # -----------------------------------------------------------------------------
 

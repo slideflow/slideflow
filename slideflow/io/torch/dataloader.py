@@ -79,7 +79,7 @@ def interleave_dataloader(
         max_size (bool, optional): Unused argument present for legacy
             compatibility; will be removed.
         model_type (str, optional): Used to generate random labels
-            (for StyleGAN2). Not required. Defaults to 'categorical'.
+            (for StyleGAN2). Not required. Defaults to 'classification'.
         num_replicas (int, optional): Number of GPUs or unique instances which
             will have their own DataLoader. Used to interleave results among
             workers without duplications. Defaults to 1.

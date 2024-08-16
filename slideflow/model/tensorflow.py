@@ -100,7 +100,7 @@ class ModelParams(_base._ModelParams):
         ModelDict.update({'efficientnet_v2m': kapps.EfficientNetV2M})
     if hasattr(kapps, 'EfficientNetV2L'):
         ModelDict.update({'efficientnet_v2l': kapps.EfficientNetV2L})
-    LinearLossDict = {
+    RegressionLossDict = {
         loss: getattr(tf.keras.losses, loss)
         for loss in [
             'mean_squared_error',
@@ -112,7 +112,7 @@ class ModelParams(_base._ModelParams):
             'logcosh'
         ]
     }
-    LinearLossDict.update({
+    RegressionLossDict.update({
         'negative_log_likelihood': tf_utils.negative_log_likelihood
     })
     AllLossDict = {
@@ -334,7 +334,7 @@ class ModelParams(_base._ModelParams):
         model_inputs = [tile_image_model.input]
         return tile_image_model, model_inputs
 
-    def _build_categorical_or_linear_model(
+    def _build_classification_or_regression_model(
         self,
         num_classes: Union[int, Dict[Any, int]],
         num_slide_features: int = 0,
@@ -343,7 +343,7 @@ class ModelParams(_base._ModelParams):
         checkpoint: Optional[str] = None,
         load_method: str = 'weights'
     ) -> tf.keras.Model:
-        """Assembles categorical or linear model, using pretraining (imagenet)
+        """Assembles classification or regression model, using pretraining (imagenet)
         or the base layers of a supplied model.
 
         Args:
@@ -439,7 +439,7 @@ class ModelParams(_base._ModelParams):
 
         return model
 
-    def _build_cph_model(
+    def _build_survival_model(
         self,
         num_classes: Union[int, Dict[Any, int]],
         num_slide_features: int = 1,
@@ -448,8 +448,8 @@ class ModelParams(_base._ModelParams):
         load_method: str = 'weights',
         training: bool = True
     ) -> tf.keras.Model:
-        """Assembles a Cox Proportional Hazards (CPH) model, using pretraining
-        (imagenet) or the base layers of a supplied model.
+        """Assembles a survival model, using pretraining (imagenet)
+        or the base layers of a supplied model.
 
         Args:
             num_classes (int or dict): Either int (single categorical outcome,
@@ -476,7 +476,7 @@ class ModelParams(_base._ModelParams):
         tile_image_model, model_inputs = self._build_base(pretrain, load_method)
 
         # Add slide feature input tensors, if there are more slide features
-        # than just the event input tensor for CPH models
+        # than just the event input tensor for survival models
         if training:
             event_input_tensor = tf.keras.Input(shape=(1), name='event_input')
         if not (num_slide_features == 1):
@@ -494,7 +494,7 @@ class ModelParams(_base._ModelParams):
                 model_inputs += [event_input_tensor]
         elif num_slide_features and num_slide_features > 1:
             # Add slide feature input tensors, if there are more slide features
-            # than just the event input tensor for CPH models
+            # than just the event input tensor for survival models
             merged_model = tf.keras.layers.Concatenate(name='input_merge')(
                 [slide_feature_input_tensor, tile_image_model.output]
             )
@@ -540,7 +540,7 @@ class ModelParams(_base._ModelParams):
             )(final_dense_layer)]
         if training:
             outputs[0] = tf.keras.layers.Concatenate(
-                name='output_merge_CPH',
+                name='output_merge_survival',
                 dtype='float32'
             )([outputs[0], event_input_tensor])
 
@@ -559,7 +559,7 @@ class ModelParams(_base._ModelParams):
         num_classes: Optional[Union[int, Dict[Any, int]]] = None,
         **kwargs
     ) -> tf.keras.Model:
-        """Auto-detects model type (categorical, linear, CPH) from parameters
+        """Auto-detects model type (classification, regression, survival) from parameters
         and builds, using pretraining or the base layers of a supplied model.
 
         Args:
@@ -573,8 +573,8 @@ class ModelParams(_base._ModelParams):
             num_slide_features (int, optional): Number of slide-level features
                 separate from image input. Defaults to 0.
             activation (str, optional): Type of final layer activation to use.
-                Defaults to 'softmax' (categorical models) or 'linear'
-                (linear or CPH models).
+                Defaults to 'softmax' (classification models) or 'regression'
+                (regression or survival models).
             pretrain (str, optional): Either 'imagenet' or path to model to use
                 as pretraining. Defaults to 'imagenet'.
             checkpoint (str, optional): Path to checkpoint from which to resume
@@ -593,16 +593,16 @@ class ModelParams(_base._ModelParams):
         if num_classes is None:
             num_classes = self._detect_classes_from_labels(labels)  # type: ignore
 
-        if self.model_type() == 'categorical':
-            return self._build_categorical_or_linear_model(
+        if self.model_type() == 'classification':
+            return self._build_classification_or_regression_model(
                 num_classes, **kwargs, activation='softmax'
             )
-        elif self.model_type() == 'linear':
-            return self._build_categorical_or_linear_model(
+        elif self.model_type() == 'regression':
+            return self._build_classification_or_regression_model(
                 num_classes, **kwargs, activation='linear'
             )
-        elif self.model_type() == 'cph':
-            return self._build_cph_model(num_classes, **kwargs)
+        elif self.model_type() == 'survival':
+            return self._build_survival_model(num_classes, **kwargs)
         else:
             raise errors.ModelError(f'Unknown model type: {self.model_type()}')
 
@@ -624,16 +624,16 @@ class ModelParams(_base._ModelParams):
             return self.OptDict[self.optimizer](learning_rate=self.learning_rate)
 
     def model_type(self) -> str:
-        """Returns 'linear', 'categorical', or 'cph', reflecting the loss."""
+        """Returns 'regression', 'classification', or 'survival', reflecting the loss."""
         #check if loss is custom_[type] and returns type
         if self.loss.startswith('custom'):
             return self.loss[7:]
         elif self.loss == 'negative_log_likelihood':
-            return 'cph'
-        elif self.loss in self.LinearLossDict:
-            return 'linear'
+            return 'survival'
+        elif self.loss in self.RegressionLossDict:
+            return 'regression'
         else:
-            return 'categorical'
+            return 'classification'
 
 
 class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
@@ -938,7 +938,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             batch_msg = f'[blue]Batch {batch:<5}[/]'
             loss_msg = f"[green]loss[/]: {logs['loss']:.3f}"
             val_loss_msg = f"[magenta]val_loss[/]: {val_loss:.3f}"
-            if self.model_type == 'categorical':
+            if self.model_type == 'classification':
                 acc_msg = f"[green]acc[/]: {train_acc}"
                 val_acc_msg = f"[magenta]val_acc[/]: {val_acc}"
                 log_message = f"{batch_msg} {loss_msg}, {acc_msg} | "
@@ -1043,15 +1043,15 @@ class Trainer:
     processing, training, and evaluation.
 
     This base class requires categorical outcome(s). Additional outcome types
-    are supported by :class:`slideflow.model.LinearTrainer` and
-    :class:`slideflow.model.CPHTrainer`.
+    are supported by :class:`slideflow.model.RegressionTrainer` and
+    :class:`slideflow.model.SurvivalTrainer`.
 
     Slide-level (e.g. clinical) features can be used as additional model input
     by providing slide labels in the slide annotations dictionary, under the
     key 'input'.
     """
 
-    _model_type = 'categorical'
+    _model_type = 'classification'
 
     def __init__(
         self,
@@ -1319,7 +1319,7 @@ class Trainer:
             label = self.annotations_tables[0].lookup(slide)
 
         # Add additional non-image feature inputs if indicated,
-        #     excluding the event feature used for CPH models
+        #     excluding the event feature used for survival models
         if self.num_slide_features:
 
             def slide_lookup(s):
@@ -1945,7 +1945,7 @@ class Trainer:
                 log.error(f'Starting epoch ({starting_epoch}) cannot be greater'
                           f' than max target epoch ({max_epoch})')
             if (self.hp.early_stop and self.hp.early_stop_method == 'accuracy'
-               and self._model_type != 'categorical'):
+               and self._model_type != 'classification'):
                 log.error("Unable to use 'accuracy' early stopping with model "
                           f"type '{self.hp.model_type()}'")
             if starting_epoch != 0:
@@ -2037,14 +2037,14 @@ class Trainer:
             return results
 
 
-class LinearTrainer(Trainer):
+class RegressionTrainer(Trainer):
 
     """Extends the base :class:`slideflow.model.Trainer` class to add support
-    for linear/continuous outcomes. Requires that all outcomes be continuous,
-    with appropriate linear loss function. Uses R-squared as the evaluation
+    for regression models with continuous outcomes. Requires that all outcomes be continuous,
+    with appropriate regression loss function. Uses R-squared as the evaluation
     metric, rather than AUROC."""
 
-    _model_type = 'linear'
+    _model_type = 'regression'
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -2069,7 +2069,7 @@ class LinearTrainer(Trainer):
             ]
 
         # Add additional non-image feature inputs if indicated,
-        #     excluding the event feature used for CPH models
+        #     excluding the event feature used for survival models
         if self.num_slide_features:
 
             def slide_lookup(s):
@@ -2086,18 +2086,18 @@ class LinearTrainer(Trainer):
         return image_dict, label
 
 
-class CPHTrainer(LinearTrainer):
+class SurvivalTrainer(RegressionTrainer):
 
     """Cox Proportional Hazards model. Requires that the user provide event
-    data as the first input feature, and time to outcome as the linear outcome.
+    data as the first input feature, and time to outcome as the continuous outcome.
     Uses concordance index as the evaluation metric."""
 
-    _model_type = 'cph'
+    _model_type = 'survival'
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if not self.num_slide_features:
-            raise errors.ModelError('Model error - CPH models must '
+            raise errors.ModelError('Model error - survival models must '
                                     'include event input')
 
     def _setup_inputs(self) -> None:
@@ -2107,10 +2107,10 @@ class CPHTrainer(LinearTrainer):
             if num_features:
                 log.info(f'Training with both images and {num_features} '
                          'categories of slide-level input')
-                log.info('Interpreting first feature as event for CPH model')
+                log.info('Interpreting first feature as event for survival model')
             else:
                 log.info('Training with images alone. Interpreting first '
-                         'feature as event for CPH model')
+                         'feature as event for survival model')
         except KeyError:
             raise errors.ModelError("Unable to find slide-level input at "
                                     "'input' key in annotations")
@@ -2161,7 +2161,7 @@ class CPHTrainer(LinearTrainer):
             ]
 
         # Add additional non-image feature inputs if indicated,
-        #     excluding the event feature used for CPH models
+        #     excluding the event feature used for survival models
         if self.num_slide_features:
             # Time-to-event data must be added as a separate feature
 
@@ -2184,7 +2184,7 @@ class CPHTrainer(LinearTrainer):
                 Tout=[tf.float32] * num_features
             )
             # Add slide input features, excluding the event feature
-            # used for CPH models
+            # used for survival models
             if not (self.num_slide_features == 1):
                 image_dict.update(
                     {'slide_feature_input': slide_feature_input_val}
@@ -2624,22 +2624,22 @@ def load(
     else:
         config = sf.util.get_model_config(path)
         hp = ModelParams.from_dict(config['hp'])
-        if len(config['outcomes']) == 1 or config['model_type'] == 'linear':
+        if len(config['outcomes']) == 1 or config['model_type'] == 'regression':
             num_classes = len(list(config['outcome_labels'].keys()))
         else:
             num_classes = {
                 outcome: len(list(config['outcome_labels'][outcome].keys()))
                 for outcome in config['outcomes']
             }  # type: ignore
-        if config['model_type'] == 'cph':
-            cph_kw = dict(training=training)
+        if config['model_type'] == 'survival':
+            survival_kw = dict(training=training)
         else:
-            cph_kw = dict()
+            survival_kw = dict()
         model = hp.build_model(  # type: ignore
             num_classes=num_classes,
             num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes']),
             pretrain=None,
-            **cph_kw
+            **survival_kw
         )
         model.load_weights(join(path, 'variables/variables'))
         return model

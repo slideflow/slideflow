@@ -38,7 +38,7 @@ Next, assemble a training and (optionally) a validation dataset. The validation 
     # Split dataset into training/validation
     train_dts, val_dts = dataset.split(
         val_fraction=0.3,
-        model_type='categorical',
+        model_type='classification',
         labels='subtype')
 
 Finally, SimCLR can be trained with :meth:`slideflow.Project.train_simclr`. You can train with a single dataset:

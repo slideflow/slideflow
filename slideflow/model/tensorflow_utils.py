@@ -312,9 +312,9 @@ def eval_from_model(
     Args:
         model (str): Path to Tensorflow model.
         dataset (tf.data.Dataset): Tensorflow dataset.
-        model_type (str, optional): 'categorical', 'linear', or 'cph'.
-            Will not attempt to calculate accuracy for non-categorical models.
-            Defaults to 'categorical'.
+        model_type (str, optional): 'classification', 'regression', or 'survival'.
+            Will not attempt to calculate accuracy for non-classification models.
+            Defaults to 'classification'.
         loss (Callable, optional): Loss function which accepts (y_true, y_pred).
 
     Keyword args:
@@ -348,7 +348,7 @@ def eval_from_model(
     batch_size = 0
     loc_missing = False
 
-    is_cat = (model_type == 'categorical')
+    is_cat = (model_type == 'classification')
     if not is_cat:
         acc = None
 

@@ -1606,7 +1606,7 @@ class Studio(ImguiWindow):
                 pred_str = prediction_to_string(
                     predictions=self._predictions,
                     outcomes=self._model_config['outcome_labels'],
-                    is_categorical=(self._model_config['model_type'] == 'categorical')
+                    is_classification=(self._model_config['model_type'] == 'classification')
                 )
                 self._render_prediction_message(pred_str)
 

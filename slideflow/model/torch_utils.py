@@ -227,9 +227,9 @@ def eval_from_model(
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
-        model_type (str, optional): 'categorical', 'linear', or 'cph'. If
-            multiple linear outcomes are present, y_true is stacked into a
-            single vector for each image. Defaults to 'categorical'.
+        model_type (str, optional): 'classification', 'regression', or 'survival'. If
+            multiple continuous outcomes are present, y_true is stacked into a
+            single vector for each image. Defaults to 'classification'.
         torch_args (namespace): Namespace containing num_slide_features,
             slide_input, update_corrects, and update_loss functions.
 
@@ -380,8 +380,8 @@ def eval_from_model(
     if not predict_only and type(y_true[0]) == list:
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
 
-        # Merge multiple linear outcomes into a single vector
-        if model_type == 'linear':
+        # Merge multiple continuous outcomes into a single vector
+        if model_type == 'regression':
             y_true = [np.stack(y_true, axis=1)]  # type: ignore
     elif not predict_only:
         y_true = [np.concatenate(y_true)]
@@ -389,7 +389,7 @@ def eval_from_model(
         y_true = None  # type: ignore
 
     # We will need to enforce softmax encoding for tile-level statistics.
-    if model_type == 'categorical':
+    if model_type == 'classification':
         y_pred = [softmax(yp, axis=1) for yp in y_pred]
 
     # Calculate final accuracy and loss
@@ -431,9 +431,9 @@ def predict_from_model(
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
-        model_type (str, optional): 'categorical', 'linear', or 'cph'. If
-            multiple linear outcomes are present, y_true is stacked into a
-            single vector for each image. Defaults to 'categorical'.
+        model_type (str, optional): 'classification', 'regression', or 'survival'. If
+            multiple continuous outcomes are present, y_true is stacked into a
+            single vector for each image. Defaults to 'classification'.
         torch_args (namespace): Namespace containing num_slide_features
             and slide_input.
 

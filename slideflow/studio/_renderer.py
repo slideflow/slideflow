@@ -114,10 +114,10 @@ def _prepare_args(args, kwargs):
     args['use_model'] = False
     return args
 
-def _is_categorical(model_path):
+def _is_classification(model_path):
     try:
         config = sf.util.get_model_config(model_path)
-        if config.get('model_type') == 'categorical':
+        if config.get('model_type') in ('categorical', 'classification'):
             return True
         return False
     except Exception:
@@ -240,7 +240,7 @@ class Renderer:
         self.set_model(_model, uq=sf.util.is_uq_model(model_path))
         self.set_saliency(_saliency)
         self.set_umap_encoders(_umap_encoders)
-        self.apply_softmax = (self.model_type == 'torch' and _is_categorical(model_path))
+        self.apply_softmax = (self.model_type == 'torch' and _is_classification(model_path))
 
     def set_model(self, model, uq=False):
         """Set a loaded model to the active model."""

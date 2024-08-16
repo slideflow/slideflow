@@ -157,7 +157,7 @@ def predict_mil(
         )
 
     # Prepare labels.
-    labels, _ = utils.get_labels(dataset, outcomes, config.is_categorical(), format='id')
+    labels, _ = utils.get_labels(dataset, outcomes, config.is_classification(), format='id')
 
     # Prepare bags and targets.
     slides = list(labels.keys())
@@ -275,7 +275,7 @@ def predict_multimodal_mil(
         )
 
     # Prepare labels.
-    labels, _ = utils.get_labels(dataset, outcomes, config.is_categorical(), format='id')
+    labels, _ = utils.get_labels(dataset, outcomes, config.is_classification(), format='id')
 
     # Prepare bags and targets.
     slides = list(labels.keys())
@@ -788,8 +788,8 @@ def run_eval(
     else:
         model_dir = None
 
-    # Print categorical metrics, including per-category accuracy)
-    metrics_df = utils.rename_df_cols(df, outcomes, categorical=config.is_categorical())
+    # Print classification metrics, including per-category accuracy)
+    metrics_df = utils.rename_df_cols(df, outcomes, categorical=config.is_classification())
     config.run_metrics(metrics_df, level='slide', outdir=model_dir)
 
     # Export attention
@@ -872,7 +872,7 @@ def get_mil_tile_predictions(
     model.to(device)
 
     if outcomes is not None:
-        labels, _ = utils.get_labels(dataset, outcomes, config.is_categorical(), format='id')
+        labels, _ = utils.get_labels(dataset, outcomes, config.is_classification(), format='id')
 
     # Prepare bags.
     slides = dataset.slides()

@@ -5,8 +5,8 @@ slideflow.model
 
 This module provides the :class:`ModelParams` class to organize model and training
 parameters/hyperparameters and assist with model building, as well as the :class:`Trainer` class that
-executes model training and evaluation. :class:`LinearTrainer` and :class:`CPHTrainer`
-are extensions of this class, supporting linear and Cox Proportional Hazards outcomes, respectively. The function
+executes model training and evaluation. :class:`RegressionTrainer` and :class:`SurvivalTrainer`
+are extensions of this class, supporting regression and Cox Proportional Hazards outcomes, respectively. The function
 :func:`build_trainer` can choose and return the correct model instance based on the provided
 hyperparameters.
 
@@ -25,13 +25,13 @@ Trainer
 .. autofunction:: slideflow.model.Trainer.predict
 .. autofunction:: slideflow.model.Trainer.train
 
-LinearTrainer
-*************
-.. autoclass:: LinearTrainer
+RegressionTrainer
+*****************
+.. autoclass:: RegressionTrainer
 
-CPHTrainer
-***********
-.. autoclass:: CPHTrainer
+SurvivalTrainer
+***************
+.. autoclass:: SurvivalTrainer
 
 Features
 ********

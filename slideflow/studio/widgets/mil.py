@@ -564,8 +564,8 @@ class MILWidget(Widget):
             return False
         return True
 
-    def is_categorical(self) -> bool:
-        return self.mil_config is None or self.mil_config.is_categorical()
+    def is_classification(self) -> bool:
+        return self.mil_config is None or self.mil_config.is_classification()
 
     def render_attention_heatmap(self, attention: np.ndarray) -> None:
         self.viz.heatmap = _AttentionHeatmapWrapper(attention, self.viz.wsi)
@@ -579,7 +579,7 @@ class MILWidget(Widget):
         self.viz.heatmap = _AttentionHeatmapWrapper([], self.viz.wsi)
         self.viz.heatmap_widget.predictions = convert_to_overlays(tile_preds)
         self.viz.heatmap_widget.render_heatmap(
-            outcome_names=self.viz.heatmap_widget.get_outcome_names(self.mil_params, categorical=self.is_categorical())
+            outcome_names=self.viz.heatmap_widget.get_outcome_names(self.mil_params, classification=self.is_classification())
         )
 
     def render_dual_heatmap(self, attention: np.ndarray, tile_preds: np.ndarray) -> None:
@@ -590,7 +590,7 @@ class MILWidget(Widget):
         merged = np.concatenate((attention, tile_preds), axis=2)
         self.viz.heatmap = _AttentionHeatmapWrapper(merged, self.viz.wsi)
         self.viz.heatmap_widget.predictions = convert_to_overlays(merged)
-        pred_outcomes = self.viz.heatmap_widget.get_outcome_names(self.mil_params, categorical=self.is_categorical())
+        pred_outcomes = self.viz.heatmap_widget.get_outcome_names(self.mil_params, classification=self.is_classification())
         att_names = ['Attention'] if attention.shape[2] == 1 else [f'Attention-{n}' for n in range(attention.shape[2])]
         print("Rendering dual heatmap with attention names: ", att_names)
         print("Rendering dual heatmap with prediction names: ", pred_outcomes)
@@ -675,7 +675,7 @@ class MILWidget(Widget):
         prediction = self.predictions[0]
 
         # Assemble outcome category labels.
-        if self.is_categorical():
+        if self.is_classification():
             imgui.text(self.mil_params['outcomes'])
             outcome_labels = [
                 f"Outcome {i}" if 'outcome_labels' not in self.mil_params or str(i) not in self.mil_params['outcome_labels']
@@ -698,7 +698,7 @@ class MILWidget(Widget):
             imgui_utils.right_aligned_text(f"{pred_val:.3f}")
         imgui.separator()
         # Show final prediction based on which category has the highest probability.
-        if self.is_categorical():
+        if self.is_classification():
             imgui.text("Final prediction")
             imgui.same_line(self.viz.font_size * 12)
             imgui_utils.right_aligned_text(f"{outcome_labels[np.argmax(prediction)]}")
@@ -811,7 +811,7 @@ class MILWidget(Widget):
             if viz.collapsing_header('Tile Prediction', default=True):
                 draw_tile_predictions(
                     viz,
-                    is_categorical=self.is_categorical(),
+                    is_classification=self.is_classification(),
                     config=self.mil_params,
                     has_preds=(viz._predictions is not None),
                     using_model=self.model_loaded,
@@ -831,6 +831,6 @@ class MILWidget(Widget):
             pred_str = prediction_to_string(
                 predictions=viz._predictions,
                 outcomes=self.mil_params['outcome_labels'],
-                is_categorical=self.is_categorical()
+                is_classification=self.is_classification()
             )
             viz.set_prediction_message(pred_str)
