@@ -66,6 +66,7 @@ class HeatmapWidget:
         self.alpha                  = 0.5
         self.gain                   = 1.0
         self.show                   = True
+        self.normalize              = True
         self.heatmap_predictions    = 0
         self.heatmap_uncertainty    = 0
         self.use_predictions        = True
@@ -99,7 +100,7 @@ class HeatmapWidget:
         else:
             mp_kw = dict()
         if sf.util.model_backend(self.viz.model) == 'torch':
-            mp_kw['apply_softmax'] = self.is_classification()
+            mp_kw['apply_softmax'] = viz.model_widget.is_classification()
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
             viz.model,
@@ -118,10 +119,6 @@ class HeatmapWidget:
                 sf.log.debug(f"Unable to load {path} as heatmap.")
                 if not ignore_errors:
                     raise
-
-    def is_classification(self):
-        """Check if model is a classification model."""
-        return self.viz.model_widget.is_classification()
 
     def _generate(self):
         """Create and generate a heatmap asynchronously."""
@@ -201,7 +198,18 @@ class HeatmapWidget:
         else:
             self._active_overlay = self.uncertainty[self.heatmap_uncertainty]
             gain = self._uq_gain
-        self.viz.rendered_heatmap = _apply_cmap(self._active_overlay.grid * gain, self.cmap)[:, :, 0:3]
+        grid_to_render = self._active_overlay.grid
+
+        # Normalize the grid to (0, 1).
+        if self.normalize:
+            # First, ensure the array is masked if not already.
+            if not np.ma.is_masked(grid_to_render):
+                grid_to_render = np.ma.masked_where(
+                    grid_to_render == sf.heatmap.MASK,
+                    grid_to_render
+                )
+            grid_to_render = (grid_to_render - np.nanmin(grid_to_render)) / (np.nanmax(grid_to_render) - np.nanmin(grid_to_render))
+        self.viz.rendered_heatmap = _apply_cmap(grid_to_render * gain, self.cmap)[:, :, 0:3]
         self.update_transparency()
 
     def reset(self):
@@ -221,6 +229,7 @@ class HeatmapWidget:
         self.heatmap_uncertainty    = 0
         self._outcome_names         = None
         self.use_predictions        = True
+        self.normalize              = True
 
     def update_transparency(self):
         """Update transparency of the heatmap overlay."""
@@ -382,6 +391,8 @@ class HeatmapWidget:
         if viz.collapsing_header('Display', default=True):
             with imgui_utils.item_width(viz.font_size * 5):
                 _clicked, self.show = imgui.checkbox('##show_heatmap', self.show)
+                if imgui.is_item_hovered():
+                    imgui.set_tooltip("Show heatmap")
                 if _clicked:
                     self.render_heatmap()
                     if self.show:
@@ -397,6 +408,10 @@ class HeatmapWidget:
 
 
             with imgui_utils.grayed_out(viz.heatmap is None):
+                # Normalization.
+                _clicked, self.normalize = imgui.checkbox('Normalize to full color range##heatmap', self.normalize)
+                if _clicked:
+                    self.render_heatmap()
 
                 # Alpha.
                 with imgui_utils.item_width(-1 - viz.button_w - viz.spacing):

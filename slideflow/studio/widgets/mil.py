@@ -66,7 +66,6 @@ def _reshape_as_heatmap(
 
     # Reshape and normalize
     heatmap = heatmap.reshape(original_shape[:2])
-    heatmap = (heatmap - np.nanmin(heatmap)) / (np.nanmax(heatmap) - np.nanmin(heatmap))
     return heatmap
 
 def reshape_bags(masked_bags):
@@ -396,7 +395,7 @@ class MILWidget(Widget):
                 tile_px=params['tile_px'],
                 stride=self._multimodal_stride[i]
             )
-            print("Loaded slide at tile_px={}, tile_um={}, stride_div={}".format(
+            sf.log.info("Loaded slide at tile_px={}, tile_um={}, stride_div={}".format(
                 wsi.tile_px, wsi.tile_um, wsi.stride_div
             ))
 
@@ -412,7 +411,7 @@ class MILWidget(Widget):
             orig_shape.append(ext_orig_shape)
             valid_indices.append(ext_valid_indices)
             grid_size.append(n_total)
-            print("Generated feature bags for {} tiles".format(ext_bags.shape[1]))
+            sf.log.info("Generated feature bags for {} tiles".format(ext_bags.shape[1]))
 
         # Generate slide prediction & attention.
         self.predictions, self.attention = self.mil_config.predict(self.model, [bags], attention=True)
@@ -592,8 +591,6 @@ class MILWidget(Widget):
         self.viz.heatmap_widget.predictions = convert_to_overlays(merged)
         pred_outcomes = self.viz.heatmap_widget.get_outcome_names(self.mil_params, classification=self.is_classification())
         att_names = ['Attention'] if attention.shape[2] == 1 else [f'Attention-{n}' for n in range(attention.shape[2])]
-        print("Rendering dual heatmap with attention names: ", att_names)
-        print("Rendering dual heatmap with prediction names: ", pred_outcomes)
         self.viz.heatmap_widget.render_heatmap(outcome_names=att_names + pred_outcomes)
 
     def draw_extractor_info(self, c):

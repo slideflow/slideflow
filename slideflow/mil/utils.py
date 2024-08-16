@@ -105,6 +105,22 @@ def load_model_weights(
     return model, config
 
 
+def load_mil_config(path: str, strict: bool = False) -> TrainerConfig:
+    """Load MIL configuration from a given path."""
+    if isdir(path):
+        path = join(path, 'mil_params.json')
+    if not exists(path):
+        raise errors.ModelError(
+            f"Could not find `mil_params.json` at {path}."
+        )
+    mil_params = sf.util.load_json(path)
+    return sf.mil.mil_config(
+        trainer=mil_params['trainer'],
+        **mil_params['params'],
+        validate=strict
+    )
+
+
 def aggregate_bags_by_slide(
     bags: np.ndarray,
     labels: Dict[str, int],

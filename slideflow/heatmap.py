@@ -308,12 +308,12 @@ class Heatmap:
 
         if asynchronous:
             it = self.interface
-            grid = np.ones((
+            grid = np.full((
                     self.slide.grid.shape[1],
                     self.slide.grid.shape[0],
                     it.num_features + it.num_classes + it.num_uncertainty),
+                MASK,
                 dtype=np.float32)
-            grid *= MASK
             heatmap_thread = Thread(target=_generate, args=(grid,))
             heatmap_thread.start()
             return grid, heatmap_thread
