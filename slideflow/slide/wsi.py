@@ -2520,7 +2520,13 @@ class WSI:
             int(r.name[4:]) for r in self.rois
             if r.name.startswith('ROI_') and r.name[4:].isnumeric()
         ]
-        roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
+        hole_ids = [
+            int(hole.name[4:]) for r in self.rois
+            for hole in r.holes.values()
+            if hole.name.startswith('ROI_') and hole.name[4:].isnumeric()
+        ]
+        existing += hole_ids
+        roi_id = max(existing) + 1 if existing else 0
         name = f'ROI_{roi_id}'
         return name
 
