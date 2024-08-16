@@ -1,9 +1,9 @@
 from .train import (
     train_mil,
-    train_fastai,
+    _train_mil,
+    _train_multimodal_mil,
     build_fastai_learner,
-    build_multimodal_learner,
-    train_multimodal_mil
+    build_multimodal_learner
 )
 from .eval import (
     eval_mil,
@@ -14,7 +14,8 @@ from .eval import (
     predict_from_multimodal_bags,
     save_mil_tile_predictions,
     get_mil_tile_predictions,
-    generate_mil_features
+    generate_mil_features,
+    generate_attention_heatmaps
 )
 from ._params import (
     mil_config,

@@ -3,7 +3,7 @@
 slideflow.biscuit
 =================
 
-This module contains an official implementation of `BISCUIT <https://www.nature.com/articles/s41467-022-34025-x>`_, an uncertainty quantification and confidence thresholding algorithm for whole-slide images. The original implementation, which includes instructions for reproducing experimental results reported in the manuscript, is available on `GitHub <https://github.com/jamesdolezal/biscuit>`_.
+This module contains an official implementation of `BISCUIT <https://www.nature.com/articles/s41467-022-34025-x>`__, an uncertainty quantification and confidence thresholding algorithm for whole-slide images. The original implementation, which includes instructions for reproducing experimental results reported in the manuscript, is available on `GitHub <https://github.com/jamesdolezal/biscuit>`__.
 
 See :ref:`uncertainty` for more information.
 

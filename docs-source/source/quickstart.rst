@@ -108,7 +108,7 @@ Read more about :ref:`Dataset management <datasets_and_validation>`.
 Configuring models
 ******************
 
-Neural network models are prepared for training with :class:`slideflow.ModelParams`, through which we define the model architecture, loss, and hyperparameters. Dozens of :ref:`preconfigured models` are available in both the Tensorflow and PyTorch backends, and both neural network :ref:`architectures <tutorial3>` and :ref:`loss <custom_loss>` functions can be customized. In this example, we will use the included Xception network.
+Neural network models are prepared for training with :class:`slideflow.ModelParams`, through which we define the model architecture, loss, and hyperparameters. Dozens of architectures are available in both the Tensorflow and PyTorch backends, and both neural network :ref:`architectures <tutorial3>` and :ref:`loss <custom_loss>` functions can be customized. In this example, we will use the included Xception network.
 
 .. code-block:: python
 

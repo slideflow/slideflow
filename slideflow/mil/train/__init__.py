@@ -33,6 +33,10 @@ def train_mil(
 ) -> "Learner":
     """Train a multiple-instance learning (MIL) model.
 
+    This high-level trainer facilitates training from a given MIL configuration,
+    using Datasets as input and with input features taken from a given directory
+    of bags.
+
     Args:
         config (:class:`slideflow.mil.TrainerConfig`):
             Trainer and model configuration.
@@ -89,7 +93,10 @@ def build_fastai_learner(
     return_shape: bool = False,
     **kwargs
 ) -> "Learner":
-    """Build a FastAI Learner for training an aMIL model.
+    """Build a FastAI Learner for training an MIL model.
+
+    Does not execute training. Useful for customizing a Learner object
+    prior to training.
 
     Args:
         train_dataset (:class:`slideflow.Dataset`): Training dataset.
@@ -102,6 +109,8 @@ def build_fastai_learner(
 
     Keyword args:
         outdir (str): Directory in which to save model and results.
+        return_shape (bool): Return the input and output shapes of the model.
+            Defaults to False.
         exp_label (str): Experiment label, used for naming the subdirectory
             in the ``outdir`` folder, where training history
             and the model will be saved.
@@ -111,7 +120,9 @@ def build_fastai_learner(
         **kwargs: Additional keyword arguments to pass to the FastAI learner.
 
     Returns:
-        fastai.learner.Learner
+        fastai.learner.Learner, and optionally a tuple of input and output shapes
+        if ``return_shape=True``.
+
     """
     from . import _fastai
 
@@ -187,12 +198,41 @@ def build_multimodal_learner(
     train_dataset: Dataset,
     val_dataset: Dataset,
     outcomes: Union[str, List[str]],
-    bags: Union[str, np.ndarray, List[str]],
+    bags: Union[np.ndarray, List[str]],
     *,
     outdir: str = 'mil',
     return_shape: bool = False,
 ) -> "Learner":
-    """Build a multi-magnification FastAI Learner for training an aMIL model."""
+    """Build a multi-magnification FastAI Learner for training an MIL model.
+
+    Does not execute training. Useful for customizing a Learner object
+    prior to training.
+
+    Args:
+        train_dataset (:class:`slideflow.Dataset`): Training dataset.
+        val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+        outcomes (str): Outcome column (annotation header) from which to
+            derive category labels.
+        bags (list(str)): List of bag directories containing \*.pt files, one
+            directory for each mode.
+
+    Keyword args:
+        outdir (str): Directory in which to save model and results.
+        return_shape (bool): Return the input and output shapes of the model.
+            Defaults to False.
+        exp_label (str): Experiment label, used for naming the subdirectory
+            in the ``outdir`` folder, where training history
+            and the model will be saved.
+        lr (float): Learning rate, or maximum learning rate if
+            ``fit_one_cycle=True``.
+        epochs (int): Maximum epochs.
+        **kwargs: Additional keyword arguments to pass to the FastAI learner.
+
+    Returns:
+        fastai.learner.Learner, and optionally a tuple of input and output shapes
+        if ``return_shape=True``.
+
+    """
 
     from . import _fastai
 
@@ -282,8 +322,10 @@ def build_multimodal_learner(
     else:
         return learner
 
+# ------------------------------------------------------------------------------
+# Internal training functions.
 
-def train_fastai(
+def _train_mil(
     config: TrainerConfig,
     train_dataset: Dataset,
     val_dataset: Dataset,
@@ -296,7 +338,7 @@ def train_fastai(
     device: Optional[str] = None,
     **heatmap_kwargs
 ) -> "Learner":
-    """Train an aMIL model using FastAI.
+    """Train an MIL model using FastAI.
 
     Args:
         train_dataset (:class:`slideflow.Dataset`): Training dataset.
@@ -406,7 +448,7 @@ def train_fastai(
     return learner
 
 
-def train_multimodal_mil(
+def _train_multimodal_mil(
     config: TrainerConfig,
     train_dataset: Dataset,
     val_dataset: Optional[Dataset],

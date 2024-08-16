@@ -7,222 +7,12 @@ In addition to standard tile-based neural networks, Slideflow also supports trai
 
 Skip to :ref:`tutorial8` for a complete example of MIL training.
 
-Generating features
+See :ref:`mil_api` for more information on the MIL API.
+
+Generating Features
 *******************
 
-The first step in MIL model development is generating features from image tiles. Many types of feature extractors can be used, including imagenet-pretrained models, models finetuned in Slideflow, histology-specific pretrained feature extractors (such as CTransPath or RetCCL), or fine-tuned SSL models.  In all cases, feature extractors are built with :func:`slideflow.build_feature_extractor`, and features are generated for a dataset using either with :ref:`slideflow.DatasetFeatures.to_torch() <activations>` or :meth:`slideflow.Project.generate_feature_bags`.
-
-Pretrained Feature Extractor
-----------------------------
-
-Slideflow includes several pathology-specific pretrained feature extractors:
-
-- `CTransPath <https://github.com/Xiyue-Wang/TransPath>`_
-- `RetCCL <https://github.com/Xiyue-Wang/RetCCL>`_
-- `HistoSSL <https://github.com/owkin/HistoSSLscaling>`_
-- `PLIP <https://github.com/PathologyFoundation/plip>`_
-
-Use :func:`slideflow.model.build_feature_extractor` to build one of these feature extractors by name. Weights for these pretrained networks will be automatically downloaded.
-
-.. code-block:: python
-
-    ctranspath = sf.build_feature_extractor('ctranspath', center_crop=True)
-
-ImageNet Features
------------------
-
-To calculate features from an ImageNet-pretrained network, first build an imagenet feature extractor with :func:`slideflow.build_feature_extractor`. The first argument should be the name of an architecture followed by ``_imagenet``, and the expected tile size should be passed to the keyword argument ``tile_px``. You can optionally specify the layer from which to generate features with the ``layers`` argument; if not provided, it will default to calculating features from post-convolutional layer activations. For example, to build a ResNet50 feature extractor for images at 299 x 299 pixels:
-
-.. code-block:: python
-
-    resnet50 = sf.build_feature_extractor(
-        'resnet50_imagenet',
-        tile_px=299
-    )
-
-This will calculate features using activations from the post-convolutional layer. You can also concatenate activations from multiple neural network layers and apply pooling for layers with 2D output shapes.
-
-.. code-block:: python
-
-    resnet50 = sf.build_feature_extractor(
-        'resnet50_imagenet',
-        layers=['conv1_relu', 'conv3_block1_2_relu'],
-        pooling='avg',
-        tile_px=299
-    )
-
-If a model architecture is available in both the Tensorflow and PyTorch backends, Slideflow will default to using the active backend. You can manually set the feature extractor backend using ``backend``.
-
-.. code-block:: python
-
-    # Create a PyTorch feature extractor
-    extractor = sf.build_feature_extractor(
-        'resnet50_imagenet',
-        layers=['layer2.0.conv1', 'layer3.1.conv2'],
-        pooling='avg',
-        tile_px=299,
-        backend='torch'
-    )
-
-You can view all available feature extractors with :func:`slideflow.model.list_extractors`.
-
-Features from Finetuned Model
------------------------------
-
-You can also calculate features from any model trained in Slideflow. The first argument to ``build_feature_extractor()`` should be the path of the trained model.  You can optionally specify the layer at which to calculate activations using the ``layers`` keyword argument. If not specified, activations are calculated at the post-convolutional layer.
-
-.. code-block:: python
-
-    # Calculate features from trained model.
-    features = build_feature_extractor(
-        '/path/to/model',
-        layers='sepconv3_bn'
-    )
-
-Self-Supervised Learning
-------------------------
-
-Finally, you can also generate features from a trained :ref:`self-supervised learning <simclr_ssl>` model (either `SimCLR <https://github.com/jamesdolezal/simclr>`_ or `DinoV2 <https://github.com/jamesdolezal/dinov2>`_).
-
-For SimCLR models, use ``'simclr'`` as the first argument to ``build_feature_extractor()``, and pass the path to a saved model (or saved checkpoint file) via the keyword argument ``ckpt``.
-
-.. code-block:: python
-
-    simclr = sf.build_feature_extractor(
-        'simclr',
-        ckpt='/path/to/simclr.ckpt'
-    )
-
-For DinoV2 models, use ``'dinov2'`` as the first argument, and pass the model configuration YAML file to ``cfg`` and the teacher checkpoint weights to ``weights``.
-
-.. code-block:: python
-
-    dinov2 = sf.build_feature_extractor(
-        'dinov2',
-        weights='/path/to/teacher_checkpoint.pth',
-        cfg='/path/to/config.yaml'
-    )
-
-.. _bags:
-
-Exporting Features
-------------------
-
-Once you have prepared a feature extractor, features can be generated for a dataset and exported to disk for later use. Pass a feature extractor to the first argument of :meth:`slideflow.Project.generate_feature_bags`, with a :class:`slideflow.Dataset` as the second argument.
-
-.. code-block:: python
-
-    # Load a project and dataset.
-    P = sf.Project(...)
-    dataset = P.dataset(tile_px=299, tile_um=302)
-
-    # Create a feature extractor.
-    ctranspath = sf.build_feature_extractor('ctranspath', resize=True)
-
-    # Calculate & export feature bags.
-    P.generate_feature_bags(ctranspath, dataset)
-
-.. note::
-
-    If you are generating features from a SimCLR model trained with stain normalization,
-    you should specify the stain normalizer using the ``normalizer`` argument to :meth:`slideflow.Project.generate_feature_bags` or :class:`slideflow.DatasetFeatures`.
-
-Features are calculated for slides in batches, keeping memory usage low. By default, features are saved to disk in a directory named ``pt_files`` within the project directory, but you can override the destination directory using the ``outdir`` argument.
-
-Alternatively, you can calculate features for a dataset using :class:`slideflow.DatasetFeatures` and the ``.to_torch()`` method.  This will calculate features for your entire dataset at once, which may require a large amount of memory. The first argument should be the feature extractor, and the second argument should be a :class:`slideflow.Dataset`.
-
-.. code-block:: python
-
-    # Calculate features for the entire dataset.
-    features = sf.DatasetFeatures(ctranspath, dataset)
-
-    # Export feature bags.
-    features.to_torch('/path/to/bag_directory/')
-
-
-.. warning::
-
-    Using :class:`slideflow.DatasetFeatures` directly may result in a large amount of memory usage, particularly for sizable datasets. When generating feature bags for training MIL models, it is recommended to use :meth:`slideflow.Project.generate_feature_bags` instead.
-
-Feature "bags" are PyTorch tensors of features for all images in a slide, saved to disk as ``.pt`` files. These bags are used to train MIL models. Bags can be manually loaded and inspected using :func:`torch.load`.
-
-.. code-block:: python
-
-    >>> import torch
-    >>> bag = torch.load('/path/to/bag.pt')
-    >>> bag.shape
-    torch.Size([2310, 768])
-    >>> bag.dtype
-    torch.float32
-
-When image features are exported for a dataset, the feature extractor configuration is saved to ``bags_config.json`` in the same directory as the exported features. This configuration file can be used to rebuild the feature extractor. An example file is shown below.
-
-.. code-block:: json
-
-    {
-     "extractor": {
-      "class": "slideflow.model.extractors.ctranspath.CTransPathFeatures",
-      "kwargs": {
-       "center_crop": true
-      }
-     },
-     "normalizer": {
-      "method": "macenko",
-      "fit": {
-       "stain_matrix_target": [
-        [
-         0.5062568187713623,
-         0.22186939418315887
-        ],
-        [
-         0.7532230615615845,
-         0.8652154803276062
-        ],
-        [
-         0.4069173336029053,
-         0.42241501808166504
-        ]
-       ],
-       "target_concentrations": [
-        1.7656903266906738,
-        1.2797492742538452
-       ]
-      }
-     },
-     "num_features": 2048,
-     "tile_px": 299,
-     "tile_um": 302
-    }
-
-The feature extractor can be manually rebuilt using :func:`slideflow.model.rebuild_extractor()`:
-
-.. code-block:: python
-
-    from slideflow.model import rebuild_extractor
-
-    # Recreate the feature extractor
-    # and stain normalizer, if applicable
-    extractor, normalizer = rebuild_extractor('/path/to/bags_config.json')
-
-License & Citation
-------------------
-
-Licensing and citation information for the pretrained feature extractors is accessible with the ``.license`` and ``.citation`` attributes.
-
-.. code-block:: python
-
-    >>> ctranspath.license
-    'GNU General Public License v3.0'
-    >>> print(ctranspath.citation)
-
-    @{wang2022,
-      title={Transformer-based Unsupervised Contrastive Learning for Histopathological Image Classification},
-      author={Wang, Xiyue and Yang, Sen and Zhang, Jun and Wang, Minghui and Zhang, Jing  and Yang, Wei and Huang, Junzhou  and Han, Xiao},
-      journal={Medical Image Analysis},
-      year={2022},
-      publisher={Elsevier}
-    }
-
+The first step in MIL model development is generating features from image tiles, as discussed in the :ref:`features` section. Features from whole-slide images are exported as "bags" of features, where each bag contains a set of features from a single slide. Each bag is a PyTorch tensor saved in ``*.pt`` format. Bags are saved in a directory, and the directory path is passed to the MIL model during training and evaluation.
 
 Training
 ********
@@ -230,11 +20,9 @@ Training
 Model Configuration
 -------------------
 
-To train an MIL model on exported features, first prepare an MIL configuration using :func:`slideflow.mil.mil_config`.
+To train an MIL model using exported features, first prepare an MIL configuration using :func:`slideflow.mil.mil_config`.
 
-The first argument to this function is the model architecture (which can be a name or a custom ``torch.nn.Module`` model), and the remaining arguments are used to configure the training process (including learning rate and epochs).
-
-By default, training is executed using `FastAI <https://docs.fast.ai/>`_ with `1cycle learning rate scheduling <https://arxiv.org/pdf/1803.09820.pdf%E5%92%8CSylvain>`_. Available models out-of-the-box include `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), `transformer MIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``), and `HistoBistro Transformer <https://github.com/peng-lab/HistoBistro>`_ (``"bistro.transformer"``).
+The first argument to this function is the model architecture (which can be a name or a custom ``torch.nn.Module`` model), and the remaining arguments are used to configure the training process, such as learning rate and number of epochs. Training is executed using `FastAI <https://docs.fast.ai/>`_ with `1cycle learning rate scheduling <https://arxiv.org/pdf/1803.09820.pdf%E5%92%8CSylvain>`_.
 
 .. code-block:: python
 
@@ -243,25 +31,35 @@ By default, training is executed using `FastAI <https://docs.fast.ai/>`_ with `1
 
     config = mil_config('attention_mil', lr=1e-3)
 
-Custom MIL models can also be trained with this API. Import a custom MIL model as a PyTorch module, and pass this as the first argument to :func:`slideflow.mil.mil_config`.
+Available models out-of-the-box include `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `transformer MIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``), and `HistoBistro Transformer <https://github.com/peng-lab/HistoBistro>`_ (``"bistro.transformer"``). `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``) models are available through ``slideflow-gpl``:
+
+.. code-block:: bash
+
+    pip install slideflow-gpl
+
+Custom MIL models can also be trained with this API, as discussed `below <custom_mil>`_.
+
+
+Classification & Regression
+---------------------------
+
+MIL models can be trained for both classification and regression tasks. The type of outcome is determined through the loss function, which defaults to ``"cross_entropy"``. To train a model for regression, set the loss function to one of the following regression losses, and ensure that your outcome labels are continuous. You can also train to multiple outcomes by passing a list of outcome names.
+
+- **"mse"** (``nn.CrossEntropyLoss``): Mean squared error.
+- **"mae"** (``nn.L1Loss``): Mean absolute error.
+- **"huber"** (``nn.SmoothL1Loss``): Huber loss.
 
 .. code-block:: python
 
-    import slideflow as sf
-    from slideflow.mil import mil_config
-    from my_module import CustomMIL
+    # Prepare a regression-compatible MIL configuration
+    config = mil_config('attention_mil', lr=1e-3, loss='mse')
 
-    config = mil_config(CustomMIL, lr=1e-3)
-
-
-Legacy CLAM Trainer
--------------------
-
-In addition to the FastAI trainer, CLAM models can be trained using the `original <https://github.com/mahmoodlab/CLAM>`_ CLAM training loop. This trainer has been modified, cleaned, and included as a submodule in Slideflow. This legacy trainer can be used for CLAM models by setting ``trainer='clam'`` for an MIL configuration:
-
-.. code-block:: python
-
-    config = mil_config(..., trainer='clam')
+    # Train the model
+    project.train_mil(
+        config=config,
+        ...,
+        outcomes=['age', 'grade']
+    )
 
 
 Training an MIL Model
@@ -372,6 +170,77 @@ You can use any number of modalities, and the feature extractors for each modali
 
 The feature extractors used for each modality, as specified in the ``bags_config.json`` files in the bag directories, will be logged in the final ``mil_params.json`` file. Multimodal MIL models can be interactively viewed in :ref:`Slideflow Studio <studio>`, allowing you to visualize the attention weights for each modality separately.
 
+.. _custom_mil:
+
+Custom Architectures
+--------------------
+
+Training custom MIL models is straightforward with Slideflow, particularly if your model can adhere to a few simple guidelines:
+
+- Initialized with ``(num_feats, num_outputs)`` (e.g., ``Attention_MIL(768, 2)``)
+- Input is feature bags with shape ``(batch, num_tiles, num_feats)``. If the model needs a "lens" input, then the model attribute ``use_lens`` should be True.
+- Has a ``relocate()`` function that moves the model to detected device/GPU
+- Ability to get attention through one of two methods:
+    - ``forward()`` function includes an optional ``return_attention`` argument, which if True returns attention scores after model output
+    - Has a ``calculate_attention()`` function that returns attention scores
+
+If the above applies to your model, you can train it simply by passing it as the first argument to :func:`slideflow.mil.mil_config`.
+
+.. code-block:: python
+
+    import slideflow as sf
+    from slideflow.mil import mil_config
+    from my_module import CustomMIL
+
+    config = mil_config(CustomMIL, lr=1e-3)
+
+
+For larger projects, or if you are designing a plugin/extension for Slideflow, custom models can be registered to facilitate easy creation. If your model adheres to the above guidelines, you can register it for use with the following:
+
+.. code-block:: python
+
+    from slideflow.mil import register_model
+
+    @register_model
+    def my_model():
+        return MyModelClass
+
+
+You can then use your model when creating an MIL configuration:
+
+.. code-block:: python
+
+    config = sf.mil.mil_config('my_model', ...)
+
+
+If the above guidelines do *not* apply to your model, or if you want to customize model logic or functionality, you can supply a custom MIL configuration class that will supervise model building and dataset preparation. Your custom configuration class should inherit ``slideflow.mil.MILModelConfig``, and methods in this class can be overloaded to provide additional functionality. For example, to create an MIL configuration that uses a custom loss and custom metrics:
+
+.. code-block:: python
+
+    from slideflow.mil import MILModelConfig
+
+    class MyModelConfig(MILModelConfig):
+
+    @property
+    def loss_fn(self):
+        return my_custom_loss
+
+    def get_metrics(self):
+        return [my_metric1, my_metric2]
+
+
+When registering your model, you should specify that it should use your custom configuration:
+
+.. code-block:: python
+
+    @register_model(config=MyModelConfig)
+    def my_model():
+        return MyModelClass
+
+
+For an example of how to utilize model registration and configuration customization, see our `CLAM implementation <https://github.com/slideflow/slideflow-gpl/blob/main/slideflow_gpl/clam/config.py>`__ available through ``slideflow-gpl``.
+
+
 Evaluation
 **********
 
@@ -431,7 +300,7 @@ The function will return a tuple of predictions and attention heatmaps. If the m
 The returned attention values will be a masked ``numpy.ndarray`` with the same shape as the slide tile extraction grid. Unused tiles will have masked attention values.
 
 
-Visualizing Attention Heatmaps
-*******************************
+Visualizing Predictions
+***********************
 
-Attention heatmaps can be interactively visualized in Slideflow Studio by enabling the Multiple-Instance Learning extension (new in Slideflow 2.1.0). This extension is discussed in more detail in the :ref:`extensions` section.
+Heatmaps of attention and tile-level predictions can be interactively visualized in Slideflow Studio by enabling the Multiple-Instance Learning extension (new in Slideflow 2.1.0). This extension is discussed in more detail in the :ref:`extensions` section.

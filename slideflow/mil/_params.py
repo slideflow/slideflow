@@ -155,9 +155,18 @@ class TrainerConfig:
         pass
 
     def is_classification(self):
+        """Whether the model is a classification model."""
         return self.model_config.is_classification()
 
     def get_metrics(self):
+        """Get model metrics.
+
+        Returns:
+            List[Callable]: List of metrics to use for model evaluation.
+            Defaults to RocAuc for classification models, and mse and Pearson
+            correlation coefficient for regression models.
+
+        """
         from fastai.vision.all import RocAuc, mse, PearsonCorrCoef
 
         model_metrics = self.model_config.get_metrics()
@@ -174,7 +183,19 @@ class TrainerConfig:
         exp_label: Optional[str],
         outdir: Optional[str]
     ) -> str:
-        """Prepare for training."""
+        """Prepare for training.
+
+        Sets up the output directory for the model.
+
+        Args:
+            outcomes (str, list(str)): Outcomes.
+            exp_label (str): Experiment label.
+            outdir (str): Output directory.
+
+        Returns:
+            str: Output directory.
+
+        """
         log.info("Training FastAI MIL model with config:")
         log.info(f"{str(self)}")
         # Set up experiment label
@@ -198,7 +219,19 @@ class TrainerConfig:
         return outdir
 
     def build_model(self, n_in: int, n_out: int, **kwargs):
-        """Build the mode."""
+        """Build the model.
+
+        Args:
+            n_in (int): Number of input features.
+            n_out (int): Number of output features.
+
+        Keyword args:
+            **kwargs: Additional keyword arguments to pass to the model constructor.
+
+        Returns:
+            torch.nn.Module: PyTorch model.
+
+        """
         if self.model_config.model_kwargs:
             model_kw = self.model_config.model_kwargs
         else:
@@ -230,6 +263,19 @@ class TrainerConfig:
         )
 
     def predict(self, model, bags, attention=False, **kwargs):
+        """Generate model prediction from bags.
+
+        Args:
+            model (torch.nn.Module): Loaded PyTorch MIL model.
+            bags (torch.Tensor): Bags, with shape ``(n_bags, n_tiles, n_features)``.
+
+        Keyword args:
+            attention (bool): Whether to return attention maps.
+
+        Returns:
+            Tuple[np.ndarray, List[np.ndarray]]: Predictions and attention.
+
+        """
         self._verify_eval_params(**kwargs)
         return self.model_config.predict(model, bags, attention=attention, **kwargs)
 
@@ -304,7 +350,7 @@ class TrainerConfig:
                 separately. Defaults to None.
 
         """
-        from slideflow.mil.train import train_fastai, train_multimodal_mil
+        from slideflow.mil.train import _train_mil, _train_multimodal_mil
 
         # Prepare output directory
         outdir = self.prepare_training(outcomes, exp_label, outdir)
@@ -318,9 +364,9 @@ class TrainerConfig:
 
         # Check if multimodal training
         if self.is_multimodal:
-            train_fn = train_multimodal_mil
+            train_fn = _train_multimodal_mil
         else:
-            train_fn = train_fastai
+            train_fn = _train_mil
 
         # Execute training
         return train_fn(
@@ -434,7 +480,21 @@ class TrainerConfig:
         dataset_kwargs = None,
         dataloader_kwargs = None
     ) -> "torch.utils.DataLoader":
+        """Build a training dataloader.
 
+        Args:
+            bags (list): List of bags.
+            targets (list): List of targets.
+            encoder (torch.nn.Module): Encoder for bags.
+
+        Keyword args:
+            dataset_kwargs (dict): Keyword arguments for the dataset.
+            dataloader_kwargs (dict): Keyword arguments for the dataloader.
+
+        Returns:
+            torch.utils.DataLoader: Training dataloader.
+
+        """
         dataset_kwargs = dataset_kwargs or dict()
         dataloader_kwargs = dataloader_kwargs or dict()
 
@@ -467,7 +527,21 @@ class TrainerConfig:
         dataset_kwargs = None,
         dataloader_kwargs = None
     ) -> "torch.utils.DataLoader":
+        """Build a validation dataloader.
 
+        Args:
+            bags (list): List of bags.
+            targets (list): List of targets.
+            encoder (torch.nn.Module): Encoder for bags.
+
+        Keyword args:
+            dataset_kwargs (dict): Keyword arguments for the dataset.
+            dataloader_kwargs (dict): Keyword arguments for the dataloader.
+
+        Returns:
+            torch.utils.DataLoader: Validation dataloader.
+
+        """
         dataset_kwargs = dataset_kwargs or dict()
         dataloader_kwargs = dataloader_kwargs or dict()
 
@@ -502,6 +576,14 @@ class TrainerConfig:
         return self.model_config.inspect_batch(batch)
 
     def run_metrics(self, df, level='slide', outdir=None):
+        """Run metrics and save plots to disk.
+
+        Args:
+            df (pd.DataFrame): Dataframe with predictions and outcomes.
+            level (str): Level at which to calculate metrics. Either 'slide' or 'patient'.
+            outdir (str): Output directory for saving metrics.
+
+        """
         self.model_config.run_metrics(df, level=level, outdir=outdir)
 
 
@@ -512,7 +594,7 @@ class MILModelConfig:
     losses = {
         'cross_entropy': nn.CrossEntropyLoss,
         'mse': nn.MSELoss,
-        'l1': nn.L1Loss,
+        'mae': nn.L1Loss,
         'huber': nn.SmoothL1Loss
     }
 
@@ -540,6 +622,15 @@ class MILModelConfig:
                 bag size for each slide. If None, will default to True for
                 ``'attention_mil'`` models and False otherwise.
                 Defaults to None.
+            apply_softmax (bool): Whether to apply softmax to model outputs.
+                Defaults to True. Ignored if the model is not a classification
+                model.
+            model_kwargs (dict, optional): Additional keyword arguments to pass
+                to the model constructor. Defaults to None.
+            validate (bool): Whether to validate the keyword arguments. If True,
+                will raise an error if any unrecognized keyword arguments are
+                passed. Defaults to True.
+            loss (str, Callable): Loss function. Defaults to 'cross_entropy'.
 
         """
         self.model = model
@@ -564,20 +655,24 @@ class MILModelConfig:
 
     @property
     def apply_softmax(self):
+        """Whether softmax will be applied to model outputs."""
         return self.is_classification() and self._apply_softmax
 
     @property
     def model_fn(self):
+        """MIL model architecture (class/module)."""
         if not isinstance(self.model, str):
             return self.model
         return sf.mil.get_model(self.model)
 
     @property
     def loss_fn(self):
+        """MIL loss function."""
         return self.losses[self.loss]
 
     @property
     def is_multimodal(self):
+        """Whether the model is multimodal."""
         return ((isinstance(self.model, str) and self.model.lower() == 'mm_attention_mil')
                 or (hasattr(self.model_fn, 'is_multimodal')
                     and self.model_fn.is_multimodal))
@@ -588,12 +683,14 @@ class MILModelConfig:
 
     @property
     def model_type(self):
+        """Type of model (classification or regression)."""
         if self.loss == 'cross_entropy':
             return 'classification'
         else:
             return 'regression'
 
     def is_classification(self):
+        """Whether the model is a classification model."""
         return self.model_type == 'classification'
 
     def verify_trainer(self, trainer):
@@ -603,6 +700,7 @@ class MILModelConfig:
         return None
 
     def to_dict(self):
+        """Converts this model configuration to a dictionary."""
         d = {k:v for k,v in vars(self).items()
                 if k not in (
                     'self',
@@ -658,7 +756,19 @@ class MILModelConfig:
         return n_in, n_out
 
     def build_model(self, n_in: int, n_out: int, **kwargs):
-        """Build the model."""
+        """Build the model.
+
+        Args:
+            n_in (int): Number of input features.
+            n_out (int): Number of output features.
+
+        Keyword args:
+            **kwargs: Additional keyword arguments to pass to the model constructor.
+
+        Returns:
+            torch.nn.Module: PyTorch model.
+
+        """
         log.info(f"Building model {self.rich_name} (n_in={n_in}, n_out={n_out})")
         return self.model_fn(n_in, n_out, **kwargs)
 
@@ -690,7 +800,22 @@ class MILModelConfig:
         return dataloader
 
     def predict(self, model, bags, attention=False, apply_softmax=None, **kwargs):
-        """Predict for MIL models."""
+        """Generate model prediction from bags.
+
+        Args:
+            model (torch.nn.Module): Loaded PyTorch MIL model.
+            bags (torch.Tensor): Bags, with shape ``(n_bags, n_tiles, n_features)``.
+
+        Keyword args:
+            attention (bool): Whether to return attention maps.
+            apply_softmax (bool): Whether to apply softmax to model outputs.
+            attention_pooling (bool): Whether to pool attention maps with
+                average pooling. Defaults to None.
+
+        Returns:
+            Tuple[np.ndarray, List[np.ndarray]]: Predictions and attention.
+
+        """
         self._verify_eval_params(**kwargs)
 
         from slideflow.mil.eval import predict_from_bags, predict_from_multimodal_bags
@@ -721,6 +846,8 @@ class MILModelConfig:
         apply_softmax: Optional[bool] = None
     ) -> Tuple[np.ndarray, List[np.ndarray]]:
         """Generate predictions from a batch of bags.
+
+        More efficient than calling :meth:`predict` multiple times.
 
         Args:
             model (torch.nn.Module): Loaded PyTorch MIL model.
@@ -758,7 +885,14 @@ class MILModelConfig:
         )
 
     def run_metrics(self, df, level='slide', outdir=None) -> None:
-        """Run metrics and save plots to disk."""
+        """Run metrics and save plots to disk.
+
+        Args:
+            df (pd.DataFrame): Dataframe with predictions and outcomes.
+            level (str): Level at which to calculate metrics. Either 'slide' or 'patient'.
+            outdir (str): Output directory for saving metrics.
+
+        """
         if self.is_classification():
             sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
         else:

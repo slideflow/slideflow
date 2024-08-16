@@ -1,3 +1,5 @@
+.. _custom_extractors:
+
 Custom Feature Extractors
 =========================
 
@@ -41,7 +43,7 @@ Next, the initializer should set the number of features expected to be returned 
 
             self.num_features = 1024
 
-The initializer is also responsible for registering image preprocessing. The image preprocessing transformation, a function which converts a raw ``uint8`` image to a ``float32`` tensor for model input, should be stored in ``self.transform``. If the transformation standardizes the images, then the parameter ``self.preprocess_kwargs`` should be set to ``{'standardize': False}``, indicating that Slideflow should not perform any additional standardization.
+The initializer is also responsible for registering image preprocessing. The image preprocessing transformation, a function which converts a raw ``uint8`` image to a ``float32`` tensor for model input, should be stored in ``self.transform``. If the transformation standardizes the images, then the parameter ``self.preprocess_kwargs`` should be set to ``{'standardize': False}``, indicating that Slideflow should not perform any additional standardization. You can use the class method ``.build_transform()`` to use the standard preprocessing pipeline.
 
 .. code-block:: python
 
@@ -53,14 +55,7 @@ The initializer is also responsible for registering image preprocessing. The ima
             ...
 
             # Image preprocessing.
-            self.transform = transforms.Compose([
-                transforms.Resize(256),
-                transforms.Lambda(lambda x: x / 255.),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225]
-                )
-            ])
+            self.transform = self.build_transform(img_size=256)
             # Disable Slideflow standardization,
             # as we are standardizing with transforms.Normalize
             self.preprocess_kwargs = {'standardize': False}
@@ -72,10 +67,9 @@ The final required method is ``.dump_config()``, which returns a dictionary of c
     ...
 
         def dump_config(self):
-            return {
-                'class': 'MyFeatureExtractor',
-                'kwargs': {}
-            }
+            return self._dump_config(
+                class_name='my_module.MyFeatureExtractor'
+            )
 
 The final class should look like this:
 
@@ -99,23 +93,15 @@ The final class should look like this:
             self.num_features = 1024
 
             # Image preprocessing.
-            self.transform = transforms.Compose([
-                transforms.Resize(256),
-                transforms.Lambda(lambda x: x / 255.),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225]
-                )
-            ])
+            self.transform = self.build_transform(img_size=256)
             # Disable Slideflow standardization,
             # as we are standardizing with transforms.Normalize
             self.preprocess_kwargs = {'standardize': False}
 
         def dump_config(self):
-            return {
-                'class': 'MyFeatureExtractor',
-                'kwargs': {}
-            }
+            return self._dump_config(
+                class_name='my_module.MyFeatureExtractor'
+            )
 
 You can then use the feature extractor for generating bags for MIL training, as described in :ref:`mil`.
 

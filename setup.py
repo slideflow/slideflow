@@ -175,7 +175,8 @@ setuptools.setup(
         'dev': [
             'sphinx',
             'sphinx-markdown-tables',
-            'sphinxcontrib-video'
+            'sphinxcontrib-video',
+            'pygments-csv-lexer'
         ],
         'cucim': [
             'cucim'
@@ -189,6 +190,7 @@ setuptools.setup(
             'sphinx',
             'sphinx-markdown-tables',
             'sphinxcontrib-video',
+            'pygments-csv-lexer',
             'torch',
             'torchvision',
             'fastai',

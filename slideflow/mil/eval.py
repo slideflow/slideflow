@@ -64,6 +64,9 @@ def eval_mil(
             Not available for multi-modal MIL models. Defaults to False.
         interpolation (str, optional): Interpolation strategy for smoothing
             attention heatmaps. Defaults to 'bicubic'.
+        aggregation_level (str, optional): Aggregation level for predictions.
+            Either 'slide' or 'patient'. Defaults to None (uses the model
+            configuration).
         cmap (str, optional): Matplotlib colormap for heatmap. Can be any
             valid matplotlib colormap. Defaults to 'inferno'.
         norm (str, optional): Normalization strategy for assigning heatmap
@@ -113,7 +116,6 @@ def predict_mil(
 
     Args:
         model (torch.nn.Module): Model from which to generate predictions.
-
         dataset (sf.Dataset): Dataset from which to generation predictions.
         outcomes (str, list(str)): Outcomes.
         bags (str, list(str)): Path to bags, or list of bag file paths.
@@ -125,7 +127,7 @@ def predict_mil(
             Configuration for the MIL model. Required if model is a loaded ``torch.nn.Module``.
             Defaults to None.
         attention (bool): Whether to calculate attention scores. Defaults to False.
-        uq (bool): Whether to generate uncertainty estimates. Defaults to False.
+        uq (bool): Whether to generate uncertainty estimates. Experimental. Defaults to False.
         aggregation_level (str): Aggregation level for predictions. Either 'slide'
             or 'patient'. Defaults to None.
         attention_pooling (str): Attention pooling strategy. Either 'avg'
@@ -226,11 +228,10 @@ def predict_multimodal_mil(
     aggregation_level: Optional[str] = None,
     **kwargs
 ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, List[np.ndarray]]]:
-    """Generate predictions for a dataset from a saved MIL model.
+    """Generate predictions for a dataset from a saved multimodal MIL model.
 
     Args:
         model (torch.nn.Module): Model from which to generate predictions.
-
         dataset (sf.Dataset): Dataset from which to generation predictions.
         outcomes (str, list(str)): Outcomes.
         bags (str, list(str)): Path to bags, or list of bag file paths.
@@ -579,7 +580,28 @@ def predict_from_multimodal_bags(
     device: Optional[Any] = None,
     apply_softmax: Optional[bool] = None,
 ) -> Tuple[np.ndarray, List[List[np.ndarray]]]:
-    """Generate multi-mag MIL predictions for a nested list of bags."""
+    """Generate multi-mag MIL predictions for a nested list of bags.
+
+    Args:
+        model (torch.nn.Module): Loaded PyTorch MIL model.
+        bags (list(list(str))): Nested list of bags to generate predictions for.
+            Each bag should contain PyTorch array of features from all tiles in a slide,
+            with the shape ``(n_tiles, n_features)``.
+
+    Keyword Args:
+        attention (bool): Whether to calculate attention scores. Defaults to False.
+        attention_pooling (str, optional): Pooling strategy for attention scores.
+            Can be 'avg', 'max', or None. Defaults to None.
+        use_lens (bool): Whether to use the length of each bag as an additional
+            input to the model. Defaults to False.
+        device (str, optional): Device on which to run inference. Defaults to None.
+        apply_softmax (bool): Whether to apply softmax to the model output. Defaults
+            to True for categorical outcomes, False for continuous
+
+    Returns:
+        Tuple[np.ndarray, List[List[np.ndarray]]]: Predictions and attention scores.
+
+    """
     import torch
 
     y_pred = []

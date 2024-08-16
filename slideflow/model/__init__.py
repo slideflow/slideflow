@@ -132,6 +132,9 @@ def build_trainer(
                 may improve compatibility across hardware & environments.
         custom_objects (dict, Optional): Dictionary mapping names
                 (strings) to custom classes or functions. Defaults to None.
+        num_workers (int): Number of dataloader workers. Only used for PyTorch.
+                Defaults to 4.
+
     """
     if hp.model_type() == 'classification':
         return Trainer(hp, outdir, labels, **kwargs)
