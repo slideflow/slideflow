@@ -172,6 +172,8 @@ class ROIWidget:
                 viz.viewer.refresh_view()
                 # Show a label popup if the user has just created a new ROI.
                 self._show_roi_label_menu = roi_idx
+                # Update the ROI colors
+                self.refresh_roi_colors()
 
     def _process_subtract(self) -> None:
         """Process a subtracting ROI."""
