@@ -171,6 +171,11 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
                 f"{self.__class__.__name__} does not accept keyword arguments "
                 "when extracting features from a batch of images."
             )
+        elif not isinstance(obj, torch.Tensor):
+            raise ValueError(
+                "Expected first argument to be either a WSI object, a path "
+                " to a tfrecord, or a Tensor. Got: {}".format(type(obj))
+            )
         if not (obj.dtype == torch.uint8) and self.force_uint8:
             raise RuntimeError("Expected input to be a uint8 tensor, got: {}".format(
                 obj.dtype

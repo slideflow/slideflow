@@ -82,7 +82,7 @@ The SimCLR model checkpoints and final saved model will be saved in the ``simclr
 Training DINOv2
 ***************
 
-A lightly modified version of `DINOv2 <https://arxiv.org/abs/2304.07193>`_ with Slideflow integration is available on `GitHub <https://github.com/jamesdolezal/dinov2>`_. This version facilitates training DINOv2 with Slideflow datasets and adds stain augmentation to the training pipeline.
+A lightly modified version of `DINOv2 <https://arxiv.org/abs/2304.07193>`__ with Slideflow integration is available on `GitHub <https://github.com/jamesdolezal/dinov2>`_. This version facilitates training DINOv2 with Slideflow datasets and adds stain augmentation to the training pipeline.
 
 To train DINOv2, first install the package:
 

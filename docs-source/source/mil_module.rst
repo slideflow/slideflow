@@ -10,43 +10,39 @@ Main functions
 
 .. autofunction:: mil_config
 .. autofunction:: train_mil
-.. autofunction:: train_clam
 .. autofunction:: train_fastai
+.. autofunction:: train_multimodal_mil
 .. autofunction:: build_fastai_learner
+.. autofunction:: build_multimodal_learner
 .. autofunction:: eval_mil
+.. autofunction:: predict_mil
+.. autofunction:: predict_multimodal_mil
+.. autofunction:: predict_from_bags
+.. autofunction:: predict_from_multimodal_bags
 .. autofunction:: predict_slide
+.. autofunction:: get_mil_tile_predictions
+.. autofunction:: generate_mil_features
 
-TrainerConfigFastAI
-*******************
+TrainerConfig
+*************
 
-.. autoclass:: slideflow.mil.TrainerConfigFastAI
+.. autoclass:: slideflow.mil.TrainerConfig
 .. autosummary::
 
-    slideflow.mil.TrainerConfigFastAI.model_fn
-    slideflow.mil.TrainerConfigFastAI.loss_fn
+    TrainerConfig.model_fn
+    TrainerConfig.loss_fn
 
-.. autofunction:: slideflow.mil.TrainerConfigFastAI.to_dict
-.. autofunction:: slideflow.mil.TrainerConfigFastAI.json_dump
+.. autofunction:: slideflow.mil.TrainerConfig.to_dict
+.. autofunction:: slideflow.mil.TrainerConfig.json_dump
 
-TrainerConfigCLAM
-*****************
 
-.. autoclass:: slideflow.mil.TrainerConfigCLAM
-.. autosummary::
+MILModelConfig
+**************
 
-    slideflow.mil.TrainerConfigCLAM.model_fn
-    slideflow.mil.TrainerConfigCLAM.loss_fn
+.. autoclass:: MILModelConfig
 
-.. autofunction:: slideflow.mil.TrainerConfigCLAM.to_dict
-.. autofunction:: slideflow.mil.TrainerConfigCLAM.json_dump
-
-ModelConfigFastAI
-*****************
-
-.. autoclass:: ModelConfigFastAI
-
-ModelConfigCLAM
+CLAMModelConfig
 ***************
 
-.. autoclass:: ModelConfigCLAM
+.. autoclass:: slideflow.clam.CLAMModelConfig
 

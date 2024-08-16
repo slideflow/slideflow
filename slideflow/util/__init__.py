@@ -310,8 +310,8 @@ def about(console=None) -> None:
         >>> sf.about()
         ╭=======================╮
         │       Slideflow       │
-        │    Version: 2.1.0     │
-        │  Backend: tensorflow  │
+        │    Version: 3.0.0     │
+        │  Backend: torch       │
         │ Slide Backend: cucim  │
         │ https://slideflow.dev │
         ╰=======================╯

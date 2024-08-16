@@ -101,7 +101,12 @@ class TrainerConfig:
         self.drop_last = drop_last
         self.save_monitor = save_monitor
         self.weighted_loss = weighted_loss
-        self.model_config = build_model_config(model, **kwargs)
+        if isinstance(model, str):
+            self.model_config = f(model, **kwargs)
+        else:
+            sf.log.info("Attempting to load custom model class for MIL training.")
+            from slideflow.mil import MILModelConfig
+            self.model_config = MILModelConfig(model, **kwargs)
         self.model_config.verify_trainer(self)
 
     def __str__(self):
@@ -175,8 +180,12 @@ class TrainerConfig:
         # Set up experiment label
         if exp_label is None:
             try:
+                if isinstance(self.model_config.model, str):
+                    model_name = self.model_config.model
+                else:
+                    model_name = self.model_config.model.__name__
                 exp_label = '{}-{}'.format(
-                    self.model_config.model,
+                    model_name,
                     "-".join(outcomes if isinstance(outcomes, list) else [outcomes])
                 )
             except Exception:
@@ -569,7 +578,7 @@ class MILModelConfig:
 
     @property
     def is_multimodal(self):
-        return (self.model.lower() == 'mm_attention_mil'
+        return ((isinstance(self.model, str) and self.model.lower() == 'mm_attention_mil')
                 or (hasattr(self.model_fn, 'is_multimodal')
                     and self.model_fn.is_multimodal))
 
