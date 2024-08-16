@@ -1775,6 +1775,8 @@ def _export_bags(
         except errors.DatasetFilterError:
             _dataset = dataset
         _dataset = _dataset.filter(filters={'slide': slide_batch})
+        if not len(_dataset.tfrecords()):
+            continue
         df = sf.DatasetFeatures(model, _dataset, pb=pb, **dts_kwargs)
         df.to_torch(outdir, verbose=False)
         pb.advance(slide_task, len(slide_batch))
