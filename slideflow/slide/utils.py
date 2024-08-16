@@ -501,10 +501,10 @@ def predict(
     heatmap = Heatmap(slide, model, generate=True, stride_div=stride_div, **kwargs)
     assert heatmap.predictions is not None
     preds = heatmap.predictions.reshape(-1, heatmap.predictions.shape[-1])
-    preds = np.ma.masked_where(preds == sf.heatmap.MASK, preds).mean(axis=0).filled()
+    preds = np.nanmean(preds, axis=0).filled()
     if heatmap.uncertainty is not None:
         unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
-        unc = np.ma.masked_where(unc == sf.heatmap.MASK, unc).mean(axis=0).filled()
+        unc = np.nanmean(unc, axis=0).filled()
         return preds, unc
     else:
         return preds

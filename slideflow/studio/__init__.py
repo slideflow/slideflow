@@ -2158,6 +2158,8 @@ class Sidebar:
             if name == self.selected or self.selected is None or not self.expanded:
                 self.expanded = not self.expanded
             self.selected = name
+
+        # Add a line next to the selected/active widget.
         if self.selected == name:
             draw_list = imgui.get_window_draw_list()
             draw_list.add_line(2, viz.menu_bar_height+start_px, 2, viz.menu_bar_height+start_px+self.navbutton_width, imgui.get_color_u32_rgba(1,1,1,1), 2)
@@ -2181,6 +2183,10 @@ class Sidebar:
         self._draw_navbar_button('circle_lightning', buttonbar_height + viz.menu_bar_height - self.navbutton_width*3 - viz.status_bar_height)
         self._draw_navbar_button('extensions', buttonbar_height + viz.menu_bar_height - self.navbutton_width*2 - viz.status_bar_height)
         self._draw_navbar_button('gear', buttonbar_height + viz.menu_bar_height - self.navbutton_width - viz.status_bar_height)
+
+        # Draw border along the right of the buttons
+        #draw_list = imgui.get_window_draw_list()
+        #draw_list.add_line(self.navbutton_width-1, viz.menu_bar_height, self.navbutton_width-1, buttonbar_height+viz.menu_bar_height+5, imgui.get_color_u32_rgba(*self.viz.theme.item_hover), 1)
 
         imgui.end()
 

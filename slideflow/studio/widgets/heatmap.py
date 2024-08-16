@@ -159,7 +159,7 @@ class HeatmapWidget:
             self.render_heatmap()
             self.viz.model_widget._update_slide_preds()
             prog_grid = predictions if len(predictions.shape) == 2 else predictions[:, :, 0]
-            percent = (prog_grid != sf.heatmap.MASK).sum() / self.viz.wsi.grid.sum()
+            percent = (prog_grid.mask == False).sum() / self.viz.wsi.grid.sum()
             self._heatmap_toast.set_progress(min(percent, 1.))
 
 
@@ -202,12 +202,6 @@ class HeatmapWidget:
 
         # Normalize the grid to (0, 1).
         if self.normalize:
-            # First, ensure the array is masked if not already.
-            if not np.ma.is_masked(grid_to_render):
-                grid_to_render = np.ma.masked_where(
-                    grid_to_render == sf.heatmap.MASK,
-                    grid_to_render
-                )
             grid_to_render = (grid_to_render - np.nanmin(grid_to_render)) / (np.nanmax(grid_to_render) - np.nanmin(grid_to_render))
         self.viz.rendered_heatmap = _apply_cmap(grid_to_render * gain, self.cmap)[:, :, 0:3]
         self.update_transparency()
