@@ -1054,7 +1054,8 @@ def generate_mil_features(
     # Ensure the model is valid for generating features.
     if not hasattr(model, 'get_last_layer_activations'):
         raise errors.ModelError(
-            f"Model {config.model_config.model} is not supported.")
+            f"Model {model.__class__.__name__} is not supported; could not "
+            "find method 'get_last_layer_activations'")
 
     # Prepare bags and targets.
     slides = dataset.slides()

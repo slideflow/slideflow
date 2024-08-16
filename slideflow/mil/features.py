@@ -71,6 +71,9 @@ class MILFeatures:
                 self.model, self.config = load_model_weights(model, config)
             elif config is None:
                 raise ValueError("Model config required for model initialization when a torch Module is provided as a model.")
+            else:
+                self.model = model
+                self.config = config
             self.set_device(device)
             self.model.to(self.device)  # type: ignore
 
@@ -185,7 +188,7 @@ class MILFeatures:
             with torch.inference_mode():
 
                 # Apply lens to model input.
-                if self.config.use_lens:
+                if hasattr(self.config.model_config, 'use_lens') and self.config.model_config.use_lens:
                     lens = torch.from_numpy(
                         np.array([loaded.shape[1]])).to(self.device)
                     model_args = (loaded, lens)
@@ -193,7 +196,7 @@ class MILFeatures:
                     model_args = (loaded,)
 
                 # Attention MIL and TransMIL.
-                if self.model.__name__ in ('Attention_MIL', 'TransMIL'):
+                if self.model.__class__.__name__ in ('Attention_MIL', 'TransMIL'):
                     model_out = self.model(*model_args)
 
                     h = self.model.get_last_layer_activations(*model_args)  # type: ignore
@@ -205,13 +208,13 @@ class MILFeatures:
                     y_att.append(att.cpu().numpy())
 
                 # FC MIL (CLAM implementation)
-                elif self.model.__name__ in ('MIL_fc, MIL_fc_mc'):
+                elif self.model.__class__.__name__ in ('MIL_fc, MIL_fc_mc'):
                     model_out = self.model(*model_args)
                     h = self.model.get_last_layer_activations(*model_args)  # type: ignore
                     y_att = None
 
                 # CLAM models.
-                elif self.model.__name__ in ('CLAM_SB', 'CLAM_MB'):
+                elif self.model.__class__.__name__ in ('CLAM_SB', 'CLAM_MB'):
                     model_out = self.model(*model_args)[0]
                     h, A = self.model.get_last_layer_activations(*model_args)  # type: ignore
                     if A.shape[0] == 1:
@@ -221,7 +224,7 @@ class MILFeatures:
 
                 else:
                     raise NotImplementedError(
-                        f"Layer activation support for model {self.model.__name__} is not implemented."
+                        f"Layer activation support for model {self.model.__class__.__name__} is not implemented."
                     )
 
                 hs.append(h.cpu())
