@@ -93,7 +93,7 @@ These extensions can be installed via pip. The GigaPath feature extractor has ad
     pip install slideflow-gpl slideflow-noncommercial
 
     # Install GigaPath dependencies, if desired
-    pip install slideflow-noncommercial[gigapath]
+    pip install slideflow-noncommercial[gigapath] git+ssh://git@github.com/prov-gigapath/prov-gigapath
 
 
 .. note::

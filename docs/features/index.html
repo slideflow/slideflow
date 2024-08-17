@@ -449,8 +449,8 @@
 </section>
 <section id="gigapath">
 <h3>GigaPath<a class="headerlink" href="#gigapath" title="Permalink to this heading">¶</a></h3>
-<p>GigaPath is a DINOv2-based model from Microsoft/Providence trained on 170k whole-slide images and is bundled with <code class="docutils literal notranslate"><span class="pre">slideflow-noncommercial</span></code>. The GigaPath model includes additional dependencies which are not broadly compatible with all OS distributions, and are thus not installed by default. To install the GigaPath dependencies, specify <code class="docutils literal notranslate"><span class="pre">[gigapath]</span></code> when installing with PIP:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>slideflow-noncommercial<span class="o">[</span>gigapath<span class="o">]</span>
+<p>GigaPath is a DINOv2-based model from Microsoft/Providence trained on 170k whole-slide images and is bundled with <code class="docutils literal notranslate"><span class="pre">slideflow-noncommercial</span></code>. The GigaPath model includes additional dependencies which are not broadly compatible with all OS distributions, and are thus not installed by default. To install the GigaPath dependencies:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>slideflow-noncommercial<span class="o">[</span>gigapath<span class="o">]</span> git+ssh://git@github.com/prov-gigapath/prov-gigapath
 </pre></div>
 </div>
 <p>GigaPath has two stages: a tile encoder and slide-level encoder. The tile encoder (<code class="docutils literal notranslate"><span class="pre">&quot;gigapath.tile&quot;</span></code>) works the same as all other feature extractors in Slideflow. You can build this encoder directly:</p>

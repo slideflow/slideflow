@@ -158,11 +158,11 @@ For transparency, you can see the current preprocessing pipeline with ``extracto
 GigaPath
 --------
 
-GigaPath is a DINOv2-based model from Microsoft/Providence trained on 170k whole-slide images and is bundled with ``slideflow-noncommercial``. The GigaPath model includes additional dependencies which are not broadly compatible with all OS distributions, and are thus not installed by default. To install the GigaPath dependencies, specify ``[gigapath]`` when installing with PIP:
+GigaPath is a DINOv2-based model from Microsoft/Providence trained on 170k whole-slide images and is bundled with ``slideflow-noncommercial``. The GigaPath model includes additional dependencies which are not broadly compatible with all OS distributions, and are thus not installed by default. To install the GigaPath dependencies:
 
 .. code-block:: bash
 
-    pip install slideflow-noncommercial[gigapath]
+    pip install slideflow-noncommercial[gigapath] git+ssh://git@github.com/prov-gigapath/prov-gigapath
 
 
 GigaPath has two stages: a tile encoder and slide-level encoder. The tile encoder (``"gigapath.tile"``) works the same as all other feature extractors in Slideflow. You can build this encoder directly:
