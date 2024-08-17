@@ -1,11 +1,11 @@
 <div align="center">
-  <img src="https://github.com/jamesdolezal/slideflow/raw/master/docs-source/pytorch_sphinx_theme/images/slideflow-banner.png" alt="slideflow logo">
+  <img src="https://github.com/user-attachments/assets/53d5c1f8-8fbc-4e0f-bd62-db16797492b0" alt="slideflow logo">
 
   [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5703792.svg)](https://doi.org/10.5281/zenodo.5703792)
   [![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml)
   [![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
 
-  [ArXiv](https://arxiv.org/abs/2304.04142) | [Docs](https://slideflow.dev) | [Slideflow Studio](https://slideflow.dev/studio/) | [Cite](#reference)
+  [ArXiv](https://arxiv.org/abs/2304.04142) | [Docs](https://slideflow.dev) | [Slideflow Studio](https://slideflow.dev/studio/) | [Cite](#reference) | [✨ What's New in 3.0 ✨](https://github.com/slideflow/slideflow/releases/tag/3.0.0)
 
   ______________________________________________________________________
 
@@ -15,7 +15,7 @@
 
 **Slideflow is a deep learning library for digital pathology, offering a user-friendly interface for model development.**
   
-Designed at University of Chicago for both medical researchers and AI enthusiasts, the goal of Slideflow is to provide an accessible, easy-to-use interface for developing state-of-the-art pathology models. Slideflow has been built with the future in mind, offering a scalable platform for digital biomarker development that bridges the gap between ever-evolving, sophisticated methods and the needs of a clinical researcher. For developers, Slideflow provides multiple endpoints for integration with other packages and external training paradigms, allowing you to leverage highly optimized, pathology-specific processes with the latest ML methodologies.
+Designed for both medical researchers and AI enthusiasts, the goal of Slideflow is to provide an accessible, easy-to-use interface for developing state-of-the-art pathology models. Slideflow has been built with the future in mind, offering a scalable platform for digital biomarker development that bridges the gap between ever-evolving, sophisticated methods and the needs of a clinical researcher. For developers, Slideflow provides multiple endpoints for integration with other packages and external training paradigms, allowing you to leverage highly optimized, pathology-specific processes with the latest ML methodologies.
 
 
 
@@ -23,6 +23,7 @@ Designed at University of Chicago for both medical researchers and AI enthusiast
 - Easy-to-use, highly customizable training pipelines
 - Robust **[slide processing](https://slideflow.dev/slide_processing) and [stain normalization](https://slideflow.dev/norm)** toolkit
 - Support for training with **[weakly-supervised](https://slideflow.dev/training) or [strongly-supervised](https://slideflow.dev/tile_labels)** labels
+- Built-in, state-of-the-art **[foundation models](https://slideflow.dev/features)**
 - **[Multiple-instance learning (MIL)](https://slideflow.dev/mil)**
 - **[Self-supervised learning (SSL)](https://slideflow.dev/ssl)**
 - **[Generative adversarial networks (GANs)](https://slideflow.dev/training)**
@@ -36,7 +37,7 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
 
 ## Requirements
 - Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
-- [Tensorflow](https://www.tensorflow.org/) 2.5-2.11 _or_ [PyTorch](https://pytorch.org/) >= 1.9
+- [PyTorch](https://pytorch.org/) >= 1.9 _or_ [Tensorflow](https://www.tensorflow.org/) 2.5-2.11
 
 ### Optional
 - [Libvips](https://libvips.github.io/libvips/) >= 8.9 (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files).
@@ -210,7 +211,7 @@ Slideflow has been used by:
 - [Carrillo-Perez et al](https://doi.org/10.1186/s40644-023-00586-3) _Cancer Imaging_, 2023
 
 ## 🔓 License
-This code is made available under the GPLv3 License and is available for non-commercial academic purposes.
+This code is made available under the Apache-2.0 license.
 
 ## 🔗 Reference
 If you find our work useful for your research, or if you use parts of this code, please consider citing as follows:
