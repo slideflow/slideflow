@@ -293,7 +293,7 @@
               
   <section id="slideflow-studio-live-visualization">
 <span id="studio"></span><h1>Slideflow Studio: Live Visualization<a class="headerlink" href="#slideflow-studio-live-visualization" title="Permalink to this heading">¶</a></h1>
-<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/studio_preview.webm" type="video/webm"></video><div class="line-block">
+<video autoplay="True" width="100%" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/studio_preview.webm" type="video/webm"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>Slideflow Studio provides powerful tools for interactive visualization of whole-slide images, model predictions, and GAN-generated images. It’s also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you’ll get a smooth experience that can even run on a Raspberry Pi.</p>
@@ -347,7 +347,7 @@
 <section id="projects">
 <h2>Projects<a class="headerlink" href="#projects" title="Permalink to this heading">¶</a></h2>
 <p>A Slideflow <a class="reference internal" href="../project_setup/#project-setup"><span class="std std-ref">Project</span></a> can be loaded to make it easier to find and load both slides and models. Load a project with either File -&gt; Open Project, or click and drag a project folder onto the main view. Click the Project icon to view project information and browse both slides and models.</p>
-<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://github.com/user-attachments/assets/e55339a9-69ce-4fa6-a3de-66a4a5244704" type=""></video><div class="line-block">
+<video autoplay="True" width="100%" controls="True" preload="auto" loop="True"><source src="https://github.com/user-attachments/assets/e55339a9-69ce-4fa6-a3de-66a4a5244704" type=""></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>All slides associated with the project will be listed under the “Slides” subheader. Clicking a slide name will open the slide. Similarly, all trained models associated with the project are listed under the “Models” subheader and can be loaded by clicking a model name. Both Tensorflow and PyTorch models can be loaded, regardless of the active backend.</p>
@@ -369,12 +369,12 @@
 </div>
 <p>Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow project has been loaded (File -&gt; Open Project), ROIs will be automatically loaded. You can use Studio to add, label, or remove ROIs with the annotation tool, under the subheader “ROIs”.</p>
 <p>Click the plus (Add) icon to draw new ROIs with a lasso tool; right click and drag to create a new ROI. The pencil (Edit) icon allows you to edit any existing ROIs; right click an ROI while editing to delete the ROI or change its label. Once finished, ROIs can be exported in CSV format by clicking the floppy disk icon (Save). You can manually load an existing ROI file by clicking the folder icon (Load).</p>
-<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/roi_label.mp4" type="video/mp4"></video><div class="line-block">
+<video autoplay="True" width="100%" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/roi_label.mp4" type="video/mp4"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>Labels can be optionally supplied for each ROI. Labels can be set after creating an ROI and changed by right clicking an ROI while editing. Hover over an existing ROI to see its name and label. Labels are exported when saving ROIs.</p>
 <p>Slideflow 3.0 added a new polygon tool for drawing ROIs. Click the polygon icon to draw a polygon ROI. Right click to add points, and press Enter to close the polygon. The polygon tool can be used to draw complex shapes, and can be used in conjunction with the lasso tool.</p>
-<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://github.com/user-attachments/assets/edf7c377-af40-4f8e-a4cb-f84024988e91" type=""></video><p>When in Edit mode, click on an ROI to select it. Holding down the Control key will show the ROI vertices, which can then be selected and moved. Hold Shift and drag the mouse to select multiple vertices. Vertices can be moved by dragging them and deleted by pressing the Delete key. Click outside the ROI or press Esc to deselect.</p>
+<video autoplay="True" width="100%" controls="True" preload="auto" loop="True"><source src="https://github.com/user-attachments/assets/edf7c377-af40-4f8e-a4cb-f84024988e91" type=""></video><p>When in Edit mode, click on an ROI to select it. Holding down the Control key will show the ROI vertices, which can then be selected and moved. Hold Shift and drag the mouse to select multiple vertices. Vertices can be moved by dragging them and deleted by pressing the Delete key. Click outside the ROI or press Esc to deselect.</p>
 <p>Slideflow can also import ROIs generated from external applications such as QuPath and ImageScope; see <a class="reference internal" href="../slide_processing/#regions-of-interest"><span class="std std-ref">Regions of Interest</span></a> for more information.</p>
 </section>
 <section id="tile-filtering">
@@ -395,7 +395,7 @@
 </section>
 <section id="tissue-segmentation">
 <span id="studio-segmentation"></span><h3>Tissue segmentation<a class="headerlink" href="#tissue-segmentation" title="Permalink to this heading">¶</a></h3>
-<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://github.com/user-attachments/assets/6f0da6be-da47-443e-b08e-1bab978fb345" type=""></video><div class="line-block">
+<video autoplay="True" width="100%" controls="True" preload="auto" loop="True"><source src="https://github.com/user-attachments/assets/6f0da6be-da47-443e-b08e-1bab978fb345" type=""></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>New in version 3.0, trained <a class="reference internal" href="../segmentation/#segmentation"><span class="std std-ref">segmentation models</span></a> can be both trained and deployed directly within Studio using the new Segmentation widget.</p>
@@ -449,7 +449,7 @@
 <span id="studio-mil"></span><h2>Multiple-Instance Learning<a class="headerlink" href="#multiple-instance-learning" title="Permalink to this heading">¶</a></h2>
 <p>Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see <a class="reference internal" href="../mil/#mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information.</p>
 <p>Start opening the MIL widget in the sidebar. Models are loaded by either clicking the “Load MIL model” button, selecting “File -&gt; Load MIL Model…”, or by dragging-and-dropping an MIL model folder onto the window.</p>
-<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/mil_attention.mp4" type="video/mp4"></video><div class="line-block">
+<video autoplay="True" width="100%" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/mil_attention.mp4" type="video/mp4"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the “HP” button. Click “Predict Slide” to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.</p>
@@ -475,7 +475,7 @@
 <div class="line"><br /></div>
 </div>
 <p>The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click “Generate” in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the “Display” subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap. Press the left ALT key while hovering over the heatmap to show the raw heatmap values.</p>
-<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/heatmap.mp4" type="video/mp4"></video><div class="line-block">
+<video autoplay="True" width="100%" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/heatmap.mp4" type="video/mp4"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>By default, heatmaps are calculated with multiprocessing pools, which may increase memory utilization. To decrease memory utilization at the cost of slower heatmap calculation, switch to low memory mode in the Settings section (described below), or by using the launch flag <code class="docutils literal notranslate"><span class="pre">--low_memory</span></code>.</p>
@@ -508,13 +508,13 @@
 </section>
 <section id="stylegan">
 <h3>StyleGAN<a class="headerlink" href="#stylegan" title="Permalink to this heading">¶</a></h3>
-<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm" type="video/webm"></video><div class="line-block">
+<video autoplay="True" width="100%" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm" type="video/webm"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>The StyleGAN extension adds support for visualizing trained StyleGAN2 or StyleGAN3 networks. Once enabled, GAN <code class="docutils literal notranslate"><span class="pre">*.pkl</span></code> files can be loaded with File -&gt; Load GAN, or with drag-and-drop. Generated images are shown in the tile preview window. Model predictions on GAN images operate similarly to predictions on whole-slide images. Predictions on GAN images are generated in real-time, and you can watch the predictions change in the control panel.</p>
 <p>By default, Studio will generate predictions on the full GAN image (after resizing to match the model’s <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> value). If a <code class="docutils literal notranslate"><span class="pre">training_options.json</span></code> file is found in the same directory as the GAN .pkl, the tile size used to train the GAN will be read from this file (slideflow_kwargs/tile_px and ../tile_um). If the GAN was trained on images with a different <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> value, the GAN image will be cropped to match the model’s <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> before resizing. The cropped/resized (and stain normalized) image will be shown to the right of the raw GAN image in the tile preview window.</p>
 <p>The StyleGAN widget can be used to travel the GAN latent space, similar to the implementation in the official <a class="reference external" href="https://github.com/NVlabs/stylegan3">NVIDIA StyleGAN3 repository</a>. Set a specific seed in the input field next to “Seed”, or click and drag the “Drag” button. If the model was trained with class conditioning, manually set the class with the “Class” field (the default value of -1 selects a random class). Press left or right on your keyboard to quickly move through seeds.</p>
-<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/gan_seeds.mp4" type="video/mp4"></video><div class="line-block">
+<video autoplay="True" width="100%" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/gan_seeds.mp4" type="video/mp4"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>The style mixing section can be used to mix styles between seeds, styles between classes, or both. You can control the degree of mixing with the mixing slider. You can finetune which GAN layers are used during the mixing by clicking the ellipsis button and selection which layers should be traversed during style mixing.</p>
