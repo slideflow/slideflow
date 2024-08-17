@@ -89,7 +89,7 @@ Slideflow includes several pathology-specific feature extractors, also referred 
       - 170K
       - 256
       - 1536
-      - Microsoft/Providence
+      - Microsoft
       - ``slideflow-noncommercial``
       - `Paper <https://aka.ms/gigapath>`__
 
