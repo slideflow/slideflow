@@ -469,7 +469,7 @@ class TestSuite:
             with TaskWrapper("Training with single regression outcome...") as test:
                 try:
                     results = self.project.train(
-                        outcomes=['regression'],
+                        outcomes=['regression1'],
                         val_k=1,
                         params=self.setup_hp('regression'),
                         pretrain=None,
