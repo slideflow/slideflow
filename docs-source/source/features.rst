@@ -3,12 +3,12 @@
 Generating Features
 ===================
 
-Converting images into feature vectors is a common step for many machine learning tasks, including `feature space analysis <actions>`_ and `multiple-instance learning (MIL) <mil>`_. Slideflow provides a simple API for generating features from image tiles and includes several pretrained feature extractors. You can see a list of all available feature extractors with :func:`slideflow.list_extractors`.
+Converting images into feature vectors is a common step for many machine learning tasks, including :ref:`feature space analysis <activations>` and :ref:`multiple-instance learning (MIL) <mil>`. Slideflow provides a simple API for generating features from image tiles and includes several pretrained feature extractors. You can see a list of all available feature extractors with :func:`slideflow.list_extractors`.
 
 Generating Features
 *******************
 
-The first step in generating features from a dataset of images is creating a feature extractor. Many types of feature extractors can be used, including imagenet-pretrained models, models finetuned in Slideflow, histology-specific pretrained feature extractors (ie. "foundation models"), or fine-tuned SSL models.  In all cases, feature extractors are built with :func:`slideflow.build_feature_extractor`, and features are generated for a `Dataset <datasets_and_val>`_ using :meth:`slideflow.Dataset.generate_feature_bags`, as described `below <bags>`_.
+The first step in generating features from a dataset of images is creating a feature extractor. Many types of feature extractors can be used, including imagenet-pretrained models, models finetuned in Slideflow, histology-specific pretrained feature extractors (ie. "foundation models"), or fine-tuned SSL models.  In all cases, feature extractors are built with :func:`slideflow.build_feature_extractor`, and features are generated for a :ref:`Dataset <datasets_and_val>` using :meth:`slideflow.Dataset.generate_feature_bags`, as described :ref:`below <bags>`.
 
 .. code-block:: python
 
