@@ -37,7 +37,7 @@ Available models out-of-the-box include `attention-based MIL <https://github.com
 
     pip install slideflow-gpl
 
-Custom MIL models can also be trained with this API, as discussed `below <custom_mil>`_.
+Custom MIL models can also be trained with this API, as discussed :ref:`below <custom_mil>`.
 
 
 Classification & Regression

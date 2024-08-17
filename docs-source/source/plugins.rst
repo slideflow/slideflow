@@ -11,7 +11,7 @@ MIL Model Registration
 
 As discussed in :ref:`custom_mil`, Slideflow supports the registration of custom MIL models. This is done by using the ``register_mil`` decorator to register a custom MIL model.
 
-For example, suppose you have a custom MIL model called ``MyMILModel`` that you want to register with Slideflow. You've already designed the model such that it meets Slideflow's MIL `requirements <custom_mil>`__. Now you want to make it available for use directly within Slideflow. You can accomplish this by using the ``register_mil`` decorator:
+For example, suppose you have a custom MIL model called ``MyMILModel`` that you want to register with Slideflow. You've already designed the model such that it meets Slideflow's MIL :ref:`requirements <custom_mil>`. Now you want to make it available for use directly within Slideflow. You can accomplish this by using the ``register_mil`` decorator:
 
 .. code-block:: python
 
@@ -34,7 +34,7 @@ Once this code is run, the custom MIL model will be available for use with Slide
 Feature Extractors
 ------------------
 
-Similarly, Slideflow supports the integration of custom feature extractors via the ``register_torch`` and ``register_tf`` decorators. Please see our detailed `developer note <custom_extractors>`__ for more information on how to create and register custom extractors. Briefly, you can register a custom feature extractor with Slideflow as follows:
+Similarly, Slideflow supports the integration of custom feature extractors via the ``register_torch`` and ``register_tf`` decorators. Please see our detailed :ref:`developer note <custom_extractors>` for more information on how to create and register custom extractors. Briefly, you can register a custom feature extractor with Slideflow as follows:
 
 .. code-block:: python
 
