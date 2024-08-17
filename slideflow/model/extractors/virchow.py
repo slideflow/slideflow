@@ -80,7 +80,7 @@ class VirchowFeatures(TorchFeatureExtractor):
         class_token = output[:, 0]   # 1 x 1280
         patch_tokens = output[:, 1:] # 1 x 256 x 1280
         embedding = torch.cat([class_token, patch_tokens.mean(1)], dim=-1)  # 1 x 2560
-        return embedding
+        return embedding.to(torch.float32)
 
     def dump_config(self):
         """Return a dictionary of configuration parameters.

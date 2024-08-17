@@ -1,7 +1,6 @@
 """Factory for building PyTorch feature extractors."""
 
 import inspect
-import numpy as np
 import slideflow as sf
 from typing import Tuple, Generator, Optional, TYPE_CHECKING
 from slideflow import errors
@@ -147,7 +146,8 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
 
     def _process_output(self, output):
         """Process model output."""
-        return output
+        import torch
+        return output.to(torch.float32)
 
     def __call__(self, obj, **kwargs):
         """Generate features for a batch of images or a WSI."""
