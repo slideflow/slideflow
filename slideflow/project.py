@@ -1340,7 +1340,7 @@ class Project:
         *,
         outdir: Optional[str] = None,
         **kwargs
-    ):
+    ) -> pd.DataFrame:
         r"""Evaluate a multi-instance learning model.
 
         Saves results for the evaluation in the ``mil_eval`` project folder,
@@ -1378,6 +1378,8 @@ class Project:
                 If 'two_slope', normalizes values less than 0 and greater than 0
                 separately. Defaults to None.
 
+        Returns:
+            pd.DataFrame: Dataframe of predictions.
         """
         from .mil import eval_mil
 

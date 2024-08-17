@@ -102,7 +102,7 @@ class TrainerConfig:
         self.save_monitor = save_monitor
         self.weighted_loss = weighted_loss
         if isinstance(model, str):
-            self.model_config = f(model, **kwargs)
+            self.model_config = build_model_config(model, **kwargs)
         else:
             sf.log.info("Attempting to load custom model class for MIL training.")
             from slideflow.mil import MILModelConfig
@@ -423,6 +423,8 @@ class TrainerConfig:
                 If 'two_slope', normalizes values less than 0 and greater than 0
                 separately. Defaults to None.
 
+        Returns:
+            pd.DataFrame: Dataframe of predictions.
         """
         from slideflow.mil.eval import run_eval
 

@@ -244,7 +244,7 @@ For an example of how to utilize model registration and configuration customizat
 Evaluation
 **********
 
-To evaluate a saved MIL model on an external dataset, first extract features from a dataset, then use :func:`slideflow.Project.evaluate_mil`:
+To evaluate a saved MIL model on an external dataset, first extract features from a dataset, then use :func:`slideflow.Project.evaluate_mil`, which displays evaluation metrics and returns predictions as a DataFrame.
 
 .. code-block:: python
 
@@ -260,7 +260,7 @@ To evaluate a saved MIL model on an external dataset, first extract features fro
     features.to_torch('/path/to/bag_directory')
 
     # Evaluate a saved MIL model
-    P.evaluate_mil(
+    df = P.evaluate_mil(
         '/path/to/saved_model'
         outcomes='HPV_status',
         dataset=dataset,
@@ -270,6 +270,32 @@ To evaluate a saved MIL model on an external dataset, first extract features fro
 As with training, attention heatmaps can be generated for attention-based MIL models with the argument ``attention_heatmaps=True``, and these can be customized using ``cmap`` and ``interpolation`` arguments.
 
 .. image:: att_heatmap.jpg
+
+Generating Predictions
+**********************
+
+In addition to generating slide-level predictions during training and evaluation, you can also generate tile-level predictions and attention scores for a dataset using :func:`slideflow.mil.get_mil_tile_predictions`. This function returns a DataFrame containing tile-level predictions and attention.
+
+.. code-block:: python
+
+    >>> from slideflow.mil import get_mil_tile_predictions
+    >>> df = get_mil_tile_predictions(model, dataset, bags)
+    >>> df
+                            slide  loc_x  loc_y  ...   y_pred3   y_pred4   y_pred5
+    0       TCGA-4V-A9QI-01Z-0...   2210   7349  ...  0.181155  0.468446  0.070175
+    1       TCGA-4V-A9QI-01Z-0...   5795   1971  ...  0.243721  0.131991  0.009169
+    2       TCGA-4V-A9QI-01Z-0...   6273   5437  ...  0.096196  0.583367  0.090258
+    3       TCGA-4V-A9QI-01Z-0...   2330   3047  ...  0.056426  0.264386  0.300199
+    4       TCGA-4V-A9QI-01Z-0...   3644   3525  ...  0.134535  0.534353  0.013619
+    ...                       ...    ...    ...  ...       ...       ...       ...
+    391809  TCGA-4X-A9FA-01Z-0...   6034   3352  ...  0.004119  0.003636  0.005673
+    391810  TCGA-4X-A9FA-01Z-0...   6643   1401  ...  0.012790  0.010269  0.011726
+    391811  TCGA-4X-A9FA-01Z-0...   5546   2011  ...  0.009777  0.013556  0.025255
+    391812  TCGA-4X-A9FA-01Z-0...   6277   2864  ...  0.026638  0.018499  0.031061
+    391813  TCGA-4X-A9FA-01Z-0...   4083   4205  ...  0.009875  0.009582  0.022125
+
+    [391814 rows x 15 columns]
+
 
 Single-Slide Inference
 **********************

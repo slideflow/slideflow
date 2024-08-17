@@ -779,6 +779,8 @@ def run_eval(
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
 
+    Returns:
+        pd.DataFrame: Dataframe of predictions.
     """
     # Generate predictions.
     predict_kwargs = dict(
