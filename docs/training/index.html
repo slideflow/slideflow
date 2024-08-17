@@ -6,11 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Training &mdash; slideflow 2.3.0 documentation</title>
+  <title>Training &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +178,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -318,7 +320,7 @@
 <p>See the <a class="reference internal" href="../model_params/#slideflow.ModelParams" title="slideflow.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code></a> API documentation for a list of available hyperparameters.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.ModelParams.LinearLossDict</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.ModelParams.AllLossDict</span></code>.</p>
+<p>If you are using a continuous variable as an outcome measure, be sure to use a regression loss function. Regression loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.ModelParams.RegressionLossDict</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.ModelParams.AllLossDict</span></code>.</p>
 </div>
 </section>
 <section id="training-a-model">
@@ -449,14 +451,14 @@
 </section>
 <section id="multiple-outcomes">
 <h2>Multiple outcomes<a class="headerlink" href="#multiple-outcomes" title="Permalink to this heading">¶</a></h2>
-<p>Slideflow supports both categorical and continuous outcomes, as well as training to single or multiple outcomes at once. To train with multiple outcomes simultaneously, simply pass multiple annotation headers to the <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> argument of <a class="reference internal" href="../project/#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a>.</p>
+<p>Slideflow supports both classification and regression, as well as training to single or multiple outcomes at once. To train with multiple outcomes simultaneously, simply pass multiple annotation headers to the <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> argument of <a class="reference internal" href="../project/#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a>.</p>
 </section>
-<section id="time-to-event-outcomes">
-<h2>Time-to-event outcomes<a class="headerlink" href="#time-to-event-outcomes" title="Permalink to this heading">¶</a></h2>
-<p>Models can also be trained to a time series outcome using Cox Proportional Hazards (CPH) and negative log likelihood loss. For CPH models, use <code class="docutils literal notranslate"><span class="pre">'negative_log_likelihood'</span></code> loss and set <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> equal to the annotation column indicating event <em>time</em>. Specify the event <em>type</em> (0 or 1) by passing the event type annotation column to the argument <code class="docutils literal notranslate"><span class="pre">input_header</span></code>. If you are using multiple clinical inputs, the first header passed to <code class="docutils literal notranslate"><span class="pre">input_header</span></code> must be event type. CPH models are not compatible with multiple outcomes.</p>
+<section id="time-to-event-survival-outcomes">
+<h2>Time-to-event / survival outcomes<a class="headerlink" href="#time-to-event-survival-outcomes" title="Permalink to this heading">¶</a></h2>
+<p>Models can also be trained to a time series outcome using Cox Proportional Hazards (CPH) and negative log likelihood loss. For time-to-event / survival models, use <code class="docutils literal notranslate"><span class="pre">'negative_log_likelihood'</span></code> loss and set <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> equal to the annotation column indicating event <em>time</em>. Specify the event <em>type</em> (0 or 1) by passing the event type annotation column to the argument <code class="docutils literal notranslate"><span class="pre">input_header</span></code>. If you are using multiple clinical inputs, the first header passed to <code class="docutils literal notranslate"><span class="pre">input_header</span></code> must be event type. Survival models are not compatible with multiple outcomes.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>CPH models are currently only available with the Tensorflow backend. PyTorch support for CPH outcomes is in development.</p>
+<p>Survival models are currently only available with the Tensorflow backend. PyTorch support for survival outcomes is in development.</p>
 </div>
 </section>
 <section id="multimodal-models">
@@ -550,25 +552,25 @@
 <section id="customizing-model-or-loss">
 <span id="custom-loss"></span><h2>Customizing model or loss<a class="headerlink" href="#customizing-model-or-loss" title="Permalink to this heading">¶</a></h2>
 <p>Slideflow supports dozens of model architectures, but you can also train with a custom architecture, as demonstrated in <a class="reference internal" href="../tutorial3/#tutorial3"><span class="std std-ref">Tutorial 3: Using a custom architecture</span></a>.</p>
-<p>Similarly, you can also train with a custom loss function by supplying a dictionary to the <code class="docutils literal notranslate"><span class="pre">loss</span></code> argument in <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code>, with the keys <code class="docutils literal notranslate"><span class="pre">type</span></code> (which must be either <code class="docutils literal notranslate"><span class="pre">'categorical'</span></code>, <code class="docutils literal notranslate"><span class="pre">'linear'</span></code>, or <code class="docutils literal notranslate"><span class="pre">'cph'</span></code>) and <code class="docutils literal notranslate"><span class="pre">fn</span></code> (a callable loss function).</p>
-<p>For Tensorflow/Keras, the loss function must accept arguments <code class="docutils literal notranslate"><span class="pre">y_true,</span> <span class="pre">y_pred</span></code>. For linear losses, <code class="docutils literal notranslate"><span class="pre">y_true</span></code> may need to be cast to <code class="docutils literal notranslate"><span class="pre">tf.float32</span></code>. An example custom linear loss is given below:</p>
+<p>Similarly, you can also train with a custom loss function by supplying a dictionary to the <code class="docutils literal notranslate"><span class="pre">loss</span></code> argument in <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code>, with the keys <code class="docutils literal notranslate"><span class="pre">type</span></code> (which must be either <code class="docutils literal notranslate"><span class="pre">'classification'</span></code>, <code class="docutils literal notranslate"><span class="pre">'regression'</span></code>, or <code class="docutils literal notranslate"><span class="pre">'survival'</span></code>) and <code class="docutils literal notranslate"><span class="pre">fn</span></code> (a callable loss function).</p>
+<p>For Tensorflow/Keras, the loss function must accept arguments <code class="docutils literal notranslate"><span class="pre">y_true,</span> <span class="pre">y_pred</span></code>. For regression losses, <code class="docutils literal notranslate"><span class="pre">y_true</span></code> may need to be cast to <code class="docutils literal notranslate"><span class="pre">tf.float32</span></code>. An example custom regression loss is given below:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Custom Tensorflow loss</span>
-<span class="k">def</span> <span class="nf">custom_linear_loss</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">custom_regression_loss</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">):</span>
   <span class="n">y_true</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
   <span class="n">squared_difference</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">y_true</span> <span class="o">-</span> <span class="n">y_pred</span><span class="p">)</span>
   <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">squared_difference</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>For PyTorch, the loss function must return a nested loss function with arguments <code class="docutils literal notranslate"><span class="pre">output,</span> <span class="pre">target</span></code>. An example linear loss is given below:</p>
+<p>For PyTorch, the loss function must return a nested loss function with arguments <code class="docutils literal notranslate"><span class="pre">output,</span> <span class="pre">target</span></code>. An example regression loss is given below:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Custom PyTorch loss</span>
-<span class="k">def</span> <span class="nf">custom_linear_loss</span><span class="p">():</span>
+<span class="k">def</span> <span class="nf">custom_regression_loss</span><span class="p">():</span>
   <span class="k">def</span> <span class="nf">loss_fn</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">target</span> <span class="o">-</span> <span class="n">output</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
   <span class="k">return</span> <span class="n">loss_fn</span>
 </pre></div>
 </div>
 <p>In both cases, the loss function is applied as follows:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;linear&#39;</span><span class="p">,</span> <span class="s1">&#39;fn&#39;</span><span class="p">:</span> <span class="n">custom_linear_loss</span><span class="p">})</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;regression&#39;</span><span class="p">,</span> <span class="s1">&#39;fn&#39;</span><span class="p">:</span> <span class="n">custom_regression_loss</span><span class="p">})</span>
 </pre></div>
 </div>
 </section>
@@ -657,7 +659,7 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#multiple-outcomes">Multiple outcomes</a></li>
-<li><a class="reference internal" href="#time-to-event-outcomes">Time-to-event outcomes</a></li>
+<li><a class="reference internal" href="#time-to-event-survival-outcomes">Time-to-event / survival outcomes</a></li>
 <li><a class="reference internal" href="#multimodal-models">Multimodal models</a></li>
 <li><a class="reference internal" href="#hyperparameter-optimization">Hyperparameter optimization</a><ul>
 <li><a class="reference internal" href="#testing-multiple-combinations">Testing multiple combinations</a></li>

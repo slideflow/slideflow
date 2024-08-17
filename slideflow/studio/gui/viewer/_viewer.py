@@ -34,7 +34,7 @@ class Viewer:
         self._tile_um           = 0
         self._tile_px           = 0
         self._overlay           = None    # type: Optional[np.ndarray]
-        self._overlay_params    = EasyDict()
+        self._overlay_params    = EasyDict(offset=(0, 0), dim=(800, 600))
         self._overlay_alpha_fn  = None
         self._alpha             = None    # type: Optional[Union[Callable, float, int]]
         self._last_alpha        = None    # type: Optional[Union[Callable, float, int]]
@@ -125,8 +125,8 @@ class Viewer:
 
     def display_coords_to_wsi_coords(
         self,
-        x: int,
-        y: int,
+        x: Union[int, np.ndarray],
+        y: Union[int, np.ndarray],
         offset: bool = True
     ) -> Tuple[float, float]:
         """Convert the given coordinates from screen space (with offsets)
@@ -149,10 +149,9 @@ class Viewer:
         if offset:
             all_x_offset += self.x_offset
             all_y_offset += self.y_offset
-        return (
-            (x - all_x_offset) * self.view_zoom + self.origin[0],
-            (y - all_y_offset) * self.view_zoom + self.origin[1]
-        )
+        x = (x - all_x_offset) * self.view_zoom + self.origin[0]
+        y = (y - all_y_offset) * self.view_zoom + self.origin[1]
+        return x, y
 
     def in_view(
         self,
@@ -338,7 +337,7 @@ class Viewer:
 
     def render_overlay_tooltip(self, overlay: np.ndarray) -> Optional[str]:
         # If hovering with ALT key, draw a crosshair and pixel value.
-        if self.viz._alt_down:
+        if self.viz is not None and self.viz._alt_down:
             mx, my = self.viz.get_mouse_pos()
             # Draw crosshair
             gl_utils.draw_line(

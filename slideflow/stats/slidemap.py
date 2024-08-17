@@ -704,7 +704,7 @@ class SlideMap:
             self.data['label'] = uq_labels
 
     def label_by_preds(self, index: int) -> None:
-        """Displays each point with label equal to the prediction value (linear from 0-1)
+        """Displays each point with label equal to the prediction value (from 0-1)
 
         Args:
             index (int): Logit index.

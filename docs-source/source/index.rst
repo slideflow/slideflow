@@ -27,6 +27,7 @@ This documentation starts with a high-level overview of the pipeline and include
    evaluation
    posthoc
    uq
+   features
    mil
    ssl
    stylegan
@@ -45,6 +46,7 @@ This documentation starts with a high-level overview of the pipeline and include
    dataloaders
    custom_extractors
    tile_labels
+   plugins
 
 .. toctree::
    :maxdepth: 1

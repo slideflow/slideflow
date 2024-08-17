@@ -198,6 +198,7 @@ def features_from_slide_tf(
             if callback:
                 grid_idx_updated.append((yi, xi))
             features_grid[yi][xi] = act
+            features_grid.mask[yi][xi] = False
 
         # Trigger a callback signifying that the grid has been updated.
         # Useful for progress tracking.

@@ -1,15 +1,6 @@
-
-# Standard
-# stylemix_widget.StyleMixingWidget
-
-# Advanced
-# trunc_noise_widget.TruncationNoiseWidget
-# equivariance_widget.EquivarianceWidget
-
-# Custom
-# .widgets.seed_map.SeedMapWidget
-
+import sys
 import time
+import traceback
 import slideflow as sf
 import imgui
 import numpy as np
@@ -17,15 +8,33 @@ import json
 import glfw
 import csv
 import re
+
 from os.path import join, dirname, abspath, basename, exists
 from tkinter.filedialog import askopenfilename
+from typing import Optional
 from .model import draw_tile_predictions
-from slideflow.gan.stylegan3.stylegan3.viz.renderer import (
-    Renderer, CapturedException
-)
 from ._utils import Widget
 from ..gui import imgui_utils
-from ..utils import EasyDict
+from ..utils import EasyDict, LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
+ 
+
+# -----------------------------------------------------------------------------
+
+
+class CapturedException(Exception):
+    def __init__(self, message: Optional[str] = None) -> None:
+        if message is None:
+            _type, value, _traceback = sys.exc_info()
+            assert value is not None
+            if isinstance(value, CapturedException):
+                message = str(value)
+            else:
+                message = traceback.format_exc()
+        assert isinstance(message, str)
+        super().__init__(message)
+
+
+# -----------------------------------------------------------------------------
 
 
 class StyleGANWidget(Widget):
@@ -66,6 +75,12 @@ class StyleGANWidget(Widget):
         self.enable_mix_class   = False
         self.enable_mix_seed    = False
 
+
+        try:
+            from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer
+        except ImportError:
+            raise ImportError("StyleGAN functions require 'slideflow-noncommercial'. "
+                               "Please install with 'pip install slideflow-noncommercial'")
         viz.add_to_render_pipeline(Renderer(), name='stylegan')
 
     @property
@@ -134,6 +149,7 @@ class StyleGANWidget(Widget):
             if pkl == '':
                 viz.result = EasyDict(message='No network pickle loaded')
             else:
+                
                 viz.result = EasyDict(error=CapturedException())
             if not ignore_errors:
                 raise
@@ -243,9 +259,9 @@ class StyleGANWidget(Widget):
                 self.close_gan()
 
             # Hide menu if we click elsewhere
-            if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
                 self._clicking = True
-            if self._clicking and imgui.is_mouse_released(0):
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
                 self._clicking = False
                 self._show_popup = False
 
@@ -416,7 +432,7 @@ class StyleGANWidget(Widget):
         if hasattr(viz, 'mil_widget') and viz.mil_widget.model is not None:
             draw_tile_predictions(
                 viz,
-                is_categorical=viz.mil_widget.is_categorical(),
+                is_classification=viz.mil_widget.is_classification(),
                 config=viz.mil_widget.mil_params,
                 has_preds=(viz._predictions is not None),
                 using_model=viz.mil_widget.model_loaded,
@@ -429,7 +445,7 @@ class StyleGANWidget(Widget):
             if viz.sidebar.full_button("Load a Model"):
                 viz.ask_load_model()
         else:
-            draw_tile_predictions(viz, viz.model_widget.is_categorical())
+            draw_tile_predictions(viz, viz.model_widget.is_classification())
 
         imgui_utils.vertical_break()
 

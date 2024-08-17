@@ -7,7 +7,7 @@ import struct
 import sys
 import numpy as np
 import slideflow as sf
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 from os.path import dirname, join, exists
 from slideflow import errors
 
@@ -26,6 +26,69 @@ FEATURE_DESCRIPTION = {
 }
 
 # -----------------------------------------------------------------------------
+
+def _build_index_from_tfrecord(file_path: str) -> Tuple[np.ndarray, np.ndarray]:
+    """Build an index from a TFRecord file.
+
+    Args:
+        file_path (str): Path to the TFRecord file.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: A tuple containing two arrays:
+            - The first array contains the starting byte and length of each
+              record in the TFRecord file.
+            - The second array contains the location information of each record.
+
+    """
+    infile = open(file_path, "rb")
+    start_bytes_array = []
+    loc_array = []
+    idx = 0
+    datum_bytes = bytearray(1024 * 1024)
+
+    while True:
+        cur = infile.tell()
+        byte_len = infile.read(8)
+        if len(byte_len) == 0:
+            break
+        infile.read(4)
+        proto_len = struct.unpack("q", byte_len)[0]
+
+        if proto_len > len(datum_bytes):
+            try:
+                _fill = int(proto_len * 1.5)
+                datum_bytes = datum_bytes.zfill(_fill)
+            except OverflowError:
+                raise OverflowError(
+                    f'Error reading tfrecord {file_path}'
+                )
+        datum_bytes_view = memoryview(datum_bytes)[:proto_len]
+        if infile.readinto(datum_bytes_view) != proto_len:
+            raise RuntimeError(
+                f"Failed to read record {idx} of file {file_path}"
+            )
+        infile.read(4)
+        start_bytes_array += [[cur, infile.tell() - cur]]
+
+        # Process record bytes, to read location information.
+        try:
+            record = process_record_from_bytes(datum_bytes_view)
+        except errors.TFRecordsError:
+            raise errors.TFRecordsError(
+                f'Unable to detect TFRecord format: {file_path}'
+            )
+        if 'loc_x' in record and 'loc_y' in record:
+            loc_array += [[record['loc_x'], record['loc_y']]]
+        elif 'loc_x' in record:
+            loc_array += [[record['loc_x']]]
+        idx += 1
+
+    infile.close()
+    if loc_array:
+        loc_array = np.array(loc_array)
+
+    return np.array(start_bytes_array), loc_array
+
 
 def create_index(
     tfrecord_file: str,
@@ -47,54 +110,8 @@ def create_index(
     if index_file is None:
         index_file = join(dirname(tfrecord_file),
                           sf.util.path_to_name(tfrecord_file) + '.index')
-
-    infile = open(tfrecord_file, "rb")
-    start_bytes_array = []
-    loc_array = []
-    idx = 0
-    datum_bytes = bytearray(1024 * 1024)
-
-    while True:
-        cur = infile.tell()
-        byte_len = infile.read(8)
-        if len(byte_len) == 0:
-            break
-        infile.read(4)
-        proto_len = struct.unpack("q", byte_len)[0]
-
-        if proto_len > len(datum_bytes):
-            try:
-                _fill = int(proto_len * 1.5)
-                datum_bytes = datum_bytes.zfill(_fill)
-            except OverflowError:
-                raise OverflowError(
-                    f'Error reading tfrecord {tfrecord_file}'
-                )
-        datum_bytes_view = memoryview(datum_bytes)[:proto_len]
-        if infile.readinto(datum_bytes_view) != proto_len:
-            raise RuntimeError(
-                f"Failed to read record {idx} of file {tfrecord_file}"
-            )
-        infile.read(4)
-        start_bytes_array += [[cur, infile.tell() - cur]]
-
-        # Process record bytes, to read location information.
-        try:
-            record = process_record_from_bytes(datum_bytes_view)
-        except errors.TFRecordsError:
-            raise errors.TFRecordsError(
-                f'Unable to detect TFRecord format: {tfrecord_file}'
-            )
-        if 'loc_x' in record and 'loc_y' in record:
-            loc_array += [[record['loc_x'], record['loc_y']]]
-        elif 'loc_x' in record:
-            loc_array += [[record['loc_x']]]
-        idx += 1
-
-    infile.close()
-    if loc_array:
-        loc_array = np.array(loc_array)
-    return save_index(np.array(start_bytes_array), index_file, locations=loc_array)
+    start_bytes, locations = _build_index_from_tfrecord(tfrecord_file)
+    return save_index(start_bytes, index_file, locations=locations)
 
 
 def save_index(

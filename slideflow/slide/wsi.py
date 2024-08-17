@@ -4,6 +4,7 @@ images or stored in the binary format TFRecords, with or without augmentation.''
 
 from __future__ import absolute_import, division, print_function
 
+
 import time
 import os
 import csv
@@ -15,11 +16,12 @@ import cv2
 import numpy as np
 import pandas as pd
 import rasterio.features
-import shapely.geometry as sg
 import shapely.affinity as sa
-import shapely.validation as sv
 import skimage
 import skimage.filters
+from shapely import __version__ as shapely_version
+from shapely.errors import ShapelyDeprecationWarning
+from packaging import version
 from PIL import Image, ImageDraw
 from rich.progress import Progress
 from skimage import img_as_ubyte
@@ -38,6 +40,7 @@ from .backends import tile_worker, backend_formats, wsi_reader
 
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+warnings.simplefilter("ignore", ShapelyDeprecationWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
 
 # -----------------------------------------------------------------------
@@ -62,6 +65,8 @@ class WSI:
         verbose: bool = True,
         use_edge_tiles: bool = False,
         mpp: Optional[float] = None,
+        simplify_roi_tolerance: Optional[float] = None,
+        artifact_labels: Optional[List[str]] = None,
         **reader_kwargs: Any
     ) -> None:
         """Loads slide and ROI(s).
@@ -129,6 +134,10 @@ class WSI:
                 ``FLIP_HORIZONTAL``, and ``FLIP_VERTICAL``. **Only available
                 when using Libvips** (``SF_SLIDE_BACKEND=libvips``).
                 Defaults to None.
+            artifact_labels (list(str), optional): List of ROI issue labels
+                to treat as artifacts. Whenever this is not None, all the ROIs with
+                referred label will be inverted with ROI.invert().
+                Defaults to an empty list.
 
         """
         # Initialize calculated variables
@@ -146,9 +155,6 @@ class WSI:
         self.extracted_x_size = 0  # type: int
         self.extracted_y_size = 0  # type: int
         self.estimated_num_tiles = 0  # type: int
-        self.roi_polys = []  # type: List   # List of rendered ROI polygons.
-                                           # May be shorter than self.rois
-                                           # If some ROIs are rendered as holes.
         self.rois = []  # type: List[ROI]  # List of individual ROI annotations
         self.roi_method = roi_method
         self.roi_grid = None  # type: Optional[np.ndarray]
@@ -162,6 +168,9 @@ class WSI:
         self._mpp_override = mpp
         self._reader_kwargs = reader_kwargs
         self.grid: np.ndarray
+        self.artifact_labels = artifact_labels # type: Optional[List[str]]
+        if self.artifact_labels is None:
+            self.artifact_labels = []
 
         if isinstance(origin, str) and origin != 'random':
             raise ValueError(
@@ -220,19 +229,27 @@ class WSI:
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
-            self.load_csv_roi(join(roi_dir, self.name + ".csv"), process=False)
+            self.load_csv_roi(
+                join(roi_dir, self.name + ".csv"),
+                process=False,
+                simplify_tolerance=simplify_roi_tolerance
+            )
         elif rois and self.name in [path_to_name(r) for r in rois]:
             matching_rois = []
             for rp in rois:
                 rn = path_to_name(rp)
                 if rn == self.name:
                     matching_rois += [rp]
-            mr = matching_rois[0]
+            matching = matching_rois[0]
             if len(matching_rois) > 1:
                 log.warning(
-                    f"Multiple ROIs found for {self.name}; using {mr}"
+                    f"Multiple ROIs found for {self.name}; using {matching}"
                 )
-            self.load_csv_roi(mr, process=False)
+            self.load_csv_roi(
+                matching,
+                process=False,
+                simplify_tolerance=simplify_roi_tolerance
+            )
 
         # Handle missing ROIs
         if (not len(self.rois)
@@ -362,6 +379,119 @@ class WSI:
     def __setstate__(self, state):
         self.__dict__.update(state)
 
+    def _rasterize_rois_to_grid(
+        self,
+        rois: List["ROI"],
+        x_offset: float = 0,
+        y_offset: float = 0,
+        xfact: float = 1.,
+        yfact: float = 1.,
+        *,
+        grid_scale: int = 1,
+        invert: bool = False
+    ) -> np.ndarray:
+        """Rasterize ROIs to the size of the tile extraction grid.
+
+        Args:
+            rois (List[ROI]): ROIs to rasterize.
+            x_offset (float): Offset to align the ROI polygons with the image tile grid.
+            y_offset (float): Offset to align the ROI polygons with the image tile grid.
+            xfact (float): Scaling factor along x dimension.
+            yfact (float): Scaling factor along y dimension.
+
+        Keyword Args:
+            grid_scale (int): Scaling factor for the grid. Defaults to 1.
+            invert (bool): Whether to invert the ROI. Defaults to False.
+
+        Returns:
+            Optional[np.ndarray]: Rasterized ROIs.
+
+        """
+        def _get_poly(_roi):
+            if invert:
+                return _roi.invert(*self.dimensions).poly
+            else:
+                return _roi.poly
+
+        # Convert ROIs to polygons.
+        polys = list(map(_get_poly, rois))
+
+        # Translate and scale.
+        if x_offset or y_offset:
+            polys = [sa.translate(poly, x_offset, y_offset) for poly in polys]
+        if xfact != 1 or yfact != 1:
+            polys = self._scale_polys(polys, xfact * grid_scale, yfact * grid_scale)
+
+        # Rasterize polygons to the size of the tile extraction grid.
+        return self._rasterize_polys(
+            polys,
+            grid_scale=grid_scale,
+            intersection=('min' if invert else 'max')
+        )
+
+    def _rasterize_polys(
+        self,
+        polys: List["sg.Polygon"],
+        *,
+        grid_scale: float = 1,
+        intersection: str = 'max'
+    ) -> np.ndarray:
+        """Rasterize polygons to the size of the tile extraction grid.
+
+        Args:
+            polys (List[sg.Polygon]): Polygons to rasterize.
+
+        Keyword args:
+            scale (float): Scaling factor for the grid.
+                Defaults to 1.
+            intersection (str): Method for combining multiple polygons.
+                Either 'max' or 'min'. 'max' yields the union of the polygons,
+                'min' yields the intersection. Defaults to 'max'.
+
+        Returns:
+            np.ndarray: Rasterized polygons.
+        """
+        # Rasterize polygons for ROIs individually, to keep track of
+        # which ROI each tile belongs to, then merge.
+        roi_grid = np.stack([
+            rasterio.features.rasterize(
+                [poly],
+                out_shape=(self.grid.shape[1] * grid_scale,
+                           self.grid.shape[0] * grid_scale),
+                all_touched=False).astype(bool).astype(int) * (i + 1)
+            for i, poly in enumerate(polys)
+        ], axis=0)
+        if intersection == 'max':
+            return roi_grid.max(axis=0).T
+        elif intersection == 'min':
+            return roi_grid.min(axis=0).T
+        else:
+            raise ValueError(
+                f"Unrecognized value for 'intersection': {intersection}"
+            )
+
+    def _scale_polys(
+        self,
+        polys: List["sg.Polyon"],
+        xfact: float,
+        yfact: float,
+    ):
+        """Scale polygons.
+
+        Args:
+            polys (List[sg.Polygon]): Polygons to scale.
+            xfact (float): Scaling factor along x dimension.
+            yfact (float): Scaling factor along y dimension.
+
+        Returns:
+            List[sg.Polygon]: Scaled polygons.
+
+        """
+        return [
+            sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
+            for poly in polys
+        ]
+
     def _build_coord(self) -> None:
         """Set up coordinate grid for image tiles.
 
@@ -369,11 +499,16 @@ class WSI:
         where each sublist contains the following information:
 
         - 0: **x**: x-coordinate of the top-left corner of the tile.
-        - 1: **y**: x-coordinate of the top-left corner of the tile.
+        - 1: **y**: y-coordinate of the top-left corner of the tile.
         - 2: **grid_x**: x-coordinate of the tile in self.grid.
         - 3: **grid_y**: y-coordinate of the tile in self.grid.
 
         """
+
+        # First, remove any existing ROI QC Masks, as these will be recalculated
+        # when the coordinate grid is rebuilt.
+        self.remove_roi_qc()
+
         # Calculate window sizes, strides, and coordinates for windows
         self.extracted_x_size = self.dimensions[0] - self.full_extract_px
         self.extracted_y_size = self.dimensions[1] - self.full_extract_px
@@ -432,32 +567,33 @@ class WSI:
             x_offset = - (full_extract/2 - stride/2)
             y_offset = - (full_extract/2 - stride/2)
 
-            # Translate ROI polygons
-            translated = [
-                sa.translate(roi.poly, x_offset, y_offset)
-                for roi in self.roi_polys
-            ]
+            # Separate ROIs by whether they are artifact or not
+            rois = self.get_rois(ignore_artifact=True)
+            artifacts = self.get_artifacts()
 
-            # Set scale to 50 times greater than grid size
-            # if filtering by float
-            o = 1 if roi_by_center else 50
+            # Prepare ROI rasterization arguments
+            rasterize_kw = dict(
+                x_offset=x_offset,
+                y_offset=y_offset,
+                xfact=xfact,
+                yfact=yfact,
+                grid_scale=(1 if roi_by_center else 50),
+            )
 
-            # Scale ROI polygons
-            scaled = [
-                sa.scale(poly, xfact=xfact * o, yfact=yfact * o, origin=(0, 0))
-                for poly in translated
-            ]
+            # Rasterize ROIs to the grid
+            if len(rois):
+                self.roi_grid = self._rasterize_rois_to_grid(rois, **rasterize_kw)
+            else:
+                self.roi_grid = None
 
-            # Rasterize polygons to the size of the tile extraction grid.
-            # Rasterize polygons for ROIs individually, to keep track of
-            # which ROI each tile belongs to, then merge.
-            self.roi_grid = np.stack([
-                rasterio.features.rasterize(
-                    [scaled_roi],
-                    out_shape=(self.grid.shape[1] * o, self.grid.shape[0] * o),
-                    all_touched=False).astype(bool).astype(int) * (i + 1)
-                for i, scaled_roi in enumerate(scaled)
-            ], axis=0).max(axis=0).T
+            # If there are artifact ROIs, rasterize these to the grid
+            # and subtract them from the main ROI grid.
+            if len(artifacts):
+                roi_grid_issues = self._rasterize_rois_to_grid(artifacts, invert=True, **rasterize_kw)
+                if self.roi_grid is None:
+                    self.roi_grid = roi_grid_issues
+                else:
+                    self.roi_grid = np.minimum(roi_grid_issues, self.roi_grid)
 
             # Create a merged boolean mask.
             self.roi_mask = self.roi_grid.T.astype(bool)  # type: ignore
@@ -491,7 +627,8 @@ class WSI:
         if self.roi_method != 'ignore' and self.has_rois() and not roi_by_center:
             self.apply_qc_mask(
                 (~self.roi_mask if self.roi_method == 'inside' else self.roi_mask),
-                filter_threshold=(1-self.roi_filter_method)  # type: ignore
+                filter_threshold=(1-self.roi_filter_method),  # type: ignore
+                is_roi=True
             )
 
         self.coord = np.array(self.coord)
@@ -667,19 +804,7 @@ class WSI:
     @property
     def qc_mask(self) -> Optional[np.ndarray]:
         """Returns union of all QC masks."""
-        if not self.qc_masks:
-            return None
-        elif len(self.qc_masks) == 1:
-            return self.qc_masks[0].mask
-        else:
-            _, smallest = min((m.shape[0], idx)
-                               for (idx, m) in enumerate(self.qc_masks))
-            shape = self.qc_masks[smallest].shape
-            mask = skimage.transform.resize(self.qc_masks[0].mask, shape).astype(bool)
-            for _next in self.qc_masks[1:]:
-                _next_m = skimage.transform.resize(_next.mask, shape).astype(bool)
-                mask = np.logical_or(mask, _next_m)
-            return mask
+        return self.get_qc_mask()
 
     # --- Alignment --------------------------------------------------------
 
@@ -746,10 +871,12 @@ class WSI:
         if self.qc_mask is not None:
             mask = self.qc_mask
         else:
+            log.debug("Applying Otsu thresholding to identify tissue regions.")
             mask = sf.slide.qc.Otsu()(self)
 
         # Next, fill holes and remove small peaks through gaussian blur,
         # thresholding, and morphological closing.
+        log.debug("Filling holes and removing small peaks in tissue mask.")
         mask = skimage.morphology.binary_closing(
             skimage.filters.gaussian(mask, sigma=5) > 0.5,
             skimage.morphology.disk(5)
@@ -758,10 +885,12 @@ class WSI:
         # For each pixel in the mask, calculate the nearest distance to an
         # unmasked pixel. This will assist us with finding the densest areas
         # of tissue.
+        log.debug("Calculating distance transform of tissue mask.")
         distances = ndimage.distance_transform_edt(~mask)
 
         # Find the coordinates of the pixel with the highest average distance.
         # This is the center of the densest tissue region.
+        log.debug("Identifying target for alignment.")
         target = np.unravel_index(np.argmax(distances), distances.shape)
 
         # Convert from mask coordinates to slide coordinates.
@@ -780,6 +909,7 @@ class WSI:
         # --- 2. Align low-mag thumbnails. ------------------------------------
 
         # Calculate thumbnails for alignment.
+        log.debug("Calculating low-mag thumbnails for alignment.")
         our_thumb = np.array(self.thumb(mpp=8))
         their_thumb = np.array(slide.thumb(mpp=8))
 
@@ -797,6 +927,7 @@ class WSI:
 
         # Align thumbnails and adjust for scale.
         try:
+            log.debug("Aligning low-mag thumbnails (mpp=8)...")
             alignment_raw, mse = align_by_translation(
                 their_thumb, our_thumb, round=True, calculate_mse=True
             )
@@ -899,14 +1030,17 @@ class WSI:
 
         # Apply alignment.
         self.origin = alignment
-        self.alignment = Alignment.from_translation(self.slide.coord_to_raw(*alignment))
+        self.alignment = Alignment.from_translation(
+            origin=self.slide.coord_to_raw(*alignment),
+            scale=(slide.mpp / self.mpp),
+        )
         log.info("Slide aligned with MSE {:.2f}. Origin set to {}".format(
                 mse, self.origin
         ))
 
         # Rebuild coordinates and reapply QC, if present.
         self._build_coord()
-        if self.qc_mask is not None:
+        if self.has_non_roi_qc():
             self.apply_qc_mask()
 
         return alignment, mse  # type: ignore
@@ -920,6 +1054,7 @@ class WSI:
         mask_on_fail: bool = True,
         align_by: str = 'fit',
         ignore_outliers = True,
+        num_workers: Optional[int] = None,
         **kwargs
     ) -> np.ndarray:
         """Align tiles to another slide.
@@ -972,7 +1107,7 @@ class WSI:
         from tqdm import tqdm
 
         ctx = mp.get_context('spawn') if sf.slide_backend() == 'libvips' else mp.get_context('fork')
-        pool = ctx.Pool(sf.util.num_cpu())
+        pool = ctx.Pool(num_workers or sf.util.num_cpu())
 
         alignment_coords = np.zeros((self.coord.shape[0], 2))
         half_extract_px = int(np.round(self.full_extract_px/2))
@@ -1099,9 +1234,10 @@ class WSI:
                 all_alignment_coords = fit_alignment
 
             self.alignment = Alignment.from_fit(
-                self.slide.coord_to_raw(*self.origin),
-                (x_centroid, y_centroid),
-                (x_normal, y_normal)
+                origin=self.slide.coord_to_raw(*self.origin),
+                scale=(slide.mpp / self.mpp),
+                centroid=(x_centroid, y_centroid),
+                normal=(x_normal, y_normal)
             )
 
         for idx, (x, y, xi, yi) in enumerate(self.coord):
@@ -1126,8 +1262,9 @@ class WSI:
 
         if align_by != 'fit':
             self.alignment = Alignment.from_coord(
-                self.slide.coord_to_raw(*self.origin),
-                self.coord
+                origin=self.slide.coord_to_raw(*self.origin),
+                scale=(slide.mpp / self.mpp),
+                coord=self.coord
             )
 
         log.info("Slide alignment complete and finetuned at each unmasked tile location.")
@@ -1143,9 +1280,12 @@ class WSI:
         """
         self.alignment = alignment
         self.origin = self.slide.raw_to_coord(*alignment.origin)
-
         if alignment.coord is not None:
             self.coord = alignment.coord
+        elif alignment.centroid is None:
+            self._build_coord()
+            if self.qc_mask is not None:
+                self.apply_qc_mask()
         else:
             self._build_coord()
             if self.qc_mask is not None:
@@ -1155,6 +1295,10 @@ class WSI:
                 x_normal, y_normal = alignment.normal
                 half_extract_px = int(np.round(self.full_extract_px/2))
                 for idx, (x, y, xi, yi) in enumerate(self.coord):
+                    x = (xi * int(np.round(self.full_stride/alignment.scale))) * alignment.scale
+                    y = (yi * int(np.round(self.full_stride/alignment.scale))) * alignment.scale
+                    x += self.origin[0]
+                    y += self.origin[1]
                     bx, by = self.slide.coord_to_raw(
                         x + half_extract_px,
                         y + half_extract_px
@@ -1180,8 +1324,21 @@ class WSI:
         self,
         mask: Optional[Union[np.ndarray, QCMask]] = None,
         filter_threshold: Optional[float] = None,
+        *,
+        is_roi: bool = False
     ) -> "Image":
         """Apply custom slide-level QC by filtering grid coordinates.
+
+        The mask should have a shape (height, width) proportional to the
+        slide's dimensions.
+
+        If the mask is numerical, the mask is thresholded at filter_threshold,
+        with values above the threshold indicating a region to discard.
+
+        If the mask is a boolean array, True indicates a region to
+        discard and False indicates a region to keep.
+
+        If the mask is a QCMask, the filter_threshold is ignored.
 
         Args:
             mask (np.ndarray or :class:`slideflow.slide.QCMask`, optional):
@@ -1191,6 +1348,10 @@ class WSI:
                 background that will trigger a tile to be discarded.
                 Only used if ``mask`` is an np.ndarray.
                 Defaults to 0.6.
+
+        Keyword Args:
+            is_roi (bool): Whether the mask is an ROI mask. Only used if ``mask``
+                is an ``np.ndarray``. Defaults to False.
 
         Returns:
             Image: Image of applied QC mask.
@@ -1224,7 +1385,7 @@ class WSI:
 
         # If the provided mask is an np.ndarray, convert it to a QCMask.
         if not isinstance(mask, QCMask):
-            mask = QCMask(mask, filter_threshold=filter_threshold)  # type: ignore
+            mask = QCMask(mask, filter_threshold=filter_threshold, is_roi=is_roi)  # type: ignore
             self.qc_masks.append(mask)
 
         # Apply the mask to the grid.
@@ -1236,8 +1397,8 @@ class WSI:
             qc_x = int(np.round(x * qc_ratio))
             qc_y = int(np.round(y * qc_ratio))
             submask = mask.mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
-            if np.mean(submask) > filter_threshold:
-                self.grid[xi, yi] = 0
+            if (submask.size > 0) and (np.mean(submask) > filter_threshold):
+                    self.grid[xi, yi] = 0
 
         # Update the estimated number of tiles.
         self.estimated_num_tiles = int(self.grid.sum())
@@ -1257,8 +1418,9 @@ class WSI:
         """
         # Filter out masks outside of ROIs, if present.
         if self.has_rois():
-            log.debug(f"Applying {len(self.roi_polys)} ROIs to segmentation.")
-            segmentation.apply_rois(1, [r.poly for r in self.roi_polys])
+            log.debug(f"Applying {len(self.rois)} ROIs to segmentation.")
+            rois = self.get_rois(ignore_artifact=True)
+            segmentation.apply_rois(1, [r.poly for r in rois])
 
         if segmentation.slide is None:
             segmentation.slide = self
@@ -1669,13 +1831,21 @@ class WSI:
 
         """
         names, labels, x, y = [], [], [], []
-        for roi in self.rois:
+
+        def append_roi(roi):
+            nonlocal names, labels, x, y
             c = np.array(roi.coordinates)
             assert len(c.shape) == 2
             names += [roi.name] * c.shape[0]
             labels += [roi.label] * c.shape[0]
             x += list(c[:, 0])
             y += list(c[:, 1])
+
+        for roi in self.rois:
+            append_roi(roi)
+            for hole in roi.holes.values():
+                append_roi(hole)
+
         df = pd.DataFrame({
             'roi_name': names,
             'label': labels,
@@ -1688,8 +1858,37 @@ class WSI:
         log.info(f"{len(self.rois)} ROIs exported to {abspath(dest)}")
         return abspath(dest)
 
+    def get_qc_mask(self, roi: bool = True) -> Optional[np.ndarray]:
+        """Return the combined QC mask for the slide.
+
+        Args:
+            roi (bool): Whether to include ROI masks. Defaults to True.
+
+        """
+        _all_masks = [m for m in self.qc_masks if (roi or (not m.is_roi))]
+        if not _all_masks:
+            return None
+        elif len(_all_masks) == 1:
+            return _all_masks[0].mask
+        else:
+            _, smallest = min((m.shape[0], idx)
+                               for (idx, m) in enumerate(_all_masks))
+            shape = _all_masks[smallest].shape
+            mask = skimage.transform.resize(_all_masks[0].mask, shape).astype(bool)
+            for _next in _all_masks[1:]:
+                _next_m = skimage.transform.resize(_next.mask, shape).astype(bool)
+                mask = np.logical_or(mask, _next_m)
+            return mask
+
     def get_masked_coord(self) -> np.ma.core.MaskedArray:
-        """Get a masked array of the coordinate grid, masked by QC."""
+        """Get a masked array of the coordinate grid, masked by QC.
+
+        The returned masked array is of shape (n, 4), where n is the number of tiles.
+        The columns are (x, y, grid_x, grid_y), where x and y are the
+        top-left coordinates of the tile, and grid_x and grid_y are the
+        grid indices of the tile.
+
+        """
         true_grid_indices = np.flatnonzero(self.grid)
         linear_indices_of_coord = np.ravel_multi_index(
             self.coord[:, 2:4].T,
@@ -1703,6 +1902,64 @@ class WSI:
             self.coord,
             mask=~np.repeat(unmasked_coord_indices[:, None], 4, axis=1)
         )
+
+    def get_rois(self, ignore_artifact: bool = False) -> List[ROI]:
+        """Get a list of ROIs.
+
+        Args:
+            ignore_artifact (bool): Ignore artifact ROIs. Defaults to False.
+
+        Returns:
+            List[ROI]: List of ROI objects.
+
+        """
+        if ignore_artifact:
+            return [roi for roi in self.rois if roi.label not in self.artifact_labels]
+        return self.rois
+
+    def get_artifacts(self) -> List[ROI]:
+        """Get a list of artifact ROIs.
+
+        Returns:
+            List[ROI]: List of artifact ROI objects.
+
+        """
+        return [roi for roi in self.rois if roi.label in self.artifact_labels]
+
+    def get_roi_by_name(self, name: str) -> Optional[ROI]:
+        """Get an ROI by its name.
+
+        Args:
+            name (str): Name of the ROI.
+
+        Returns:
+            ROI: ROI object.
+
+        """
+        for roi in self.rois:
+            if roi.name == name:
+                return roi
+        return None
+
+    def get_tile_coord(self, anchor='topleft') -> np.ndarray:
+        """Get a coordinate grid of all tiles, restricted to those that pass QC
+        and any ROI filtering.
+
+        The returned array is of shape (n, 4), where n is the number of tiles.
+        The columns are (x, y, grid_x, grid_y), where x and y are the
+        top-left coordinates of the tile, and grid_x and grid_y are the
+        grid indices of the tile.
+
+        """
+        if anchor not in ('center', 'topleft'):
+            raise ValueError("Expected `anchor` to be 'center' or 'topleft'")
+        c = self.coord[
+            self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
+        ].copy()
+        if anchor == 'center':
+            c[:, 0] += int(self.full_extract_px/2)
+            c[:, 1] += int(self.full_extract_px/2)
+        return c
 
     def get_tile_dataframe(self) -> pd.DataFrame:
         """Build a dataframe of tiles and associated ROI labels.
@@ -1751,6 +2008,129 @@ class WSI:
             'label': labels
         }, index=index)
         return df
+
+    def get_tile_roi_mask(
+        self,
+        *,
+        grid: Optional[Tuple[int, int]] = None,
+        loc: Optional[Tuple[int, int]] = None,
+        mode: str = 'binary',
+        roi_labels: Optional[List[str]] = None
+    ) -> np.ndarray:
+        """Get the ROI mask for a tile at the given location.
+
+        Keyword Args:
+            grid (tuple[int, int], optional): Grid indices of the tile.
+                Must supply either ``grid`` or ``loc``. Defaults to None.
+            loc (tuple[int, int], optional): Location of the tile center.
+                Must supply either ``grid`` or ``loc``. Defaults to None.
+            mode (str, optional): 'binary', 'multiclass', or 'multilabel'.
+                Defaults to 'binary'.
+            roi_labels (list[str], optional): List of ROI labels to include.
+                Defaults to None.
+
+        Returns:
+            np.ndarray: ROI mask for the tile, with dtype int and shape
+                (n, tile_px, tile_px), where n is the number of ROI labels.
+
+        """
+        if grid is None and loc is None:
+            raise ValueError("Either grid or loc must be provided.")
+
+        # Definitions.
+        fe = self.full_extract_px
+        fs = self.full_stride
+        scale = self.tile_px / fe
+
+        # Get the polygon vertices for the tile.
+        if grid is not None:
+            # Convert from grid to top-left coordinates
+            gx, gy = grid
+            topleft = (gx * fs, gy * fs)
+            bottomleft = (gx * fs, (gy * fs) + fe)
+            bottomright = ((gx * fs) + fe, (gy * fs) + fe)
+            topright = ((gx * fs) + fe, gy * fs)
+        else:
+            # Convert from center to top-left coordinates
+            cx, cy = loc
+            cx -= int(fe / 2)
+            cy -= int(fe / 2)
+            topleft = (cx, cy)
+            bottomleft = (cx, cy + fe)
+            bottomright = (cx + fe, cy + fe)
+            topright = (cx + fe, cy)
+
+        # Get a polygon for the tile, used for determining overlapping ROIs.
+        tile = sg.Polygon([topleft, bottomleft, bottomright, topright])
+
+        # Compute the mask from ROIs.
+        if len(self.rois) == 0:
+            if roi_labels:
+                mask = np.zeros((len(roi_labels), self.tile_px, self.tile_px), dtype=int)
+            else:
+                mask = np.zeros((1, self.tile_px, self.tile_px), dtype=int)
+
+        # Handle ROIs with labels (multilabel or multiclass)
+        elif roi_labels:
+            labeled_masks = []
+            for label in roi_labels:
+                wsi_polys = [p.poly for p in self.rois if p.label == label]
+                if len(wsi_polys) == 0:
+                    mask = np.zeros((self.tile_px, self.tile_px), dtype=int)
+                    labeled_masks.append(mask)
+                else:
+                    all_polys = unary_union(wsi_polys)
+                    polys = get_scaled_and_intersecting_polys(
+                        all_polys, tile, scale, topleft
+                    )
+                    if isinstance(polys, sg.Polygon) and polys.is_empty:
+                        mask = np.zeros((self.tile_px, self.tile_px), dtype=int)
+                    else:
+                        # Rasterize to an int mask.
+                        mask = rasterio.features.rasterize(
+                            [polys],
+                            out_shape=[self.tile_px, self.tile_px]
+                        )
+                        mask = mask.astype(int)
+                    labeled_masks.append(mask)
+            mask = np.stack(labeled_masks, axis=0)
+
+        # Handle ROIs without labels (binary)
+        else:
+            # Determine the intersection at the given tile location.
+            all_polys = unary_union([p.poly for p in self.rois])
+            polys = get_scaled_and_intersecting_polys(
+                all_polys, tile, scale, topleft
+            )
+
+            if isinstance(polys, sg.Polygon) and polys.is_empty:
+                mask = np.zeros((self.tile_px, self.tile_px), dtype=int)
+            else:
+                # Rasterize to an int mask.
+                try:
+                    mask = rasterio.features.rasterize(
+                        [polys],
+                        out_shape=[self.tile_px, self.tile_px]
+                    )
+                    mask = mask.astype(bool).astype(np.int32)
+                except ValueError:
+                    mask = np.zeros((self.tile_px, self.tile_px), dtype=int)
+
+            # Add a dummy channel dimension.
+            mask = mask[None, :, :]
+
+        # Process according to the mode.
+        if mode == 'multiclass':
+            mask = mask * np.arange(1, mask.shape[0]+1)[:, None, None]
+            mask = mask.max(axis=0)
+        elif mode == 'binary' and mask.ndim == 3:
+            mask = np.any(mask, axis=0)[None, :, :].astype(int)
+
+        return mask
+
+    def has_non_roi_qc(self) -> bool:
+        """Check if the slide has any non-ROI QC masks."""
+        return any(not m.is_roi for m in self.qc_masks)
 
     def extract_tiles(
         self,
@@ -2006,8 +2386,8 @@ class WSI:
                 Cannot supply both ``coord`` and ``grid``. Defaults to None.
 
         Returns:
-            Tuple[int, ROIPoly]: ROI index (index of WSI.roi_polys) and
-                the :class:`slideflow.slide.ROIPoly` that contains the tile.
+            Tuple[int, ROI]: ROI index (index of WSI.rois) and
+                the :class:`slideflow.slide.ROI` that contains the tile.
                 If no ROI contains the tile, returns (None, None).
 
         """
@@ -2024,7 +2404,7 @@ class WSI:
         if roi_idx == -1:
             return None, None
         else:
-            return roi_idx, self.roi_polys[roi_idx]
+            return roi_idx, self.rois[roi_idx]
 
     def grid_to_coord(
         self,
@@ -2061,9 +2441,9 @@ class WSI:
             raise IndexError(f"Tile at grid=({grid_x}, {grid_y}) not found")
         assert len(grid_idx) == 1
         x, y, grid_x, grid_y = self.coord[grid_idx[0]]
-        if anchor == 'topleft':
-            x -= int(self.full_extract_px/2)
-            y -= int(self.full_extract_px/2)
+        if anchor == 'center':
+            x += int(self.full_extract_px/2)
+            y += int(self.full_extract_px/2)
         return x, y
 
     def get_tile_mask(self, index, sparse_mask) -> np.ndarray:
@@ -2132,8 +2512,23 @@ class WSI:
     def has_rois(self) -> bool:
         """Checks if the slide has loaded ROIs and they are not being ignored."""
         return (self.roi_method != 'ignore'
-                and len(self.rois)
-                and self.roi_polys is not None)
+                and len(self.rois))
+
+    def get_next_roi_name(self) -> str:
+        """Get the next available name for an ROI."""
+        existing = [
+            int(r.name[4:]) for r in self.rois
+            if r.name.startswith('ROI_') and r.name[4:].isnumeric()
+        ]
+        hole_ids = [
+            int(hole.name[4:]) for r in self.rois
+            for hole in r.holes.values()
+            if hole.name.startswith('ROI_') and hole.name[4:].isnumeric()
+        ]
+        existing += hole_ids
+        roi_id = max(existing) + 1 if existing else 0
+        name = f'ROI_{roi_id}'
+        return name
 
     def load_roi_array(
         self,
@@ -2141,8 +2536,10 @@ class WSI:
         *,
         process: bool = True,
         label: Optional[str] = None,
-        name: Optional[str] = None
-    ) -> None:
+        name: Optional[str] = None,
+        allow_errors: bool = False,
+        simplify_tolerance: Optional[float] = None
+    ) -> int:
         """Load an ROI from a numpy array.
 
         Args:
@@ -2153,25 +2550,38 @@ class WSI:
             process (bool): Process ROIs after loading. Defaults to True.
 
         """
-        existing = [
-            int(r.name[4:]) for r in self.rois
-            if r.name.startswith('ROI_') and r.name[4:].isnumeric()
-        ]
-        if name is None:
-            roi_id = list(set(list(range(len(existing)+1))) - set(existing))[0]
-            name = f'ROI_{roi_id}'
-        self.rois.append(ROI(name, array, label=label))
+        name = name or self.get_next_roi_name()
+        try:
+            roi = ROI(name, array, label=label)
+        except errors.InvalidROIError as e:
+            if allow_errors:
+                log.warn("Unable to load ROI: {}".format(e))
+                return
+            else:
+                raise
+        if simplify_tolerance is not None:
+            roi.simplify(simplify_tolerance)
+        self.rois.append(roi)
         if self.roi_method == 'auto':
             self.roi_method = 'inside'
         if process:
             self.process_rois()
+        for i, _roi in enumerate(self.rois):
+            if _roi == roi:
+                return i
+            for hole in _roi.holes.values():
+                if hole == roi:
+                    return i
+        return None
 
     def load_csv_roi(
         self,
         path: str,
         *,
         process: bool = True,
-        scale: int = 1
+        scale: int = 1,
+        skip_invalid: bool = True,
+        simplify_tolerance: Optional[float] = None
     ) -> int:
         """Load ROIs from a CSV file.
 
@@ -2189,7 +2599,6 @@ class WSI:
         """
         # Clear any previously loaded ROIs.
         self.rois = []
-        self.roi_polys = []
 
         roi_dict = {}
         with open(path, "r") as csvfile:
@@ -2215,11 +2624,29 @@ class WSI:
                 label = None if index_label is None else row[index_label]
 
                 if roi_name not in roi_dict:
-                    roi_dict.update({roi_name: ROI(roi_name, label=label)})
-                roi_dict[roi_name].add_coord((x_coord, y_coord))
+                    roi_dict[roi_name] = {
+                        'coords': [],
+                        'label': label
+                    }
+                roi_dict[roi_name]['coords'].append((x_coord, y_coord))
 
-            for roi_object in roi_dict.values():
-                self.rois.append(roi_object)
+            for roi_name in roi_dict:
+                try:
+                    roi = ROI(
+                        roi_name,
+                        np.array(roi_dict[roi_name]['coords']),
+                        label=roi_dict[roi_name]['label']
+                    )
+                except errors.InvalidROIError as e:
+                    if skip_invalid:
+                        log.warn("Skipping invalid ROI ({}): {}".format(roi_name, e))
+                        continue
+                    else:
+                        raise
+                else:
+                    if simplify_tolerance is not None:
+                        roi.simplify(simplify_tolerance)
+                    self.rois.append(roi)
         if process:
             self.process_rois()
         log.debug(f"Loaded ROIs from {path}")
@@ -2230,7 +2657,8 @@ class WSI:
         path: str,
         *,
         scale: int = 1,
-        process: bool = True
+        process: bool = True,
+        skip_invalid: bool = True
     ) -> int:
         """Load ROIs from a JSON file.
 
@@ -2245,15 +2673,18 @@ class WSI:
         """
         # Clear any previously loaded ROIs.
         self.rois = []
-        self.roi_polys = []
 
         with open(path, "r") as json_file:
             json_data = json.load(json_file)['shapes']
         for shape in json_data:
-            area_reduced = np.multiply(shape['points'], scale)
-            area_reduced = area_reduced.astype(np.int64)
-            self.rois.append(ROI(f"Object{len(self.rois)}"))
-            self.rois[-1].add_shape(area_reduced)
+            area_reduced = np.multiply(shape['points'], scale).astype(np.int64)
+            roi_name = self.get_next_roi_name()
+            try:
+                self.rois.append(ROI(roi_name, area_reduced))
+            except errors.InvalidROIError as e:
+                if skip_invalid:
+                    log.warn("Skipping invalid ROI ({}): {}".format(roi_name, e))
+
         if process:
             self.process_rois()
         if self.roi_method == 'auto':
@@ -2361,7 +2792,7 @@ class WSI:
             self.tile_um
         )
         if not _compatible:
-            raise ValueError(
+            raise errors.IncompatibleTileSizeError(
                 "Slide tile size (tile_px={}, tile_um={}) does not match the "
                 "model (tile_px={}, tile_um={}).".format(
                     self.tile_px, self.tile_um,
@@ -2370,10 +2801,10 @@ class WSI:
         log.info("Calculating whole-slide prediction...")
         heatmap = Heatmap(self, model, generate=True, **kwargs)
         preds = heatmap.predictions.reshape(-1, heatmap.predictions.shape[-1])
-        preds = np.nanmean(np.ma.masked_where(preds == sf.heatmap.MASK, preds), axis=0).filled()
+        preds = np.nanmean(preds, axis=0).filled()
         if heatmap.uncertainty is not None:
             unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
-            unc = np.nanmean(np.ma.masked_where(unc == sf.heatmap.MASK, unc), axis=0).filled()
+            unc = np.nanmean(unc, axis=0).filled()
             return preds, unc
         else:
             return preds
@@ -2445,43 +2876,69 @@ class WSI:
         """
         # Load annotations as shapely.geometry objects.
         if self.roi_method != 'ignore':
-            self.roi_polys = []
-            for i, annotation in enumerate(self.rois):
-                try:
-                    poly = sv.make_valid(sg.Polygon(annotation.coordinates))
-                except ValueError:
-                    log.warning(
-                        f"Unable to use ROI {i} for [green]{self.name}[/]."
-                        " At least 3 points required to create a shape."
-                    )
-                else:
-                    self.roi_polys.append(ROIPoly(poly, annotation.name, annotation.label))
-            # Handle polygon holes.
-            outers, inners = [], []
-            for o, outer in enumerate(self.roi_polys):
-                for i, inner in enumerate(self.roi_polys):
-                    if o == i:
-                        continue
-                    if (i in inners) or (o in inners) or (i in outers):
-                        continue
-                    if outer.poly.contains(inner.poly):
-                        log.debug(f"Rendering ROI polygon {i} as hole in {o}")
-                        self.roi_polys[o].set_hole(inner)
-                        if o not in outers:
-                            outers.append(o)
-                        if i not in inners:
-                            inners.append(i)
-            self.roi_polys = [ann for (i, ann) in enumerate(self.roi_polys)
-                             if i not in inners]
+            self._find_and_process_holes()
 
         # Regenerate the grid to reflect the newly-loaded ROIs.
         self._build_coord()
 
         # Re-apply any existing QC mask, now that the coordinates have changed.
-        if self.qc_mask is not None:
+        if self.has_non_roi_qc():
             self.apply_qc_mask()
 
         return len(self.rois)
+
+    def _find_and_process_holes(self):
+        """Find and process holes in ROIs."""
+
+        from shapely.strtree import STRtree
+
+        self.rois.sort(key=lambda x: x.poly.area, reverse=True)
+
+        outer_rois = []
+
+        labels = list(set([roi.label for roi in self.rois]))
+
+        for label in labels:
+
+            rois = [roi for roi in self.rois if roi.label == label]
+            polygons = [roi.poly for roi in self.rois if roi.label == label]
+            strtree = STRtree(polygons)
+
+            for roi, poly in zip(rois, polygons):
+
+                if version.parse(shapely_version) < version.parse('2.0.0'):
+                    possible_containers = strtree.query(poly)
+                else:
+                    possible_containers_idx = strtree.query(poly)
+                    possible_containers = [polygons[i] for i in possible_containers_idx]
+
+                # Filter out the polygon itself
+                possible_containers = [p for p in possible_containers if p != poly]
+
+                # Check if the polygon is contained by another
+                contained_by = [p for p in possible_containers if p.contains(poly)]
+
+                if not contained_by:
+                    # Polygon is an outer polygon
+                    outer_rois.append(roi)
+                else:
+                    # Polygon is a hole, find its immediate outer polygon
+                    # Sort by area (smallest to largest) to find the closets outer.
+                    contained_by.sort(key=lambda x: x.area)
+                    immediate_outer_poly = contained_by[0]
+                    immediate_outer_roi = rois[polygons.index(immediate_outer_poly)]
+
+                    # If the immediate outer is not already listed as an outer,
+                    # then the immediate outer is a hole and this polygon is a nested
+                    # polygon within a hole and should be treated as an outer.
+                    if immediate_outer_roi not in outer_rois:
+                        outer_rois.append(roi)
+                    else:
+                        # Otherwise, add the polygon to the immediate outer as a hole
+                        immediate_outer_roi.add_hole(roi)
+
+        # Restrict the ROIs to only outer polygons, which have now had the holes applied.
+        self.rois = outer_rois
 
     def qc(
         self,
@@ -2563,23 +3020,57 @@ class WSI:
         return img
 
     def remove_qc(self) -> None:
+        self.qc_masks = [m for m in self.qc_masks if m.is_roi]
         self._build_coord()
-        self.qc_masks = []
         log.debug(f'QC removed from slide {self.shortname}')
 
-    def remove_roi(self, idx: int, *, process: bool = True) -> None:
+    def remove_roi_qc(self) -> None:
+        """Remove ROI-based QC from the slide."""
+        self.qc_masks = [m for m in self.qc_masks if not m.is_roi]
+        if len(self.qc_masks):
+            self.apply_qc_mask()
+
+    def remove_roi(
+        self,
+        idx: Union[int, List[int]],
+        *,
+        process: bool = True
+    ) -> None:
         """Remove an ROI from the slide.
 
         Args:
-            idx (int): Index of the ROI to remove.
+            idx (int, list(int)): Index or indices of the ROI(s) to remove.
 
         Keyword Args:
             process (bool): Process ROIs after removing. Defaults to True.
 
         """
-        del self.rois[idx]
+        if isinstance(idx, int):
+            idx = [idx]
+        for i in sorted(idx, reverse=True):
+            del self.rois[i]
         if process:
             self.process_rois()
+
+    def set_artifacts(
+        self,
+        artifact_labels: Optional[Union[str, List[str]]]
+    ) -> None:
+        """Set artifact labels for all ROIs in the slide.
+
+        Rebuilds the ROI grid after setting the artifacts.
+
+        Args:
+            artifact_labels (str, list(str)): Artifact label(s) to set.
+                ROIs with these labels will be marked as artifacts.
+
+        """
+        if isinstance(artifact_labels, str):
+            artifact_labels = [artifact_labels]
+        if artifact_labels is not None and not all(isinstance(label, str) for label in artifact_labels):
+            raise TypeError("Artifact labels must be strings.")
+        self.artifact_labels = artifact_labels if artifact_labels is not None else []
+        self.process_rois()
 
     def show_alignment(
         self,
@@ -2721,17 +3212,25 @@ class WSI:
                 draw.rectangle(coords, outline=rect_color, width=rect_linewidth)
 
         if rois and len(self.rois):
-            roi_polys = [
-                ROIPoly(sg.Polygon(annotation.scaled_area(roi_scale)),
-                        annotation.name,
-                        annotation.label)
-                for annotation in self.rois
-            ]
             draw = ImageDraw.Draw(thumb)
-            for roi in roi_polys:
-                x, y = roi.poly.exterior.coords.xy
-                zipped = list(zip(x.tolist(), y.tolist()))
-                draw.line(zipped, joint='curve', fill=color, width=linewidth)
+            roi_polys = [r.scaled_poly(roi_scale) for r in self.rois]
+            for roi in self.rois:
+                for hole in roi.holes.values():
+                    roi_polys.append(hole.scaled_poly(roi_scale))
+            for i, poly in enumerate(roi_polys):
+                if poly.geom_type == 'Polygon':
+                    x, y = poly.exterior.coords.xy
+                    zipped = list(zip(x.tolist(), y.tolist()))
+                    draw.line(zipped, joint='curve', fill=color, width=linewidth)
+                elif poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+                    for part in poly.geoms:
+                        if part.is_empty or part.geom_type != 'Polygon':
+                            continue
+                        x, y = part.exterior.coords.xy
+                        zipped = list(zip(x.tolist(), y.tolist()))
+                        draw.line(zipped, joint='curve', fill=color, width=linewidth)
+                else:
+                    sf.log.error(f"Unable to plot ROI {i}, unknown geometry type: {poly.geom_type}")
             return thumb
         else:
             return thumb
@@ -2925,5 +3424,5 @@ class WSI:
         from slideflow.studio import Studio
 
         studio = Studio()
-        studio.load_slide(self.path, stride=self.stride_div, tile_px=self.tile_px, tile_um=self.tile_um)
+        studio.load_slide(self)
         studio.run()

@@ -6,11 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Installation &mdash; slideflow 2.3.0 documentation</title>
+  <title>Installation &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +178,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -291,21 +293,20 @@
               
   <section id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Permalink to this heading">¶</a></h1>
-<p>Slideflow has been tested and is supported on the following systems:</p>
-<ul class="simple">
-<li><p>Ubuntu 18.04, 20.04, and 22.04</p></li>
-<li><p>Centos 7, 8, and 8 Stream</p></li>
-</ul>
-<p><a class="reference internal" href="../studio/#studio"><span class="std std-ref">Slideflow Studio</span></a>, the whole-slide interface for model deployment, is additionally supported on Windows, MacOS (Intel and Apple), and Raspberry Pi OS.</p>
+<figure class="align-default">
+<img alt="https://github.com/user-attachments/assets/53d5c1f8-8fbc-4e0f-bd62-db16797492b0" src="https://github.com/user-attachments/assets/53d5c1f8-8fbc-4e0f-bd62-db16797492b0" />
+</figure>
+<p>Slideflow is tested on <strong>Linux-based systems</strong> (Ubuntu, CentOS, Red Hat, and Raspberry Pi OS) and <strong>macOS</strong> (Intel and Apple). Windows support is experimental.</p>
 <section id="requirements">
 <h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Python &gt;= 3.7 (&lt;3.10 if using <a class="reference external" href="https://docs.rapids.ai/api/cucim/stable/">cuCIM</a>)</p></li>
-<li><p><a class="reference external" href="https://www.tensorflow.org/">Tensorflow</a> (2.5-2.11) <em>or</em> <a class="reference external" href="https://pytorch.org/">PyTorch</a> (1.9-2.1)</p>
-<ul>
-<li><p>Multiple-Instance Learning (MIL) requires PyTorch</p></li>
-<li><p>GANs require PyTorch &lt;1.13</p></li>
+<li><dl class="simple">
+<dt><a class="reference external" href="https://pytorch.org/">PyTorch</a> (1.9+) <em>or</em> <a class="reference external" href="https://www.tensorflow.org/">Tensorflow</a> (2.5-2.11)</dt><dd><ul>
+<li><p>Core functionality, including tile extraction, data processing, and tile-based model training, is supported for both PyTorch and Tensorflow. Additional advanced tools, such as Multiple-Instance Learning (MIL), GANs, and pretrained foundation models, require PyTorch.</p></li>
 </ul>
+</dd>
+</dl>
 </li>
 </ul>
 <section id="optional">
@@ -354,7 +355,6 @@ docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </s
 <h2>Build from source<a class="headerlink" href="#build-from-source" title="Permalink to this heading">¶</a></h2>
 <p>To build Slideflow from source, clone the repository from the project <a class="reference external" href="https://github.com/jamesdolezal/slideflow">Github page</a>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jamesdolezal/slideflow
-git<span class="w"> </span>submodule<span class="w"> </span>init<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--recursive
 <span class="nb">cd</span><span class="w"> </span>slideflow
 conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml
 conda<span class="w"> </span>activate<span class="w"> </span>slideflow
@@ -362,23 +362,55 @@ python<span class="w"> </span>setup.py<span class="w"> </span>bdist_wheel
 pip<span class="w"> </span>install<span class="w"> </span>dist/slideflow*<span class="w"> </span>cupy-cuda11x
 </pre></div>
 </div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>A bug in the pixman library (version=0.38) will corrupt downsampled slide images, resulting in large black boxes across the slide. We have provided a patch for version 0.38 that has been tested for Ubuntu, which is provided in the project <a class="reference external" href="https://github.com/jamesdolezal/slideflow">Github page</a> (<code class="docutils literal notranslate"><span class="pre">pixman_repair.sh</span></code>), although it may not be suitable for all environments and we make no guarantees regarding its use. The <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">Slideflow docker images</a> already have this applied. If you are installing from source, have pixman version 0.38, and are unable to apply this patch, the use of downsampled image layers must be disabled to avoid corruption (pass <code class="docutils literal notranslate"><span class="pre">enable_downsample=False</span></code> to tile extraction functions).</p>
+</section>
+<section id="extensions">
+<h2>Extensions<a class="headerlink" href="#extensions" title="Permalink to this heading">¶</a></h2>
+<p>The core Slideflow package is licensed under the <strong>Apache-2.0</strong> license. Additional functionality, such as pretrained foundation models, are distributed in separate packages according to their licensing terms. Available extensions include:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt><strong>Slideflow-GPL</strong>: GPL-3.0 licensed extensions (<a class="reference external" href="https://github.com/slideflow/slideflow-gpl">GitHub</a>)</dt><dd><ul>
+<li><p>Includes: <a class="reference external" href="https://www.sciencedirect.com/science/article/abs/pii/S1361841522002730">RetCCL</a>, <a class="reference external" href="https://www.sciencedirect.com/science/article/abs/pii/S1361841522002043">CTransPath</a>, and <a class="reference external" href="https://www.nature.com/articles/s41551-020-00682-w">CLAM</a>.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><strong>Slideflow-NonCommercial</strong>: CC BY-NC 4.0 licensed extensions for non-commercial use (<a class="reference external" href="https://github.com/slideflow/slideflow-noncommercial">GitHub</a>)</dt><dd><ul>
+<li><p>Includes: <a class="reference external" href="https://www.medrxiv.org/content/10.1101/2023.07.21.23292757v2.full.pdf">HistoSSL</a>, <a class="reference external" href="https://www.nature.com/articles/s41591-023-02504-3">PLIP</a>, <a class="reference external" href="https://aka.ms/gigapath">GigaPath</a>, <a class="reference external" href="https://www.nature.com/articles/s41591-024-02857-3">UNI</a>, <a class="reference external" href="https://www.nature.com/articles/s41467-022-34025-x">BISCUIT</a>, and <a class="reference external" href="https://nvlabs-fi-cdn.nvidia.com/stylegan3/stylegan3-paper.pdf">StyleGAN3</a>.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>These extensions can be installed via pip. The GigaPath feature extractor has additional, more restrictive dependencies that must be installed separately.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Install Slideflow-GPL and Slideflow-NonCommercial</span>
+pip<span class="w"> </span>install<span class="w"> </span>slideflow-gpl<span class="w"> </span>slideflow-noncommercial
+
+<span class="c1"># Install GigaPath dependencies, if desired</span>
+pip<span class="w"> </span>install<span class="w"> </span>slideflow-noncommercial<span class="o">[</span>gigapath<span class="o">]</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The Slideflow-GPL and Slideflow-NonCommercial extensions are not included in the default Slideflow package due to their licensing terms. Please review the licensing terms of each extension before use.</p>
 </div>
 </section>
 <section id="pytorch-vs-tensorflow">
 <h2>PyTorch vs. Tensorflow<a class="headerlink" href="#pytorch-vs-tensorflow" title="Permalink to this heading">¶</a></h2>
 <p>Slideflow supports both PyTorch and Tensorflow, with cross-compatible TFRecord storage. Slideflow will default to using PyTorch if both are available, but the backend can be manually specified using the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code>. For example:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">export SF_BACKEND=tensorflow</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">SF_BACKEND</span><span class="o">=</span>tensorflow
 </pre></div>
 </div>
 </section>
 <section id="cucim-vs-libvips">
 <span id="slide-backend"></span><h2>cuCIM vs. Libvips<a class="headerlink" href="#cucim-vs-libvips" title="Permalink to this heading">¶</a></h2>
 <p>By default, Slideflow reads whole-slide images using <a class="reference external" href="https://docs.rapids.ai/api/cucim/stable/">cuCIM</a>. Although much faster than other openslide-based frameworks, it supports fewer slide scanner formats. Slideflow also includes a <a class="reference external" href="https://libvips.github.io/libvips/">Libvips</a> backend, which adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files. You can set the active slide backend with the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_SLIDE_BACKEND</span></code>:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">export SF_SLIDE_BACKEND=libvips</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">SF_SLIDE_BACKEND</span><span class="o">=</span>libvips
 </pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>A bug in the pixman library (version=0.38) will corrupt downsampled slide images, resulting in large black boxes across the slide. We have provided a patch for version 0.38 that has been tested for Ubuntu, which is provided in the project <a class="reference external" href="https://github.com/jamesdolezal/slideflow">Github page</a> (<code class="docutils literal notranslate"><span class="pre">pixman_repair.sh</span></code>), although it may not be suitable for all environments and we make no guarantees regarding its use. The <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">Slideflow docker images</a> already have this applied. If you are installing from source, have pixman version 0.38, and are unable to apply this patch, the use of downsampled image layers must be disabled to avoid corruption (pass <code class="docutils literal notranslate"><span class="pre">enable_downsample=False</span></code> to tile extraction functions).</p>
 </div>
 </section>
 </section>
@@ -434,6 +466,7 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/slideflow*<span c
 <li><a class="reference internal" href="#download-with-pip">Download with pip</a></li>
 <li><a class="reference internal" href="#run-a-docker-container">Run a Docker container</a></li>
 <li><a class="reference internal" href="#build-from-source">Build from source</a></li>
+<li><a class="reference internal" href="#extensions">Extensions</a></li>
 <li><a class="reference internal" href="#pytorch-vs-tensorflow">PyTorch vs. Tensorflow</a></li>
 <li><a class="reference internal" href="#cucim-vs-libvips">cuCIM vs. Libvips</a></li>
 </ul>

@@ -37,6 +37,7 @@ Methods
 .. autofunction:: slideflow.Dataset.filter
 .. autofunction:: slideflow.Dataset.find_slide
 .. autofunction:: slideflow.Dataset.find_tfrecord
+.. autofunction:: slideflow.Dataset.generate_feature_bags
 .. autofunction:: slideflow.Dataset.get_tfrecord_locations
 .. autofunction:: slideflow.Dataset.get_tile_dataframe
 .. autofunction:: slideflow.Dataset.harmonize_labels
@@ -48,7 +49,7 @@ Methods
 .. autofunction:: slideflow.Dataset.manifest
 .. autofunction:: slideflow.Dataset.manifest_histogram
 .. autofunction:: slideflow.Dataset.patients
-.. autofunction:: slideflow.Dataset.pt_files
+.. autofunction:: slideflow.Dataset.get_bags
 .. autofunction:: slideflow.Dataset.read_tfrecord_by_location
 .. autofunction:: slideflow.Dataset.remove_filter
 .. autofunction:: slideflow.Dataset.rebuild_index

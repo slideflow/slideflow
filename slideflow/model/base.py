@@ -19,7 +19,7 @@ class _ModelParams:
     """Build a set of hyperparameters."""
 
     ModelDict = {}  # type: Dict
-    LinearLossDict = {}  # type: Dict
+    RegressionLossDict = {}  # type: Dict
     AllLossDict = {}  # type: Dict
 
     def __init__(
@@ -93,7 +93,7 @@ class _ModelParams:
                 Defaults to None.
             training_balance (str, optional): Type of batch-level balancing to use during training.
                 Options include 'tile', 'category', 'patient', 'slide', and None. Defaults to 'category' if a
-                categorical loss is provided, and 'patient' if a linear loss is provided.
+                classification loss is provided, and 'patient' if a regression loss is provided.
             validation_balance (str, optional): Type of batch-level balancing to use during validation.
                 Options include 'tile', 'category', 'patient', 'slide', and None. Defaults to 'none'.
             trainable_layers (int): Number of layers which are traininable. If 0, trains all layers.
@@ -161,7 +161,7 @@ class _ModelParams:
         self.manual_early_stop_epoch = manual_early_stop_epoch
         self.hidden_layers = hidden_layers
         if training_balance == 'auto':
-            self.training_balance = 'category' if self.model_type() == 'categorical' else 'patient'
+            self.training_balance = 'category' if self.model_type() == 'classification' else 'patient'
         else:
             self.training_balance = training_balance  # type: ignore
         self.validation_balance = validation_balance
@@ -230,7 +230,7 @@ class _ModelParams:
     def loss(self, l: Union[str, Dict])  -> None:
         if isinstance(l, dict):
             # Verify that the custom loss dictionary provided is valid.
-            valid_loss_types = ('cph', 'linear', 'categorical')
+            valid_loss_types = ('survival', 'regression', 'classification')
             if 'type' not in l or 'fn' not in l:
                 raise ValueError("If supplying a custom loss, dictionary must "
                                  "have the keys 'type' and 'fn'.")
@@ -258,7 +258,7 @@ class _ModelParams:
             'load_dict',
             'OptDict',
             'ModelDict',
-            'LinearLossDict',
+            'RegressionLossDict',
             'AllLossDict',
             'get_model_loader'
         ]
@@ -310,13 +310,13 @@ class _ModelParams:
             if len(outcome_labels.shape) == 1:
                 outcome_labels = np.expand_dims(outcome_labels, axis=1)
 
-            if self.model_type() == 'categorical':
+            if self.model_type() == 'classification':
                 return {i: np.unique(outcome_labels[:, i]).shape[0] for i in range(outcome_labels.shape[1])}
             else:
                 try:
                     return outcome_labels.shape[1]
                 except TypeError:
-                    raise errors.ModelParamsError('Incorrect formatting of outcomes for linear model; expected ndarray.')
+                    raise errors.ModelParamsError('Incorrect formatting of outcomes for regression model; expected ndarray.')
         elif isinstance(labels, pd.DataFrame):
             if 'label' not in labels.columns:
                 raise errors.ModelError("Expected DataFrame with 'label' "
@@ -324,7 +324,7 @@ class _ModelParams:
             if is_float_dtype(labels.label):
                 return 1
 
-            elif self.model_type() == 'categorical':
+            elif self.model_type() == 'classification':
                 unique = labels.label.unique()
                 if is_integer_dtype(labels.label):
                     return {0: unique.max()+1}
@@ -390,10 +390,11 @@ class _ModelParams:
             assert 0 <= self.l2_dense <= 1
 
         # Augmentation checks.
-        if isinstance(self.augment, str) and not all(s in 'xyrjbn' for s in self.augment):
+        valid_aug = 'xyrjbn' if sf.backend() == 'tensorflow' else 'xyrdspbjnc'
+        if isinstance(self.augment, str) and not all(s in valid_aug for s in self.augment):
             raise errors.ModelParamsError(
                 "Unrecognized augmentation(s): {}".format(
-                    ','.join([s for s in self.augment if s not in 'xyrjbn'])
+                    ','.join([s for s in self.augment if s not in valid_aug])
                 )
             )
 
@@ -402,7 +403,7 @@ class _ModelParams:
             sf.util.assert_is_mag(self.tile_um)
             self.tile_um = self.tile_um.lower()
         if self.training_balance == 'auto':
-            self.training_balance = 'category' if self.model_type() == 'categorical' else 'patient'
+            self.training_balance = 'category' if self.model_type() == 'classification' else 'patient'
         if not isinstance(self.epochs, list):
             self.epochs = [self.epochs]
 
@@ -419,12 +420,12 @@ class _ModelParams:
                     "and will be ignored.")
 
         # Model type validations.
-        if (self.model_type() != 'categorical' and ((self.training_balance == 'category') or
+        if (self.model_type() != 'classification' and ((self.training_balance == 'category') or
                                                     (self.validation_balance == 'category'))):
             raise errors.ModelParamsError(
                 f'Cannot combine category-level balancing with model type "{self.model_type()}".'
             )
-        if (self.model_type() != 'categorical' and self.early_stop_method == 'accuracy'):
+        if (self.model_type() != 'classification' and self.early_stop_method == 'accuracy'):
             raise errors.ModelParamsError(
                 f'Model type "{self.model_type()}" is not compatible with early stopping method "accuracy"'
             )
@@ -444,16 +445,16 @@ class _ModelParams:
         return True
 
     def model_type(self) -> str:
-        """Returns either 'linear', 'categorical', or 'cph' depending on the loss type."""
+        """Returns either 'regression', 'classification', or 'survival' depending on the loss type."""
         #check if loss is custom_[type] and returns type
         if self.loss.startswith('custom'):
             return self.loss[7:]
         elif self.loss == 'negative_log_likelihood':
-            return 'cph'
-        elif self.loss in self.LinearLossDict:
-            return 'linear'
+            return 'survival'
+        elif self.loss in self.RegressionLossDict:
+            return 'regression'
         else:
-            return 'categorical'
+            return 'classification'
 
 
 class BaseFeatureExtractor:

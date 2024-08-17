@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     except ImportError:
         pass
 
-MASK = -99
 Inset = namedtuple("Inset", "x y zoom loc mark1 mark2 axes")
 
 # -----------------------------------------------------------------------------
@@ -308,12 +307,11 @@ class Heatmap:
 
         if asynchronous:
             it = self.interface
-            grid = np.ones((
+            grid = np.ma.ones((
                     self.slide.grid.shape[1],
                     self.slide.grid.shape[0],
                     it.num_features + it.num_classes + it.num_uncertainty),
                 dtype=np.float32)
-            grid *= MASK
             heatmap_thread = Thread(target=_generate, args=(grid,))
             heatmap_thread.start()
             return grid, heatmap_thread
@@ -345,12 +343,27 @@ class Heatmap:
         if show_roi:
             roi_scale = self.slide.dimensions[0] / thumb_size[0]
             annPolys = [
-                sg.Polygon(annotation.scaled_area(roi_scale))
+                sg.Polygon(annotation.scaled_coords(roi_scale))
                 for annotation in self.slide.rois
             ]
-            for poly in annPolys:
-                x, y = poly.exterior.xy
-                ax.plot(x, y, zorder=20, **kwargs)
+            for roi in self.slide.rois:
+                for hole in roi.holes.values():
+                    annPolys.append(sg.Polygon(hole.scaled_coords(roi_scale)))
+            for i, poly in enumerate(annPolys):
+                if poly.geom_type == 'Polygon':
+                    x, y = poly.exterior.xy
+                    ax.plot(x, y, zorder=20, **kwargs)
+                elif poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+                    for p in poly.geoms:
+                        if p.geom_type == 'Polygon':
+                            x, y = p.exterior.xy
+                            ax.plot(x, y, zorder=20, **kwargs)
+                else:
+                    log.warning("Unable to plot ROI {} (geometry={})".format(
+                        i, poly.geom_type
+                    ))
+
+
 
     def add_inset(
         self,
@@ -565,15 +578,11 @@ class Heatmap:
             vcenter=self.uncertainty.max()/2,
             vmax=self.uncertainty.max()
         )
-        masked_uncertainty = np.ma.masked_where(
-            self.uncertainty == MASK,
-            self.uncertainty
-        )
         extent = calculate_heatmap_extent(
             self.slide, self._thumb, self.predictions
         )
         ax.imshow(
-            masked_uncertainty,
+            self.uncertainty,
             norm=uqnorm,
             extent=extent,
             cmap=cmap,
@@ -654,15 +663,11 @@ class Heatmap:
             vcenter=vcenter,
             vmax=vmax
         )
-        masked_arr = np.ma.masked_where(
-            self.predictions[:, :, class_idx] == MASK,
-            self.predictions[:, :, class_idx]
-        )
         extent = calculate_heatmap_extent(
             self.slide, self._thumb, self.predictions
         )
         ax.imshow(
-            masked_arr,
+            self.predictions[:, :, class_idx],
             norm=divnorm,
             extent=extent,
             cmap=cmap,
@@ -738,9 +743,9 @@ class Heatmap:
                 Defaults to 1.
 
         """
-        import matplotlib.pyplot as plt
-
         with sf.util.matplotlib_backend('Agg'):
+            import matplotlib.pyplot as plt
+
             if self.predictions is None:
                 raise errors.HeatmapError(
                     "Cannot plot Heatmap which is not yet generated; generate with "
@@ -805,7 +810,7 @@ class Heatmap:
                     _savefig('UQ-solid', **save_kwargs)
 
             plt.close()
-        log.info(f'Saved heatmaps for [green]{self.slide.name}')
+            log.info(f'Saved heatmaps for [green]{self.slide.name}')
 
     def view(self):
         """Load the Heatmap into Slideflow Studio for interactive view.

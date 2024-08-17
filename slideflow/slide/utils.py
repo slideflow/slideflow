@@ -5,9 +5,12 @@ import cv2
 import csv
 import io
 import numpy as np
+import shapely.validation as sv
 import shapely.geometry as sg
+import shapely.affinity as sa
 import xml.etree.ElementTree as ET
 
+from shapely.ops import unary_union, polygonize
 from PIL import Image, ImageDraw
 from slideflow import errors, log
 from types import SimpleNamespace
@@ -53,74 +56,292 @@ def OPS_LEVEL_DOWNSAMPLE(level: int) -> str:
 # Classes
 
 class ROI:
-    """Object container for a single ROI annotation."""
+    """Object container for an ROI polygon annotation."""
 
     def __init__(
         self,
         name: str,
-        coordinates: List[Tuple[int, int]] = None,
-        label: Optional[str] = None
+        coordinates: Union[np.ndarray, List[Tuple[int, int]]],
+        *,
+        label: Optional[str] = None,
+        holes: Optional[List["ROI"]] = None
     ) -> None:
         self.name = name
-        self.label = label if label else None
-        if coordinates is None:
-            self.coordinates = []  # type: List[Tuple[int, int]]
-        else:
-            self.coordinates = coordinates
+        self._label = label if label else None
+        self.holes = holes if holes else {}
+        self._poly = None
+        self._triangles = None
+        self.coordinates = np.array(coordinates)
+        self.validate()
 
     def __repr__(self):
         return f"<ROI (coords={len(self.coordinates)} label={self.label})>"
 
-    def add_coord(self, coord: Tuple[int, int]) -> None:
-        self.coordinates.append(coord)
-
-    def scaled_area(self, scale: float) -> np.ndarray:
-        return np.multiply(self.coordinates, 1/scale)
-
-    def print_coord(self) -> None:
-        for c in self.coordinates:
-            print(c)
-
-    def add_shape(self, shape) -> None:
-        for point in shape:
-            self.add_coord(point)
-
-
-class ROIPoly:
-    """Rendered ROI shape.
-
-    Supports holes.
-
-    """
-    def __init__(
-        self,
-        poly: sg.Polygon,
-        name: str,
-        label: Optional[str] = None
-    ) -> None:
-        self.poly = poly
-        self.name = name
-        self.label = label if label else None
-        self._hole_names = []  # type: List[str]
-
-    def __repr__(self) -> str:
-        return f"<ROIPoly (name={self.name} label={self.label})>"
-
     @property
     def description(self) -> str:
-        if not self._hole_names:
+        """Return a description of the ROI."""
+        if not self.holes:
             return self.name
         else:
-            return self.name + ' (holes: {})'.format(', '.join(self._hole_names))
+            return self.name + ' (holes: {})'.format(', '.join(
+                [h.name for h in self.holes.values()]
+            ))
 
-    def set_hole(self, roi: "ROIPoly") -> None:
-        self.poly = self.poly.difference(roi.poly)
-        self._hole_names.append(roi.name)
+    @property
+    def label(self) -> Optional[str]:
+        """Return the label of the ROI."""
+        return self._label
+
+    @label.setter
+    def label(self, label: str) -> None:
+        """Set the label of the ROI."""
+        self._label = label
+        for h in self.holes.values():
+            h.label = label
+
+    # --- Polygons ------------------------------------------------------------
+
+    @property
+    def poly(self) -> sg.Polygon:
+        """Return the shapely polygon object."""
+        if self._poly is None:
+            self.update_polygon()
+        return self._poly
+
+    @property
+    def triangles(self) -> np.ndarray:
+        """Return the triangulated mesh."""
+        if self._triangles is None:
+            self._triangles = self.create_triangles()
+        return self._triangles
+
+    def make_polygon(self) -> sg.Polygon:
+        """Create a shapely polygon from the coordinates.
+
+        Raises:
+            ValueError: If the coordinates do not form a valid polygon.
+
+        Returns:
+            sg.Polygon: Shapely polygon object.
+
+        """
+        poly = sv.make_valid(sg.Polygon(self.coordinates))
+        to_delete = []
+        for h, hole in self.holes.items():
+            if not poly.contains(hole.poly):
+                # Hole is not contained within the polygon,
+                # so remove it from the list of holes.
+                to_delete.append(h)
+            poly = poly.difference(hole.poly)
+        for h in to_delete:
+            del self.holes[h]
+        return poly
+
+    def update_polygon(self) -> None:
+        """Update the shapely polygon object."""
+        self._poly = self.make_polygon()
+        self._triangles = None
+
+    def scaled_poly(self, scale: float) -> sg.Polygon:
+        """Create a scaled polygon."""
+        poly = sv.make_valid(sg.Polygon(self.scaled_coords(scale)))
+        for h in self.holes.values():
+            poly = poly.difference(h.scaled_poly(scale))
+        return poly
+
+    def poly_coords(self) -> np.ndarray:
+        """Return the coordinates of the polygon."""
+        if self.poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+            valid_polys = [p for p in self.poly.geoms if p.geom_type == 'Polygon']
+            if not len(valid_polys):
+                return np.array([])
+            else:
+                coords = np.concatenate([
+                    np.stack(p.exterior.coords.xy, axis=-1)
+                    for p in valid_polys
+                ])
+        elif self.poly.geom_type == 'Polygon':
+            coords = np.stack(self.poly.exterior.coords.xy, axis=-1)
+        else:
+            # This should have been caught by the validate function
+            raise errors.InvalidROIError(f"Unrecognized ROI polygon geometry: {self.poly.geom_type}")
+        # Remove duplicate points
+        coords = np.concatenate([
+            # Take the first coordinate
+            np.expand_dims(coords[0], 0),
+            # Only take subsequent coordinates if they are not repeating
+            coords[1:][~np.all(coords[:-1] == coords[1:], axis=-1)]
+        ], axis=0)
+        return coords
+
+    def simplify(self, tolerance: float = 5) -> None:
+        """Simplify the polygon."""
+        if self.poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+            poly_s = sg.MultiPolygon([p.simplify(tolerance) for p in self.poly.geoms if p.geom_type == 'Polygon'])
+            if not len(poly_s.geoms):
+                # Polygon is empty after simplification, and thus cannot be simplified.
+                log.warning(f"ROI {self.name} is empty after simplification.")
+                pass
+            else:
+                self.coordinates = np.concatenate([np.stack(p.exterior.coords.xy, axis=-1) for p in poly_s.geoms])
+        elif self.poly.geom_type == 'Polygon':
+            poly_s = self.poly.simplify(tolerance=tolerance)
+            self.coordinates = np.stack(poly_s.exterior.coords.xy, axis=-1)
+        else:
+            # This should have been caught by the validate function
+            raise errors.InvalidROIError(f"Unrecognized ROI polygon geometry: {self.poly.geom_type}")
+        for hole in self.holes.values():
+            hole.simplify(tolerance)
+        self.update_polygon()
+
+    def invert(self, width: int, height: int) -> "ROI":
+        """Invert the ROI within the bounds of a whole-slide image.
+
+        Args:
+            width (int): Width of the whole-slide image.
+            height (int): Height of the whole-slide image.
+
+        Returns:
+            ROI: Inverted ROI of shape (width, height) with this ROI as a hole.
+
+        """
+        # Ensure polygon is generated
+        self.update_polygon()
+        # Calculate polygon bounding box (whole-slide)
+        roi_wsi_coords = np.array([[0., 0.], [0., height], [width, height], [width, 0.]])
+        # Create the inverted ROI
+        inverted_ROI = ROI(name=self.name, coordinates=roi_wsi_coords)
+        # Add the hole to the ROI
+        inverted_ROI.add_hole(self)
+        return inverted_ROI
+
+    def create_triangles(self) -> Optional[np.ndarray]:
+        """Create a triangulated mesh from the polygon."""
+
+        def as_open_array(array):
+            if (array[0] == array[-1]).all():
+                return array[:-1]
+            else:
+                return array
+
+        # First, ensure the polygon is valid
+        if not self.polygon_is_valid():
+            sf.log.error(
+                "Unable to create triangles; ROI polygon is invalid."
+            )
+            return None
+        if self.poly.geom_type != 'Polygon' or any([h.poly.geom_type != 'Polygon' for h in self.holes.values()]):
+            sf.log.error(
+                "Unable to create triangles; ROI is not a simple polygon."
+            )
+            return None
+
+        # Vertices of the hole boundaries
+        hole_vertices = {
+            h: as_open_array(hole.poly_coords())
+            for h, hole in self.holes.items()
+        }
+
+        # Filter out holes that are too small
+        valid_holes = [hole for h, hole in self.holes.items() if len(hole_vertices[h]) > 3]
+        hole_vertices = [v for h, v in hole_vertices.items() if len(v) > 3]
+
+        # Verify all holes are contained within the polygon
+        for hole in valid_holes:
+            poly = sv.make_valid(sg.Polygon(self.poly_coords()))
+            if not poly.contains(hole.poly):
+                # Hole is not contained within the polygon
+                return None
+
+        # Vertices of representative points within each hole
+        hole_points = [
+            hole.poly.representative_point().coords[0]
+            for hole in valid_holes
+        ]
+
+        if not len(hole_vertices):
+            hole_vertices = None
+            hole_points = None
+
+        # Build triangles.
+        triangle_vertices = sf.util.create_triangles(
+            as_open_array(self.poly_coords()),
+            hole_vertices=hole_vertices,
+            hole_points=hole_points
+        )
+        return triangle_vertices
+
+    # --- Holes ---------------------------------------------------------------
+
+    def add_hole(self, roi: "ROI") -> None:
+        """Add a hole to the ROI."""
+        hole_name = self.get_next_hole_name()
+        self.holes[hole_name] = roi
+        self.update_polygon()
+
+    def remove_hole(self, roi: Union["ROI", str]) -> None:
+        """Remove a hole from the ROI."""
+        if isinstance(roi, str):
+            roi = self.get_hole(roi)
+        hole_idx = [h for h, r in self.holes.items() if r == roi]
+        del self.holes[hole_idx]
+        self.update_polygon()
+
+    def get_hole(self, name: str) -> "ROI":
+        """Get a hole by name."""
+        for h in self.holes.values():
+            if h.name == name:
+                return h
+        raise ValueError(f"No hole found with name {name}")
+
+    def get_next_hole_name(self) -> str:
+        """Get the next available hole name."""
+        return len(self.holes)
+
+    # --- Other functions -----------------------------------------------------
+
+    def validate(self) -> None:
+        """Validate the exterior coordinates form a valid polygon."""
+        try:
+            poly_coords = self.poly_coords()
+        except ValueError as e:
+            raise errors.InvalidROIError(f"Invalid ROI ({self.name}): {e}")
+        if len(poly_coords) < 4:
+            raise errors.InvalidROIError(f"Invalid ROI ({self.name}): ROI must contain at least 4 coordinates.")
+        if self.poly.geom_type not in ('Polygon', 'MultiPolygon', 'GeometryCollection'):
+            raise errors.InvalidROIError(
+                f"Invalid ROI ({self.name}): ROI must either be a Polygon, or "
+                "MultiPolygon/GeometryCollection containing at least one polygon."
+            )
+        if self.poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+            if not len([p for p in self.poly.geoms if p.geom_type == 'Polygon']):
+                raise errors.InvalidROIError(
+                    f"Invalid ROI ({self.name}): ROI must contain at least one valid polygon."
+                )
+
+    def polygon_is_valid(self) -> bool:
+        """Check if the polygon is valid."""
+        poly = sg.Polygon(self.coordinates)
+        if not len(list(polygonize(unary_union(poly)))):
+            # Polygon is self-intersecting
+            return False
+        if not poly.is_valid:
+            # Polygon is invalid
+            return False
+        return all([h.polygon_is_valid() for h in self.holes.values()])
+
+    def scaled_coords(self, scale: float) -> np.ndarray:
+        return np.multiply(self.coordinates, 1/scale)
 
 
 class QCMask:
 
-    def __init__(self, mask: np.ndarray, filter_threshold: float = 0.6) -> None:
+    def __init__(
+        self,
+        mask: np.ndarray,
+        filter_threshold: float = 0.6,
+        is_roi: bool = False
+    ) -> None:
 
         if not 0 <= filter_threshold <= 1:
             raise ValueError('filter_threshold must be between 0 and 1')
@@ -132,10 +353,11 @@ class QCMask:
             raise ValueError('mask must be a boolean array')
 
         self.mask = mask
+        self.is_roi = is_roi
         self.filter_threshold = filter_threshold
 
     def __repr__(self):
-        return f"<QCMask (shape={self.shape}), filter_threshold={self.filter_threshold}>"
+        return f"<QCMask (shape={self.shape}), filter_threshold={self.filter_threshold}, is_roi={self.is_roi}>"
 
     @property
     def shape(self):
@@ -147,30 +369,38 @@ class Alignment:
     def __init__(
         self,
         origin: Tuple[int, int],
+        scale: float,
         coord: Optional[np.ndarray] = None
     ) -> None:
         self.origin = origin
+        self.scale = scale
         self.coord = coord
         self.centroid = None  # type: Tuple[float, float]
         self.normal = None    # type: Tuple[float, float]
 
+    def __repr__(self):
+        return f"<Alignment (origin={self.origin}, coord={self.coord}, centroid={self.centroid}, normal={self.normal})>"
+
     @classmethod
-    def from_fit(cls, origin, centroid, normal):
-        obj = cls(origin, None)
+    def from_fit(cls, origin, scale, centroid, normal):
+        obj = cls(origin, scale, None)
         obj.centroid = centroid
         obj.normal = normal
         return obj
 
     @classmethod
-    def from_translation(cls, origin):
-        return cls(origin, None)
+    def from_translation(cls, origin, scale):
+        return cls(origin, scale, None)
 
     @classmethod
     def from_coord(cls, origin, coord):
-        return cls(origin, coord)
+        return cls(origin, None, coord)
 
     def save(self, path):
-        save_dict = dict(origin=np.array(self.origin))
+        save_dict = dict(
+            origin=np.array(self.origin),
+            scale=np.array(self.scale)
+        )
         if self.coord is not None:
             save_dict['coord'] = self.coord
         if self.centroid is not None:
@@ -183,18 +413,31 @@ class Alignment:
     def load(cls, path):
         load_dict = np.load(path, allow_pickle=True)
         origin = tuple(load_dict['origin'])
+        scale = load_dict['scale']
         coord = load_dict['coord'] if 'coord' in load_dict else None
         centroid = load_dict['centroid'] if 'centroid' in load_dict else None
         normal = load_dict['normal'] if 'normal' in load_dict else None
-        obj = cls(origin, coord)
+        obj = cls(origin, scale, coord)
         obj.centroid = centroid
         obj.normal = normal
         return obj
 
 
-
 # -----------------------------------------------------------------------------
 # Functions
+
+def numpy2jpg(img: np.ndarray) -> str:
+    if img.shape[-1] == 4:
+        img = img[:, :, 0:3]
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    return cv2.imencode(".jpg", img)[1].tobytes()   # Default quality = 95%
+
+
+def numpy2png(img: np.ndarray) -> str:
+    if img.shape[-1] == 4:
+        img = img[:, :, 0:3]
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    return cv2.imencode(".png", img)[1].tobytes()
 
 
 def predict(
@@ -258,10 +501,10 @@ def predict(
     heatmap = Heatmap(slide, model, generate=True, stride_div=stride_div, **kwargs)
     assert heatmap.predictions is not None
     preds = heatmap.predictions.reshape(-1, heatmap.predictions.shape[-1])
-    preds = np.ma.masked_where(preds == sf.heatmap.MASK, preds).mean(axis=0).filled()
+    preds = np.nanmean(preds, axis=0).filled()
     if heatmap.uncertainty is not None:
         unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
-        unc = np.ma.masked_where(unc == sf.heatmap.MASK, unc).mean(axis=0).filled()
+        unc = np.nanmean(unc, axis=0).filled()
         return preds, unc
     else:
         return preds
@@ -326,9 +569,17 @@ def draw_roi(
         ))
     draw = ImageDraw.Draw(annotated_img)
     for poly in annPolys:
-        x, y = poly.exterior.coords.xy
-        zipped = list(zip(x.tolist(), y.tolist()))
-        draw.line(zipped, joint='curve', fill=color, width=linewidth)
+        if poly.geom_type in ('MultiPolygon', 'GeometryCollection'):
+            for p in poly.geoms:
+                if p.is_empty or p.geom_type != 'Polygon':
+                    continue
+                x, y = p.exterior.coords.xy
+                zipped = list(zip(x.tolist(), y.tolist()))
+                draw.line(zipped, joint='curve', fill=color, width=linewidth)
+        else:
+            x, y = poly.exterior.coords.xy
+            zipped = list(zip(x.tolist(), y.tolist()))
+            draw.line(zipped, joint='curve', fill=color, width=linewidth)
     return np.asarray(annotated_img)
 
 
@@ -342,27 +593,31 @@ def roi_coords_from_image(
     # Scale ROI according to image resizing
     resize_scale = (args.tile_px / args.extract_px)
 
-    def proc_ann(ann):
-        # Scale to full image size
-        coord = ann.coordinates
+    def proc_coords(_coords):
         # Offset coordinates to extraction window
-        coord = np.add(coord, np.array([-1 * c[0], -1 * c[1]]))
+        _coords = np.add(_coords, np.array([-1 * c[0], -1 * c[1]]))
         # Rescale according to downsampling and resizing
-        coord = np.multiply(coord, (extract_scale * resize_scale))
-        return coord
+        _coords = np.multiply(_coords, (extract_scale * resize_scale))
+        return _coords
 
     # Filter out ROIs not in this tile
     coords = []
     ll = np.array([0, 0])
     ur = np.array([args.tile_px, args.tile_px])
     for roi in args.rois:
-        coord = proc_ann(roi)
+        coord = proc_coords(roi.coordinates)
         idx = np.all(np.logical_and(ll <= coord, coord <= ur), axis=1)
         coords_in_tile = coord[idx]
         if len(coords_in_tile) > 3:
             coords += [coords_in_tile]
+        for hole in roi.holes.values():
+            hole_coord = proc_coords(hole.coordinates)
+            hole_idx = np.all(np.logical_and(ll <= hole_coord, hole_coord <= ur), axis=1)
+            hole_coords_in_tile = hole_coord[hole_idx]
+            if len(hole_coords_in_tile) > 3:
+                coords += [hole_coords_in_tile]
 
-    # Convert ROI to bounding box that fits within tile
+    # Convert outer ROI to bounding box that fits within tile
     boxes = []
     yolo_anns = []
     for coord in coords:
@@ -435,9 +690,42 @@ def xml_to_csv(path: str) -> str:
     return new_csv_file
 
 
+def get_scaled_and_intersecting_polys(
+    polys: "sg.Polygon",
+    tile: "sg.Polygon",
+    scale: float,
+    origin: Tuple[int, int]
+):
+    """Get scaled and intersecting polygons for a given tile.
+
+    Args:
+        polys (sg.Polygon): Shapely polygon containing union of all ROIs, in
+            base dimensions.
+        tile (sg.Polygon): Shapely polygon representing the tile, in base
+            dimensions.
+        scale (float): Scale factor.
+        full_stride (int): Full stride, indictating the number of pixels in
+            between each tile.
+        grid_idx (Tuple[int, int]): Grid index of the tile (x, y).
+
+    Returns:
+        sg.Polygon: ROI polygons intersecting the tile, scaled to the tile
+            size and with the origin with reference to the tile.
+
+    """
+    topleft, topright = origin
+    A = polys.intersection(tile)
+
+    # Translate polygons so the intersection origin is at (0, 0)
+    B = sa.translate(A, -topleft, -topright)
+
+    # Scale to the target tile size
+    C = sa.scale(B, xfact=scale, yfact=scale, origin=(0, 0))
+    return C
+
+
 def _align_to_matrix(im1: np.ndarray, im2: np.ndarray, warp_matrix: np.ndarray) -> np.ndarray:
     """Align an image to a warp matrix."""
-    import cv2
     # Use the warpAffine function to apply the transformation
     return cv2.warpAffine(im1, warp_matrix, (im2.shape[1], im2.shape[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
 
@@ -461,8 +749,6 @@ def _find_translation_matrix(
     :param im2: The reference image.
     :return: Aligned image of im1.
     """
-    import cv2
-
     # Convert images to grayscale
     im1_gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
     im2_gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
@@ -523,7 +809,6 @@ def align_by_translation(
             Defaults to False.
 
     """
-    import cv2
     try:
         warp_matrix = _find_translation_matrix(im1, im2, **kwargs)
     except cv2.error:

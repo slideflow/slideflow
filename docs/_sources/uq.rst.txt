@@ -5,7 +5,7 @@ Uncertainty Quantification
 
 Several uncertainty quantification (UQ) methods have been developed for deep learning models and tested in digital histopathology, including MC Dropout, deep ensembles, hyper-deep ensembles, and test-time augmentation.
 
-In version 1.1, we implemented a dropout-based method of uncertainty estimation. MC dropout UQ methods exploit the observation that neural networks with dropout approximate sampling of the Bayesian posterior. Images undergo multiple forward passes in a dropout-enabled network during inference, which results in a distribution of predictions. The standard deviation of such a distribution represents the uncertainty estimate.
+Slideflow includes a dropout-based method of uncertainty estimation. MC dropout UQ methods exploit the observation that neural networks with dropout approximate sampling of the Bayesian posterior. Images undergo multiple forward passes in a dropout-enabled network during inference, which results in a distribution of predictions. The standard deviation of such a distribution represents the uncertainty estimate.
 
 Training with UQ
 ****************

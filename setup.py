@@ -1,8 +1,24 @@
 import versioneer
 import setuptools
+import pkg_resources
+
+
+# Check for existing OpenCV installation
+opencv_pkg = None
+try:
+    pkg_resources.get_distribution("opencv-python-headless")
+    opencv_pkg = "opencv-python-headless"
+except pkg_resources.DistributionNotFound:
+    try:
+        pkg_resources.get_distribution("opencv-python")
+        opencv_pkg = "opencv-python"
+    except pkg_resources.DistributionNotFound:
+        opencv_pkg = "opencv-python-headless"  # Default to headless if neither is installed
+
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
+
 
 setuptools.setup(
     name="slideflow",
@@ -32,8 +48,13 @@ setuptools.setup(
             'studio/gui/icons/logo.png',
             'studio/gui/icons/success.png',
             'studio/gui/icons/warn.png',
+            'studio/gui/icons/search.png',
             'studio/gui/splash.png',
             'studio/gui/logo_dark_outline.png',
+            'studio/gui/buttons/button_extensions_highlighted.png',
+            'studio/gui/buttons/button_extensions_highlighted.png',
+            'studio/gui/buttons/button_add_freehand.png',
+            'studio/gui/buttons/button_add_polygon.png',
             'studio/gui/buttons/button_camera.png',
             'studio/gui/buttons/button_camera_highlighted.png',
             'studio/gui/buttons/button_circle_plus.png',
@@ -44,10 +65,10 @@ setuptools.setup(
             'studio/gui/buttons/button_mosaic.png',
             'studio/gui/buttons/button_stylegan.png',
             'studio/gui/buttons/button_heatmap_highlighted.png',
-            'studio/gui/buttons/button_segment.png',
+            'studio/gui/buttons/button_cellseg.png',
             'studio/gui/buttons/button_floppy.png',
             'studio/gui/buttons/small_button_vips.png',
-            'studio/gui/buttons/button_segment_highlighted.png',
+            'studio/gui/buttons/button_cellseg_highlighted.png',
             'studio/gui/buttons/small_button_folder.png',
             'studio/gui/buttons/button_mosaic_highlighted.png',
             'studio/gui/buttons/button_stylegan_highlighted.png',
@@ -104,28 +125,24 @@ setuptools.setup(
         'scikit-learn',
         'matplotlib>=3.2',
         'imageio',
-        'opencv-python-headless',
+        opencv_pkg,
         'shapely',
         'umap-learn',
         'seaborn<0.14',
-        'pandas<2',
+        'pandas',
         'pyvips',
         'fpdf2',
-        'lifelines',
         'scikit-image',
         'tqdm',
         'click',
         'protobuf<3.21',
         'tensorboard',
         'crc32c',
-        'h5py',
         'numpy',
         'tabulate',
 		'rasterio',
         'smac==1.4.0',
         'ConfigSpace',
-        'pyarrow',
-        'ninja',
         'rich',
         'pillow>=6.0.0',
         'imgui>=2.0.0',
@@ -137,6 +154,7 @@ setuptools.setup(
         'parameterized',
         'zarr',
         'gdown',
+        'triangle'
     ],
     extras_require={
         'tf': [
@@ -157,7 +175,8 @@ setuptools.setup(
         'dev': [
             'sphinx',
             'sphinx-markdown-tables',
-            'sphinxcontrib-video'
+            'sphinxcontrib-video',
+            'pygments-csv-lexer'
         ],
         'cucim': [
             'cucim'
@@ -171,13 +190,14 @@ setuptools.setup(
             'sphinx',
             'sphinx-markdown-tables',
             'sphinxcontrib-video',
+            'pygments-csv-lexer',
             'torch',
             'torchvision',
             'fastai',
             'pretrainedmodels',
             'tensorflow>=2.7,<2.12',
             'tensorflow_probability<0.20',
-            'tensorflow_datasets'
+            'tensorflow_datasets',
         ]
     },
 )

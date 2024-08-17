@@ -16,6 +16,7 @@ from slideflow.slide.utils import *
 
 if TYPE_CHECKING:
     from cucim import CuImage
+    import cupy as cp
 
 # -----------------------------------------------------------------------------
 
@@ -33,22 +34,15 @@ def get_cucim_reader(path: str, *args, **kwargs):
     return _cuCIMReader(path, *args, **kwargs)
 
 
-def cucim2numpy(img: "CuImage") -> np.ndarray:
-    return ((img_as_float32(np.asarray(img))) * 255).astype(np.uint8)
-
-
-def numpy2jpg(img: np.ndarray) -> str:
-    if img.shape[-1] == 4:
-        img = img[:, :, 0:3]
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return cv2.imencode(".jpg", img)[1].tobytes()   # Default quality = 95%
-
-
-def numpy2png(img: np.ndarray) -> str:
-    if img.shape[-1] == 4:
-        img = img[:, :, 0:3]
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return cv2.imencode(".png", img)[1].tobytes()
+def cucim2numpy(img: Union["CuImage", "cp.ndarray"]) -> np.ndarray:
+    """Convert a cuCIM image to a numpy array."""
+    from cucim import CuImage
+    import cupy as cp
+    if isinstance(img, CuImage):
+        np_img = np.asarray(img)
+    elif isinstance(img, cp.ndarray):
+        np_img = img.get()
+    return ((img_as_float32(np_img)) * 255).astype(np.uint8)
 
 
 def cucim2jpg(img: "CuImage") -> str:
@@ -61,11 +55,59 @@ def cucim2png(img: "CuImage") -> str:
     return numpy2png(img)
 
 
+def cucim_padded_crop(
+    img: "CuImage",
+    location: Tuple[int, int],
+    size: Tuple[int, int],
+    level: int,
+    **kwargs
+) -> Union["CuImage", "cp.ndarray"]:
+    """Read a region from the image, padding missing data.
+
+    Args:
+        img (CuImage): Image to read from.
+        location (Tuple[int, int]): Top-left location of the region to extract,
+            using base layer coordinates (x, y).
+        size (Tuple[int, int]): Size of the region to read (width, height).
+        level (int): Pyramid level to read from.
+        **kwargs: Additional arguments for reading the region.
+
+    Returns:
+        Original image (``CuImage``) if the region is within bounds, otherwise
+        a padded region (``cp.ndarray``).
+
+    """
+    # Delayed import to avoid multiprocessing issues
+    import cupy as cp
+
+    x, y = location
+    width, height = size
+    bg = [255]
+    # Note that for cucim images, the shape is (height, width, channels).
+    # First, return the original image if the region is within bounds.
+    if (x >= 0 and y >= 0 and x + width <= img.shape[1] and y + height <= img.shape[0]):
+        return img.read_region(location=(x, y), size=(width, height), level=level, **kwargs)
+    # Otherwise, pad the missing region with white.
+    # First, find the region that is within bounds.
+    x1, y1 = max(0, x), max(0, y)
+    x2, y2 = min(img.shape[1], x + width), min(img.shape[0], y + height)
+    # Read the region within bounds.
+    region = img.read_region(location=(x1, y1), size=(x2 - x1, y2 - y1), level=level, **kwargs)
+    # Convert to a cupy array.
+    region_cp = cp.asarray(region)
+    # Use cp.pad to pad the region.
+    pad_width = ((max(0, -y), max(0, y + height - img.shape[0])),
+                 (max(0, -x), max(0, x + width - img.shape[1])),
+                 (0, 0))
+    region_cp = cp.pad(region_cp, pad_width, mode='constant', constant_values=bg)
+    return region_cp
+
+
 def tile_worker(
     c: List[int],
     args: SimpleNamespace
 ) -> Optional[Union[str, Dict]]:
-    '''Multiprocessing worker for WSI. Extracts tile at given coordinates.'''
+    """Multiprocessing worker for WSI. Extracts tile at given coordinates."""
 
     if args.has_segmentation:
         c, tile_mask = c
@@ -197,9 +239,11 @@ class _cuCIMReader:
         self,
         path: str,
         mpp: Optional[float] = None,
+        *,
         cache_kw: Optional[Dict[str, Any]] = None,
         num_workers: int = 0,
         ignore_missing_mpp: bool = True,
+        pad_missing: bool = True,
         use_bounds: bool = False,  #TODO: Not yet implemented
     ):
         '''Wrapper for cuCIM reader to preserve cross-compatible functionality.'''
@@ -208,6 +252,7 @@ class _cuCIMReader:
         from cucim import CuImage
 
         self.path = path
+        self.pad_missing = pad_missing
         self.cache_kw = cache_kw if cache_kw else {}
         self.loaded_downsample_levels = {}  # type: Dict[int, "CuImage"]
         if path == __cuimage_path__:
@@ -223,11 +268,32 @@ class _cuCIMReader:
             log.debug(f"Manually setting MPP to {mpp}")
             self._mpp = mpp
         for prop_key in self.metadata:
+            if self._mpp is not None:
+                break
             if 'MPP' in self.metadata[prop_key]:
                 self._mpp = self.metadata[prop_key]['MPP']
+                #log.debug(f'Setting MPP by metadata ({prop_key}) "MPP" to {self._mpp}')
             elif 'DICOM_PIXEL_SPACING' in self.metadata[prop_key]:
                 ps = self.metadata[prop_key]['DICOM_PIXEL_SPACING'][0]
                 self._mpp = ps * 1000  # Convert from millimeters -> microns
+                #log.debug(f'Setting MPP by metadata ({prop_key}) "DICOM_PIXEL_SPACING" to {self._mpp}')
+            elif 'spacing' in self.metadata[prop_key]:
+                ps = self.metadata[prop_key]['spacing']
+                if isinstance(ps, (list, tuple)):
+                    ps = ps[0]
+                if 'spacing_units' in self.metadata[prop_key]:
+                    spacing_unit = self.metadata[prop_key]['spacing_units']
+                    if isinstance(spacing_unit, (list, tuple)):
+                        spacing_unit = spacing_unit[0]
+                    if spacing_unit in ('mm', 'millimeters'):
+                        self._mpp = ps * 1000
+                    elif spacing_unit in ('cm', 'centimeters'):
+                        self._mpp = ps * 10000
+                    elif spacing_unit in ('um', 'microns', 'micrometers'):
+                        self._mpp = ps
+                    else:
+                        continue
+                    #log.debug(f'Setting MPP by metadata ({prop_key}) "spacing" ({spacing_unit}) to {self._mpp}')
         if not self.mpp:
             log.warn("Unable to auto-detect microns-per-pixel (MPP).")
 
@@ -325,25 +391,65 @@ class _cuCIMReader:
         base_level_dim: Tuple[int, int],
         downsample_level: int,
         extract_size: Tuple[int, int],
+        *,
         convert: Optional[str] = None,
         flatten: bool = False,
-        resize_factor: Optional[float] = None
-    ) -> "CuImage":
-        region = self.reader.read_region(
+        resize_factor: Optional[float] = None,
+        pad_missing: Optional[bool] = None
+    ) -> Union["CuImage", np.ndarray, str]:
+        """Extracts a region from the image at the given downsample level.
+
+        Args:
+            base_level_dim (Tuple[int, int]): Top-left location of the region
+                to extract, using base layer coordinates (x, y)
+            downsample_level (int): Downsample level to read.
+            extract_size (Tuple[int, int]): Size of the region to read
+                (width, height) using downsample layer coordinates.
+
+        Keyword args:
+            pad_missing (bool, optional): Pad missing regions with black.
+                If None, uses the value of the `pad_missing` attribute.
+                Defaults to None.
+            convert (str, optional): Convert the image to a different format.
+                Supported formats are 'jpg', 'jpeg', 'png', and 'numpy'.
+                Defaults to None.
+            flatten (bool, optional): Flatten the image to 3 channels.
+                Defaults to False.
+            resize_factor (float, optional): Resize the image by this factor.
+                Defaults to None.
+
+
+        Returns:
+            Image in the specified format.
+        """
+        # Define region kwargs
+        region_kwargs = dict(
             location=base_level_dim,
             size=(int(extract_size[0]), int(extract_size[1])),
             level=downsample_level,
             num_workers=self.num_workers,
         )
+        # Pad missing data, if enabled
+        if ((pad_missing is not None and pad_missing)
+           or (pad_missing is None and self.pad_missing)):
+            region = cucim_padded_crop(self.reader, **region_kwargs)
+        else:
+            # If padding is disabled, this will raise a ValueError.
+            region = self.reader.read_region(**region_kwargs)
+
+        # Resize using the same interpolation strategy as the Libvips backend (cv2).
         if resize_factor:
             target_size = (int(np.round(extract_size[0] * resize_factor)),
                            int(np.round(extract_size[1] * resize_factor)))
             if not __cv2_resize__:
-                region = resize(np.asarray(region), target_size)
-        # Final conversions
+                region = resize(cucim2numpy(region), target_size)
+
+        # Final conversions.
         if flatten and region.shape[-1] == 4:
             region = region[:, :, 0:3]
-        if convert and convert.lower() in ('jpg', 'jpeg', 'png', 'numpy'):
+        if (convert
+            and convert.lower() in ('jpg', 'jpeg', 'png', 'numpy')
+            and not isinstance(region, np.ndarray)):
             region = cucim2numpy(region)
         if resize_factor and __cv2_resize__:
             region = cv2.resize(region, target_size)
@@ -358,8 +464,10 @@ class _cuCIMReader:
         top_left: Tuple[int, int],
         window_size: Tuple[int, int],
         target_size: Tuple[int, int],
+        *,
         convert: Optional[str] = None,
         flatten: bool = False,
+        pad_missing: Optional[bool] = None
     ) -> "CuImage":
         """Reads a region from the image using base layer coordinates.
         Performance is accelerated by pyramid downsample layers, if available.
@@ -371,6 +479,16 @@ class _cuCIMReader:
                 height) using base layer coordinates.
             target_size (Tuple[int, int]): Resize the region to this target
                 size (width, height).
+
+        Keyword args:
+            convert (str, optional): Convert the image to a different format.
+                Supported formats are 'jpg', 'jpeg', 'png', and 'numpy'.
+                Defaults to None.
+            flatten (bool, optional): Flatten the image to 3 channels.
+                Defaults to False.
+            pad_missing (bool, optional): Pad missing regions with black.
+                If None, uses the value of the `pad_missing` attribute.
+                Defaults to None.
 
         Returns:
             CuImage: Image. Dimensions will equal target_size unless
@@ -386,18 +504,29 @@ class _cuCIMReader:
             ds_level = max(0, ds_level-1)
             ds = self.level_downsamples[ds_level]
 
-        region = self.read_region(
-            top_left,
-            ds_level,
-            (int(window_size[0] / ds), int(window_size[1] / ds))
+        # Define region kwargs
+        region_kwargs = dict(
+            location=top_left,
+            size=(int(window_size[0] / ds), int(window_size[1] / ds)),
+            level=ds_level,
+            num_workers=self.num_workers,
         )
+        if ((pad_missing is not None and pad_missing)
+              or (pad_missing is None and self.pad_missing)):
+            region = cucim_padded_crop(self.reader, **region_kwargs)
+        else:
+            region = self.read_region(**region_kwargs)
+
+        # Resize using the same interpolation strategy as the Libvips backend (cv2).
         if not __cv2_resize__:
-            region = resize(np.asarray(region), (target_size[1], target_size[0]))
+            region = resize(cucim2numpy(region), (target_size[1], target_size[0]))
+
         # Final conversions
         if flatten and region.shape[-1] == 4:
             region = region[:, :, 0:3]
-
-        if convert and convert.lower() in ('jpg', 'jpeg', 'png', 'numpy'):
+        if (convert
+            and convert.lower() in ('jpg', 'jpeg', 'png', 'numpy')
+            and not isinstance(region, np.ndarray)):
             region = cucim2numpy(region)
         if __cv2_resize__:
             region = cv2.resize(region, target_size)

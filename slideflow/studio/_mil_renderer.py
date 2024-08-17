@@ -4,7 +4,6 @@ from typing import Optional
 from rich import print
 
 from ._renderer import Renderer
-from slideflow.mil.eval import _predict_mil, _predict_clam
 from slideflow.model.extractors import rebuild_extractor
 
 # -----------------------------------------------------------------------------
@@ -68,7 +67,6 @@ class MILRenderer(Renderer):
 
     def _predict_bag(self, bag, attention=False):
         """Generate MIL predictions from bag."""
-        from slideflow.mil._params import ModelConfigCLAM, TrainerConfigCLAM
 
         # Convert to torch tensor
         if sf.util.tf_available and isinstance(bag, tf.Tensor):
@@ -80,23 +78,14 @@ class MILRenderer(Renderer):
         bag = torch.unsqueeze(bag, dim=0)
         bag = bag.to(self.device)
 
-        if (isinstance(self.mil_config, TrainerConfigCLAM)
-        or isinstance(self.mil_config.model_config, ModelConfigCLAM)):
-            preds, att = _predict_clam(
-                self.mil_model,
-                bag,
-                attention=attention,
-                device=self.device
-            )
-        else:
-            preds, att = _predict_mil(
-                self.mil_model,
-                bag,
-                attention=attention,
-                use_lens=self.mil_config.model_config.use_lens,
-                apply_softmax=self.mil_config.model_config.apply_softmax,
-                device=self.device
-            )
+        # Run model
+        preds, att = self.mil_config.predict(
+            self.mil_model,
+            bag,
+            attention=attention,
+            device=self.device,
+            attention_pooling='avg'
+        )
         return preds, att
 
     def _run_models(
@@ -116,8 +105,15 @@ class MILRenderer(Renderer):
 
         bag = self._convert_img_to_bag(img, res)
         preds, att = self._predict_bag(bag, attention=True)
+        if isinstance(att, list):
+            if len(att):
+                att = np.stack(att)
+            else:
+                att = None
+        if att is not None and len(att.shape):
+            att = np.mean(att)
         res.predictions = preds[0]
-        res.uncertainty = None if att is None else att[0]
+        res.uncertainty = None if att is None else att
 
     def _render_impl(self, res, *args, **kwargs):
         if self.mil_model is not None:

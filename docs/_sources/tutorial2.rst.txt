@@ -83,7 +83,7 @@ Next, we'll need to split this dataset into a training and validation set. We'll
 .. code-block:: python
 
     >>> train_dts, val_dts = dataset.split(
-    ...   model_type='categorical',
+    ...   model_type='classification',
     ...   labels=labels,
     ...   val_strategy='k-fold',
     ...   val_k_fold=3,
@@ -176,4 +176,4 @@ You'll see logs recording model structure, training progress across epochs, and 
       }
     }
 
-Training results are separated with nested dictionaries according to epoch. The raw training metrics and validation metrics are stored with the keys ``"train_metrics"`` and ``"val_metrics"``, and tile-, slide-, and patient-level metrics (AUC for categorical data, R-squared for linear outcomes, and concordance index for CPH models) is reported under the ``"tile"``, ``"slide"``, and ``"patient"`` keys for each outcome, respectively.
+Training results are separated with nested dictionaries according to epoch. The raw training metrics and validation metrics are stored with the keys ``"train_metrics"`` and ``"val_metrics"``, and tile-, slide-, and patient-level metrics (AUROC for classification, R-squared for regression outcomes, and concordance index for survival models) is reported under the ``"tile"``, ``"slide"``, and ``"patient"`` keys for each outcome, respectively.

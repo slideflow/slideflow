@@ -141,14 +141,14 @@ class TestMetrics(unittest.TestCase):
         ]
         return y_true, y_pred, y_std, tile_to_slides
 
-    def _get_single_linear_data(self):
+    def _get_single_continuous_data(self):
         tile_to_slides = np.random.choice(self.slides, size=self.n_total)
         y_true = [np.vectorize(self.labels1.get)(tile_to_slides)]
         y_pred = [np.random.choice(self.n_labels1, size=(self.n_total, 1))]
         y_std = [np.random.random((self.n_total, 1))]
         return y_true, y_pred, y_std, tile_to_slides
 
-    def _get_multi_linear_data(self):
+    def _get_multi_continuous_data(self):
         tile_to_slides = np.random.choice(self.slides, size=self.n_total)
         y_true = [np.repeat(
             np.vectorize(self.labels1.get)(tile_to_slides)[:, np.newaxis],
@@ -159,7 +159,7 @@ class TestMetrics(unittest.TestCase):
         y_std = [np.random.random((self.n_total, 2))]
         return y_true, y_pred, y_std, tile_to_slides
 
-    def _get_cph_data(self):
+    def _get_survival_data(self):
         tile_to_slides = np.random.choice(self.slides, size=self.n_total)
         y_true = [np.expand_dims(
             np.vectorize(self.labels1.get)(tile_to_slides),
@@ -194,13 +194,13 @@ class TestMetrics(unittest.TestCase):
             self.assertEqual(len(metrics['auc'][outcome]), length)
             self.assertEqual(len(metrics['ap'][outcome]), length)
 
-    def _assert_linear_metrics(self, metrics, n_outcomes):
+    def _assert_regression_metrics(self, metrics, n_outcomes):
         self.assertTrue(metrics is not None)
         self.assertIsInstance(metrics, dict)
         self.assertIn('r_squared', metrics)
         self.assertEqual(n_outcomes, len(metrics['r_squared']))
 
-    def _assert_cph_metrics(self, metrics):
+    def _assert_survival_metrics(self, metrics):
         self.assertTrue(metrics is not None)
         self.assertIsInstance(metrics, dict)
         self.assertIn('c_index', metrics)
@@ -256,39 +256,39 @@ class TestMetrics(unittest.TestCase):
                 [self.n_labels1, self.n_labels2]
             )
 
-    def test_single_linear(self):
+    def test_single_continuous(self):
         tile_df = sf.stats.df_from_pred(
-            *self._get_single_linear_data()
+            *self._get_single_continuous_data()
         )
-        tile_df = sf.stats.name_columns(tile_df, 'linear', ['NamedLinear1'])
+        tile_df = sf.stats.name_columns(tile_df, 'continuous', ['NamedContinuous1'])
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.metrics.linear_metrics(_df, level=level)
-            self._assert_linear_metrics(metrics, 1)
+            metrics = sf.stats.metrics.regression_metrics(_df, level=level)
+            self._assert_regression_metrics(metrics, 1)
 
-    def test_multi_linear(self):
+    def test_multi_continuous(self):
         tile_df = sf.stats.df_from_pred(
-            *self._get_multi_linear_data()
+            *self._get_multi_continuous_data()
         )
         tile_df = sf.stats.name_columns(
             tile_df,
-            'linear',
-            ['NamedLinear1', 'NamedLinear2']
+            'continuous',
+            ['NamedContinuous1', 'NamedContinuous2']
         )
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.metrics.linear_metrics(_df, level=level)
-            self._assert_linear_metrics(metrics, 2)
+            metrics = sf.stats.metrics.regression_metrics(_df, level=level)
+            self._assert_regression_metrics(metrics, 2)
 
-    def test_cph(self):
+    def test_survival(self):
         tile_df = sf.stats.df_from_pred(
-            *self._get_cph_data()
+            *self._get_survival_data()
         )
-        tile_df = sf.stats.name_columns(tile_df, 'cph')
+        tile_df = sf.stats.name_columns(tile_df, 'survival')
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.metrics.cph_metrics(_df, level=level)
-            self._assert_cph_metrics(metrics)
+            metrics = sf.stats.metrics.survival_metrics(_df, level=level)
+            self._assert_survival_metrics(metrics)
 
 # -----------------------------------------------------------------------------# -----------------------------------------------------------------------------
 

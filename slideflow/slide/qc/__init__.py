@@ -4,4 +4,4 @@ from .gaussian_v2 import GaussianV2
 from .saver import Save, Load
 from .strided_dl import StridedDL
 from .deepfocus import DeepFocus
-from .segment import Segment
+from .segment import Segment, StridedSegment

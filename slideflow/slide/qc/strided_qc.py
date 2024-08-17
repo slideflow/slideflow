@@ -321,8 +321,8 @@ class _StridedQC_V2:
         if grid_j >= grid_shape[0]:
             end_j = None
 
-        image = image[start_i: end_i, start_j: end_j]
         g_mask = self.apply(image)
+        g_mask = g_mask[start_i: end_i, start_j: end_j]
         return grid_i, grid_j, g_mask
 
     def _calc_empty_mask(self, grid_i, grid_j, grid_shape):

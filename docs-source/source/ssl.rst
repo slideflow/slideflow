@@ -38,7 +38,7 @@ Next, assemble a training and (optionally) a validation dataset. The validation 
     # Split dataset into training/validation
     train_dts, val_dts = dataset.split(
         val_fraction=0.3,
-        model_type='categorical',
+        model_type='classification',
         labels='subtype')
 
 Finally, SimCLR can be trained with :meth:`slideflow.Project.train_simclr`. You can train with a single dataset:
@@ -82,7 +82,7 @@ The SimCLR model checkpoints and final saved model will be saved in the ``simclr
 Training DINOv2
 ***************
 
-A lightly modified version of `DINOv2 <https://arxiv.org/abs/2304.07193>`_ with Slideflow integration is available on `GitHub <https://github.com/jamesdolezal/dinov2>`_. This version facilitates training DINOv2 with Slideflow datasets and adds stain augmentation to the training pipeline.
+A lightly modified version of `DINOv2 <https://arxiv.org/abs/2304.07193>`__ with Slideflow integration is available on `GitHub <https://github.com/jamesdolezal/dinov2>`_. This version facilitates training DINOv2 with Slideflow datasets and adds stain augmentation to the training pipeline.
 
 To train DINOv2, first install the package:
 
@@ -130,10 +130,10 @@ Generating features from a trained SSL is straightforward - use the same :meth:`
 
 .. code-block:: python
 
-    from slideflow.model import build_feature_extractor
+    import slideflow as sf
 
     # Create the SimCLR feature extractor
-    simclr = build_feature_extractor(
+    simclr = sf.build_feature_extractor(
         'simclr',
         ckpt='/path/to/simclr.ckpt'
     )

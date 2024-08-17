@@ -23,10 +23,16 @@ from ._backend import backend, slide_backend
 from slideflow.util import getLoggingLevel, log, setLoggingLevel, about
 
 ...
-from slideflow import io, model, norm, stats
+from slideflow import io, model, norm, stats, gan
 from slideflow.dataset import Dataset
 from slideflow.heatmap import Heatmap
 from slideflow.model import DatasetFeatures, ModelParams
+from slideflow.model import (
+    list_extractors, list_torch_extractors, list_tensorflow_extractors,
+    is_extractor, is_torch_extractor, is_tensorflow_extractor,
+    build_feature_extractor, build_torch_feature_extractor,
+    build_tensorflow_feature_extractor, rebuild_extractor
+)
 from slideflow.mosaic import Mosaic
 from slideflow.project import Project
 from slideflow.project import create as create_project
@@ -34,3 +40,4 @@ from slideflow.project import load as load_project
 from slideflow.slide import WSI
 from slideflow.stats import SlideMap
 from slideflow.tfrecord import TFRecord, tfrecord_loader, multi_tfrecord_loader
+from slideflow.plugin import load_plugins

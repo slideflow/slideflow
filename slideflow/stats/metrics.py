@@ -1,11 +1,9 @@
-"""Categorical, linear, and CPH metrics for predictions."""
+"""Classification, regression, and survival metrics for predictions."""
 
-import math
 import multiprocessing as mp
 import warnings
 import numpy as np
 import pandas as pd
-from lifelines.utils import concordance_index as c_index
 from pandas.core.frame import DataFrame
 from sklearn import metrics
 from os.path import join
@@ -17,7 +15,9 @@ from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union,
 import slideflow as sf
 from slideflow import errors
 from slideflow.util import log
+
 from .delong import delong_roc_variance
+from .concordance import concordance_index as c_index
 
 if TYPE_CHECKING:
     import neptune.new as neptune
@@ -80,33 +80,35 @@ class ClassifierMetrics:
         self.ap = metrics.average_precision_score(self.y_true, self.y_pred)
 
     def save_roc(self, outdir, name):
-        import matplotlib.pyplot as plt
         with sf.util.matplotlib_backend('Agg'):
+            import matplotlib.pyplot as plt
+
             auroc_str = 'NA' if not self.auroc else f'{self.auroc:.2f}'
             sf.stats.plot.roc(self.fpr, self.tpr, f'AUC = {auroc_str}')
             full_path = join(outdir, f'{name}.png')
             plt.savefig(full_path)
             plt.close()
-        if self.neptune_run:
-            self.neptune_run[f'results/graphs/{name}'].upload(full_path)
+            if self.neptune_run:
+                self.neptune_run[f'results/graphs/{name}'].upload(full_path)
 
     def save_prc(self, outdir, name):
-        import matplotlib.pyplot as plt
         with sf.util.matplotlib_backend('Agg'):
+            import matplotlib.pyplot as plt
+
             ap_str = 'NA' if not self.ap else f'{self.ap:.2f}'
             sf.stats.plot.prc(self.precision, self.recall, label=f'AP = {ap_str}')
             full_path = join(outdir, f'{name}.png')
             plt.savefig(full_path)
             plt.close()
-        if self.neptune_run:
-            self.neptune_run[f'results/graphs/{name}'].upload(full_path)
+            if self.neptune_run:
+                self.neptune_run[f'results/graphs/{name}'].upload(full_path)
 
 
 def _assert_model_type(model_type: str) -> None:
     """Raises a ValueError if the model type is invalid."""
-    if model_type not in ('categorical', 'linear', 'cph'):
+    if model_type not in ('classification', 'regression', 'survival'):
         raise ValueError(f"Unrecognized model_type {model_type}, must be "
-                         "categorical, linear, or cph")
+                         "'classification', 'regression', or 'survival'")
 
 
 def _generate_tile_roc(
@@ -198,7 +200,7 @@ def basic_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
     return results
 
 
-def categorical_metrics(
+def classification_metrics(
     df: DataFrame,
     label: str = '',
     level: str = 'tile',
@@ -328,14 +330,14 @@ def concordance_index(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return c_index(y_true, y_pred, E)
 
 
-def cph_metrics(
+def survival_metrics(
     df: DataFrame,
     level: str = 'tile',
     label: str = '',
     data_dir: str = '',
     neptune_run: Optional["neptune.Run"] = None
 ) -> Dict[str, float]:
-    """Generates CPH metrics (concordance index) from a set of predictions.
+    """Generates survival metrics (concordance index) from a set of predictions.
 
     Args:
         df (pd.DataFrame): Pandas DataFrame containing labels, predictions,
@@ -354,11 +356,11 @@ def cph_metrics(
     Returns:
         Dict containing metrics, with the key 'c_index'.
     """
-    cph_cols = ('time-y_true', 'time-y_pred', 'event-y_true')
-    if any(c not in df.columns for c in cph_cols):
+    survival_cols = ('time-y_true', 'time-y_pred', 'event-y_true')
+    if any(c not in df.columns for c in survival_cols):
         raise ValueError(
-            "Improperly formatted dataframe to cph_metrics(), "
-            f"must have columns {cph_cols}. Got: {list(df.columns)}"
+            "Improperly formatted dataframe to survival_metrics(), "
+            f"must have columns {survival_cols}. Got: {list(df.columns)}"
         )
 
     # Calculate metrics
@@ -388,13 +390,13 @@ def df_from_pred(
 
     Args:
         y_true (list(np.ndarray)): List of y_true numpy arrays, one array for
-            each outcome. For linear outcomes, the length of the outer
+            each outcome. For continuous outcomes, the length of the outer
             list should be one, and the second shape dimension of the numpy
-            array should be the number of linear outcomes.
+            array should be the number of continuous outcomes.
         y_pred (list(np.ndarray)): List of y_pred numpy arrays, one array for
-            each outcome. For linear outcomes, the length of the outer
+            each outcome. For continuous outcomes, the length of the outer
             list should be one, and the second shape dimension of the numpy
-            array should be the number of linear outcomes.
+            array should be the number of continuous outcomes.
         y_std (list(np.ndarray)): List of uncertainty numpy arrays, formatted
             in the same way as y_pred.
         tile_to_slides (np.ndarray): Array of slide names for each tile. Length
@@ -483,9 +485,9 @@ def eval_dataset(
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
-        model_type (str, optional): 'categorical', 'linear', or 'cph'.
-            If multiple linear outcomes are present, y_true is stacked into a
-            single vector for each image. Defaults to 'categorical'.
+        model_type (str, optional): 'classification', 'regression', or 'survival'.
+            If multiple continuous outcomes are present, y_true is stacked into a
+            single vector for each image. Defaults to 'classification'.
         num_tiles (int, optional): Used for progress bar with Tensorflow.
             Defaults to 0.
         uq_n (int, optional): Number of forward passes to perform
@@ -512,7 +514,7 @@ def eval_dataset(
     Returns:
         pd.DataFrame, accuracy, loss
     """
-    if model_type != 'categorical' and reduce_method == 'proportion':
+    if model_type != 'classification' and reduce_method == 'proportion':
         raise ValueError(
             f'Reduction method {reduce_method} incompatible with '
             f'model_type {model_type}'
@@ -539,7 +541,7 @@ def eval_dataset(
             uq_n=uq_n,
         )
 
-    if outcome_names or model_type == 'cph':
+    if outcome_names or model_type == 'survival':
         df = name_columns(df, model_type, outcome_names)
     dfs = group_reduce(df, method=reduce_method, patients=patients)
     return dfs, acc, total_loss
@@ -643,7 +645,7 @@ def group_reduce(
     return group_dfs
 
 
-def linear_metrics(
+def regression_metrics(
     df: DataFrame,
     label: str = '',
     level: str = 'tile',
@@ -677,7 +679,7 @@ def linear_metrics(
     _outcomes_by_true = [c[:-7] for c in df.columns if c.endswith('-y_true')]
     if ((sorted(outcome_names) != sorted(_outcomes_by_true))
        or not len(outcome_names)):
-        raise ValueError("Improperly formatted dataframe to linear_metrics(); "
+        raise ValueError("Improperly formatted dataframe to regression_metrics(); "
                          "could not detect outcome names. Ensure that "
                          "prediction columns end in '-y_pred' and ground-truth "
                          "columns end in '-y_true'. Try setting column names "
@@ -727,7 +729,7 @@ def metrics_from_dataset(
 
     Args:
         model (tf.keras.Model or torch.nn.Module): Keras/Torch model to eval.
-        model_type (str): 'categorical', 'linear', or 'cph'.
+        model_type (str): 'classification', 'regression', or 'survival'.
         patients (dict): Dictionary mapping slidenames to patients.
         dataset (tf.data.Dataset or torch.utils.data.DataLoader): Dataset.
         num_tiles (int, optional): Number of total tiles expected in dataset.
@@ -793,12 +795,12 @@ def metrics_from_dataset(
             ) for level, _df in dfs.items()
         })
 
-    if model_type == 'categorical':
-        metrics = metrics_by_level(categorical_metrics)
-    elif model_type == 'linear':
-        metrics = metrics_by_level(linear_metrics)
+    if model_type == 'classification':
+        metrics = metrics_by_level(classification_metrics)
+    elif model_type == 'regression':
+        metrics = metrics_by_level(regression_metrics)
     else:
-        metrics = metrics_by_level(cph_metrics)
+        metrics = metrics_by_level(survival_metrics)
 
     log.debug(f'Metrics generation complete.')
     return metrics, acc, total_loss
@@ -816,13 +818,13 @@ def name_columns(
     Args:
         df (DataFrame): DataFrame from sf.stats.df_from_pred(), containing
             predictions and labels.
-        model_type (str): Type of model ('categorical', 'linear', or 'cph').
+        model_type (str): Type of model ('classification', 'regression', or 'survival').
         outcome_names (list(str)), optional): Outcome names to apply to the
-            DataFrame. If this is from a CPH model, the standard names "time"
+            DataFrame. If this is from a survival model, the standard names "time"
             and "event" will be used.
 
     Raises:
-        ValueError: If outcome_names are not supplied and it is not a CPH model.
+        ValueError: If outcome_names are not supplied and it is not a survival model.
         errors.StatsError: If the length of outcome_names is incompatible
             with the DataFrame.
 
@@ -831,14 +833,14 @@ def name_columns(
     """
     _assert_model_type(model_type)
 
-    if outcome_names is None and model_type != 'cph':
-        raise ValueError("Must supply outcome names for categorical "
-                         "or linear models.")
+    if outcome_names is None and model_type != 'survival':
+        raise ValueError("Must supply outcome names for classification "
+                         "or regression models.")
     if (not isinstance(outcome_names, (list, tuple))
        and outcome_names is not None):
         outcome_names = [outcome_names]
 
-    if model_type == 'categorical' and outcome_names is not None:
+    if model_type == 'classification' and outcome_names is not None:
         # Update dataframe column names with outcome names
         outcome_cols_to_replace = {}
         for oi, outcome in enumerate(outcome_names):
@@ -849,7 +851,7 @@ def name_columns(
             })
         df = df.rename(columns=outcome_cols_to_replace)
 
-    elif model_type == 'linear':
+    elif model_type == 'regression':
         n_outcomes = len([c for c in df.columns if c.startswith('out0-y_pred')])
         if not outcome_names:
             outcome_names = [f"Outcome {i}" for i in range(n_outcomes)]
@@ -911,9 +913,9 @@ def predict_dataset(
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
-        model_type (str, optional): 'categorical', 'linear', or 'cph'.
-            If multiple linear outcomes are present, y_true is stacked into a
-            single vector for each image. Defaults to 'categorical'.
+        model_type (str, optional): 'classification', 'regression', or 'survival'.
+            If multiple continuous outcomes are present, y_true is stacked into a
+            single vector for each image. Defaults to 'classification'.
         num_tiles (int, optional): Used for progress bar with Tensorflow.
             Defaults to 0.
         uq_n (int, optional): Number of forward passes to perform
@@ -941,7 +943,7 @@ def predict_dataset(
         'patient', and values containing DataFrames with tile-, slide-,
         and patient-level predictions.
     """
-    if model_type != 'categorical' and reduce_method == 'proportion':
+    if model_type != 'classification' and reduce_method == 'proportion':
         raise ValueError(
             f'Reduction method {reduce_method} incompatible with '
             f'model_type {model_type}'
@@ -966,7 +968,7 @@ def predict_dataset(
             uq=uq,
             uq_n=uq_n,
         )
-    if outcome_names is not None or model_type == 'cph':
+    if outcome_names is not None or model_type == 'survival':
         df = name_columns(df, model_type, outcome_names)
     return group_reduce(df, method=reduce_method, patients=patients)
 
@@ -989,7 +991,11 @@ def save_dfs(
         if format == 'csv':
             _df.to_csv(path+'.csv')
         elif format == 'feather':
-            import pyarrow.feather as feather
+            try:
+                import pyarrow.feather as feather
+            except ImportError:
+                raise ImportError("Saving to a feather file requires the package `pyarrow`. "
+                                  "Please install with `pip install pyarrow`")
             feather.write_feather(_df, path+'.feather')
         else:
             _df.to_parquet(path+'.parquet.gzip', compression='gzip')

@@ -21,6 +21,7 @@ from rich.progress import track
 from scipy.ndimage import label
 
 from slideflow.util import path_to_name
+from slideflow.model import torch_utils
 
 from .model import SegmentModel
 from .data import (
@@ -37,7 +38,7 @@ from .utils import topleft_pad, center_square_pad, outlines_list
 
 def generate_rois(
     wsi: "sf.WSI",
-    model: str,
+    model: str
 ) -> List[np.ndarray]:
     """Generate ROIs for a single slide using a U-Net model.
 
@@ -74,7 +75,10 @@ def generate_rois(
 
     # Load ROIs.
     for outline in outlines:
-        wsi.load_roi_array(outline, process=False)
+        try:
+            wsi.load_roi_array(outline, process=False)
+        except sf.errors.InvalidROIError:
+            continue
     wsi.process_rois()
 
 # -----------------------------------------------------------------------------
@@ -378,7 +382,7 @@ def load_model_and_config(path: str):
     model = cfg.build_model()
 
     # Load the weights.
-    model.load_state_dict(torch.load(path))
+    model.load_state_dict(torch.load(path, map_location=torch_utils.get_device()))
     model.eval()
 
     return model, cfg
@@ -547,7 +551,9 @@ def train(
         train_ds,
         batch_size=config.train_batch_size,
         shuffle=True,
-        num_workers=num_workers
+        num_workers=num_workers,
+        drop_last=True,
+        persistent_workers=True
     )
     if val_ds is not None:
         val_dl = torch.utils.data.DataLoader(

@@ -6,11 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Layer Activations &mdash; slideflow 2.3.0 documentation</title>
+  <title>Layer Activations &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +178,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -356,7 +358,7 @@
 </pre></div>
 </div>
 <p>Tile-level feature activations for each slide can be accessed directly from <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.activations</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">num_features)</span></code>. Predictions are stored in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.predictions</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">num_classes)</span></code>. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.locations</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">2)</span></code> (<code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>).</p>
-<p>Activations can be exported to a Pandas DataFrame with <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_df" title="slideflow.DatasetFeatures.to_df"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_df()</span></code></a> or exported into PyTorch format with <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_torch" title="slideflow.DatasetFeatures.to_torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_torch()</span></code></a>. See <a class="reference internal" href="../mil/#mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information about generating and exporting features for MIL models.</p>
+<p>Activations can be exported to a Pandas DataFrame with <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_df" title="slideflow.DatasetFeatures.to_df"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_df()</span></code></a> or exported into PyTorch format with <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures.to_torch" title="slideflow.DatasetFeatures.to_torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.to_torch()</span></code></a>. See <a class="reference internal" href="../features/#features"><span class="std std-ref">Generating Features</span></a> for more information about generating and exporting features for MIL models.</p>
 <p>Read the API documentation for <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> for more information.</p>
 </section>
 </section>

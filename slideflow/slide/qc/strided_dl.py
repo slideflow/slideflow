@@ -1,8 +1,9 @@
 import numpy as np
 
+from tqdm import tqdm
 from contextlib import contextmanager
 from typing import Callable, Union, Optional, TYPE_CHECKING
-from .strided_qc import _StridedQC
+from .strided_qc import _StridedQC, _StridedQC_V2
 
 if TYPE_CHECKING:
     import slideflow as sf
@@ -151,3 +152,126 @@ class StridedDL(_StridedQC):
 
         with self._set_threshold(threshold):
             return super().__call__(wsi)
+
+
+# -----------------------------------------------------------------------------
+
+def _taper_mask(ly=224, lx=224, sig=7.5):
+    bsize = max(224, max(ly, lx))
+    xm = np.arange(bsize)
+    xm = np.abs(xm - xm.mean())
+    mask = 1/(1 + np.exp((xm - (bsize/2-20)) / sig))
+    mask = mask * mask[:, np.newaxis]
+    mask = mask[bsize//2-ly//2 : bsize//2+ly//2+ly%2,
+                bsize//2-lx//2 : bsize//2+lx//2+lx%2]
+    return mask
+
+# -----------------------------------------------------------------------------
+
+class StridedDL_V2(_StridedQC_V2):
+
+    """Implementation of a strided deep learning QC algorithm.
+
+    The _StrdedQC_V2 base class collates tiled QC masks into a single mask by
+    cropping out the overlap regions. This approach is suitable for algorithms
+    that generate artifacts at the edges of tiles, but is not adequate for
+    stitching together deep learning predictions.
+
+    This class is a subclass of _StridedQC_V2, and is designed to stitch
+    together output from a deep learning QC model for tiles using a tapered mask.
+    """
+
+    def __init__(
+        self,
+        *args,
+        out_classes: int = 0,
+        **kwargs
+    ):
+        """Create a new StridedDL_V2 object.
+
+        Args:
+            *args (Any): Arguments to pass to the parent class.
+            out_classes (int): Number of output classes from the deep learning model.
+                If provided, the shape of the QC mask will be (out_classes, h, w).
+                If 0 or not provided, the shape will be (h, w).
+            **kwargs (Any): Keyword arguments to pass to the parent class.
+        """
+        super().__init__(*args, **kwargs)
+        self.out_classes = out_classes
+
+    def _calc_mask(self, item):
+        """Calculate a QC mask from a given tile."""
+        grid_i = item['grid'][0]
+        grid_j = item['grid'][1]
+        image = item['image']
+
+        mask = self.apply(image)
+        return mask, (grid_i, grid_j)
+
+    def build_masks(self, wsi: "sf.WSI"):
+        """Return empty arrays for storing QC mask and the average (taper) mask."""
+        dim = (wsi.dimensions[1], wsi.dimensions[0])
+        px_ratio = wsi.tile_px / wsi.full_extract_px
+        target_dim = tuple((np.array(dim) * px_ratio).astype(int))
+        if self.out_classes:
+            qc_dim = (self.out_classes, target_dim[0], target_dim[1])
+        else:
+            qc_dim = target_dim
+        qc_mask = np.zeros(qc_dim, np.float32)
+        avg_mask = np.zeros(target_dim, np.float32)
+        return qc_mask, avg_mask
+
+    def get_tile_bounds(self, wsi: "sf.WSI", i: int, j: int):
+        """Return the bounds of a tile."""
+        fy, fx = wsi.grid_to_coord(i, j, anchor="topleft")
+        px_ratio = wsi.tile_px / wsi.full_extract_px
+        x0 = int(fx * px_ratio)
+        y0 = int(fy * px_ratio)
+        x1 = x0 + wsi.tile_px
+        y1 = y0 + wsi.tile_px
+        return x0, x1, y0, y1
+
+    def __call__(
+        self,
+        wsi: "sf.WSI",
+    ) -> Optional[np.ndarray]:
+        """Apply QC filtering to a slide."""
+
+        qc_wsi, mpp = self.get_slide_and_mpp(wsi)
+        qc_mask, avg_mask = self.build_masks(qc_wsi)
+        dts = self.build_tile_generator(qc_wsi)
+
+        # Get the base taper mask
+        taper_mask = _taper_mask(ly=self.tile_px, lx=self.tile_px, sig=7.5)
+
+        # Progress bar tracking
+        if self.verbose:
+            pb = tqdm(dts, desc="Generating...", total=qc_wsi.estimated_num_tiles)
+        else:
+            pb = dts
+
+        # Apply QC filter to each tile
+        if self.filter_pool is not None:
+            map_fn = self.filter_pool.imap_unordered
+        else:
+            map_fn = map
+        for (tile_mask, (i, j)) in map_fn(self._calc_mask, pb):
+            x0, x1, y0, y1 = self.get_tile_bounds(qc_wsi, i, j)
+            if self.out_classes:
+                x1 = min(x1, qc_mask.shape[1])
+                y1 = min(y1, qc_mask.shape[2])
+                qc_mask[:, x0:x1, y0:y1] += tile_mask[:, 0: x1-x0, 0: y1-y0] * taper_mask[0: x1-x0, 0: y1-y0]
+            else:
+                x1 = min(x1, qc_mask.shape[0])
+                y1 = min(y1, qc_mask.shape[1])
+                qc_mask[x0:x1, y0:y1] += tile_mask[0: x1-x0, 0: y1-y0] * taper_mask[0: x1-x0, 0: y1-y0]
+            avg_mask[x0:x1, y0:y1] += taper_mask[0: x1-x0, 0: y1-y0]
+
+        # Normalize the mask
+        qc_mask = qc_mask / avg_mask
+
+        # Close pools
+        if not self.persistent_threads:
+            self.close_pools()
+
+        return qc_mask

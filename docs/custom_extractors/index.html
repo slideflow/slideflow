@@ -6,11 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Custom Feature Extractors &mdash; slideflow 2.3.0 documentation</title>
+  <title>Custom Feature Extractors &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +178,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -290,7 +292,7 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <section id="custom-feature-extractors">
-<h1>Custom Feature Extractors<a class="headerlink" href="#custom-feature-extractors" title="Permalink to this heading">¶</a></h1>
+<span id="custom-extractors"></span><h1>Custom Feature Extractors<a class="headerlink" href="#custom-feature-extractors" title="Permalink to this heading">¶</a></h1>
 <p>Slideflow includes several <a class="reference internal" href="../mil/#mil"><span class="std std-ref">pretrained feature extractors</span></a> for converting image tiles into feature vectors as well as tools to assist with building your own feature extractor. In this note, we’ll walk through the process of building a custom feature extractor from both a PyTorch and Tensorflow model.</p>
 <section id="pytorch">
 <h2>PyTorch<a class="headerlink" href="#pytorch" title="Permalink to this heading">¶</a></h2>
@@ -324,7 +326,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">num_features</span> <span class="o">=</span> <span class="mi">1024</span>
 </pre></div>
 </div>
-<p>The initializer is also responsible for registering image preprocessing. The image preprocessing transformation, a function which converts a raw <code class="docutils literal notranslate"><span class="pre">uint8</span></code> image to a <code class="docutils literal notranslate"><span class="pre">float32</span></code> tensor for model input, should be stored in <code class="docutils literal notranslate"><span class="pre">self.transform</span></code>. If the transformation standardizes the images, then the parameter <code class="docutils literal notranslate"><span class="pre">self.preprocess_kwargs</span></code> should be set to <code class="docutils literal notranslate"><span class="pre">{'standardize':</span> <span class="pre">False}</span></code>, indicating that Slideflow should not perform any additional standardization.</p>
+<p>The initializer is also responsible for registering image preprocessing. The image preprocessing transformation, a function which converts a raw <code class="docutils literal notranslate"><span class="pre">uint8</span></code> image to a <code class="docutils literal notranslate"><span class="pre">float32</span></code> tensor for model input, should be stored in <code class="docutils literal notranslate"><span class="pre">self.transform</span></code>. If the transformation standardizes the images, then the parameter <code class="docutils literal notranslate"><span class="pre">self.preprocess_kwargs</span></code> should be set to <code class="docutils literal notranslate"><span class="pre">{'standardize':</span> <span class="pre">False}</span></code>, indicating that Slideflow should not perform any additional standardization. You can use the class method <code class="docutils literal notranslate"><span class="pre">.build_transform()</span></code> to use the standard preprocessing pipeline.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">torchvision</span> <span class="kn">import</span> <span class="n">transforms</span>
 
 <span class="o">...</span>
@@ -333,14 +335,7 @@
         <span class="o">...</span>
 
         <span class="c1"># Image preprocessing.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span>
-            <span class="n">transforms</span><span class="o">.</span><span class="n">Resize</span><span class="p">(</span><span class="mi">256</span><span class="p">),</span>
-            <span class="n">transforms</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">/</span> <span class="mf">255.</span><span class="p">),</span>
-            <span class="n">transforms</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span>
-                <span class="n">mean</span><span class="o">=</span><span class="p">[</span><span class="mf">0.485</span><span class="p">,</span> <span class="mf">0.456</span><span class="p">,</span> <span class="mf">0.406</span><span class="p">],</span>
-                <span class="n">std</span><span class="o">=</span><span class="p">[</span><span class="mf">0.229</span><span class="p">,</span> <span class="mf">0.224</span><span class="p">,</span> <span class="mf">0.225</span><span class="p">]</span>
-            <span class="p">)</span>
-        <span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_transform</span><span class="p">(</span><span class="n">img_size</span><span class="o">=</span><span class="mi">256</span><span class="p">)</span>
         <span class="c1"># Disable Slideflow standardization,</span>
         <span class="c1"># as we are standardizing with transforms.Normalize</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;standardize&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
@@ -350,10 +345,9 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
 
     <span class="k">def</span> <span class="nf">dump_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">{</span>
-            <span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;MyFeatureExtractor&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;kwargs&#39;</span><span class="p">:</span> <span class="p">{}</span>
-        <span class="p">}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dump_config</span><span class="p">(</span>
+            <span class="n">class_name</span><span class="o">=</span><span class="s1">&#39;my_module.MyFeatureExtractor&#39;</span>
+        <span class="p">)</span>
 </pre></div>
 </div>
 <p>The final class should look like this:</p>
@@ -375,23 +369,15 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">num_features</span> <span class="o">=</span> <span class="mi">1024</span>
 
         <span class="c1"># Image preprocessing.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span>
-            <span class="n">transforms</span><span class="o">.</span><span class="n">Resize</span><span class="p">(</span><span class="mi">256</span><span class="p">),</span>
-            <span class="n">transforms</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">/</span> <span class="mf">255.</span><span class="p">),</span>
-            <span class="n">transforms</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span>
-                <span class="n">mean</span><span class="o">=</span><span class="p">[</span><span class="mf">0.485</span><span class="p">,</span> <span class="mf">0.456</span><span class="p">,</span> <span class="mf">0.406</span><span class="p">],</span>
-                <span class="n">std</span><span class="o">=</span><span class="p">[</span><span class="mf">0.229</span><span class="p">,</span> <span class="mf">0.224</span><span class="p">,</span> <span class="mf">0.225</span><span class="p">]</span>
-            <span class="p">)</span>
-        <span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_transform</span><span class="p">(</span><span class="n">img_size</span><span class="o">=</span><span class="mi">256</span><span class="p">)</span>
         <span class="c1"># Disable Slideflow standardization,</span>
         <span class="c1"># as we are standardizing with transforms.Normalize</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;standardize&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">dump_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">{</span>
-            <span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;MyFeatureExtractor&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;kwargs&#39;</span><span class="p">:</span> <span class="p">{}</span>
-        <span class="p">}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dump_config</span><span class="p">(</span>
+            <span class="n">class_name</span><span class="o">=</span><span class="s1">&#39;my_module.MyFeatureExtractor&#39;</span>
+        <span class="p">)</span>
 </pre></div>
 </div>
 <p>You can then use the feature extractor for generating bags for MIL training, as described in <a class="reference internal" href="../mil/#mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a>.</p>
@@ -424,8 +410,8 @@
 </pre></div>
 </div>
 <p>Once registered, a feature extractor can be built by name:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
-<span class="n">extractor</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;my_feature_extractor&#39;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="n">extractor</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;my_feature_extractor&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -529,8 +515,8 @@
 </pre></div>
 </div>
 <p>…which will allow the feature extractor to be built by name:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
-<span class="n">extractor</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;my_feature_extractor&#39;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="n">extractor</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;my_feature_extractor&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>

@@ -24,41 +24,30 @@ If tiles have not yet been :ref:`extracted <filtering>` for this dataset, do tha
 
     >>> dataset.extract_tiles(qc='otsu')
 
-Once a dataset has been prepared, the next step in training an MIL model is :ref:`converting images into features <mil>`. For this example, we'll use the pretrained `HistoSSL <https://github.com/owkin/HistoSSLscaling>`_ feature extractor, a vision transformer pretrained on 40 million histology images. HistoSSL was trained on tiles of size 224x224, so our images will be center-cropped to match.
+Once a dataset has been prepared, the next step in training an MIL model is :ref:`converting images into features <mil>`. For this example, we'll use the pretrained `Virchow <https://huggingface.co/paige-ai/Virchow>`_ feature extractor, a vision transformer pretrained on 1.5M whole-slide images.  Virchow has an input size of 224x224, so our images will be resized to match.
 
 .. code-block:: python
 
-    >>> from slideflow.model import build_feature_extractor
-    >>> histossl = build_feature_extractor('histossl', tile_px=256)
-
-    This model is developed and licensed by Owkin, Inc. The license for use is
-    provided in the LICENSE file in the same directory as this source file
-    (slideflow/model/extractors/histossl/LICENSE), and is also available
-    at https://github.com/owkin/HistoSSLscaling. By using this feature extractor,
-    you agree to the terms of the license.
-
-    >>> histossl.cite()
-
-    @article{Filiot2023ScalingSSLforHistoWithMIM,
-        author       = {Alexandre Filiot and Ridouane Ghermi and Antoine Olivier and Paul Jacob and Lucas Fidon and Alice Mac Kain and Charlie Saillard and Jean-Baptiste Schiratti},
-        title        = {Scaling Self-Supervised Learning for Histopathology with Masked Image Modeling},
-        elocation-id = {2023.07.21.23292757},
-        year         = {2023},
-        doi          = {10.1101/2023.07.21.23292757},
-        publisher    = {Cold Spring Harbor Laboratory Press},
-        url          = {https://www.medrxiv.org/content/early/2023/07/26/2023.07.21.23292757},
-        eprint       = {https://www.medrxiv.org/content/early/2023/07/26/2023.07.21.23292757.full.pdf},
-        journal      = {medRxiv}
+    >>> virchow = sf.build_feature_extractor('virchow', center_crop=True)
+    >>> virchow.cite()
+    @misc{vorontsov2024virchowmillionslidedigitalpathology,
+        title={Virchow: A Million-Slide Digital Pathology Foundation Model},
+        author={Eugene Vorontsov and Alican Bozkurt and Adam Casson and George Shaikovski and Michal Zelechowski and Siqi Liu and Kristen Severson and Eric Zimmermann and James Hall and Neil Tenenholtz and Nicolo Fusi and Philippe Mathieu and Alexander van Eck and Donghun Lee and Julian Viret and Eric Robert and Yi Kan Wang and Jeremy D. Kunz and Matthew C. H. Lee and Jan Bernhard and Ran A. Godrich and Gerard Oakley and Ewan Millar and Matthew Hanna and Juan Retamero and William A. Moye and Razik Yousfi and Christopher Kanan and David Klimstra and Brandon Rothrock and Thomas J. Fuchs},
+        year={2024},
+        eprint={2309.07778},
+        archivePrefix={arXiv},
+        primaryClass={eess.IV},
+        url={https://arxiv.org/abs/2309.07778},
     }
-    >>> histossl.num_features
-    768
+    >>> virchow.num_features
+    2560
 
-The HistoSSL feature extractor produces a 768-dimensional vector for each tile. We can generate and export :ref:`bags <bags>` of these features for all slides in our dataset using :func:`slideflow.Project.generate_feature_bags`.
+The Virchow feature extractor produces a 2560-dimensional vector for each tile. We can generate and export :ref:`bags <bags>` of these features for all slides in our dataset using :func:`slideflow.Project.generate_feature_bags`.
 
 .. code-block:: python
 
     >>> P.generate_feature_bags(
-    ...     histossl,
+    ...     virchow,
     ...     dataset,
     ...     outdir='/bags/path'
     ... )

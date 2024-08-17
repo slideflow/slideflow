@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.slide.qc.otsu &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.slide.qc.otsu &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -158,6 +158,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -410,17 +412,39 @@
             <span class="n">thumb</span> <span class="o">=</span> <span class="n">thumb</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
 
         <span class="c1"># Only apply Otsu thresholding within ROI, if present</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">wsi</span><span class="o">.</span><span class="n">roi_polys</span><span class="p">):</span>
+        <span class="c1"># If ROI is the ROI_issues, invert it</span>
+        <span class="k">if</span> <span class="n">wsi</span><span class="o">.</span><span class="n">has_rois</span><span class="p">():</span>
             <span class="n">ofact</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">wsi</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_downsamples</span><span class="p">[</span><span class="n">level</span><span class="p">]</span>
             <span class="n">roi_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
-            <span class="n">scaled_polys</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="n">sa</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span><span class="n">roi</span><span class="o">.</span><span class="n">poly</span><span class="p">,</span> <span class="n">xfact</span><span class="o">=</span><span class="n">ofact</span><span class="p">,</span> <span class="n">yfact</span><span class="o">=</span><span class="n">ofact</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
-                <span class="k">for</span> <span class="n">roi</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">roi_polys</span>
-            <span class="p">]</span>
-            <span class="n">roi_mask</span> <span class="o">=</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">rasterize</span><span class="p">(</span>
-                <span class="n">scaled_polys</span><span class="p">,</span>
-                <span class="n">out_shape</span><span class="o">=</span><span class="n">thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+
+            <span class="c1"># Scale ROIs to thumbnail size</span>
+            <span class="n">scaled_polys</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">_scale_polys</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">roi</span><span class="o">.</span><span class="n">poly</span> <span class="k">for</span> <span class="n">roi</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">get_rois</span><span class="p">(</span><span class="n">ignore_artifact</span><span class="o">=</span><span class="kc">True</span><span class="p">)],</span>
+                <span class="n">xfact</span><span class="o">=</span><span class="n">ofact</span><span class="p">,</span>
+                <span class="n">yfact</span><span class="o">=</span><span class="n">ofact</span><span class="p">,</span>
             <span class="p">)</span>
+            <span class="n">scaled_issues_polys</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">_scale_polys</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">roi</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="o">*</span><span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">)</span><span class="o">.</span><span class="n">poly</span> <span class="k">for</span> <span class="n">roi</span> <span class="ow">in</span> <span class="n">wsi</span><span class="o">.</span><span class="n">get_artifacts</span><span class="p">()],</span>
+                <span class="n">xfact</span><span class="o">=</span><span class="n">ofact</span><span class="p">,</span>
+                <span class="n">yfact</span><span class="o">=</span><span class="n">ofact</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="c1"># Rasterize scaled ROIs</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">scaled_polys</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">roi_mask</span> <span class="o">=</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">rasterize</span><span class="p">(</span>
+                    <span class="n">scaled_polys</span><span class="p">,</span>
+                    <span class="n">out_shape</span><span class="o">=</span><span class="n">thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">scaled_issues_polys</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">roi_mask_issues</span> <span class="o">=</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">rasterize</span><span class="p">(</span>
+                    <span class="n">scaled_issues_polys</span><span class="p">,</span>
+                    <span class="n">out_shape</span><span class="o">=</span><span class="n">thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+                <span class="p">)</span>
+                <span class="c1"># If there are artifacts, remove them from the ROI mask</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">scaled_polys</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">roi_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">roi_mask_issues</span><span class="p">,</span> <span class="n">roi_mask</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">roi_mask</span> <span class="o">=</span> <span class="n">roi_mask_issues</span>
+                
             <span class="k">if</span> <span class="n">wsi</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;outside&#39;</span><span class="p">:</span>
                 <span class="n">roi_mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">roi_mask</span>
             <span class="n">thumb</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">bitwise_or</span><span class="p">(</span>
@@ -430,8 +454,8 @@
             <span class="p">)</span>
         <span class="c1"># Only apply Otsu thresholding within areas not already removed</span>
         <span class="c1"># with other QC methods.</span>
-        <span class="k">if</span> <span class="n">wsi</span><span class="o">.</span><span class="n">qc_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">thumb</span> <span class="o">=</span> <span class="n">_apply_mask</span><span class="p">(</span><span class="n">thumb</span><span class="p">,</span> <span class="n">wsi</span><span class="o">.</span><span class="n">qc_mask</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">wsi</span><span class="o">.</span><span class="n">has_non_roi_qc</span><span class="p">():</span>
+            <span class="n">thumb</span> <span class="o">=</span> <span class="n">_apply_mask</span><span class="p">(</span><span class="n">thumb</span><span class="p">,</span> <span class="n">wsi</span><span class="o">.</span><span class="n">get_qc_mask</span><span class="p">(</span><span class="n">roi</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">thumb</span>
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>

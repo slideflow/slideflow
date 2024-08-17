@@ -594,9 +594,9 @@ class Mosaic:
             focus (list, optional): List of tfrecords (paths) to highlight on
                 the mosaic.
         """
-        import matplotlib.pyplot as plt
-
         with sf.util.matplotlib_backend('Agg'):
+            import matplotlib.pyplot as plt
+
             self.plot(**kwargs)
             log.info('Exporting figure...')
             try:

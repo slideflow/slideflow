@@ -54,7 +54,7 @@ class ImguiWindow(GlfwWindow):
 
         # Load icons.
         self._icon_textures = {
-            name: gl_utils.Texture(image=icon)
+            name: gl_utils.Texture(image=icon, bilinear=True, mipmap=True, maxlevel=3)
             for name, icon in imgui_utils.icons().items()
         }
 
@@ -117,7 +117,7 @@ class ImguiWindow(GlfwWindow):
         # Begin imgui frame.
         imgui.new_frame()
         imgui.push_font(self._imgui_fonts[self._cur_font_size])
-        imgui_utils.set_default_style(spacing=self.spacing, indent=self.font_size, scrollbar=self.font_size+4)
+        imgui_utils.set_default_style(spacing=self.spacing, indent=self.font_size, scrollbar=self.font_size/2+4)
 
         # Render toasts.
         self._render_toasts()
@@ -154,7 +154,7 @@ class ImguiWindow(GlfwWindow):
         if message is None and title is None and icon is None:
             raise ValueError("Must supply either message, title, or icon to "
                              "create_toast()")
-        toast = Toast(message=message, title=title, icon=icon, **kwargs)
+        toast = Toast(message=message, title=title, icon=icon, viz=self, **kwargs)
         self._toasts.append(toast)
         return toast
 
@@ -162,6 +162,17 @@ class ImguiWindow(GlfwWindow):
         imgui.image(self._icon_textures[name].gl_id, self.font_size, self.font_size)
         if sameline:
             imgui.same_line(self.font_size + self.spacing * 2)
+
+    def icon_button(self, name, sameline=False):
+        tex = self._icon_textures[name].gl_id
+        imgui.push_style_color(imgui.COLOR_BUTTON, 0, 0, 0, 0)
+        imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, *self.theme.button_hovered)
+        imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, *self.theme.button_active)
+        result = imgui.image_button(tex, self.font_size, self.font_size)
+        imgui.pop_style_color(3)
+        if sameline:
+            imgui.same_line(self.font_size + self.spacing * 2)
+        return result
 
     def end_frame(self):
         imgui.pop_font()

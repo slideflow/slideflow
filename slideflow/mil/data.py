@@ -11,51 +11,39 @@ from torch.utils.data import Dataset
 
 # -----------------------------------------------------------------------------
 
-def build_dataset(bags, targets, encoder, bag_size, use_lens=False):
+def build_dataset(bags, targets, encoder, bag_size, use_lens=False,  max_bag_size=None, dtype=torch.float32):
     assert len(bags) == len(targets)
 
     def _zip(bag, targets):
         features, lengths = bag
+        _targets = targets if encoder is None else targets.squeeze()
         if use_lens:
-            return (features, lengths, targets.squeeze())
+            return (features, lengths, _targets)
         else:
-            return (features, targets.squeeze())
+            return (features, _targets)
 
     dataset = MapDataset(
         _zip,
-        BagDataset(bags, bag_size=bag_size),
+        BagDataset(bags, bag_size=bag_size, max_bag_size=max_bag_size, dtype=dtype),
         EncodedDataset(encoder, targets),
     )
     dataset.encoder = encoder
     return dataset
 
-def build_clam_dataset(bags, targets, encoder, bag_size):
+def build_multibag_dataset(bags, targets, encoder, bag_size, use_lens=False, max_bag_size=None, dtype=torch.float32):
     assert len(bags) == len(targets)
-
-    def _zip(bag, targets):
-        features, lengths = bag
-        return (features, targets.squeeze(), True), targets.squeeze()
-
-    dataset = MapDataset(
-        _zip,
-        BagDataset(bags, bag_size=bag_size),
-        EncodedDataset(encoder, targets),
-    )
-    dataset.encoder = encoder
-    return dataset
-
-def build_multibag_dataset(bags, targets, encoder, bag_size, n_bags, use_lens=False):
-    assert len(bags) == len(targets)
+    n_bags = len(bags[0])
 
     def _zip(bags_and_lengths, targets):
+        _targets = targets if encoder is None else targets.squeeze()
         if use_lens:
-            return *bags_and_lengths, targets.squeeze()
+            return *bags_and_lengths, _targets
         else:
-            return [b[0] for b in bags_and_lengths], targets.squeeze()
+            return [b[0] for b in bags_and_lengths], _targets
 
     dataset = MapDataset(
         _zip,
-        MultiBagDataset(bags, n_bags, bag_size=bag_size),
+        MultiBagDataset(bags, n_bags, bag_size=bag_size, max_bag_size=max_bag_size, dtype=dtype),
         EncodedDataset(encoder, targets),
     )
     dataset.encoder = encoder
@@ -65,7 +53,7 @@ def build_multibag_dataset(bags, targets, encoder, bag_size, n_bags, use_lens=Fa
 
 def _to_fixed_size_bag(
     bag: torch.Tensor,
-    bag_size: int = 512
+    bag_size: int = 512,
 ) -> Tuple[torch.Tensor, int]:
     # get up to bag_size elements
     bag_idxs = torch.randperm(bag.shape[0])[:bag_size]
@@ -80,6 +68,16 @@ def _to_fixed_size_bag(
     )
     return zero_padded, min(bag_size, len(bag))
 
+def _to_clipped_bag(
+    bag: torch.Tensor,
+    max_bag_size: int = 512,
+) -> Tuple[torch.Tensor, int]:
+    if len(bag) > max_bag_size:
+        bag_idxs = torch.randperm(bag.shape[0])[:max_bag_size]
+        return bag[bag_idxs], max_bag_size
+    else:
+        return bag, len(bag)
+
 # -----------------------------------------------------------------------------
 
 @dataclass
@@ -89,7 +87,10 @@ class BagDataset(Dataset):
         self,
         bags: Union[List[Path], List[np.ndarray], List[torch.Tensor], List[List[str]]],
         bag_size: Optional[int] = None,
-        preload: bool = False
+        max_bag_size: Optional[int] = None,
+        preload: bool = False,
+        *,
+        dtype: torch.dtype = torch.float32
     ):
         """A dataset of bags of instances.
 
@@ -110,9 +111,13 @@ class BagDataset(Dataset):
 
         """
         super().__init__()
+        if bag_size and max_bag_size:
+            raise ValueError("Cannot specify both bag_size and max_bag_size")
         self.bags = bags
         self.bag_size = bag_size
+        self.max_bag_size = max_bag_size
         self.preload = preload
+        self.dtype = dtype
 
         if self.preload:
             self.bags = [self._load(i) for i in range(len(self.bags))]
@@ -122,14 +127,14 @@ class BagDataset(Dataset):
 
     def _load(self, index: int):
         if isinstance(self.bags[index], str):
-            feats = torch.load(self.bags[index]).to(torch.float32)
+            feats = torch.load(self.bags[index]).to(self.dtype)
         elif isinstance(self.bags[index], np.ndarray):
-            feats = torch.from_numpy(self.bags[index]).to(torch.float32)
+            feats = torch.from_numpy(self.bags[index]).to(self.dtype)
         elif isinstance(self.bags[index], torch.Tensor):
-            feats = self.bags[index]
+            feats = self.bags[index].to(self.dtype)
         else:
             feats = torch.cat([
-                torch.load(slide).to(torch.float32)
+                torch.load(slide).to(self.dtype)
                 for slide in self.bags[index]
             ])
         return feats
@@ -144,6 +149,8 @@ class BagDataset(Dataset):
         # sample a subset, if required
         if self.bag_size:
             return _to_fixed_size_bag(feats, bag_size=self.bag_size)
+        elif self.max_bag_size:
+            return _to_clipped_bag(feats, max_bag_size=self.max_bag_size)
         else:
             return feats, len(feats)
 
@@ -175,6 +182,14 @@ class MultiBagDataset(Dataset):
     `bag_size` is None, all the samples will be used.
     """
 
+    max_bag_size: Optional[int] = None
+
+    dtype: torch.dtype = torch.float32
+
+    def __post_init__(self):
+        if self.bag_size and self.max_bag_size:
+            raise ValueError("Cannot specify both bag_size and max_bag_size")
+
     def __len__(self):
         return len(self.bags)
 
@@ -187,17 +202,19 @@ class MultiBagDataset(Dataset):
         loaded_bags = []
         for bag in bags:
             if isinstance(bag, str):
-                loaded_bags.append(torch.load(bag).to(torch.float32))
+                loaded_bags.append(torch.load(bag).to(self.dtype))
             elif isinstance(self.bags[index], np.ndarray):
-                loaded_bags.append(torch.from_numpy(bag))
+                loaded_bags.append(torch.from_numpy(bag, dtype=self.dtype))
             elif isinstance(self.bags[index], torch.Tensor):
-                loaded_bags.append(bag)
+                loaded_bags.append(bag.to(self.dtype))
             else:
                 raise ValueError("Invalid bag type: {}".format(type(bag)))
 
         # Sample a subset, if required
         if self.bag_size:
             return [_to_fixed_size_bag(bag, bag_size=self.bag_size) for bag in loaded_bags]
+        elif self.max_bag_size:
+            return [_to_clipped_bag(bag, max_bag_size=self.max_bag_size) for bag in loaded_bags]
         else:
             return [(bag, len(bag)) for bag in loaded_bags]
 
@@ -268,6 +285,8 @@ class EncodedDataset(MapDataset):
         self.encode = encode
 
     def _unsqueeze_to_float32(self, x):
+        if self.encode is None:
+            return torch.tensor(x, dtype=torch.float32)
         return torch.tensor(
             self.encode.transform(np.array(x).reshape(1, -1)), dtype=torch.float32
         )

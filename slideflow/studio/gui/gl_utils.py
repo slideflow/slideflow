@@ -184,19 +184,34 @@ def create_buffer(vertices):
     return vbo
 
 
-def draw_buffer(vbo, size):
+def draw_roi_buffer(vbo, size, mode):
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
     gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
     gl.glVertexPointer(2, gl.GL_FLOAT, 0, None)
-
-    gl.glMultiDrawArrays(gl.GL_LINE_LOOP, [i*4 for i in range(size)], [4 for _ in range(size)], size)
-
+    gl.glDrawArrays(mode, 0, size)
     gl.glDisableClientState(gl.GL_VERTEX_ARRAY)
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
 
 
-def draw_rois(vertices, *, color=1, alpha=1, linewidth=2, vbo=None):
-    """Draw multiple ROIs, reducing the number of OpenGL calls with VBO."""
+def draw_boxes_buffer(vbo, size, mode=gl.GL_LINE_LOOP):
+    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+    gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
+    gl.glVertexPointer(2, gl.GL_FLOAT, 0, None)
+    gl.glMultiDrawArrays(
+        mode,
+        [i*4 for i in range(size)],
+        [4 for _ in range(size)],
+        size
+    )
+    gl.glDisableClientState(gl.GL_VERTEX_ARRAY)
+    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+
+
+def draw_boxes(vertices, *, color=1, alpha=1, linewidth=2, vbo=None, mode=gl.GL_LINE_LOOP):
+    """Draw multiple boxes (4 coordinates each).
+
+    This implementation reduces the number of OpenGL calls with VBO.
+    """
     assert vertices.ndim == 3 and vertices.shape[2] == 2
     color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
 
@@ -205,12 +220,36 @@ def draw_rois(vertices, *, color=1, alpha=1, linewidth=2, vbo=None):
     gl.glLineWidth(linewidth)
 
     if vbo is not None:
-        draw_buffer(vbo, size=vertices.shape[0])
+        draw_boxes_buffer(vbo, size=vertices.shape[0], mode=mode)
     else:
         for i in range(vertices.shape[0]):
-            draw_roi(vertices[i])
+            draw_roi(vertices[i], mode=mode)
 
     gl.glLineWidth(1)
+
+
+def draw_vbo_roi(vertices, vbo, *, color=1, alpha=1, linewidth=2, mode=gl.GL_LINE_LOOP):
+    """Draw multiple ROIs (N coordinates each).
+
+    This implementation reduces the number of OpenGL calls with VBO.
+    """
+    assert vertices.ndim == 2 and vertices.shape[1] == 2
+    color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
+    gl.glColor4f(color[0] * alpha, color[1] * alpha, color[2] * alpha, alpha)
+    gl.glLineWidth(linewidth)
+    draw_roi_buffer(vbo, size=vertices.shape[0], mode=mode)
+    gl.glLineWidth(1)
+
+
+def draw_vbo_triangles(vertices, vbo, *, color=1, alpha=1, linewidth=2, mode=gl.GL_TRIANGLES):
+    """Draw multiple ROIs (N coordinates each).
+
+    This implementation reduces the number of OpenGL calls with VBO.
+    """
+    assert vertices.ndim == 2 and vertices.shape[1] == 2
+    color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
+    gl.glColor4f(color[0] * alpha, color[1] * alpha, color[2] * alpha, alpha)
+    draw_roi_buffer(vbo, size=vertices.shape[0], mode=mode)
 
 
 def draw_roi(vertices, *, color=1, alpha=1, linewidth=2, mode=gl.GL_LINE_STRIP):

@@ -4,7 +4,6 @@ Slideflow Studio: Live Visualization
 ====================================
 
 .. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/studio_preview.webm
-    :width: 100%
     :autoplay:
 
 |
@@ -57,7 +56,7 @@ Layout & design
 
 |
 
-The Slideflow Studio window has three primary areas: the main view, a tile preview, and the control panel. Fullscreen mode can be toggled with View -> Fullscreen or by pressing Ctrl+F.
+The Slideflow Studio window has three primary areas: the main view, a tile preview, and the control panel. Fullscreen mode can be toggled with View -> Fullscreen or by pressing Alt+Enter.
 
 Main view
 -----------
@@ -77,7 +76,8 @@ Projects
 
 A Slideflow :ref:`Project <project_setup>` can be loaded to make it easier to find and load both slides and models. Load a project with either File -> Open Project, or click and drag a project folder onto the main view. Click the Project icon to view project information and browse both slides and models.
 
-.. image:: studio_projects.jpg
+.. video:: https://github.com/user-attachments/assets/e55339a9-69ce-4fa6-a3de-66a4a5244704
+    :autoplay:
 
 |
 
@@ -112,14 +112,20 @@ Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow 
 Click the plus (Add) icon to draw new ROIs with a lasso tool; right click and drag to create a new ROI. The pencil (Edit) icon allows you to edit any existing ROIs; right click an ROI while editing to delete the ROI or change its label. Once finished, ROIs can be exported in CSV format by clicking the floppy disk icon (Save). You can manually load an existing ROI file by clicking the folder icon (Load).
 
 .. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/roi_label.mp4
-    :width: 100%
     :autoplay:
 
 |
 
 Labels can be optionally supplied for each ROI. Labels can be set after creating an ROI and changed by right clicking an ROI while editing. Hover over an existing ROI to see its name and label. Labels are exported when saving ROIs.
 
-Slideflow can import ROIs generated from external applications such as QuPath and ImageScope; see :ref:`regions_of_interest` for more information.
+Slideflow 3.0 added a new polygon tool for drawing ROIs. Click the polygon icon to draw a polygon ROI. Right click to add points, and press Enter to close the polygon. The polygon tool can be used to draw complex shapes, and can be used in conjunction with the lasso tool.
+
+.. video:: https://github.com/user-attachments/assets/edf7c377-af40-4f8e-a4cb-f84024988e91
+    :autoplay:
+
+When in Edit mode, click on an ROI to select it. Holding down the Control key will show the ROI vertices, which can then be selected and moved. Hold Shift and drag the mouse to select multiple vertices. Vertices can be moved by dragging them and deleted by pressing the Delete key. Click outside the ROI or press Esc to deselect.
+
+Slideflow can also import ROIs generated from external applications such as QuPath and ImageScope; see :ref:`regions_of_interest` for more information.
 
 Tile filtering
 --------------
@@ -144,16 +150,16 @@ Similarly, slide filtering can be enabled by checking "Slide filter". Available 
 Tissue segmentation
 -------------------
 
-.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/tissue_seg.mp4
-    :width: 100%
+.. video:: https://github.com/user-attachments/assets/6f0da6be-da47-443e-b08e-1bab978fb345
     :autoplay:
 
 |
 
-New in version 2.3, trained :ref:`segmentation models <segmentation>` can be deployed as a slide filter. Start by typing or pasting the path to a trained segmentation model in the text box next to "Segment". Then, check "Segment" to generate and apply a QC mask. The QC mask can be previewed by checking the box "QC Mask" in the "Display" subsection. The QC mask is constructed from all pixels predicted to be background.
+New in version 3.0, trained :ref:`segmentation models <segmentation>` can be both trained and deployed directly within Studio using the new Segmentation widget.
 
-In addition to using a segmentation model for QC, a trained model can be used to generate labeled ROIs. Click "Generate ROIs" to generate ROIs from the segmentation model. The ROIs will be shown in the main view, and can be saved with the annotation tool. The ROIs will be saved in CSV format, with the ROI label corresponding to the predicted class.
+The Segmentation widget can be accessed by clicking the "Segmentation" icon in the left-hand toolbar. The widget allows you to load a segmentation model and apply it to the loaded slide, generating labeled ROIs. Trained models can also be loaded by dragging and dropping a model folder onto the main view.
 
+The Segmentation widget also contains a section for training models. In order to train models, a project must be loaded (File -> Open Project). The "Data Source" dropdown is used to select which slides in the project will be used for training. The "Data Processing" section is used to customize the model, including the tile size, magnification, stride, and margin. The "filter" option - which can be either "roi" or "otsu" - determines which tiles are used for training (either all tiles or only those within ROIs). The "Arch & Params" section is used to select the model architecture, hyperparameters, segmentation model type (binary, multiclass, or multilabel), and ROI classes that will be included in training. The "Train" button will begin training the model. Once training is complete, the "Export" button can be used to save the trained model to disk. "Generate ROIs" can then be used to apply the trained model to any loaded slide.
 
 Preview slide normalization
 ---------------------------
@@ -185,7 +191,7 @@ Tile predictions
 
 |
 
-Once a model is loaded, right-click anywhere on the main view to set the tile extraction location for the tile preview. A tile will be extracted at this location matching the pixel and micron size of the loaded model. The extracted tile will be shown before and after stain normalization (if applicable) in the tile preview window. Right click and drag to slide the preview window. The model prediction at this location will be shown underneath the red box in the main view, and in histogram format in the control panel, along with the class label for categorical models.
+Once a model is loaded, right-click anywhere on the main view to set the tile extraction location for the tile preview. A tile will be extracted at this location matching the pixel and micron size of the loaded model. The extracted tile will be shown before and after stain normalization (if applicable) in the tile preview window. Right click and drag to slide the preview window. The model prediction at this location will be shown underneath the red box in the main view, and in histogram format in the control panel, along with the class label for classification models.
 
 Saliency
 --------
@@ -206,6 +212,40 @@ Slide predictions
 
 Click the "Predict Slide" button to generate a prediction for the whole-slide image. By default, this will show predictions across the slide as a heatmap in the main display, and the final prediction for the slide will be shown under the "Slide Prediction" subheader of the control panel. Histograms of predictions for each model outcome, as well as uncertainty (if applicable), will be shown in this same section of the control panel. Click the + and - buttons in this section to cycle through histograms for each outcome category.
 
+
+.. _studio_mil:
+
+Multiple-Instance Learning
+**************************
+
+Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see :ref:`mil` for more information.
+
+Start opening the MIL widget in the sidebar. Models are loaded by either clicking the "Load MIL model" button, selecting "File -> Load MIL Model...", or by dragging-and-dropping an MIL model folder onto the window.
+
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/mil_attention.mp4
+    :autoplay:
+
+|
+
+Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the "HP" button. Click "Predict Slide" to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.
+
+Right-clicking for a focal prediction when an MIL model is loaded will display the tile-level attention along with the tile prediction. Tile-level attention can be displayed as a scaled colorbar, as shown in the video above, by specifying an attention range and thresholds in the MIL ``mil_params.json`` file.
+
+.. code-block:: python
+
+    {
+        ...
+        "thresholds": {
+            "attention": {
+                "low": 0.3,
+                "high": 0.5,
+                "range": [0, 1]
+            }
+        },
+        ...
+    }
+
+
 Heatmaps
 ********
 
@@ -215,8 +255,7 @@ Heatmaps
 
 The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click "Generate" in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the "Display" subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap. Press the left ALT key while hovering over the heatmap to show the raw heatmap values.
 
-.. video:: heatmap.mp4
-    :width: 100%
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/heatmap.mp4
     :autoplay:
 
 |
@@ -263,7 +302,6 @@ StyleGAN
 --------
 
 .. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm
-    :width: 100%
     :autoplay:
 
 |
@@ -275,7 +313,6 @@ By default, Studio will generate predictions on the full GAN image (after resizi
 The StyleGAN widget can be used to travel the GAN latent space, similar to the implementation in the official `NVIDIA StyleGAN3 repository <https://github.com/NVlabs/stylegan3>`_. Set a specific seed in the input field next to "Seed", or click and drag the "Drag" button. If the model was trained with class conditioning, manually set the class with the "Class" field (the default value of -1 selects a random class). Press left or right on your keyboard to quickly move through seeds.
 
 .. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/gan_seeds.mp4
-    :width: 100%
     :autoplay:
 
 |
@@ -284,39 +321,11 @@ The style mixing section can be used to mix styles between seeds, styles between
 
 Save the current seed by clicking the "Save" button; all saved seeds will be listed in the "Saved Seeds" subsection. Click any seed to load it. Once any seed has been saved, options will appear to export a list of saved seeds in CSV format. Previously exported seeds can be loaded by clicking "Load Seeds".
 
-.. _studio_mil:
+StyleGAN requires the ``slideflow-noncommercial`` package:
 
-Multiple-Instance Learning
---------------------------
+.. code-block:: bash
 
-Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see :ref:`mil` for more information.
-
-Start by navigating to the Extensions tab in the bottom-left corner, and enable the "Multiple-instance Learning" extension. A new icon will appear in the left-hand toolbar, which can be used to open the MIL widget. Models are loaded by either clicking the "Load MIL model" button, selecting "File -> Load MIL Model...", or by dragging-and-dropping an MIL model folder onto the window.
-
-.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/mil_attention.mp4
-    :width: 100%
-    :autoplay:
-
-|
-
-Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the "HP" button. Click "Predict Slide" to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.
-
-Right-clicking for a focal prediction when an MIL model is loaded will display the tile-level attention along with the tile prediction. Tile-level attention can be displayed as a scaled colorbar, as shown in the video above, by specifying an attention range and thresholds in the MIL ``mil_params.json`` file.
-
-.. code-block:: python
-
-    {
-        ...
-        "thresholds": {
-            "attention": {
-                "low": 0.3,
-                "high": 0.5,
-                "range": [0, 1]
-            }
-        },
-        ...
-    }
-
+    pip install slideflow-noncommercial
 
 Mosaic maps
 -----------

@@ -123,17 +123,39 @@ class Otsu:
             thumb = thumb[:, :, :3]
 
         # Only apply Otsu thresholding within ROI, if present
+        # If ROI is the ROI_issues, invert it
         if wsi.has_rois():
             ofact = 1 / wsi.slide.level_downsamples[level]
             roi_mask = np.zeros((thumb.shape[0], thumb.shape[1]))
-            scaled_polys = [
-                sa.scale(roi.poly, xfact=ofact, yfact=ofact, origin=(0, 0))
-                for roi in wsi.roi_polys
-            ]
-            roi_mask = rasterio.features.rasterize(
-                scaled_polys,
-                out_shape=thumb.shape[:2]
+
+            # Scale ROIs to thumbnail size
+            scaled_polys = wsi._scale_polys(
+                [roi.poly for roi in wsi.get_rois(ignore_artifact=True)],
+                xfact=ofact,
+                yfact=ofact,
             )
+            scaled_issues_polys = wsi._scale_polys(
+                [roi.invert(*wsi.dimensions).poly for roi in wsi.get_artifacts()],
+                xfact=ofact,
+                yfact=ofact,
+            )
+            # Rasterize scaled ROIs
+            if len(scaled_polys) > 0:
+                roi_mask = rasterio.features.rasterize(
+                    scaled_polys,
+                    out_shape=thumb.shape[:2]
+                )
+            if len(scaled_issues_polys) > 0:
+                roi_mask_issues = rasterio.features.rasterize(
+                    scaled_issues_polys,
+                    out_shape=thumb.shape[:2]
+                )
+                # If there are artifacts, remove them from the ROI mask
+                if len(scaled_polys) > 0:
+                    roi_mask = np.minimum(roi_mask_issues, roi_mask)
+                else:
+                    roi_mask = roi_mask_issues
+                
             if wsi.roi_method == 'outside':
                 roi_mask = ~roi_mask
             thumb = cv2.bitwise_or(
@@ -143,8 +165,8 @@ class Otsu:
             )
         # Only apply Otsu thresholding within areas not already removed
         # with other QC methods.
-        if wsi.qc_mask is not None:
-            thumb = _apply_mask(thumb, wsi.qc_mask)
+        if wsi.has_non_roi_qc():
+            thumb = _apply_mask(thumb, wsi.get_qc_mask(roi=False))
         return thumb
 
     def __call__(

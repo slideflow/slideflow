@@ -6,11 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.stats &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.stats &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +178,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul class="current">
@@ -300,13 +302,13 @@
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>y_true</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>(</em><em>np.ndarray</em><em>)</em>) – List of y_true numpy arrays, one array for
-each outcome. For linear outcomes, the length of the outer
+each outcome. For continuous outcomes, the length of the outer
 list should be one, and the second shape dimension of the numpy
-array should be the number of linear outcomes.</p></li>
+array should be the number of continuous outcomes.</p></li>
 <li><p><strong>y_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>(</em><em>np.ndarray</em><em>)</em>) – List of y_pred numpy arrays, one array for
-each outcome. For linear outcomes, the length of the outer
+each outcome. For continuous outcomes, the length of the outer
 list should be one, and the second shape dimension of the numpy
-array should be the number of linear outcomes.</p></li>
+array should be the number of continuous outcomes.</p></li>
 <li><p><strong>y_std</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>(</em><em>np.ndarray</em><em>)</em>) – List of uncertainty numpy arrays, formatted
 in the same way as y_pred.</p></li>
 <li><p><strong>tile_to_slides</strong> (<em>np.ndarray</em>) – Array of slide names for each tile. Length
@@ -331,9 +333,9 @@ should match the numpy arrays in y_true, y_pred, and y_std.</p></li>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Path to PyTorch model.</p></li>
 <li><p><strong>dataset</strong> (<em>tf.data.Dataset</em>) – PyTorch dataloader.</p></li>
-<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – ‘categorical’, ‘linear’, or ‘cph’.
-If multiple linear outcomes are present, y_true is stacked into a
-single vector for each image. Defaults to ‘categorical’.</p></li>
+<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – ‘classification’, ‘regression’, or ‘survival’.
+If multiple continuous outcomes are present, y_true is stacked into a
+single vector for each image. Defaults to ‘classification’.</p></li>
 <li><p><strong>num_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Used for progress bar with Tensorflow.
 Defaults to 0.</p></li>
 <li><p><strong>uq_n</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Number of forward passes to perform
@@ -398,7 +400,7 @@ generating a variety of statistical outcomes and graphs.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> (<em>tf.keras.Model</em><em> or </em><em>torch.nn.Module</em>) – Keras/Torch model to eval.</p></li>
-<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – ‘categorical’, ‘linear’, or ‘cph’.</p></li>
+<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – ‘classification’, ‘regression’, or ‘survival’.</p></li>
 <li><p><strong>patients</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)"><em>dict</em></a>) – Dictionary mapping slidenames to patients.</p></li>
 <li><p><strong>dataset</strong> (<em>tf.data.Dataset</em><em> or </em><em>torch.utils.data.DataLoader</em>) – Dataset.</p></li>
 <li><p><strong>num_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Number of total tiles expected in dataset.
@@ -446,15 +448,15 @@ log results. Defaults to None.</p></li>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>DataFrame</em>) – DataFrame from sf.stats.df_from_pred(), containing
 predictions and labels.</p></li>
-<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Type of model (‘categorical’, ‘linear’, or ‘cph’).</p></li>
+<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Type of model (‘classification’, ‘regression’, or ‘survival’).</p></li>
 <li><p><strong>outcome_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>)</em><em>)</em><em>, </em><em>optional</em>) – Outcome names to apply to the
-DataFrame. If this is from a CPH model, the standard names “time”
+DataFrame. If this is from a survival model, the standard names “time”
 and “event” will be used.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.12)"><strong>ValueError</strong></a> – If outcome_names are not supplied and it is not a CPH model.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.12)"><strong>ValueError</strong></a> – If outcome_names are not supplied and it is not a survival model.</p></li>
 <li><p><strong>errors.StatsError</strong> – If the length of outcome_names is incompatible
     with the DataFrame.</p></li>
 </ul>
@@ -477,9 +479,9 @@ and “event” will be used.</p></li>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Path to PyTorch model.</p></li>
 <li><p><strong>dataset</strong> (<em>tf.data.Dataset</em>) – PyTorch dataloader.</p></li>
-<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – ‘categorical’, ‘linear’, or ‘cph’.
-If multiple linear outcomes are present, y_true is stacked into a
-single vector for each image. Defaults to ‘categorical’.</p></li>
+<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – ‘classification’, ‘regression’, or ‘survival’.
+If multiple continuous outcomes are present, y_true is stacked into a
+single vector for each image. Defaults to ‘classification’.</p></li>
 <li><p><strong>num_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Used for progress bar with Tensorflow.
 Defaults to 0.</p></li>
 <li><p><strong>uq_n</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Number of forward passes to perform

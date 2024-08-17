@@ -1,6 +1,7 @@
 import slideflow as sf
 import os
 import warnings
+import slideflow as sf
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import numpy as np
@@ -68,7 +69,7 @@ def histogram(
     y_pred: np.ndarray,
     subsample: int = 500,
 ) -> None:
-    """Generates histogram of y_pred, labeled by y_true, saving to outdir.
+    """Generates histogram of y_pred, labeled by y_true.
 
     Args:
         y_true (np.ndarray): y_true array.

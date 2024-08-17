@@ -88,18 +88,18 @@ def activations_tester(
 
 
 @handle_errors
-def clam_feature_generator_tester(
+def feature_generator_tester(
     project: sf.Project,
     verbosity: int,
     passed: "multiprocessing.managers.ValueProxy",
     model: str,
 ) -> None:
-    """Tests feature generation for CLAM (and related) models.
+    """Tests feature generation for MIL (and related) models.
 
     Function must happen in an isolated process to free GPU memory when done.
     """
     sf.setLoggingLevel(verbosity)
-    outdir = join(project.root, 'clam')
+    outdir = join(project.root, 'mil')
     project.generate_feature_bags(
         model,
         outdir=outdir,

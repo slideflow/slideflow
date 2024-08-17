@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.gan.interpolate &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.gan.interpolate &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -158,6 +158,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -293,20 +295,18 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">exists</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
 <span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 
-<span class="kn">from</span> <span class="nn">slideflow.gan.stylegan2.stylegan2</span> <span class="kn">import</span> <span class="n">embedding</span><span class="p">,</span> <span class="n">utils</span>
-<span class="kn">from</span> <span class="nn">slideflow.gan.utils</span> <span class="kn">import</span> <span class="n">crop</span>
+<span class="kn">from</span> <span class="nn">slideflow.gan.utils</span> <span class="kn">import</span> <span class="n">crop</span><span class="p">,</span> <span class="n">noise_tensor</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
-<span class="kn">from</span> <span class="nn">slideflow.model.torch_utils</span> <span class="kn">import</span> <span class="n">get_device</span>
 
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">torch</span>
     <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
 
 <div class="viewcode-block" id="StyleGAN2Interpolator"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator">[docs]</a><span class="k">class</span> <span class="nc">StyleGAN2Interpolator</span><span class="p">:</span>
@@ -317,7 +317,7 @@
         <span class="n">start</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">end</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;torch.device&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">target_um</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">target_px</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">gan_um</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -355,6 +355,9 @@
 <span class="sd">            **gan_kwargs: Additional keyword arguments for GAN inference.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">slideflow.model.torch_utils</span> <span class="kn">import</span> <span class="n">get_device</span>
+        <span class="kn">from</span> <span class="nn">slideflow.gan.stylegan2.stylegan2</span> <span class="kn">import</span> <span class="n">embedding</span>
+
         <span class="n">training_options</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">gan_pkl</span><span class="p">),</span> <span class="s1">&#39;training_options.json&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">training_options</span><span class="p">):</span>
             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">training_options</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
@@ -399,7 +402,7 @@
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_classifier_backend</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span></div>
 
-    <span class="k">def</span> <span class="nf">_crop_and_convert_to_uint8</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">img</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_crop_and_convert_to_uint8</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">img</span><span class="p">:</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert a batch of GAN images to a resized/cropped uint8 tensor.</span>
 
 <span class="sd">        Args:</span>
@@ -504,7 +507,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">UnrecognizedBackendError</span>
 
-<div class="viewcode-block" id="StyleGAN2Interpolator.z"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator.z">[docs]</a>    <span class="k">def</span> <span class="nf">z</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<div class="viewcode-block" id="StyleGAN2Interpolator.z"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator.z">[docs]</a>    <span class="k">def</span> <span class="nf">z</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a noise tensor for a given seed.</span>
 
 <span class="sd">        Args:</span>
@@ -513,11 +516,12 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            torch.tensor: Noise tensor for the corresponding seed.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">torch</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">utils</span><span class="o">.</span><span class="n">noise_tensor</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">E_G</span><span class="o">.</span><span class="n">z_dim</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+            <span class="k">return</span> <span class="n">noise_tensor</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">E_G</span><span class="o">.</span><span class="n">z_dim</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
-                <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">noise_tensor</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">E_G</span><span class="o">.</span><span class="n">z_dim</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="p">[</span><span class="n">noise_tensor</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">E_G</span><span class="o">.</span><span class="n">z_dim</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                  <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">seed</span><span class="p">],</span>
                 <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -592,7 +596,7 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            pd.core.frame.DataFrame: Dataframe of results.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-
+        <span class="kn">import</span> <span class="nn">torch</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Classifier not set; use .set_classifier()&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">concordance_thresholds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -609,7 +613,7 @@
             <span class="k">def</span> <span class="nf">generator</span><span class="p">():</span>
                 <span class="k">for</span> <span class="n">seed_batch</span> <span class="ow">in</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">seeds</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">):</span>
                     <span class="n">z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span>
-                        <span class="n">utils</span><span class="o">.</span><span class="n">noise_tensor</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">z_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">E_G</span><span class="o">.</span><span class="n">z_dim</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">noise_tensor</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">z_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">E_G</span><span class="o">.</span><span class="n">z_dim</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
                         <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">seed_batch</span><span class="p">]</span>
                     <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                     <span class="n">img_batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">E_G</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">embedding</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">gan_kwargs</span><span class="p">)</span>
@@ -629,7 +633,7 @@
             <span class="n">gan_embed1_dts</span>
         <span class="p">)</span>
         <span class="k">for</span> <span class="p">(</span><span class="n">seed_batch</span><span class="p">,</span> <span class="n">embed0_batch</span><span class="p">,</span> <span class="n">embed1_batch</span><span class="p">)</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">seeds_and_embeddings</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)):</span>
-            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">inference_mode</span><span class="p">():</span>
                 <span class="n">res0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">(</span><span class="n">embed0_batch</span><span class="p">)</span>
                 <span class="n">res1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">(</span><span class="n">embed1_batch</span><span class="p">)</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">res0</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">res0</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -751,7 +755,7 @@
 
         <span class="n">fig</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">wspace</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="StyleGAN2Interpolator.generate"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator.generate">[docs]</a>    <span class="k">def</span> <span class="nf">generate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">embedding</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<div class="viewcode-block" id="StyleGAN2Interpolator.generate"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator.generate">[docs]</a>    <span class="k">def</span> <span class="nf">generate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">embedding</span><span class="p">:</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate an image from a given embedding.</span>
 
 <span class="sd">        Args:</span>
@@ -768,7 +772,7 @@
             <span class="n">embedding</span> <span class="o">=</span> <span class="n">embedding</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">E_G</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">embedding</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">gan_kwargs</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="StyleGAN2Interpolator.generate_start"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator.generate_start">[docs]</a>    <span class="k">def</span> <span class="nf">generate_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<div class="viewcode-block" id="StyleGAN2Interpolator.generate_start"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator.generate_start">[docs]</a>    <span class="k">def</span> <span class="nf">generate_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate an image from the starting class.</span>
 
 <span class="sd">        Args:</span>
@@ -779,7 +783,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">embed0</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="StyleGAN2Interpolator.generate_end"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator.generate_end">[docs]</a>    <span class="k">def</span> <span class="nf">generate_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<div class="viewcode-block" id="StyleGAN2Interpolator.generate_end"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator.generate_end">[docs]</a>    <span class="k">def</span> <span class="nf">generate_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;torch.Tensor&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate an image from the ending class.</span>
 
 <span class="sd">        Args:</span>
@@ -793,7 +797,7 @@
 <div class="viewcode-block" id="StyleGAN2Interpolator.generate_np_from_embedding"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator.generate_np_from_embedding">[docs]</a>    <span class="k">def</span> <span class="nf">generate_np_from_embedding</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">embedding</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+        <span class="n">embedding</span><span class="p">:</span> <span class="s2">&quot;torch.Tensor&quot;</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a numpy image from a given embedding.</span>
 
@@ -804,6 +808,7 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            np.ndarray: Image (uint8, shape=(height, width, 3))</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">torch</span>
         <span class="n">img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">embedding</span><span class="p">)</span>
         <span class="n">img</span> <span class="o">=</span> <span class="p">(</span><span class="n">img</span> <span class="o">*</span> <span class="mf">127.5</span> <span class="o">+</span> <span class="mi">128</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">uint8</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
@@ -834,7 +839,7 @@
 <div class="viewcode-block" id="StyleGAN2Interpolator.generate_tf_from_embedding"><a class="viewcode-back" href="../../../../gan/#slideflow.gan.StyleGAN2Interpolator.generate_tf_from_embedding">[docs]</a>    <span class="k">def</span> <span class="nf">generate_tf_from_embedding</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">seed</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
-        <span class="n">embedding</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+        <span class="n">embedding</span><span class="p">:</span> <span class="s2">&quot;torch.Tensor&quot;</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="s2">&quot;tf.Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;tf.Tensor&quot;</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a processed Tensorflow image from the GAN output from a given</span>
 <span class="sd">        seed and embedding.</span>
@@ -907,6 +912,8 @@
 <span class="sd">        Yields:</span>
 <span class="sd">            Generator: images (torch.tensor, dtype=uint8)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">slideflow.gan.stylegan2.stylegan2</span> <span class="kn">import</span> <span class="n">embedding</span>
+
         <span class="k">return</span> <span class="n">embedding</span><span class="o">.</span><span class="n">class_interpolate</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">E_G</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">(</span><span class="n">seed</span><span class="p">),</span>
@@ -933,6 +940,8 @@
 <span class="sd">        Yields:</span>
 <span class="sd">            Generator: images (torch.tensor, dtype=uint8)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">slideflow.gan.stylegan2.stylegan2</span> <span class="kn">import</span> <span class="n">embedding</span>
+
         <span class="k">return</span> <span class="n">embedding</span><span class="o">.</span><span class="n">linear_interpolate</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">G</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">(</span><span class="n">seed</span><span class="p">),</span>
@@ -960,6 +969,8 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Seed must be an integer.&quot;</span><span class="p">)</span>
+        
+        <span class="kn">import</span> <span class="nn">torch</span>
         <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
         <span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
 

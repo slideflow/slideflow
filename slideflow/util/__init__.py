@@ -54,7 +54,8 @@ except Exception:
 # --- Global vars -------------------------------------------------------------
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
-                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png']
+                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png',
+                     'ome.tif', 'ome.tiff']
 EMPTY = ['', ' ', None, np.nan]
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:
@@ -142,7 +143,13 @@ def addLoggingFileHandler(path):
 
 # Add tqdm-friendly stream handler
 #ch = log_utils.TqdmLoggingHandler()
-ch = RichHandler(markup=True, log_time_format="[%X]", show_path=False, highlighter=NullHighlighter(), rich_tracebacks=True)
+ch = RichHandler(
+    markup=True,
+    log_time_format="[%X]",
+    show_path=False,
+    highlighter=NullHighlighter(),
+    rich_tracebacks=True
+)
 ch.setFormatter(log_utils.LogFormatter())
 if 'SF_LOGGING_LEVEL' in os.environ:
     try:
@@ -172,6 +179,24 @@ class TileExtractionSpeedColumn(progress.ProgressColumn):
         data_speed = f'{int(speed)} img'
         return progress.Text(f"{data_speed}/s", style="progress.data.speed")
 
+
+class LabeledMofNCompleteColumn(progress.MofNCompleteColumn):
+    """Renders a completion column with labels."""
+
+    def __init__(self, unit: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.unit = unit
+
+    def render(self, task: "progress.Task") -> progress.Text:
+        """Show completion status with labels."""
+        if task.total is None:
+            return progress.Text("?", style="progress.spinner")
+        return progress.Text(
+            f"{task.completed}/{task.total} {self.unit}",
+            style="progress.spinner"
+        )
+
+
 class ImgBatchSpeedColumn(progress.ProgressColumn):
     """Renders human readable transfer speed."""
 
@@ -194,7 +219,8 @@ class TileExtractionProgress(Progress):
             if task.fields.get("progress_type") == 'speed':
                 self.columns = (
                     TextColumn("[progress.description]{task.description}"),
-                    TileExtractionSpeedColumn(),)
+                    TileExtractionSpeedColumn()
+                )
             if task.fields.get("progress_type") == 'slide_progress':
                 self.columns = (
                     TextColumn("[progress.description]{task.description}"),
@@ -203,6 +229,27 @@ class TileExtractionProgress(Progress):
                     progress.MofNCompleteColumn(),
                     "●",
                     progress.TimeRemainingColumn(),
+                )
+            yield self.make_tasks_table([task])
+
+
+class FeatureExtractionProgress(Progress):
+    def get_renderables(self):
+        for task in self.tasks:
+            if task.fields.get("progress_type") == 'speed':
+                self.columns = (
+                    TextColumn("[progress.description]{task.description}"),
+                    TileExtractionSpeedColumn(),
+                    LabeledMofNCompleteColumn('tiles'),
+                    "●",
+                    progress.TimeRemainingColumn(),
+                )
+            if task.fields.get("progress_type") == 'slide_progress':
+                self.columns = (
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    progress.TaskProgressColumn(),
+                    LabeledMofNCompleteColumn('slides')
                 )
             yield self.make_tasks_table([task])
 
@@ -263,8 +310,8 @@ def about(console=None) -> None:
         >>> sf.about()
         ╭=======================╮
         │       Slideflow       │
-        │    Version: 2.1.0     │
-        │  Backend: tensorflow  │
+        │    Version: 3.0.0     │
+        │  Backend: torch       │
         │ Slide Backend: cucim  │
         │ https://slideflow.dev │
         ╰=======================╯
@@ -808,10 +855,25 @@ def load_json(filename: str) -> Any:
         return json.load(data_file)
 
 
+class ValidJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        try:
+            return super().default(obj)
+        except TypeError:
+            return "<unknown>"
+
+
 def write_json(data: Any, filename: str) -> None:
-    """Write data to JSON file."""
+    """Write data to JSON file.
+
+    Args:
+        data (Any): Data to write.
+        filename (str): Path to JSON file.
+
+    """
+    # First, remove any invalid entries that are not serializable
     with open(filename, "w") as data_file:
-        json.dump(data, data_file, indent=1)
+        json.dump(data, data_file, indent=1, cls=ValidJSONEncoder)
 
 
 def log_manifest(
@@ -921,7 +983,9 @@ def get_gan_config(model_path: str) -> Dict:
 def get_model_config(model_path: str) -> Dict:
     """Loads model configuration JSON file."""
 
-    if exists(join(model_path, 'params.json')):
+    if model_path.endswith('params.json'):
+        config = load_json(model_path)
+    elif exists(join(model_path, 'params.json')):
         config = load_json(join(model_path, 'params.json'))
     elif exists(model_path) and exists(join(dirname(model_path), 'params.json')):
         if not (sf.util.torch_available
@@ -942,6 +1006,11 @@ def get_model_config(model_path: str) -> Dict:
     if 'outcome_label_headers' in config:
         log.debug("Replacing outcome_label_headers in params.json -> outcomes")
         config['outcomes'] = config.pop('outcome_label_headers')
+    # Compatibility for pre-3.0
+    if 'model_type' in config and config['model_type'] == 'categorical':
+        config['model_type'] = 'classification'
+    if 'model_type' in config and config['model_type'] == 'linear':
+        config['model_type'] = 'regression'
     return config
 
 
@@ -1090,20 +1159,26 @@ def contains_nested_subdirs(directory: str) -> bool:
 def path_to_name(path: str) -> str:
     '''Returns name of a file, without extension,
     from a given full path string.'''
-    _file = path.split('/')[-1]
-    if len(_file.split('.')) == 1:
+    _file = os.path.basename(path)
+    dot_split = _file.split('.')
+    if len(dot_split) == 1:
         return _file
+    elif len(dot_split) > 2 and '.'.join(dot_split[-2:]) in SUPPORTED_FORMATS:
+        return '.'.join(dot_split[:-2])
     else:
-        return '.'.join(_file.split('.')[:-1])
+        return '.'.join(dot_split[:-1])
 
 
 def path_to_ext(path: str) -> str:
     '''Returns extension of a file path string.'''
-    _file = path.split('/')[-1]
-    if len(_file.split('.')) == 1:
+    _file = os.path.basename(path)
+    dot_split = _file.split('.')
+    if len(dot_split) == 1:
         return ''
+    elif len(dot_split) > 2 and '.'.join(dot_split[-2:]) in SUPPORTED_FORMATS:
+        return '.'.join(dot_split[-2:])
     else:
-        return _file.split('.')[-1]
+        return dot_split[-1]
 
 
 def update_results_log(
@@ -1434,9 +1509,7 @@ def location_heatmap(
         ax.set_ylim(thumb.size[1], 0)
         log.debug('Saving figure...')
         plt.savefig(filename, bbox_inches='tight')
-        plt.close(fig)
-        del wsi
-        del thumb
+        plt.close()
 
 
 def tfrecord_heatmap(
@@ -1478,6 +1551,14 @@ def tfrecord_heatmap(
         filename=filename,
         **kwargs
     )
+
+
+def tile_size_label(tile_px: int, tile_um: Union[str, int]) -> str:
+    """Return the string label of the given tile size."""
+    if isinstance(tile_um, str):
+        return f"{tile_px}px_{tile_um.lower()}"
+    else:
+        return f"{tile_px}px_{tile_um}um"
 
 
 def get_valid_model_dir(root: str) -> List:
@@ -1622,6 +1703,7 @@ def load_predictions(path: str, **kwargs) -> pd.DataFrame:
     else:
         raise ValueError(f'Unrecognized extension "{path_to_ext(path)}"')
 
+
 @contextmanager
 def cleanup_progress(pb: Optional["Progress"]):
     try:
@@ -1641,3 +1723,50 @@ def matplotlib_backend(backend):
         yield
     finally:
         matplotlib.use(original_backend)
+
+
+def create_triangles(vertices, hole_vertices=None, hole_points=None):
+    """
+    Tessellate a complex polygon, possibly with holes.
+
+    :param vertices: A list of vertices [(x1, y1), (x2, y2), ...] defining the polygon boundary.
+    :param holes: An optional list of points [(hx1, hy1), (hx2, hy2), ...] inside each hole in the polygon.
+    :return: A numpy array of vertices for the tessellated triangles.
+    """
+    import triangle as tr
+
+    # Prepare the segment information for the exterior boundary
+    segments = np.array([[i, (i + 1) % len(vertices)] for i in range(len(vertices))])
+
+    # Prepare the polygon for Triangle
+    polygon = {'vertices': np.array(vertices), 'segments': segments}
+
+    # If there are holes and hole boundaries, add them to the polygon definition
+    if hole_points is not None and hole_vertices is not None and len(hole_vertices):
+        polygon['holes'] = np.array(hole_points).astype(np.float32)
+
+        # Start adding hole segments after the exterior segments
+        start_idx = len(vertices)
+        for hole in hole_vertices:
+            hole_segments = [[start_idx + i, start_idx + (i + 1) % len(hole)] for i in range(len(hole))]
+            segments = np.vstack([segments, hole_segments])
+            start_idx += len(hole)
+
+        # Update the vertices and segments in the polygon
+        all_vertices = np.vstack([vertices] + hole_vertices)
+        polygon['vertices'] = all_vertices
+        polygon['segments'] = segments
+
+    # Tessellate the polygon
+    tess = tr.triangulate(polygon, 'pF')
+
+    # Extract tessellated triangle vertices
+    if 'triangles' not in tess:
+        return None
+
+    tessellated_vertices = np.array([tess['vertices'][t] for t in tess['triangles']]).reshape(-1, 2)
+
+    # Convert to float32
+    tessellated_vertices = tessellated_vertices.astype('float32')
+
+    return tessellated_vertices

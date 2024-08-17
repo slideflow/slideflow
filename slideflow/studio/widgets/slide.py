@@ -3,11 +3,12 @@ import cv2
 import imgui
 import numpy as np
 import threading
-from typing import Optional, Tuple
+import pyperclip
+from typing import Optional, Tuple, Union
 
 from .roi import ROIWidget
 from .._renderer import CapturedException
-from ..utils import EasyDict
+from ..utils import EasyDict, LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
 from ..gui import imgui_utils, gl_utils
 
 import slideflow as sf
@@ -18,16 +19,27 @@ def stride_capture(
     viz: "sf.studio.Studio",
     current_val: int,
     capturing: Optional[int],
-    label: str = '0'
+    label: str = '0',
+    *,
+    draw_label: bool = True,
+    offset: Union[float, str] = 'auto',
+    width: Union[float, str] = 'auto',
+    min_value: int = 1,
+    max_value: int = 8
 ) -> Tuple[int, Optional[int], bool]:
     """Draw a stride capture widget."""
-    imgui.text('Stride')
-    imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
-    with imgui_utils.item_width(viz.font_size * 7):
+    if draw_label:
+        imgui.text('Stride')
+    if offset == 'auto':
+        offset = imgui.get_content_region_max()[0] - 1 - viz.font_size*7
+    imgui.same_line(offset)
+    if width == 'auto':
+        width = viz.font_size * 7
+    with imgui_utils.item_width(width):
         _stride_changed, _stride = imgui.slider_int(f'##stride_{label}',
                                                     current_val,
-                                                    min_value=1,
-                                                    max_value=8,
+                                                    min_value=min_value,
+                                                    max_value=max_value,
                                                     format=f'Stride %d')
 
         # If the stride was changed by the user, update the capturing value
@@ -42,6 +54,7 @@ def stride_capture(
             capturing = None
 
     return current_val, capturing, capture_success
+
 
 #----------------------------------------------------------------------------
 
@@ -64,6 +77,7 @@ class SlideWidget:
         self.alpha                  = 1.0
         self.stride                 = 1
         self.enable_stride_capture  = True
+        self.manual_mpp             = None
         self._filter_grid           = None
         self._filter_thread         = None
         self._capturing_ws_thresh   = None
@@ -116,12 +130,11 @@ class SlideWidget:
         self._tile_colors_rgb   = [0, 1, (1, 0, 0), (0, 1, 0), (0, 0, 1)]
         self._gaussian          = sf.slide.qc.GaussianV2()
         self._otsu              = sf.slide.qc.Otsu()
-        self._segment           = None
-        self._segment_path      = ""
         self._use_otsu          = True
         self._use_gaussian      = False
         self._use_segment       = False
         self._qc_segment        = None
+        self._clicking_path     = False
 
         self.load('', ignore_errors=True)
 
@@ -143,7 +156,19 @@ class SlideWidget:
     def apply_slide_filter(self):
         return any([self._use_otsu, self._use_gaussian, self._use_segment])
 
+    @property
+    def _segment(self):
+        seg_widget = self.viz.get_extension('segment')
+        if seg_widget:
+            return seg_widget._segment
+        else:
+            return None
+
+
     # --- Internal ------------------------------------------------------------
+
+    def _segmentation_enabled(self) -> bool:
+        return self.viz.get_extension('segment') is not None
 
     def _get_qc(self):
         _qc = []
@@ -268,11 +293,13 @@ class SlideWidget:
         if not len(self._tile_box_coords):
             return
         scaled_boxes = self.viz.viewer._scale_rois_to_view(self._tile_box_coords).astype(np.float32)
-        if self._scaled_boxes is None or not np.all(self._scaled_boxes == scaled_boxes):
+        if (self._scaled_boxes is None
+            or (not self._scaled_boxes.shape == scaled_boxes.shape)
+            or (not np.all(self._scaled_boxes == scaled_boxes))):
             self._scaled_boxes = scaled_boxes
             self._vbo = gl_utils.create_buffer(scaled_boxes.flatten())
         c = self._tile_colors_rgb[self.tile_color]
-        gl_utils.draw_rois(scaled_boxes, color=c, linewidth=2, alpha=1, vbo=self._vbo)
+        gl_utils.draw_boxes(scaled_boxes, color=c, linewidth=2, alpha=1, vbo=self._vbo)
 
     def _update_tile_coords(self) -> None:
         """Update the expected coordinates for tiles that will be extracted.
@@ -314,6 +341,7 @@ class SlideWidget:
         """
         if self.preview_tiles:
             self._render_tile_boxes()
+        self.roi_widget.early_render()
 
     def keyboard_callback(self, key: int, action: int) -> None:
         """Handle keyboard events.
@@ -367,7 +395,8 @@ class SlideWidget:
             whitespace_fraction=(self.ws_fraction if self.apply_tile_filter else 1),
             whitespace_threshold=self.ws_threshold,
             qc=self._get_qc(),
-            stride=self.stride
+            stride=self.stride,
+            roi_filter_method=self.roi_widget.roi_filter_method
         )
 
     def update_params(self) -> None:
@@ -391,7 +420,7 @@ class SlideWidget:
 
     def load(
         self,
-        slide: str,
+        slide: Union[str, sf.WSI],
         stride: Optional[int] = None,
         ignore_errors: bool = False,
         mpp: Optional[float] = None,
@@ -400,7 +429,8 @@ class SlideWidget:
         """Load a slide.
 
         Args:
-            slide (str): The path to the slide to load.
+            slide (str, sf.WSI): The slide to load. May be a slide path or 
+                ``sf.WSI`` object.
             stride (int, optional): The stride to use when extracting tiles.
                 If a slide is currently loaded and this value is not None, this
                 will override the current stride. Defaults to None.
@@ -423,22 +453,40 @@ class SlideWidget:
         viz.x = None
         viz.y = None
 
+        # Reset the ROI widget.
+        self.roi_widget.reset()
+
         # Wrap the entire slide loading function in a try-catch block
         # to gracefully handle errors without crashing the application
         try:
+            # Preparations.
             if hasattr(viz, 'close_gan'):
                 viz.close_gan()
-            name = slide.replace('\\', '/').split('/')[-1]
-            self.cur_slide = slide
-            self.user_slide = slide
-            self.manual_mpp = mpp
+
+            
+            if isinstance(slide, str):
+                slide_path = slide
+            elif isinstance(slide, sf.WSI):
+                slide_path = slide.path
+            else:
+                raise ValueError(
+                    "Error in load(): Expected slide to be type 'str' or "
+                    f"'WSI', got: {type(slide)}"
+                )
+
+            self.manual_mpp = mpp    
+            self.cur_slide = slide_path
+            self.user_slide = slide_path
+            name = slide_path.replace('\\', '/').split('/')[-1]
             viz.set_message(f'Loading {name}...')
-            sf.log.debug(f"Loading slide {slide}...")
+            sf.log.debug(f"Loading slide {slide_path}...")
             viz.defer_rendering()
             if stride is not None:
                 self.stride = stride
+            
+            # Load the slide.
             try:
-                success = viz._reload_wsi(
+                success = viz.reload_wsi(
                     slide,
                     stride=self.stride,
                     use_rois=self.roi_widget.use_rois,
@@ -449,15 +497,17 @@ class SlideWidget:
                     return
             except sf.errors.SlideMissingMPPError:
                 self.cur_slide = None
-                self.user_slide = slide
+                self.user_slide = slide_path
                 self._show_mpp_popup = True
                 self._mpp_reload_kwargs = dict(
-                    slide=slide,
+                    slide=slide_path,
                     stride=stride,
                     ignore_errors=ignore_errors,
                     **kwargs
                 )
                 return
+            
+            # Clear the heatmap, if one exists.
             viz.heatmap_widget.reset()
 
             # Generate WSI thumbnail.
@@ -475,6 +525,9 @@ class SlideWidget:
             # Update the slide filter.
             if self.apply_slide_filter:
                 self.update_slide_filter(method=self._get_qc())
+
+            # Update ROI colors.
+            self.roi_widget.refresh_labels()
 
         except Exception as e:
             self.cur_slide = None
@@ -674,8 +727,15 @@ class SlideWidget:
         ]
         imgui.text_colored('Filename', *viz.theme.dim)
         imgui.same_line(viz.font_size * 8)
-        with imgui_utils.clipped_with_tooltip(viz.wsi.name, 17):
+        with imgui_utils.clipped_with_tooltip(viz.wsi.path, 17):
             imgui.text(imgui_utils.ellipsis_clip(viz.wsi.name, 17))
+        if imgui.is_item_hovered() and imgui.is_mouse_down(LEFT_MOUSE_BUTTON):
+            self._clicking_path = True
+        if self._clicking_path and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
+            self._clicking_path = False
+            pyperclip.copy(viz.wsi.path)
+            viz.create_toast("Copied slide path to clipboard", icon="info")
+
         for y, cols in enumerate(rows):
             for x, col in enumerate(cols):
                 if x != 0:
@@ -796,8 +856,21 @@ class SlideWidget:
             self.show_slide_filter = False
             self._reset_tile_filter_and_join_thread()
             self.viz.clear_overlay()
-            self.viz._reload_wsi(stride=self.stride, use_rois=self.roi_widget.use_rois)
+            self.viz.reload_wsi(stride=self.stride, use_rois=self.roi_widget.use_rois)
             self._update_tile_coords()
+
+        # ROI Filter Method
+        _roi_filter_method = self.roi_widget.draw_roi_filter_capture()
+        if _roi_filter_method is not None:
+            self.viz.wsi.roi_filter_method = _roi_filter_method
+            self.viz.wsi.process_rois()
+            self.update_tile_filter()
+            self.update_tile_filter_display()
+            self._update_tile_coords()
+            self.update_params()
+            if self.apply_slide_filter:
+                self.update_slide_filter(method=self._get_qc())
+                self.update_slide_filter_display()
 
         # Tile filtering
         _filter_clicked, self.apply_tile_filter = imgui.checkbox('Tile filter', self.apply_tile_filter)
@@ -813,44 +886,28 @@ class SlideWidget:
             self.draw_filtering_popup()
 
         # Slide filtering
-        _otsu_clicked, self._use_otsu = imgui.checkbox('Otsu Threshold', self._use_otsu)
+        _otsu_clicked, self._use_otsu = imgui.checkbox('Otsu threshold', self._use_otsu)
         if imgui.is_item_hovered():
             imgui.set_tooltip("Apply Otsu's thresholding algorithm")
-        _gaussian_clicked, self._use_gaussian = imgui.checkbox('Gaussian Filter', self._use_gaussian)
+        _gaussian_clicked, self._use_gaussian = imgui.checkbox('Gaussian filter', self._use_gaussian)
         if imgui.is_item_hovered():
             imgui.set_tooltip("Apply Gaussian filter (GaussianV2)")
-        _segment_clicked, self._use_segment = imgui.checkbox('Segment', self._use_segment)
+
+        # Segmentation
+        ## Checkbox
+        with imgui_utils.grayed_out(not self._segment):
+            _segment_clicked, self._use_segment = imgui.checkbox('Segment', self._use_segment)
+            if not self._segment:
+                self._use_segment = False
+                _segment_clicked = False
+        ## Tooltip
         if imgui.is_item_hovered():
-            imgui.set_tooltip("Apply tissue segmentation model")
-        if _segment_clicked and not self._segment:
-            _segment_clicked = False
-            self._use_segment = False
-            viz.create_toast("No segment model loaded", icon="error")
-        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
-        with imgui_utils.item_width(viz.font_size * 7):
-            _path_changed, self._segment_path = imgui.input_text_with_hint(
-                '##segment_path',
-                '<Model path>',
-                self._segment_path,
-                flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE
-            )
-            if imgui.is_item_hovered() and self._segment_path:
-                imgui.set_tooltip(self._segment_path)
-            if _path_changed:
-                try:
-                    self._segment = sf.slide.qc.Segment(self._segment_path)
-                except Exception as e:
-                    sf.log.error(f"Error loading segment model: {e}")
-                    viz.create_toast(f"Error loading segment model: {e}", icon="error")
-                    self._segment = None
-                    self._segment_path = ""
-        imgui.text('')
-        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
-        if imgui_utils.button('Generate ROIs', enabled=(self._segment is not None), width=viz.font_size*7):
-            self._segment.generate_rois(viz.wsi)
-            self.roi_widget.refresh_rois()
-        if imgui.is_item_hovered() and not self._segment:
-            imgui.set_tooltip("No segment model loaded")
+            if not self._segmentation_enabled():
+                imgui.set_tooltip("Extension not loaded")
+            elif not self._segment:
+                imgui.set_tooltip("No segment model loaded")
+            else:
+                imgui.set_tooltip("Apply tissue segmentation model")
 
         # Apply slide filtering changes.
         _qc_clicked = any([_otsu_clicked, _gaussian_clicked, _segment_clicked])
@@ -911,15 +968,23 @@ class SlideWidget:
             self.update_slide_filter_display()
         if imgui.is_item_hovered():
             imgui.set_tooltip("Show slide filter (quality control) mask")
-        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
 
         # Show ROI outlines
         with imgui_utils.grayed_out(not viz.wsi.has_rois()):
-            _roi_clicked, _show_rois = imgui.checkbox("ROIs", viz.viewer.show_rois)
+            _roi_clicked, _show_rois = imgui.checkbox("Show ROIs", viz.viewer.show_rois)
             if _roi_clicked and viz.wsi.has_rois():
                 viz.viewer.show_rois = _show_rois
             if imgui.is_item_hovered():
                 imgui.set_tooltip("Show ROI outlines")
+
+        # Fill ROIs
+        imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*7)
+        with imgui_utils.grayed_out((not viz.wsi.has_rois()) or (not viz.viewer.show_rois)):
+            _roi_clicked, _fill_rois = imgui.checkbox("Fill ROIs", self.roi_widget._fill_rois)
+            if _roi_clicked and (viz.wsi.has_rois() and viz.viewer.show_rois):
+                self.roi_widget.set_fill_rois(_fill_rois)
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Show ROIs as filled polygons")
 
         # Show only extracted tiles
         with imgui_utils.grayed_out(not self.apply_tile_filter):

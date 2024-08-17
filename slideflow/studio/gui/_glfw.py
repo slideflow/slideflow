@@ -111,15 +111,19 @@ class GlfwWindow:
         self.content_width, self.content_height = ws[0], ws[1]
         self.content_frame_width, self.content_frame_height = fs[0], fs[1]
 
-    def set_fullscreen(self):
-        monitor = glfw.get_primary_monitor()
-        mode = glfw.get_video_mode(monitor)
-        glfw.set_window_monitor(self._glfw_window, glfw.get_primary_monitor(), width=mode.size.width, height=mode.size.height, xpos=0, ypos=0, refresh_rate=60)
-        self._is_fullscreen = True
+    def set_fullscreen(self) -> None:
+        """Set fullscreen mode."""
+        if not self._is_fullscreen:
+            monitor = glfw.get_primary_monitor()
+            mode = glfw.get_video_mode(monitor)
+            glfw.set_window_monitor(self._glfw_window, glfw.get_primary_monitor(), width=mode.size.width, height=mode.size.height, xpos=0, ypos=0, refresh_rate=60)
+            self._is_fullscreen = True
 
-    def set_windowed(self):
-        glfw.set_window_monitor(self._glfw_window, monitor=None, width=1600, height=900, xpos=0, ypos=0, refresh_rate=60)
-        self._is_fullscreen = False
+    def set_windowed(self) -> None:
+        """Set windowed mode."""
+        if self._is_fullscreen:
+            glfw.set_window_monitor(self._glfw_window, monitor=None, width=1600, height=900, xpos=0, ypos=0, refresh_rate=60)
+            self._is_fullscreen = False
 
     def toggle_fullscreen(self):
         if not self._is_fullscreen:
@@ -283,9 +287,7 @@ class GlfwWindow:
             self._alt_down = False
 
         # Key combinations
-        if action == glfw.PRESS and key == glfw.KEY_ESCAPE:
-            self.set_windowed()
-        if self._control_down and action == glfw.PRESS and key == glfw.KEY_F:
+        if self._alt_down and action == glfw.PRESS and key == glfw.KEY_ENTER:
             self.toggle_fullscreen()
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_EQUAL:
             self.increase_font_size()

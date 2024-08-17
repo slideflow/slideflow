@@ -5,7 +5,7 @@ API for common functionality, such as tile extraction from whole
 slide images, model training and evaluation, feature calculation, and
 heatmap generation.
 """
-
+import re
 import copy
 import csv
 import itertools
@@ -30,7 +30,7 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
 
 import slideflow as sf
 from . import errors, project_utils
-from .util import log, path_to_name, path_to_ext, MultiprocessProgress
+from .util import log, path_to_name, path_to_ext
 from .dataset import Dataset
 from .model import ModelParams
 from .project_utils import (  # noqa: F401
@@ -102,9 +102,9 @@ class Project:
             self._load(root)
         elif create:
             log.info(f"Creating project at {root}...")
-            self._settings = project_utils._project_config(**kwargs)
             if not exists(root):
                 os.makedirs(root)
+            self._settings = project_utils._project_config(root, **kwargs)
             self.save()
         else:
             raise errors.ProjectError(
@@ -306,7 +306,7 @@ class Project:
         """Prepare dataset and labels."""
         # Assign labels into int
         conf_labels = config['outcome_labels']
-        if hp.model_type() == 'categorical':
+        if hp.model_type() == 'classification':
             if len(outcomes) == 1 and outcomes[0] not in conf_labels:
                 outcome_label_to_int = {
                     outcomes[0]: {
@@ -323,14 +323,14 @@ class Project:
             outcome_label_to_int = None
 
         # Get patient-level labels
-        use_float = (hp.model_type() in ['linear', 'cph'])
+        use_float = (hp.model_type() in ['regression', 'survival'])
         labels, unique = dataset.labels(
             outcomes,
             use_float=use_float,
             assign=outcome_label_to_int
         )
         # Prepare labels for validation splitting
-        if hp.model_type() == 'categorical' and len(outcomes) > 1:
+        if hp.model_type() == 'classification' and len(outcomes) > 1:
             def process_label(v):
                 return '-'.join(map(str, v)) if isinstance(v, list) else v
             split_labels = {k: process_label(v) for k, v in labels.items()}
@@ -472,7 +472,7 @@ class Project:
             )
 
         # Log model settings and hyperparameters
-        if hp.model_type() == 'categorical':
+        if hp.model_type() == 'classification':
             outcome_labels = dict(zip(range(len(unique)), unique))
         else:
             outcome_labels = None
@@ -618,7 +618,7 @@ class Project:
                 hp.tile_um
             )
             if not _compatible:
-                raise errors.ModelParamsError(
+                raise errors.IncompatibleTileSizeError(
                     "Dataset tile size (px={}, um={}) does not match provided "
                     "hyperparameters (px={}, um={})".format(
                         dataset.tile_px, dataset.tile_um,
@@ -631,11 +631,11 @@ class Project:
             min_tiles=min_tiles
         )
         # --- Load labels -------------------------------------------------
-        use_float = (hp.model_type() in ['linear', 'cph'])
+        use_float = (hp.model_type() in ['regression', 'survival'])
         labels, unique = dataset.labels(outcomes, use_float=use_float)
-        if hp.model_type() == 'categorical' and len(outcomes) == 1:
+        if hp.model_type() == 'classification' and len(outcomes) == 1:
             outcome_labels = dict(zip(range(len(unique)), unique))
-        elif hp.model_type() == 'categorical':
+        elif hp.model_type() == 'classification':
             assert isinstance(unique, dict)
             outcome_labels = {
                 k: dict(zip(range(len(ul)), ul))  # type: ignore
@@ -643,12 +643,12 @@ class Project:
             }
         else:
             outcome_labels = dict(zip(range(len(outcomes)), outcomes))
-        if hp.model_type() != 'linear' and len(outcomes) > 1:
-            log.info('Using multi-outcome approach for categorical outcome')
+        if hp.model_type() != 'regression' and len(outcomes) > 1:
+            log.info('Using multi-outcome approach for classification')
 
-        # If multiple categorical outcomes are used,
+        # If multiple classification outcomes are used,
         # create a merged variable for k-fold splitting
-        if hp.model_type() == 'categorical' and len(outcomes) > 1:
+        if hp.model_type() == 'classification' and len(outcomes) > 1:
             split_labels = {
                 k: '-'.join(map(str, v))  # type: ignore
                 for k, v in labels.items()
@@ -775,7 +775,7 @@ class Project:
         if val_settings.dataset:
             train_dts = dataset
             val_dts = val_settings.dataset
-            is_float = (hp.model_type() in ['linear', 'cph'])
+            is_float = (hp.model_type() in ['regression', 'survival'])
             val_labels, _ = val_dts.labels(s_args.outcomes, use_float=is_float)
             s_args.labels.update(val_labels)
         elif val_settings.source:
@@ -789,7 +789,7 @@ class Project:
                 filters=val_settings.filters,
                 filter_blank=val_settings.filter_blank
             )
-            is_float = (hp.model_type() in ['linear', 'cph'])
+            is_float = (hp.model_type() in ['regression', 'survival'])
             val_labels, _ = val_dts.labels(s_args.outcomes, use_float=is_float)
             s_args.labels.update(val_labels)
         # Use manual k-fold assignments if indicated
@@ -837,7 +837,7 @@ class Project:
             train_dts = train_dts.balance(
                 s_args.bal_headers,
                 hp.training_balance,
-                force=(hp.model_type() == 'categorical')
+                force=(hp.model_type() == 'classification')
             )
         elif from_wsi and hp.training_balance not in ('none', None):
             log.warning(
@@ -856,7 +856,7 @@ class Project:
             val_dts = val_dts.balance(
                 s_args.bal_headers,
                 hp.validation_balance,
-                force=(hp.model_type() == 'categorical')
+                force=(hp.model_type() == 'classification')
             )
         elif val_dts and from_wsi and hp.validation_balance not in (
             'none', None
@@ -1028,9 +1028,9 @@ class Project:
             name,
             path=path,
             slides=slides,
-            roi=roi,
+            roi=(roi or join(self._read_relative_path('./roi'), name)),
             tiles=tiles,
-            tfrecords=tfrecords,
+            tfrecords=(tfrecords or join(self._read_relative_path('./tfrecords'), name)),
         )
         if name not in self.sources:
             self.sources += [name]
@@ -1330,189 +1330,17 @@ class Project:
         # Evaluate
         return trainer.evaluate(eval_dts, **kwargs)
 
-    def evaluate_clam(
-        self,
-        exp_name: str,
-        pt_files: str,
-        outcomes: Union[str, List[str]],
-        tile_px: int,
-        tile_um: Union[int, str],
-        *,
-        k: int = 0,
-        eval_tag: Optional[str] = None,
-        filters: Optional[Dict] = None,
-        filter_blank: Optional[Union[str, List[str]]] = None,
-        attention_heatmaps: bool = True
-    ) -> None:
-        """Deprecated function.
-
-        Evaluate CLAM model on activations and export attention heatmaps.
-
-        Args:
-            exp_name (str): Name of experiment to evaluate (subfolder in clam/)
-            pt_files (str): Path to pt_files containing tile-level features.
-            outcomes (str or list): Annotation column that specifies labels.
-            tile_px (int): Tile width in pixels.
-            tile_um (int or str): Tile width in microns (int) or magnification
-                (str, e.g. "20x").
-
-        Keyword Args:
-            k (int, optional): K-fold / split iteration to evaluate. Evaluates
-                the model saved as s_{k}_checkpoint.pt. Defaults to 0.
-            eval_tag (str, optional): Unique identifier for this evaluation.
-                Defaults to None
-            filters (dict, optional): Dataset filters to use for
-                selecting slides. See :meth:`slideflow.Dataset.filter` for
-                more information. Defaults to None.
-            filter_blank (list(str) or str, optional): Skip slides that have
-                blank values in these patient annotation columns.
-                Defaults to None.
-            attention_heatmaps (bool, optional): Save attention heatmaps of
-                validation dataset. Defaults to True.
-
-        Returns:
-            None
-
-        """
-        warnings.warn("Project.evaluate_clam() is deprecated. Please use "
-                      "Project.evaluate_mil()",
-                      DeprecationWarning)
-
-        import slideflow.clam as clam
-        from slideflow.clam import export_attention
-        from slideflow.clam import Generic_MIL_Dataset
-
-        # Detect source CLAM experiment which we are evaluating.
-        # First, assume it lives in this project's clam folder
-        if exists(join(self.root, 'clam', exp_name, 'experiment.json')):
-            exp_name = join(self.root, 'clam', exp_name)
-        elif exists(join(exp_name, 'experiment.json')):
-            pass
-        else:
-            raise errors.CLAMError(f"Unable to find experiment '{exp_name}'")
-
-        log.info(f'Loading experiment from [green]{exp_name}[/], k={k}')
-        eval_dir = join(exp_name, 'eval')
-        if not exists(eval_dir):
-            os.makedirs(eval_dir)
-
-        # Set up evaluation directory with unique evaluation tag
-        existing_tags = [int(d) for d in os.listdir(eval_dir) if d.isdigit()]
-        if eval_tag is None:
-            eval_tag = '0' if not existing_tags else str(max(existing_tags))
-
-        # Ensure evaluation tag will not overwrite existing results
-        if eval_tag in existing_tags:
-            unique, base_tag = 1, eval_tag
-            eval_tag = f'{base_tag}_{unique}'
-            while exists(join(eval_dir, eval_tag)):
-                eval_tag = f'{base_tag}_{unique}'
-                unique += 1
-            log.info(f"Tag {base_tag} already exists, using tag 'eval_tag'")
-
-        # Load trained model checkpoint
-        ckpt_path = join(exp_name, 'results', f's_{k}_checkpoint.pt')
-        eval_dir = join(eval_dir, eval_tag)
-        if not exists(eval_dir):
-            os.makedirs(eval_dir)
-        args_dict = sf.util.load_json(join(exp_name, 'experiment.json'))
-        args = SimpleNamespace(**args_dict)
-        args.save_dir = eval_dir
-        # Update any missing arguments with current defaults
-        _default_args = clam.get_args()
-        for _a in _default_args.__dict__:
-            if not hasattr(args, _a):
-                _default = getattr(_default_args, _a)
-                log.info(
-                    f"Argument {_a} not found in CLAM model configuration "
-                    f"file; using default value of {_default}."
-                )
-                setattr(args, _a, _default)
-
-        dataset = self.dataset(
-            tile_px=tile_px,
-            tile_um=tile_um,
-            filters=filters,
-            filter_blank=filter_blank
-        )
-        slides = dataset.slides()
-        eval_slides = [s for s in slides if exists(join(pt_files, s+'.pt'))]
-        dataset = dataset.filter(filters={'slide': eval_slides})
-        slide_labels, unique_labels = dataset.labels(outcomes, use_float=False)
-
-        # Set up evaluation annotations file based off existing pt_files
-        outcome_dict = dict(zip(range(len(unique_labels)), unique_labels))
-        with open(join(eval_dir, 'eval_annotations.csv'), 'w') as eval_file:
-            writer = csv.writer(eval_file)
-            header = ['patient', 'slide', outcomes]
-            writer.writerow(header)
-            for slide in eval_slides:
-                row = [slide, slide]
-                row += [outcome_dict[slide_labels[slide]]]  # type: ignore
-                writer.writerow(row)
-
-        clam_dataset = Generic_MIL_Dataset(
-            annotations=dataset.filtered_annotations,
-            data_dir=pt_files,
-            shuffle=False,
-            seed=args.seed,
-            print_info=True,
-            label_col=outcomes,
-            label_dict=dict(zip(unique_labels, range(len(unique_labels)))),
-            patient_strat=False,
-            ignore=[]
-        )
-
-        clam.evaluate(ckpt_path, args, clam_dataset)
-
-        # Get attention from trained model on validation set
-        attention_tfrecords = dataset.tfrecords()
-        attention_dir = join(eval_dir, 'attention')
-        if not exists(attention_dir):
-            os.makedirs(attention_dir)
-        reverse_labels = dict(zip(range(len(unique_labels)), unique_labels))
-        export_attention(
-            args_dict,
-            ckpt_path=ckpt_path,
-            outdir=attention_dir,
-            pt_files=pt_files,
-            slides=dataset.slides(),
-            reverse_labels=reverse_labels,
-            labels=slide_labels
-        )
-        if attention_heatmaps:
-            heatmaps_dir = join(eval_dir, 'attention_heatmaps')
-            if not exists(heatmaps_dir):
-                os.makedirs(heatmaps_dir)
-
-            for tfr in attention_tfrecords:
-                attention_dict = {}
-                slide = path_to_name(tfr)
-                try:
-                    with open(join(attention_dir, slide+'.csv'), 'r') as f:
-                        reader = csv.reader(f)
-                        for row in reader:
-                            attention_dict.update({int(row[0]): float(row[1])})
-                except FileNotFoundError:
-                    print(f'No attention scores for slide {slide}, skipping')
-                    continue
-                dataset.tfrecord_heatmap(
-                    tfr,
-                    tile_dict=attention_dict,
-                    filename=join(heatmaps_dir, f'{sf.util.path_to_name(tfr)}_attn.png')
-                )
-
     def evaluate_mil(
         self,
         model: str,
         outcomes: Union[str, List[str]],
         dataset: Dataset,
         bags: Union[str, List[str]],
-        config: Optional["mil._TrainerConfig"] = None,
+        config: Optional["mil.TrainerConfig"] = None,
         *,
         outdir: Optional[str] = None,
         **kwargs
-    ):
+    ) -> pd.DataFrame:
         r"""Evaluate a multi-instance learning model.
 
         Saves results for the evaluation in the ``mil_eval`` project folder,
@@ -1530,7 +1358,7 @@ class Project:
                 of paths to individual \*.pt files. Each file should contain
                 exported feature vectors, with each file containing all tile
                 features for one patient.
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            config (:class:`slideflow.mil.TrainerConfig`):
                 Training configuration, as obtained by
                 :func:`slideflow.mil.mil_config()`.
 
@@ -1550,6 +1378,8 @@ class Project:
                 If 'two_slope', normalizes values less than 0 and greater than 0
                 separately. Defaults to None.
 
+        Returns:
+            pd.DataFrame: Dataframe of predictions.
         """
         from .mil import eval_mil
 
@@ -1858,10 +1688,14 @@ class Project:
         if model not in supported_models:
             raise ValueError(f"Unknown method '{model}'. Valid methods "
                              f"include: {', '.join(supported_models)}")
-        if model == 'stylegan2':
-            from slideflow.gan.stylegan2 import stylegan2 as network
-        elif model == 'stylegan3':
-            from slideflow.gan.stylegan3 import stylegan3 as network  # type: ignore
+        try:
+            if model == 'stylegan2':
+                from slideflow.gan.stylegan2 import stylegan2 as network
+            elif model == 'stylegan3':
+                from slideflow.gan.stylegan3 import stylegan3 as network  # type: ignore
+        except ImportError:
+            raise ImportError("StyleGAN functions require 'slideflow-noncommercial'. "
+                                "Please install with 'pip install slideflow-noncommercial'")
         if metrics is not None:
             log.warn(
                 "StyleGAN2 metrics are not fully implemented for Slideflow."
@@ -1881,7 +1715,7 @@ class Project:
             project_path=self.root,
             tile_px=dataset.tile_px,
             tile_um=dataset.tile_um,
-            model_type='categorical',
+            model_type='classification',
             outcome_label_headers=outcomes,
             filters=dataset._filters,
             filter_blank=dataset._filter_blank,
@@ -2053,14 +1887,6 @@ class Project:
                                 **kwargs)
         return df
 
-    def generate_features_for_clam(self, *args, **kwargs):
-        warnings.warn(
-            "Project.generate_features_for_clam() is deprecated. "
-            "Please use .generate_feature_bags()",
-            DeprecationWarning
-        )
-        self.generate_feature_bags(*args, **kwargs)
-
     @auto_dataset_allow_none
     def generate_feature_bags(
         self,
@@ -2072,13 +1898,9 @@ class Project:
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 16,
         max_tiles: int = 0,
-        force_regenerate: bool = False,
-        batch_size: int = 32,
-        slide_batch_size: int = 16,
-        num_gpus: int = 0,
         **kwargs: Any
     ) -> str:
-        """Generate tile-level features for slides for use with MIL models.
+        """Generate bags of tile-level features for slides for use with MIL models.
 
         By default, features are exported to the ``pt_files`` folder
         within the project root directory.
@@ -2106,6 +1928,7 @@ class Project:
                 per slide. Defaults to 0 (all tiles).
             layers (list): Which model layer(s) generate activations.
                 If ``model`` is a saved model, this defaults to 'postconv'.
+                Not used if ``model`` is pretrained feature extractor.
                 Defaults to None.
             force_regenerate (bool): Forcibly regenerate activations
                 for all slides even if .pt file exists. Defaults to False.
@@ -2116,6 +1939,8 @@ class Project:
             slide_batch_size (int): Interleave feature calculation across
                 this many slides. Higher values may improve performance
                 but require more memory. Defaults to 16.
+            num_gpus (int): Number of GPUs to use for feature extraction.
+                Defaults to 0.
             **kwargs: Additional keyword arguments are passed to
                 :class:`slideflow.DatasetFeatures`.
 
@@ -2123,33 +1948,15 @@ class Project:
             Path to directory containing exported .pt files
 
         """
-        if not sf.util.torch_available:
-            raise RuntimeError(
-                "Pytorch is required for generating feature bags. "
-                "Please install Pytorch and try again."
-            )
-
         # Check if the model exists and has a valid parameters file
-        if isinstance(model, str) and exists(model):
+        if isinstance(model, str) and exists(model) and dataset is None:
+            log.debug(f"Auto-building dataset from provided model {model}")
             config = sf.util.get_model_config(model)
-
-            if dataset is None:
-                log.debug(f"Auto-building dataset from provided model {model}")
-                dataset = self.dataset(
-                    tile_px=config['tile_px'],
-                    tile_um=config['tile_um'],
-                    min_tiles=min_tiles
-                )
-
-            # Set up the pt_files directory for storing model activations
-            if outdir.lower() == 'auto':
-                if 'k_fold_i' in config:
-                    _end = f"_kfold{config['k_fold_i']}"
-                else:
-                    _end = ''
-                outdir = join(
-                    self.root, 'pt_files', config['model_name'] + _end
-                )
+            dataset = self.dataset(
+                tile_px=config['tile_px'],
+                tile_um=config['tile_um'],
+                min_tiles=min_tiles
+            )
         elif dataset is None:
             raise ValueError(
                 'Argument "dataset" is required when "model" is '
@@ -2157,132 +1964,35 @@ class Project:
                 'saved Slideflow model.'
             )
 
-        # Ensure min_tiles is applied to the dataset.
+        # Ensure min_tiles and max_tiles is applied to the dataset.
+        # max_tiles has already been applied via @auto_dataset decorator.
         dataset = dataset.filter(min_tiles=min_tiles)
 
-        # Check if the model is an architecture name
-        # (for using an Imagenet pretrained model)
-        if isinstance(model, str) and sf.model.is_extractor(model):
-            log.info(f"Building feature extractor: [green]{model}[/]")
-            layer_kw = dict(layers=kwargs['layers']) if 'layers' in kwargs else dict()
-            model = sf.model.build_feature_extractor(
-                model, tile_px=dataset.tile_px, **layer_kw
-            )
-
-            # Set the pt_files directory if not provided
-            if outdir.lower() == 'auto':
-                outdir = join(self.root, 'pt_files', model.tag)
-
-        elif isinstance(model, str) and not exists(model):
-            raise ValueError(
-                f"'{model}' is neither a path to a saved model nor the name "
-                "of a valid feature extractor (use sf.model.list_extractors() "
-                "for a list of all available feature extractors).")
-
-        elif not isinstance(model, str):
-            from slideflow.model.base import BaseFeatureExtractor
-            if not isinstance(model, BaseFeatureExtractor):
-                raise ValueError(
-                    f"'{model}' is neither a path to a saved model nor the name "
-                    "of a valid feature extractor (use sf.model.list_extractors() "
-                    "for a list of all available feature extractors).")
-
-            log.info(f"Using feature extractor: [green]{model.tag}[/]")
-            # Set the pt_files directory if not provided
-            if outdir.lower() == 'auto':
-                outdir = join(self.root, 'pt_files', model.tag)
-
-        # Create the pt_files directory
-        if not exists(outdir):
-            os.makedirs(outdir)
-
-        # Detect already generated pt files
-        done = [
-            path_to_name(f) for f in os.listdir(outdir)
-            if sf.util.path_to_ext(join(outdir, f)) == 'pt'
-        ]
-
-        if not force_regenerate and len(done):
-            all_slides = dataset.slides()
-            slides_to_generate = [s for s in all_slides if s not in done]
-            if len(slides_to_generate) != len(all_slides):
-                to_skip = len(all_slides) - len(slides_to_generate)
-                skip_p = f'{to_skip}/{len(all_slides)}'
-                log.info(f"Skipping {skip_p} finished slides.")
-            if not slides_to_generate:
-                log.warn("No slides for which to generate features.")
-                return outdir
-            dataset = dataset.filter(filters={'slide': slides_to_generate})
-            filtered_slides_to_generate = dataset.slides()
-            log.info(f'Working on {len(filtered_slides_to_generate)} slides')
-
-        # Rebuild any missing index files.
-        # Must be done before the progress bar is started.
-        dataset.build_index(False)
-
-        # Set up progress bar.
-        pb = sf.util.TileExtractionProgress()
-        pb.add_task(
-            "Speed: ",
-            progress_type="speed",
-            total=None)
-        slide_task = pb.add_task(
-            "Generating...",
-            progress_type="slide_progress",
-            total=len(dataset.slides()))
-        pb.start()
-
-        # Prepare keyword arguments.
-        dts_kwargs = dict(
-            include_preds=False,
-            include_uncertainty=False,
-            batch_size=batch_size,
-            verbose=False,
-            progress=False,
-            **kwargs
-        )
-
-        # Set up activations interface.
-        # Calculate features one slide at a time to reduce memory consumption.
-        with sf.util.cleanup_progress(pb):
-            if not num_gpus > 1:
-                sf.model.features._export_bags(
-                    model,
-                    dataset,
-                    slides=dataset.slides(),
-                    slide_batch_size=slide_batch_size,
-                    pb=pb,
-                    outdir=outdir,
-                    slide_task=slide_task,
-                    **dts_kwargs
+        # Prepare output directory
+        if outdir.lower() == 'auto':
+            # Check if the model is an architecture name
+            # (for using an Imagenet pretrained model)
+            if isinstance(model, str) and sf.model.is_extractor(model):
+                outdir = join(self.root, 'pt_files', model)
+            # Check if the model is a trained model
+            elif isinstance(model, str) and exists(model):
+                config = sf.util.get_model_config(model)
+                if 'k_fold_i' in config:
+                    _end = f"_kfold{config['k_fold_i']}"
+                else:
+                    _end = ''
+                outdir = join(
+                    self.root, 'pt_files', config['model_name'] + _end
                 )
-
+            # Otherwise, it's a pretrained feature extractor
+            # and the subdirectory can be named by its tag.
             else:
-                if not hasattr(model, 'dump_config'):
-                    raise ValueError(
-                        "Feature extraction with multiple GPUs is only "
-                        "supported for feature extractors with a dump_config() "
-                        "attribute. Please set num_gpus=1 or use a different "
-                        "feature extractor."
-                    )
-                import torch
-                model_cfg = sf.model.extractors.extractor_to_config(model)
-                with MultiprocessProgress(pb) as mp_pb:
-                    torch.multiprocessing.spawn(
-                        sf.model.features._distributed_export,
-                        args=(
-                            model_cfg,
-                            dataset,
-                            [n.tolist() for n in np.array_split(dataset.slides(),
-                                                                num_gpus)],
-                            slide_batch_size,
-                            mp_pb.tracker,
-                            outdir,
-                            slide_task,
-                            dts_kwargs
-                        ),
-                        nprocs=num_gpus
-                    )
+                from slideflow.model.base import BaseFeatureExtractor
+                if isinstance(model, BaseFeatureExtractor):
+                    outdir = join(self.root, 'pt_files', model.tag)
+
+        # Generate feature bags.
+        dataset.generate_feature_bags(model, outdir, **kwargs)
 
         return outdir
 
@@ -2536,7 +2246,7 @@ class Project:
         # If a header category is supplied and we are not showing predictions,
         # then assign slide labels from annotations
         model_type = config['model_type']
-        if model_type == 'linear':
+        if model_type == 'regression':
             use_float = True
         if outcomes and (show_prediction is None):
             labels, _ = dataset.labels(outcomes,
@@ -2565,11 +2275,11 @@ class Project:
         if (map_slide == 'centroid') and show_prediction is not None:
             log.info('Showing slide-level predictions at point of centroid')
 
-            # If not model has not been assigned, assume categorical model
-            model_type = model_type if model_type else 'categorical'
+            # If not model has not been assigned, assume classification model
+            model_type = model_type if model_type else 'classification'
 
             # Get predictions
-            if model_type == 'categorical':
+            if model_type == 'classification':
                 s_pred = df.softmax_predict()
                 s_perc = df.softmax_percent()
             else:
@@ -2596,7 +2306,7 @@ class Project:
             elif use_float:
                 # Displaying linear predictions needs to be implemented here
                 raise NotImplementedError(
-                    "Showing slide preds not supported for linear outcomes."
+                    "Showing slide preds not supported for regression models."
                 )
             # Otherwise, show_prediction is assumed to be just "True",
             # in which case show categorical predictions
@@ -2787,6 +2497,40 @@ class Project:
         if filename is None:
             filename = join(self.root, sf.util.path_to_name(tfrecord) + '.png')
         dataset.tfrecord_heatmap(tfrecord, tile_dict, filename)
+
+    def inspect_tfrecords(self):
+        """Inspect TFRecords in the project dataset configuration."""
+        from rich import print as rprint
+
+        config = sf.util.load_json(self.dataset_config)
+        rprint("[b]Dataset sources:[/]")
+        for source in self.sources:
+            rprint(". {}".format(source))
+            if source not in config:
+                rprint("    {}: Source not found in dataset"
+                      " configuration".format(source))
+                continue
+            if 'tfrecords' not in config[source]:
+                rprint("    {}: TFRecords directory not set".format(source))
+                continue
+            tfr_path = config[source]['tfrecords']
+            if not exists(tfr_path):
+                rprint("    {}: TFRecords directory not found".format(source))
+                continue
+            subdirs = [f for f in os.listdir(tfr_path) 
+                       if isdir(join(tfr_path, f))]
+            for subdir in subdirs:
+                # Check if this is a valid subdir with a tile size label
+                # (e.g. "256px_10um" or "256px_20x")
+                if re.match(r'\d+px_\d+(um|x)$', subdir):
+                    px_str, um_str = subdir.split('_')
+                    _tile_px = px_str.split('px')[0]
+                    _tile_um = um_str.split('um')[0] if 'um' in um_str else um_str.split('x')[0]
+                    tfr_files = [f for f in os.listdir(join(tfr_path, subdir)) 
+                                 if f.endswith('.tfrecords')]
+                    rprint("    tile_px={}, tile_um={}: {} TFRecords".format(
+                        _tile_px, _tile_um, len(tfr_files)
+                    ))
 
     def dataset(
         self,
@@ -3158,7 +2902,10 @@ class Project:
 
         for source in sources:
             log.info(f'Working on dataset source [bold]{source}')
-            roi_dir = dataset.sources[source]['roi']
+            if dataset._roi_set(source):
+                roi_dir = dataset.sources[source]['roi']
+            else:
+                roi_dir = None
 
             # Prepare list of slides for extraction
             slide_list = dataset.slide_paths(source=source)
@@ -3889,70 +3636,9 @@ class Project:
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
-    def train_clam(self, *args, splits: str = 'splits.json', **kwargs):
-        """Deprecated function.
-
-        Train a CLAM model from layer activations
-        exported with :meth:`slideflow.Project.generate_features_for_clam`.
-
-        Preferred API is :meth:`slideflow.Project.train_mil()`.
-
-        See :ref:`mil` for more information.
-
-        Examples
-            Train with basic settings:
-
-                >>> dataset = P.dataset(tile_px=299, tile_um=302)
-                >>> P.generate_features_for_clam('/model', outdir='/pt_files')
-                >>> P.train_clam('NAME', '/pt_files', 'category1', dataset)
-
-            Specify a specific layer from which to generate activations:
-
-                >>> P.generate_features_for_clam(..., layers=['postconv'])
-
-            Manually configure CLAM, with 5-fold validation and SVM bag loss:
-
-                >>> import slideflow.clam as clam
-                >>> clam_args = clam.get_args(k=5, bag_loss='svm')
-                >>> P.generate_features_for_clam(...)
-                >>> P.train_clam(..., clam_args=clam_args)
-
-        Args:
-            exp_name (str): Name of experiment. Makes clam/{exp_name} folder.
-            pt_files (str): Path to pt_files containing tile-level features.
-            outcomes (str): Annotation column which specifies the outcome.
-            dataset (:class:`slideflow.Dataset`): Dataset object from
-                which to generate activations.
-            train_slides (str, optional): List of slide names for training.
-                If 'auto' (default), will auto-generate training/val split.
-            validation_slides (str, optional): List of slides for validation.
-                If 'auto' (default), will auto-generate training/val split.
-            splits (str, optional): Filename of JSON file in which to log
-                training/val splits. Looks for filename in project root
-                directory. Defaults to "splits.json".
-            clam_args (optional): Namespace with clam arguments, as provided
-                by :func:`slideflow.clam.get_args`.
-            attention_heatmaps (bool, optional): Save attention heatmaps of
-                validation dataset.
-
-        Returns:
-            None
-
-        """
-        from slideflow.mil import legacy_train_clam
-        warnings.warn("Project.train_clam() is deprecated. Please use "
-                      "Project.train_mil()",
-                      DeprecationWarning)
-        return legacy_train_clam(
-            *args,
-            outdir=join(self.root, 'clam'),
-            splits=join(self.root, splits),
-            **kwargs
-        )
-
     def train_mil(
         self,
-        config: "mil._TrainerConfig",
+        config: "mil.TrainerConfig",
         train_dataset: Dataset,
         val_dataset: Dataset,
         outcomes: Union[str, List[str]],
@@ -3965,7 +3651,7 @@ class Project:
         r"""Train a multi-instance learning model.
 
         Args:
-            config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+            config (:class:`slideflow.mil.TrainerConfig`):
                 Training configuration, as obtained by
                 :func:`slideflow.mil.mil_config()`.
             train_dataset (:class:`slideflow.Dataset`): Training dataset.
@@ -4064,9 +3750,9 @@ def create(
     Alternatively, you can create a project using a prespecified configuration,
     of which there are three available:
 
-    - ``sf.project.LungAdenoSquam``
-    - ``sf.project.ThyroidBRS``
-    - ``sf.project.BreastER``
+    - ``sf.project.LungAdenoSquam()``
+    - ``sf.project.ThyroidBRS()``
+    - ``sf.project.BreastER()``
 
     When creating a project from a configuration, setting ``download=True``
     will download the annoations file and slides from The Cancer Genome Atlas
@@ -4078,7 +3764,7 @@ def create(
 
         project = sf.create_project(
             root='path',
-            cfg=sf.project.LungAdenoSquam,
+            cfg=sf.project.LungAdenoSquam(),
             download=True
         )
 
@@ -4141,6 +3827,7 @@ def create(
         cfg = sf.util.EasyDict(kwargs)
     elif issubclass(type(cfg), project_utils._ProjectConfig):
         cfg = sf.util.EasyDict(cfg.to_dict())
+
     if 'name' not in cfg:
         cfg.name = "MyProject"
     if 'slides' not in cfg:
@@ -4173,24 +3860,34 @@ def create(
             raise errors.ChecksumError(
                 "Remote annotations URL failed MD5 checksum."
             )
-    elif 'annotations' in cfg:
+    elif 'annotations' in cfg and not cfg.annotations.startswith('.'):
         try:
             shutil.copy(cfg.annotations, root)
         except shutil.SameFileError:
             pass
 
     # Set up the dataset source.
-    if 'sources' not in proj_kwargs or proj_kwargs['sources'] is not None:
+
+    source_already_exists = False
+    if 'sources' in proj_kwargs and exists(P.dataset_config):
+        _dataset_config = sf.util.load_json(P.dataset_config)
+        if isinstance(proj_kwargs['sources'], str):
+            source_already_exists = proj_kwargs['sources'] in _dataset_config
+        else:
+            source_already_exists = all(
+                [s in _dataset_config for s in proj_kwargs['sources']]
+            )
+
+    if (('sources' not in proj_kwargs or proj_kwargs['sources'] is not None)
+        and not source_already_exists):
+
+        # Create a new dataset source if it does not already exist.
         P.add_source(
             cfg.name,
             slides=cfg.slides,
             roi=cfg.roi_dest,
             tiles=cfg.tiles,
             tfrecords=cfg.tfrecords)
-
-        # Create blank annotations file, if not provided.
-        if not exists(P.annotations):
-            P.create_blank_annotations()
 
         # Set up ROIs, if provided.
         if 'rois' in cfg and not exists(cfg.roi_dest):
@@ -4212,6 +3909,10 @@ def create(
             log.info(f"Extrating ROIs from tarfile at {cfg.rois}.")
             roi_file = tarfile.open(cfg.rois)
             roi_file.extractall(cfg.roi_dest)
+
+    # Create blank annotations file, if not provided.
+    if not exists(P.annotations):
+        P.create_blank_annotations()
 
     # Download slides from GDC (TCGA), if specified.
     if download:

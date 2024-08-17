@@ -13,12 +13,11 @@ def _build_grid(extractor, slide, grid=None, dtype=np.float16):
                  + extractor.num_classes
                  + extractor.num_uncertainty)
     if grid is None:
-        features_grid = np.ones((
+        features_grid = np.ma.masked_all((
                 slide.grid.shape[1],
                 slide.grid.shape[0],
                 total_out),
             dtype=dtype)
-        features_grid *= sf.heatmap.MASK
     else:
         assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
         features_grid = grid

@@ -6,11 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 2: Model training (advanced) &mdash; slideflow 2.3.0 documentation</title>
+  <title>Tutorial 2: Model training (advanced) &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +178,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -353,7 +355,7 @@
 <p>We can see the slideflow logs showing us that 234 slides with the outcome label “Negative” were assigned to the numerical outcome “0”, and 842 “Positive” slides were assigned “1”.</p>
 <p>Next, we’ll need to split this dataset into a training and validation set. We’ll start by training on the first of 3 k-folds for cross-validated training. To split a dataset, use the <a class="reference internal" href="../dataset/#slideflow.Dataset.split" title="slideflow.Dataset.split"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.split()</span></code></a> method. We’ll need to provide our labels to ensure that the outcome categories are balanced in the training and validation sets.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
-<span class="gp">... </span>  <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;classification&#39;</span><span class="p">,</span>
 <span class="gp">... </span>  <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
 <span class="gp">... </span>  <span class="n">val_strategy</span><span class="o">=</span><span class="s1">&#39;k-fold&#39;</span><span class="p">,</span>
 <span class="gp">... </span>  <span class="n">val_k_fold</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
@@ -435,7 +437,7 @@
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>Training results are separated with nested dictionaries according to epoch. The raw training metrics and validation metrics are stored with the keys <code class="docutils literal notranslate"><span class="pre">&quot;train_metrics&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;val_metrics&quot;</span></code>, and tile-, slide-, and patient-level metrics (AUC for categorical data, R-squared for linear outcomes, and concordance index for CPH models) is reported under the <code class="docutils literal notranslate"><span class="pre">&quot;tile&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;slide&quot;</span></code>, and <code class="docutils literal notranslate"><span class="pre">&quot;patient&quot;</span></code> keys for each outcome, respectively.</p>
+<p>Training results are separated with nested dictionaries according to epoch. The raw training metrics and validation metrics are stored with the keys <code class="docutils literal notranslate"><span class="pre">&quot;train_metrics&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;val_metrics&quot;</span></code>, and tile-, slide-, and patient-level metrics (AUROC for classification, R-squared for regression outcomes, and concordance index for survival models) is reported under the <code class="docutils literal notranslate"><span class="pre">&quot;tile&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;slide&quot;</span></code>, and <code class="docutils literal notranslate"><span class="pre">&quot;patient&quot;</span></code> keys for each outcome, respectively.</p>
 </section>
 </section>
 

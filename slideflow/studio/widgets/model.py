@@ -7,9 +7,8 @@ from array import array
 from collections import defaultdict
 from slideflow.util import isnumeric
 
-from ..utils import EasyDict
+from ..utils import EasyDict, LEFT_MOUSE_BUTTON
 from ..gui import imgui_utils
-from ..gui.annotator import AnnotationCapture
 
 # -----------------------------------------------------------------------------
 
@@ -25,7 +24,7 @@ def _draw_tile_pred_result(
     viz,
     outcome: Union[str, List[str]],
     labels: List[str],
-    is_categorical: bool,
+    is_classification: bool,
     pred_array: np.ndarray,
     uq_array: Optional[np.ndarray] = None,
     *,
@@ -45,7 +44,7 @@ def _draw_tile_pred_result(
     imgui.text_colored(outcome, *viz.theme.dim)
 
     # Prediction string
-    if is_categorical:
+    if is_classification:
         pred_str = labels[str(np.argmax(pred_array))]
     else:
         pred_str = f'{pred_array:.3f}'
@@ -54,7 +53,7 @@ def _draw_tile_pred_result(
         imgui.text(pred_str)
 
     # Histogram
-    if is_categorical:
+    if is_classification:
         if out_of_focus:
             imgui.push_style_color(imgui.COLOR_PLOT_HISTOGRAM, 0.5, 0.5, 0.5)
             imgui.push_style_color(imgui.COLOR_PLOT_HISTOGRAM_HOVERED, 0.6, 0.6, 0.6)
@@ -97,7 +96,7 @@ def _draw_tile_pred_result(
 
 def draw_tile_predictions(
     viz,
-    is_categorical: bool,
+    is_classification: bool,
     config: "EasyDict" = None,
     has_preds: bool = None,
     using_model: bool = None,
@@ -121,40 +120,40 @@ def draw_tile_predictions(
         out_names = config['outcomes']
         out_names = [out_names] if not isinstance(out_names, list) else out_names
 
-        # Multiple categorical outcomes
+        # Multiple classification outcomes
         if has_preds and isinstance(viz._predictions, list):
             for p, _pred_array in enumerate(viz._predictions):
                 _draw_tile_pred_result(
                     viz,
                     outcome=out_names[p],
                     labels=config['outcome_labels'][out_names[p]],
-                    is_categorical=is_categorical,
+                    is_classification=is_classification,
                     pred_array=_pred_array,
                     uq_array=viz._uncertainty,
                     **kwargs
 
                 )
 
-        # Single categorical outcome
-        elif has_preds and is_categorical:
+        # Single classification outcome
+        elif has_preds and is_classification:
             _draw_tile_pred_result(
                 viz,
                 outcome=out_names[0],
                 labels=config['outcome_labels'],
-                is_categorical=is_categorical,
+                is_classification=is_classification,
                 pred_array=viz._predictions,
                 uq_array=viz._uncertainty,
                 **kwargs
             )
 
-        # Linear outcome(s)
+        # Regression outcome(s)
         elif has_preds:
             for o_idx, outcome in enumerate(out_names):
                 _draw_tile_pred_result(
                     viz,
                     outcome=outcome,
                     labels=None,
-                    is_categorical=is_categorical,
+                    is_classification=is_classification,
                     pred_array=viz._predictions[o_idx],
                     uq_array=viz._uncertainty,
                     **kwargs
@@ -174,7 +173,6 @@ class ModelWidget:
     def __init__(self, viz, show_saliency=True):
         self.viz                = viz
         self.show_saliency      = show_saliency
-        self.annotator          = AnnotationCapture(named=False)
         self.search_dirs        = []
         self.cur_model          = None
         self.user_model         = ''
@@ -263,9 +261,9 @@ class ModelWidget:
     def load(self, model, ignore_errors=False):
         self.viz.load_model(model, ignore_errors=ignore_errors)
 
-    def is_categorical(self):
-        """Check if model is a categorical model."""
-        return self.viz._model_config['model_type'] == 'categorical'
+    def is_classification(self):
+        """Check if model is a classification model."""
+        return self.viz._model_config['model_type'] in ('categorical', 'classification')
 
     # -------------------------------------------------------------------------
 
@@ -273,7 +271,8 @@ class ModelWidget:
     def _masked_histogram(arr):
         # Prediction histogram
         flattened = arr.flatten()
-        flattened = flattened[flattened != sf.heatmap.MASK]
+        flattened = flattened[~np.ma.getmask(flattened)]
+
         hist, _ = np.histogram(flattened, range=(0, 1))
         if flattened.shape[0] > 0:
             hist_arr = array('f', hist/np.sum(hist))
@@ -286,11 +285,10 @@ class ModelWidget:
         return (hist_avg, hist_arr, hist_scale_max)
 
     def _apply_pred_means(self, outcome, pred_array):
-        masked = np.ma.masked_where(((pred_array == sf.heatmap.MASK) | (pred_array == np.nan)), pred_array)
-        if self.is_categorical():
-            self.pred_means[outcome] = masked.mean(axis=(0,1)).filled()
+        if self.is_classification():
+            self.pred_means[outcome] = pred_array.mean(axis=(0,1)).filled()
         else:
-            self.pred_means[outcome] = masked.mean()
+            self.pred_means[outcome] = pred_array.mean()
 
     def _apply_pred_histograms(self, outcome, pred_array, uq_array=None):
         self.pred_hist[outcome] = self._masked_histogram(pred_array)
@@ -311,17 +309,17 @@ class ModelWidget:
 
         if config is not None and self.viz._use_model:
             # Multiple categorical outcomes
-            if multiple_outcomes and self.is_categorical():
+            if multiple_outcomes and self.is_classification():
                 for outcome in config['outcomes']:
                     pred_array = hw.predictions[self.outcome_indices(outcome)].grid
                     self._apply_pred_means(outcome, pred_array)
 
-            # Single categorical or linear outcome
+            # Single categorical or regression outcome
             elif not multiple_outcomes:
                 outcome = config['outcomes'][0]
                 self._apply_pred_means(outcome, np.dstack([overlay.grid for overlay in hw.predictions]))
 
-            # Multiple linear outcome(s)
+            # Multiple regression outcome(s)
             else:
                 for o_idx, outcome in enumerate(config['outcomes']):
                     self._apply_pred_means(outcome, hw.predictions[o_idx].grid)
@@ -336,7 +334,7 @@ class ModelWidget:
 
         if config is not None and self.viz._use_model:
             # Multiple categorical outcomes
-            if multiple_outcomes and self.is_categorical():
+            if multiple_outcomes and self.is_classification():
                 for outcome in config['outcomes']:
                     if self.viz.heatmap:
                         pred_array = hw.predictions[self.outcome_index_start(outcome)+self.pred_idx[outcome]].grid
@@ -346,7 +344,7 @@ class ModelWidget:
                             uq_array = None
                         self._apply_pred_histograms(outcome, pred_array, uq_array)
 
-            # Single categorical or linear outcome
+            # Single categorical or regression outcome
             elif not multiple_outcomes:
                 outcome = config['outcomes'][0]
                 if self.viz.heatmap:
@@ -357,22 +355,22 @@ class ModelWidget:
                         uq_array = None
                     self._apply_pred_histograms(outcome, pred_array, uq_array)
 
-            # Multiple linear outcome(s)
+            # Multiple regression outcome(s)
             else:
                 if self.viz.heatmap:
-                    pred_array = hw.predictions[self.pred_idx['linear']].grid
+                    pred_array = hw.predictions[self.pred_idx['regression']].grid
                     if hw.uncertainty is not None:
-                        uq_array = hw.uncertainty[self.pred_idx['linear']].grid
+                        uq_array = hw.uncertainty[self.pred_idx['regression']].grid
                     else:
                         uq_array = None
-                    self._apply_pred_histograms('linear', pred_array, uq_array)
+                    self._apply_pred_histograms('regression', pred_array, uq_array)
 
     def _draw_prediction_as_text(self, outcome, all_labels):
         viz = self.viz
         imgui.text_colored(outcome, *viz.theme.dim)
         if viz.heatmap_widget._triggered:
             pred_str = imgui_utils.spinner_text()
-        elif self.is_categorical():
+        elif self.is_classification():
             pred_str = all_labels[str(np.argmax(self.pred_means[outcome]))]
         else:
             pred_str = f'{self.pred_means[outcome]:.3f}'
@@ -512,7 +510,7 @@ class ModelWidget:
         if config is not None and viz._use_model:
 
             # Multiple categorical outcomes
-            if multiple_outcomes and self.is_categorical():
+            if multiple_outcomes and self.is_classification():
                 for outcome in config['outcomes']:
                     # Render predictions as text
                     if self.pred_means[outcome] is not None:
@@ -527,7 +525,7 @@ class ModelWidget:
                             active_label=config['outcome_labels'][outcome][str(self.pred_idx[outcome])],
                         )
 
-            # Single categorical or linear outcome
+            # Single categorical or regression outcome
             elif not multiple_outcomes and self.pred_means[config['outcomes'][0]] is not None:
                 outcome = config['outcomes'][0]
                 # Render predictions as text
@@ -541,7 +539,7 @@ class ModelWidget:
                     all_labels=config['outcome_labels'],
                     active_label=config['outcome_labels'][str(self.pred_idx[outcome])],
                 )
-            # Multiple linear outcome(s)
+            # Multiple regression outcome(s)
             else:
                 for o_idx, outcome in enumerate(config['outcomes']):
                     if self.pred_means[outcome] is not None:
@@ -550,12 +548,12 @@ class ModelWidget:
                             outcome=outcome,
                             all_labels=None,
                         )
-                if self.pred_hist['linear'] is not None:
+                if self.pred_hist['regression'] is not None:
                     # Draw histograms
                     self._draw_slide_histograms(
-                        outcome='linear',
+                        outcome='regression',
                         all_labels=config['outcomes'],
-                        active_label=config['outcomes'][self.pred_idx['linear']],
+                        active_label=config['outcomes'][self.pred_idx['regression']],
                     )
 
             imgui_utils.vertical_break()
@@ -600,10 +598,16 @@ class ModelWidget:
             )
             if imgui.menu_item('Load model')[0]:
                 viz.ask_load_model()
+                self._clicking = False
+                self._show_popup = False
             if imgui.menu_item('Download model')[0]:
                 self._show_download = True
+                self._clicking = False
+                self._show_popup = False
             if imgui.menu_item('Close model')[0]:
                 viz.close_model()
+                self._clicking = False
+                self._show_popup = False
             imgui.separator()
             if imgui.menu_item('Enable model', enabled=has_model, selected=self.use_model)[0]:
                 self.use_model = not self.use_model
@@ -616,11 +620,13 @@ class ModelWidget:
             imgui.separator()
             if imgui.menu_item('Show parameters', enabled=has_model)[0]:
                 self._show_params = not self._show_params
+                self._clicking = False
+                self._show_popup = False
 
             # Hide menu if we click elsewhere
-            if imgui.is_mouse_down(0) and not imgui.is_window_hovered():
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
                 self._clicking = True
-            if self._clicking and imgui.is_mouse_released(0):
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
                 self._clicking = False
                 self._show_popup = False
 
@@ -684,7 +690,7 @@ class ModelWidget:
             if viz.collapsing_header('Tile Prediction', default=True):
                 draw_tile_predictions(
                     viz,
-                    self.is_categorical(),
+                    self.is_classification(),
                     uncertainty_color=self.uncertainty_color
                 )
             if viz.collapsing_header('Slide Prediction', default=True):

@@ -84,7 +84,7 @@ If the referenced model was trained with digital stain normalization, this will 
 
 The ``resolution`` parameter indicates the stride at which tiles should be extracted from slides to generate predictions. ``"low"`` resolution yields predictions on non-overlapping slides (stride_div=1). ``"medium"`` resolutions uses tiles with 50% overlap (stide_div=2), and ``"high"`` resolution uses tiles with 75% overlap (stride_div=4).
 
-Heatmaps are colored and scaled in a manner optimized for categorical outcomes, with the colorscale 0 (blue) -> 0.5 (white) -> 1.0 (red). To change this colorscaling (particularly important for linear outcomes), set ``vmin``, ``vcenter``, and ``vmax`` accordingly.
+Heatmaps are colored and scaled in a manner optimized for categorical outcomes, with the colorscale 0 (blue) -> 0.5 (white) -> 1.0 (red). To change this colorscaling (particularly important for regression outcomes), set ``vmin``, ``vcenter``, and ``vmax`` accordingly.
 
 Heatmaps are displayed without any color interpolation by default. To generate a smoothed heatmap, interpolate colors with any strategy supported by matplotlib (including, for example, "bicubic", "nearest", "bilnear", and many more) with the argument ``interpolation``.
 

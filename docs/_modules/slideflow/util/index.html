@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.util &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.util &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -158,6 +158,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -341,7 +343,8 @@
 <span class="c1"># --- Global vars -------------------------------------------------------------</span>
 
 <span class="n">SUPPORTED_FORMATS</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;svs&#39;</span><span class="p">,</span> <span class="s1">&#39;tif&#39;</span><span class="p">,</span> <span class="s1">&#39;ndpi&#39;</span><span class="p">,</span> <span class="s1">&#39;vms&#39;</span><span class="p">,</span> <span class="s1">&#39;vmu&#39;</span><span class="p">,</span> <span class="s1">&#39;scn&#39;</span><span class="p">,</span> <span class="s1">&#39;mrxs&#39;</span><span class="p">,</span>
-                     <span class="s1">&#39;tiff&#39;</span><span class="p">,</span> <span class="s1">&#39;svslide&#39;</span><span class="p">,</span> <span class="s1">&#39;bif&#39;</span><span class="p">,</span> <span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;png&#39;</span><span class="p">]</span>
+                     <span class="s1">&#39;tiff&#39;</span><span class="p">,</span> <span class="s1">&#39;svslide&#39;</span><span class="p">,</span> <span class="s1">&#39;bif&#39;</span><span class="p">,</span> <span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;png&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;ome.tif&#39;</span><span class="p">,</span> <span class="s1">&#39;ome.tiff&#39;</span><span class="p">]</span>
 <span class="n">EMPTY</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]</span>
 <span class="n">CPLEX_AVAILABLE</span> <span class="o">=</span> <span class="p">(</span><span class="n">importlib</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">find_spec</span><span class="p">(</span><span class="s1">&#39;cplex&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
 <span class="k">try</span><span class="p">:</span>
@@ -429,7 +432,13 @@
 
 <span class="c1"># Add tqdm-friendly stream handler</span>
 <span class="c1">#ch = log_utils.TqdmLoggingHandler()</span>
-<span class="n">ch</span> <span class="o">=</span> <span class="n">RichHandler</span><span class="p">(</span><span class="n">markup</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">log_time_format</span><span class="o">=</span><span class="s2">&quot;[</span><span class="si">%X</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">show_path</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">highlighter</span><span class="o">=</span><span class="n">NullHighlighter</span><span class="p">(),</span> <span class="n">rich_tracebacks</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">ch</span> <span class="o">=</span> <span class="n">RichHandler</span><span class="p">(</span>
+    <span class="n">markup</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">log_time_format</span><span class="o">=</span><span class="s2">&quot;[</span><span class="si">%X</span><span class="s2">]&quot;</span><span class="p">,</span>
+    <span class="n">show_path</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">highlighter</span><span class="o">=</span><span class="n">NullHighlighter</span><span class="p">(),</span>
+    <span class="n">rich_tracebacks</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
 <span class="n">ch</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">log_utils</span><span class="o">.</span><span class="n">LogFormatter</span><span class="p">())</span>
 <span class="k">if</span> <span class="s1">&#39;SF_LOGGING_LEVEL&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
     <span class="k">try</span><span class="p">:</span>
@@ -459,6 +468,24 @@
         <span class="n">data_speed</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">speed</span><span class="p">)</span><span class="si">}</span><span class="s1"> img&#39;</span>
         <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_speed</span><span class="si">}</span><span class="s2">/s&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span></div></div>
 
+
+<div class="viewcode-block" id="LabeledMofNCompleteColumn"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.LabeledMofNCompleteColumn">[docs]</a><span class="k">class</span> <span class="nc">LabeledMofNCompleteColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">MofNCompleteColumn</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Renders a completion column with labels.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LabeledMofNCompleteColumn.__init__"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.LabeledMofNCompleteColumn.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unit</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="n">unit</span></div>
+
+<div class="viewcode-block" id="LabeledMofNCompleteColumn.render"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.LabeledMofNCompleteColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Show completion status with labels.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">total</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="s2">&quot;?&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.spinner&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">completed</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">total</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.spinner&quot;</span>
+        <span class="p">)</span></div></div>
+
+
 <div class="viewcode-block" id="ImgBatchSpeedColumn"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.ImgBatchSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">ImgBatchSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Renders human readable transfer speed.&quot;&quot;&quot;</span>
 
@@ -481,7 +508,8 @@
             <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;progress_type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;speed&#39;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="n">TextColumn</span><span class="p">(</span><span class="s2">&quot;[progress.description]</span><span class="si">{task.description}</span><span class="s2">&quot;</span><span class="p">),</span>
-                    <span class="n">TileExtractionSpeedColumn</span><span class="p">(),)</span>
+                    <span class="n">TileExtractionSpeedColumn</span><span class="p">()</span>
+                <span class="p">)</span>
             <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;progress_type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;slide_progress&#39;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="n">TextColumn</span><span class="p">(</span><span class="s2">&quot;[progress.description]</span><span class="si">{task.description}</span><span class="s2">&quot;</span><span class="p">),</span>
@@ -490,6 +518,27 @@
                     <span class="n">progress</span><span class="o">.</span><span class="n">MofNCompleteColumn</span><span class="p">(),</span>
                     <span class="s2">&quot;●&quot;</span><span class="p">,</span>
                     <span class="n">progress</span><span class="o">.</span><span class="n">TimeRemainingColumn</span><span class="p">(),</span>
+                <span class="p">)</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_tasks_table</span><span class="p">([</span><span class="n">task</span><span class="p">])</span></div></div>
+
+
+<div class="viewcode-block" id="FeatureExtractionProgress"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.FeatureExtractionProgress">[docs]</a><span class="k">class</span> <span class="nc">FeatureExtractionProgress</span><span class="p">(</span><span class="n">Progress</span><span class="p">):</span>
+<div class="viewcode-block" id="FeatureExtractionProgress.get_renderables"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.FeatureExtractionProgress.get_renderables">[docs]</a>    <span class="k">def</span> <span class="nf">get_renderables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;progress_type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;speed&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">TextColumn</span><span class="p">(</span><span class="s2">&quot;[progress.description]</span><span class="si">{task.description}</span><span class="s2">&quot;</span><span class="p">),</span>
+                    <span class="n">TileExtractionSpeedColumn</span><span class="p">(),</span>
+                    <span class="n">LabeledMofNCompleteColumn</span><span class="p">(</span><span class="s1">&#39;tiles&#39;</span><span class="p">),</span>
+                    <span class="s2">&quot;●&quot;</span><span class="p">,</span>
+                    <span class="n">progress</span><span class="o">.</span><span class="n">TimeRemainingColumn</span><span class="p">(),</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;progress_type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;slide_progress&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">TextColumn</span><span class="p">(</span><span class="s2">&quot;[progress.description]</span><span class="si">{task.description}</span><span class="s2">&quot;</span><span class="p">),</span>
+                    <span class="n">BarColumn</span><span class="p">(),</span>
+                    <span class="n">progress</span><span class="o">.</span><span class="n">TaskProgressColumn</span><span class="p">(),</span>
+                    <span class="n">LabeledMofNCompleteColumn</span><span class="p">(</span><span class="s1">&#39;slides&#39;</span><span class="p">)</span>
                 <span class="p">)</span>
             <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_tasks_table</span><span class="p">([</span><span class="n">task</span><span class="p">])</span></div></div>
 
@@ -550,8 +599,8 @@
 <span class="sd">        &gt;&gt;&gt; sf.about()</span>
 <span class="sd">        ╭=======================╮</span>
 <span class="sd">        │       Slideflow       │</span>
-<span class="sd">        │    Version: 2.1.0     │</span>
-<span class="sd">        │  Backend: tensorflow  │</span>
+<span class="sd">        │    Version: 3.0.0     │</span>
+<span class="sd">        │  Backend: torch       │</span>
 <span class="sd">        │ Slide Backend: cucim  │</span>
 <span class="sd">        │ https://slideflow.dev │</span>
 <span class="sd">        ╰=======================╯</span>
@@ -856,6 +905,81 @@
         <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">arg1</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
 
 
+<div class="viewcode-block" id="is_tile_size_compatible"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.is_tile_size_compatible">[docs]</a><span class="k">def</span> <span class="nf">is_tile_size_compatible</span><span class="p">(</span>
+    <span class="n">tile_px1</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">tile_um1</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">tile_px2</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">tile_um2</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check whether tile sizes are compatible.</span>
+
+<span class="sd">    Compatibility is defined as:</span>
+<span class="sd">        - Equal size in pixels</span>
+<span class="sd">        - If tile width (tile_um) is defined in microns (int) for both, these must be equal</span>
+<span class="sd">        - If tile width (tile_um) is defined as a magnification (str) for both, these must be equal</span>
+<span class="sd">        - If one is defined in microns and the other as a magnification, the calculated magnification must be +/- 2.</span>
+
+<span class="sd">    Example 1:</span>
+<span class="sd">    - tile_px1=299, tile_um1=302</span>
+<span class="sd">    - tile_px2=299, tile_um2=304</span>
+<span class="sd">    - Incompatible (unequal micron width)</span>
+
+<span class="sd">    Example 2:</span>
+<span class="sd">    - tile_px1=299, tile_um1=10x</span>
+<span class="sd">    - tile_px2=299, tile_um2=9x</span>
+<span class="sd">    - Incompatible (unequal magnification)</span>
+
+<span class="sd">    Example 3:</span>
+<span class="sd">    - tile_px1=299, tile_um1=302</span>
+<span class="sd">    - tile_px2=299, tile_um2=10x</span>
+<span class="sd">    - Compatible (first has an equivalent magnification of 9.9x, which is +/- 2 compared to 10x)</span>
+
+
+<span class="sd">    Args:</span>
+<span class="sd">        tile_px1 (int): Tile size (in pixels) of first slide.</span>
+<span class="sd">        tile_um1 (int or str): Tile size (in microns) of first slide.</span>
+<span class="sd">            Can also be expressed as a magnification level, e.g. ``&#39;10x&#39;``</span>
+<span class="sd">        tile_px2 (int): Tile size (in pixels) of second slide.</span>
+<span class="sd">        tile_um2 (int or str): Tile size (in microns) of second slide.</span>
+<span class="sd">            Can also be expressed as a magnification level, e.g. ``&#39;10x&#39;``</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: Whether the tile sizes are compatible.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Type checks</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_px1</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected tile_px1 to be an int, got: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">tile_px1</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um1</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected tile_um1 to be a str or int, got: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">tile_um1</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_px2</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected tile_px2 to be an int, got: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">tile_px2</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um2</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected tile_um2 to be a str or int, got: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">tile_um2</span><span class="p">)))</span>
+
+    <span class="c1"># Enforce equivalent pixel size</span>
+    <span class="k">if</span> <span class="n">tile_px1</span> <span class="o">!=</span> <span class="n">tile_px2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="c1"># If both are defined as a magnification, check if these are equal</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um1</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um2</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">tile_um1</span> <span class="o">==</span> <span class="n">tile_um2</span>
+    <span class="c1"># If both are defined in microns, check if these are equal</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um1</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um2</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">tile_um1</span> <span class="o">==</span> <span class="n">tile_um2</span>
+    <span class="c1"># If one is defined in microns and the other as magnification,</span>
+    <span class="c1"># check if they are compatible.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um1</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um2</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">mag2</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">/</span> <span class="p">(</span><span class="n">tile_um2</span> <span class="o">/</span> <span class="n">tile_px2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">abs</span><span class="p">(</span><span class="n">mag2</span> <span class="o">-</span> <span class="n">to_mag</span><span class="p">(</span><span class="n">tile_um1</span><span class="p">))</span> <span class="o">&lt;=</span> <span class="mi">2</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um1</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um2</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">mag1</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">/</span> <span class="p">(</span><span class="n">tile_um1</span> <span class="o">/</span> <span class="n">tile_px1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">abs</span><span class="p">(</span><span class="n">mag1</span> <span class="o">-</span> <span class="n">to_mag</span><span class="p">(</span><span class="n">tile_um2</span><span class="p">))</span> <span class="o">&lt;=</span> <span class="mi">2</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Error assessing tile size compatibility between px=</span><span class="si">{}</span><span class="s2">, um=</span><span class="si">{}</span><span class="s2"> and px=</span><span class="si">{}</span><span class="s2">, um=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">tile_px1</span><span class="p">,</span> <span class="n">tile_um1</span><span class="p">,</span> <span class="n">tile_px2</span><span class="p">,</span> <span class="n">tile_um2</span>
+        <span class="p">))</span></div>
+
+
 <div class="viewcode-block" id="multi_warn"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.multi_warn">[docs]</a><span class="k">def</span> <span class="nf">multi_warn</span><span class="p">(</span><span class="n">arr</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">compare</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Logs multiple warning</span>
 
@@ -874,7 +998,7 @@
             <span class="n">fn</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">warn</span> <span class="k">if</span> <span class="n">num_warned</span> <span class="o">&lt;</span> <span class="n">warn_threshold</span> <span class="k">else</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
                 <span class="n">fn</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">item</span><span class="p">))</span>
-            <span class="k">elif</span> <span class="n">callable</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+            <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
                 <span class="n">fn</span><span class="p">(</span><span class="n">msg</span><span class="p">(</span><span class="n">item</span><span class="p">))</span>
             <span class="n">num_warned</span> <span class="o">+=</span> <span class="mi">1</span>
     <span class="k">if</span> <span class="n">num_warned</span> <span class="o">&gt;=</span> <span class="n">warn_threshold</span><span class="p">:</span>
@@ -1020,10 +1144,25 @@
         <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">data_file</span><span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="ValidJSONEncoder"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.ValidJSONEncoder">[docs]</a><span class="k">class</span> <span class="nc">ValidJSONEncoder</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">JSONEncoder</span><span class="p">):</span>
+<div class="viewcode-block" id="ValidJSONEncoder.default"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.ValidJSONEncoder.default">[docs]</a>    <span class="k">def</span> <span class="nf">default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;&lt;unknown&gt;&quot;</span></div></div>
+
+
 <div class="viewcode-block" id="write_json"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.write_json">[docs]</a><span class="k">def</span> <span class="nf">write_json</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Write data to JSON file.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Write data to JSON file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data (Any): Data to write.</span>
+<span class="sd">        filename (str): Path to JSON file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># First, remove any invalid entries that are not serializable</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">data_file</span><span class="p">:</span>
-        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">data_file</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">data_file</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">ValidJSONEncoder</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="log_manifest"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.log_manifest">[docs]</a><span class="k">def</span> <span class="nf">log_manifest</span><span class="p">(</span>
@@ -1133,7 +1272,9 @@
 <div class="viewcode-block" id="get_model_config"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_model_config">[docs]</a><span class="k">def</span> <span class="nf">get_model_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads model configuration JSON file.&quot;&quot;&quot;</span>
 
-    <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">)):</span>
+    <span class="k">if</span> <span class="n">model_path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;params.json&#39;</span><span class="p">):</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">load_json</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">)):</span>
         <span class="n">config</span> <span class="o">=</span> <span class="n">load_json</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))</span>
     <span class="k">elif</span> <span class="n">exists</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">model_path</span><span class="p">),</span> <span class="s1">&#39;params.json&#39;</span><span class="p">)):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">torch_available</span>
@@ -1154,6 +1295,11 @@
     <span class="k">if</span> <span class="s1">&#39;outcome_label_headers&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Replacing outcome_label_headers in params.json -&gt; outcomes&quot;</span><span class="p">)</span>
         <span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcomes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;outcome_label_headers&#39;</span><span class="p">)</span>
+    <span class="c1"># Compatibility for pre-3.0</span>
+    <span class="k">if</span> <span class="s1">&#39;model_type&#39;</span> <span class="ow">in</span> <span class="n">config</span> <span class="ow">and</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+        <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;classification&#39;</span>
+    <span class="k">if</span> <span class="s1">&#39;model_type&#39;</span> <span class="ow">in</span> <span class="n">config</span> <span class="ow">and</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+        <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;regression&#39;</span>
     <span class="k">return</span> <span class="n">config</span></div>
 
 
@@ -1302,20 +1448,26 @@
 <div class="viewcode-block" id="path_to_name"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.path_to_name">[docs]</a><span class="k">def</span> <span class="nf">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns name of a file, without extension,</span>
 <span class="sd">    from a given full path string.&#39;&#39;&#39;</span>
-    <span class="n">_file</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="n">_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">dot_split</span> <span class="o">=</span> <span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dot_split</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">_file</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">dot_split</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="ow">and</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dot_split</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])</span> <span class="ow">in</span> <span class="n">SUPPORTED_FORMATS</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dot_split</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span></div>
+        <span class="k">return</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dot_split</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span></div>
 
 
 <div class="viewcode-block" id="path_to_ext"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.path_to_ext">[docs]</a><span class="k">def</span> <span class="nf">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns extension of a file path string.&#39;&#39;&#39;</span>
-    <span class="n">_file</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="n">_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">dot_split</span> <span class="o">=</span> <span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dot_split</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">dot_split</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="ow">and</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dot_split</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])</span> <span class="ow">in</span> <span class="n">SUPPORTED_FORMATS</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dot_split</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
+        <span class="k">return</span> <span class="n">dot_split</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="update_results_log"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.update_results_log">[docs]</a><span class="k">def</span> <span class="nf">update_results_log</span><span class="p">(</span>
@@ -1388,9 +1540,24 @@
     <span class="n">background</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">interpolation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;bicubic&#39;</span><span class="p">,</span>
-<span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map heatmap values to a slide grid, using tile location information.&quot;&quot;&quot;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map heatmap values to a slide grid, using tile location information.</span>
 
+<span class="sd">    Args:</span>
+<span class="sd">        locations (np.ndarray): Array of shape ``(n_tiles, 2)`` containing x, y</span>
+<span class="sd">            coordinates for all image tiles. Coordinates represent the center</span>
+<span class="sd">            for an associated tile, and must be in a grid.</span>
+<span class="sd">        values (np.ndarray): Array of shape ``(n_tiles,)`` containing heatmap</span>
+<span class="sd">            values for each tile.</span>
+<span class="sd">        wsi (slideflow.wsi.WSI): WSI object.</span>
+
+<span class="sd">    Keyword args:</span>
+<span class="sd">        background (str, optional): Background strategy for heatmap. Can be</span>
+<span class="sd">            &#39;min&#39;, &#39;mean&#39;, &#39;median&#39;, &#39;max&#39;, or &#39;mask&#39;. Defaults to &#39;min&#39;.</span>
+<span class="sd">        interpolation (str, optional): Interpolation strategy for smoothing</span>
+<span class="sd">            heatmap. Defaults to &#39;bicubic&#39;.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">no_interpolation</span> <span class="o">=</span> <span class="p">(</span><span class="n">interpolation</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">interpolation</span> <span class="o">==</span> <span class="s1">&#39;nearest&#39;</span><span class="p">)</span>
 
     <span class="c1"># Slide coordinate information</span>
@@ -1446,19 +1613,87 @@
     <span class="k">return</span> <span class="n">masked_grid</span></div>
 
 
+<div class="viewcode-block" id="bin_values_to_slide_grid"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.bin_values_to_slide_grid">[docs]</a><span class="k">def</span> <span class="nf">bin_values_to_slide_grid</span><span class="p">(</span>
+    <span class="n">locations</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">wsi</span><span class="p">:</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">,</span>
+    <span class="n">background</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Bin heatmap values to a slide grid, using tile location information.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        locations (np.ndarray): Array of shape ``(n_tiles, 2)`` containing x, y</span>
+<span class="sd">            coordinates for all image tiles. Coordinates represent the center</span>
+<span class="sd">            for an associated tile, and must be in a grid.</span>
+<span class="sd">        values (np.ndarray): Array of shape ``(n_tiles,)`` containing heatmap</span>
+<span class="sd">            values for each tile.</span>
+<span class="sd">        wsi (slideflow.wsi.WSI): WSI object.</span>
+
+<span class="sd">    Keyword args:</span>
+<span class="sd">        background (str, optional): Background strategy for heatmap. Can be</span>
+<span class="sd">            &#39;min&#39;, &#39;mean&#39;, &#39;median&#39;, &#39;max&#39;, or &#39;mask&#39;. Defaults to &#39;min&#39;.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">binned_statistic_2d</span>
+    <span class="n">masked_grid</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">binned_statistic_2d</span><span class="p">(</span>
+        <span class="n">locations</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
+        <span class="n">locations</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>
+        <span class="n">values</span><span class="p">,</span>
+        <span class="n">bins</span><span class="o">=</span><span class="n">wsi</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+        <span class="nb">range</span><span class="o">=</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]]]</span>
+    <span class="p">)</span>
+    <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">masked_grid</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">nan_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">masked_grid</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span><span class="p">:</span>
+        <span class="c1"># No action needed</span>
+        <span class="k">pass</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;min&#39;</span><span class="p">:</span>
+        <span class="n">masked_grid</span><span class="p">[</span><span class="n">nan_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;mean&#39;</span><span class="p">:</span>
+        <span class="n">masked_grid</span><span class="p">[</span><span class="n">nan_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;median&#39;</span><span class="p">:</span>
+        <span class="n">masked_grid</span><span class="p">[</span><span class="n">nan_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span>
+        <span class="n">masked_grid</span><span class="p">[</span><span class="n">nan_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized value for background: </span><span class="si">{</span><span class="n">background</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">masked_grid</span></div>
+
+
+<div class="viewcode-block" id="infer_stride"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.infer_stride">[docs]</a><span class="k">def</span> <span class="nf">infer_stride</span><span class="p">(</span><span class="n">locations</span><span class="p">,</span> <span class="n">wsi</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer the stride of a grid of locations from a set of locations.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        locations (np.ndarray): Nx2 array of locations</span>
+<span class="sd">        wsi (slideflow.wsi.WSI): WSI object</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        float: inferred stride divisor in pixels</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">sort_unique_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">locations</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]))</span>
+    <span class="n">sort_unique_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">locations</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]))</span>
+    <span class="n">min_stride_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">sort_unique_x</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">sort_unique_x</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+    <span class="n">min_stride_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">sort_unique_y</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">sort_unique_y</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+    <span class="n">inferred_stride_px</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">min_stride_x</span><span class="p">,</span> <span class="n">min_stride_y</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span> <span class="o">/</span> <span class="n">inferred_stride_px</span></div>
+
+
 <div class="viewcode-block" id="location_heatmap"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.location_heatmap">[docs]</a><span class="k">def</span> <span class="nf">location_heatmap</span><span class="p">(</span>
     <span class="n">locations</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">tile_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">tile_um</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
-    <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">interpolation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;bicubic&#39;</span><span class="p">,</span>
     <span class="n">cmap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;inferno&#39;</span><span class="p">,</span>
     <span class="n">norm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">background</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;min&#39;</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate a heatmap for a slide.</span>
 
 <span class="sd">    Args:</span>
@@ -1470,7 +1705,7 @@
 <span class="sd">        slide (str): Path to corresponding slide.</span>
 <span class="sd">        tile_px (int): Tile pixel size.</span>
 <span class="sd">        tile_um (int, str): Tile micron or magnification size.</span>
-<span class="sd">        outdir (str): Directory in which to save heatmap.</span>
+<span class="sd">        filename (str): Destination filename for heatmap.</span>
 
 <span class="sd">    Keyword args:</span>
 <span class="sd">        interpolation (str, optional): Interpolation strategy for smoothing</span>
@@ -1482,68 +1717,88 @@
 <span class="sd">            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.</span>
 <span class="sd">            If &#39;two_slope&#39;, normalizes values less than 0 and greater than 0</span>
 <span class="sd">            separately. Defaults to None.</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Error generating heatmap. &#39;values&#39; should be a numpy array &quot;</span>
+            <span class="s2">&quot;with shape (n_tiles, )&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Error generating heatmap. Expected &#39;values&#39; to have (n_tiles,) &quot;</span>
+            <span class="s2">&quot;but got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generating heatmap for [green]</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">[/]...&#39;</span><span class="p">)</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Plotting </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span><span class="si">}</span><span class="s2"> values&quot;</span><span class="p">)</span>
+    <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_um</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">stride</span> <span class="o">=</span> <span class="n">infer_stride</span><span class="p">(</span><span class="n">locations</span><span class="p">,</span> <span class="n">wsi</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">stride</span> <span class="o">&gt;</span> <span class="mi">32</span><span class="p">:</span>
+        <span class="c1"># Large inferred strides are likely due to unaligned grid.</span>
+        <span class="c1"># Rather than attempting to build a coordinate grid for verifying</span>
+        <span class="c1"># grid alignment, we will assume that the grid is unaligned and</span>
+        <span class="c1"># use the default stride (1). This will cause map_values_to_slide_grid</span>
+        <span class="c1"># to recognize that the grid is unaligned, and the heatmap will be built</span>
+        <span class="c1"># using histogram2d.</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed sanity check for inferred stride (</span><span class="si">{</span><span class="n">stride</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">stride</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Inferred stride: </span><span class="si">{</span><span class="n">stride</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_um</span><span class="p">,</span> <span class="n">stride_div</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">map_values_to_slide_grid</span><span class="p">(</span>
+            <span class="n">locations</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">wsi</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="n">background</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span>
+        <span class="p">)</span>
+    <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">CoordinateAlignmentError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Coordinate alignment error: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Unable to align grid for plotting heatmap. Heatmap will be &quot;</span>
+                  <span class="s2">&quot;binned with a stride of 1.&quot;</span><span class="p">)</span>
+        <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">bin_values_to_slide_grid</span><span class="p">(</span>
+            <span class="n">locations</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">wsi</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="n">background</span>
+        <span class="p">)</span>
 
     <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
     <span class="kn">import</span> <span class="nn">matplotlib.colors</span> <span class="k">as</span> <span class="nn">mcol</span>
-
-    <span class="n">slide_name</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generating heatmap for [green]</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">[/]...&#39;</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Plotting </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span><span class="si">}</span><span class="s2"> values&quot;</span><span class="p">)</span>
-    <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_um</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
-    <span class="n">stats</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="n">slide_name</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s1">&#39;mean&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">values</span><span class="p">),</span>
-            <span class="s1">&#39;median&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-        <span class="p">}</span>
-    <span class="p">}</span>
-
-    <span class="n">masked_grid</span> <span class="o">=</span> <span class="n">map_values_to_slide_grid</span><span class="p">(</span>
-        <span class="n">locations</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">wsi</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="n">background</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span>
-    <span class="p">)</span>
-
-    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
-    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">)</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">bottom</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">top</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>
-    <span class="n">gca</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
-    <span class="n">gca</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span>
-        <span class="n">axis</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span>
-        <span class="n">top</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">labeltop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">bottom</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">labelbottom</span><span class="o">=</span><span class="kc">False</span>
-    <span class="p">)</span>
-    <span class="n">thumb</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">thumb</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-
-    <span class="c1"># Calculate overlay offset</span>
-    <span class="n">extent</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">heatmap</span><span class="o">.</span><span class="n">calculate_heatmap_extent</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">thumb</span><span class="p">,</span> <span class="n">masked_grid</span><span class="p">)</span>
-
-    <span class="c1"># Plot</span>
-    <span class="k">if</span> <span class="n">norm</span> <span class="o">==</span> <span class="s1">&#39;two_slope&#39;</span><span class="p">:</span>
-        <span class="n">norm</span> <span class="o">=</span> <span class="n">mcol</span><span class="o">.</span><span class="n">TwoSlopeNorm</span><span class="p">(</span>
-            <span class="n">vmin</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="o">-</span><span class="mf">0.01</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">values</span><span class="p">)),</span>
-            <span class="n">vcenter</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-            <span class="n">vmax</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="mf">0.01</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
+    <span class="k">with</span> <span class="n">matplotlib_backend</span><span class="p">(</span><span class="s1">&#39;Agg&#39;</span><span class="p">):</span>
+        <span class="n">thumb</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">bottom</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">top</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>
+        <span class="n">gca</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+        <span class="n">gca</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span>
+            <span class="n">axis</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span>
+            <span class="n">top</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">labeltop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">bottom</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">labelbottom</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span>
-        <span class="n">masked_grid</span><span class="p">,</span>
-        <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-        <span class="n">alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
-        <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span>
-        <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
-        <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span>
-        <span class="n">norm</span><span class="o">=</span><span class="n">norm</span>
-    <span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Saving figure...&#39;</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide_name</span><span class="si">}</span><span class="s1">_attn.png&#39;</span><span class="p">),</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
-    <span class="k">del</span> <span class="n">wsi</span>
-    <span class="k">del</span> <span class="n">thumb</span>
-    <span class="k">return</span> <span class="n">stats</span></div>
+        <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">thumb</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Calculate overlay offset</span>
+        <span class="n">extent</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">heatmap</span><span class="o">.</span><span class="n">calculate_heatmap_extent</span><span class="p">(</span><span class="n">wsi</span><span class="p">,</span> <span class="n">thumb</span><span class="p">,</span> <span class="n">masked_grid</span><span class="p">)</span>
+
+        <span class="c1"># Plot</span>
+        <span class="k">if</span> <span class="n">norm</span> <span class="o">==</span> <span class="s1">&#39;two_slope&#39;</span><span class="p">:</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="n">mcol</span><span class="o">.</span><span class="n">TwoSlopeNorm</span><span class="p">(</span>
+                <span class="n">vmin</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="o">-</span><span class="mf">0.01</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">values</span><span class="p">)),</span>
+                <span class="n">vcenter</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">vmax</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="mf">0.01</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
+            <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span>
+            <span class="n">masked_grid</span><span class="p">,</span>
+            <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+            <span class="n">alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
+            <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span>
+            <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
+            <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span>
+            <span class="n">norm</span><span class="o">=</span><span class="n">norm</span>
+        <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">thumb</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Saving figure...&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="tfrecord_heatmap"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.tfrecord_heatmap">[docs]</a><span class="k">def</span> <span class="nf">tfrecord_heatmap</span><span class="p">(</span>
@@ -1552,9 +1807,9 @@
     <span class="n">tile_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">tile_um</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
     <span class="n">tile_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
-    <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Creates a tfrecord-based WSI heatmap using a dictionary of tile values</span>
 <span class="sd">    for heatmap display.</span>
 
@@ -1566,11 +1821,8 @@
 <span class="sd">        tile_px (int): Tile width in pixels.</span>
 <span class="sd">        tile_um (int or str): Tile width in microns (int) or magnification</span>
 <span class="sd">            (str, e.g. &quot;20x&quot;).</span>
-<span class="sd">        outdir (str): Path to directory in which to save images.</span>
+<span class="sd">        filename (str): Destination filename for heatmap.</span>
 
-<span class="sd">    Returns:</span>
-<span class="sd">        Dictionary mapping slide names to dict of statistics</span>
-<span class="sd">        (mean, median)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">locations</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_locations_from_tfrecord</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tile_dict</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">):</span>
@@ -1585,9 +1837,17 @@
         <span class="n">slide</span><span class="o">=</span><span class="n">slide</span><span class="p">,</span>
         <span class="n">tile_px</span><span class="o">=</span><span class="n">tile_px</span><span class="p">,</span>
         <span class="n">tile_um</span><span class="o">=</span><span class="n">tile_um</span><span class="p">,</span>
-        <span class="n">outdir</span><span class="o">=</span><span class="n">outdir</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="tile_size_label"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.tile_size_label">[docs]</a><span class="k">def</span> <span class="nf">tile_size_label</span><span class="p">(</span><span class="n">tile_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">tile_um</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the string label of the given tile size.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_um</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tile_px</span><span class="si">}</span><span class="s2">px_</span><span class="si">{</span><span class="n">tile_um</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tile_px</span><span class="si">}</span><span class="s2">px_</span><span class="si">{</span><span class="n">tile_um</span><span class="si">}</span><span class="s2">um&quot;</span></div>
 
 
 <div class="viewcode-block" id="get_valid_model_dir"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.get_valid_model_dir">[docs]</a><span class="k">def</span> <span class="nf">get_valid_model_dir</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
@@ -1732,6 +1992,7 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unrecognized extension &quot;</span><span class="si">{</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span></div>
 
+
 <span class="nd">@contextmanager</span>
 <span class="k">def</span> <span class="nf">cleanup_progress</span><span class="p">(</span><span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;Progress&quot;</span><span class="p">]):</span>
     <span class="k">try</span><span class="p">:</span>
@@ -1740,6 +2001,64 @@
         <span class="k">if</span> <span class="n">pb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">pb</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
             <span class="n">pb</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+
+
+<span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">matplotlib_backend</span><span class="p">(</span><span class="n">backend</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">matplotlib</span>
+    <span class="n">original_backend</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">get_backend</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">matplotlib</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">backend</span><span class="p">)</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">matplotlib</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">original_backend</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="create_triangles"><a class="viewcode-back" href="../../../util/#slideflow.model.tensorflow.create_triangles">[docs]</a><span class="k">def</span> <span class="nf">create_triangles</span><span class="p">(</span><span class="n">vertices</span><span class="p">,</span> <span class="n">hole_vertices</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hole_points</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tessellate a complex polygon, possibly with holes.</span>
+
+<span class="sd">    :param vertices: A list of vertices [(x1, y1), (x2, y2), ...] defining the polygon boundary.</span>
+<span class="sd">    :param holes: An optional list of points [(hx1, hy1), (hx2, hy2), ...] inside each hole in the polygon.</span>
+<span class="sd">    :return: A numpy array of vertices for the tessellated triangles.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">triangle</span> <span class="k">as</span> <span class="nn">tr</span>
+
+    <span class="c1"># Prepare the segment information for the exterior boundary</span>
+    <span class="n">segments</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">vertices</span><span class="p">)]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">vertices</span><span class="p">))])</span>
+
+    <span class="c1"># Prepare the polygon for Triangle</span>
+    <span class="n">polygon</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;vertices&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vertices</span><span class="p">),</span> <span class="s1">&#39;segments&#39;</span><span class="p">:</span> <span class="n">segments</span><span class="p">}</span>
+
+    <span class="c1"># If there are holes and hole boundaries, add them to the polygon definition</span>
+    <span class="k">if</span> <span class="n">hole_points</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">hole_vertices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">hole_vertices</span><span class="p">):</span>
+        <span class="n">polygon</span><span class="p">[</span><span class="s1">&#39;holes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">hole_points</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="c1"># Start adding hole segments after the exterior segments</span>
+        <span class="n">start_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">vertices</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">hole</span> <span class="ow">in</span> <span class="n">hole_vertices</span><span class="p">:</span>
+            <span class="n">hole_segments</span> <span class="o">=</span> <span class="p">[[</span><span class="n">start_idx</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span> <span class="n">start_idx</span> <span class="o">+</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">hole</span><span class="p">)]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">hole</span><span class="p">))]</span>
+            <span class="n">segments</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">segments</span><span class="p">,</span> <span class="n">hole_segments</span><span class="p">])</span>
+            <span class="n">start_idx</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">hole</span><span class="p">)</span>
+
+        <span class="c1"># Update the vertices and segments in the polygon</span>
+        <span class="n">all_vertices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">vertices</span><span class="p">]</span> <span class="o">+</span> <span class="n">hole_vertices</span><span class="p">)</span>
+        <span class="n">polygon</span><span class="p">[</span><span class="s1">&#39;vertices&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_vertices</span>
+        <span class="n">polygon</span><span class="p">[</span><span class="s1">&#39;segments&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">segments</span>
+
+    <span class="c1"># Tessellate the polygon</span>
+    <span class="n">tess</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">triangulate</span><span class="p">(</span><span class="n">polygon</span><span class="p">,</span> <span class="s1">&#39;pF&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Extract tessellated triangle vertices</span>
+    <span class="k">if</span> <span class="s1">&#39;triangles&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tess</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">tessellated_vertices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tess</span><span class="p">[</span><span class="s1">&#39;vertices&#39;</span><span class="p">][</span><span class="n">t</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tess</span><span class="p">[</span><span class="s1">&#39;triangles&#39;</span><span class="p">]])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># Convert to float32</span>
+    <span class="n">tessellated_vertices</span> <span class="o">=</span> <span class="n">tessellated_vertices</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;float32&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tessellated_vertices</span></div>
 </pre></div>
 
              </article>

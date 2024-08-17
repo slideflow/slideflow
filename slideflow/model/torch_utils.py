@@ -38,7 +38,7 @@ def get_module_by_name(module: Union[torch.Tensor, torch.nn.Module],
 @contextlib.contextmanager
 def autocast(device_type: Optional[str] = None, mixed_precision: bool = True):
     """Autocast with mixed precision."""
-    if not mixed_precision:
+    if not mixed_precision or device_type == 'mps':
         with no_scope():
             yield
     elif version.parse(torch.__version__) >= version.parse("1.12"):
@@ -227,9 +227,9 @@ def eval_from_model(
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
-        model_type (str, optional): 'categorical', 'linear', or 'cph'. If
-            multiple linear outcomes are present, y_true is stacked into a
-            single vector for each image. Defaults to 'categorical'.
+        model_type (str, optional): 'classification', 'regression', or 'survival'. If
+            multiple continuous outcomes are present, y_true is stacked into a
+            single vector for each image. Defaults to 'classification'.
         torch_args (namespace): Namespace containing num_slide_features,
             slide_input, update_corrects, and update_loss functions.
 
@@ -308,7 +308,7 @@ def eval_from_model(
             img = img.to(device, non_blocking=True)
             img = img.to(memory_format=torch.channels_last)
             with autocast(device.type, mixed_precision=_mp):
-                with torch.no_grad():
+                with torch.inference_mode():
                     # GPU normalization
                     if torch_args is not None and torch_args.normalizer:
                         img = torch_args.normalizer.preprocess(img)
@@ -380,8 +380,8 @@ def eval_from_model(
     if not predict_only and type(y_true[0]) == list:
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
 
-        # Merge multiple linear outcomes into a single vector
-        if model_type == 'linear':
+        # Merge multiple continuous outcomes into a single vector
+        if model_type == 'regression':
             y_true = [np.stack(y_true, axis=1)]  # type: ignore
     elif not predict_only:
         y_true = [np.concatenate(y_true)]
@@ -389,7 +389,7 @@ def eval_from_model(
         y_true = None  # type: ignore
 
     # We will need to enforce softmax encoding for tile-level statistics.
-    if model_type == 'categorical':
+    if model_type == 'classification':
         y_pred = [softmax(yp, axis=1) for yp in y_pred]
 
     # Calculate final accuracy and loss
@@ -431,9 +431,9 @@ def predict_from_model(
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
-        model_type (str, optional): 'categorical', 'linear', or 'cph'. If
-            multiple linear outcomes are present, y_true is stacked into a
-            single vector for each image. Defaults to 'categorical'.
+        model_type (str, optional): 'classification', 'regression', or 'survival'. If
+            multiple continuous outcomes are present, y_true is stacked into a
+            single vector for each image. Defaults to 'classification'.
         torch_args (namespace): Namespace containing num_slide_features
             and slide_input.
 

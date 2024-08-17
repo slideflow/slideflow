@@ -1,545 +1,843 @@
-import zarr
+import os
+import torch
 import slideflow as sf
 import imgui
-import numpy as np
-import cellpose
-import cellpose.models
-from os.path import join, dirname, abspath
-from functools import partial
+import glfw
+import segmentation_models_pytorch as smp
+from typing import Optional, List
+from os.path import join, dirname, abspath, exists
 from threading import Thread
-from slideflow.slide.utils import draw_roi
-from slideflow.cellseg import segment_slide, Segmentation
+from tkinter.filedialog import askopenfilename, askdirectory
+from slideflow.segment import TileMaskDataset
+from slideflow.model.torch_utils import get_device
+from collections import defaultdict
 
 from ._utils import Widget
 from ..gui import imgui_utils
+from ..utils import LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON
+from .slide import stride_capture
+
+from pytorch_lightning.callbacks import Callback
+
+class ProgressCallback(Callback):
+
+    def __init__(self, toast, max_epochs):
+        super().__init__()
+        self.toast = toast
+        self.max_epochs = max_epochs
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        percent = (trainer.current_epoch + 1) / self.max_epochs
+        self.toast.set_progress(min(percent, 1.))
+
+# ----------------------------------------------------------------------------
 
 
-class SegmentWidget(Widget):
+class TissueSegWidget(Widget):
 
     tag = 'segment'
-    description = 'Cell Segmentation'
+    description = 'Tissue Segmentation'
     icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_segment.png')
     icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_segment_highlighted.png')
 
     def __init__(self, viz):
         self.viz                    = viz
-        self.alpha                  = 1
-        self.downscale              = 1
-        self.show_advanced          = False
-        self.spawn_workers          = True
-        self.tile                   = True
-        self.show                   = True
-        self.diam_radio_auto        = False
-        self.otsu                   = False
-        self.segmentation           = None
-        self.diameter_microns       = 10
-        self.overlay                = None
-        self.show_mask              = True
-        self.show_gradXY            = False
-        self.show_centroid          = False
-        self.overlay_background     = False
-        self.tile_px                = 512
-        self.save_flow              = False
-
-        self._showing_preview_overlay = False
-        self._selected_model_idx    = 1
+        self._segment               = None
         self._thread                = None
-        self._segment_toast         = None
-        self._centroid_toast        = None
         self._load_toast            = None
-        self._outline_toast         = None
+        self._working_toast         = None
+        self._training_toast        = None
+        self._show_params           = False
+        self._rois_at_start         = 0
+        self._need_to_refresh_rois  = False
+        self._clicking              = False
+        self._show_popup            = False
+        self._load_slide_popup      = None
+        self._load_slide_popup_coords = None
 
-        # Load default model
-        self.default_models = [
-            'cyto', 'cyto2', 'nuclei', 'tissuenet', 'TN1', 'TN2', 'TN3',
-            'livecell', 'LC1', 'LC2', 'LC3', 'LC4'
-        ]
+        # Parameters
+        self._supported_archs       = ['FPN', 'DeepLabV3', 'DeepLabV3Plus', 'Linknet', 'MAnet', 'PAN', 'PSPNet', 'Unet', 'UnetPlusPlus']
+        self._selected_arch         = 0
+        self._supported_encoders    = smp.encoders.get_encoder_names()
+        self._selected_encoder      = self._supported_encoders.index('resnet34')
+        self._filter_methods        = ['otsu', 'roi']
+        self._selected_filter_method = 0
+        self._training_modes        = ['binary', 'multiclass', 'multilabel']
+        self._selected_training_mode = 0
+        self.max_epochs             = 20
+        self.tile_px                = 1024
+        self.tile_um                = 2048
+        self.crop_margin            = 256
+        self.stride                 = 1
+        self._capturing_stride      = 1
+        self._selected_slides       = defaultdict(bool)
+        self._unique_training_classes = dict()
+        self._sq_mm_threshold       = 0.01
 
-        # Load any user-defined models
-        self.user_models = cellpose.models.get_user_models()
-        self.supported_models = self.default_models + self.user_models
 
-        self.models = {m: None for m in self.supported_models}
-
-    @property
-    def diam_mean(self):
-        return (17 if self.supported_models[self._selected_model_idx] == 'nuclei'
-                   else 30)
-
-    @property
-    def model(self):
-        model_str = self.supported_models[self._selected_model_idx]
-        # Default models are loaded via Cellpose, custom models are loaded via CellposeModel
-        if self.models[model_str] is None and model_str in self.default_models:
-            self.models[model_str] = cellpose.models.Cellpose(
-                gpu=True,
-                model_type=model_str)
-        elif self.models[model_str] is None:
-            self.models[model_str] = cellpose.models.CellposeModel(
-                gpu=True,
-                model_type=model_str)
-        return self.models[model_str]
-
-    @property
-    def diameter(self):
-        return None if self.diam_radio_auto else self.diam_mean
+    # --- Properties ---
 
     @property
-    def tile_um(self):
-        return int(self.tile_px * self.mpp)
+    def cfg(self) -> sf.segment.SegmentConfig:
+        seg = self._segment
+        return None if seg is None else seg.cfg
 
     @property
-    def mpp(self):
-        return self.diameter_microns / self.diam_mean
+    def arch(self) -> str:
+        return self._supported_archs[self._selected_arch]
 
-    def refresh_user_models(self):
-        """Refresh the list of user-trained Cellpose models."""
-        prior_len = len(self.user_models)
-        self.user_models = cellpose.models.get_user_models()
-        self.supported_models = self.default_models + self.user_models
-        if len(self.user_models) < prior_len:
-            self._selected_model_idx = 1
-        for m in self.user_models:
-            if m not in self.models:
-                self.models[m] = None
+    @property
+    def encoder(self) -> str:
+        return self._supported_encoders[self._selected_encoder]
+
+    @property
+    def mpp(self) -> float:
+        return self.tile_um / self.tile_px
+
+    @property
+    def filter_method(self) -> str:
+        return self._filter_methods[self._selected_filter_method]
+
+    @property
+    def mode(self) -> str:
+        return self._training_modes[self._selected_training_mode]
+
+    # --- Internal ---
+
+    def get_training_slides(self) -> List[str]:
+        return [slide for slide in list(self._selected_slides.keys())
+                if self._selected_slides[slide]]
+
+    def get_training_classes(self) -> List[str]:
+        return [(k if k != '<No label>' else None)
+                for k, v in self._unique_training_classes.items() if v]
 
     def close(self):
         pass
 
-    def formatted_slide_levels(self):
-        if self.viz.wsi:
-            return [
-                '{:.0f}x (mpp={:.2f})'.format(10/mpp, mpp)
-                for mpp in self.viz.wsi.level_mpp
-            ]
-        else:
-            return ['NA']
-
     def is_thread_running(self):
         return self._thread is not None and self._thread.is_alive()
 
-    def _load_segmentation(self, path, ignore_errors=False):
-        self.segmentation = Segmentation.load(path)
-
-        # Apply ROIs to the segmentation, if applicable.
-        if self.viz.wsi.roi_method != 'ignore' and self.viz.wsi.roi_polys is not None:
-            self.segmentation.apply_rois(1, [r.poly for r in self.viz.wsi.roi_polys])
-
-        self.refresh_segmentation_view()
-        self._load_toast.done()
-        self.viz.create_toast(
-            f"Loaded {self.segmentation.masks.max()} segmentations.",
-            icon="success"
-        )
-
-    def calculate_centroids(self, refresh=True):
-        """Calculate segmentation centroids."""
-        self.segmentation.calculate_centroids()
-        if self._centroid_toast:
-            self._centroid_toast.done()
-        if self.show_centroid and (self.segmentation._centroids is None):
-            self.viz.create_toast(
-                "Centroid calculation complete.",
-                icon="success"
-            )
-        if refresh:
-            refresh_toast = self.viz.create_toast(
-                title=f"Rendering",
-                icon='info',
-                sticky=True,
-                spinner=True)
-            self.refresh_segmentation_view()
-            refresh_toast.done()
+    def is_training(self):
+        return self._training_toast is not None
 
     def drag_and_drop_hook(self, path, ignore_errors=False) -> bool:
         """Handle file paths provided via drag-and-drop."""
-        if (sf.util.path_to_ext(path).lower() == 'zip'):
-            try:
-                z = zarr.open(path)
-            except Exception as e:
-                return False
-            else:
-                if 'masks' in z:
-                    self.load(path, ignore_errors=ignore_errors)
-                    return True
+        if (sf.util.path_to_ext(path).lower() == 'pth'):
+            if exists(join(dirname(path), 'segment_params.json')):
+                self.load(path, ignore_errors=ignore_errors)
+                return True
         return False
 
+    # --- Model loading ---
+
+    def ask_load_model(self) -> str:
+        model_path = askopenfilename(
+            title="Load model...",
+            filetypes=[("pth", ".pth"), ("All files", ".*")]
+        )
+        if model_path:
+            self.load(model_path)
+
+    def ask_export_model(self) -> Optional[str]:
+        destination = askdirectory(
+            title="Export model (choose directory)..."
+        )
+        if destination:
+            model_path = sf.util.get_new_model_dir(destination, 'segment')
+            self.export(model_path)
+        return model_path
+
+    def export(self, path: str) -> None:
+        """Export a tissue segmentation model."""
+        if self._segment is None:
+            return
+        if not exists(path):
+            os.makedirs(path)
+        model_path = join(path, 'model.pth')
+        torch.save(self._segment.model.state_dict(), model_path)
+        self._segment.cfg.to_json(join(path, 'segment_params.json'))
+        self._segment.model_path = model_path
+        self.viz.create_toast(f"Model exported to {model_path}", icon="success")
+
     def load(self, path, ignore_errors=False):
-        """Load a .npz with saved masks."""
+        """Load a tissue segmentation model."""
         if self.is_thread_running():
             self._thread.join()
         self._load_toast = self.viz.create_toast(
-            title=f"Loading masks",
+            title=f"Loading segmentation model",
             icon='info',
             sticky=True,
             spinner=True)
-        self._thread = Thread(target=self._load_segmentation,
-                              args=(path, ignore_errors))
+        self._thread = Thread(target=self._load_model, args=(path, ignore_errors))
         self._thread.start()
 
-    def refresh_segmentation_view(self):
-        """Refresh the Studio view of the active segmentation."""
-        if self.segmentation is None:
-            return
-        if self.show_mask:
-            self.overlay = self.segmentation.mask_to_image(centroid=self.show_centroid)
-        elif self.show_gradXY:
-            if self.show_centroid:
-                self.overlay = self.segmentation._draw_centroid(self.segmentation.flows)
-            else:
-                self.overlay = self.segmentation.flows
-        elif self.show_centroid:
-            self.overlay = self.segmentation.centroid_to_image()
-
-        self._showing_preview_overlay = False
-        self.viz.overlay = self.overlay
-        self.viz._overlay_wsi_dim = self.segmentation.wsi_dim
-        self.viz._overlay_offset_wsi_dim = self.segmentation.wsi_offset
-
-    def render_outlines(self, color='red'):
-        """Render outlines of the segmentations currently in view."""
-        seg = self.segmentation
-        in_view, _, view_offset = self.viz.viewer.in_view(
-            seg.masks,
-            dim=seg.wsi_dim,
-            offset=seg.wsi_offset,
-            resize=False)
-
-        # Calculate and draw the outlines
-        outlines = [o for o in sf.cellseg.outlines_list(in_view) if o.shape[0] >= 3]
-        empty = np.zeros((in_view.shape[0], in_view.shape[1], 3), dtype=np.uint8)
-        outline_img = draw_roi(empty, outlines, color=color, linewidth=2)
-
-        self.viz.overlay = outline_img
-        self.viz._overlay_wsi_dim = (
-            (in_view.shape[1] / seg.masks.shape[1]) * seg.wsi_dim[0],
-            (in_view.shape[0] / seg.masks.shape[0]) * seg.wsi_dim[1],
-        )
-        self.viz._overlay_offset_wsi_dim = (
-            seg.wsi_offset[0] + view_offset[0],
-            seg.wsi_offset[1] + view_offset[1]
-        )
-        self._outline_toast.done()
-        self.viz.create_toast("Outlining complete.", icon="success")
-        self.update_transparency()
-
-    def _eval(self, img):
-        """Evaluate the current view."""
-        model_str = self.supported_models[self._selected_model_idx]
-        if model_str in self.default_models:
-            # Default models support determination of cell diameter.
-            masks, flows, styles, diams = self.model.eval(
-                img,
-                channels=[[0, 0]],
-                diameter=self.diameter,
-            )
+    def _load_model(self, path, ignore_errors=False):
+        try:
+            self._segment = sf.slide.qc.StridedSegment(path)
+            self._segment.model.to(get_device())
+        except Exception as e:
+            if self._load_toast is not None:
+                self._load_toast.done()
+            sf.log.error(f"Error loading segment model: {e}")
+            self.viz.create_toast(f"Error loading segment model: {e}", icon="error")
+            self._segment = None
         else:
-            # Custom models do not support diameter determination.
-            masks, flows, styles = self.model.eval(
-                img,
-                channels=[[0, 0]],
+            if self._load_toast is not None:
+                self._load_toast.done()
+            self.viz.create_toast(
+                f"Loaded model at {path}.",
+                icon="success"
             )
-            diams = None
-        return masks, flows, styles, diams
 
-    def _segment_view(self):
-        """Segment the current view."""
-        v = self.viz.viewer
-        view_params = v.view_params
-        view_microns = (
-            view_params.window_size[0] * v.wsi.mpp,
-            view_params.window_size[1] * v.wsi.mpp,
+    def close_model(self) -> None:
+        self._segment = None
+
+    def generate_rois(self):
+        """Generate ROIs from the loaded segmentation model."""
+        if self.is_thread_running():
+            self.viz.create_toast("Failed to start thread.", icon="error")
+            return
+        self._rois_at_start = len(self.viz.wsi.rois)
+        self._working_toast = self.viz.create_toast(
+            title="Generating ROIs",
+            message=f"Generating ROIs from segmentation model.",
+            icon='info',
+            sticky=True,
+            spinner=True)
+        self._thread = Thread(target=self._generate_rois)
+        self._thread.start()
+
+    def _generate_rois(self):
+        viz = self.viz
+        self._segment.generate_rois(
+            viz.wsi,
+            sq_mm_threshold=self._sq_mm_threshold,
+            simplify_tolerance=5
         )
-        view_params.target_size = (
-            int(view_microns[0] / self.mpp),
-            int(view_microns[1] / self.mpp)
+        self._need_to_refresh_rois = True
+        if self._working_toast is not None:
+            self._working_toast.done()
+        viz.create_toast(
+            "Generated {} ROIs.".format(
+                len(self.viz.wsi.rois) - self._rois_at_start
+            ),
+            icon="success"
         )
-        view_img = v._read_from_pyramid(**view_params)
-        print("Segmenting view, with diameter (px) {} (um={} mpp={:.3f} shape={})".format(
-            self.diameter,
-            view_microns,
-            self.mpp,
-            view_img.shape
-        ))
-        masks, flows, styles, diams = self._eval(view_img)
-        self.segmentation = Segmentation(
-            slide=None,
-            masks=masks,
-            flows=flows[0],
-            wsi_dim=v.wsi_window_size,
-            wsi_offset=v.origin)
-        if diams is not None:
-            self.diameter_microns = int(diams * self.mpp)
-        print("Segmentation of view complete (diameter={}, {} total masks), shape={}.".format(
-            None if diams is None else f'{diams:.2f}',
-            masks.max(),
-            masks.shape
-        ))
-        self.refresh_segmentation_view()
-        self.update_transparency()
-        if self._segment_toast is not None:
-            self._segment_toast.done()
 
-    def segment_slide(self, in_view=False):
-        """Generate whole-slide segmentation."""
+    def train(self) -> None:
+        """Train a segmentation model."""
+        if self.is_thread_running():
+            self.viz.create_toast("Failed to start thread.", icon="error")
+            return
 
-        # Segment single preview image if auto-diameter (diameter=None)
-        if in_view:
-            return self._segment_view()
+        # Create a progress toast.
+        if self._training_toast is not None:
+            self._training_toast.done()
+        self._training_toast = self.viz.create_toast(
+            title="Training segmentation model",
+            icon='info',
+            sticky=True,
+            progress=True,
+            spinner=True
+        )
+        self._thread = Thread(target=self._train)
+        self._thread.start()
 
-        # Otherwise, segment using whole-slide image interface
-        wsi = sf.WSI(
-            self.viz.wsi.path,
+    def finetune(self) -> None:
+        """Finetune a segmentation model."""
+        if self.is_thread_running():
+            self.viz.create_toast("Failed to start thread.", icon="error")
+            return
+
+        # Create a progress toast.
+        if self._training_toast is not None:
+            self._training_toast.done()
+        self._training_toast = self.viz.create_toast(
+            title="Finetuning segmentation model",
+            icon='info',
+            sticky=True,
+            progress=True,
+            spinner=True
+        )
+        self._thread = Thread(target=self._finetune)
+        self._thread.start()
+
+    def _train(self) -> None:
+        """Train a segmentation model."""
+        import pytorch_lightning as pl
+
+        viz = self.viz
+
+        # Prepare the slideflow dataset.
+        dataset = viz.P.dataset(filters={'slide': self.get_training_slides()})
+
+        # Determine the labels, if necessary.
+        all_roi_labels = self.get_training_classes()
+        if self.mode == 'binary':
+            out_classes = 1
+        elif self.mode == 'multiclass':
+            out_classes = len(all_roi_labels) + 1
+        else:
+            out_classes = len(all_roi_labels)
+
+        # Prepare the tile-mask dataset.
+        dts = TileMaskDataset(
+            dataset,
             tile_px=self.tile_px,
             tile_um=self.tile_um,
-            use_bounds=self.viz.settings_widget.use_bounds,
-            verbose=False
+            stride_div=self.stride,
+            crop_margin=self.crop_margin,
+            filter_method=self.filter_method,
+            roi_labels=all_roi_labels,
+            mode=self.mode
         )
-        if self.otsu:
-            wsi.qc('otsu', filter_threshold=1)
-        print("Segmenting WSI (shape={}, tile_px={}, tile_um={}, diameter={})".format(
-            wsi.dimensions,
-            self.tile_px,
-            self.tile_um,
-            self.diameter
-        ))
-        # Alternative method of rendering in-view preview
-        if in_view:
-            print("Segmenting partial WSI using current view window")
-            (xi, xi_e), (yi, yi_e) = self.viz.viewer.grid_in_view(wsi)
-            z = np.zeros_like(wsi.grid, dtype=bool)
-            z[xi:xi_e, yi:yi_e] = True
-            wsi.grid = wsi.grid * z
 
-        # Perform segmentation.
-        self.segmentation = segment_slide(
-            wsi,
-            'cyto2',
-            save_flow=self.save_flow,
-            downscale=(None if self.downscale == 1 else self.downscale),
-            tile=self.tile,
-            spawn_workers=self.spawn_workers)
-        print('Mask shape:', self.segmentation.masks.shape)
+        # Set the configuration.
+        config = sf.segment.SegmentConfig(
+            arch=self.arch,
+            encoder_name=self.encoder,
+            epochs=self.max_epochs,  # 100
+            mpp=self.mpp,
+            mode=self.mode,
+            out_classes=out_classes,
+            labels=(all_roi_labels if self.mode != 'binary' else None)
+        )
 
-        # Done; refresh view.
-        if self._segment_toast is not None:
-            self._segment_toast.done()
-        refresh_toast = self.viz.create_toast(
-                title=f"Rendering segmentations",
-                icon='info',
-                sticky=True,
-                spinner=True)
-        self.refresh_segmentation_view()
-        self.update_transparency()
-        refresh_toast.done()
-        self.viz.create_toast("Segmentation complete.", icon="success")
+        # Create dataloader.
+        train_dl = torch.utils.data.DataLoader(
+            dts,
+            batch_size=config.train_batch_size,
+            shuffle=True,
+            num_workers=4,
+            drop_last=True,
+            persistent_workers=True
+        )
 
-    @staticmethod
-    def set_image_alpha(img, alpha, kind='mask'):
-        if kind == 'mask':
-            alpha_channel = np.full(img.shape[0:2], int(alpha * 255), dtype=np.uint8)
-        elif kind == 'outline':
-            alpha_channel = ((img[:, :, 0:3].max(axis=-1)).astype(bool).astype(np.uint8) * (255 * alpha)).astype(np.uint8)
-        else:
-            raise ValueError(f"Unrecognized kind {kind}")
-        return np.dstack((img[:, :, 0:3], alpha_channel))
+        # Build the model and trainer.
+        model = config.build_model()
+        trainer = pl.Trainer(
+            max_epochs=config.epochs,
+            devices=1,   # Distributed training not supported in a GUI.
+            num_nodes=1, # Distributed training not supported in a GUI.
+            callbacks=[ProgressCallback(self._training_toast, config.epochs)]
+        )
 
-    def update_transparency(self):
-        """Updates transparency of the overlay."""
-        kind = 'mask' if self.overlay_background else 'outline'
-        self.viz.viewer.set_overlay_alpha(partial(self.set_image_alpha, alpha=self.alpha, kind=kind))
+        # Train the model.
+        trainer.fit(model, train_dataloaders=train_dl)
 
-    def draw_config(self):
+        # Move model to eval & appropriate device.
+        model.eval()
+        model.to(get_device())
+
+        # Create the segment object.
+        self._segment = sf.slide.qc.StridedSegment.from_model(model, config)
+
+        # Cleanup.
+        self._training_toast.done()
+        self._training_toast = None
+        self.viz.create_toast("Training complete.", icon="success")
+
+    def _finetune(self) -> None:
+        """Finetune a segmentation model."""
+        import pytorch_lightning as pl
+
         viz = self.viz
-        has_viewer = (viz.viewer is not None)
+        if not self._segment:
+            self.viz.create_toast("Cannot finetune; no model loaded.", icon="error")
+            return
 
-        with imgui_utils.grayed_out(not has_viewer):
+        # Prepare the dataset.
+        dataset = viz.P.dataset(filters={'slide': self.get_training_slides()})
+        dts = TileMaskDataset(
+            dataset,
+            tile_px=self.tile_px,
+            tile_um=self.tile_um,
+            stride_div=self.stride,
+            crop_margin=self.crop_margin,
+            filter_method=self.filter_method
+        )
 
-            ## Cell segmentation model.
-            with imgui_utils.item_width(- 1 - (viz.spacing * 1.5 + viz.font_size)):
-                _clicked, self._selected_model_idx = imgui.combo(
-                    "##cellpose_model",
-                    self._selected_model_idx,
-                    self.supported_models)
+        # Set the configuration.
+        config = sf.segment.SegmentConfig(
+            arch=self.arch,
+            encoder_name=self.encoder,
+            epochs=self.max_epochs,  # 100
+            mpp=self.mpp,
+            mode=self.mode,
+        )
 
-            imgui.same_line()
+        # Create dataloader.
+        train_dl = torch.utils.data.DataLoader(
+            dts,
+            batch_size=config.train_batch_size,
+            shuffle=True,
+            num_workers=4,
+            drop_last=True
+        )
 
-            if viz.sidebar.small_button('refresh'):
-                self.refresh_user_models()
+        # Build the model and trainer.
+        trainer = pl.Trainer(
+            max_epochs=config.epochs,
+            devices=1,   # Distributed training not supported in a GUI.
+            num_nodes=1, # Distributed training not supported in a GUI.
+            callbacks=[ProgressCallback(self._training_toast, config.epochs)]
+        )
 
-            ## Cell Segmentation diameter.
-            if imgui.radio_button('Auto-detect diameter##diam_radio_auto', self.diam_radio_auto):
-                self.diam_radio_auto = True
-            if imgui.radio_button('Manual: ##diam_radio_manual', not self.diam_radio_auto):
-                self.diam_radio_auto = False
-            imgui.same_line()
-            with imgui_utils.item_width(viz.font_size*2):
-                _, self.diameter_microns = imgui.input_int('##diam_manual', self.diameter_microns, step=0)
-            imgui.same_line()
-            imgui.text('um')
+        # Train the model.
+        self._segment.model.train()
+        trainer.fit(self._segment.model, train_dataloaders=train_dl)
 
-            # Preview segmentation.
-            if viz.sidebar.full_button("Preview", enabled=has_viewer and not self.is_thread_running()):
-                self._segment_toast = viz.create_toast(
-                    title=f"Segmenting current view",
-                    icon='info',
-                    sticky=True,
-                    spinner=True)
-                self._thread = Thread(target=self.segment_slide, args=(True,))
-                self._thread.start()
-            imgui_utils.vertical_break()
+        # Move model to eval & appropriate device.
+        self._segment.model.eval()
+        self._segment.model.to(get_device())
 
-    def draw_segment(self):
-        viz = self.viz
-        has_viewer = (viz.viewer is not None)
-        has_seg = self.segmentation is not None
+        # Cleanup.
+        self._training_toast.done()
+        self._training_toast = None
+        self.viz.create_toast("Finetuning complete.", icon="success")
 
-        with imgui_utils.grayed_out(not has_viewer or self.diam_radio_auto):
-            _, self.otsu = imgui.checkbox('Otsu threshold', self.otsu)
-            _, self.save_flow = imgui.checkbox('Save flows', self.save_flow)
+    # --- Callbacks ---
 
-            # WSI segmentation.
-            with imgui_utils.item_width(imgui.get_content_region_max()[0]/2 - viz.spacing):
-                if (viz.sidebar.full_button("Segment", enabled=has_viewer and not self.is_thread_running())
-                and not self.is_thread_running()
-                and has_viewer
-                and not self.diam_radio_auto):
-                    self._segment_toast = viz.create_toast(
-                        title=f"Segmenting whole-slide image",
-                        icon='info',
-                        sticky=True,
-                        spinner=True)
-                    self._thread = Thread(target=self.segment_slide)
-                    self._thread.start()
+    def keyboard_callback(self, key: int, action: int) -> None:
+        """Handle keyboard events.
 
-            # Export
-            with imgui_utils.item_width(imgui.get_content_region_max()[0]/2 - viz.spacing):
-                with imgui_utils.grayed_out(not has_seg):
-                    if viz.sidebar.full_button("Export", enabled=(has_seg)) and has_seg:
-                        filename = f'{viz.wsi.name}-masks.zip'
-                        self.segmentation.save(filename, centroids=True)
-                        viz.create_toast(f"Exported masks and centroids to {filename}", icon='success')
-            imgui_utils.vertical_break()
+        Args:
+            key (int): The key that was pressed. See ``glfw.KEY_*``.
+            action (int): The action that was performed (e.g. ``glfw.PRESS``,
+                ``glfw.RELEASE``, ``glfw.REPEAT``).
 
-    def draw_view_controls(self):
-        viz = self.viz
-        has_viewer = (viz.viewer is not None)
-
-        with imgui_utils.grayed_out(self.segmentation is None):
-
-            # Show segmentation mask
-            _mask_clicked, self.show_mask = imgui.checkbox('Mask', self.show_mask)
-            if _mask_clicked and self.show_mask:
-                self.show_gradXY = False
-
-            # Show outlines
-            imgui.same_line(viz.font_size*6)
-            can_outline = (viz.viewer is not None and hasattr(viz.viewer, 'mpp') and viz.viewer.mpp < 1)
-            with imgui_utils.grayed_out(not can_outline):
-                if (imgui_utils.button("Outline", width=viz.button_w)
-                   and can_outline
-                   and not self.is_thread_running()):
-                    self.show_mask = False
-                    self.show_centroid = False
-                    self._showing_preview_overlay = True
-                    self._outline_toast = viz.create_toast(
-                        title=f"Calculating outlines",
-                        icon='info',
-                        sticky=True,
-                        spinner=True)
-                    self._thread = Thread(target=self.render_outlines)
-                    self._thread.start()
-
-            # Show gradXY
-            with imgui_utils.grayed_out(self.segmentation is None or self.segmentation.flows is None):
-                _grad_clicked, self.show_gradXY = imgui.checkbox('gradXY', self.show_gradXY)
-                if self.segmentation is None or self.segmentation.flows is None:
-                    _grad_clicked = False
-                    self.show_gradXY = False
-                elif _grad_clicked and self.show_gradXY:
-                    self.show_mask = False
-
-            # Show cellprob
-            imgui.same_line(viz.font_size*6)
-            with imgui_utils.grayed_out(True):
-                imgui_utils.button("Cellprob", width=viz.button_w)
-
-            # Show centroid
-            _clicked, self.show_centroid = imgui.checkbox('Centroid', self.show_centroid)
-            if _clicked and not self.is_thread_running():
-                if self.show_centroid and self.segmentation._centroids is None:
-                    self._centroid_toast = viz.create_toast(
-                        title=f"Calculating centroids",
-                        icon='info',
-                        sticky=True,
-                        spinner=True)
-                self._thread = Thread(target=self.calculate_centroids)
-                self._thread.start()
-
-            # Alpha control
-            imgui.same_line(viz.font_size*6)
-            if imgui_utils.button("Reset", width=viz.button_w):
-                self.show_mask = True
-                self.show_gradXY = False
-                self.show_centroid = False
-                self.overlay_background = False
-                self.alpha = 1
-                self.refresh_segmentation_view()
-
-            _bg_change, self.overlay_background = imgui.checkbox(
-                "Black BG",
-                self.overlay_background
+        """
+        if (key == glfw.KEY_SPACE and action == glfw.PRESS and self.viz._control_down):
+            can_generate_rois = (
+                not self.is_thread_running()
+                and (self._segment is not None)
+                and (self.viz.wsi is not None)
+                and not self.is_training()
             )
-            if _bg_change:
-                self.update_transparency()
+            if can_generate_rois:
+                self.generate_rois()
 
-            imgui.same_line(viz.font_size*6)
-            with imgui_utils.item_width(viz.button_w - viz.spacing):
-                _alpha_changed, self.alpha = imgui.slider_float('##alpha',
-                                                                self.alpha,
-                                                                min_value=0,
-                                                                max_value=1,
-                                                                format='Alpha %.2f')
-                if _alpha_changed:
-                    self.update_transparency()
 
-            # Refresh segmentation --------------------------------------------
-            self.viz._show_overlays = any((self.show_mask,
-                                           self.show_gradXY,
-                                           self.show_centroid,
-                                           self._showing_preview_overlay))
-            if _mask_clicked or _grad_clicked: # or others
-                if self.segmentation is not None:
-                    self.refresh_segmentation_view()
-                    self.update_transparency()
+    # --- Drawing ---
+
+    def draw_info(self):
+        """Draw information about the loaded model."""
+        viz = self.viz
+
+        rows = [
+            ['Architecture', self.cfg.arch],
+            ['Encoder',      self.cfg.encoder_name],
+            ['Mode',         self.cfg.mode],
+            ['Classes',      self.cfg.out_classes],
+            ['MPP',          self.cfg.mpp, 'Microns per pixel (optical resolution)']
+        ]
+        imgui.text_colored('Model', *viz.theme.dim)
+        imgui.same_line(viz.font_size * 6)
+        model_path = self._segment.model_path or 'None'
+        with imgui_utils.clipped_with_tooltip(model_path, 22):
+            imgui.text(imgui_utils.ellipsis_clip(model_path, 22))
+        for y, cols in enumerate(rows):
+            for x, col in enumerate(cols):
+                if x != 0:
+                    imgui.same_line(viz.font_size * (6 + (x - 1) * 6))
+                if x == 0:
+                    imgui.text_colored(str(col), *viz.theme.dim)
+                    if len(cols) == 3 and imgui.is_item_hovered():
+                        imgui.set_tooltip(cols[2])
+                elif x == 1:
+                    imgui.text(str(col))
+
+        imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size - viz.spacing * 2)
+        if imgui.button("HP"):
+            self._show_params = not self._show_params
+
         imgui_utils.vertical_break()
 
-    def draw_advanced_settings(self):
+    def draw_train_data_source(self) -> None:
+        """Draw training data source options."""
         viz = self.viz
 
-        with imgui_utils.item_width(viz.font_size*3):
-            _, self.tile_px = imgui.input_int('Window', self.tile_px, step=0)
+        # Slide sources
+        width = imgui.get_content_region_max()[0] - viz.spacing
+
+        changed = False
+        with imgui.begin_list_box("##segment_data_source", width, 150) as list_box:
+            if list_box.opened:
+                if self.viz.P is None:
+                    imgui.text("No project loaded.")
+                else:
+                    for slide_path in self.viz.project_widget.slide_paths:
+                        name = sf.util.path_to_name(slide_path)
+                        with self.viz.bold_font(self.viz.wsi is not None and slide_path == self.viz.wsi.path):
+                            _clicked, self._selected_slides[name] = imgui.selectable(name, self._selected_slides[name])
+                            if _clicked:
+                                changed = True
+                            if imgui.is_item_hovered():
+                                imgui.set_tooltip(slide_path)
+                                if imgui.is_mouse_down(RIGHT_MOUSE_BUTTON):
+                                    self._load_slide_popup = slide_path
+                                if imgui.is_mouse_double_clicked(LEFT_MOUSE_BUTTON):
+                                    self.viz.load_slide(slide_path)
+        if imgui_utils.button('Select All'):
+            changed = True
+            for name in self._selected_slides:
+                self._selected_slides[name] = True
+
         imgui.same_line()
-        _, self.tile = imgui.checkbox('Tile', self.tile)
-        with imgui_utils.item_width(viz.font_size*2):
-            _, self.downscale = imgui.input_int('Downscale factor', self.downscale, step=0)
-        _, self.spawn_workers = imgui.checkbox('Enable spawn workers', self.spawn_workers)
+        if imgui_utils.button('With ROIs'):
+            changed = True
+            _rois = [sf.util.path_to_name(r) for r in self.viz.P.dataset().rois()]
+            for name in self._selected_slides:
+                if name in _rois:
+                    self._selected_slides[name] = True
+                else:
+                    self._selected_slides[name] = False
+
+        imgui.same_line()
+        if imgui_utils.button('Select None'):
+            changed = True
+            for name in self._selected_slides:
+                self._selected_slides[name] = False
+
+        imgui.text("{} slides selected".format(sum(self._selected_slides.values())))
+
+        # Update the unique training classes.
+        if changed:
+            dataset = viz.P.dataset(filters={'slide': self.get_training_slides()}, verification=None)
+            _unique = dataset.get_unique_roi_labels(allow_empty=True)
+            _unique = [k if k is not None else '<No label>' for k in _unique]
+            self._unique_training_classes = {
+                k: (True if k not in self._unique_training_classes else self._unique_training_classes[k])
+                for k in _unique
+            }
+
+        imgui_utils.vertical_break()
+
+    def draw_class_selection(self) -> None:
+        """Draw class selection multi-select box."""
+        viz = self.viz
+        imgui.text_colored('Classes', *viz.theme.dim)
+        imgui.same_line(viz.label_w)
+
+        # Class selection
+        width = imgui.get_content_region_max()[0] - viz.spacing - viz.label_w
+        with imgui.begin_list_box("##segment_class_select", width, viz.font_size * 5) as list_box:
+            if list_box.opened:
+                for _class in self._unique_training_classes:
+                    _, self._unique_training_classes[_class] = imgui.selectable(_class, self._unique_training_classes[_class])
+
+        imgui.text('')
+        imgui.same_line(viz.label_w)
+        if imgui_utils.button('Select All##segment_class_select_all'):
+            for _class in self._unique_training_classes:
+                self._unique_training_classes[_class] = True
+
+        imgui.same_line()
+        if imgui_utils.button('Select None##segment_class_select_none'):
+            for _class in self._unique_training_classes:
+                self._unique_training_classes[_class] = False
+
+        imgui_utils.vertical_break()
+
+    def draw_train_data_processing(self) -> None:
+        """Draw training data processing options."""
+        viz = self.viz
+
+        # Tile size.
+        imgui.text_colored('Tile size', *viz.theme.dim)
+        imgui.same_line(viz.label_w)
+        with imgui_utils.item_width(viz.font_size * 3):
+            _, self.tile_px = imgui.input_int(
+                "##segment_tile_px",
+                self.tile_px,
+                step=0,
+            )
+        imgui.same_line()
+        imgui.text('px')
+        imgui.text('')
+        imgui.same_line(viz.label_w)
+        with imgui_utils.item_width(viz.font_size * 3):
+            _, self.tile_um = imgui.input_int(
+                "##segment_tile_um",
+                self.tile_um,
+                step=0,
+            )
+        imgui.same_line()
+        imgui.text('um')
+        imgui.same_line()
+        imgui.text('(MPP={:.2f})'.format(self.mpp))
+
+        # Crop margin.
+        imgui.text_colored('Margin', *viz.theme.dim)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Margin for random cropping during training.")
+        imgui.same_line(viz.label_w)
+        with imgui_utils.item_width(viz.font_size * 6):
+            _, self.crop_margin = imgui.input_int(
+                "##segment_crop_margin",
+                self.crop_margin,
+                step=16,
+            )
+            self.crop_margin = max(0, self.crop_margin)
+        imgui.same_line()
+        imgui.text('px')
+
+        # Stride.
+        imgui.text_colored('Stride', *viz.theme.dim)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Stride for tiling the slide.")
+        self.stride, self._capturing_stride, _ = stride_capture(
+            viz,
+            self.stride,
+            self._capturing_stride,
+            max_value=16,
+            label='Stride',
+            draw_label=False,
+            offset=viz.label_w,
+            width=imgui.get_content_region_max()[0] - viz.label_w - (viz.spacing)
+        )
+
+        # Filter method.
+        imgui.text_colored('Filter', *viz.theme.dim)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip(
+                "Method for filtering tiles.\n"
+                "If 'otsu', tiles are filtered using Otsu's thresholding.\n"
+                "If 'roi', only tiles touching an ROI are used."
+            )
+        imgui.same_line(viz.label_w)
+        _, self._selected_filter_method = imgui.combo(
+            "##segment_filter_method",
+            self._selected_filter_method,
+            self._filter_methods
+        )
+
+        imgui_utils.vertical_break()
+
+    def draw_train_params(self) -> None:
+        """Draw training architecture & hyperparameter options."""
+        viz = self.viz
+
+        # === Architecture & training parameters ===
+        # Architecture.
+        imgui.text_colored('Arch', *viz.theme.dim)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Model architecture")
+        imgui.same_line(viz.label_w)
+        _, self._selected_arch = imgui.combo(
+            "##segment_arch",
+            self._selected_arch,
+            self._supported_archs
+        )
+        # Encoder.
+        imgui.text_colored('Encoder', *viz.theme.dim)
+        imgui.same_line(viz.label_w)
+        _, self._selected_encoder = imgui.combo(
+            "##segment_encoder",
+            self._selected_encoder,
+            self._supported_encoders
+        )
+        # Training mode.
+        imgui.text_colored('Mode', *viz.theme.dim)
+        imgui.same_line(viz.label_w)
+        _, self._selected_training_mode = imgui.combo(
+            "##segment_training_mode",
+            self._selected_training_mode,
+            self._training_modes
+        )
+        # Max epochs.
+        imgui.text_colored('Epochs', *viz.theme.dim)
+        imgui.same_line(viz.label_w)
+        _, self.max_epochs = imgui.input_int(
+            "##segment_max_epochs",
+            self.max_epochs,
+            step=1,
+            step_fast=5
+        )
+        # Class selection (for multilabel and multiclass)
+        self.draw_class_selection()
+
+    def draw_training_button(self) -> None:
+        """Draw the training button."""
+        viz = self.viz
+        width = (self.viz.sidebar.content_width - (self.viz.spacing * 4)) / 3
+
+        # Train button.
+        _button_text = "Train" if not self.is_training() else "Training" + imgui_utils.spinner_text()
+        if viz.sidebar.full_button(_button_text, enabled=(sum(self._selected_slides.values()) and not self.is_training()), width=width):
+            self.train()
+        if imgui.is_item_hovered() and viz.P is None:
+            imgui.set_tooltip("No project loaded. Load a project to train a model.")
+
+        # Finetune button.
+        imgui.same_line()
+        if viz.sidebar.full_button2("Finetune", enabled=(sum(self._selected_slides.values()) and not self.is_training() and self._segment is not None), width=width):
+            self.finetune()
+        if imgui.is_item_hovered() and self._segment is None:
+            imgui.set_tooltip("No model loaded. Load a model to finetune.")
+        if imgui.is_item_hovered() and viz.P is None:
+            imgui.set_tooltip("No project loaded. Load a project to export a model.")
+
+        # Export button.
+        imgui.same_line()
+        if viz.sidebar.full_button2("Export", enabled=(self._segment is not None), width=width):
+            self.ask_export_model()
+        if imgui.is_item_hovered() and self._segment is None:
+            imgui.set_tooltip("No model loaded.")
+
+    def draw_apply(self) -> None:
+        """Show a button prompting the user to generate ROIs."""
+        viz = self.viz
+
+        # Label
+        imgui.text_colored('Min mm²', *viz.theme.dim)
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Filter out ROIs smaller than this area, in square millimeters.")
+
+        # Free input
+        imgui.same_line(viz.label_w)
+        with imgui_utils.item_width(viz.font_size * 3):
+            _changed, _val = imgui.input_float('##small_roi_filter_freetext', self._sq_mm_threshold, format='%.3f')
+            if _changed:
+                self._sq_mm_threshold = _val
+
+        # Slider
+        imgui.same_line(viz.label_w + viz.font_size * 3 + viz.spacing)
+        width = imgui.get_content_region_max()[0] - viz.label_w - viz.font_size * 3 - viz.spacing
+        with imgui_utils.item_width(width):
+            _changed, _val = imgui.slider_float(
+                '##small_roi_filter',
+                self._sq_mm_threshold,
+                min_value=0.0,
+                max_value=1.0,
+                format=''
+            )
+            if _changed:
+                self._sq_mm_threshold = _val
+
+        # Generate ROIs button
+        if viz.sidebar.full_button(
+            'Generate ROIs',
+            enabled=(
+                not self.is_thread_running()
+                and (self._segment is not None)
+                and (viz.wsi is not None)
+                and not self.is_training()
+            )
+        ):
+            self.generate_rois()
+
+    def draw_load_slide_popup(self):
+        viz = self.viz
+        if self._load_slide_popup:
+            if self._load_slide_popup_coords is None:
+                self._load_slide_popup_coords = self.viz.get_mouse_pos(scale=False)
+            cx, cy = self._load_slide_popup_coords
+            imgui.set_next_window_position(cx, cy)
+            imgui.begin(
+                '##segment_load_slide_popup',
+                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+            )
+            if imgui.menu_item('Load')[0]:
+                viz.load_slide(self._load_slide_popup)
+                self._clicking = False
+                self._load_slide_popup = None
+                self._load_slide_popup_coords = None
+
+            # Hide menu if we click elsewhere
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
+                self._clicking = True
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
+                self._clicking = False
+                self._load_slide_popup = None
+                self._load_slide_popup_coords = None
+
+            imgui.end()
+
+
+    def draw_config_popup(self):
+        viz = self.viz
+        has_model = self._segment is not None
+
+        if self._show_popup:
+            cx, cy = imgui.get_cursor_pos()
+            imgui.set_next_window_position(viz.sidebar.full_width, cy)
+            imgui.begin(
+                '##segment_config_popup',
+                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
+            )
+            if imgui.menu_item('Load model', enabled=(not self.is_training()))[0]:
+                self.ask_load_model()
+                self._clicking = False
+                self._show_popup = False
+            if imgui.menu_item('Close model', enabled=has_model)[0]:
+                self.close_model()
+                self._clicking = False
+                self._show_popup = False
+
+            # Hide menu if we click elsewhere
+            if imgui.is_mouse_down(LEFT_MOUSE_BUTTON) and not imgui.is_window_hovered():
+                self._clicking = True
+            if self._clicking and imgui.is_mouse_released(LEFT_MOUSE_BUTTON):
+                self._clicking = False
+                self._show_popup = False
+
+            imgui.end()
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
 
         if show:
-            viz.header("Cell Segmentation")
+            with viz.header_with_buttons("Tissue Segmentation"):
+                imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size*1.5)
+                cx, cy = imgui.get_cursor_pos()
+                imgui.set_cursor_position((cx, cy-int(viz.font_size*0.25)))
+                if viz.sidebar.small_button('gear'):
+                    self._clicking = False
+                    self._show_popup = not self._show_popup
+                self.draw_config_popup()
 
-            if viz.collapsing_header('Model & cell diameter', default=True):
-                self.draw_config()
+        if show and self._segment is None:
+            imgui_utils.padded_text(
+                'Load or train a model.',
+                vpad=[int(viz.font_size/2),
+                      int(viz.font_size)]
+            )
+            if viz.sidebar.full_button("Load a Model", enabled=(not self.is_training())):
+                self.ask_load_model()
+            if imgui.is_item_hovered() and self.is_training():
+                imgui.set_tooltip("Cannot load model while training.")
+            imgui_utils.vertical_break()
 
-            if viz.collapsing_header('Whole-slide segmentation', default=True):
-                self.draw_segment()
+        elif show:
+            if viz.collapsing_header('Model Info', default=True):
+                self.draw_info()
 
-            if viz.collapsing_header('View controls', default=False):
-                self.draw_view_controls()
+        if show:
+            if viz.collapsing_header('Training', default=False):
 
-            if viz.collapsing_header('Advanced', default=False):
-                self.draw_advanced_settings()
+                if viz.collapsing_header2('Data Source', default=False):
+                    self.draw_train_data_source()
+                    self.draw_load_slide_popup()
+
+                if viz.collapsing_header2('Data Processing', default=False):
+                    self.draw_train_data_processing()
+
+                if viz.collapsing_header2('Arch & Params', default=False):
+                    self.draw_train_params()
+
+                imgui_utils.vertical_break()
+                self.draw_training_button()
+
+                imgui_utils.vertical_break()
+
+            if viz.collapsing_header('Apply', default=True):
+                self.draw_apply()
+
+        # Refresh ROIs if necessary.
+        # Must be in the main loop.
+        if self._need_to_refresh_rois:
+            self._need_to_refresh_rois = False
+            viz.slide_widget.roi_widget.refresh_rois()

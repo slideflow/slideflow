@@ -145,7 +145,7 @@ class TestSuite:
         """Set up hyperparameters.
 
         Args:
-            model_type (str): Type of model, ('categorical', 'linear, 'cph').
+            model_type (str): Type of model, ('classification', 'regression, 'survival').
             sweep (bool, optional): Set up HP sweep. Defaults to False.
             normalizer (str, optional): Normalizer strategy. Defaults to None.
             uq (bool, optional): Uncertainty quantification. Defaults to False.
@@ -155,15 +155,15 @@ class TestSuite:
         """
 
         assert self.project is not None
-        if model_type == 'categorical':
+        if model_type == 'classification':
             loss = ('sparse_categorical_crossentropy'
                     if sf.backend() == 'tensorflow'
                     else 'CrossEntropy')
-        elif model_type == 'linear':
+        elif model_type == 'regression':
             loss = ('mean_squared_error'
                     if sf.backend() == 'tensorflow'
                     else 'MSE')
-        elif model_type == 'cph':
+        elif model_type == 'survival':
             loss = ('negative_log_likelihood'
                     if sf.backend() == 'tensorflow'
                     else 'NLL')
@@ -320,11 +320,11 @@ class TestSuite:
         """Test model training across multiple epochs."""
 
         assert self.project is not None
-        msg = "Training single categorical outcome from HP sweep..."
+        msg = "Training single classification outcome from HP sweep..."
         with TaskWrapper(msg) as test:
             try:
                 self.setup_hp(
-                    'categorical',
+                    'classification',
                     sweep=True,
                     normalizer='reinhard_fast',
                     uq=False
@@ -344,15 +344,15 @@ class TestSuite:
 
     def test_training(
         self,
-        categorical: bool = True,
+        classification: bool = True,
         resume: bool = True,
         uq: bool = True,
-        multi_categorical: bool = True,
-        linear: bool = True,
-        multi_linear: bool = True,
+        multi_classification: bool = True,
+        regression: bool = True,
+        multi_regression: bool = True,
         multi_input: bool = True,
-        cph: bool = True,
-        multi_cph: bool = True,
+        survival: bool = True,
+        multi_survival: bool = True,
         from_wsi: bool = True,
         **train_kwargs
     ) -> None:
@@ -361,20 +361,20 @@ class TestSuite:
         Models are trained for one epoch for only 20 steps.
 
         Args:
-            categorical (bool, optional): Test training a single outcome,
-                multi-class categorical model. Defaults to True.
+            classification (bool, optional): Test training a single outcome,
+                multi-class classification model. Defaults to True.
             uq (bool, optional): Test training with UQ. Defaults to True.
-            multi_categorical (bool, optional): Test training a multi-outcome,
-                multi-class categorical model. Defaults to True.
-            linear (bool, optional): Test training a continuous outcome.
+            multi_classification (bool, optional): Test training a multi-outcome,
+                multi-class classification model. Defaults to True.
+            regression (bool, optional): Test training a continuous outcome.
                 Defaults to True.
-            multi_linear (bool, optional): Test training with multiple
+            multi_regression (bool, optional): Test training with multiple
                 continuous outcomes. Defaults to True.
             multi_input (bool, optional): Test training with slide-level input
                 in addition to image input. Defaults to True.
-            cph (bool, optional): Test training a Cox-Proportional Hazards
+            survival (bool, optional): Test training a Cox-Proportional Hazards
                 model. Defaults to True.
-            multi_cph (bool, optional): Test training a CPH model with
+            multi_survival (bool, optional): Test training a survival model with
                 additional slide-level input. Defaults to True.
         """
         assert self.project is not None
@@ -386,8 +386,8 @@ class TestSuite:
            and 'save_checkpoints' not in train_kwargs):
             train_kwargs['save_checkpoints'] = False
 
-        if categorical:
-            # Test categorical outcome
+        if classification:
+            # Test classification outcome
             self.train_perf(**train_kwargs)
 
         if resume:
@@ -404,12 +404,12 @@ class TestSuite:
                             checkpoint=to_resume
                         )
                 except OSError:
-                    log.warning("Could not find categorical model for testing resume_training")
+                    log.warning("Could not find classification model for testing resume_training")
                     resume_kw = dict()
                     test.skip()
                 else:
                     try:
-                        hp = self.setup_hp('categorical', sweep=False, uq=False)
+                        hp = self.setup_hp('classification', sweep=False, uq=False)
                         results = self.project.train(
                             exp_label='resume',
                             outcomes='category1',
@@ -425,16 +425,16 @@ class TestSuite:
                         test.fail()
 
         if uq:
-            # Test categorical outcome with UQ
+            # Test classification outcome with UQ
             try:
                 # Use pretrained model if possible, for testing
                 to_resume = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
             except OSError:
                 to_resume = None  # type: ignore
-            msg = "Training single categorical outcome with UQ..."
+            msg = "Training single classification outcome with UQ..."
             with TaskWrapper(msg) as test:
                 try:
-                    hp = self.setup_hp('categorical', sweep=False, uq=True)
+                    hp = self.setup_hp('classification', sweep=False, uq=True)
                     results = self.project.train(
                         exp_label='UQ',
                         outcomes='category1',
@@ -448,14 +448,14 @@ class TestSuite:
                     log.error(traceback.format_exc())
                     test.fail()
 
-        if multi_categorical:
+        if multi_classification:
             # Test multiple sequential categorical outcome models
             with TaskWrapper("Training to multiple outcomes...") as test:
                 try:
                     results = self.project.train(
                         outcomes=['category1', 'category2'],
                         val_k=1,
-                        params=self.setup_hp('categorical'),
+                        params=self.setup_hp('classification'),
                         pretrain=None,
                         **train_kwargs
                     )
@@ -464,14 +464,14 @@ class TestSuite:
                     log.error(traceback.format_exc())
                     test.fail()
 
-        if linear:
-            # Test single linear outcome
-            with TaskWrapper("Training with single linear outcome...") as test:
+        if regression:
+            # Test single regression outcome
+            with TaskWrapper("Training with single regression outcome...") as test:
                 try:
                     results = self.project.train(
-                        outcomes=['linear1'],
+                        outcomes=['regression'],
                         val_k=1,
-                        params=self.setup_hp('linear'),
+                        params=self.setup_hp('regression'),
                         pretrain=None,
                         **train_kwargs
                     )
@@ -480,14 +480,14 @@ class TestSuite:
                     log.error(traceback.format_exc())
                     test.fail()
 
-        if multi_linear:
-            # Test multiple linear outcome
-            with TaskWrapper("Training multiple linear outcomes...") as test:
+        if multi_regression:
+            # Test multiple regression outcome
+            with TaskWrapper("Training multiple regression outcomes...") as test:
                 try:
                     results = self.project.train(
-                        outcomes=['linear1', 'linear2'],
+                        outcomes=['regression1', 'regression2'],
                         val_k=1,
-                        params=self.setup_hp('linear'),
+                        params=self.setup_hp('regression'),
                         pretrain=None,
                         **train_kwargs
                     )
@@ -504,7 +504,7 @@ class TestSuite:
                         exp_label='multi_input',
                         outcomes='category1',
                         input_header='category2',
-                        params=self.setup_hp('categorical'),
+                        params=self.setup_hp('classification'),
                         val_k=1,
                         pretrain=None,
                         **train_kwargs
@@ -514,15 +514,15 @@ class TestSuite:
                     log.error(traceback.format_exc())
                     test.fail()
 
-        if cph:
-            with TaskWrapper("Training a CPH model...") as test:
+        if survival:
+            with TaskWrapper("Training a survival model...") as test:
                 if sf.backend() == 'tensorflow':
                     try:
                         results = self.project.train(
-                            exp_label='cph',
+                            exp_label='survival',
                             outcomes='time',
                             input_header='event',
-                            params=self.setup_hp('cph'),
+                            params=self.setup_hp('survival'),
                             val_k=1,
                             pretrain=None,
                             **train_kwargs
@@ -534,15 +534,15 @@ class TestSuite:
                 else:
                     test.skip()
 
-        if multi_cph:
-            with TaskWrapper("Training a multi-input CPH model...") as test:
+        if multi_survival:
+            with TaskWrapper("Training a multi-input survival model...") as test:
                 if sf.backend() == 'tensorflow':
                     try:
                         results = self.project.train(
-                            exp_label='multi_cph',
+                            exp_label='multi_survival',
                             outcomes='time',
                             input_header=['event', 'category1'],
-                            params=self.setup_hp('cph'),
+                            params=self.setup_hp('survival'),
                             val_k=1,
                             pretrain=None,
                             **train_kwargs
@@ -558,7 +558,7 @@ class TestSuite:
             msg = "Training model directly from slides (from_wsi=True)..."
             with TaskWrapper(msg) as test:
                 try:
-                    hp = self.setup_hp('categorical', sweep=False, balance=None)
+                    hp = self.setup_hp('classification', sweep=False, balance=None)
                     results = self.project.train(
                         exp_label='from_wsi',
                         outcomes='category1',
@@ -579,7 +579,7 @@ class TestSuite:
         assert self.project is not None
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
 
-        with TaskWrapper("Testing categorical model predictions...") as test:
+        with TaskWrapper("Testing classification model predictions...") as test:
             passed = process_isolate(
                 sf.test.functional.prediction_tester,
                 project=self.project,
@@ -594,13 +594,13 @@ class TestSuite:
 
         assert self.project is not None
         multi_cat_model = self._get_model('category1-category2-HP0-kfold1')
-        multi_lin_model = self._get_model('linear1-linear2-HP0-kfold1')
+        multi_lin_model = self._get_model('regression1-regression2-HP0-kfold1')
         multi_inp_model = self._get_model('category1-multi_input-HP0-kfold1')
         f_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
 
         # Performs evaluation in isolated thread to avoid OOM errors
         # with sequential model loading/testing
-        with TaskWrapper("Testing categorical model evaluation...") as test:
+        with TaskWrapper("Testing classification model evaluation...") as test:
             passed = process_isolate(
                 sf.test.functional.evaluation_tester,
                 project=self.project,
@@ -612,7 +612,7 @@ class TestSuite:
             if not passed:
                 test.fail()
 
-        with TaskWrapper("Testing categorical UQ model evaluation...") as test:
+        with TaskWrapper("Testing classification UQ model evaluation...") as test:
             uq_model = self._get_model('category1-UQ-HP0-kfold1')
             passed = process_isolate(
                 sf.test.functional.evaluation_tester,
@@ -625,7 +625,7 @@ class TestSuite:
             if not passed:
                 test.fail()
 
-        with TaskWrapper("Testing multi-categorical model evaluation...") as test:
+        with TaskWrapper("Testing multi-classification model evaluation...") as test:
             passed = process_isolate(
                 sf.test.functional.evaluation_tester,
                 project=self.project,
@@ -637,12 +637,12 @@ class TestSuite:
             if not passed:
                 test.fail()
 
-        with TaskWrapper("Testing multi-linear model evaluation...") as test:
+        with TaskWrapper("Testing multi-outcome regression model evaluation...") as test:
             passed = process_isolate(
                 sf.test.functional.evaluation_tester,
                 project=self.project,
                 model=multi_lin_model,
-                outcomes=['linear1', 'linear2'],
+                outcomes=['regression1', 'regression2'],
                 save_predictions=True,
                 **eval_kwargs
             )
@@ -661,13 +661,13 @@ class TestSuite:
             if not passed:
                 test.fail()
 
-        with TaskWrapper("Testing CPH model evaluation...") as test:
+        with TaskWrapper("Testing survival model evaluation...") as test:
             if sf.backend() == 'tensorflow':
-                cph_model = self._get_model('time-cph-HP0-kfold1')
+                survival_model = self._get_model('time-survival-HP0-kfold1')
                 passed = process_isolate(
                     sf.test.functional.evaluation_tester,
                     project=self.project,
-                    model=cph_model,
+                    model=survival_model,
                     outcomes='time',
                     input_header='event',
                     **eval_kwargs
@@ -752,7 +752,7 @@ class TestSuite:
                 test.skip()
             else:
                 passed = process_isolate(
-                    sf.test.functional.clam_feature_generator_tester,
+                    sf.test.functional.feature_generator_tester,
                     project=self.project,
                     model=model
                 )
@@ -767,13 +767,13 @@ class TestSuite:
                     dataset = self.project.dataset(self.tile_px, 1208)
                     train_dts, val_dts = dataset.split(val_fraction=0.3)
                     import slideflow.mil
-                    config = sf.mil.mil_config('clam_sb', epochs=5, lr=1e-4)
+                    config = sf.mil.mil_config('attention_mil', epochs=5, lr=1e-4, drop_last=False)
                     self.project.train_mil(
                         config,
                         train_dts,
                         val_dts,
                         outcomes='category1',
-                        bags=join(self.project.root, 'clam'),
+                        bags=join(self.project.root, 'mil'),
                         attention_heatmaps=True
                     )
                 except Exception as e:

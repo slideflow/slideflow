@@ -47,8 +47,13 @@ class SegmentModel(pl.LightningModule):
         **kwargs
     ):
         super().__init__()
+
         self.model = smp.create_model(
-            arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
+            arch,
+            encoder_name=encoder_name,
+            in_channels=in_channels,
+            classes=out_classes,
+            **kwargs
         )
         self.mpp = mpp
         self.lr = lr
@@ -117,8 +122,6 @@ class SegmentModel(pl.LightningModule):
         assert h % 32 == 0 and w % 32 == 0
 
         mask = batch["mask"]
-
-
 
         if self.mode == 'binary':
             # Shape of the mask should be [batch_size, num_classes, height, width]
@@ -195,8 +198,8 @@ class SegmentModel(pl.LightningModule):
         dataset_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction="micro")
 
         metrics = {
-            f"{stage}_per_image_iou": per_image_iou.cuda().float(),
-            f"{stage}_dataset_iou": dataset_iou.cuda().float(),
+            f"{stage}_per_image_iou": per_image_iou.to(self.device).float(),
+            f"{stage}_dataset_iou": dataset_iou.to(self.device).float(),
         }
 
         self.log_dict(metrics, prog_bar=True, sync_dist=True)
@@ -237,11 +240,15 @@ class SegmentModel(pl.LightningModule):
         batched_tiles = tiles.reshape(-1, 3, 1024, 1024)
 
         # Generate UNet predictions.
-        with torch.no_grad():
-            tile_preds = self(torch.from_numpy(batched_tiles))
+        with torch.inference_mode():
+            tile_preds = []
+            for tile in batched_tiles:
+                pred = self.forward(torch.from_numpy(tile).unsqueeze(0).to(self.device))
+                tile_preds.append(pred)
+            tile_preds = torch.cat(tile_preds)
 
         # Merge predictions across the tiles.
-        tiled_preds = average_tiles(tile_preds.numpy(), ysub, xsub, ly, lx)
+        tiled_preds = average_tiles(tile_preds.cpu().numpy(), ysub, xsub, ly, lx)
 
         # Crop predictions to the original size.
         tiled_preds = tiled_preds[:orig_dims[0], :orig_dims[1]]

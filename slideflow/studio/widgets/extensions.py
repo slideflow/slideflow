@@ -1,9 +1,11 @@
+import slideflow as sf
 import traceback
 import numpy as np
 import imgui
 import textwrap
 from PIL import Image
 from os.path import join, dirname, abspath
+from typing import Union, Tuple
 
 from ..gui import imgui_utils, gl_utils
 
@@ -16,19 +18,39 @@ class ExtensionsWidget:
     icon = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_extensions.png')
     icon_highlighted = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'button_extensions_highlighted.png')
 
-    def __init__(self, viz):
+    def __init__(
+        self,
+        viz: "sf.studio.Studio",
+        autoload: Union[bool, Tuple[str], str] = ('mil', 'segment')
+    ) -> None:
+
         self.viz                = viz
         self._show_err_popup    = False
 
         self.stylegan = any([w.tag == 'stylegan' for w in viz.widgets])
         self.mosaic = any([w.tag == 'mosaic' for w in viz.widgets])
-        self.segment = any([w.tag == 'segment' for w in viz.widgets])
+        self.cellseg = any([w.tag == 'cellseg' for w in viz.widgets])
         self.mil = any([w.tag == 'mil' for w in viz.widgets])
+        self.segment = any([w.tag == 'segment' for w in viz.widgets])
 
         _off_path = join(dirname(abspath(__file__)), '..', 'gui', 'buttons', 'small_button_verified.png')
         self._official_tex      = gl_utils.Texture(
             image=np.array(Image.open(_off_path)), bilinear=True, mipmap=True
         )
+
+        # Try to load all extensions at start.
+        if autoload:
+            if isinstance(autoload, bool) and autoload:
+                autoload = ['stylegan', 'mosaic', 'cellseg', 'mil', 'segment']
+            elif isinstance(autoload, str):
+                autoload = [autoload]
+            for ext in autoload:
+                try:
+                    if not getattr(self, f'{ext}'):
+                        getattr(self, f'toggle_{ext}')()
+                        setattr(self, f'{ext}', True)
+                except Exception as e:
+                    pass
 
     def toggle_stylegan(self):
         viz = self.viz
@@ -46,13 +68,13 @@ class ExtensionsWidget:
         else:
             viz.remove_widget(MosaicWidget)
 
-    def toggle_segment(self):
+    def toggle_cellseg(self):
         viz = self.viz
-        from ..widgets.segment import SegmentWidget
-        if not any(isinstance(w, SegmentWidget) for w in viz.widgets):
-            viz.add_widgets(SegmentWidget)
+        from ..widgets.cellseg import CellSegWidget
+        if not any(isinstance(w, CellSegWidget) for w in viz.widgets):
+            viz.add_widgets(CellSegWidget)
         else:
-            viz.remove_widget(SegmentWidget)
+            viz.remove_widget(CellSegWidget)
 
     def toggle_mil(self):
         viz = self.viz
@@ -61,6 +83,14 @@ class ExtensionsWidget:
             viz.add_widgets(MILWidget)
         else:
             viz.remove_widget(MILWidget)
+
+    def toggle_segment(self):
+        viz = self.viz
+        from ..widgets.segment import TissueSegWidget
+        if not any(isinstance(w, TissueSegWidget) for w in viz.widgets):
+            viz.add_widgets(TissueSegWidget)
+        else:
+            viz.remove_widget(TissueSegWidget)
 
     def extension_checkbox(self, title, description, check_value, official=False):
         viz = self.viz
@@ -92,7 +122,7 @@ class ExtensionsWidget:
         """Show an error message that an extension failed to load."""
         wrapped = textwrap.wrap(self._err_msg, width=45)
         lh = imgui.get_text_line_height_with_spacing()
-        window_size = (self.viz.font_size * 18, lh * len(wrapped) + self.viz.font_size * 4)
+        window_size = (self.viz.font_size * 20, lh * len(wrapped) + self.viz.font_size * 4)
         self.viz.center_next_window(*window_size)
         imgui.set_next_window_size(*window_size)
         _, opened = imgui.begin('Error loading extension', closable=True, flags=imgui.WINDOW_NO_RESIZE)
@@ -137,24 +167,39 @@ class ExtensionsWidget:
                     self.stylegan = False
             imgui.separator()
 
-            _c3, self.segment = self.extension_checkbox(
+            _c3, self.cellseg = self.extension_checkbox(
                 'Cell Segmentation',
                 description='Segment cells with Cellpose.',
-                check_value=self.segment,
+                check_value=self.cellseg,
                 official=True
             )
             if _c3:
                 try:
-                    self.toggle_segment()
+                    self.toggle_cellseg()
                 except ImportError as e:
                     self.show_extension_error(
                         'Cellpose is not installed. Cellpose can be installed '
                         'with "pip install cellpose"'
                     )
-                    self.segment = False
+                    self.cellseg = False
+                except Exception as e:
+                    self.show_extension_error(str(e), traceback.format_exc())
+                    self.cellseg = False
+            imgui.separator()
+
+            _c5, self.segment = self.extension_checkbox(
+                'Tissue Segmentation',
+                description='Train and use segmentation models.',
+                check_value=self.segment,
+                official=True
+            )
+            if _c5:
+                try:
+                    self.toggle_segment()
                 except Exception as e:
                     self.show_extension_error(str(e), traceback.format_exc())
                     self.segment = False
+            imgui.separator()
 
             _c4, self.mil = self.extension_checkbox(
                 'Multiple-Instance Learning',

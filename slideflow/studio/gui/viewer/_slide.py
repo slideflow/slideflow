@@ -5,10 +5,13 @@ import imgui
 import numpy as np
 
 import shapely.affinity as sa
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, Point
 from rasterio.features import rasterize
 from contextlib import contextmanager
 from typing import Tuple, Optional, TYPE_CHECKING, Union, List
+from collections import defaultdict
+from shapely.ops import unary_union, polygonize
+
 from ._viewer import Viewer
 from .. import gl_utils, text_utils
 from ...utils import EasyDict
@@ -17,6 +20,8 @@ import slideflow as sf
 
 if TYPE_CHECKING:
     import pyvips
+
+COLOR_RED = (1, 0, 0)
 
 # -----------------------------------------------------------------------------
 
@@ -30,18 +35,28 @@ class SlideViewer(Viewer):
         super().__init__(*args, **kwargs)
 
         # WSI parameters.
-        self.rois           = []
-        self.selected_rois  = {}
-        self.wsi            = wsi
-        self._tile_px       = wsi.tile_px
-        self._tile_um       = wsi.tile_um
-        self._max_w         = None  # Used for late rendering
-        self._max_h         = None  # Used for late rendering
-        self._last_update   = time.time()  # Used for tracking movement
-        self.show_scale     = True
-        self.show_thumbnail = True
-        self.show_rois      = True
+        self.scaled_rois_in_view = dict()
+        self.scaled_holes_in_view = defaultdict(dict)
+        self.roi_colors         = {}
+        self.wsi                = wsi
+        self._tile_px           = wsi.tile_px
+        self._tile_um           = wsi.tile_um
+        self._max_w             = None  # Used for late rendering
+        self._max_h             = None  # Used for late rendering
+        self._last_update       = time.time()  # Used for tracking movement
+        self.show_scale         = True
+        self.show_thumbnail     = True
+        self.show_rois          = True
+        self._roi_vbos          = {}
+        self._roi_holes_vbos    = defaultdict(dict)
+        self._roi_triangle_vbos = {}
+        self._scaled_roi_ind    = {}
+        self._scaled_roi_holes_ind = defaultdict(dict)
+        self.highlight_fill     = COLOR_RED
+        self.highlight_outline  = COLOR_RED
+        self.highlighted_rois   = []
 
+        # Thumbnail parameters
         self.thumb_max_width = 12
         self.thumb_max_height = 8
 
@@ -49,18 +64,21 @@ class SlideViewer(Viewer):
         wsi_ratio = self.dimensions[0] / self.dimensions[1]
         max_w, max_h = self.width, self.height
         if wsi_ratio < self.width / self.height:
-            max_w = int(wsi_ratio * max_h)
+            max_w = int(np.round(wsi_ratio * max_h))
         else:
-            max_h = int(max_w / wsi_ratio)
+            max_h = int(np.round(max_w / wsi_ratio))
         self.view_zoom = max(self.dimensions[0] / max_w,
                              self.dimensions[1] / max_h)
         self.view_params = self._calculate_view_params()
         self._refresh_view_full()
-        self._refresh_rois()
+        self.refresh_rois()
 
         # Calculate scales
         self._um_steps = (1000, 500, 400, 250, 200, 100, 50, 30, 20, 10, 5, 3, 2, 1)
-        max_scale_w = (120 * self.viz.pixel_ratio)
+        if self.viz is not None:
+            max_scale_w = (120 * self.viz.pixel_ratio)
+        else:
+            max_scale_w = 120
         self._mpp_cutoffs = np.array([um / max_scale_w for um in self._um_steps])
 
     @property
@@ -97,6 +115,23 @@ class SlideViewer(Viewer):
         if region.bands == 4:
             region = region.flatten()
         return sf.slide.backends.vips.vips2numpy(region)
+
+    def get_scaled_roi_vertices(self, roi_id: int) -> Optional[np.ndarray]:
+        """Get the scaled ROI of the given ID.
+
+        Args:
+            roi_id (int): The ID of the ROI to get. This is the index of the ROI
+                in the WSI's list of ROIs.
+
+        Returns:
+            Optional[np.ndarray]: The scaled ROI coordinates currently in view,
+                or None if the ROI is not in the current view.
+
+        """
+        if roi_id in self.scaled_rois_in_view:
+            return self.scaled_rois_in_view[roi_id]
+        else:
+            return None
 
     def _calculate_view_params(
         self,
@@ -140,7 +175,7 @@ class SlideViewer(Viewer):
 
         # Calculate region to extract from image
         target_size = (max_w, max_h)
-        window_size = (int(self.wsi_window_size[0]), int(self.wsi_window_size[1]))
+        window_size = (int(np.floor(self.wsi_window_size[0])), int(np.floor(self.wsi_window_size[1])))
         return EasyDict(
             top_left=origin,
             window_size=window_size,
@@ -148,6 +183,8 @@ class SlideViewer(Viewer):
         )
 
     def _draw_scale(self, max_w: int, max_h: int):
+        if self.viz is None:
+            return
 
         r = max(self.viz.pixel_ratio, 1)
         origin_x = self.x_offset + (30 * r)
@@ -172,6 +209,9 @@ class SlideViewer(Viewer):
         tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 
     def _draw_thumbnail(self):
+        if self.viz is None:
+            return
+
         viz = self.viz
 
         width = viz.font_size * self.thumb_max_width
@@ -189,26 +229,37 @@ class SlideViewer(Viewer):
             imgui.push_style_color(imgui.COLOR_HEADER, 0, 0, 0, 0)
             imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, 0.16, 0.29, 0.48, 0.5)
             imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, 0.16, 0.29, 0.48, 0.9)
+            _old_rounding = imgui.get_style().window_rounding
+            imgui.get_style().window_rounding = viz.font_size / 1.5
             imgui.begin(
                 '##slide_thumb',
                 flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
             )
 
             if viz._wsi_tex_obj is not None:
-                imgui.image(viz._wsi_tex_obj.gl_id, max_width, max_height)
+                # Convert from wsi coords to thumbnail coords
+                t_xo, t_yo = imgui.get_window_position()
+                t_xo = t_xo + viz.spacing
+                t_yo = t_yo + viz.spacing
+
+                # Show rounded image
+                draw_list = imgui.get_window_draw_list()
+                draw_list.add_image_rounded(
+                    viz._wsi_tex_obj.gl_id,
+                    (t_xo, t_yo),
+                    (t_xo + max_width, t_yo + max_height),
+                    rounding=viz.font_size / 1.5
+                )
 
                 # Show location overlay
-                if viz.viewer.wsi_window_size:
-                    # Convert from wsi coords to thumbnail coords
-                    t_x, t_y = imgui.get_window_position()
-                    t_x = t_x + viz.spacing
+                if (viz.viewer.wsi_window_size
+                    and ((viz.viewer.wsi_window_size[0] != viz.wsi.dimensions[0])
+                        and (viz.viewer.wsi_window_size[1] != viz.wsi.dimensions[1]))):
+
                     t_w_ratio = max_width / viz.wsi.dimensions[0]
                     t_h_ratio = max_height / viz.wsi.dimensions[1]
-                    t_x += viz.viewer.origin[0] * t_w_ratio
-                    t_y += viz.viewer.origin[1] * t_h_ratio
-                    t_y += viz.spacing
-
-                    draw_list = imgui.get_window_draw_list()
+                    t_x = t_xo + viz.viewer.origin[0] * t_w_ratio
+                    t_y = t_yo + viz.viewer.origin[1] * t_h_ratio
                     draw_list.add_rect(
                         t_x,
                         t_y,
@@ -220,6 +271,7 @@ class SlideViewer(Viewer):
             imgui.end()
             imgui.pop_style_color(3)
             imgui.pop_style_var(1)
+            imgui.get_style().window_rounding = _old_rounding
 
     def _fast_refresh_cucim(self, new_view, p, view_params):
         # Fill in parts of the missing image
@@ -394,7 +446,7 @@ class SlideViewer(Viewer):
             self.view = new_view
             self.view_params = view_params
             self.origin = tuple(view_params.top_left)
-            self._refresh_rois()
+            self.refresh_rois()
             self._update_view_timer()
 
     def _refresh_view_full(self, view_params: Optional[EasyDict] = None):
@@ -425,47 +477,167 @@ class SlideViewer(Viewer):
             self.clear()
 
         # Refresh ROIs
-        self._refresh_rois()
+        self.refresh_rois()
         self._update_view_timer()
 
     def _update_view_timer(self) -> None:
         """Update the view timer."""
         self._last_update = time.time()
 
-    def _refresh_rois(self) -> None:
+    def _update_roi_triangles(self, roi_idx: int) -> None:
+        """Update the triangles for the given ROI index."""
+        roi = self.wsi.rois[roi_idx]
+        if roi.polygon_is_valid():
+            c, ind = self._scale_roi_to_view(roi.triangles, remove_unique=False)
+        else:
+            c = None
+        if c is not None:
+            c = c.astype(np.float32)
+            self.scaled_roi_triangles_in_view[roi_idx] = c
+
+    def refresh_rois(self) -> None:
         """Refresh the ROIs for the given location and zoom."""
-        self.rois = []
+        self.scaled_rois_in_view = dict()
+        self.scaled_roi_triangles_in_view = dict()
+        self.scaled_holes_in_view = defaultdict(dict)
+
+        self._roi_vbos          = {}
+        self._roi_holes_vbos    = defaultdict(dict)
+        self._roi_triangle_vbos = {}
+        self._scaled_roi_ind    = {}
+        self._scaled_roi_holes_ind = defaultdict(dict)
+
         for roi_idx, roi in enumerate(self.wsi.rois):
-            c = self._scale_roi_to_view(roi.coordinates)
+            c, ind = self._scale_roi_to_view(roi.coordinates)
             if c is not None:
-                self.rois += [(roi_idx, c)]
+                c = c.astype(np.float32)
+                self.scaled_rois_in_view[roi_idx] = c
+                self._roi_vbos[roi_idx] = gl_utils.create_buffer(c)
+                self._scaled_roi_ind[roi_idx] = ind
+                self._roi_triangle_vbos.pop(roi_idx, None)
+
+            # Handle holes
+            for hole_idx, hole in roi.holes.items():
+                c, ind = self._scale_roi_to_view(hole.coordinates)
+                if c is not None:
+                    c = c.astype(np.float32)
+                    self.scaled_holes_in_view[roi_idx][hole_idx] = c
+                    self._roi_holes_vbos[roi_idx][hole_idx] = gl_utils.create_buffer(c)
+                    self._scaled_roi_holes_ind[roi_idx][hole_idx] = ind
+
+            # Update triangles if necessary (for fill)
+            _, fill = self.get_roi_colors(roi_idx)
+            if fill:
+                self._update_roi_triangles(roi_idx)
 
     def rasterize_rois_in_view(self) -> Optional[np.ndarray]:
         """Rasterize the ROIs in the current view."""
-        if not len(self.rois):
+        if not len(self.scaled_rois_in_view):
             return None
+
+        def get_polygon(roi_id: int) -> Optional[Polygon]:
+            roi_coords = self.scaled_rois_in_view[roi_id]
+            try:
+                poly = sf.slide.ROI(None, roi_coords).poly
+            except sf.errors.InvalidROIError:
+                return None
+            for hole_coord in self.scaled_holes_in_view[roi_id].values():
+                try:
+                    hole_poly = sf.slide.ROI(None, hole_coord).poly
+                except sf.errors.InvalidROIError:
+                    continue
+                poly = poly.difference(hole_poly)
+            return poly
+
+        polygons = {_id: get_polygon(_id) for _id in self.scaled_rois_in_view}
+
         return np.stack([
             rasterize(
-                [sa.translate(Polygon(roi), -self.x_offset, -self.y_offset)],
+                [sa.translate(polygons[roi_id], -self.x_offset, -self.y_offset)],
                 out_shape=(self.height, self.width),
-                all_touched=False).astype(bool).astype(int).T * (roi_idx + 1)
-            for roi_idx, roi in self.rois
-            if len(roi) > 2
+                all_touched=False).astype(bool).astype(int).T * (roi_id + 1)
+            for roi_id in self.scaled_rois_in_view
+            if polygons[roi_id] is not None
         ], axis=-1)
+
+    def get_roi_colors(
+        self,
+        roi_idx: int
+    ) -> Tuple[Tuple[float, float, float],
+               Optional[Tuple[float, float, float]]]:
+        """Get the colors for the given ROI index."""
+        # Get the base color.
+        if roi_idx in self.roi_colors:
+            outline = self.roi_colors[roi_idx]['outline']
+            fill = self.roi_colors[roi_idx]['fill']
+        else:
+            outline = (0, 0, 0)
+            fill = None
+        if self.highlighted_rois:
+            fill = None
+
+        # Highlight if necessary.
+        if self.highlighted_rois and roi_idx in self.highlighted_rois:
+            if self.highlight_fill is not None:
+                fill = self.highlight_fill
+            if self.highlight_outline is not None:
+                outline = self.highlight_outline
+
+        # Ensure property formatting.
+        if len(outline) == 4:
+            outline = (outline[0], outline[1], outline[2])
+        if fill and len(fill) == 4:
+            fill = (fill[0], fill[1], fill[2])
+
+        return outline, fill
 
     def _render_rois(self) -> None:
         """Render the ROIs with OpenGL."""
-        for roi_idx, roi in self.rois:
-            if roi_idx in self.selected_rois:
-                outline = self.selected_rois[roi_idx]['outline']
-                if len(outline) == 4:
-                    outline = (outline[0], outline[1], outline[2])
-            else:
-                outline = 0
-            gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
-            gl_utils.draw_roi(roi, color=outline, alpha=1, linewidth=3)
+        for roi_id, roi_coord in self.scaled_rois_in_view.items():
+            outline, fill = self.get_roi_colors(roi_id)
+            vbo = self._roi_vbos[roi_id]
+            if fill and roi_id not in self.scaled_roi_triangles_in_view:
+                self._update_roi_triangles(roi_id)
+            if fill and roi_id in self.scaled_roi_triangles_in_view:
+                import OpenGL.GL as gl
+                if roi_id not in self._roi_triangle_vbos:
+                    # Create triangles buffer.
+                    triangle_vertices = self.scaled_roi_triangles_in_view[roi_id]
+                    triangle_vbo = gl_utils.create_buffer(triangle_vertices)
+                    self._roi_triangle_vbos[roi_id] = triangle_vbo
+                if self._roi_triangle_vbos[roi_id] is not None:
+                    gl_utils.draw_vbo_triangles(
+                        self.scaled_roi_triangles_in_view[roi_id],
+                        color=fill,
+                        alpha=0.2,
+                        vbo=self._roi_triangle_vbos[roi_id],
+                        mode=gl.GL_TRIANGLES
+                    )
+            # Render holes
+            gl_utils.draw_vbo_roi(roi_coord, color=outline, alpha=1, linewidth=2, vbo=vbo)
+            for hole_idx, hole_coord in self.scaled_holes_in_view[roi_id].items():
+                hole_vbo = self._roi_holes_vbos[roi_id][hole_idx]
+                gl_utils.draw_vbo_roi(hole_coord, color=outline, alpha=1, linewidth=2, vbo=hole_vbo)
 
-    def _scale_roi_to_view(self, roi: np.ndarray) -> Optional[np.ndarray]:
+    def _scale_roi_to_view(
+        self,
+        roi: Optional[np.ndarray],
+        remove_unique: bool = True
+    ) -> Optional[np.ndarray]:
+        """Scale the given ROI to the current view.
+
+        Args:
+            roi (Optional[np.ndarray]): The ROI to scale. Should be a 2D array
+                with shape (n, 2).
+            remove_unique (bool): Whether to remove unique vertices.
+
+        Returns:
+            Optional[np.ndarray]: The scaled ROI coordinates currently in view,
+                or None if the ROI is not in the current view or is empty.
+        """
+
+        if roi is None or len(roi) == 0 or roi.ndim != 2:
+            return None, None
         roi = np.copy(roi)
         roi[:, 0] = roi[:, 0] - int(self.origin[0])
         roi[:, 0] = roi[:, 0] / self.view_zoom
@@ -473,12 +645,19 @@ class SlideViewer(Viewer):
         roi[:, 1] = roi[:, 1] - int(self.origin[1])
         roi[:, 1] = roi[:, 1] / self.view_zoom
         roi[:, 1] = roi[:, 1] + self.view_offset[1] + self.y_offset
+        if remove_unique:
+            u_roi, ind = np.unique(roi, axis=0, return_index=True)
+            argsort_ind = np.argsort(ind)
+            roi = u_roi[argsort_ind]
+            roi_indices = ind[argsort_ind]
+        else:
+            roi_indices = None
         out_of_view_max = np.any(np.amax(roi, axis=0) < 0)
         out_of_view_min = np.any(np.amin(roi, axis=0) > np.array([self.width+self.x_offset, self.height+self.y_offset]))
         if not (out_of_view_min or out_of_view_max):
-            return roi
+            return roi, roi_indices
         else:
-            return None
+            return None, None
 
     def _scale_rois_to_view(self, rois):
         rois = np.copy(rois)
@@ -517,6 +696,18 @@ class SlideViewer(Viewer):
         img_format: Optional[str] = None,
         allow_errors: bool = True
     ) -> np.ndarray:
+        """Read a tile from the slide.
+
+        Args:
+            x (int): X-coordinate of the tile (top-left).
+            y (int): Y-coordinate of the tile (top-left).
+
+        Keyword Args:
+            img_format (str, optional): Format to return the image in. If None,
+                returns as PNG. Options are 'jpg', 'jpeg', 'png'.
+            allow_errors (bool, optional): Whether to allow errors when reading
+                tiles outside of the slide bounds.
+        """
 
         # Determine destination format
         if img_format and img_format.lower() not in ('jpg', 'jpeg', 'png'):
@@ -586,29 +777,75 @@ class SlideViewer(Viewer):
             self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
         self._max_w, self._max_h = max_w, max_h
 
-    def select_roi(
+    def set_highlight_color(
         self,
-        idx: Union[int, List[int]],
-        outline: Optional[Tuple[float, float, float]] = None
+        outline: Optional[Tuple[float, float, float]] = None,
+        fill: Optional[Tuple[float, float, float]] = None
     ) -> None:
+        """Set the ROI highlight color."""
+        if outline is not None:
+            self.highlight_outline = outline
+        if fill is not None:
+            self.highlight_fill = fill
+
+    def highlight_roi(self, idx: Union[int, List[int]]) -> None:
+        """Highlight the given ROI(s)."""
         if not isinstance(idx, list):
             idx = [idx]
-        if outline is None:
-            outline = (1, 0, 0)
+        self.highlighted_rois = idx
+
+    def reset_roi_highlight(self) -> None:
+        """Reset the highlighted ROI(s)."""
+        self.highlighted_rois = []
+
+    def set_roi_color(
+        self,
+        idx: Union[int, List[int]],
+        outline: Optional[Tuple[float, float, float]] = None,
+        fill: Optional[Tuple[float, float, float]] = None
+    ) -> None:
+        """Set the color of the ROIs.
+
+        Must provide at least one of outline or fill.
+
+        Args:
+            idx (int or List[int]): Index of the ROI to set.
+            outline (Tuple[float, float, float], optional): RGB color for the
+                outline of the ROI.
+            fill (Tuple[float, float, float], optional): RGB color for the fill
+                of the ROI.
+
+        """
+        if outline is None and fill is None:
+            raise ValueError("At least one of outline or fill must be provided.")
+        if not isinstance(idx, list):
+            idx = [idx]
         for i in idx:
-            if i not in self.selected_rois:
-                self.selected_rois[i] = {'outline': outline}
+            if i not in self.roi_colors:
+                self.roi_colors[i] = {
+                    'outline': (0, 0, 0),
+                    'fill': None
+                }
+            if outline is not None:
+                self.roi_colors[i]['outline'] = outline
+            if fill is not None:
+                self.roi_colors[i]['fill'] = fill
 
-    def deselect_roi(self, idx: Optional[int] = None):
+    def reset_roi_color(self, idx: Optional[Union[int, List[int]]] = None) -> None:
+        """Reset the color of the ROIs.
+
+        Args:
+            idx (int, optional): Index of the ROI to reset. If None, reset all.
+
+        """
         if idx is None:
-            self.selected_rois = {}
-        elif idx in self.selected_rois:
-            del self.selected_rois[idx]
-        else:
-            raise IndexError(f"ROI {idx} is not selected.")
-
-    def roi_is_selected(self, idx: int) -> bool:
-        return idx in self.selected_rois
+            self.roi_colors = {}
+            return
+        if isinstance(idx, int):
+            idx = [idx]
+        for i in idx:
+            if i in self.roi_colors:
+                del self.roi_colors[i]
 
     def set_tile_px(self, tile_px: int):
         if tile_px != self.tile_px:
@@ -621,7 +858,15 @@ class SlideViewer(Viewer):
             raise NotImplementedError
 
     def update(self, width: int, height: int, x_offset: int, y_offset: int, **kwargs) -> None:
-        """Update the viewer with a new width, height, and offset."""
+        """Update the viewer with a new width, height, and offset.
+
+        Args:
+            width (int): New width of the viewer.
+            height (int): New height of the viewer.
+            x_offset (int): New X offset of the viewer.
+            y_offset (int): New Y offset of the viewer.
+
+        """
         should_refresh = ((width, height, x_offset, y_offset)
                           != (self.width, self.height, self.x_offset, self.y_offset))
         if should_refresh:
@@ -632,7 +877,6 @@ class SlideViewer(Viewer):
         self.y_offset = y_offset
 
         # Update current zoom (affected by window resizing)
-        #self.view_zoom = self.wsi_window_size[0] / self.width
         wsi_width = self.wsi_window_size[0]  # self.dimensions[0]
         wsi_height = self.wsi_window_size[1]  # self.dimensions[1]
         wsi_ratio = wsi_width / wsi_height
@@ -686,8 +930,7 @@ class SlideViewer(Viewer):
                       wsi_y - (cy * self.wsi_window_size[1] / self.height)]
 
         view_params = self._calculate_view_params(new_origin)
-        if view_params != self.view_params:
-            self._refresh_view_full(view_params=view_params)
+        self._refresh_view_full(view_params=view_params)
 
     def zoom_to_mpp(self, cx: int, cy: int, mpp: float) -> None:
         self.zoom_to(cx, cy, mpp / self.wsi.mpp)
