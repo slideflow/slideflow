@@ -6,7 +6,6 @@ Generative Networks (GANs)
 ==========================
 
 .. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm
-    :width: 100%
     :autoplay:
 
 |
@@ -16,7 +15,11 @@ Slideflow includes tools to easily interface with the PyTorch implementations of
 
 .. note::
 
-    Ensure StyleGAN dependencies are installed using ``pip install slideflow[stylegan]``
+    StyleGAN requires PyTorch <0.13 and Slideflow-NonCommercial, which can be installed with:
+
+    .. code-block:: bash
+
+        pip install slideflow-noncommercial
 
 
 Training StyleGAN

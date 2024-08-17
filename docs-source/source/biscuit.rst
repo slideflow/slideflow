@@ -5,6 +5,12 @@ slideflow.biscuit
 
 This module contains an official implementation of `BISCUIT <https://www.nature.com/articles/s41467-022-34025-x>`__, an uncertainty quantification and confidence thresholding algorithm for whole-slide images. The original implementation, which includes instructions for reproducing experimental results reported in the manuscript, is available on `GitHub <https://github.com/jamesdolezal/biscuit>`__.
 
+This module is requires the `slideflow-noncommercial` package, which can be installed with:
+
+.. code-block:: bash
+
+    pip install slideflow-noncommercial
+
 See :ref:`uncertainty` for more information.
 
 .. autofunction:: find_cv
