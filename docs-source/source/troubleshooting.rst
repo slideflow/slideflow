@@ -33,7 +33,7 @@ To view a list of all tests that will be run (and thus can be skipped), pass the
 Issue Reporting
 ***************
 
-If the issue is still unclear, please submit an Issue on the `project Github page <https://github.com/jamesdolezal/slideflow/issues>`_. Be sure to include the following information:
+If the issue is still unclear, please submit an Issue on the `project Github page <https://github.com/slideflow/slideflow/issues>`_. Be sure to include the following information:
 
 * The version of Slideflow you are using, which can be displayed with ``sf.about()``:
 

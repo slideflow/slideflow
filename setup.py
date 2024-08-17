@@ -29,7 +29,7 @@ setuptools.setup(
     description="Deep learning tools for digital histology",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/jamesdolezal/slideflow",
+    url="https://github.com/slideflow/slideflow",
     packages=setuptools.find_packages(),
     scripts=['scripts/slideflow-studio'],
     classifiers=[

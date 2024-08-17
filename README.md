@@ -2,14 +2,14 @@
   <img src="https://github.com/user-attachments/assets/53d5c1f8-8fbc-4e0f-bd62-db16797492b0" alt="slideflow logo">
 
   [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5703792.svg)](https://doi.org/10.5281/zenodo.5703792)
-  [![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml)
+  [![Python application](https://github.com/slideflow/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/slideflow/slideflow/actions/workflows/python-app.yml)
   [![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
 
   [ArXiv](https://arxiv.org/abs/2304.04142) | [Docs](https://slideflow.dev) | [Slideflow Studio](https://slideflow.dev/studio/) | [Cite](#reference) | [✨ What's New in 3.0 ✨](https://github.com/slideflow/slideflow/releases/tag/3.0.0)
 
   ______________________________________________________________________
 
-  ![Slideflow Studio: a visualization tool for interacting with models and whole-slide images.](https://github.com/jamesdolezal/slideflow/assets/48372806/7f43d8cb-dc80-427d-84c4-3e5a35fa1472)
+  ![Slideflow Studio: a visualization tool for interacting with models and whole-slide images.](https://github.com/slideflow/slideflow/assets/48372806/7f43d8cb-dc80-427d-84c4-3e5a35fa1472)
 
 </div>
 
@@ -60,18 +60,18 @@ The `cupy` package name depends on the installed CUDA version; [see here](https:
 
 ### Method 2: Docker image
 
-Alternatively, pre-configured [docker images](https://hub.docker.com/repository/docker/jamesdolezal/slideflow) are available with OpenSlide/Libvips and the latest version of either Tensorflow and PyTorch. To install with the Tensorflow backend:
+Alternatively, pre-configured [docker images](https://hub.docker.com/repository/docker/slideflow/slideflow) are available with OpenSlide/Libvips and the latest version of either Tensorflow and PyTorch. To install with the Tensorflow backend:
 
 ```
-docker pull jamesdolezal/slideflow:latest-tf
-docker run -it --gpus all jamesdolezal/slideflow:latest-tf
+docker pull slideflow/slideflow:latest-tf
+docker run -it --gpus all slideflow/slideflow:latest-tf
 ```
 
 To install with the PyTorch backend:
 
 ```
-docker pull jamesdolezal/slideflow:latest-torch
-docker run -it --shm-size=2g --gpus all jamesdolezal/slideflow:latest-torch
+docker pull slideflow/slideflow:latest-torch
+docker run -it --shm-size=2g --gpus all slideflow/slideflow:latest-torch
 ```
 
 ### Method 3: From source
@@ -79,7 +79,7 @@ docker run -it --shm-size=2g --gpus all jamesdolezal/slideflow:latest-torch
 To run from source, clone this repository, install the conda development environment, and build a wheel:
 
 ```
-git clone https://github.com/jamesdolezal/slideflow
+git clone https://github.com/slideflow/slideflow
 conda env create -f slideflow/environment.yml
 conda activate slideflow
 pip install -e slideflow/ cupy-cuda11x

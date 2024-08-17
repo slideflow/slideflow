@@ -6,7 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>slideflow.project &mdash; slideflow 3.0.0 documentation</title>
@@ -87,7 +87,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -257,7 +257,7 @@
 
         
           <li><a href="../../">Module code</a> &gt;</li>
-        
+
       <li>slideflow.project</li>
     
     
@@ -2806,7 +2806,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">tfr_path</span><span class="p">):</span>
                 <span class="n">rprint</span><span class="p">(</span><span class="s2">&quot;    </span><span class="si">{}</span><span class="s2">: TFRecords directory not found&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">source</span><span class="p">))</span>
                 <span class="k">continue</span>
-            <span class="n">subdirs</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">tfr_path</span><span class="p">)</span> 
+            <span class="n">subdirs</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">tfr_path</span><span class="p">)</span>
                        <span class="k">if</span> <span class="n">isdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfr_path</span><span class="p">,</span> <span class="n">f</span><span class="p">))]</span>
             <span class="k">for</span> <span class="n">subdir</span> <span class="ow">in</span> <span class="n">subdirs</span><span class="p">:</span>
                 <span class="c1"># Check if this is a valid subdir with a tile size label</span>
@@ -2815,7 +2815,7 @@
                     <span class="n">px_str</span><span class="p">,</span> <span class="n">um_str</span> <span class="o">=</span> <span class="n">subdir</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>
                     <span class="n">_tile_px</span> <span class="o">=</span> <span class="n">px_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;px&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
                     <span class="n">_tile_um</span> <span class="o">=</span> <span class="n">um_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;um&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;um&#39;</span> <span class="ow">in</span> <span class="n">um_str</span> <span class="k">else</span> <span class="n">um_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-                    <span class="n">tfr_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfr_path</span><span class="p">,</span> <span class="n">subdir</span><span class="p">))</span> 
+                    <span class="n">tfr_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfr_path</span><span class="p">,</span> <span class="n">subdir</span><span class="p">))</span>
                                  <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.tfrecords&#39;</span><span class="p">)]</span>
                     <span class="n">rprint</span><span class="p">(</span><span class="s2">&quot;    tile_px=</span><span class="si">{}</span><span class="s2">, tile_um=</span><span class="si">{}</span><span class="s2">: </span><span class="si">{}</span><span class="s2"> TFRecords&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                         <span class="n">_tile_px</span><span class="p">,</span> <span class="n">_tile_um</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfr_files</span><span class="p">)</span>
@@ -4274,7 +4274,7 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
@@ -4334,7 +4334,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>

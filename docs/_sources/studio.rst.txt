@@ -3,7 +3,7 @@
 Slideflow Studio: Live Visualization
 ====================================
 
-.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/studio_preview.webm
+.. video:: https://media.githubusercontent.com/media/slideflow/slideflow/master/docs/studio_preview.webm
     :autoplay:
 
 |
@@ -35,7 +35,7 @@ If you are using a Docker image, additional arguments are required to launch Stu
     docker run -it --rm \
         -e DISPLAY=$DISPLAY \
         -v /tmp/.X11-unix:/tmp/.X11-unix \
-        jamesdolezal/slideflow:latest-tf
+        slideflow/slideflow:latest-tf
 
 A path to a whole-slide image can optionally be provided as the first argument. Use the ``--help`` flag to see a list of available arguments.
 
@@ -111,7 +111,7 @@ Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow 
 
 Click the plus (Add) icon to draw new ROIs with a lasso tool; right click and drag to create a new ROI. The pencil (Edit) icon allows you to edit any existing ROIs; right click an ROI while editing to delete the ROI or change its label. Once finished, ROIs can be exported in CSV format by clicking the floppy disk icon (Save). You can manually load an existing ROI file by clicking the folder icon (Load).
 
-.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/roi_label.mp4
+.. video:: https://media.githubusercontent.com/media/slideflow/slideflow/master/docs/roi_label.mp4
     :autoplay:
 
 |
@@ -222,7 +222,7 @@ Slideflow Studio includes support for multiple-instance learning (MIL) models wi
 
 Start opening the MIL widget in the sidebar. Models are loaded by either clicking the "Load MIL model" button, selecting "File -> Load MIL Model...", or by dragging-and-dropping an MIL model folder onto the window.
 
-.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/mil_attention.mp4
+.. video:: https://media.githubusercontent.com/media/slideflow/slideflow/master/docs/mil_attention.mp4
     :autoplay:
 
 |
@@ -255,7 +255,7 @@ Heatmaps
 
 The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click "Generate" in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the "Display" subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap. Press the left ALT key while hovering over the heatmap to show the raw heatmap values.
 
-.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/heatmap.mp4
+.. video:: https://media.githubusercontent.com/media/slideflow/slideflow/master/docs/heatmap.mp4
     :autoplay:
 
 |
@@ -291,7 +291,7 @@ Extensions
 
 Slideflow Studio includes an Extensions section for expanding functionality and adding additional features. Extensions may require additional software dependencies or have different licenses. The Extensions section can be accessed by clicking the puzzle icon in bottom-left section of the control panel.
 
-Four official extensions are included and described below, adding support for cell segmentation with Cellpose, generative adversarial networks (StyleGAN), mosaic maps, and multiple-instance learning. Development is underway to add support for community extensions that can be shared and downloaded. Please reach out to us `on GitHub <https://github.com/jamesdolezal/slideflow>`_ if you are interested in building and deploying an extension based on your research.
+Four official extensions are included and described below, adding support for cell segmentation with Cellpose, generative adversarial networks (StyleGAN), mosaic maps, and multiple-instance learning. Development is underway to add support for community extensions that can be shared and downloaded. Please reach out to us `on GitHub <https://github.com/slideflow/slideflow>`_ if you are interested in building and deploying an extension based on your research.
 
 Cell segmentation
 -----------------
@@ -301,7 +301,7 @@ The Cell Segmentation extension adds support for interactive cell segmentation w
 StyleGAN
 --------
 
-.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm
+.. video:: https://media.githubusercontent.com/media/slideflow/slideflow/master/docs/stylegan.webm
     :autoplay:
 
 |
@@ -312,7 +312,7 @@ By default, Studio will generate predictions on the full GAN image (after resizi
 
 The StyleGAN widget can be used to travel the GAN latent space, similar to the implementation in the official `NVIDIA StyleGAN3 repository <https://github.com/NVlabs/stylegan3>`_. Set a specific seed in the input field next to "Seed", or click and drag the "Drag" button. If the model was trained with class conditioning, manually set the class with the "Class" field (the default value of -1 selects a random class). Press left or right on your keyboard to quickly move through seeds.
 
-.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/gan_seeds.mp4
+.. video:: https://media.githubusercontent.com/media/slideflow/slideflow/master/docs/gan_seeds.mp4
     :autoplay:
 
 |

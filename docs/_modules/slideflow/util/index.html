@@ -6,7 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>slideflow.util &mdash; slideflow 3.0.0 documentation</title>
@@ -87,7 +87,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -257,7 +257,7 @@
 
         
           <li><a href="../../">Module code</a> &gt;</li>
-        
+
       <li>slideflow.util</li>
     
     
@@ -690,7 +690,7 @@
     <span class="n">manifest</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">sf_cache</span><span class="p">,</span> <span class="s1">&#39;gdc_manifest.tsv&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">manifest</span><span class="p">):</span>
         <span class="n">tar</span> <span class="o">=</span> <span class="s1">&#39;gdc_manifest.tar.xz&#39;</span>
-        <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.0/datasets/</span><span class="si">{</span><span class="n">tar</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;https://raw.githubusercontent.com/slideflow/slideflow/1.4.0/datasets/</span><span class="si">{</span><span class="n">tar</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="nb">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">sf_cache</span><span class="p">,</span> <span class="n">tar</span><span class="p">),</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
         <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">sf_cache</span><span class="p">,</span> <span class="n">tar</span><span class="p">))</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">sf_cache</span><span class="p">)</span>
         <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">sf_cache</span><span class="p">,</span> <span class="n">tar</span><span class="p">))</span>
@@ -2093,7 +2093,7 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
@@ -2153,7 +2153,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>

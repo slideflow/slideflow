@@ -14,7 +14,7 @@ __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
 __version__ = get_versions()['version']
 __gitcommit__ = get_versions()['full-revisionid']
-__github__ = 'https://github.com/jamesdolezal/slideflow'
+__github__ = 'https://github.com/slideflow/slideflow'
 
 # Configure deep learning and slide backends
 from ._backend import backend, slide_backend

@@ -44,30 +44,30 @@ The ``cupy`` package name depends on the installed CUDA version; `see here <http
 Run a Docker container
 **********************
 
-Alternatively, pre-configured `docker images <https://hub.docker.com/repository/docker/jamesdolezal/slideflow>`_ are available with cuCIM, Libvips, and either PyTorch 1.11 or Tensorflow 2.9 pre-installed. Using a preconfigured `Docker <https://docs.docker.com/install/>`_ container is the easiest way to get started with compatible dependencies and GPU support.
+Alternatively, pre-configured `docker images <https://hub.docker.com/repository/docker/slideflow/slideflow>`_ are available with cuCIM, Libvips, and either PyTorch 1.11 or Tensorflow 2.9 pre-installed. Using a preconfigured `Docker <https://docs.docker.com/install/>`_ container is the easiest way to get started with compatible dependencies and GPU support.
 
 To run a Docker container with the Tensorflow backend:
 
 .. code-block:: bash
 
-    docker pull jamesdolezal/slideflow:latest-tf
-    docker run -it --gpus all jamesdolezal/slideflow:latest-tf
+    docker pull slideflow/slideflow:latest-tf
+    docker run -it --gpus all slideflow/slideflow:latest-tf
 
 To run a Docker container with the PyTorch backend:
 
 .. code-block:: bash
 
-    docker pull jamesdolezal/slideflow:latest-torch
-    docker run -it --shm-size=2g --gpus all jamesdolezal/slideflow:latest-torch
+    docker pull slideflow/slideflow:latest-torch
+    docker run -it --shm-size=2g --gpus all slideflow/slideflow:latest-torch
 
 Build from source
 *****************
 
-To build Slideflow from source, clone the repository from the project `Github page <https://github.com/jamesdolezal/slideflow>`_:
+To build Slideflow from source, clone the repository from the project `Github page <https://github.com/slideflow/slideflow>`_:
 
 .. code-block:: bash
 
-    git clone https://github.com/jamesdolezal/slideflow
+    git clone https://github.com/slideflow/slideflow
     cd slideflow
     conda env create -f environment.yml
     conda activate slideflow
@@ -122,4 +122,4 @@ By default, Slideflow reads whole-slide images using `cuCIM <https://docs.rapids
 
 
 .. warning::
-    A bug in the pixman library (version=0.38) will corrupt downsampled slide images, resulting in large black boxes across the slide. We have provided a patch for version 0.38 that has been tested for Ubuntu, which is provided in the project `Github page <https://github.com/jamesdolezal/slideflow>`_ (``pixman_repair.sh``), although it may not be suitable for all environments and we make no guarantees regarding its use. The `Slideflow docker images <https://hub.docker.com/repository/docker/jamesdolezal/slideflow>`_ already have this applied. If you are installing from source, have pixman version 0.38, and are unable to apply this patch, the use of downsampled image layers must be disabled to avoid corruption (pass ``enable_downsample=False`` to tile extraction functions).
+    A bug in the pixman library (version=0.38) will corrupt downsampled slide images, resulting in large black boxes across the slide. We have provided a patch for version 0.38 that has been tested for Ubuntu, which is provided in the project `Github page <https://github.com/slideflow/slideflow>`_ (``pixman_repair.sh``), although it may not be suitable for all environments and we make no guarantees regarding its use. The `Slideflow docker images <https://hub.docker.com/repository/docker/slideflow/slideflow>`_ already have this applied. If you are installing from source, have pixman version 0.38, and are unable to apply this patch, the use of downsampled image layers must be disabled to avoid corruption (pass ``enable_downsample=False`` to tile extraction functions).

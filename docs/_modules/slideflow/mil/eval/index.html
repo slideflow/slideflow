@@ -6,7 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>slideflow.mil.eval &mdash; slideflow 3.0.0 documentation</title>
@@ -87,7 +87,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -257,7 +257,7 @@
 
         
           <li><a href="../../../">Module code</a> &gt;</li>
-        
+
       <li>slideflow.mil.eval</li>
     
     
@@ -1196,9 +1196,9 @@
 
     <span class="c1"># Ensure slide names are sorted according to the bags.</span>
     <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span><span class="p">]</span>
-    
+
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating predictions for </span><span class="si">{}</span><span class="s2"> slides and </span><span class="si">{}</span><span class="s2"> bags.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slides</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">bags</span><span class="p">)))</span>
-    
+
     <span class="c1"># Set model to eval, and prepare bags.</span>
     <span class="n">use_attention</span><span class="p">,</span> <span class="n">uq</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">_validate_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">uq</span><span class="p">,</span> <span class="n">allow_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
@@ -1440,7 +1440,7 @@
                     <span class="sa">f</span><span class="s2">&quot;Unable to find locations index file for </span><span class="si">{</span><span class="n">slidename</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
                 <span class="k">continue</span>
-            
+
             <span class="c1"># Handle the case of multiple attention values at each tile location.</span>
             <span class="n">heatmap_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
                 <span class="n">locations</span><span class="o">=</span><span class="n">locations</span><span class="p">,</span>
@@ -1510,7 +1510,7 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
@@ -1570,7 +1570,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>
