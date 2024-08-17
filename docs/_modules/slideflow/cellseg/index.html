@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.cellseg &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.cellseg &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -158,6 +158,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -414,7 +416,7 @@
 <span class="sd">        Args:</span>
 <span class="sd">            scale (float): ROI scale (roi size / WSI base dimension size).</span>
 <span class="sd">            annpolys (list(``shapely.geometry.Polygon``)): List of ROI</span>
-<span class="sd">                polygons, as available in ``slideflow.WSI.roi_polys``.</span>
+<span class="sd">                polygons, as available in ``slideflow.WSI.rois``.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_ratio</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">annpolys</span><span class="p">):</span>
@@ -842,7 +844,13 @@
     <span class="c1"># Set up model and parameters. --------------------------------------------</span>
     <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
     <span class="n">device</span> <span class="o">=</span> <span class="n">torch_utils</span><span class="o">.</span><span class="n">get_device</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
-    <span class="n">model</span> <span class="o">=</span> <span class="n">Cellpose</span><span class="p">(</span><span class="n">gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">device</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;cpu&#39;</span><span class="p">:</span>
+        <span class="c1"># Run from CPU if CUDA is not available</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Cellpose</span><span class="p">(</span><span class="n">gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">gpus</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No GPU detected - running from CPU&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Cellpose</span><span class="p">(</span><span class="n">gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
     <span class="n">cp</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">cp</span>
     <span class="n">cp</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
     <span class="n">cp</span><span class="o">.</span><span class="n">net</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">pretrained_model</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cpu</span><span class="o">=</span><span class="p">(</span><span class="ow">not</span> <span class="n">cp</span><span class="o">.</span><span class="n">gpu</span><span class="p">))</span>  <span class="c1"># Modify to accept different models</span>

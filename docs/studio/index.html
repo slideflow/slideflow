@@ -6,25 +6,25 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Slideflow Studio: Live Visualization &mdash; slideflow 3.0.0 documentation</title>
+  
 
-  <title>Slideflow Studio: Live Visualization &mdash; slideflow 2.3.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
@@ -35,11 +35,11 @@
     <link rel="next" title="Troubleshooting" href="../troubleshooting/" />
     <link rel="prev" title="Custom Training Loops" href="../custom_loops/" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -102,9 +102,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -140,15 +140,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +178,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -219,8 +221,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -228,7 +230,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -247,30 +249,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>Slideflow Studio: Live Visualization</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="../_sources/studio.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -282,21 +284,16 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <section id="slideflow-studio-live-visualization">
 <span id="studio"></span><h1>Slideflow Studio: Live Visualization<a class="headerlink" href="#slideflow-studio-live-visualization" title="Permalink to this heading">¶</a></h1>
-
-    <video width="100%"  controls autoplay loop>
-    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/studio_preview.webm" type="video/webm">
-    Video
-    </video>
-    <div class="line-block">
+<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/studio_preview.webm" type="video/webm"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>Slideflow Studio provides powerful tools for interactive visualization of whole-slide images, model predictions, and GAN-generated images. It’s also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you’ll get a smooth experience that can even run on a Raspberry Pi.</p>
@@ -350,8 +347,7 @@
 <section id="projects">
 <h2>Projects<a class="headerlink" href="#projects" title="Permalink to this heading">¶</a></h2>
 <p>A Slideflow <a class="reference internal" href="../project_setup/#project-setup"><span class="std std-ref">Project</span></a> can be loaded to make it easier to find and load both slides and models. Load a project with either File -&gt; Open Project, or click and drag a project folder onto the main view. Click the Project icon to view project information and browse both slides and models.</p>
-<img alt="../_images/studio_projects.jpg" src="../_images/studio_projects.jpg" />
-<div class="line-block">
+<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://github.com/user-attachments/assets/e55339a9-69ce-4fa6-a3de-66a4a5244704" type=""></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>All slides associated with the project will be listed under the “Slides” subheader. Clicking a slide name will open the slide. Similarly, all trained models associated with the project are listed under the “Models” subheader and can be loaded by clicking a model name. Both Tensorflow and PyTorch models can be loaded, regardless of the active backend.</p>
@@ -373,16 +369,13 @@
 </div>
 <p>Regions-of-Interest (ROIs) can be used to guide tile extraction. If a Slideflow project has been loaded (File -&gt; Open Project), ROIs will be automatically loaded. You can use Studio to add, label, or remove ROIs with the annotation tool, under the subheader “ROIs”.</p>
 <p>Click the plus (Add) icon to draw new ROIs with a lasso tool; right click and drag to create a new ROI. The pencil (Edit) icon allows you to edit any existing ROIs; right click an ROI while editing to delete the ROI or change its label. Once finished, ROIs can be exported in CSV format by clicking the floppy disk icon (Save). You can manually load an existing ROI file by clicking the folder icon (Load).</p>
-
-    <video width="100%"  controls autoplay loop>
-    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/roi_label.mp4" type="video/mp4">
-    Video
-    </video>
-    <div class="line-block">
+<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/roi_label.mp4" type="video/mp4"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>Labels can be optionally supplied for each ROI. Labels can be set after creating an ROI and changed by right clicking an ROI while editing. Hover over an existing ROI to see its name and label. Labels are exported when saving ROIs.</p>
-<p>Slideflow can import ROIs generated from external applications such as QuPath and ImageScope; see <a class="reference internal" href="../slide_processing/#regions-of-interest"><span class="std std-ref">Regions of Interest</span></a> for more information.</p>
+<p>Slideflow 3.0 added a new polygon tool for drawing ROIs. Click the polygon icon to draw a polygon ROI. Right click to add points, and press Enter to close the polygon. The polygon tool can be used to draw complex shapes, and can be used in conjunction with the lasso tool.</p>
+<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://github.com/user-attachments/assets/edf7c377-af40-4f8e-a4cb-f84024988e91" type=""></video><p>When in Edit mode, click on an ROI to select it. Holding down the Control key will show the ROI vertices, which can then be selected and moved. Hold Shift and drag the mouse to select multiple vertices. Vertices can be moved by dragging them and deleted by pressing the Delete key. Click outside the ROI or press Esc to deselect.</p>
+<p>Slideflow can also import ROIs generated from external applications such as QuPath and ImageScope; see <a class="reference internal" href="../slide_processing/#regions-of-interest"><span class="std std-ref">Regions of Interest</span></a> for more information.</p>
 </section>
 <section id="tile-filtering">
 <h3>Tile filtering<a class="headerlink" href="#tile-filtering" title="Permalink to this heading">¶</a></h3>
@@ -402,16 +395,12 @@
 </section>
 <section id="tissue-segmentation">
 <span id="studio-segmentation"></span><h3>Tissue segmentation<a class="headerlink" href="#tissue-segmentation" title="Permalink to this heading">¶</a></h3>
-
-    <video width="100%"  controls autoplay loop>
-    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/tissue_seg.mp4" type="video/mp4">
-    Video
-    </video>
-    <div class="line-block">
+<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://github.com/user-attachments/assets/6f0da6be-da47-443e-b08e-1bab978fb345" type=""></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>New in version 2.3, trained <a class="reference internal" href="../segmentation/#segmentation"><span class="std std-ref">segmentation models</span></a> can be deployed as a slide filter. Start by typing or pasting the path to a trained segmentation model in the text box next to “Segment”. Then, check “Segment” to generate and apply a QC mask. The QC mask can be previewed by checking the box “QC Mask” in the “Display” subsection. The QC mask is constructed from all pixels predicted to be background.</p>
-<p>In addition to using a segmentation model for QC, a trained model can be used to generate labeled ROIs. Click “Generate ROIs” to generate ROIs from the segmentation model. The ROIs will be shown in the main view, and can be saved with the annotation tool. The ROIs will be saved in CSV format, with the ROI label corresponding to the predicted class.</p>
+<p>New in version 3.0, trained <a class="reference internal" href="../segmentation/#segmentation"><span class="std std-ref">segmentation models</span></a> can be both trained and deployed directly within Studio using the new Segmentation widget.</p>
+<p>The Segmentation widget can be accessed by clicking the “Segmentation” icon in the left-hand toolbar. The widget allows you to load a segmentation model and apply it to the loaded slide, generating labeled ROIs. Trained models can also be loaded by dragging and dropping a model folder onto the main view.</p>
+<p>The Segmentation widget also contains a section for training models. In order to train models, a project must be loaded (File -&gt; Open Project). The “Data Source” dropdown is used to select which slides in the project will be used for training. The “Data Processing” section is used to customize the model, including the tile size, magnification, stride, and margin. The “filter” option - which can be either “roi” or “otsu” - determines which tiles are used for training (either all tiles or only those within ROIs). The “Arch &amp; Params” section is used to select the model architecture, hyperparameters, segmentation model type (binary, multiclass, or multilabel), and ROI classes that will be included in training. The “Train” button will begin training the model. Once training is complete, the “Export” button can be used to save the trained model to disk. “Generate ROIs” can then be used to apply the trained model to any loaded slide.</p>
 </section>
 <section id="preview-slide-normalization">
 <h3>Preview slide normalization<a class="headerlink" href="#preview-slide-normalization" title="Permalink to this heading">¶</a></h3>
@@ -437,7 +426,7 @@
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>Once a model is loaded, right-click anywhere on the main view to set the tile extraction location for the tile preview. A tile will be extracted at this location matching the pixel and micron size of the loaded model. The extracted tile will be shown before and after stain normalization (if applicable) in the tile preview window. Right click and drag to slide the preview window. The model prediction at this location will be shown underneath the red box in the main view, and in histogram format in the control panel, along with the class label for categorical models.</p>
+<p>Once a model is loaded, right-click anywhere on the main view to set the tile extraction location for the tile preview. A tile will be extracted at this location matching the pixel and micron size of the loaded model. The extracted tile will be shown before and after stain normalization (if applicable) in the tile preview window. Right click and drag to slide the preview window. The model prediction at this location will be shown underneath the red box in the main view, and in histogram format in the control panel, along with the class label for classification models.</p>
 </section>
 <section id="saliency">
 <h3>Saliency<a class="headerlink" href="#saliency" title="Permalink to this heading">¶</a></h3>
@@ -456,6 +445,29 @@
 <p>Click the “Predict Slide” button to generate a prediction for the whole-slide image. By default, this will show predictions across the slide as a heatmap in the main display, and the final prediction for the slide will be shown under the “Slide Prediction” subheader of the control panel. Histograms of predictions for each model outcome, as well as uncertainty (if applicable), will be shown in this same section of the control panel. Click the + and - buttons in this section to cycle through histograms for each outcome category.</p>
 </section>
 </section>
+<section id="multiple-instance-learning">
+<span id="studio-mil"></span><h2>Multiple-Instance Learning<a class="headerlink" href="#multiple-instance-learning" title="Permalink to this heading">¶</a></h2>
+<p>Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see <a class="reference internal" href="../mil/#mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information.</p>
+<p>Start opening the MIL widget in the sidebar. Models are loaded by either clicking the “Load MIL model” button, selecting “File -&gt; Load MIL Model…”, or by dragging-and-dropping an MIL model folder onto the window.</p>
+<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/mil_attention.mp4" type="video/mp4"></video><div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the “HP” button. Click “Predict Slide” to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.</p>
+<p>Right-clicking for a focal prediction when an MIL model is loaded will display the tile-level attention along with the tile prediction. Tile-level attention can be displayed as a scaled colorbar, as shown in the video above, by specifying an attention range and thresholds in the MIL <code class="docutils literal notranslate"><span class="pre">mil_params.json</span></code> file.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="o">...</span>
+    <span class="s2">&quot;thresholds&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;attention&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;low&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span>
+            <span class="s2">&quot;high&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+            <span class="s2">&quot;range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="p">}</span>
+    <span class="p">},</span>
+    <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
 <section id="heatmaps">
 <h2>Heatmaps<a class="headerlink" href="#heatmaps" title="Permalink to this heading">¶</a></h2>
 <img alt="../_images/studio_heatmap.jpg" src="../_images/studio_heatmap.jpg" />
@@ -463,12 +475,7 @@
 <div class="line"><br /></div>
 </div>
 <p>The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click “Generate” in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the “Display” subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap. Press the left ALT key while hovering over the heatmap to show the raw heatmap values.</p>
-
-    <video width="100%"  controls autoplay loop>
-    <source src="heatmap.mp4" type="video/mp4">
-    Video
-    </video>
-    <div class="line-block">
+<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/heatmap.mp4" type="video/mp4"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>By default, heatmaps are calculated with multiprocessing pools, which may increase memory utilization. To decrease memory utilization at the cost of slower heatmap calculation, switch to low memory mode in the Settings section (described below), or by using the launch flag <code class="docutils literal notranslate"><span class="pre">--low_memory</span></code>.</p>
@@ -501,53 +508,19 @@
 </section>
 <section id="stylegan">
 <h3>StyleGAN<a class="headerlink" href="#stylegan" title="Permalink to this heading">¶</a></h3>
-
-    <video width="100%"  controls autoplay loop>
-    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm" type="video/webm">
-    Video
-    </video>
-    <div class="line-block">
+<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/stylegan.webm" type="video/webm"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>The StyleGAN extension adds support for visualizing trained StyleGAN2 or StyleGAN3 networks. Once enabled, GAN <code class="docutils literal notranslate"><span class="pre">*.pkl</span></code> files can be loaded with File -&gt; Load GAN, or with drag-and-drop. Generated images are shown in the tile preview window. Model predictions on GAN images operate similarly to predictions on whole-slide images. Predictions on GAN images are generated in real-time, and you can watch the predictions change in the control panel.</p>
 <p>By default, Studio will generate predictions on the full GAN image (after resizing to match the model’s <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> value). If a <code class="docutils literal notranslate"><span class="pre">training_options.json</span></code> file is found in the same directory as the GAN .pkl, the tile size used to train the GAN will be read from this file (slideflow_kwargs/tile_px and ../tile_um). If the GAN was trained on images with a different <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> value, the GAN image will be cropped to match the model’s <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> before resizing. The cropped/resized (and stain normalized) image will be shown to the right of the raw GAN image in the tile preview window.</p>
 <p>The StyleGAN widget can be used to travel the GAN latent space, similar to the implementation in the official <a class="reference external" href="https://github.com/NVlabs/stylegan3">NVIDIA StyleGAN3 repository</a>. Set a specific seed in the input field next to “Seed”, or click and drag the “Drag” button. If the model was trained with class conditioning, manually set the class with the “Class” field (the default value of -1 selects a random class). Press left or right on your keyboard to quickly move through seeds.</p>
-
-    <video width="100%"  controls autoplay loop>
-    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/gan_seeds.mp4" type="video/mp4">
-    Video
-    </video>
-    <div class="line-block">
+<video autoplay="True" controls="True" preload="auto" loop="True"><source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/gan_seeds.mp4" type="video/mp4"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>The style mixing section can be used to mix styles between seeds, styles between classes, or both. You can control the degree of mixing with the mixing slider. You can finetune which GAN layers are used during the mixing by clicking the ellipsis button and selection which layers should be traversed during style mixing.</p>
 <p>Save the current seed by clicking the “Save” button; all saved seeds will be listed in the “Saved Seeds” subsection. Click any seed to load it. Once any seed has been saved, options will appear to export a list of saved seeds in CSV format. Previously exported seeds can be loaded by clicking “Load Seeds”.</p>
-</section>
-<section id="multiple-instance-learning">
-<span id="studio-mil"></span><h3>Multiple-Instance Learning<a class="headerlink" href="#multiple-instance-learning" title="Permalink to this heading">¶</a></h3>
-<p>Slideflow Studio includes support for multiple-instance learning (MIL) models with the MIL extension. In addition to generating predictions from MIL models, Studio can also be used to visualize associated attention heatmaps. Please see <a class="reference internal" href="../mil/#mil"><span class="std std-ref">Multiple-Instance Learning (MIL)</span></a> for more information.</p>
-<p>Start by navigating to the Extensions tab in the bottom-left corner, and enable the “Multiple-instance Learning” extension. A new icon will appear in the left-hand toolbar, which can be used to open the MIL widget. Models are loaded by either clicking the “Load MIL model” button, selecting “File -&gt; Load MIL Model…”, or by dragging-and-dropping an MIL model folder onto the window.</p>
-
-    <video width="100%"  controls autoplay loop>
-    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/mil_attention.mp4" type="video/mp4">
-    Video
-    </video>
-    <div class="line-block">
-<div class="line"><br /></div>
-</div>
-<p>Information about the feature extractor and MIL model will be shown in the left-hand toolbar. MIL model architecture and hyperparameters can be viewed by clicking the “HP” button. Click “Predict Slide” to generate a whole-slide prediction. If applicable, attention will be displayed as a heatmap. The heatmap color and display can be customized in the Heatmap widget.</p>
-<p>Right-clicking for a focal prediction when an MIL model is loaded will display the tile-level attention along with the tile prediction. Tile-level attention can be displayed as a scaled colorbar, as shown in the video above, by specifying an attention range and thresholds in the MIL <code class="docutils literal notranslate"><span class="pre">mil_params.json</span></code> file.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-    <span class="o">...</span>
-    <span class="s2">&quot;thresholds&quot;</span><span class="p">:</span> <span class="p">{</span>
-        <span class="s2">&quot;attention&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;low&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span>
-            <span class="s2">&quot;high&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
-            <span class="s2">&quot;range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
-        <span class="p">}</span>
-    <span class="p">},</span>
-    <span class="o">...</span>
-<span class="p">}</span>
+<p>StyleGAN requires the <code class="docutils literal notranslate"><span class="pre">slideflow-noncommercial</span></code> package:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>slideflow-noncommercial
 </pre></div>
 </div>
 </section>
@@ -573,25 +546,25 @@
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="../troubleshooting/" class="btn btn-neutral float-right" title="Troubleshooting" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="../custom_loops/" class="btn btn-neutral" title="Custom Training Loops" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -599,11 +572,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -637,13 +610,13 @@
 <li><a class="reference internal" href="#slide-predictions">Slide predictions</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#multiple-instance-learning">Multiple-Instance Learning</a></li>
 <li><a class="reference internal" href="#heatmaps">Heatmaps</a></li>
 <li><a class="reference internal" href="#performance-capture">Performance &amp; Capture</a></li>
 <li><a class="reference internal" href="#settings">Settings</a></li>
 <li><a class="reference internal" href="#extensions">Extensions</a><ul>
 <li><a class="reference internal" href="#cell-segmentation">Cell segmentation</a></li>
 <li><a class="reference internal" href="#stylegan">StyleGAN</a></li>
-<li><a class="reference internal" href="#multiple-instance-learning">Multiple-Instance Learning</a></li>
 <li><a class="reference internal" href="#mosaic-maps">Mosaic maps</a></li>
 </ul>
 </li>
@@ -657,19 +630,19 @@
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
          <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
   <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
@@ -680,7 +653,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

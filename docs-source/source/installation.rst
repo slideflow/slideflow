@@ -1,6 +1,8 @@
 Installation
 ============
 
+.. figure:: https://github.com/user-attachments/assets/53d5c1f8-8fbc-4e0f-bd62-db16797492b0
+
 Slideflow is tested on **Linux-based systems** (Ubuntu, CentOS, Red Hat, and Raspberry Pi OS) and **macOS** (Intel and Apple). Windows support is experimental.
 
 Requirements

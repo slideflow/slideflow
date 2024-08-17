@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.biscuit.utils &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.biscuit.utils &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -158,6 +158,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -341,7 +343,7 @@
 
 <span class="c1"># --- General utility functions -----------------------------------------------</span>
 
-<div class="viewcode-block" id="truncate_colormap"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.truncate_colormap">[docs]</a><span class="k">def</span> <span class="nf">truncate_colormap</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="n">minval</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">maxval</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+<div class="viewcode-block" id="truncate_colormap"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.truncate_colormap">[docs]</a><span class="k">def</span> <span class="nf">truncate_colormap</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="n">minval</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">maxval</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Truncates matplotlib colormap.&quot;&quot;&quot;</span>
 
     <span class="n">new_cmap</span> <span class="o">=</span> <span class="n">colors</span><span class="o">.</span><span class="n">LinearSegmentedColormap</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span>
@@ -350,7 +352,7 @@
     <span class="k">return</span> <span class="n">new_cmap</span></div>
 
 
-<div class="viewcode-block" id="get_model_results"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.get_model_results">[docs]</a><span class="k">def</span> <span class="nf">get_model_results</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">outcome</span><span class="p">):</span>
+<div class="viewcode-block" id="get_model_results"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.get_model_results">[docs]</a><span class="k">def</span> <span class="nf">get_model_results</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">outcome</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Reads results/metrics from a trained model.</span>
 
 <span class="sd">    Args:</span>
@@ -404,7 +406,7 @@
     <span class="p">}</span></div>
 
 
-<div class="viewcode-block" id="get_eval_results"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.get_eval_results">[docs]</a><span class="k">def</span> <span class="nf">get_eval_results</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">outcome</span><span class="p">):</span>
+<div class="viewcode-block" id="get_eval_results"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.get_eval_results">[docs]</a><span class="k">def</span> <span class="nf">get_eval_results</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">outcome</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Reads results/metrics from a trained model.</span>
 
 <span class="sd">    Args:</span>
@@ -448,7 +450,7 @@
     <span class="p">}</span></div>
 
 
-<div class="viewcode-block" id="find_cv_early_stop"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.find_cv_early_stop">[docs]</a><span class="k">def</span> <span class="nf">find_cv_early_stop</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+<div class="viewcode-block" id="find_cv_early_stop"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.find_cv_early_stop">[docs]</a><span class="k">def</span> <span class="nf">find_cv_early_stop</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Detects early stop batch from cross-val trained models.</span>
 
 <span class="sd">    Args:</span>
@@ -474,7 +476,7 @@
         <span class="k">return</span> <span class="kc">None</span></div>
 
 
-<div class="viewcode-block" id="df_from_cv"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.df_from_cv">[docs]</a><span class="k">def</span> <span class="nf">df_from_cv</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">y_true</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<div class="viewcode-block" id="df_from_cv"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.df_from_cv">[docs]</a><span class="k">def</span> <span class="nf">df_from_cv</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">y_true</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                <span class="n">y_pred</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">uncertainty</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads tile predictions from cross-fold models &amp; renames columns.</span>
 
@@ -517,7 +519,7 @@
 
 <span class="c1"># --- Utility functions for finding experiment models -------------------------</span>
 
-<div class="viewcode-block" id="find_model"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.find_model">[docs]</a><span class="k">def</span> <span class="nf">find_model</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kfold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="find_model"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.find_model">[docs]</a><span class="k">def</span> <span class="nf">find_model</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kfold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Searches for a model in a project model directory.</span>
 
 <span class="sd">    Args:</span>
@@ -559,7 +561,7 @@
         <span class="k">return</span> <span class="n">join</span><span class="p">(</span><span class="n">project</span><span class="o">.</span><span class="n">models_dir</span><span class="p">,</span> <span class="n">matching</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
 
 
-<div class="viewcode-block" id="model_exists"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.model_exists">[docs]</a><span class="k">def</span> <span class="nf">model_exists</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kfold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="model_exists"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.model_exists">[docs]</a><span class="k">def</span> <span class="nf">model_exists</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kfold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if matching model exists.</span>
 
 <span class="sd">    Args:</span>
@@ -579,7 +581,7 @@
         <span class="k">return</span> <span class="kc">False</span></div>
 
 
-<div class="viewcode-block" id="find_cv"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.find_cv">[docs]</a><span class="k">def</span> <span class="nf">find_cv</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+<div class="viewcode-block" id="find_cv"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.find_cv">[docs]</a><span class="k">def</span> <span class="nf">find_cv</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Finds paths to cross-validation models.</span>
 
 <span class="sd">    Args:</span>
@@ -598,7 +600,7 @@
     <span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="find_eval"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.find_eval">[docs]</a><span class="k">def</span> <span class="nf">find_eval</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<div class="viewcode-block" id="find_eval"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.find_eval">[docs]</a><span class="k">def</span> <span class="nf">find_eval</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Finds matching eval directory.</span>
 
 <span class="sd">    Args:</span>
@@ -628,7 +630,7 @@
         <span class="k">return</span> <span class="n">join</span><span class="p">(</span><span class="n">project</span><span class="o">.</span><span class="n">eval_dir</span><span class="p">,</span> <span class="n">matching</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
 
 
-<div class="viewcode-block" id="eval_exists"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.eval_exists">[docs]</a><span class="k">def</span> <span class="nf">eval_exists</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<div class="viewcode-block" id="eval_exists"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.eval_exists">[docs]</a><span class="k">def</span> <span class="nf">eval_exists</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if matching eval exists.</span>
 
 <span class="sd">    Args:</span>
@@ -648,7 +650,7 @@
 
 <span class="c1"># --- Thresholding and metrics functions --------------------------------------</span>
 
-<div class="viewcode-block" id="read_group_predictions"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.read_group_predictions">[docs]</a><span class="k">def</span> <span class="nf">read_group_predictions</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+<div class="viewcode-block" id="read_group_predictions"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.read_group_predictions">[docs]</a><span class="k">def</span> <span class="nf">read_group_predictions</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;Reads patient- or slide-level predictions CSV or parquet file,</span>
 <span class="sd">    returning y_true and y_pred.</span>
 
@@ -684,7 +686,7 @@
     <span class="k">return</span> <span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span></div>
 
 
-<div class="viewcode-block" id="prediction_metrics"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.prediction_metrics">[docs]</a><span class="k">def</span> <span class="nf">prediction_metrics</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">threshold</span><span class="p">):</span>
+<div class="viewcode-block" id="prediction_metrics"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.prediction_metrics">[docs]</a><span class="k">def</span> <span class="nf">prediction_metrics</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">threshold</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate prediction metrics (AUC, sensitivity/specificity, etc)</span>
 
 <span class="sd">    Args:</span>
@@ -751,7 +753,7 @@
     <span class="p">}</span></div>
 
 
-<div class="viewcode-block" id="auc_and_threshold"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.auc_and_threshold">[docs]</a><span class="k">def</span> <span class="nf">auc_and_threshold</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">):</span>
+<div class="viewcode-block" id="auc_and_threshold"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.auc_and_threshold">[docs]</a><span class="k">def</span> <span class="nf">auc_and_threshold</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculates AUC and optimal threshold (via Youden&#39;s J)</span>
 
 <span class="sd">    Args:</span>
@@ -771,7 +773,7 @@
     <span class="k">return</span> <span class="n">roc_auc</span><span class="p">,</span> <span class="n">optimal_threshold</span></div>
 
 
-<div class="viewcode-block" id="auc"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.auc">[docs]</a><span class="k">def</span> <span class="nf">auc</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">):</span>
+<div class="viewcode-block" id="auc"><a class="viewcode-back" href="../../../../biscuit/#slideflow.biscuit.utils.auc">[docs]</a><span class="k">def</span> <span class="nf">auc</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate Area Under Receiver Operator Curve (AUC / AUROC)</span>
 
 <span class="sd">    Args:</span>

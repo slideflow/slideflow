@@ -6,11 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.biscuit &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.biscuit &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +178,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul class="current">
@@ -292,10 +294,14 @@
   <section id="slideflow-biscuit">
 <h1>slideflow.biscuit<a class="headerlink" href="#slideflow-biscuit" title="Permalink to this heading">¶</a></h1>
 <p>This module contains an official implementation of <a class="reference external" href="https://www.nature.com/articles/s41467-022-34025-x">BISCUIT</a>, an uncertainty quantification and confidence thresholding algorithm for whole-slide images. The original implementation, which includes instructions for reproducing experimental results reported in the manuscript, is available on <a class="reference external" href="https://github.com/jamesdolezal/biscuit">GitHub</a>.</p>
+<p>This module is requires the <code class="docutils literal notranslate"><span class="pre">slideflow-noncommercial</span></code> package, which can be installed with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>slideflow-noncommercial
+</pre></div>
+</div>
 <p>See <a class="reference internal" href="../uq/#uncertainty"><span class="std std-ref">Uncertainty Quantification</span></a> for more information.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.biscuit.find_cv">
-<span class="sig-name descname"><span class="pre">find_cv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/biscuit/utils/#find_cv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.find_cv" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">find_cv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow_noncommercial/biscuit/utils/#find_cv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.find_cv" title="Permalink to this definition">¶</a></dt>
 <dd><p>Finds paths to cross-validation models.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -318,7 +324,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.biscuit.get_model_results">
-<span class="sig-name descname"><span class="pre">get_model_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/biscuit/utils/#get_model_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.get_model_results" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">get_model_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow_noncommercial/biscuit/utils/#get_model_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.get_model_results" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reads results/metrics from a trained model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -344,7 +350,7 @@
 <h2>biscuit.Experiment<a class="headerlink" href="#biscuit-experiment" title="Permalink to this heading">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.biscuit.Experiment">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Experiment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_project</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_projects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cohort'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LUAD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LUSC'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'results'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/biscuit/experiment/#Experiment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.Experiment" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Experiment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_project</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_projects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cohort'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LUAD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LUSC'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'results'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow_noncommercial/biscuit/experiment/#Experiment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.Experiment" title="Permalink to this definition">¶</a></dt>
 <dd><p>Supervises uncertainty thresholding experiments.</p>
 </dd></dl>
 
@@ -994,22 +1000,6 @@ sorted such as the examples with label “1” are first</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>(AUC value, DeLong covariance)</p>
-</dd>
-</dl>
-<dl>
-<dt>Reference:</dt><dd><p>&#64;article{sun2014fast,
-title={Fast Implementation of DeLong’s Algorithm for</p>
-<blockquote>
-<div><p>Comparing the Areas Under Correlated Receiver Operating Characteristic Curves},</p>
-</div></blockquote>
-<p>author={Xu Sun and Weichao Xu},
-journal={IEEE Signal Processing Letters},
-volume={21},
-number={11},
-pages={1389–1393},
-year={2014},
-publisher={IEEE}
-}</p>
 </dd>
 </dl>
 </dd></dl>

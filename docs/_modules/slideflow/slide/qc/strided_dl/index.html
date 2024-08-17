@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.slide.qc.strided_dl &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.slide.qc.strided_dl &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -158,6 +158,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -287,9 +289,10 @@
   <h1>Source code for slideflow.slide.qc.strided_dl</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
-<span class="kn">from</span> <span class="nn">.strided_qc</span> <span class="kn">import</span> <span class="n">_StridedQC</span>
+<span class="kn">from</span> <span class="nn">.strided_qc</span> <span class="kn">import</span> <span class="n">_StridedQC</span><span class="p">,</span> <span class="n">_StridedQC_V2</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
@@ -438,6 +441,129 @@
 
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_threshold</span><span class="p">(</span><span class="n">threshold</span><span class="p">):</span>
             <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">wsi</span><span class="p">)</span></div>
+
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<span class="k">def</span> <span class="nf">_taper_mask</span><span class="p">(</span><span class="n">ly</span><span class="o">=</span><span class="mi">224</span><span class="p">,</span> <span class="n">lx</span><span class="o">=</span><span class="mi">224</span><span class="p">,</span> <span class="n">sig</span><span class="o">=</span><span class="mf">7.5</span><span class="p">):</span>
+    <span class="n">bsize</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">224</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">ly</span><span class="p">,</span> <span class="n">lx</span><span class="p">))</span>
+    <span class="n">xm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">bsize</span><span class="p">)</span>
+    <span class="n">xm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">xm</span> <span class="o">-</span> <span class="n">xm</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">((</span><span class="n">xm</span> <span class="o">-</span> <span class="p">(</span><span class="n">bsize</span><span class="o">/</span><span class="mi">2</span><span class="o">-</span><span class="mi">20</span><span class="p">))</span> <span class="o">/</span> <span class="n">sig</span><span class="p">))</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span> <span class="o">*</span> <span class="n">mask</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[</span><span class="n">bsize</span><span class="o">//</span><span class="mi">2</span><span class="o">-</span><span class="n">ly</span><span class="o">//</span><span class="mi">2</span> <span class="p">:</span> <span class="n">bsize</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="n">ly</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="n">ly</span><span class="o">%</span><span class="mi">2</span><span class="p">,</span>
+                <span class="n">bsize</span><span class="o">//</span><span class="mi">2</span><span class="o">-</span><span class="n">lx</span><span class="o">//</span><span class="mi">2</span> <span class="p">:</span> <span class="n">bsize</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="n">lx</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="n">lx</span><span class="o">%</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">mask</span>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<span class="k">class</span> <span class="nc">StridedDL_V2</span><span class="p">(</span><span class="n">_StridedQC_V2</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Implementation of a strided deep learning QC algorithm.</span>
+
+<span class="sd">    The _StrdedQC_V2 base class collates tiled QC masks into a single mask by</span>
+<span class="sd">    cropping out the overlap regions. This approach is suitable for algorithms</span>
+<span class="sd">    that generate artifacts at the edges of tiles, but is not adequate for</span>
+<span class="sd">    stitching together deep learning predictions.</span>
+
+<span class="sd">    This class is a subclass of _StridedQC_V2, and is designed to stitch</span>
+<span class="sd">    together output from a deep learning QC model for tiles using a tapered mask.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+        <span class="n">out_classes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new StridedDL_V2 object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *args (Any): Arguments to pass to the parent class.</span>
+<span class="sd">            out_classes (int): Number of output classes from the deep learning model.</span>
+<span class="sd">                If provided, the shape of the QC mask will be (out_classes, h, w).</span>
+<span class="sd">                If 0 or not provided, the shape will be (h, w).</span>
+<span class="sd">            **kwargs (Any): Keyword arguments to pass to the parent class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out_classes</span> <span class="o">=</span> <span class="n">out_classes</span>
+
+    <span class="k">def</span> <span class="nf">_calc_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate a QC mask from a given tile.&quot;&quot;&quot;</span>
+        <span class="n">grid_i</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">grid_j</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
+
+        <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mask</span><span class="p">,</span> <span class="p">(</span><span class="n">grid_i</span><span class="p">,</span> <span class="n">grid_j</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">build_masks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wsi</span><span class="p">:</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return empty arrays for storing QC mask and the average (taper) mask.&quot;&quot;&quot;</span>
+        <span class="n">dim</span> <span class="o">=</span> <span class="p">(</span><span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">wsi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">px_ratio</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">tile_px</span> <span class="o">/</span> <span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span>
+        <span class="n">target_dim</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span> <span class="o">*</span> <span class="n">px_ratio</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_classes</span><span class="p">:</span>
+            <span class="n">qc_dim</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_classes</span><span class="p">,</span> <span class="n">target_dim</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">target_dim</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">qc_dim</span> <span class="o">=</span> <span class="n">target_dim</span>
+        <span class="n">qc_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">qc_dim</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">avg_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">target_dim</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">qc_mask</span><span class="p">,</span> <span class="n">avg_mask</span>
+
+    <span class="k">def</span> <span class="nf">get_tile_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wsi</span><span class="p">:</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">j</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the bounds of a tile.&quot;&quot;&quot;</span>
+        <span class="n">fy</span><span class="p">,</span> <span class="n">fx</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">grid_to_coord</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">anchor</span><span class="o">=</span><span class="s2">&quot;topleft&quot;</span><span class="p">)</span>
+        <span class="n">px_ratio</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">tile_px</span> <span class="o">/</span> <span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span>
+        <span class="n">x0</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fx</span> <span class="o">*</span> <span class="n">px_ratio</span><span class="p">)</span>
+        <span class="n">y0</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fy</span> <span class="o">*</span> <span class="n">px_ratio</span><span class="p">)</span>
+        <span class="n">x1</span> <span class="o">=</span> <span class="n">x0</span> <span class="o">+</span> <span class="n">wsi</span><span class="o">.</span><span class="n">tile_px</span>
+        <span class="n">y1</span> <span class="o">=</span> <span class="n">y0</span> <span class="o">+</span> <span class="n">wsi</span><span class="o">.</span><span class="n">tile_px</span>
+        <span class="k">return</span> <span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">y1</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">wsi</span><span class="p">:</span> <span class="s2">&quot;sf.WSI&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply QC filtering to a slide.&quot;&quot;&quot;</span>
+
+        <span class="n">qc_wsi</span><span class="p">,</span> <span class="n">mpp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_slide_and_mpp</span><span class="p">(</span><span class="n">wsi</span><span class="p">)</span>
+        <span class="n">qc_mask</span><span class="p">,</span> <span class="n">avg_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_masks</span><span class="p">(</span><span class="n">qc_wsi</span><span class="p">)</span>
+        <span class="n">dts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_tile_generator</span><span class="p">(</span><span class="n">qc_wsi</span><span class="p">)</span>
+
+        <span class="c1"># Get the base taper mask</span>
+        <span class="n">taper_mask</span> <span class="o">=</span> <span class="n">_taper_mask</span><span class="p">(</span><span class="n">ly</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="n">lx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="n">sig</span><span class="o">=</span><span class="mf">7.5</span><span class="p">)</span>
+
+        <span class="c1"># Progress bar tracking</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+            <span class="n">pb</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">dts</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Generating...&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">qc_wsi</span><span class="o">.</span><span class="n">estimated_num_tiles</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pb</span> <span class="o">=</span> <span class="n">dts</span>
+
+        <span class="c1"># Apply QC filter to each tile</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_pool</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">map_fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_pool</span><span class="o">.</span><span class="n">imap_unordered</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">map_fn</span> <span class="o">=</span> <span class="nb">map</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">tile_mask</span><span class="p">,</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">))</span> <span class="ow">in</span> <span class="n">map_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_calc_mask</span><span class="p">,</span> <span class="n">pb</span><span class="p">):</span>
+            <span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">y1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_tile_bounds</span><span class="p">(</span><span class="n">qc_wsi</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_classes</span><span class="p">:</span>
+                <span class="n">x1</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">qc_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">y1</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">qc_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                <span class="n">qc_mask</span><span class="p">[:,</span> <span class="n">x0</span><span class="p">:</span><span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">:</span><span class="n">y1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">tile_mask</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">:</span> <span class="n">x1</span><span class="o">-</span><span class="n">x0</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span> <span class="n">y1</span><span class="o">-</span><span class="n">y0</span><span class="p">]</span> <span class="o">*</span> <span class="n">taper_mask</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span> <span class="n">x1</span><span class="o">-</span><span class="n">x0</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span> <span class="n">y1</span><span class="o">-</span><span class="n">y0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">x1</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">qc_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">y1</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">qc_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">qc_mask</span><span class="p">[</span><span class="n">x0</span><span class="p">:</span><span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">:</span><span class="n">y1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">tile_mask</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span> <span class="n">x1</span><span class="o">-</span><span class="n">x0</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span> <span class="n">y1</span><span class="o">-</span><span class="n">y0</span><span class="p">]</span> <span class="o">*</span> <span class="n">taper_mask</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span> <span class="n">x1</span><span class="o">-</span><span class="n">x0</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span> <span class="n">y1</span><span class="o">-</span><span class="n">y0</span><span class="p">]</span>
+            <span class="n">avg_mask</span><span class="p">[</span><span class="n">x0</span><span class="p">:</span><span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">:</span><span class="n">y1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">taper_mask</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span> <span class="n">x1</span><span class="o">-</span><span class="n">x0</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span> <span class="n">y1</span><span class="o">-</span><span class="n">y0</span><span class="p">]</span>
+
+        <span class="c1"># Normalize the mask</span>
+        <span class="n">qc_mask</span> <span class="o">=</span> <span class="n">qc_mask</span> <span class="o">/</span> <span class="n">avg_mask</span>
+
+        <span class="c1"># Close pools</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">persistent_threads</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">close_pools</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">qc_mask</span>
 </pre></div>
 
              </article>

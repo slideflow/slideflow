@@ -3,7 +3,7 @@
 _mil_trainers = dict()
 _mil_models = dict()
 _known_extras_trainers = {
-    'slideflow-gpl': ['clam'],
+    'slideflow-gpl': ['legacy_clam'],
 }
 _known_extras_models = {
     'slideflow-gpl': ['clam_mb', 'clam_sb', 'mil_fc', 'mil_fc_mc'],

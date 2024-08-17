@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.io.torch.data_utils &mdash; slideflow 2.2.0 documentation</title>
+  <title>slideflow.io.torch.data_utils &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.2
+                  3.0
                 </div>
               
             
@@ -154,15 +154,17 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../project_setup/">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../datasets_and_val/">Datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../slide_processing/">Slide Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../training/">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../stylegan/">Generative Networks (GANs)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../saliency/">Saliency Maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../segmentation/">Tissue Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../cellseg/">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../custom_loops/">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../studio/">Slideflow Studio: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../troubleshooting/">Troubleshooting</a></li>
@@ -173,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -507,38 +510,54 @@
         <span class="n">normalizer</span><span class="o">=</span><span class="n">normalizer</span><span class="p">,</span>
         <span class="n">whc</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">TFRecordParser</span><span class="p">(</span>
+        <span class="n">features_to_return</span><span class="p">,</span>
+        <span class="n">decode_images</span><span class="p">,</span>
+        <span class="n">img_type</span><span class="p">,</span>
+        <span class="n">transform</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">parser</span></div>
 
-    <span class="k">def</span> <span class="nf">parser</span><span class="p">(</span><span class="n">record</span><span class="p">):</span>
+<span class="c1"># -------------------------------------------------------------------------</span>
+
+<span class="k">class</span> <span class="nc">TFRecordParser</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">features_to_return</span><span class="p">,</span> <span class="n">decode_images</span><span class="p">,</span> <span class="n">img_type</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">features_to_return</span> <span class="o">=</span> <span class="n">features_to_return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">decode_images</span> <span class="o">=</span> <span class="n">decode_images</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">img_type</span> <span class="o">=</span> <span class="n">img_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Each item in args is an array with one item, as the dareblopy reader</span>
 <span class="sd">        returns items in batches and we have set our batch_size = 1 for</span>
 <span class="sd">        interleaving.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">features</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;slide&#39;</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;slide&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">features_to_return</span><span class="p">):</span>
             <span class="n">slide</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
             <span class="n">features</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">slide</span>
-        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;image_raw&#39;</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;image_raw&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">features_to_return</span><span class="p">):</span>
             <span class="n">img</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">])</span>
-            <span class="k">if</span> <span class="n">decode_images</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_images</span><span class="p">:</span>
                 <span class="n">features</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">decode_image</span><span class="p">(</span>
                     <span class="n">img</span><span class="p">,</span>
-                    <span class="n">img_type</span><span class="o">=</span><span class="n">img_type</span><span class="p">,</span>
-                    <span class="n">transform</span><span class="o">=</span><span class="n">transform</span>
+                    <span class="n">img_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">img_type</span><span class="p">,</span>
+                    <span class="n">transform</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span>
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">features</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">img</span>
-        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;loc_x&#39;</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;loc_x&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">features_to_return</span><span class="p">):</span>
             <span class="n">features</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;loc_y&#39;</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;loc_y&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">features_to_return</span><span class="p">):</span>
             <span class="n">features</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">features_to_return</span><span class="p">)</span> <span class="o">==</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">features_to_return</span><span class="p">)</span> <span class="o">==</span> <span class="nb">dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">{</span>
                 <span class="n">label</span><span class="p">:</span> <span class="n">features</span><span class="p">[</span><span class="n">f</span><span class="p">]</span>
-                <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">features_to_return</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
             <span class="p">}</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">parser</span></div>
+            <span class="k">return</span> <span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">features_to_return</span><span class="p">]</span>
 </pre></div>
 
              </article>

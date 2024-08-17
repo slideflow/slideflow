@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.model.extractors._registry &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.model.extractors._registry &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -158,6 +158,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -291,6 +293,15 @@
 
 <span class="n">_tf_extractors</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
 <span class="n">_torch_extractors</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+<span class="n">_known_extras_packages</span> <span class="o">=</span> <span class="p">{</span>
+     <span class="s1">&#39;slideflow-gpl&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;retccl&#39;</span><span class="p">,</span> <span class="s1">&#39;ctranspath&#39;</span><span class="p">],</span>
+     <span class="s1">&#39;slideflow-noncommercial&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;gigapath&#39;</span><span class="p">,</span> <span class="s1">&#39;gigapath.tile&#39;</span><span class="p">,</span> <span class="s1">&#39;gigapath.slide&#39;</span><span class="p">,</span> <span class="s1">&#39;histossl&#39;</span><span class="p">,</span> <span class="s1">&#39;plip&#39;</span><span class="p">]</span>
+<span class="p">}</span>
+<span class="n">_extras_extractors</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">extractor</span><span class="p">:</span> <span class="n">package</span> 
+    <span class="k">for</span> <span class="n">package</span><span class="p">,</span> <span class="n">extractors</span> <span class="ow">in</span> <span class="n">_known_extras_packages</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> 
+    <span class="k">for</span> <span class="n">extractor</span> <span class="ow">in</span> <span class="n">extractors</span>
+<span class="p">}</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;list_extractors&#39;</span><span class="p">,</span> <span class="s1">&#39;list_tensorflow_extractors&#39;</span><span class="p">,</span> <span class="s1">&#39;list_torch_extractors&#39;</span><span class="p">,</span>
            <span class="s1">&#39;is_extractor&#39;</span><span class="p">,</span> <span class="s1">&#39;is_tensorflow_extractor&#39;</span><span class="p">,</span> <span class="s1">&#39;is_torch_extractor&#39;</span><span class="p">]</span>
@@ -324,14 +335,35 @@
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
-<span class="k">def</span> <span class="nf">register_tf</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
-    <span class="n">_tf_extractors</span><span class="p">[</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn</span>
-    <span class="k">return</span> <span class="n">fn</span>
+<span class="k">def</span> <span class="nf">register_torch</span><span class="p">(</span><span class="n">key_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to register a PyTorch feature extractor.&quot;&quot;&quot;</span>
 
-<span class="k">def</span> <span class="nf">register_torch</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
-    <span class="n">_torch_extractors</span><span class="p">[</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn</span>
-    <span class="k">return</span> <span class="n">fn</span>
+    <span class="k">def</span> <span class="nf">decorator</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+        <span class="c1"># Use the custom key name if provided, otherwise use the function&#39;s name</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">key_name</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">_torch_extractors</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn</span>
+        <span class="k">return</span> <span class="n">fn</span>
 
+    <span class="c1"># If the decorator is used without arguments, the key_name will be the function itself</span>
+    <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">key_name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">decorator</span><span class="p">(</span><span class="n">key_name</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">decorator</span>
+
+<span class="k">def</span> <span class="nf">register_tf</span><span class="p">(</span><span class="n">key_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to register a Tensorflow feature extractor.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">decorator</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+        <span class="c1"># Use the custom key name if provided, otherwise use the function&#39;s name</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">key_name</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">_tf_extractors</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn</span>
+        <span class="k">return</span> <span class="n">fn</span>
+
+    <span class="c1"># If the decorator is used without arguments, the key_name will be the function itself</span>
+    <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">key_name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">decorator</span><span class="p">(</span><span class="n">key_name</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">decorator</span>
 </pre></div>
 
              </article>

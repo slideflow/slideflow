@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.model.extractors._factory &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.model.extractors._factory &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -158,6 +158,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -297,7 +299,7 @@
 <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">BaseFeatureExtractor</span>
 
 <span class="kn">from</span> <span class="nn">._registry</span> <span class="kn">import</span> <span class="p">(</span><span class="n">is_tensorflow_extractor</span><span class="p">,</span> <span class="n">is_torch_extractor</span><span class="p">,</span>
-                        <span class="n">_tf_extractors</span><span class="p">,</span> <span class="n">_torch_extractors</span><span class="p">)</span>
+                        <span class="n">_tf_extractors</span><span class="p">,</span> <span class="n">_torch_extractors</span><span class="p">,</span> <span class="n">_extras_extractors</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">._factory_tensorflow</span> <span class="kn">import</span> <span class="n">build_tensorflow_feature_extractor</span>
 <span class="kn">from</span> <span class="nn">._factory_torch</span> <span class="kn">import</span> <span class="n">build_torch_feature_extractor</span>
 
@@ -306,7 +308,7 @@
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
-<div class="viewcode-block" id="build_feature_extractor"><a class="viewcode-back" href="../../../../../model/#slideflow.model.build_feature_extractor">[docs]</a><span class="k">def</span> <span class="nf">build_feature_extractor</span><span class="p">(</span>
+<div class="viewcode-block" id="build_feature_extractor"><a class="viewcode-back" href="../../../../../slideflow/#slideflow.model.build_feature_extractor">[docs]</a><span class="k">def</span> <span class="nf">build_feature_extractor</span><span class="p">(</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">backend</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span>
@@ -347,9 +349,9 @@
 
 <span class="sd">            .. code-block:: python</span>
 
-<span class="sd">                from slideflow.model import build_feature_extractor</span>
+<span class="sd">                import slideflow as sf</span>
 
-<span class="sd">                extractor = build_feature_extractor(</span>
+<span class="sd">                extractor = sf.build_feature_extractor(</span>
 <span class="sd">                    &#39;resnet50_imagenet&#39;</span>
 <span class="sd">                )</span>
 
@@ -358,9 +360,7 @@
 
 <span class="sd">            .. code-block:: python</span>
 
-<span class="sd">                from slideflow.model import build_feature_extractor</span>
-
-<span class="sd">                extractor = build_feature_extractor(</span>
+<span class="sd">                extractor = sf.build_feature_extractor(</span>
 <span class="sd">                    &#39;resnet50_imagenet&#39;,</span>
 <span class="sd">                    layers=&#39;conv4_block4_2_relu</span>
 <span class="sd">                )</span>
@@ -369,9 +369,7 @@
 
 <span class="sd">            .. code-block:: python</span>
 
-<span class="sd">                from slideflow.model import build_feature_extractor</span>
-
-<span class="sd">                extractor = build_feature_extractor(&#39;ctranspath&#39;)</span>
+<span class="sd">                extractor = sf.build_feature_extractor(&#39;ctranspath&#39;)</span>
 
 <span class="sd">        Use an extractor to calculate layer activations for an entire dataset.</span>
 
@@ -384,7 +382,7 @@
 <span class="sd">                dataset = P.dataset(...)</span>
 
 <span class="sd">                # Create a feature extractor</span>
-<span class="sd">                resnet = sf.model.build_feature_extractor(</span>
+<span class="sd">                resnet = sf.build_feature_extractor(</span>
 <span class="sd">                    &#39;resnet50_imagenet&#39;</span>
 <span class="sd">                )</span>
 
@@ -399,15 +397,14 @@
 <span class="sd">            .. code-block:: python</span>
 
 <span class="sd">                import slideflow as sf</span>
-<span class="sd">                from slideflow.model import build_feature_extractor</span>
 
 <span class="sd">                # Load a slide</span>
 <span class="sd">                wsi = sf.WSI(...)</span>
 
 <span class="sd">                # Create a feature extractor</span>
-<span class="sd">                retccl = build_feature_extractor(</span>
+<span class="sd">                retccl = sf.build_feature_extractor(</span>
 <span class="sd">                    &#39;retccl&#39;,</span>
-<span class="sd">                    tile_px=299</span>
+<span class="sd">                    resize=True</span>
 <span class="sd">                )</span>
 
 <span class="sd">                # Create a feature map, a 2D array of shape</span>
@@ -462,6 +459,11 @@
         <span class="k">return</span> <span class="n">build_tensorflow_feature_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">is_torch_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">build_torch_feature_extractor</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">_extras_extractors</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">InvalidFeatureExtractor</span><span class="p">(</span>
+            <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> requires the package </span><span class="si">{}</span><span class="s2">, please install with &#39;pip install </span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">name</span><span class="p">,</span> <span class="n">_extras_extractors</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="n">_extras_extractors</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="p">))</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">InvalidFeatureExtractor</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized feature extractor: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
@@ -533,10 +535,18 @@
     <span class="n">extractor_name</span> <span class="o">=</span> <span class="n">bags_config</span><span class="p">[</span><span class="s1">&#39;extractor&#39;</span><span class="p">][</span><span class="s1">&#39;class&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
     <span class="n">extractor_class</span> <span class="o">=</span> <span class="n">extractor_name</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">extractor_kwargs</span> <span class="o">=</span> <span class="n">bags_config</span><span class="p">[</span><span class="s1">&#39;extractor&#39;</span><span class="p">][</span><span class="s1">&#39;kwargs&#39;</span><span class="p">]</span>
-    <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">extractor_name</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
     <span class="k">try</span><span class="p">:</span>
+        <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">extractor_name</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
         <span class="n">extractor</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">extractor_class</span><span class="p">)(</span><span class="o">**</span><span class="n">extractor_kwargs</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="n">submodule_name</span> <span class="o">=</span> <span class="n">extractor_name</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">submodule_name</span> <span class="ow">in</span> <span class="n">_extras_extractors</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">InvalidFeatureExtractor</span><span class="p">(</span>
+                <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> requires the package </span><span class="si">{}</span><span class="s2">, please install with &#39;pip install </span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">submodule_name</span><span class="p">,</span> 
+                    <span class="n">_extras_extractors</span><span class="p">[</span><span class="n">submodule_name</span><span class="p">],</span> 
+                    <span class="n">_extras_extractors</span><span class="p">[</span><span class="n">submodule_name</span><span class="p">]</span>
+            <span class="p">))</span>
         <span class="k">if</span> <span class="n">allow_errors</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">else</span><span class="p">:</span>

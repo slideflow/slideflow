@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.model.tensorflow &mdash; slideflow 2.3.0 documentation</title>
+  <title>slideflow.model.tensorflow &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -158,6 +158,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -341,7 +343,7 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="ModelParams"><a class="viewcode-back" href="../../../../model_params/#slideflow.model.ModelParams">[docs]</a><span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a set of hyperparameters.&quot;&quot;&quot;</span>
 
     <span class="n">ModelDict</span> <span class="o">=</span> <span class="p">{</span>
@@ -389,7 +391,7 @@
         <span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2m&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2M</span><span class="p">})</span>
     <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2L&#39;</span><span class="p">):</span>
         <span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2l&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2L</span><span class="p">})</span>
-    <span class="n">LinearLossDict</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">RegressionLossDict</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">loss</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">losses</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="p">[</span>
             <span class="s1">&#39;mean_squared_error&#39;</span><span class="p">,</span>
@@ -401,7 +403,7 @@
             <span class="s1">&#39;logcosh&#39;</span>
         <span class="p">]</span>
     <span class="p">}</span>
-    <span class="n">LinearLossDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+    <span class="n">RegressionLossDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
         <span class="s1">&#39;negative_log_likelihood&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">negative_log_likelihood</span>
     <span class="p">})</span>
     <span class="n">AllLossDict</span> <span class="o">=</span> <span class="p">{</span>
@@ -623,7 +625,7 @@
         <span class="n">model_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">tile_image_model</span><span class="o">.</span><span class="n">input</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">tile_image_model</span><span class="p">,</span> <span class="n">model_inputs</span>
 
-    <span class="k">def</span> <span class="nf">_build_categorical_or_linear_model</span><span class="p">(</span>
+    <span class="k">def</span> <span class="nf">_build_classification_or_regression_model</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">num_classes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
         <span class="n">num_slide_features</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
@@ -632,7 +634,7 @@
         <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;weights&#39;</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assembles categorical or linear model, using pretraining (imagenet)</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assembles classification or regression model, using pretraining (imagenet)</span>
 <span class="sd">        or the base layers of a supplied model.</span>
 
 <span class="sd">        Args:</span>
@@ -728,7 +730,7 @@
 
         <span class="k">return</span> <span class="n">model</span>
 
-    <span class="k">def</span> <span class="nf">_build_cph_model</span><span class="p">(</span>
+    <span class="k">def</span> <span class="nf">_build_survival_model</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">num_classes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
         <span class="n">num_slide_features</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
@@ -737,8 +739,8 @@
         <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;weights&#39;</span><span class="p">,</span>
         <span class="n">training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assembles a Cox Proportional Hazards (CPH) model, using pretraining</span>
-<span class="sd">        (imagenet) or the base layers of a supplied model.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assembles a survival model, using pretraining (imagenet)</span>
+<span class="sd">        or the base layers of a supplied model.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            num_classes (int or dict): Either int (single categorical outcome,</span>
@@ -765,7 +767,7 @@
         <span class="n">tile_image_model</span><span class="p">,</span> <span class="n">model_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_base</span><span class="p">(</span><span class="n">pretrain</span><span class="p">,</span> <span class="n">load_method</span><span class="p">)</span>
 
         <span class="c1"># Add slide feature input tensors, if there are more slide features</span>
-        <span class="c1"># than just the event input tensor for CPH models</span>
+        <span class="c1"># than just the event input tensor for survival models</span>
         <span class="k">if</span> <span class="n">training</span><span class="p">:</span>
             <span class="n">event_input_tensor</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Input</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;event_input&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">num_slide_features</span> <span class="o">==</span> <span class="mi">1</span><span class="p">):</span>
@@ -783,7 +785,7 @@
                 <span class="n">model_inputs</span> <span class="o">+=</span> <span class="p">[</span><span class="n">event_input_tensor</span><span class="p">]</span>
         <span class="k">elif</span> <span class="n">num_slide_features</span> <span class="ow">and</span> <span class="n">num_slide_features</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="c1"># Add slide feature input tensors, if there are more slide features</span>
-            <span class="c1"># than just the event input tensor for CPH models</span>
+            <span class="c1"># than just the event input tensor for survival models</span>
             <span class="n">merged_model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Concatenate</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;input_merge&#39;</span><span class="p">)(</span>
                 <span class="p">[</span><span class="n">slide_feature_input_tensor</span><span class="p">,</span> <span class="n">tile_image_model</span><span class="o">.</span><span class="n">output</span><span class="p">]</span>
             <span class="p">)</span>
@@ -829,7 +831,7 @@
             <span class="p">)(</span><span class="n">final_dense_layer</span><span class="p">)]</span>
         <span class="k">if</span> <span class="n">training</span><span class="p">:</span>
             <span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Concatenate</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="s1">&#39;output_merge_CPH&#39;</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="s1">&#39;output_merge_survival&#39;</span><span class="p">,</span>
                 <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float32&#39;</span>
             <span class="p">)([</span><span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">event_input_tensor</span><span class="p">])</span>
 
@@ -848,7 +850,7 @@
         <span class="n">num_classes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Auto-detects model type (categorical, linear, CPH) from parameters</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Auto-detects model type (classification, regression, survival) from parameters</span>
 <span class="sd">        and builds, using pretraining or the base layers of a supplied model.</span>
 
 <span class="sd">        Args:</span>
@@ -862,8 +864,8 @@
 <span class="sd">            num_slide_features (int, optional): Number of slide-level features</span>
 <span class="sd">                separate from image input. Defaults to 0.</span>
 <span class="sd">            activation (str, optional): Type of final layer activation to use.</span>
-<span class="sd">                Defaults to &#39;softmax&#39; (categorical models) or &#39;linear&#39;</span>
-<span class="sd">                (linear or CPH models).</span>
+<span class="sd">                Defaults to &#39;softmax&#39; (classification models) or &#39;regression&#39;</span>
+<span class="sd">                (regression or survival models).</span>
 <span class="sd">            pretrain (str, optional): Either &#39;imagenet&#39; or path to model to use</span>
 <span class="sd">                as pretraining. Defaults to &#39;imagenet&#39;.</span>
 <span class="sd">            checkpoint (str, optional): Path to checkpoint from which to resume</span>
@@ -882,16 +884,16 @@
         <span class="k">if</span> <span class="n">num_classes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">num_classes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_classes_from_labels</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_categorical_or_linear_model</span><span class="p">(</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_classification_or_regression_model</span><span class="p">(</span>
                 <span class="n">num_classes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;softmax&#39;</span>
             <span class="p">)</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_categorical_or_linear_model</span><span class="p">(</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;regression&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_classification_or_regression_model</span><span class="p">(</span>
                 <span class="n">num_classes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span>
             <span class="p">)</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cph&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_cph_model</span><span class="p">(</span><span class="n">num_classes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;survival&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_survival_model</span><span class="p">(</span><span class="n">num_classes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unknown model type: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
@@ -913,16 +915,16 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">OptDict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">](</span><span class="n">learning_rate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">model_type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns &#39;linear&#39;, &#39;categorical&#39;, or &#39;cph&#39;, reflecting the loss.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns &#39;regression&#39;, &#39;classification&#39;, or &#39;survival&#39;, reflecting the loss.&quot;&quot;&quot;</span>
         <span class="c1">#check if loss is custom_[type] and returns type</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;custom&#39;</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span><span class="p">[</span><span class="mi">7</span><span class="p">:]</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="o">==</span> <span class="s1">&#39;negative_log_likelihood&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;cph&#39;</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">LinearLossDict</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;linear&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;survival&#39;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">RegressionLossDict</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;regression&#39;</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;categorical&#39;</span></div>
+            <span class="k">return</span> <span class="s1">&#39;classification&#39;</span>
 
 
 <span class="k">class</span> <span class="nc">_PredictionAndEvaluationCallback</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">callbacks</span><span class="o">.</span><span class="n">Callback</span><span class="p">):</span>
@@ -1227,7 +1229,7 @@
             <span class="n">batch_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;[blue]Batch </span><span class="si">{</span><span class="n">batch</span><span class="si">:</span><span class="s1">&lt;5</span><span class="si">}</span><span class="s1">[/]&#39;</span>
             <span class="n">loss_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;[green]loss[/]: </span><span class="si">{</span><span class="n">logs</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="n">val_loss_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;[magenta]val_loss[/]: </span><span class="si">{</span><span class="n">val_loss</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
                 <span class="n">acc_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;[green]acc[/]: </span><span class="si">{</span><span class="n">train_acc</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="n">val_acc_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;[magenta]val_acc[/]: </span><span class="si">{</span><span class="n">val_acc</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="n">log_message</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">batch_msg</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">loss_msg</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">acc_msg</span><span class="si">}</span><span class="s2"> | &quot;</span>
@@ -1327,20 +1329,20 @@
         <span class="p">)</span>
 
 
-<div class="viewcode-block" id="Trainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.Trainer">[docs]</a><span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
+<span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Base trainer class containing functionality for model building, input</span>
 <span class="sd">    processing, training, and evaluation.</span>
 
 <span class="sd">    This base class requires categorical outcome(s). Additional outcome types</span>
-<span class="sd">    are supported by :class:`slideflow.model.LinearTrainer` and</span>
-<span class="sd">    :class:`slideflow.model.CPHTrainer`.</span>
+<span class="sd">    are supported by :class:`slideflow.model.RegressionTrainer` and</span>
+<span class="sd">    :class:`slideflow.model.SurvivalTrainer`.</span>
 
 <span class="sd">    Slide-level (e.g. clinical) features can be used as additional model input</span>
 <span class="sd">    by providing slide labels in the slide annotations dictionary, under the</span>
 <span class="sd">    key &#39;input&#39;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;categorical&#39;</span>
+    <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;classification&#39;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1608,7 +1610,7 @@
             <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations_tables</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
 
         <span class="c1"># Add additional non-image feature inputs if indicated,</span>
-        <span class="c1">#     excluding the event feature used for CPH models</span>
+        <span class="c1">#     excluding the event feature used for survival models</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_slide_features</span><span class="p">:</span>
 
             <span class="k">def</span> <span class="nf">slide_lookup</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
@@ -2234,7 +2236,7 @@
                 <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Starting epoch (</span><span class="si">{</span><span class="n">starting_epoch</span><span class="si">}</span><span class="s1">) cannot be greater&#39;</span>
                           <span class="sa">f</span><span class="s1">&#39; than max target epoch (</span><span class="si">{</span><span class="n">max_epoch</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
             <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">early_stop</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">early_stop_method</span> <span class="o">==</span> <span class="s1">&#39;accuracy&#39;</span>
-               <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_type</span> <span class="o">!=</span> <span class="s1">&#39;categorical&#39;</span><span class="p">):</span>
+               <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_type</span> <span class="o">!=</span> <span class="s1">&#39;classification&#39;</span><span class="p">):</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Unable to use &#39;accuracy&#39; early stopping with model &quot;</span>
                           <span class="sa">f</span><span class="s2">&quot;type &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">starting_epoch</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
@@ -2323,17 +2325,17 @@
                 <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             <span class="k">del</span> <span class="n">mid_train_validation_data</span>
 
-            <span class="k">return</span> <span class="n">results</span></div>
+            <span class="k">return</span> <span class="n">results</span>
 
 
-<div class="viewcode-block" id="LinearTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.LinearTrainer">[docs]</a><span class="k">class</span> <span class="nc">LinearTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">RegressionTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Extends the base :class:`slideflow.model.Trainer` class to add support</span>
-<span class="sd">    for linear/continuous outcomes. Requires that all outcomes be continuous,</span>
-<span class="sd">    with appropriate linear loss function. Uses R-squared as the evaluation</span>
+<span class="sd">    for regression models with continuous outcomes. Requires that all outcomes be continuous,</span>
+<span class="sd">    with appropriate regression loss function. Uses R-squared as the evaluation</span>
 <span class="sd">    metric, rather than AUROC.&quot;&quot;&quot;</span>
 
-    <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;linear&#39;</span>
+    <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;regression&#39;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -2358,7 +2360,7 @@
             <span class="p">]</span>
 
         <span class="c1"># Add additional non-image feature inputs if indicated,</span>
-        <span class="c1">#     excluding the event feature used for CPH models</span>
+        <span class="c1">#     excluding the event feature used for survival models</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_slide_features</span><span class="p">:</span>
 
             <span class="k">def</span> <span class="nf">slide_lookup</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
@@ -2372,21 +2374,21 @@
             <span class="p">)</span>
             <span class="n">image_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;slide_feature_input&#39;</span><span class="p">:</span> <span class="n">slide_feature_input_val</span><span class="p">})</span>
 
-        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span></div>
+        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span>
 
 
-<div class="viewcode-block" id="CPHTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.CPHTrainer">[docs]</a><span class="k">class</span> <span class="nc">CPHTrainer</span><span class="p">(</span><span class="n">LinearTrainer</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">SurvivalTrainer</span><span class="p">(</span><span class="n">RegressionTrainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Cox Proportional Hazards model. Requires that the user provide event</span>
-<span class="sd">    data as the first input feature, and time to outcome as the linear outcome.</span>
+<span class="sd">    data as the first input feature, and time to outcome as the continuous outcome.</span>
 <span class="sd">    Uses concordance index as the evaluation metric.&quot;&quot;&quot;</span>
 
-    <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;cph&#39;</span>
+    <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;survival&#39;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_slide_features</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="s1">&#39;Model error - CPH models must &#39;</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="s1">&#39;Model error - survival models must &#39;</span>
                                     <span class="s1">&#39;include event input&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_setup_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -2396,10 +2398,10 @@
             <span class="k">if</span> <span class="n">num_features</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Training with both images and </span><span class="si">{</span><span class="n">num_features</span><span class="si">}</span><span class="s1"> &#39;</span>
                          <span class="s1">&#39;categories of slide-level input&#39;</span><span class="p">)</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Interpreting first feature as event for CPH model&#39;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Interpreting first feature as event for survival model&#39;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Training with images alone. Interpreting first &#39;</span>
-                         <span class="s1">&#39;feature as event for CPH model&#39;</span><span class="p">)</span>
+                         <span class="s1">&#39;feature as event for survival model&#39;</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="s2">&quot;Unable to find slide-level input at &quot;</span>
                                     <span class="s2">&quot;&#39;input&#39; key in annotations&quot;</span><span class="p">)</span>
@@ -2450,7 +2452,7 @@
             <span class="p">]</span>
 
         <span class="c1"># Add additional non-image feature inputs if indicated,</span>
-        <span class="c1">#     excluding the event feature used for CPH models</span>
+        <span class="c1">#     excluding the event feature used for survival models</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_slide_features</span><span class="p">:</span>
             <span class="c1"># Time-to-event data must be added as a separate feature</span>
 
@@ -2473,15 +2475,15 @@
                 <span class="n">Tout</span><span class="o">=</span><span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_features</span>
             <span class="p">)</span>
             <span class="c1"># Add slide input features, excluding the event feature</span>
-            <span class="c1"># used for CPH models</span>
+            <span class="c1"># used for survival models</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_slide_features</span> <span class="o">==</span> <span class="mi">1</span><span class="p">):</span>
                 <span class="n">image_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
                     <span class="p">{</span><span class="s1">&#39;slide_feature_input&#39;</span><span class="p">:</span> <span class="n">slide_feature_input_val</span><span class="p">}</span>
                 <span class="p">)</span>
-        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span></div>
+        <span class="k">return</span> <span class="n">image_dict</span><span class="p">,</span> <span class="n">label</span>
 
 
-<div class="viewcode-block" id="Features"><a class="viewcode-back" href="../../../../model/#slideflow.model.Features">[docs]</a><span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Interface for obtaining predictions and features from intermediate layer</span>
 <span class="sd">    activations from Slideflow models.</span>
 
@@ -2790,7 +2792,7 @@
                 <span class="s1">&#39;include_preds&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_include_preds</span><span class="p">,</span>
                 <span class="s1">&#39;pooling&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span>
             <span class="p">}</span>
-        <span class="p">}</span></div>
+        <span class="p">}</span>
 
 <span class="k">class</span> <span class="nc">UncertaintyInterface</span><span class="p">(</span><span class="n">Features</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
@@ -2880,7 +2882,7 @@
             <span class="p">}</span>
         <span class="p">}</span>
 
-<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_tensorflow/#slideflow.model.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span>
+<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_tensorflow/#slideflow.model.tensorflow.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span>
     <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;weights&#39;</span><span class="p">,</span>
     <span class="n">custom_objects</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2913,22 +2915,22 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">])</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcomes&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcomes&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;regression&#39;</span><span class="p">:</span>
             <span class="n">num_classes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcome_labels&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">num_classes</span> <span class="o">=</span> <span class="p">{</span>
                 <span class="n">outcome</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcome_labels&#39;</span><span class="p">][</span><span class="n">outcome</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
                 <span class="k">for</span> <span class="n">outcome</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcomes&#39;</span><span class="p">]</span>
             <span class="p">}</span>  <span class="c1"># type: ignore</span>
-        <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;cph&#39;</span><span class="p">:</span>
-            <span class="n">cph_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">training</span><span class="o">=</span><span class="n">training</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;survival&#39;</span><span class="p">:</span>
+            <span class="n">survival_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">training</span><span class="o">=</span><span class="n">training</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">cph_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+            <span class="n">survival_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
         <span class="n">model</span> <span class="o">=</span> <span class="n">hp</span><span class="o">.</span><span class="n">build_model</span><span class="p">(</span>  <span class="c1"># type: ignore</span>
             <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">,</span>
             <span class="n">num_slide_features</span><span class="o">=</span><span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;input_feature_sizes&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="nb">sum</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;input_feature_sizes&#39;</span><span class="p">]),</span>
             <span class="n">pretrain</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="o">**</span><span class="n">cph_kw</span>
+            <span class="o">**</span><span class="n">survival_kw</span>
         <span class="p">)</span>
         <span class="n">model</span><span class="o">.</span><span class="n">load_weights</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;variables/variables&#39;</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">model</span></div>

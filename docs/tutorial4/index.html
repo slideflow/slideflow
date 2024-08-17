@@ -6,11 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 4: Model evaluation &amp; heatmaps &mdash; slideflow 2.3.0 documentation</title>
+  <title>Tutorial 4: Model evaluation &amp; heatmaps &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -121,7 +121,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +178,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -363,7 +365,7 @@ The results we report are a continuation of the project described in <a class="r
 </div>
 <p>If the referenced model was trained with digital stain normalization, this will be automaticaly detected and used at the time of heatmap calculation. The heatmap thumbnail image will be displayed without normalization, however.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">resolution</span></code> parameter indicates the stride at which tiles should be extracted from slides to generate predictions. <code class="docutils literal notranslate"><span class="pre">&quot;low&quot;</span></code> resolution yields predictions on non-overlapping slides (stride_div=1). <code class="docutils literal notranslate"><span class="pre">&quot;medium&quot;</span></code> resolutions uses tiles with 50% overlap (stide_div=2), and <code class="docutils literal notranslate"><span class="pre">&quot;high&quot;</span></code> resolution uses tiles with 75% overlap (stride_div=4).</p>
-<p>Heatmaps are colored and scaled in a manner optimized for categorical outcomes, with the colorscale 0 (blue) -&gt; 0.5 (white) -&gt; 1.0 (red). To change this colorscaling (particularly important for linear outcomes), set <code class="docutils literal notranslate"><span class="pre">vmin</span></code>, <code class="docutils literal notranslate"><span class="pre">vcenter</span></code>, and <code class="docutils literal notranslate"><span class="pre">vmax</span></code> accordingly.</p>
+<p>Heatmaps are colored and scaled in a manner optimized for categorical outcomes, with the colorscale 0 (blue) -&gt; 0.5 (white) -&gt; 1.0 (red). To change this colorscaling (particularly important for regression outcomes), set <code class="docutils literal notranslate"><span class="pre">vmin</span></code>, <code class="docutils literal notranslate"><span class="pre">vcenter</span></code>, and <code class="docutils literal notranslate"><span class="pre">vmax</span></code> accordingly.</p>
 <p>Heatmaps are displayed without any color interpolation by default. To generate a smoothed heatmap, interpolate colors with any strategy supported by matplotlib (including, for example, “bicubic”, “nearest”, “bilnear”, and many more) with the argument <code class="docutils literal notranslate"><span class="pre">interpolation</span></code>.</p>
 <p>Heatmaps are saved by default in the <code class="docutils literal notranslate"><span class="pre">project_folder/heatmaps</span></code> folder. A separate image is saved for each outcome category, as well as a base non-annotated slide thumbnail and a thumbnail with an ROI overlay (if ROIs are available). If the model had three outcomes, the heatmaps folder would contain:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>heatmaps/

@@ -255,7 +255,7 @@ Heatmaps
 
 The heatmap section of the control panel can be used to generate and customize whole-slide heatmaps. Heatmaps are generated using the settings configured in the Slide section of the control panel (including stride, tile filter, and slide filter). Click "Generate" in the heatmap widget to create the heatmap. The color scheme can be changed with the dropdown menu of the "Display" subheader, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap. Press the left ALT key while hovering over the heatmap to show the raw heatmap values.
 
-.. video:: heatmap.mp4
+.. video:: https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/heatmap.mp4
     :autoplay:
 
 |

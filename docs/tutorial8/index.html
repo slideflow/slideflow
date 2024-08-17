@@ -6,11 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 8: Multiple-Instance Learning &mdash; slideflow 2.3.0 documentation</title>
+  <title>Tutorial 8: Multiple-Instance Learning &mdash; slideflow 3.0.0 documentation</title>
   
 
   
@@ -120,7 +120,7 @@
               
               
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
               
             
@@ -160,6 +160,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -176,6 +177,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -306,36 +308,25 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="s1">&#39;otsu&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Once a dataset has been prepared, the next step in training an MIL model is <a class="reference internal" href="../mil/#mil"><span class="std std-ref">converting images into features</span></a>. For this example, we’ll use the pretrained <a class="reference external" href="https://github.com/owkin/HistoSSLscaling">HistoSSL</a> feature extractor, a vision transformer pretrained on 40 million histology images. HistoSSL was trained on tiles of size 224x224, so our images will be center-cropped to match.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">histossl</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;histossl&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">)</span>
-
-<span class="go">This model is developed and licensed by Owkin, Inc. The license for use is</span>
-<span class="go">provided in the LICENSE file in the same directory as this source file</span>
-<span class="go">(slideflow/model/extractors/histossl/LICENSE), and is also available</span>
-<span class="go">at https://github.com/owkin/HistoSSLscaling. By using this feature extractor,</span>
-<span class="go">you agree to the terms of the license.</span>
-
-<span class="gp">&gt;&gt;&gt; </span><span class="n">histossl</span><span class="o">.</span><span class="n">cite</span><span class="p">()</span>
-
-<span class="go">@article{Filiot2023ScalingSSLforHistoWithMIM,</span>
-<span class="go">    author       = {Alexandre Filiot and Ridouane Ghermi and Antoine Olivier and Paul Jacob and Lucas Fidon and Alice Mac Kain and Charlie Saillard and Jean-Baptiste Schiratti},</span>
-<span class="go">    title        = {Scaling Self-Supervised Learning for Histopathology with Masked Image Modeling},</span>
-<span class="go">    elocation-id = {2023.07.21.23292757},</span>
-<span class="go">    year         = {2023},</span>
-<span class="go">    doi          = {10.1101/2023.07.21.23292757},</span>
-<span class="go">    publisher    = {Cold Spring Harbor Laboratory Press},</span>
-<span class="go">    url          = {https://www.medrxiv.org/content/early/2023/07/26/2023.07.21.23292757},</span>
-<span class="go">    eprint       = {https://www.medrxiv.org/content/early/2023/07/26/2023.07.21.23292757.full.pdf},</span>
-<span class="go">    journal      = {medRxiv}</span>
+<p>Once a dataset has been prepared, the next step in training an MIL model is <a class="reference internal" href="../mil/#mil"><span class="std std-ref">converting images into features</span></a>. For this example, we’ll use the pretrained <a class="reference external" href="https://huggingface.co/paige-ai/Virchow">Virchow</a> feature extractor, a vision transformer pretrained on 1.5M whole-slide images.  Virchow has an input size of 224x224, so our images will be resized to match.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">virchow</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;virchow&#39;</span><span class="p">,</span> <span class="n">center_crop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">virchow</span><span class="o">.</span><span class="n">cite</span><span class="p">()</span>
+<span class="go">@misc{vorontsov2024virchowmillionslidedigitalpathology,</span>
+<span class="go">    title={Virchow: A Million-Slide Digital Pathology Foundation Model},</span>
+<span class="go">    author={Eugene Vorontsov and Alican Bozkurt and Adam Casson and George Shaikovski and Michal Zelechowski and Siqi Liu and Kristen Severson and Eric Zimmermann and James Hall and Neil Tenenholtz and Nicolo Fusi and Philippe Mathieu and Alexander van Eck and Donghun Lee and Julian Viret and Eric Robert and Yi Kan Wang and Jeremy D. Kunz and Matthew C. H. Lee and Jan Bernhard and Ran A. Godrich and Gerard Oakley and Ewan Millar and Matthew Hanna and Juan Retamero and William A. Moye and Razik Yousfi and Christopher Kanan and David Klimstra and Brandon Rothrock and Thomas J. Fuchs},</span>
+<span class="go">    year={2024},</span>
+<span class="go">    eprint={2309.07778},</span>
+<span class="go">    archivePrefix={arXiv},</span>
+<span class="go">    primaryClass={eess.IV},</span>
+<span class="go">    url={https://arxiv.org/abs/2309.07778},</span>
 <span class="go">}</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">histossl</span><span class="o">.</span><span class="n">num_features</span>
-<span class="go">768</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">virchow</span><span class="o">.</span><span class="n">num_features</span>
+<span class="go">2560</span>
 </pre></div>
 </div>
-<p>The HistoSSL feature extractor produces a 768-dimensional vector for each tile. We can generate and export <a class="reference internal" href="../mil/#bags"><span class="std std-ref">bags</span></a> of these features for all slides in our dataset using <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a>.</p>
+<p>The Virchow feature extractor produces a 2560-dimensional vector for each tile. We can generate and export <a class="reference internal" href="../features/#bags"><span class="std std-ref">bags</span></a> of these features for all slides in our dataset using <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">generate_feature_bags</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">histossl</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">virchow</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">dataset</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/bags/path&#39;</span>
 <span class="gp">... </span><span class="p">)</span>
