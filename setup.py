@@ -87,6 +87,8 @@ setuptools.setup(
             'studio/gui/buttons/button_gear_highlighted.png',
             'studio/gui/buttons/button_model_loaded.png',
             'studio/gui/buttons/button_model_highlighted.png',
+            'studio/gui/buttons/button_segment.png',
+            'studio/gui/buttons/button_segment_highlighted.png',
             'studio/gui/buttons/small_button_verified.png',
             'studio/gui/buttons/button_model.png',
             'studio/gui/buttons/button_folder.png',
