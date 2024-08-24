@@ -179,6 +179,9 @@ def tile_worker(
         args.downsample_level,
         (args.extract_px, args.extract_px)
     )
+    # If the region is None (out of bounds), return None
+    if region is None:
+        return None
 
     # cuCIM resize
     if not __cv2_resize__:
@@ -396,7 +399,7 @@ class _cuCIMReader:
         flatten: bool = False,
         resize_factor: Optional[float] = None,
         pad_missing: Optional[bool] = None
-    ) -> Union["CuImage", np.ndarray, str]:
+    ) -> Optional[Union["CuImage", np.ndarray, str]]:
         """Extracts a region from the image at the given downsample level.
 
         Args:
@@ -430,12 +433,16 @@ class _cuCIMReader:
             num_workers=self.num_workers,
         )
         # Pad missing data, if enabled
-        if ((pad_missing is not None and pad_missing)
-           or (pad_missing is None and self.pad_missing)):
-            region = cucim_padded_crop(self.reader, **region_kwargs)
-        else:
-            # If padding is disabled, this will raise a ValueError.
-            region = self.reader.read_region(**region_kwargs)
+        try:
+            if ((pad_missing is not None and pad_missing)
+            or (pad_missing is None and self.pad_missing)):
+                region = cucim_padded_crop(self.reader, **region_kwargs)
+            else:
+                # If padding is disabled, this will raise a ValueError.
+                region = self.reader.read_region(**region_kwargs)
+        except ValueError as e:
+            log.error(f"Error reading region: {e}")
+            return None
 
         # Resize using the same interpolation strategy as the Libvips backend (cv2).
         if resize_factor:
