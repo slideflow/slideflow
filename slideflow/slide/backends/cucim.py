@@ -82,22 +82,23 @@ def cucim_padded_crop(
 
     x, y = location
     width, height = size
+    slide_height, slide_width = img.shape[0], img.shape[1]
     bg = [255]
     # Note that for cucim images, the shape is (height, width, channels).
     # First, return the original image if the region is within bounds.
-    if (x >= 0 and y >= 0 and x + width <= img.shape[1] and y + height <= img.shape[0]):
+    if (x >= 0 and y >= 0 and x + width <= slide_width and y + height <= slide_height):
         return img.read_region(location=(x, y), size=(width, height), level=level, **kwargs)
     # Otherwise, pad the missing region with white.
     # First, find the region that is within bounds.
     x1, y1 = max(0, x), max(0, y)
-    x2, y2 = min(img.shape[1], x + width), min(img.shape[0], y + height)
+    x2, y2 = min(slide_width, x + width), min(slide_height, y + height)
     # Read the region within bounds.
     region = img.read_region(location=(x1, y1), size=(x2 - x1, y2 - y1), level=level, **kwargs)
     # Convert to a cupy array.
     region_cp = cp.asarray(region)
     # Use cp.pad to pad the region.
-    pad_width = ((max(0, -y), max(0, y + height - img.shape[0])),
-                 (max(0, -x), max(0, x + width - img.shape[1])),
+    pad_width = ((max(0, -y), max(0, y + height - slide_height)),
+                 (max(0, -x), max(0, x + width - slide_width)),
                  (0, 0))
     region_cp = cp.pad(region_cp, pad_width, mode='constant', constant_values=bg)
     return region_cp
@@ -436,16 +437,20 @@ class _cuCIMReader:
             num_workers=self.num_workers,
         )
         # Pad missing data, if enabled
-        try:
-            if ((pad_missing is not None and pad_missing)
-            or (pad_missing is None and self.pad_missing)):
+        if ((pad_missing is not None and pad_missing)
+        or (pad_missing is None and self.pad_missing)):
+            try:
                 region = cucim_padded_crop(self.reader, **region_kwargs)
-            else:
-                # If padding is disabled, this will raise a ValueError.
+            except ValueError as e:
+                log.warning(f"Error reading region via padded crop with kwargs=({region_kwargs}): {e}")
+                return None
+        else:
+            # If padding is disabled, this will raise a ValueError.
+            try:
                 region = self.reader.read_region(**region_kwargs)
-        except ValueError as e:
-            log.error(f"Error reading region: {e}")
-            return None
+            except ValueError as e:
+                log.warning(f"Error reading region with kwargs=({region_kwargs}): {e}")
+                return None
 
         # Resize using the same interpolation strategy as the Libvips backend (cv2).
         if resize_factor:
