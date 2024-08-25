@@ -1941,6 +1941,42 @@ class WSI:
                 return roi
         return None
 
+    def get_roi_label_grid(
+        self,
+        label_map: Optional[Dict[str, int]] = None
+    ) -> Tuple[np.ndarray, np.ndarray, Dict[str, int]]:
+        """Build a grid of class labels for each ROI in the slide.
+
+        Args:
+            label_map (dict): Mapping of ROI labels to class indices. If None,
+                will create a new mapping. Defaults to None.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray, Dict[str, int]]: Tuple of:
+                - label_grid: Grid of class labels for each ROI.
+                - roi_grid: Grid of ROI IDs.
+                - label_map: Mapping of ROI labels to class indices.
+
+        """
+        # First, get unique ROI IDs
+        roi_grid = self._rasterize_rois_to_grid(self.rois).T
+
+        # Get class labels for each ROI
+        # Start with a dict mapping labels to indices
+        if label_map is None:
+            unique_labels = np.unique([r.label for r in self.rois])
+            label_map = {label: i+1 for i, label in enumerate(unique_labels)}
+
+        # Then a dictionary mapping ROI IDs to labels
+        roi_label_map = {i: label_map[roi.label] for i, roi in enumerate(self.rois)}
+
+        # Finally, a grid of labels
+        label_grid = np.zeros_like(roi_grid, dtype=np.uint8)
+        for i in range(len(self.rois)):
+            label_grid[roi_grid == i+1] = roi_label_map[i]
+
+        return label_grid, roi_grid, label_map
+
     def get_tile_coord(self, anchor='topleft') -> np.ndarray:
         """Get a coordinate grid of all tiles, restricted to those that pass QC
         and any ROI filtering.
