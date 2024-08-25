@@ -9,15 +9,15 @@ Slideflow has been designed to be extensible, and we encourage users to contribu
 MIL Model Registration
 ----------------------
 
-As discussed in :ref:`custom_mil`, Slideflow supports the registration of custom MIL models. This is done by using the ``register_mil`` decorator to register a custom MIL model.
+As discussed in :ref:`custom_mil`, Slideflow supports the registration of custom MIL models. This is done by using the ``register_model`` decorator to register a custom MIL model.
 
-For example, suppose you have a custom MIL model called ``MyMILModel`` that you want to register with Slideflow. You've already designed the model such that it meets Slideflow's MIL :ref:`requirements <custom_mil>`. Now you want to make it available for use directly within Slideflow. You can accomplish this by using the ``register_mil`` decorator:
+For example, suppose you have a custom MIL model called ``MyMILModel`` that you want to register with Slideflow. You've already designed the model such that it meets Slideflow's MIL :ref:`requirements <custom_mil>`. Now you want to make it available for use directly within Slideflow. You can accomplish this by using the ``register_model`` decorator:
 
 .. code-block:: python
 
-    from slideflow.model.mil import register_mil
+    from slideflow.model.mil import register_model
 
-    @register_mil
+    @register_model
     def my_mil_model(**kwargs):
         from . import MyMILModel
         return MyMILModel(**kwargs)
@@ -72,7 +72,7 @@ Then, in your package's root ``__init__.py`` file, write a ``register_extras()``
 
     def register_extras():
         # Import the model, and do any other necessary preparation.
-        # If my_module contains the @register_mil decorator,
+        # If my_module contains the @register_model decorator,
         # the model will be registered with Slideflow automatically.
         from . import my_module
 

@@ -285,11 +285,11 @@
 <p>Slideflow has been designed to be extensible, and we encourage users to contribute their own plugins to the Slideflow ecosystem. Plugins can be used to add new functionality to Slideflow, such as new feature extractors or new model architectures. This page provides an overview of how to create and use plugins with Slideflow.</p>
 <section id="mil-model-registration">
 <h2>MIL Model Registration<a class="headerlink" href="#mil-model-registration" title="Permalink to this heading">¶</a></h2>
-<p>As discussed in <a class="reference internal" href="../mil/#custom-mil"><span class="std std-ref">Custom Architectures</span></a>, Slideflow supports the registration of custom MIL models. This is done by using the <code class="docutils literal notranslate"><span class="pre">register_mil</span></code> decorator to register a custom MIL model.</p>
-<p>For example, suppose you have a custom MIL model called <code class="docutils literal notranslate"><span class="pre">MyMILModel</span></code> that you want to register with Slideflow. You’ve already designed the model such that it meets Slideflow’s MIL <a class="reference external" href="../mil/#custom_mil">requirements</a>. Now you want to make it available for use directly within Slideflow. You can accomplish this by using the <code class="docutils literal notranslate"><span class="pre">register_mil</span></code> decorator:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model.mil</span> <span class="kn">import</span> <span class="n">register_mil</span>
+<p>As discussed in <a class="reference internal" href="../mil/#custom-mil"><span class="std std-ref">Custom Architectures</span></a>, Slideflow supports the registration of custom MIL models. This is done by using the <code class="docutils literal notranslate"><span class="pre">register_model</span></code> decorator to register a custom MIL model.</p>
+<p>For example, suppose you have a custom MIL model called <code class="docutils literal notranslate"><span class="pre">MyMILModel</span></code> that you want to register with Slideflow. You’ve already designed the model such that it meets Slideflow’s MIL <a class="reference external" href="../mil/#custom_mil">requirements</a>. Now you want to make it available for use directly within Slideflow. You can accomplish this by using the <code class="docutils literal notranslate"><span class="pre">register_model</span></code> decorator:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model.mil</span> <span class="kn">import</span> <span class="n">register_model</span>
 
-<span class="nd">@register_mil</span>
+<span class="nd">@register_model</span>
 <span class="k">def</span> <span class="nf">my_mil_model</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">MyMILModel</span>
     <span class="k">return</span> <span class="n">MyMILModel</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -331,7 +331,7 @@
 <p>(in <code class="docutils literal notranslate"><span class="pre">my_package/__init__.py</span></code>)</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">register_extras</span><span class="p">():</span>
     <span class="c1"># Import the model, and do any other necessary preparation.</span>
-    <span class="c1"># If my_module contains the @register_mil decorator,</span>
+    <span class="c1"># If my_module contains the @register_model decorator,</span>
     <span class="c1"># the model will be registered with Slideflow automatically.</span>
     <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">my_module</span>
 
