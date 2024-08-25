@@ -1957,7 +1957,13 @@ class WSI:
                 - roi_grid: Grid of ROI IDs.
                 - label_map: Mapping of ROI labels to class indices.
 
+        Raises:
+            ValueError: If no ROIs are found in the slide.
+
         """
+        if not self.has_rois():
+            raise ValueError("No ROIs found in slide.")
+
         # First, get unique ROI IDs
         roi_grid = self._rasterize_rois_to_grid(self.rois).T
 
