@@ -199,6 +199,8 @@ class CellSegWidget(Widget):
 
     def render_outlines(self, color='red'):
         """Render outlines of the segmentations currently in view."""
+        from slideflow.segment.utils import outlines_list
+
         seg = self.segmentation
         in_view, _, view_offset = self.viz.viewer.in_view(
             seg.masks,
@@ -207,7 +209,7 @@ class CellSegWidget(Widget):
             resize=False)
 
         # Calculate and draw the outlines
-        outlines = [o for o in sf.cellseg.outlines_list(in_view) if o.shape[0] >= 3]
+        outlines = [o for o in outlines_list(in_view) if o.shape[0] >= 3]
         empty = np.zeros((in_view.shape[0], in_view.shape[1], 3), dtype=np.uint8)
         outline_img = draw_roi(empty, outlines, color=color, linewidth=2)
 
