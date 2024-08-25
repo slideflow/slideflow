@@ -137,20 +137,24 @@ def tile_worker(
                 args.downsample_level,
                 (args.extract_px, args.extract_px)
             )
-        # Perform whitespace filtering [Libvips]
-        if args.whitespace_fraction < 1:
-            ws_fraction = np.mean((np.mean(cucim2numpy(filter_region), axis=-1) > args.whitespace_threshold))
-            if (ws_fraction > args.whitespace_fraction
-               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
-                return None
+        try:
+            # Perform whitespace filtering [cucim]
+            if args.whitespace_fraction < 1:
+                ws_fraction = np.mean((np.mean(cucim2numpy(filter_region), axis=-1) > args.whitespace_threshold))
+                if (ws_fraction > args.whitespace_fraction
+                and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
+                    return None
 
-        # Perform grayspace filtering [Libvips]
-        if args.grayspace_fraction < 1:
-            hsv_region = rgb2hsv(np.asarray(filter_region))
-            gs_fraction = np.mean(hsv_region[:, :, 1] < args.grayspace_threshold)
-            if (gs_fraction > args.grayspace_fraction
-               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
-                return None
+            # Perform grayspace filtering [cucim]
+            if args.grayspace_fraction < 1:
+                hsv_region = rgb2hsv(np.asarray(filter_region))
+                gs_fraction = np.mean(hsv_region[:, :, 1] < args.grayspace_threshold)
+                if (gs_fraction > args.grayspace_fraction
+                and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
+                    return None
+        except IndexError:
+            # The image could not be filtered, which may happen for edge tiles.
+            return None
 
     # Prepare return dict with WS/GS fraction
     return_dict = {'loc': [x_coord, y_coord]}  # type: Dict[str, Any]
