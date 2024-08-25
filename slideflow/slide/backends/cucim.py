@@ -153,9 +153,7 @@ def tile_worker(
                 and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
                     return None
         except IndexError:
-            gs_fraction = 0
-            ws_fraction = 0
-            pass
+            return None
 
     # Prepare return dict with WS/GS fraction
     return_dict = {'loc': [x_coord, y_coord]}  # type: Dict[str, Any]

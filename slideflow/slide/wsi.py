@@ -67,6 +67,7 @@ class WSI:
         mpp: Optional[float] = None,
         simplify_roi_tolerance: Optional[float] = None,
         artifact_labels: Optional[List[str]] = None,
+        disable_grid: bool = False,
         **reader_kwargs: Any
     ) -> None:
         """Loads slide and ROI(s).
@@ -167,6 +168,7 @@ class WSI:
         self.__slide = None
         self._mpp_override = mpp
         self._reader_kwargs = reader_kwargs
+        self._disable_grid = disable_grid
         self.grid: np.ndarray
         self.artifact_labels = artifact_labels # type: Optional[List[str]]
         if self.artifact_labels is None:
@@ -384,8 +386,8 @@ class WSI:
         rois: List["ROI"],
         x_offset: float = 0,
         y_offset: float = 0,
-        xfact: float = 1.,
-        yfact: float = 1.,
+        xfact: Optional[float] = None,
+        yfact: Optional[float] = None,
         *,
         grid_scale: int = 1,
         invert: bool = False
@@ -412,6 +414,15 @@ class WSI:
                 return _roi.invert(*self.dimensions).poly
             else:
                 return _roi.poly
+
+        # Calculate scaling factors if not provided.
+        if xfact is None and yfact is None:
+            xfact = self.grid.shape[0] / self.dimensions[0]
+            yfact = self.grid.shape[1] / self.dimensions[1]
+        elif xfact is None:
+            xfact = yfact
+        elif yfact is None:
+            yfact = xfact
 
         # Convert ROIs to polygons.
         polys = list(map(_get_poly, rois))
@@ -504,6 +515,13 @@ class WSI:
         - 3: **grid_y**: y-coordinate of the tile in self.grid.
 
         """
+
+        # Bypass this step if the grid has been disabled.
+        if self._disable_grid:
+            self.grid = np.ones((1, 1), dtype=bool)
+            self.coord = np.array([])
+            self.estimated_num_tiles = 0
+            return
 
         # First, remove any existing ROI QC Masks, as these will be recalculated
         # when the coordinate grid is rebuilt.
@@ -1406,7 +1424,11 @@ class WSI:
         # Return an image of the applied mask.
         return Image.fromarray(img_as_ubyte(self.qc_mask))
 
-    def apply_segmentation(self, segmentation: "sf.cellseg.Segmentation") -> None:
+    def apply_segmentation(
+        self,
+        segmentation: "sf.cellseg.Segmentation",
+        apply_rois: bool = True
+    ) -> None:
         """Apply cell segmentation to the slide.
 
         This sets the coordinates to the centroids of the segmentation.
@@ -1414,10 +1436,11 @@ class WSI:
         Args:
             segmentation (slideflow.cellseg.Segmentation): Segmentation object
                 to apply.
+            apply_rois (bool): Whether to apply ROIs to the segmentation.
 
         """
         # Filter out masks outside of ROIs, if present.
-        if self.has_rois():
+        if self.has_rois() and apply_rois:
             log.debug(f"Applying {len(self.rois)} ROIs to segmentation.")
             rois = self.get_rois(ignore_artifact=True)
             segmentation.apply_rois(1, [r.poly for r in rois])
