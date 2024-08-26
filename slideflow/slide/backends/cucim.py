@@ -34,14 +34,19 @@ def get_cucim_reader(path: str, *args, **kwargs):
     return _cuCIMReader(path, *args, **kwargs)
 
 
-def cucim2numpy(img: Union["CuImage", "cp.ndarray"]) -> np.ndarray:
+def cucim2numpy(img: Union["CuImage", "cp.ndarray", "np.ndarray"]) -> np.ndarray:
     """Convert a cuCIM image to a numpy array."""
     from cucim import CuImage
-    import cupy as cp
     if isinstance(img, CuImage):
         np_img = np.asarray(img)
-    elif isinstance(img, cp.ndarray):
-        np_img = img.get()
+    elif isinstance(img, np.ndarray):
+        np_img = img
+    else:
+        import cupy as cp
+        if isinstance(img, cp.ndarray):
+            np_img = img.get()
+        else:
+            raise ValueError(f"Unsupported image type: {type(img)}")
     return ((img_as_float32(np_img)) * 255).astype(np.uint8)
 
 
@@ -61,7 +66,7 @@ def cucim_padded_crop(
     size: Tuple[int, int],
     level: int,
     **kwargs
-) -> Union["CuImage", "cp.ndarray"]:
+) -> Union["CuImage", "np.ndarray"]:
     """Read a region from the image, padding missing data.
 
     Args:
@@ -74,12 +79,9 @@ def cucim_padded_crop(
 
     Returns:
         Original image (``CuImage``) if the region is within bounds, otherwise
-        a padded region (``cp.ndarray``).
+        a padded region (``np.ndarray``).
 
     """
-    # Delayed import to avoid multiprocessing issues
-    import cupy as cp
-
     x, y = location
     width, height = size
     slide_height, slide_width = img.shape[0], img.shape[1]
@@ -94,13 +96,13 @@ def cucim_padded_crop(
     x2, y2 = min(slide_width, x + width), min(slide_height, y + height)
     # Read the region within bounds.
     region = img.read_region(location=(x1, y1), size=(x2 - x1, y2 - y1), level=level, **kwargs)
-    # Convert to a cupy array.
-    region_cp = cp.asarray(region)
-    # Use cp.pad to pad the region.
+    # Convert to a numpy array.
+    region_cp = np.asarray(region)
+    # Use np.pad to pad the region.
     pad_width = ((max(0, -y), max(0, y + height - slide_height)),
                  (max(0, -x), max(0, x + width - slide_width)),
                  (0, 0))
-    region_cp = cp.pad(region_cp, pad_width, mode='constant', constant_values=bg)
+    region_cp = np.pad(region_cp, pad_width, mode='constant', constant_values=bg)
     return region_cp
 
 
@@ -428,6 +430,7 @@ class _cuCIMReader:
 
         Returns:
             Image in the specified format.
+
         """
         # Define region kwargs
         region_kwargs = dict(
