@@ -51,7 +51,7 @@ def auto_dataset_allow_none(method: Callable):
 def _filters_to_dataset(obj, method, model, *args, **kwargs):
     filter_keys = ['filters', 'filter_blank', 'min_tiles']
     has_filters = any([k in kwargs for k in filter_keys])
-    if model is not None:
+    if model is not None and isinstance(model, str):
         try:
             config = sf.util.get_model_config(model)
         except (errors.ModelParamsNotFoundError, TypeError):
@@ -59,6 +59,11 @@ def _filters_to_dataset(obj, method, model, *args, **kwargs):
                 config = None
             else:
                 raise
+    elif model is not None:
+        if 'dataset' in kwargs:
+            config = None
+        else:
+            raise ValueError("The 'dataset' keyword argument must be supplied; a dataset cannot be auto-inferred.")
     if has_filters and 'dataset' in kwargs:
         k_s = ', '.join(filter_keys)
         raise errors.ProjectError(
