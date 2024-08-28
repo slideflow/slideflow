@@ -462,13 +462,29 @@ class WSI:
         Returns:
             np.ndarray: Rasterized polygons.
         """
+        # Coverage size of the tile extraction grid, in base dimensions
+        covered_x = int(self.full_stride * (self.grid.shape[0] - 1) + self.full_extract_px)  # type: ignore
+        covered_y = int(self.full_stride * (self.grid.shape[1] - 1) + self.full_extract_px)  # type: ignore
+
+        # Proportion of the grid covered by the ROIs
+        proportion_covered_x = 1 if grid_scale == 1 else (covered_x / self.dimensions[0])
+        proportion_covered_y = 1 if grid_scale == 1 else (covered_y / self.dimensions[1])
+
+        # Scaling factors for the grid
+        if grid_scale != 1:
+            grid_scale_x = grid_scale / proportion_covered_x
+            grid_scale_y = grid_scale / proportion_covered_y
+        else:
+            grid_scale_x = grid_scale
+            grid_scale_y = grid_scale
+
         # Rasterize polygons for ROIs individually, to keep track of
         # which ROI each tile belongs to, then merge.
         roi_grid = np.stack([
             rasterio.features.rasterize(
                 [poly],
-                out_shape=(self.grid.shape[1] * grid_scale,
-                           self.grid.shape[0] * grid_scale),
+                out_shape=(int(np.round(self.grid.shape[1] * grid_scale_y)),
+                           int(np.round(self.grid.shape[0] * grid_scale_x))),
                 all_touched=False).astype(bool).astype(int) * (i + 1)
             for i, poly in enumerate(polys)
         ], axis=0)
@@ -568,22 +584,14 @@ class WSI:
         roi_by_center = (self.roi_filter_method == 'center')
         if self.has_rois():
 
-            # Full extraction size and stride
-            full_extract = self.tile_um / self.mpp
-            stride = full_extract / self.stride_div
-
-            # Coverage size of the extracted image tiles
-            xtrim = int(stride * (self.grid.shape[0]))  # type: ignore
-            ytrim = int(stride * (self.grid.shape[1]))  # type: ignore
+            # Coverage size of the tile extraction grid, in base dimensions
+            covered_x = int(self.full_stride * (self.grid.shape[0] - 1) + self.full_extract_px)  # type: ignore
+            covered_y = int(self.full_stride * (self.grid.shape[1] - 1) + self.full_extract_px)  # type: ignore
 
             # Degree to which the ROIs will need to be scaled
             # to match the extracted image tile grid
-            xfact = self.grid.shape[0] / xtrim
-            yfact = self.grid.shape[1] / ytrim
-
-            # Offset to align the ROI polygons with the image tile grid
-            x_offset = - (full_extract/2 - stride/2)
-            y_offset = - (full_extract/2 - stride/2)
+            xfact = self.grid.shape[0] / covered_x
+            yfact = self.grid.shape[1] / covered_y
 
             # Separate ROIs by whether they are artifact or not
             rois = self.get_rois(ignore_artifact=True)
@@ -591,8 +599,6 @@ class WSI:
 
             # Prepare ROI rasterization arguments
             rasterize_kw = dict(
-                x_offset=x_offset,
-                y_offset=y_offset,
                 xfact=xfact,
                 yfact=yfact,
                 grid_scale=(1 if roi_by_center else 50),
@@ -752,6 +758,16 @@ class WSI:
     def dimensions(self) -> Tuple[int, int]:
         """Dimensions of highest-magnification level (width, height)"""
         return self.slide.dimensions
+
+    @property
+    def height(self) -> int:
+        """Height of highest-magnification level."""
+        return self.dimensions[1]
+
+    @property
+    def width(self) -> int:
+        """Width of highest-magnification level."""
+        return self.dimensions[0]
 
     @property
     def levels(self) -> Dict:
@@ -1966,7 +1982,8 @@ class WSI:
 
     def get_roi_label_grid(
         self,
-        label_map: Optional[Dict[str, int]] = None
+        label_map: Optional[Dict[str, int]] = None,
+        **kwargs
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, int]]:
         """Build a grid of class labels for each ROI in the slide.
 
@@ -1988,7 +2005,7 @@ class WSI:
             raise ValueError("No ROIs found in slide.")
 
         # First, get unique ROI IDs
-        roi_grid = self._rasterize_rois_to_grid(self.rois).T
+        roi_grid = self._rasterize_rois_to_grid(self.rois, **kwargs).T
 
         # Get class labels for each ROI
         # Start with a dict mapping labels to indices
